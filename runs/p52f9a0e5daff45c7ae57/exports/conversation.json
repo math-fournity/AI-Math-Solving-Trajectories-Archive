@@ -1,0 +1,1048 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "stump-calculator",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-20T22:00:37.013056+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-20T22:00:37.013580+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-20T22:00:37.021194+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-20T22:00:37.013923+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p52f9a0e5daff45c7ae57 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Thursday, 2026-08-20\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-20T22:00:37.014423+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在AGENTS.md中只记录脚本路径和一行用法示例。AGENTS.md是认知索引和规则，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。放到项目已有的脚本目录（如`xishujuzhen/solver_harness/`）或项目的`scripts/`目录中。\n\n4. **在项目AGENTS.md中做好索引**——新脚本必须在项目AGENTS.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **必须写成文件** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 检查项目内是否已有类似脚本（grep搜索、看AGENTS.md索引）\n3. **已有** → 改进那个脚本（edit工具修改），编译验证\n4. **没有** → 在项目脚本目录中创建新文件（write工具），编译验证\n5. 在项目AGENTS.md中记录脚本索引（如已有相关节则更新，如没有则新增）\n6. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新AGENTS.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是索引不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ✅ 改进`batch_status.py`的`cmd_dead_cleanup`函数\n- ✅ 新建`enqueue_problem.py`并在AGENTS.md硬约束6中记录\n- ✅ AGENTS.md中只写`pipe_control.py status`一行用法，不写完整调用参数和输出示例\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p52f9a0e5daff45c7ae57/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nFor a binary string  $S$  (i.e. a string of 0 's and 1's) that contains at least one 0 , we produce a binary string  $f(S)$  as follows:\n- If the substring 110 occurs in  $S$ , replace each instance of 110 with 01 to produce  $f(S)$ ;\n- Otherwise, replace the leftmost occurrence of 0 in  $S$  by 1 to produce  $f(S)$ .\nGiven binary string  $S$  of length  $n$ , we define the lifetime of  $S$  to be the number of times  $f$  can be applied to  $S$  until the resulting string contains no more 0 's. For example, $$ \n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-20T22:00:37.014436+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-20T22:00:37.026630+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-20T22:00:37.027452+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **search-tools**: 网络搜索武器库（Exa/Serper/Jina等） (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-20T22:00:39.478311+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me read the problem carefully. The problem statement seems to be cut off. Let me re-read.\n\nThe problem: For a binary string S that contains at least one 0, we produce f(S) as follows:\n- If the substring 110 occurs in S, replace each instance of 110 with 01 to produce f(S);\n- Otherwise, replace the leftmost occurrence of 0 in S by 1 to produce f(S).\n\nGiven binary string S of length n, we define the lifetime of S to be the number of times f can be applied to S until the resulting string contains no more 0's.\n\nThe example seems cut off (\"For example, $$\").\n\nWait, the problem statement is incomplete. It says \"For example, $$\" and then cuts off. There's no actual question asked!\n\nLet me re-read the AGENTS.md problem. The problem text ends with \"For example, $$\" and then there's the constraints section. So the actual problem question is missing.\n\nHmm, but the task says to solve the problem. Let me look more carefully.\n\nActually, the problem statement appears truncated. The actual question (what we need to find/prove) is missing. The example is also cut off.\n\nWait, but this looks like a known competition problem. Let me think... This is likely from a math olympiad. The operation: replace 110 with 01, or if no 110, replace leftmost 0 with 1. Lifetime = number of applications until no 0's remain.\n\nThis is likely asking to find the maximum lifetime over all binary strings of length n, or to compute the lifetime, or prove some formula.\n\nGiven the problem is truncated, I should note that. But let me think about what the problem likely is. This seems like it could be from ISL or a national olympiad. \n\nActually, let me reconsider. The problem statement is genuinely incomplete - it cuts off at \"For example, $$\". The question itself is not stated. \n\nHmm, but the instructions say to solve it. Let me think about whether I can infer the question.\n\nActually, this is a known problem. Let me think... This might be from the 2024 or 2025 olympiad season. The operation and \"lifetime\" concept...\n\nLet me think about what the natural question would be. Probably: \"Find the maximum possible lifetime of a binary string of length n\" or \"determine the lifetime of S = ... \" or \"prove that the lifetime is at most/at least something.\"\n\nActually, since the problem is truncated and I can't see the actual question or the example, I should be careful. But the task explicitly asks me to solve it.\n\nLet me think about this problem more. This is likely a competition problem where we need to find the maximum lifetime.\n\nLet me analyze the operation:\n- 110 → 01 (replaces 3 chars with 2 chars, reducing length by 1, and reduces number of 1's by 1, keeps number of 0's same... wait: 110 has two 1's and one 0. 01 has one 1 and one 0. So number of 1's decreases by 1, number of 0's stays same, length decreases by 1.)\n- If no 110, replace leftmost 0 with 1: number of 0's decreases by 1, number of 1's increases by 1, length stays same.\n\nThe process ends when there are no 0's left, i.e., the string is all 1's.\n\nLet me think about invariants. Let's count the number of 0's, call it z, and the number of 1's, call it o.\n\nOperation 1 (110→01): z stays, o decreases by 1, length decreases by 1.\nOperation 2 (0→1): z decreases by 1, o increases by 1, length stays.\n\nThe process ends when z = 0.\n\nEach application of operation 2 reduces z by 1. Operation 1 doesn't change z. So the number of times operation 2 is applied is exactly z (the initial number of 0's)... wait, no. Operation 1 keeps z the same. So to get from z zeros to 0 zeros, we need exactly z applications of operation 2. But we can also apply operation 1 many times in between.\n\nSo lifetime = (number of operation 1 applications) + z.\n\nTo maximize lifetime, we want to maximize the number of operation 1 applications.\n\nEach operation 1 reduces o (number of 1's) by 1. Each operation 2 increases o by 1. Initially o = o_0. At the end, the string is all 1's of some length L. The final number of 1's is L.\n\nLet me track: let z = number of 0's, o = number of 1's, L = length = z + o.\n\nOperation 1: z → z, o → o-1, L → L-1.\nOperation 2: z → z-1, o → o+1, L → L.\n\nAfter the whole process: z = 0, o = L_final, and L_final = o_final.\n\nLet's say operation 1 is applied a times and operation 2 is applied b times. Then:\n- z_final = z_0 - b = 0, so b = z_0.\n- o_final = o_0 - a + b = o_0 - a + z_0.\n- L_final = L_0 - a = n - a.\n- Also L_final = o_final (since z_final = 0), so n - a = o_0 - a + z_0 = n - a. This is always true! So this doesn't constrain a.\n\nSo the invariant doesn't directly bound a. We need a more refined analysis.\n\nHmm, so the lifetime is a + z_0 where a is the number of operation 1 applications, and we need to figure out what a can be.\n\nLet me think about this differently. Let me think of the string as a sequence and track something more subtle.\n\nLet me think about the \"potential\" or some weighted sum.\n\nConsider the positions. Let's think of the string as $s_1 s_2 \\ldots s_n$.\n\nActually, let me think about a known approach. Consider the value $V = \\sum_i s_i \\cdot 2^{i}$ or some similar weighted sum, and see how it changes.\n\nActually, let me think about it as: assign weight to each position. \n\nHmm, let me think about small examples first.\n\nLet me try S = \"0\" (n=1). No 110, so replace leftmost 0 with 1 → \"1\". Lifetime = 1.\n\nS = \"00\". No 110. Replace leftmost 0 → \"10\". No 110. Replace leftmost 0 → \"11\". Lifetime = 2.\n\nS = \"10\". No 110. Replace leftmost 0 → \"11\". Lifetime = 1.\n\nS = \"110\". Has 110. Replace 110 with 01 → \"01\". No 110. Replace leftmost 0 → \"11\". Lifetime = 2.\n\nS = \"1100\". Has 110. Replace → \"010\". No 110 (010 has no 110). Replace leftmost 0 → \"110\". Has 110. Replace → \"01\". Replace leftmost 0 → \"11\". Lifetime = 4.\n\nWait let me redo: \"1100\" → replace 110 with 01 → \"010\". \"010\": does it contain 110? No. Replace leftmost 0 → \"110\". \"110\" contains 110 → \"01\". \"01\" no 110 → \"11\". So lifetime = 4.\n\nS = \"11000\". → \"0100\". No 110. → \"1100\". → \"010\". → \"110\". → \"01\". → \"11\". Lifetime = 6.\n\nHmm interesting. Let me try \"11100\". Contains 110? \"11100\" - looking for 110: positions 2-4 = \"110\"? s2s3s4 = 1,1,0 = \"110\". Yes. Replace → \"1\" + \"01\" + \"0\" = \"1010\". Wait, \"11100\", the 110 is at positions 2,3,4 (1-indexed): s2=1, s3=1, s4=0. Replace with 01: s1=1, then 01, then s5=0 → \"1\" + \"01\" + \"0\" = \"1010\". \n\n\"1010\": contains 110? No. Replace leftmost 0 → \"1110\". Contains 110? \"1110\": s2s3s4 = 110. Yes → \"1\" + \"01\" = \"101\". \"101\": no 110. → \"111\". Lifetime = 5.\n\nLet me try to find a pattern. Let me think about what determines the lifetime.\n\nLet me think about the problem as a token/weight system. \n\nConsider representing the string as a number in a clever base. Let me think of the string read left to right, and assign values.\n\nActually, let me think about it from right to left. Consider the rightmost character as least significant.\n\nLet me try: interpret the string as a number in base 2, but read from right to left (so the rightmost bit is the least significant). Actually, let me think about what the operations do to such a number.\n\nHmm, this is getting complex. Let me think about the problem differently.\n\nLet me consider the \"weight\" of a string defined as follows. Think of the string as a sequence of blocks. Actually, let me think about the problem in terms of a game on a sequence.\n\nLet me reconsider. Let me think of the 0's as \"tokens\" that need to be eliminated, and the 1's as \"fuel\". \n\nOperation 2 (0→1): consumes a 0 (turns it into 1), gaining a 1.\nOperation 1 (110→01): consumes a 1 (net), keeping the 0 but moving it left and shortening the string.\n\nActually, in operation 1, the 0 in \"110\" stays as a 0 but moves to the left (from position 3 to position 2 in the local context), and we lose a 1.\n\nLet me think about the position of 0's. In \"110\" → \"01\", the 0 was at the right of the two 1's, and now it's at the left of one 1. So the 0 moved left relative to the 1's.\n\nHmm, let me think about this as a sorting / movement process.\n\nLet me define the \"inversion count\" or some measure of how far 0's are from the left.\n\nActually, let me think about the total \"displacement\" of 0's. Consider the sum of positions of all 0's (from the left, 1-indexed). \n\nFor \"110\" → \"01\": In \"110\", the 0 is at position 3. In \"01\", the 0 is at position 1 (but the string is shorter). Hmm, this is tricky because the string length changes.\n\nLet me try a different approach. Let me think about the problem as follows: assign to each 0 a \"weight\" based on how many 1's are to its left.\n\nActually, let me think about the classic approach for such problems: find a monovariant (something that changes by exactly 1 each step, or by a bounded amount).\n\nLet me compute the lifetime for several strings and look for a pattern.\n\nLet me define things more carefully and compute.\n\nLet me think about strings of the form $1^a 0$ (a ones followed by a zero).\n\n\"10\" (a=1): → \"11\". Lifetime 1.\n\"110\" (a=2): → \"01\" → \"11\". Lifetime 2.\n\"1110\" (a=3): → \"101\" → \"111\". Lifetime 2.\n\nWait: \"1110\" contains 110 at positions 2-4. → \"1\"+\"01\" = \"101\". \"101\" no 110 → \"111\". Lifetime 2.\n\n\"11110\" (a=4): contains 110 at positions 3-5. → \"11\"+\"01\" = \"1101\". \"1101\" contains 110 at positions 1-3 → \"01\"+\"1\" = \"011\". \"011\" no 110 → \"111\". Lifetime 3.\n\n\"111110\" (a=5): 110 at positions 4-6 → \"111\"+\"01\" = \"11101\". \"11101\": 110 at positions 2-4 → \"1\"+\"01\"+\"1\" = \"1011\". \"1011\" no 110 → \"1111\". Lifetime 3.\n\n\"1111110\" (a=6): 110 at pos 5-7 → \"1111\"+\"01\" = \"111101\". 110 at pos 3-5 → \"11\"+\"01\"+\"1\" = \"11011\". 110 at pos 1-3 → \"01\"+\"11\" = \"0111\". → \"1111\". Lifetime 4.\n\nSo for $1^a 0$: \na=1: 1\na=2: 2\na=3: 2\na=4: 3\na=5: 3\na=6: 4\n\nPattern: lifetime = ⌈a/2⌉ + ... hmm. a=1→1, a=2→2, a=3→2, a=4→3, a=5→3, a=6→4. So lifetime = ⌊(a+1)/2⌋? a=1: 1, a=2: 1... no. \n\nActually: a=1→1, a=2→2, a=3→2, a=4→3, a=5→3, a=6→4. This is ⌈a/2⌉? a=1: ⌈0.5⌉=1 ✓, a=2: ⌈1⌉=1 ✗. No.\n\n⌊(a+2)/2⌋? a=1: 1, a=2: 2, a=3: 2, a=4: 3, a=5: 3, a=6: 4. Yes! That's ⌊(a+2)/2⌋ = ⌊a/2⌋ + 1.\n\nCheck: a=1: ⌊0.5⌋+1 = 0+1 = 1 ✓. a=2: 1+1=2 ✓. a=3: 1+1=2 ✓. a=4: 2+1=3 ✓. a=5: 2+1=3 ✓. a=6: 3+1=4 ✓.\n\nSo for $1^a 0$, lifetime = ⌊a/2⌋ + 1.\n\nHmm interesting. Let me think about why. The number of operation 1 applications is ⌊a/2⌋, and then 1 operation 2. Total ⌊a/2⌋ + 1.\n\nNow let me think about strings with multiple 0's.\n\nLet me try \"1100\" again: lifetime 4. This is $1^2 0^2$. \n\"11000\": lifetime 6. $1^2 0^3$.\n\"110000\": let me compute. → \"01000\" → \"11000\" → \"0100\" → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 8.\n\nSo $1^2 0^k$: k=1: 2, k=2: 4, k=3: 6, k=4: 8. Lifetime = 2k.\n\nAnd $1^a 0$ had lifetime ⌊a/2⌋ + 1.\n\nLet me try $1^3 0^2$ = \"11100\": lifetime 5 (computed earlier).\n$1^3 0^3$ = \"111000\": → \"10100\" (110 at pos 2-4 → \"1\"+\"01\"+\"00\" = \"10100\"). \"10100\" no 110 → \"11100\" → \"1010\" → \"1110\" → \"101\" → \"111\". \n\nWait let me redo \"111000\". Length 6. Contains 110? \"111000\": positions 2,3,4 = 1,1,0 = \"110\". Yes. Replace → \"1\" + \"01\" + \"00\" = \"10100\". \n\"10100\": contains 110? \"10100\" - no \"110\" substring. Replace leftmost 0 → \"11100\".\n\"11100\": 110 at pos 2-4 → \"1\"+\"01\"+\"0\" = \"1010\".\n\"1010\": no 110 → \"1110\".\n\"1110\": 110 at pos 2-4 → \"1\"+\"01\" = \"101\".\n\"101\": no 110 → \"111\".\nLifetime = 6.\n\nSo $1^3 0^k$: k=1: 2, k=2: 5, k=3: 6.\n\nHmm, let me also compute $1^3 0^4$ = \"1110000\":\n→ \"101000\" → \"111000\" → \"10100\" → \"11100\" → \"1010\" → \"1110\" → \"101\" → \"111\". \nLifetime = 8.\n\n$1^3 0^k$: k=1: 2, k=2: 5, k=3: 6, k=4: 8.\n\nHmm, the differences: 2, 5, 6, 8. Differences: 3, 1, 2. Not obvious.\n\nLet me reconsider. Let me think about this more carefully with a potential function.\n\nLet me think about the string as representing a number. Let me read the string from right to left and interpret 0's and 1's.\n\nIdea: Consider the \"value\" $V(S) = \\sum_{i} (\\text{position of } i\\text{-th character from right}) \\cdot s_i$... no, let me think differently.\n\nLet me think about the Zeckendorf / Fibonacci representation idea. \n\nActually, let me think about what happens to the \"binary value\" of the string when read as a number.\n\nLet me read the string left to right as a binary number: $S = s_1 s_2 \\ldots s_n$, value $= \\sum_{i=1}^{n} s_i \\cdot 2^{n-i}$.\n\nOperation 1 (110 → 01): The substring \"110\" at some position. In terms of the binary value, \"110\" as a 3-bit chunk has value 6, and \"01\" as a 2-bit chunk has value 1. But the positions shift because the length changes. This is complicated.\n\nLet me try reading right to left: $V = \\sum_{i=1}^{n} s_i \\cdot 2^{i-1}$ (rightmost is least significant).\n\n\"110\" at positions j, j+1, j+2 (1-indexed from left). In the right-to-left reading, position j from left is position n-j+1 from right, contributing $s_j \\cdot 2^{n-j}$. \n\nThis is getting complicated. Let me try a completely different approach.\n\nLet me think about the process as moving 0's to the left through 1's, and each move costs something.\n\nActually, let me think about it as follows. The 0's need to be \"processed\" (turned into 1's). A 0 can be turned into a 1 directly (operation 2), but only when there's no 110 pattern. The 110 pattern allows a 0 to \"move left\" past two 1's (consuming one 1 in the process).\n\nLet me think of each 0 as having a \"position\" and the 1's as a resource.\n\nLet me try to think of the lifetime as a function of the string and find a clean formula.\n\nLet me try the potential $\\Phi(S) = \\sum_{i: s_i = 0} w_i$ where $w_i$ is some weight depending on position $i$.\n\nFor operation 2 (leftmost 0 → 1): removes the leftmost 0, so $\\Phi$ decreases by $w_{pos}$ where pos is the position of the leftmost 0.\n\nFor operation 1 (110 → 01): The 0 in \"110\" is at some position $p$. After replacement, it becomes \"01\" where the 0 is at position $p-1$ (one position to the left, and the string shortens by 1). \n\nHmm, but the string shortening makes position-based weights tricky.\n\nLet me try weights based on the number of 1's to the left of each 0, or something position-independent.\n\nAlternative idea: Let me think of the string as a sequence of \"runs\": $1^{a_1} 0^{b_1} 1^{a_2} 0^{b_2} \\ldots$\n\nFor \"1100\" = $1^2 0^2$: runs are a1=2, b1=2.\nFor \"11100\" = $1^3 0^2$: a1=3, b1=2.\n\nLet me think about what operation 1 does to the run structure. \"110\" within a run of 1's followed by 0's: $1^a 0^b$ with $a \\geq 2, b \\geq 1$. The 110 is the last two 1's and the first 0. Replacing 110 with 01: the last two 1's and first 0 become 0 and 1. So $1^a 0^b \\to 1^{a-2} \\cdot 01 \\cdot 0^{b-1} = 1^{a-2} 0 1 0^{b-1} = 1^{a-2} 0 1 0^{b-1}$.\n\nSo the run structure changes from $1^a 0^b$ to $1^{a-2} 0^1 1^1 0^{b-1}$. We've split the runs!\n\nSo after one operation 1 on $1^a 0^b$ (a≥2, b≥1): we get $1^{a-2} 0 1 0^{b-1}$.\n\nNow if a-2 ≥ 2, i.e., a ≥ 4, then $1^{a-2} 0$ still has a 110 pattern (the last two 1's of the $1^{a-2}$ block and the 0). So we'd apply operation 1 again: $1^{a-2} 0 1 0^{b-1} \\to 1^{a-4} 0 1 0 1 0^{b-1}$.\n\nThis continues until the leading 1-block has fewer than 2 ones. So if $a = 2q + r$ where $r \\in \\{0, 1\\}$:\n- If $r = 0$ (a even): after q operations, we get $0 (10)^{q-1} 0^{b-1}$... wait let me be more careful.\n\nStarting: $1^a 0^b$. \nAfter 1 op: $1^{a-2} 0 1 0^{b-1}$\nAfter 2 ops: $1^{a-4} 0 1 0 1 0^{b-1}$\nAfter k ops: $1^{a-2k} 0 (1 0)^{k} 0^{b-1}$... \n\nHmm wait, let me recheck. After 1 op on $1^a 0^b$: $1^{a-2} 0 1 0^{b-1}$. The 110 pattern: we need two consecutive 1's followed by a 0. In $1^{a-2} 0 1 0^{b-1}$, the 1's are in the block $1^{a-2}$ and then a single 1 later. If $a-2 \\geq 2$, the 110 is at the end of the $1^{a-2}$ block and the following 0. So: $1^{a-2} 0 1 0^{b-1} \\to 1^{a-4} 0 1 0 1 0^{b-1}$.\n\nAfter k ops: $1^{a-2k} (0 1)^k 0^{b-1}$... let me verify. k=1: $1^{a-2} (01)^1 0^{b-1} = 1^{a-2} 0 1 0^{b-1}$ ✓. k=2: $1^{a-4} (01)^2 0^{b-1} = 1^{a-4} 0 1 0 1 0^{b-1}$ ✓.\n\nWe continue while $a - 2k \\geq 2$, i.e., $k \\leq (a-2)/2$, so the last operation 1 is at $k = \\lfloor a/2 \\rfloor$ (if a even, $k$ goes up to $a/2 - 1$... wait).\n\nWe stop when $a - 2k < 2$, i.e., $a - 2k \\in \\{0, 1\\}$. So $k = \\lfloor a/2 \\rfloor$.\n\nIf a is even: $k = a/2$, result is $1^0 (01)^{a/2} 0^{b-1} = (01)^{a/2} 0^{b-1}$.\nIf a is odd: $k = (a-1)/2$, result is $1^1 (01)^{(a-1)/2} 0^{b-1} = 1 (01)^{(a-1)/2} 0^{b-1}$.\n\nNow, in either case, there's no more 110 pattern (since we have at most single 1's between 0's). So we switch to operation 2.\n\nLet me handle the case where the string is just $1^a 0^b$ (a single block of 1's followed by 0's).\n\nCase 1: a even, a = 2m. After m operations of type 1: $(01)^m 0^{b-1}$. This is $0 1 0 1 \\ldots 0 1 0^{b-1}$, which starts with 0. No 110. Now we apply operation 2 repeatedly.\n\n$(01)^m 0^{b-1}$: The string is $0 1 0 1 \\ldots 0 1 0 \\ldots 0$ (m copies of \"01\" followed by b-1 zeros). Total 0's: m + (b-1) = m + b - 1. Total 1's: m.\n\nNow operation 2 replaces the leftmost 0 with 1. The leftmost 0 is at position 1. After replacement: $1 1 0 1 \\ldots$. Now we have \"110\" at the start! So operation 1 kicks in.\n\nThis is getting complex. Let me trace through a specific example.\n\n$1^4 0^2$ = \"1100\" → after 2 type-1 ops: $(01)^2 0^1 = \"01010\"$. \n\nWait, \"1100\" → \"010\" (1 type-1) → but \"010\" has no 110, so we'd do type-2. Hmm, I think I made an error above. Let me recheck.\n\n\"1100\": 110 at positions 1-3. Replace → \"01\" + \"0\" = \"010\". Now \"010\" has no 110. So only 1 type-1 operation, not 2.\n\nI see my error. After the first type-1 operation on $1^a 0^b$, we get $1^{a-2} 0 1 0^{b-1}$. For a=4, b=2: $1^2 0 1 0^1 = \"11010\"$. But wait, \"1100\" → \"010\", which is $0 1 0$, not $1^2 0 1 0$. Let me recheck.\n\n\"1100\": the 110 is at positions 1,2,3 (s1=1, s2=1, s3=0). Replace with \"01\": we get \"01\" + s4 = \"01\" + \"0\" = \"010\". So the result is \"010\", which is $0^1 1^1 0^1$. \n\nBut according to my formula, $1^4 0^2 \\to 1^{4-2} 0 1 0^{2-1} = 1^2 0 1 0 = \"11010\"$. That doesn't match! The issue is that \"1100\" is $1^2 0^2$, not $1^4 0^2$.\n\nOh I see, I mislabeled. \"1100\" has a=2 (two 1's) and b=2 (two 0's). So $1^2 0^2$.\n\n$1^2 0^2 \\to 1^0 0 1 0^1 = \"010\"$. ✓ (a=2, m=1, result $(01)^1 0^1 = \"010\"$.)\n\nOK so my formula was right, I just mislabeled the example. Let me redo.\n\n$1^a 0^b$ with a even = 2m: after m type-1 ops → $(01)^m 0^{b-1}$.\n\nFor $1^2 0^2$ (a=2, m=1, b=2): → $(01)^1 0^1 = \"010\"$. Then type-2: leftmost 0 → \"110\". Type-1: → \"01\". Type-2: → \"11\". Total: 1 (type1) + 1 (type2) + 1 (type1) + 1 (type2) = 4. ✓ (lifetime of \"1100\" is 4).\n\nOK so the process is more complex because after type-2 operations, new 110 patterns can form. Let me think about this more carefully.\n\nLet me think about the string $(01)^m 0^{b-1}$ and trace the process.\n\n$(01)^m 0^{b-1} = 0 1 0 1 \\ldots 0 1 0 0 \\ldots 0$ (m \"01\"s followed by b-1 \"0\"s).\n\nThe leftmost 0 is at position 1. Type-2: replace with 1 → $1 1 0 1 0 1 \\ldots 0 1 0^{b-1}$. Now we have \"110\" at positions 1-3. Type-1: → $0 1 0 1 \\ldots 0 1 0^{b-1}$ but shorter by 1. \n\nHmm wait. $1 1 0 1 0 1 \\ldots$: the \"110\" at positions 1-3 gets replaced with \"01\": → $0 1 1 0 1 \\ldots$. Hmm, no. Let me be careful.\n\nThe string after type-2 on $(01)^m 0^{b-1}$: the first character 0 becomes 1, giving $1(1 0 1 0 \\ldots) = 1 1 0 1 0 1 \\ldots 0 1 0^{b-1}$. Wait, $(01)^m = 0 1 0 1 \\ldots 0 1$ (m copies). Replacing the first 0 with 1: $1 1 0 1 0 1 \\ldots 0 1 0^{b-1}$. \n\nHmm, $(01)^m = 0,1,0,1,...,0,1$ (2m characters). Replacing position 1 (which is 0) with 1: $1,1,0,1,0,1,...,0,1,0,...,0$. So the string is $1 1 0 1 0 1 \\ldots 0 1 0^{b-1}$, which has \"110\" at positions 1-3.\n\nType-1 on this \"110\": replace positions 1-3 \"110\" with \"01\": → $0 1 1 0 1 \\ldots 0 1 0^{b-1}$. \n\nHmm, so we get $0 1 1 0 1 0 1 \\ldots 0 1 0^{b-1}$. This is $0 1 (1 0 1 0 1 \\ldots)$. Now \"110\" appears at positions 2-4: $1,1,0$. Type-1: → $0 0 1 1 0 1 \\ldots$. \n\nHmm, this is getting complicated. It seems like the 1's are \"traveling\" through the string. Let me think about this differently.\n\nLet me think about a cleaner potential function. \n\nIdea: Think of the string as a sequence and define the \"value\" as $\\sum_{i=1}^{n} s_i \\cdot F_i$ for some sequence $F_i$. We want the value to decrease by exactly 1 with each operation (either type).\n\nFor type-2 (0→1 at position p): the value increases by $F_p$. For this to be a decrease of 1, we'd need $F_p = -1$, but the leftmost 0 can be at different positions, so this doesn't work directly.\n\nAlternatively, think of it as the value increasing by 1 each step, and the lifetime equals the final value minus initial value.\n\nLet me think about the \"energy\" or \"potential\" that increases by 1 each step.\n\nLet me try: $\\Phi(S) = \\sum_{i=1}^{n} s_i \\cdot c_i$ where $c_i$ are coefficients to be determined, and we want $\\Phi(f(S)) = \\Phi(S) + 1$ for both operations.\n\nFor type-2 (leftmost 0 at position p becomes 1): $\\Phi$ changes by $+c_p$. We want this to be $+1$, so $c_p = 1$ for all possible positions $p$ of the leftmost 0. But the leftmost 0 can be at any position, so all $c_i = 1$? Then $\\Phi$ = number of 1's. But type-1 changes the number of 1's by -1, not +1. Contradiction.\n\nSo a simple linear potential with position-based coefficients won't work because the string length changes.\n\nLet me think about a potential that accounts for the changing length. \n\nAlternative: Think of the string as embedded in an infinite sequence (padded with something), and use position-based weights that don't shift.\n\nLet me think of the string as occupying positions $1, 2, \\ldots, n$ but when the string shortens (type-1), the characters after the replacement shift left. This shifting makes position-based weights tricky.\n\nAlternative approach: Think of the string from right to left, with the right end fixed. So the rightmost character is always at position 1 (from the right), and when the string shortens, it shortens from the left... no, type-1 can happen anywhere.\n\nHmm, actually type-1 (110→01) shortens the string by 1, and the shortening happens at the location of the replacement. Characters to the right of the replacement shift left by 1.\n\nThis is really a \"chip-firing\" or \"abelian sandpile\" type problem, or maybe related to the \"hydra game\" or \"Goodstein sequence.\"\n\nLet me think about it as a combinatorial game on a sequence of numbers.\n\nLet me represent the string as a sequence of \"blocks\": $1^{a_1} 0^{b_1} 1^{a_2} 0^{b_2} \\ldots 1^{a_k} 0^{b_k}$ (assuming it starts with 1's and ends with 0's; we can handle edge cases).\n\nActually, let me think about the problem from the perspective of each 0 and how many times it \"participates\" in operations.\n\nLet me reconsider. Each 0 eventually gets converted to 1 by operation 2 (exactly once). Between being \"created\" (or from the start) and being converted, a 0 might participate in operation 1 multiple times, each time moving left and consuming a 1.\n\nWait, but 0's aren't created; operation 1 preserves the number of 0's. So each 0 that exists initially will eventually be converted by operation 2 exactly once. And each 0 might be involved in operation 1 some number of times.\n\nBut actually, when a 0 is converted to 1 by operation 2, and then later that 1 might be part of a \"110\" that gets consumed... but the 0 in that \"110\" is a different 0.\n\nHmm, let me think about it as: each 0 has a \"journey.\" It starts at some position, might move left via operation 1 (each move consumes a 1), and eventually gets converted to 1 by operation 2.\n\nThe total lifetime = (total number of operation 1 applications) + (number of 0's) = (total 1's consumed by operation 1) + (number of 0's).\n\nWait, is that right? Each operation 1 consumes exactly one 1 (net). Each operation 2 creates one 1 (from a 0). The total number of 1's at the end is $L_{final}$ (all 1's string of length $L_{final}$).\n\n$o_{final} = o_0 - a + b$ where $a$ = number of type-1, $b$ = number of type-2 = $z_0$. And $o_{final} = L_{final} = n - a$. So $n - a = o_0 - a + z_0 = n - a$. Always true, as before.\n\nSo the constraint is not from counting 1's and 0's. The constraint comes from the structure—when can operation 1 be applied?\n\nLet me think about it more carefully. Let me consider the \"blocking\" structure.\n\nLet me think about the string as a sequence and define a potential based on the \"run-length encoding.\"\n\nLet me try the potential $\\Phi = \\sum_{i} (\\text{something involving run lengths})$.\n\nActually, let me try a different approach. Let me think about the string as a path: 0 = step right, 1 = step up (or something), and look at the area under the path.\n\nOr, let me think about the \"inversion\" between 0's and 1's. Define $I(S) = \\sum_{i < j, s_i = 1, s_j = 0} 1$ = number of (1,0) pairs where 1 is to the left of 0. This is the number of inversions.\n\nFor type-2 (leftmost 0 at position p → 1): The leftmost 0 has no 0's to its left, so all characters to its left are 1's. Say there are $k$ 1's to the left. The inversions involving this 0: $k$ (each 1 to the left forms an inversion with this 0). After converting to 1, these $k$ inversions are removed. Also, this 0 had inversions with... no, 0's don't have 1's to their right counted as inversions (inversions are 1 before 0). So removing this 0 removes $k$ inversions. But also, the new 1 might form new inversions with 0's to its right. The number of 0's to the right is $z_0 - 1$. So new inversions = $z_0 - 1$. Net change: $-k + (z_0 - 1)$. This isn't constant, so inversions alone don't work.\n\nLet me try a weighted version. \n\nHmm, let me step back and think about what kind of answer the problem might be looking for. Since the problem is from a competition (the format suggests olympiad), and the problem defines \"lifetime,\" the question is likely:\n\n\"Find the maximum lifetime over all binary strings of length n\" or \"Express the lifetime in terms of some property of S\" or \"Show that the lifetime is independent of the order of operations\" (but the operations are deterministic, so that's not it).\n\nWait, actually, the operations ARE deterministic: first check if 110 exists (replace ALL instances), else replace leftmost 0. So the process is completely deterministic. The lifetime is a function of S.\n\nThe question might be: \"Find the maximum possible lifetime of a binary string of length n\" or \"determine the lifetime of S in terms of n and the number of 0's\" or something.\n\nSince the problem statement is truncated, I'm guessing. But let me try to figure out the answer and see if a clean formula emerges.\n\nLet me compute lifetimes for all strings of small length.\n\nn=1:\n\"0\": → \"1\". Lifetime 1.\n\"1\": no 0's, lifetime 0 (but the problem says S contains at least one 0).\n\nn=2:\n\"00\": → \"10\" → \"11\". Lifetime 2.\n\"01\": → \"11\". Lifetime 1.\n\"10\": → \"11\". Lifetime 1.\n\nn=3:\n\"000\": → \"100\" → \"110\" → \"01\" → \"11\". Lifetime 4.\n\"001\": → \"101\" → \"111\". Lifetime 2.\n\"010\": → \"110\" → \"01\" → \"11\". Lifetime 3.\n\"011\": → \"111\". Lifetime 1.\n\"100\": → \"110\" → \"01\" → \"11\". Lifetime 3.\n\"101\": → \"111\". Lifetime 1.\n\"110\": → \"01\" → \"11\". Lifetime 2.\n\nMax for n=3: \"000\" with lifetime 4.\n\nn=4:\n\"0000\": → \"1000\" → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 6.\n\"0001\": → \"1001\" → \"1101\" → \"011\" → \"111\". Lifetime 4. \n\nWait: \"0001\" → leftmost 0 → \"1001\". \"1001\": no 110. → \"1101\". \"1101\": 110 at pos 1-3 → \"01\" + \"1\" = \"011\". \"011\": no 110 → \"111\". Lifetime 4.\n\n\"0010\": → \"1010\" → \"1110\" → \"101\" → \"111\". Lifetime 4.\n\"0011\": → \"1011\" → \"1111\". Lifetime 2.\n\"0100\": → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 5.\n\"0101\": → \"1101\" → \"011\" → \"111\". Lifetime 3.\n\"0110\": → \"1110\" → \"101\" → \"111\". Lifetime 3.\n\"0111\": → \"1111\". Lifetime 1.\n\"1000\": → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 5.\n\"1001\": → \"1101\" → \"011\" → \"111\". Lifetime 3.\n\"1010\": → \"1110\" → \"101\" → \"111\". Lifetime 3.\n\"1011\": → \"1111\". Lifetime 1.\n\"1100\": → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 4.\n\"1101\": → \"011\" → \"111\". Lifetime 2.\n\"1110\": → \"101\" → \"111\". Lifetime 2.\n\nMax for n=4: \"0000\" with lifetime 6.\n\nn=1: max 1\nn=2: max 2\nn=3: max 4\nn=4: max 6\n\nLet me check n=5. The max is likely \"00000\".\n\"00000\": → \"10000\" → \"11000\" → \"0100\" → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 8.\n\nHmm wait, let me recount. \"00000\" → \"10000\" (1) → \"11000\" (2) → \"0100\" (3) → \"1100\" (4) → \"010\" (5) → \"110\" (6) → \"01\" (7) → \"11\" (8). Lifetime 8.\n\nn=5: max 8? Let me check if any other string does better.\n\nLet me try \"00100\": → \"10100\" → \"11100\" → \"1010\" → \"1110\" → \"101\" → \"111\". Lifetime 6. Less than 8.\n\n\"01000\": → \"11000\" → \"0100\" → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 7.\n\n\"10000\": → \"11000\" → \"0100\" → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 7.\n\nSo \"00000\" gives 8, which is the max for n=5.\n\nSequence so far: 1, 2, 4, 6, 8 for n=1,2,3,4,5.\n\nHmm, n=3 gives 4, which breaks the pattern 2n-2. Let me check: 2(1)-2=0, no. \n\n1, 2, 4, 6, 8. Differences: 1, 2, 2, 2. So from n=3 onward, it's 2(n-2) = 2n-4? n=3: 2, no, 4 = 2(3)-2. n=4: 6 = 2(4)-2. n=5: 8 = 2(5)-2. n=2: 2 = 2(2)-2. n=1: 1 ≠ 2(1)-2 = 0.\n\nSo for n ≥ 2, max lifetime = 2n - 2? Let me check n=6.\n\n\"000000\": → \"100000\" → \"110000\" → \"01000\" → \"11000\" → \"0100\" → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". \n\nLet me count: \"000000\"(0) → \"100000\"(1) → \"110000\"(2) → \"01000\"(3) → \"11000\"(4) → \"0100\"(5) → \"1100\"(6) → \"010\"(7) → \"110\"(8) → \"01\"(9) → \"11\"(10). Lifetime 10 = 2(6)-2. ✓\n\nSo it seems like the max lifetime for $0^n$ is $2n - 2$ for $n \\geq 2$.\n\nBut wait, is $0^n$ always the maximum? Let me check if some other string of length 6 could do better.\n\nLet me try \"001000\" (n=6): → \"101000\" → \"111000\" → \"10100\" → \"11100\" → \"1010\" → \"1110\" → \"101\" → \"111\". Lifetime 7. Less than 10.\n\nWhat about \"000100\"? → \"100100\" → \"110100\" → \"01100\" → \"11100\" → \"1010\" → \"1110\" → \"101\" → \"111\". \n\nWait: \"000100\" → \"100100\" (1) → \"110100\" (2) → 110 at pos 1-3 → \"01\" + \"100\" = \"01100\" (3) → \"11100\" (4) → \"1010\" (5) → \"1110\" (6) → \"101\" (7) → \"111\" (8). Lifetime 8. Less than 10.\n\nSo $0^n$ seems to be the max. But let me think about whether the problem is asking for the max lifetime, or something else.\n\nActually, I realize the problem statement is truncated and I don't know what's being asked. Let me re-read the problem.\n\n\"For example, $$\" - this is where it cuts off. The example and the actual question are missing.\n\nHmm, this is a problem. The problem statement is incomplete. But the task says to solve it. Let me think about what competition problem this could be.\n\nThis looks like it could be from the 2025 season. Let me think... The operation 110→01 and the \"lifetime\" concept. \n\nActually, I think this might be from the 2025 China TST or a similar competition. The question is likely \"find the maximum lifetime over all binary strings of length n.\"\n\nGiven my computations, the answer for $0^n$ is $2n-2$ for $n \\geq 2$. But is this really the maximum? Let me think more carefully.\n\nWait, I should check more carefully. Let me verify that $0^n$ is optimal and the lifetime is $2n-2$.\n\nFor $0^n$: the process is:\n$0^n \\to 10^{n-1} \\to 110^{n-2} \\to 010^{n-2} \\to 110^{n-3} \\to 010^{n-3} \\to \\ldots \\to 110 \\to 01 \\to 11$.\n\nLet me count the steps. Starting from $0^n$:\nStep 1: $0^n \\to 10^{n-1}$ (type 2)\nStep 2: $10^{n-1} \\to 110^{n-2}$ (type 2)\nStep 3: $110^{n-2} \\to 010^{n-2}$ (type 1)\nStep 4: $010^{n-2} \\to 110^{n-2}$... \n\nWait, that's not right. $010^{n-2}$: the leftmost 0 is at position 1. Type 2: → $110^{n-2}$. Then type 1: → $010^{n-3}$. Then type 2: → $110^{n-3}$. Then type 1: → $010^{n-4}$. Etc.\n\nSo the pattern after the first two steps is: $010^{n-2} \\to 110^{n-2} \\to 010^{n-3} \\to 110^{n-3} \\to \\ldots \\to 010 \\to 110 \\to 01 \\to 11$.\n\nFrom $010^{n-2}$ to $11$:\n$010^{n-2} \\to 110^{n-2}$ (type 2) $\\to 010^{n-3}$ (type 1) $\\to 110^{n-3}$ (type 2) $\\to 010^{n-4}$ (type 1) $\\to \\ldots \\to 010$ (type 1) $\\to 110$ (type 2) $\\to 01$ (type 1) $\\to 11$ (type 2).\n\nFrom $010^{n-2}$: we go through $010^k$ for $k = n-2, n-3, \\ldots, 1, 0$ (where $010^0 = 01$). Each step from $010^k$ to $010^{k-1}$ takes 2 steps (type 2 then type 1), except the last one from $01$ to $11$ takes 1 step (type 2).\n\nWait: $010^k \\to 110^k$ (type 2) $\\to 010^{k-1}$ (type 1). That's 2 steps for each $k$ from $n-2$ down to 1. Then $010^0 = 01 \\to 11$ (type 2), 1 step.\n\nSo from $010^{n-2}$: $2(n-2) + 1 = 2n - 3$ steps. Plus the first 2 steps to get from $0^n$ to $010^{n-2}$. Total: $2 + 2n - 3 = 2n - 1$.\n\nHmm, that gives $2n - 1$, not $2n - 2$. Let me recheck with n=3.\n\n$0^3 = \"000\"$: \nStep 1: → \"100\" (type 2)\nStep 2: → \"110\" (type 2) \n\nWait, \"100\": does it contain 110? \"100\" = 1,0,0. No \"110\". So type 2: leftmost 0 (position 2) → \"110\". \nStep 3: \"110\" → \"01\" (type 1)\nStep 4: \"01\" → \"11\" (type 2)\nLifetime = 4. And $2(3) - 2 = 4$. ✓\n\nBut my formula above gave $2n - 1 = 5$ for n=3. Let me recheck.\n\n$0^3 \\to 10^2$ (step 1, type 2) $\\to 110^1$ (step 2, type 2). Now $110^1 = \"110\"$. Then $110 \\to 01$ (step 3, type 1) $\\to 11$ (step 4, type 2). \n\nSo from $110^{n-2}$ (which is $110^1$ for n=3), we have: $110^1 \\to 01 \\to 11$, which is 2 steps. And the first part is 2 steps. Total 4 = 2n-2. ✓\n\nLet me redo the counting. After step 2, we're at $110^{n-2}$. Then:\n$110^{n-2} \\to 010^{n-2}$ (type 1, step 3) $\\to 110^{n-2}$... \n\nNo wait. $010^{n-2}$: leftmost 0 at position 1. Type 2: → $110^{n-2}$. But we just came from $110^{n-2}$! That can't be right.\n\n$110^{n-2}$: the string is \"110\" followed by n-2 zeros. Type 1: replace \"110\" with \"01\": → \"01\" + $0^{n-2}$ = $010^{n-2}$. Wait, \"01\" followed by $0^{n-2}$ is $0 \\cdot 1 \\cdot 0^{n-2} = 010^{n-2}$. Yes.\n\n$010^{n-2}$: \"0\" followed by \"1\" followed by $0^{n-2}$. Does this contain \"110\"? The \"1\" at position 2 is followed by $0^{n-2}$, so positions 2,3 = \"10\" (if n-2 ≥ 1), not \"110\". So no \"110\". Type 2: leftmost 0 at position 1 → \"1\" + \"1\" + $0^{n-2}$ = $110^{n-2}$.\n\nBut that brings us back to $110^{n-2}$! That would be an infinite loop!\n\nThat can't be right. Let me recheck with n=4.\n\n$0^4 = \"0000\"$:\nStep 1: → \"1000\" (type 2, leftmost 0 at pos 1)\nStep 2: \"1000\" → no 110 → \"1100\" (type 2, leftmost 0 at pos 2)\nStep 3: \"1100\" → 110 at pos 1-3 → \"01\" + \"0\" = \"010\" (type 1)\nStep 4: \"010\" → no 110 → \"110\" (type 2, leftmost 0 at pos 1)\nStep 5: \"110\" → \"01\" (type 1)\nStep 6: \"01\" → \"11\" (type 2)\nLifetime = 6 = 2(4)-2. ✓\n\nOK so I see: $110^{n-2} \\to 010^{n-2}$ (type 1). But $010^{n-2}$ for n=4 is $010^2 = \"0100\"$... \n\nWait no. $110^2 = \"11000\"$ for n=4? No. $n=4$: $110^{n-2} = 110^2 = \"11000\"$? That's length 5, not 4.\n\nI think I'm confusing myself. Let me be more careful.\n\n$0^n$ has length n. After step 1 (type 2): $10^{n-1}$, length n. After step 2 (type 2): $110^{n-2}$, length n. After step 3 (type 1): $010^{n-2}$, length n-1. After step 4 (type 2): $110^{n-3}$, length n-1. After step 5 (type 1): $010^{n-3}$, length n-2. Etc.\n\nSo the pattern is:\n- $0^n$ (length n) →[type 2] $10^{n-1}$ (length n) →[type 2] $110^{n-2}$ (length n) →[type 1] $010^{n-2}$ (length n-1) →[type 2] $110^{n-3}$ (length n-1) →[type 1] $010^{n-3}$ (length n-2) →[type 2] $110^{n-4}$ (length n-2) → ...\n\nSo after the first 2 steps (both type 2), we alternate: type 1 (reduces length by 1, $110^k \\to 010^{k-1}$... \n\nHmm wait. $110^{n-2}$ (length n) →[type 1] \"01\" + $0^{n-2}$ = $0 \\cdot 1 \\cdot 0^{n-2}$, length n-1. This is $010^{n-2}$, which has the 0 at position 1, 1 at position 2, and n-2 zeros. Total length = 1 + 1 + (n-2) = n. But type 1 reduces length by 1, so length should be n-1. \n\nI think the issue is: $110^{n-2}$ is \"110\" followed by $n-2$ zeros, total length $3 + (n-2) = n+1$? No! $110^{n-2}$ means \"11\" followed by $n-2$ zeros. \"110\" is \"11\" followed by one 0. So $110^{n-2}$ = \"11\" + $0^{n-2}$, length $2 + (n-2) = n$. ✓\n\nType 1 on $110^{n-2}$: the \"110\" is at positions 1-3 (the \"11\" and the first 0). Replace with \"01\": \"01\" + $0^{n-3}$, length $2 + (n-3) = n-1$. This is $010^{n-3}$, length n-1. ✓\n\nThen type 2 on $010^{n-3}$: leftmost 0 at position 1 → $110^{n-3}$, length n-1. ✓\n\nThen type 1 on $110^{n-3}$: → $010^{n-4}$, length n-2. Etc.\n\nSo the sequence of strings (after the first 2 type-2 steps) is:\n$110^{n-2} \\to 010^{n-3} \\to 110^{n-3} \\to 010^{n-4} \\to 110^{n-4} \\to \\ldots \\to 110^1 \\to 010^0 \\to 110^0 \\to \\ldots$\n\nWait, $110^1 = \"110\"$, type 1 → $010^0 = \"01\"$, type 2 → $110^0 = \"11\"$. \n\nSo from $110^{n-2}$: \n- $110^{n-2} \\to 010^{n-3}$ (type 1)\n- $010^{n-3} \\to 110^{n-3}$ (type 2)\n- $110^{n-3} \\to 010^{n-4}$ (type 1)\n- ...\n- $110^1 \\to 01$ (type 1)\n- $01 \\to 11$ (type 2)\n\nFrom $110^{n-2}$ to $11$: the $k$ goes from $n-2$ down to $1$, and each decrement of $k$ takes 2 steps (type 1 then type 2), except the final step from $01$ to $11$ is just 1 step (type 2).\n\nWait: $110^k \\to 010^{k-1}$ (type 1) $\\to 110^{k-1}$ (type 2). So each $k$ from $n-2$ to $1$ takes 2 steps, giving $2(n-2)$ steps to get from $110^{n-2}$ to $110^0 = 11$... but $110^0 = \"11\"$, and we need to check: $110^1 = \"110\" \\to 010^0 = \"01\"$ (type 1) $\\to 110^0 = \"11\"$ (type 2). So from $110^1$ to $110^0$ is 2 steps. From $110^{n-2}$ to $110^0$ is $2(n-2)$ steps. Plus the first 2 steps from $0^n$ to $110^{n-2}$. Total: $2 + 2(n-2) = 2n - 2$. ✓\n\nGreat, so the lifetime of $0^n$ is $2n - 2$ for $n \\geq 2$ (and 1 for $n = 1$).\n\nNow, is $0^n$ the maximum? Let me think about whether any string can have a longer lifetime.\n\nFrom my computations:\nn=3: max is 4 (from \"000\"), and $2(3)-2 = 4$. ✓\nn=4: max is 6 (from \"0000\"), and $2(4)-2 = 6$. ✓\nn=5: max is 8 (from \"00000\"), and $2(5)-2 = 8$. ✓\n\nBut I should check more carefully for n=5 whether any string beats 8. Let me try a few more.\n\n\"00100\" (n=5): → \"10100\" → \"11100\" → \"1010\" → \"1110\" → \"101\" → \"111\". Lifetime 6.\n\"01000\" (n=5): → \"11000\" → \"0100\" → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 7.\n\"00010\" (n=5): → \"10010\" → \"11010\" → \"0110\" → \"1110\" → \"101\" → \"111\". \n\nWait: \"00010\" → \"10010\" (type 2) → \"11010\" (type 2, leftmost 0 at pos 2) → 110 at pos 1-3 → \"01\" + \"10\" = \"0110\" (type 1) → \"1110\" (type 2) → \"101\" (type 1) → \"111\" (type 2). Lifetime 6.\n\nSo indeed $0^n$ seems to be the maximum.\n\nBut wait, I should also consider strings with 1's that might create more opportunities for type-1 operations. Let me think about \"01100\" (n=5):\n→ \"11100\" → \"1010\" → \"1110\" → \"101\" → \"111\". Lifetime 5.\n\n\"00110\" (n=5): → \"10110\" → \"11110\" → \"11011\" → \"0111\" → \"1111\". \n\nWait: \"10110\" → no 110? \"10110\": positions 3,4,5 = \"110\". Yes! → \"10\" + \"01\" = \"1001\". Hmm wait.\n\n\"10110\": looking for \"110\". Position 1: \"101\" no. Position 2: \"011\" no. Position 3: \"110\" yes. Replace → \"10\" + \"01\" = \"1001\". \n\n\"1001\": no 110 → \"1101\" → \"011\" → \"111\". \n\nSo \"00110\" → \"10110\" (1) → \"1001\" (2) → \"1101\" (3) → \"011\" (4) → \"111\" (5). Lifetime 5.\n\nHmm, all less than 8. Let me try \"01010\" (n=5):\n→ \"11010\" → \"0110\" → \"1110\" → \"101\" → \"111\". Lifetime 5.\n\nOK so it really seems like $0^n$ is the maximum, with lifetime $2n-2$.\n\nBut wait, I need to think about whether the problem is asking for the maximum lifetime. Let me reconsider.\n\nActually, I just realized: maybe the problem is asking something different. Let me re-read the problem statement.\n\n\"Given binary string S of length n, we define the lifetime of S to be the number of times f can be applied to S until the resulting string contains no more 0's.\"\n\nAnd then \"For example, $$\" which is cut off.\n\nThe problem likely asks one of:\n1. Find the maximum lifetime over all strings of length n.\n2. Given a specific string, find its lifetime.\n3. Prove that the lifetime is at most/at least some bound.\n4. Characterize which strings achieve the maximum.\n\nGiven the competition format, it's likely asking for the maximum lifetime and possibly which strings achieve it.\n\nLet me think about this more carefully and try to prove that the maximum lifetime is $2n - 2$.\n\nFirst, let me find a potential function that proves the upper bound.\n\nI need a function $\\Phi(S)$ such that:\n1. $\\Phi(f(S)) \\leq \\Phi(S) + 1$ (or $\\Phi(f(S)) = \\Phi(S) + 1$) for both operations.\n2. $\\Phi(\\text{all 1's string}) \\leq$ some bound.\n3. $\\Phi(0^n) = 2n - 2$ (or the bound matches).\n\nActually, let me think about it as: lifetime = $\\Phi(\\text{final}) - \\Phi(\\text{initial})$ if $\\Phi$ increases by exactly 1 each step. Or lifetime $\\leq \\Phi(\\text{final}) - \\Phi(\\text{initial})$ if $\\Phi$ increases by at most 1 each step.\n\nLet me try to find such a $\\Phi$.\n\nLet me think about the string as a number. Let me try $\\Phi(S) = $ the value of $S$ when read as a binary number (left to right, most significant first).\n\n$0^n$: value 0. All 1's of length $L$: value $2^L - 1$.\n\nType 2 (0→1 at position $p$ from left, 1-indexed): the value increases by $2^{n-p}$ (where $n$ is the current length). \n\nType 1 (110→01): Let's say the \"110\" starts at position $p$ (1-indexed from left), in a string of length $n$. The \"110\" contributes $6 \\cdot 2^{n-p-2}$ to the value. After replacement, \"01\" contributes $1 \\cdot 2^{n-p-1}$ (but the string is now length $n-1$, and characters after position $p+2$ shift left). \n\nThis is getting complicated. Let me try reading right to left instead.\n\n$\\Phi(S) = \\sum_{i=1}^{n} s_i \\cdot 2^{i-1}$ where $i$ is the position from the RIGHT (rightmost is position 1).\n\nHmm, but when the string changes length, positions from the right also change if the change is not at the right end.\n\nActually, for type 1 (110→01), the replacement can happen anywhere, so characters to the right shift. For type 2, only one character changes, no shifting.\n\nLet me try a different potential. Let me think about $\\Phi(S) = \\sum_{i=1}^{n} s_i \\cdot F_{i}$ where $F_i$ is the $i$-th Fibonacci number (or some other sequence), with $i$ counted from the right.\n\nActually, let me think about this problem from the \"hydra\" perspective. The operation 110→01 is like cutting a head of the hydra. Let me think about ordinal-valued potentials.\n\nHmm, let me try a simpler approach. Let me think about the potential as a sum over 0's.\n\nFor each 0 in the string, let me count the number of 1's to its left. Call this $l_i$ for the $i$-th 0 (from left). Also count the number of 1's to its right, $r_i$.\n\nActually, let me try $\\Phi(S) = \\sum_{\\text{0's at position } p} (\\text{number of 1's to the left of } p) + (\\text{number of 0's to the right of } p)$... something like that.\n\nHmm, let me just try to find the potential by examining small cases.\n\nFor $0^n$, the lifetime is $2n-2$. The initial string has value... let me think about what $\\Phi(0^n)$ and $\\Phi(11\\ldots1)$ should be.\n\nIf $\\Phi$ increases by 1 each step, then $\\Phi(\\text{final}) - \\Phi(0^n) = 2n - 2$.\n\nThe final string for $0^n$ is \"11\" (length 2, since we start with n 0's, apply $n-2$ type-1 operations and $n$ type-2 operations, so final length is $n - (n-2) = 2$). So the final string is \"11\".\n\n$\\Phi(\"11\") - \\Phi(\"0^n\") = 2n - 2$.\n\nFor \"0\" (n=1): final is \"1\", lifetime 1. $\\Phi(\"1\") - \\Phi(\"0\") = 1$.\nFor \"00\" (n=2): final is \"11\", lifetime 2. $\\Phi(\"11\") - \\Phi(\"00\") = 2$.\nFor \"000\" (n=3): final is \"11\", lifetime 4. $\\Phi(\"11\") - \\Phi(\"000\") = 4$.\nFor \"0000\" (n=4): final is \"11\", lifetime 6. $\\Phi(\"11\") - \\Phi(\"0000\") = 6$.\n\nSo $\\Phi(\"11\") - \\Phi(\"0^n\") = 2n - 2$ for $n \\geq 2$, meaning $\\Phi(\"0^n\") = \\Phi(\"11\") - 2n + 2$.\n\nIf $\\Phi(\"11\") = C$, then $\\Phi(\"0^n\") = C - 2n + 2$.\n\nAlso, $\\Phi(\"1\") - \\Phi(\"0\") = 1$, so $\\Phi(\"0\") = \\Phi(\"1\") - 1$.\n\nLet me try to guess $\\Phi$ from these constraints. Let me set $\\Phi(\"1\") = 0$ for simplicity. Then $\\Phi(\"0\") = -1$.\n\n$\\Phi(\"11\") = ?$. From \"00\" → \"10\" → \"11\", lifetime 2, so $\\Phi(\"11\") - \\Phi(\"00\") = 2$. Also $\\Phi(\"0^n\") = \\Phi(\"11\") - 2n + 2$, so $\\Phi(\"00\") = \\Phi(\"11\") - 2$.\n\nFrom \"0\" → \"1\": $\\Phi(\"1\") - \\Phi(\"0\") = 1$, so $0 - (-1) = 1$. ✓\n\nFrom \"10\" → \"11\": $\\Phi(\"11\") - \\Phi(\"10\") = 1$. \nFrom \"00\" → \"10\": $\\Phi(\"10\") - \\Phi(\"00\") = 1$.\nSo $\\Phi(\"11\") - \\Phi(\"00\") = 2$. ✓\n\nLet me try to determine $\\Phi$ for all strings of length 2.\n$\\Phi(\"00\") = \\Phi(\"11\") - 2$.\n$\\Phi(\"01\")$: \"01\" → \"11\", lifetime 1. $\\Phi(\"11\") - \\Phi(\"01\") = 1$, so $\\Phi(\"01\") = \\Phi(\"11\") - 1$.\n$\\Phi(\"10\")$: \"10\" → \"11\", lifetime 1. $\\Phi(\"11\") - \\Phi(\"10\") = 1$, so $\\Phi(\"10\") = \\Phi(\"11\") - 1$.\n$\\Phi(\"11\") = \\Phi(\"11\")$.\n\nSo for length 2: $\\Phi(\"00\") = \\Phi(\"11\") - 2$, $\\Phi(\"01\") = \\Phi(\"10\") = \\Phi(\"11\") - 1$.\n\nIf I set $\\Phi(\"11\") = 0$: $\\Phi(\"00\") = -2, \\Phi(\"01\") = \\Phi(\"10\") = -1, \\Phi(\"11\") = 0$.\n\nThis looks like $\\Phi(S) = $ (number of 1's) - (number of 0's) = $2 \\cdot (\\text{number of 1's}) - n$? For \"00\": $0 - 2 = -2$ ✓. \"01\": $1 - 1 = 0$... but we need $-1$. ✗.\n\nOr $\\Phi(S) = $ (number of 1's) $- 1$? \"00\": $-1$, need $-2$. ✗.\n\nHmm. Let me try $\\Phi(\"11\") = 2$. Then $\\Phi(\"00\") = 0, \\Phi(\"01\") = \\Phi(\"10\") = 1, \\Phi(\"11\") = 2$. This is just the number of 1's! But we showed that doesn't work because type 1 changes the number of 1's by $-1$.\n\nWait, but maybe $\\Phi$ doesn't increase by exactly 1 each step. Maybe it increases by 1 for type 2 and decreases by 1 for type 1, and the lifetime is bounded differently.\n\nLet me reconsider. If $\\Phi$ = number of 1's:\n- Type 2: $\\Phi$ increases by 1.\n- Type 1: $\\Phi$ decreases by 1.\n\nLifetime = (# type 2) + (# type 1). $\\Phi_{final} - \\Phi_{initial}$ = (# type 2) - (# type 1). So lifetime = (# type 2) + (# type 1) = ($\\Phi_{final} - \\Phi_{initial}$) + 2(# type 1).\n\nThis doesn't directly bound the lifetime unless we can bound # type 1.\n\nHmm. Let me think about this differently.\n\nLet me try to find a potential that increases by exactly 1 for BOTH operations.\n\nFor type 2 (0→1 at position $p$): the change in $\\Phi$ is $+w_p$ where $w_p$ is the weight of position $p$. We need $w_p = 1$ for the leftmost 0 position. But the leftmost 0 can be at any position, so we need all weights to be 1? But then type 1 (which removes a 1) would decrease $\\Phi$ by 1, not increase.\n\nUnless the weights are position-dependent in a way that accounts for the shifting in type 1.\n\nLet me think about type 1 more carefully. In \"110\" → \"01\", if the \"110\" starts at position $p$ (from left) in a string of length $n$:\n- Before: positions $p, p+1, p+2$ have values $1, 1, 0$ with weights $w_p, w_{p+1}, w_{p+2}$.\n- After: the \"01\" occupies positions $p, p+1$ with values $0, 1$, and everything after position $p+2$ shifts left by 1. So the new string has length $n-1$, and position $p$ has 0 (weight $w_p$), position $p+1$ has 1 (weight $w_{p+1}$), and positions $p+2, p+3, \\ldots$ in the new string correspond to positions $p+3, p+4, \\ldots$ in the old string.\n\nThe change in $\\Phi$:\n- Lost: $w_p \\cdot 1 + w_{p+1} \\cdot 1 + w_{p+2} \\cdot 0 = w_p + w_{p+1}$ (the old \"110\" at positions p, p+1, p+2).\n- Gained: $w_p \\cdot 0 + w_{p+1} \\cdot 1 = w_{p+1}$ (the new \"01\" at positions p, p+1).\n- Shift: positions $p+3, \\ldots, n$ in old string move to positions $p+2, \\ldots, n-1$ in new string. Change: $\\sum_{j=p+3}^{n} s_j (w_{j-1} - w_j)$.\n\nFor the shift to contribute 0, we need $w_{j-1} = w_j$ for all $j > p+2$, i.e., all weights are equal. But then type 2 requires all weights to be 1, and type 1 would give change $= -(w_p + w_{p+1}) + w_{p+1} = -w_p = -1$, which is a decrease, not increase.\n\nSo with fixed position weights (from left), we can't make both operations increase $\\Phi$ by 1. The problem is the shifting.\n\nLet me try weights from the RIGHT. Position $i$ from the right has weight $w_i$. When type 1 happens at position $p$ from the left (in a string of length $n$), the \"110\" is at positions $n-p+1, n-p, n-p-1$ from the right (wait, I need to be careful).\n\nIf the string has length $n$ and the \"110\" starts at position $p$ from the left (1-indexed), then:\n- Position $p$ from left = position $n - p + 1$ from right.\n- Position $p+1$ from left = position $n - p$ from right.\n- Position $p+2$ from left = position $n - p - 1$ from right.\n\nAfter type 1, the string has length $n-1$. The \"01\" is at positions $p, p+1$ from left = positions $(n-1) - p + 1, (n-1) - p$ from right = $n - p, n - p - 1$ from right.\n\nCharacters to the right of position $p+2$ (from left) shift left by 1, but their position from the RIGHT doesn't change! Because the shortening happens to their left.\n\nSo with right-indexed weights:\n- Before: \"110\" at right-positions $n-p+1, n-p, n-p-1$ with values $1, 1, 0$.\n- After: \"01\" at right-positions $n-p, n-p-1$ with values $0, 1$.\n- Characters to the right (from left) keep their right-positions.\n\nChange in $\\Phi$:\n- Lost: $w_{n-p+1} \\cdot 1 + w_{n-p} \\cdot 1 + w_{n-p-1} \\cdot 0 = w_{n-p+1} + w_{n-p}$.\n- Gained: $w_{n-p} \\cdot 0 + w_{n-p-1} \\cdot 1 = w_{n-p-1}$.\n- Net change: $w_{n-p-1} - w_{n-p+1} - w_{n-p}$.\n\nWe want this to be $+1$ for all valid $p$. Let $j = n - p - 1$ (the right-position of the 0 in \"110\"). Then $n - p = j + 1$ and $n - p + 1 = j + 2$. So the change is $w_j - w_{j+1} - w_{j+2} = 1$.\n\nSo we need: $w_j - w_{j+1} - w_{j+2} = 1$ for all $j \\geq 1$ (since the 0 in \"110\" can be at any right-position $\\geq 1$).\n\nThis is a recurrence: $w_j = 1 + w_{j+1} + w_{j+2}$.\n\nFor type 2 (leftmost 0 → 1): The leftmost 0 is at some left-position $p$, which is right-position $n - p + 1$. The change is $+w_{n-p+1}$. We want this to be $+1$, so $w_{n-p+1} = 1$ for all possible right-positions of the leftmost 0.\n\nBut the leftmost 0 can be at any right-position (from 1 to $n$), so we'd need all $w_i = 1$. But the recurrence $w_j = 1 + w_{j+1} + w_{j+2}$ with all $w_i = 1$ gives $1 = 1 + 1 + 1 = 3$, contradiction.\n\nSo we can't have both operations increase $\\Phi$ by exactly 1 with right-indexed weights either.\n\nHmm. Let me reconsider. Maybe the potential doesn't increase by exactly 1 each step. Maybe type 1 increases it by some amount and type 2 by another, and we can still bound the lifetime.\n\nWith right-indexed weights satisfying $w_j - w_{j+1} - w_{j+2} = 1$:\n- Type 1: $\\Phi$ increases by 1.\n- Type 2: $\\Phi$ increases by $w_k$ where $k$ is the right-position of the leftmost 0.\n\nLifetime = (# type 1) + (# type 2). $\\Phi_{final} - \\Phi_{initial}$ = (# type 1) $\\cdot 1$ + $\\sum_{\\text{type 2 ops}} w_{k_i}$.\n\nIf all $w_k \\geq 1$, then $\\Phi_{final} - \\Phi_{initial} \\geq$ (# type 1) + (# type 2) = lifetime. So lifetime $\\leq \\Phi_{final} - \\Phi_{initial}$.\n\nAnd if all $w_k = 1$... but we showed that's impossible. So we need $w_k \\geq 1$ for all $k$, and then lifetime $\\leq \\Phi_{final} - \\Phi_{initial}$.\n\nThe recurrence $w_j = 1 + w_{j+1} + w_{j+2}$ with $w_j \\geq 1$... this grows as $j$ decreases (i.e., weights increase towards the left / higher right-positions). This is like a Fibonacci-type growth, which means $\\Phi$ can be very large, and the bound might not be tight.\n\nHmm, but for the maximum lifetime, we want the tightest bound. Let me think about what the right weights should be.\n\nActually, wait. For the upper bound, we want $\\Phi_{final} - \\Phi_{initial}$ to be small. But if the weights grow, $\\Phi$ could be huge. Let me think about this differently.\n\nLet me reconsider. We want to prove lifetime $\\leq 2n - 2$. Let me think about what potential gives this.\n\nActually, let me try a different approach. Let me think about the problem in terms of a \"score\" that each 0 contributes.\n\nLet me think about the journey of each 0. Initially, there are some 0's. Each 0 either:\n- Gets converted to 1 by type 2 (contributing 1 to the lifetime).\n- Participates in type 1 operations (moving left), each contributing 1 to the lifetime.\n\nBut a 0 can participate in type 1 multiple times. Each time, it moves left past two 1's (consuming one 1). \n\nHmm, but the 0 doesn't really \"move\" in a simple way because the string structure changes.\n\nLet me think about this more carefully with the $0^n$ example. In $0^n$, all characters are 0. The process:\n1. $0^n \\to 10^{n-1}$: the first 0 becomes 1.\n2. $10^{n-1} \\to 110^{n-2}$: the second 0 becomes 1.\n3. $110^{n-2} \\to 010^{n-2}$: type 1, the \"110\" becomes \"01\". The 0 that was at position 3 is now at position 1 (and a 1 is consumed).\n4. $010^{n-2} \\to 110^{n-2}$: the first 0 becomes 1.\n5. $110^{n-2} \\to 010^{n-3}$: type 1, shortening.\n...\n\nIn this process, the number of type 1 operations is $n - 2$ (the string goes from length $n$ to length 2, each type 1 reduces length by 1). The number of type 2 operations is $n$ (we start with $n$ zeros, each needs to be converted once). Total: $n + (n-2) = 2n - 2$.\n\nSo for $0^n$, # type 1 = $n - 2$ and # type 2 = $n$.\n\nNow, for a general string, # type 2 = $z$ (number of 0's), and # type 1 = ? The final string has length $n - $ (# type 1). The final string is all 1's, with $o_{final} = o_0 + z - $ (# type 1) ones and length $n - $ (# type 1). So $o_{final} = n - $ (# type 1), giving # type 1 = $n - o_{final} = n - (o_0 + z - $ # type 1$)$, which gives # type 1 = $n - o_0 - z + $ # type 1, i.e., $0 = n - o_0 - z = 0$. Always true. So # type 1 is not determined by counting alone.\n\nThe key constraint is: when can type 1 be applied? It requires \"110\" to be present. And the process is deterministic.\n\nLet me think about the maximum number of type 1 operations. Each type 1 reduces the string length by 1. The minimum final length is 1 (a single \"1\"). So the maximum # type 1 is $n - 1$. But can we achieve $n - 1$ type 1 operations? That would give lifetime $z + (n - 1)$. For $0^n$, $z = n$, so lifetime would be $2n - 1$. But we computed $2n - 2$. So the maximum # type 1 for $0^n$ is $n - 2$, not $n - 1$.\n\nWhy can't we get $n - 1$ type 1 operations for $0^n$? Because the final string must be all 1's, and if we did $n - 1$ type 1 operations, the final length would be 1, so the final string is \"1\". But we start with $n$ zeros and need $n$ type 2 operations. Total would be $n + (n-1) = 2n - 1$. But the process is deterministic, and it gives $2n - 2$. So the deterministic process doesn't achieve the maximum possible # type 1.\n\nHmm, but the problem defines the lifetime as the number of steps in the deterministic process. So we need to analyze the deterministic process, not optimize over choices.\n\nWait, but the problem says \"replace each instance of 110 with 01\". So ALL instances of 110 are replaced simultaneously? Or one at a time?\n\nLet me re-read: \"If the substring 110 occurs in S, replace each instance of 110 with 01 to produce f(S).\"\n\n\"Replace each instance\" - this suggests all instances are replaced simultaneously. But if we replace all instances simultaneously, we need to be careful about overlapping instances.\n\n\"110\" instances can overlap: \"1110\" has \"110\" at positions 1-3 and 2-4. If we replace both simultaneously, we'd get... \"01\" + \"01\" but they overlap. This is ambiguous.\n\nActually, \"replace each instance\" probably means replace all non-overlapping instances, or replace them one by one from left to right. Let me think about this.\n\nHmm, actually, for \"1110\", if we replace the first \"110\" (positions 1-3) with \"01\", we get \"01\" + \"0\" = \"010\". If we replace the second \"110\" (positions 2-4), we get \"1\" + \"01\" = \"101\". These are different!\n\nIf we replace all simultaneously... \"1110\" → replace positions 1-3 and 2-4... this doesn't make sense for overlapping substrings.\n\nI think the most natural interpretation is: replace all occurrences simultaneously, where occurrences are non-overlapping (greedy from left to right). Or maybe: replace all occurrences, handling overlaps by replacing left to right.\n\nActually, re-reading: \"replace each instance of 110 with 01\". I think this means: find all (possibly overlapping?) instances and replace each. But for overlapping instances, it's ambiguous.\n\nLet me reconsider. Maybe it means: scan left to right, and whenever you see \"110\", replace it with \"01\" and continue scanning from after the replacement. This is the standard \"replace all\" semantics.\n\nWith this interpretation, \"1110\" → scan from left: position 1, see \"110\" (positions 1-3), replace with \"01\", now string is \"01\" + \"0\" = \"010\", continue from position 3 (after the \"01\"), see \"0\", no more \"110\". Result: \"010\".\n\nAlternatively, \"1110\" → find all non-overlapping occurrences greedily from left: \"110\" at positions 1-3, replace → \"010\". Same result.\n\nLet me check with \"110110\": scan left, \"110\" at positions 1-3, replace → \"01\" + \"110\" = \"01110\", continue from position 3: \"110\" at positions 3-5, replace → \"01\" + \"01\" = \"0101\". Result: \"0101\".\n\nAlternatively, if we replace all non-overlapping from left: \"110\" at 1-3 and \"110\" at 4-6, replace both → \"01\" + \"01\" = \"0101\". Same result.\n\nOK so \"replace each instance\" with left-to-right greedy gives the same as replacing all non-overlapping instances. Let me verify with \"1110\": \"110\" at 1-3, replace → \"010\". The \"110\" at 2-4 is not found because position 2-3 was already replaced. So result is \"010\".\n\nBut wait, with \"1110\", if we look for non-overlapping instances greedily from left: \"110\" at 1-3. After replacing, the string becomes \"010\". No more \"110\". So f(\"1110\") = \"010\".\n\nBut earlier I computed f(\"1110\") = \"101\" (assuming we replace only ONE instance). Let me recheck my earlier computation.\n\nEarlier I said: \"11110\" (a=4): 110 at positions 3-5 → \"11\"+\"01\" = \"1101\". This assumed replacing only ONE instance (the leftmost? or a specific one?).\n\nHmm, I think I was assuming replacing one instance at a time. But the problem says \"replace each instance.\" So it's all instances at once.\n\nLet me recompute with the \"all instances\" interpretation.\n\n\"1110\": \"110\" at positions 1-3 (greedy from left). Replace → \"010\". (The \"110\" at positions 2-4 overlaps, so it's not a separate instance.) f(\"1110\") = \"010\".\n\nWait, but actually, do positions 1-3 and 2-4 both contain \"110\"? \"1110\": s1=1, s2=1, s3=1, s4=0. Positions 1-3: \"111\" ≠ \"110\". Positions 2-4: \"110\" ✓. So there's only one instance of \"110\" in \"1110\", at positions 2-4.\n\nI made an error earlier. Let me recheck. \"1110\" = 1,1,1,0. \"110\" at positions 2-4 (s2=1, s3=1, s4=0). Yes. So f(\"1110\") = \"1\" + \"01\" = \"101\".\n\nOK so my earlier computation was correct for \"1110\" → \"101\". There's only one instance of \"110\" in \"1110\".\n\nLet me reconsider \"11110\" = 1,1,1,1,0. \"110\" at positions 3-5 (s3=1, s4=1, s5=0). Only one instance. f(\"11110\") = \"11\" + \"01\" = \"1101\".\n\nAnd \"111110\" = 1,1,1,1,1,0. \"110\" at positions 4-6. f = \"111\" + \"01\" = \"11101\".\n\nSo for $1^a 0$ (a ≥ 2), there's exactly one instance of \"110\" (at positions a-1, a, a+1), and f replaces it: $1^{a-2} \\cdot 01 = 1^{a-2} 0 1$.\n\nOK so my earlier computations were correct. The \"replace each instance\" only matters when there are multiple non-overlapping instances.\n\nLet me reconsider when multiple instances occur. \"110110\": instances at 1-3 and 4-6 (non-overlapping). Replace both → \"01\" + \"01\" = \"0101\".\n\n\"1101100\": instances at 1-3 and 4-6. Replace → \"01\" + \"01\" + \"0\" = \"01010\".\n\nOK, this is important. Let me recompute some examples with this understanding.\n\nActually, for the strings I've been computing, most had at most one instance of \"110\" at each step, so my computations should be correct. Let me double-check \"000\" → \"100\" → \"110\" → \"01\" → \"11\". \n\n\"100\": no \"110\". ✓\n\"110\": one \"110\" at 1-3. → \"01\". ✓\n\nAnd \"0000\" → \"1000\" → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\".\n\"1100\": \"110\" at 1-3. → \"01\" + \"0\" = \"010\". ✓\n\nThese all have at most one instance, so my computations are correct.\n\nNow let me think about strings with multiple instances. \"110110\" (n=6):\n→ \"0101\" (replace both 110's) → \"1101\" (leftmost 0 → 1) → \"011\" (110 at 1-3 → \"01\"+\"1\") → \"111\". Lifetime 4.\n\nCompare with \"000000\" (n=6): lifetime 10. So \"110110\" is much less.\n\nOK so the \"replace each instance\" vs \"replace one instance\" distinction matters for some strings, but for the $0^n$ case (which seems to be the maximum), there's at most one instance at each step, so it doesn't matter.\n\nLet me now focus on proving that the maximum lifetime is $2n - 2$, achieved by $0^n$.\n\nActually, wait. I still don't know what the problem is asking! The problem statement is truncated. Let me reconsider.\n\nThe problem says \"For example, $$\" and then cuts off. This is clearly incomplete. But the task asks me to solve it. \n\nGiven the competition context and the way the problem is set up, I believe the problem is asking: **\"Find the maximum lifetime over all binary strings of length $n$.\"** Or possibly: **\"Prove that the lifetime of any binary string of length $n$ is at most $2n-2$, and determine when equality holds.\"**\n\nBut I'm not 100% sure. Let me think about whether there's a cleaner characterization.\n\nActually, wait. Let me reconsider the problem. Maybe it's asking for the lifetime of a specific string, or maybe the example completes the problem. Since the example is cut off at \"$$ \", maybe the example was a LaTeX formula showing a specific string and its lifetime, and the question asks to find the lifetime for general strings or the maximum.\n\nGiven the competition format, I'll assume the problem asks for the maximum lifetime of a binary string of length $n$ (containing at least one 0), and to prove it.\n\nLet me now work on the proof.\n\n**Claim:** The maximum lifetime of a binary string of length $n$ (with at least one 0) is $2n - 2$ for $n \\geq 2$, achieved uniquely by $0^n$.\n\nWait, is it uniquely $0^n$? Let me check. For $n = 3$, \"000\" gives 4. Are there other strings giving 4? From my table: \"000\" gives 4, and the next best is \"010\" and \"100\" with 3. So yes, $0^n$ is unique for $n = 3$.\n\nFor $n = 4$, \"0000\" gives 6, and the next best is \"0100\" and \"1000\" with 5. So $0^n$ is unique.\n\nHmm, but I should double-check. Let me verify \"0100\" (n=4): → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 5. And \"1000\": → \"1100\" → \"010\" → \"110\" → \"01\" → \"11\". Lifetime 5. Both less than 6.\n\nOK so it seems like $0^n$ is the unique maximum. But I should prove this.\n\nLet me think about the proof strategy. I need:\n1. An upper bound: lifetime $\\leq 2n - 2$ for any string of length $n$.\n2. A lower bound: lifetime of $0^n$ = $2n - 2$.\n\nFor part 2, I've already shown the computation.\n\nFor part 1, I need a potential function. Let me think more carefully.\n\nLet me try the potential $\\Phi(S) = \\sum_{i=1}^{n} s_i \\cdot F_{n-i+1}$ where $F_k$ is the $k$-th Fibonacci number (with $F_1 = F_2 = 1$), and the index $n - i + 1$ is the position from the right.\n\nWait, I had the recurrence $w_j = 1 + w_{j+1} + w_{j+2}$ for right-indexed weights, where type 1 increases $\\Phi$ by 1. Let me solve this recurrence.\n\n$w_j = 1 + w_{j+1} + w_{j+2}$. Let me try $w_j = c \\cdot r^j + \\text{particular solution}$.\n\nHomogeneous: $w_j = w_{j+1} + w_{j+2}$, i.e., $w_{j+2} + w_{j+1} - w_j = 0$. Characteristic: $r^2 + r - 1 = 0$, $r = \\frac{-1 \\pm \\sqrt{5}}{2}$. So $r_1 = \\frac{-1+\\sqrt{5}}{2} = \\phi - 1 = 1/\\phi$ and $r_2 = \\frac{-1-\\sqrt{5}}{2} = -\\phi$ where $\\phi = \\frac{1+\\sqrt{5}}{2}$.\n\nParticular solution: try $w_j = A$ (constant). $A = 1 + A + A = 1 + 2A$, so $A = -1$. Particular solution $w_j = -1$.\n\nGeneral: $w_j = -1 + c_1 r_1^j + c_2 r_2^j$.\n\nFor $w_j$ to be bounded (or not grow too fast) as $j \\to \\infty$, we need $c_2 = 0$ (since $|r_2| = \\phi > 1$). So $w_j = -1 + c_1 (1/\\phi)^j$.\n\nFor $w_j \\geq 1$ (so that type 2 increases $\\Phi$ by at least 1), we need $c_1 (1/\\phi)^j \\geq 2$, i.e., $c_1 \\geq 2 \\phi^j$ for all $j$. But as $j \\to \\infty$, this requires $c_1 = \\infty$. So we can't have all $w_j \\geq 1$ with bounded weights.\n\nThis means the Fibonacci-type potential doesn't directly give a clean bound. The weights grow exponentially, which means $\\Phi$ can be exponentially large, and the bound lifetime $\\leq \\Phi_{final} - \\Phi_{initial}$ would be exponentially large, not $2n - 2$.\n\nSo this approach doesn't work for proving the $2n - 2$ bound. Let me think differently.\n\nLet me think about a more direct approach. \n\nKey insight: Let me think about the number of type 1 operations. Each type 1 operation reduces the length by 1 and requires a \"110\" pattern. The question is: how many type 1 operations can occur in total?\n\nLet me think about what constrains type 1 operations. A type 1 operation consumes a \"110\" pattern (two 1's followed by a 0) and produces \"01\" (a 0 followed by a 1). So it \"moves\" a 0 to the left past two 1's, consuming one 1 in the process.\n\nLet me think about the \"total work\" done. Define the \"displacement\" of a 0 as the number of positions it has moved from its original position. But positions change as the string evolves, so this is tricky.\n\nLet me try another approach. Let me think about the string as a sequence and track the \"inversion number\" more carefully.\n\nDefine $I(S) = \\sum_{\\substack{i < j \\\\ s_i = 1, s_j = 0}} 1$, the number of (1, 0) inversions.\n\nType 2 (leftmost 0 at position $p$ → 1): The leftmost 0 has only 1's to its left (since it's the leftmost 0). Say there are $k$ 1's to its left. These $k$ 1's each form an inversion with this 0, contributing $k$ to $I$. After converting to 1, these $k$ inversions are removed. The new 1 at position $p$ now forms inversions with all 0's to its right. There are $z - 1$ zeros to the right (where $z$ was the total number of 0's before this operation). So new inversions = $z - 1$. Net change: $\\Delta I = (z - 1) - k$.\n\nType 1 (110 → 01 at some position): Let me think about this. \"110\" → \"01\". In \"110\", the inversions are: (1 at pos 1, 0 at pos 3) and (1 at pos 2, 0 at pos 3) = 2 inversions within the \"110\". In \"01\", there are 0 inversions within. But we also need to consider inversions with characters outside the \"110\".\n\nBefore: \"110\" at positions $p, p+1, p+2$. The 1's at $p, p+1$ form inversions with 0's to their right (including the 0 at $p+2$ and any 0's after $p+2$). The 0 at $p+2$ forms inversions with... nothing (0's don't form inversions as the first element).\n\nAfter: \"01\" at positions $p, p+1$ (string shortened by 1). The 0 at $p$ forms no inversions as first element. The 1 at $p+1$ forms inversions with 0's to its right.\n\nLet me count more carefully. Let $a$ = number of 0's to the right of position $p+2$ (before the operation). \n\nBefore:\n- 1 at $p$: inversions with 0 at $p+2$ (1) + 0's to the right of $p+2$ ($a$) = $1 + a$.\n- 1 at $p+1$: inversions with 0 at $p+2$ (1) + 0's to the right ($a$) = $1 + a$.\n- 0 at $p+2$: no inversions as first element.\nTotal inversions involving positions $p, p+1, p+2$: $2(1 + a)$.\n\nAfter (string shortened, \"01\" at positions $p, p+1$, characters after old $p+2$ shift to $p+2, p+3, \\ldots$):\n- 0 at $p$: no inversions as first element.\n- 1 at $p+1$: inversions with 0's to its right = $a$ (the $a$ zeros that were to the right of old $p+2$, now to the right of new $p+1$).\nTotal: $a$.\n\nNet change: $\\Delta I = a - 2(1 + a) = -2 - a$.\n\nHmm, this depends on $a$, so it's not constant. Inversions alone don't give a clean potential.\n\nLet me try a weighted inversion count. Define $I_w(S) = \\sum_{\\substack{i < j \\\\ s_i = 1, s_j = 0}} w(j - i)$ for some weight function $w$.\n\nThis is getting complicated. Let me try a completely different approach.\n\nLet me think about the problem as a game on a number line. Each 0 is a \"particle\" and each 1 is... hmm.\n\nActually, let me try to think about it as follows. Let me assign to each 0 a \"level\" based on how many 1's are immediately to its left (in a contiguous block).\n\nOr, let me think about the \"run-length\" encoding and track how it evolves.\n\nLet me consider the string as a sequence of runs: $1^{a_1} 0^{b_1} 1^{a_2} 0^{b_2} \\ldots$ (possibly starting with $0^{b_0}$ and/or ending with $1^{a_k}$).\n\nFor the $0^n$ case, the string is just $0^n$, which is a single run of $n$ zeros.\n\nLet me think about the process for $0^n$ in terms of runs:\n- $0^n$: runs = [$0^n$].\n- $10^{n-1}$: runs = [$1^1$, $0^{n-1}$].\n- $110^{n-2}$: runs = [$1^2$, $0^{n-2}$].\n- $010^{n-2}$: runs = [$0^1$, $1^1$, $0^{n-2}$].\n- $110^{n-2}$: runs = [$1^2$, $0^{n-2}$]. Wait, $010^{n-2}$ → type 2 on leftmost 0 → $110^{n-2}$. But $010^{n-2}$ has the 0 at position 1, 1 at position 2, and $0^{n-2}$ at positions 3 to $n-1$ (length $n-1$). After type 2: $110^{n-2}$, length $n-1$. But $110^{n-2}$ has \"110\" at positions 1-3, so type 1: → $010^{n-3}$, length $n-2$.\n\nSo the cycle is: $110^k \\to 010^{k-1} \\to 110^{k-1} \\to 010^{k-2} \\to \\ldots$\n\nEach \"cycle\" (type 1 then type 2) reduces $k$ by 1 and takes 2 steps. Starting from $110^{n-2}$ (after 2 initial type 2 steps), we go through $k = n-2, n-3, \\ldots, 1, 0$, with 2 steps per $k$ (except $k=0$ which is just \"11\", the end). Wait, $110^0 = \"11\"$, which has no 0's, so we're done. \n\nFrom $110^{n-2}$: type 1 → $010^{n-3}$, type 2 → $110^{n-3}$, type 1 → $010^{n-4}$, ..., type 1 → $010^0 = \"01\"$, type 2 → $110^0 = \"11\"$. \n\nThe number of steps from $110^{n-2}$ to $11$: for each $k$ from $n-2$ down to $1$, we do type 1 (→ $010^{k-1}$) then type 2 (→ $110^{k-1}$), that's 2 steps. After $k=1$: type 1 → $010^0 = \"01\"$, type 2 → \"11\". So $2(n-2)$ steps. Plus the initial 2 steps. Total $2 + 2(n-2) = 2n - 2$. ✓\n\nNow, for the upper bound, let me think about what limits the lifetime.\n\nKey observation: In the process, every other step is type 2 (converting a 0 to 1) once we're in the \"cycle.\" The type 1 steps are \"free\" steps that don't reduce the number of 0's but do reduce the length.\n\nLet me think about the maximum number of type 1 steps. Each type 1 step requires a \"110\" pattern and reduces the length by 1. The length starts at $n$ and the final length is at least 1 (actually at least 2 for $n \\geq 2$, since we need at least one 0 to be converted, and the final string is all 1's of length $\\geq 1$).\n\nWait, the final length can be 1 (e.g., \"0\" → \"1\"). For $n \\geq 2$, can the final length be 1? If the final string is \"1\", then we did $n - 1$ type 1 operations and $z$ type 2 operations, with $z = $ initial number of 0's. The total 1's at the end: $o_0 - (n-1) + z = o_0 + z - n + 1 = n - n + 1 = 1$. ✓ So it's possible in principle.\n\nBut does the deterministic process ever reach length 1? For $0^n$, the final length is 2, not 1. So the process doesn't always achieve the minimum final length.\n\nLet me think about why. In the $0^n$ process, we end at \"11\" (length 2). Could we end at \"1\" (length 1)? That would require one more type 1 operation, but \"11\" has no \"110\" pattern (no 0's",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 20615,
+        "completion_tokens": 25000,
+        "cached_tokens": 12213
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 20615,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12213,
+    "total_steps": 9
+  }
+}

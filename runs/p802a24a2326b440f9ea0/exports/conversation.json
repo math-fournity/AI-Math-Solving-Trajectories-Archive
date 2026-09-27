@@ -1,0 +1,1048 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "warp-slope",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-21T01:04:06.572927+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-21T01:04:06.573609+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-21T01:04:06.580911+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-21T01:04:06.573961+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p802a24a2326b440f9ea0 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Thursday, 2026-08-20\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-21T01:04:06.574409+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在AGENTS.md中只记录脚本路径和一行用法示例。AGENTS.md是认知索引和规则，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。放到项目已有的脚本目录（如`xishujuzhen/solver_harness/`）或项目的`scripts/`目录中。\n\n4. **在项目AGENTS.md中做好索引**——新脚本必须在项目AGENTS.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **必须写成文件** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 检查项目内是否已有类似脚本（grep搜索、看AGENTS.md索引）\n3. **已有** → 改进那个脚本（edit工具修改），编译验证\n4. **没有** → 在项目脚本目录中创建新文件（write工具），编译验证\n5. 在项目AGENTS.md中记录脚本索引（如已有相关节则更新，如没有则新增）\n6. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新AGENTS.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是索引不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ✅ 改进`batch_status.py`的`cmd_dead_cleanup`函数\n- ✅ 新建`enqueue_problem.py`并在AGENTS.md硬约束6中记录\n- ✅ AGENTS.md中只写`pipe_control.py status`一行用法，不写完整调用参数和输出示例\n</rule>\n\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p802a24a2326b440f9ea0/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\n/-\nCopyright 2025 The Formal Conjectures Authors.\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n    https://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License.\n-/\n\nimport FormalConjecturesUtil\n\n/-!\n# Written on the Wall II - Conjecture 20\n\n*Reference:*\n[E. DeLaVina, Written on the Wall II, Conjectures of Graffiti.pc](http://cms.dt.uh.edu/faculty/delavinae/research/wowII/)\n-/\n\nnamespace WrittenOnTheWallII.GraphConjecture20\n\nopen SimpleGraph\n\nvariable {α : Type*} [Fintype α] [DecidableEq α] [Nontrivial α]\n\n/--\nWOWII [Conjecture 20](http://cms.dt.uh.edu/faculty/delavinae/research/wowII/)\n\nFor a simple connected graph `G`, `b(G) ≥ n(G) / ⌊deg_avg(G)⌋`, where `b(G)` is\nthe size of a largest induced bipartite subgraph, `n(G)` is the number of vertices,\nand `deg_avg(G) = (∑ v, deg(v)) / n(G)` is the average degree.\n-/\n@[category research solved, AMS 5]\ntheorem conjecture20 (G : SimpleGraph α) [DecidableRel G.Adj] (h : G.Connected) :\n    let deg_avg : ℝ := (∑ v : α, (G.degree v : ℝ)) / (Fintype.card α : ℝ)\n    (Fintype.card α : ℝ) / (⌊deg_avg⌋ : ℝ) ≤ (b G : ℝ) := by\n  sorry\n\n-- Sanity checks\n\n/-- The number of vertices of `K₃` is 3. -/\n@[category test, AMS 5]\nexample : Fintype.card (Fin 3) = 3 := by decide\n\n/-- The average degree of `K₃` is 2 (every vertex has degree 2 in the complete graph on 3 vertices). -/\n@[category test, AMS 5]\nexample : averageDegree (⊤ : SimpleGraph (Fin 3)) = 2 := by\n  unfold averageDegree; simp [Fintype.card_fin]\n\nend WrittenOnTheWallII.GraphConjecture20\n\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-21T01:04:06.574422+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-21T01:04:06.582538+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-21T01:04:06.583438+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **search-tools**: 网络搜索武器库（Exa/Serper/Jina等） (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-21T01:04:10.686629+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me analyze this problem carefully.\n\nThe conjecture states: For a simple connected graph G, b(G) ≥ n(G) / ⌊deg_avg(G)⌋, where b(G) is the size of a largest induced bipartite subgraph, n(G) is the number of vertices, and deg_avg(G) = (∑ v, deg(v)) / n(G) is the average degree.\n\nLet me first check for answer leaks. The problem text contains:\n- The theorem statement (which is what we need to prove)\n- Sanity checks (examples about K3)\n- No solution, no proof sketch, no \"the proof follows...\"\n\nNo answer leak detected.\n\nNow let me think about the mathematical content.\n\nWe need to prove: n / ⌊d_avg⌋ ≤ b(G), where n = n(G), d_avg = average degree, b(G) = max size of induced bipartite subgraph.\n\nThis is a known result. Let me think about the proof strategy.\n\nThe key facts:\n1. Every graph has a bipartite subgraph with at least half the edges (this is a classic result).\n2. But here we need an *induced* bipartite subgraph of large vertex count.\n\nActually, let me think about this differently. The conjecture is from Graffiti.pc, and it's marked as \"solved\". \n\nLet me think about what's known. The key insight is likely related to the following:\n\nA graph is bipartite iff it has no odd cycles. An induced bipartite subgraph corresponds to a set S of vertices such that G[S] is bipartite.\n\nLet me think about the relationship between average degree and bipartite induced subgraphs.\n\nKey approach: Consider a random 2-coloring or use the fact that we can find a large independent set, or use the relationship between chromatic number and bipartite subgraphs.\n\nActually, let me think about this more carefully. \n\nOne classic result: In any graph, there exists an induced bipartite subgraph on at least n/2 vertices (this follows from the fact that a random partition into two parts gives an induced bipartite subgraph in expectation... no wait, that's not quite right).\n\nActually, let me reconsider. A random subset won't directly give bipartite. Let me think again.\n\nHmm, actually there's a simpler approach. Consider the following:\n\nClaim: b(G) ≥ n / χ(G) where χ(G) is the chromatic number... no, that's not right either. Actually, if we take a proper coloring with χ(G) colors, then any two color classes form a bipartite induced subgraph. The largest two color classes have at least 2n/χ(G) vertices. So b(G) ≥ 2n/χ(G).\n\nBut we need b(G) ≥ n / ⌊d_avg⌋.\n\nNow, there's a relationship between average degree and chromatic number. We know that χ(G) ≤ ⌊d_avg⌋ + 1... no, that's not right. We know χ(G) ≤ max degree + 1 (Brooks' theorem gives χ(G) ≤ max degree for most graphs). \n\nActually, we know that χ(G) ≤ ⌊d_max⌋ + 1, but we need something with average degree.\n\nHmm, but actually we need to go the other direction. We need an upper bound on something in terms of average degree.\n\nLet me reconsider. We have b(G) ≥ 2n/χ(G). We want b(G) ≥ n/⌊d_avg⌋. So it suffices to show 2/χ(G) ≥ 1/⌊d_avg⌋, i.e., χ(G) ≤ 2⌊d_avg⌋.\n\nIs χ(G) ≤ 2⌊d_avg⌋ always true? Not necessarily. Consider a graph where average degree is 2 but chromatic number is 3 (e.g., an odd cycle). Then 2⌊2⌋ = 4 ≥ 3. OK that works.\n\nWhat about a graph with average degree 2.5? Then ⌊d_avg⌋ = 2, and we need χ(G) ≤ 4. An odd cycle has χ = 3 ≤ 4. \n\nWhat about graphs with high chromatic number but low average degree? There exist graphs with arbitrarily high chromatic number and girth (hence relatively low average degree for their chromatic number). For instance, there exist graphs with chromatic number k and average degree roughly k log k or so... actually, the relationship is that you can have χ(G) much larger than d_avg.\n\nWait, but actually the conjecture is marked as \"solved\", so it must be true. Let me reconsider the approach.\n\nMaybe the approach via chromatic number isn't the right one. Let me think differently.\n\nAnother approach: Use the fact that every graph has a large induced bipartite subgraph directly.\n\nActually, let me reconsider. The result b(G) ≥ 2n/χ(G) combined with a bound relating χ(G) to average degree might work, but we need the right bound.\n\nActually, there's a classical result: χ(G) ≤ ⌊d_avg(G)⌋ + 1 is NOT true in general. But what IS true?\n\nHmm, let me think about this differently. Maybe we should use a direct probabilistic or greedy argument.\n\nLet me think about the structure more carefully.\n\nApproach via independent sets: An independent set is a bipartite graph (trivially). So b(G) ≥ α(G) (independence number). And by Turán's theorem or Caro-Wei, α(G) ≥ n/(d_avg + 1) ≥ n/(⌊d_avg⌋ + 1). But we need n/⌊d_avg⌋, which is larger.\n\nSo the independent set approach gives n/(⌊d_avg⌋ + 1) which is slightly less than n/⌊d_avg⌋. Not quite enough.\n\nLet me think about using bipartite subgraphs more directly.\n\nApproach: Consider a maximum cut of G. The two sides of the cut, say (A, B), form a bipartite subgraph (not induced). The induced subgraph on A ∪ B = V is G itself, which may not be bipartite. So this doesn't directly help.\n\nBut consider: take a maximum cut (A, B). The edges within A and within B are the \"uncut\" edges. If we remove some vertices to eliminate all intra-part edges, we get an induced bipartite subgraph.\n\nHmm, this is getting complicated. Let me think about the problem from a higher level.\n\nActually, let me reconsider the chromatic number approach. \n\nWe have b(G) ≥ 2n/χ(G). We want to show b(G) ≥ n/⌊d_avg⌋.\n\nIt suffices to show: 2n/χ(G) ≥ n/⌊d_avg⌋, i.e., χ(G) ≤ 2⌊d_avg⌋.\n\nIs χ(G) ≤ 2⌊d_avg⌋ always true for connected graphs?\n\nConsider a graph G that is a complete graph K_n. Then d_avg = n-1, ⌊d_avg⌋ = n-1, χ(G) = n. We need n ≤ 2(n-1), which is true for n ≥ 2.\n\nConsider an odd cycle C_{2k+1}. d_avg = 2, ⌊d_avg⌋ = 2, χ = 3. We need 3 ≤ 4. True.\n\nConsider a graph that is a union of... wait, it must be connected.\n\nWhat about graphs with high chromatic number and low average degree? By probabilistic constructions, there exist graphs with χ(G) = k and average degree O(k log k). So ⌊d_avg⌋ could be around k log k, and 2⌊d_avg⌋ ≈ 2k log k ≥ k for k ≥ 2. So this seems fine.\n\nBut can we have χ(G) > 2⌊d_avg⌋? We'd need a graph where the chromatic number is more than twice the floor of the average degree. \n\nFor a d-regular graph, d_avg = d. We need χ(G) ≤ 2d. By Brooks' theorem, χ(G) ≤ d for most d-regular graphs (except complete graphs and odd cycles). For complete graphs K_{d+1}, χ = d+1 ≤ 2d for d ≥ 1. For odd cycles, χ = 3 ≤ 2·2 = 4. So for regular graphs, χ ≤ 2d always.\n\nBut for non-regular graphs, can χ be much larger than d_avg?\n\nConsider a graph formed by taking a clique K_k and attaching many leaves to it. Say we have K_k plus m leaves, each connected to one vertex of K_k. Then n = k + m, total degree = k(k-1) + m, d_avg = (k(k-1) + m)/(k+m). As m → ∞, d_avg → 1. But χ = k. So ⌊d_avg⌋ = 1 for large m, and we need k ≤ 2·1 = 2. This fails for k ≥ 3!\n\nWait, but is this graph connected? Yes, the leaves are connected to the clique. So this is a connected graph with χ = k but ⌊d_avg⌋ = 1 for large m.\n\nSo the chromatic number approach fails! χ(G) can be much larger than 2⌊d_avg⌋.\n\nBut wait, in this case, what is b(G)? The graph is K_k with m leaves. An induced bipartite subgraph: take all m leaves plus two vertices from the clique (any two vertices of K_k are adjacent, so we can take at most... wait, in K_k, any two vertices are adjacent, so an independent set in K_k has size 1. But a bipartite induced subgraph of K_k has at most 2 vertices (since K_2 is bipartite but K_3 is not).\n\nSo the largest induced bipartite subgraph: take 2 vertices from K_k (they form K_2, bipartite) plus all m leaves. But wait, the leaves are only connected to one vertex each. If a leaf is connected to vertex v in K_k, and we include v in our bipartite subgraph, the leaf and v are adjacent. We need the induced subgraph to be bipartite.\n\nLet me think more carefully. Take 2 vertices a, b from K_k. They're adjacent. Take all leaves attached to a and all leaves attached to b. The induced subgraph on {a, b} ∪ {leaves of a} ∪ {leaves of b}: a-b edge, a-leaf_a edges, b-leaf_b edges. This is a star-like structure. Is it bipartite? Put a on one side, b on the other. Leaves of a go with b's side (they're only adjacent to a). Leaves of b go with a's side. So yes, it's bipartite. Size: 2 + (number of leaves of a) + (number of leaves of b).\n\nIf leaves are evenly distributed, this gives about 2 + 2m/k. But we could also take just 1 vertex from K_k and all its leaves: that's a star, bipartite, size 1 + m/k. Or take 0 vertices from K_k and all leaves: that's an independent set, bipartite, size m.\n\nSo b(G) ≥ m. And n/⌊d_avg⌋ = (k+m)/1 = k+m for large m. But b(G) ≈ m < k+m = n. So the conjecture would be FALSE for this graph!\n\nWait, that can't be right. The conjecture is marked as \"solved\", meaning it's true. Let me recheck.\n\nHmm, wait. Let me recompute d_avg. K_k has k vertices each with degree k-1. Plus m leaves each with degree 1. Total degree sum = k(k-1) + m. Number of vertices = k + m. d_avg = (k(k-1) + m)/(k+m).\n\nFor large m, d_avg → m/(k+m) → ... wait, no. d_avg = (k(k-1) + m)/(k+m). As m → ∞, d_avg → m/m = 1. So ⌊d_avg⌋ = 1 (for large enough m, specifically when d_avg < 2, i.e., k(k-1) + m < 2(k+m), i.e., k(k-1) - 2k < m, i.e., k² - 3k < m).\n\nSo n/⌊d_avg⌋ = (k+m)/1 = k+m.\n\nAnd b(G): the largest induced bipartite subgraph. We can take all m leaves (independent set, hence bipartite), giving size m. Can we do better? Take 2 vertices from K_k and all leaves: size 2 + m. But wait, we need to check if this is bipartite.\n\nTake vertices a, b from K_k and all m leaves. Leaves attached to a are adjacent to a. Leaves attached to b are adjacent to b. a and b are adjacent. For this to be bipartite, we need a 2-coloring. Put a in color 1, b in color 2. Leaves of a must be in color 2 (adjacent to a). Leaves of b must be in color 1 (adjacent to b). Are there any edges between leaves? No. Are there edges between leaves of a and b? Only if a leaf of a is adjacent to b, but leaves are only adjacent to their one neighbor. So this works! The induced subgraph is bipartite with size 2 + m.\n\nBut can we take 3 vertices from K_k? K_3 is not bipartite, so no. So b(G) = 2 + m (taking 2 vertices from K_k and all leaves).\n\nWait, but what if some leaves are attached to vertex c (not a or b)? Then those leaves are not adjacent to a or b, so they're isolated in the induced subgraph. We can include them too. So b(G) = 2 + m (all leaves plus 2 clique vertices).\n\nActually, we can include ALL leaves regardless of which clique vertex they're attached to, as long as we only include 2 clique vertices. If a leaf is attached to c (a third clique vertex not in our set), then in the induced subgraph, that leaf has no neighbors (since c is not included), so it's isolated and fine.\n\nSo b(G) = 2 + m.\n\nAnd n/⌊d_avg⌋ = k + m (when ⌊d_avg⌋ = 1).\n\nSo we need 2 + m ≥ k + m, i.e., 2 ≥ k. This fails for k ≥ 3!\n\nSo the conjecture seems FALSE for this graph. But it's marked as \"solved\"...\n\nLet me re-read the conjecture. \"b(G) ≥ n(G) / ⌊deg_avg(G)⌋\"\n\nHmm, maybe I'm misunderstanding something. Let me re-read.\n\nOh wait, maybe ⌊deg_avg(G)⌋ could be 0? If d_avg < 1, then ⌊d_avg⌋ = 0, and n/0 is undefined. But for a connected graph with n ≥ 2, d_avg ≥ 2(n-1)/n ≥ 1 (since a connected graph has at least n-1 edges, so degree sum ≥ 2(n-1)). Actually, d_avg ≥ 2(n-1)/n. For n ≥ 2, this is ≥ 1. So ⌊d_avg⌋ ≥ 1 for connected graphs with n ≥ 2.\n\nBut in my example, ⌊d_avg⌋ = 1, and the conjecture says b(G) ≥ n/1 = n, which means b(G) ≥ n, meaning G itself is bipartite. But K_k is not bipartite for k ≥ 3. So the conjecture is false?\n\nWait, I must be making an error. Let me recompute more carefully.\n\nK_k with m leaves. Let's say k = 3, m = 100. \n- Vertices: 3 + 100 = 103\n- Degree sum: 3·2 + 100 = 106\n- d_avg = 106/103 ≈ 1.029\n- ⌊d_avg⌋ = 1\n- n/⌊d_avg⌋ = 103\n- b(G) = 2 + 100 = 102\n\nSo 102 ≥ 103? No! 102 < 103. The conjecture fails!\n\nHmm, but the conjecture is marked as \"solved\". Let me re-examine.\n\nWait, maybe I'm wrong about b(G). Let me reconsider. Can we get an induced bipartite subgraph of size 103 (the whole graph)? The whole graph contains K_3, which is not bipartite. So no.\n\nCan we get size 102? We need to remove at least 1 vertex. If we remove one vertex of K_3, we get K_2 plus all leaves. K_2 is bipartite. The leaves attached to the removed vertex become isolated. The leaves attached to the remaining 2 vertices are adjacent to those vertices. This is bipartite. Size = 102. \n\nSo b(G) = 102 and n/⌊d_avg⌋ = 103. The conjecture says 103 ≤ 102, which is false.\n\nSo either the conjecture is wrong, or I'm misunderstanding something.\n\nLet me re-read the problem statement very carefully.\n\n\"b(G) ≥ n(G) / ⌊deg_avg(G)⌋\"\n\nIn the Lean formalization:\n```\nlet deg_avg : ℝ := (∑ v : α, (G.degree v : ℝ)) / (Fintype.card α : ℝ)\n(Fintype.card α : ℝ) / (⌊deg_avg⌋ : ℝ) ≤ (b G : ℝ)\n```\n\nSo it's n / ⌊d_avg⌋ ≤ b(G), which is the same as b(G) ≥ n / ⌊d_avg⌋.\n\nMy counterexample seems valid. K_3 with 100 leaves: n = 103, d_avg ≈ 1.029, ⌊d_avg⌋ = 1, n/⌊d_avg⌋ = 103, b(G) = 102. So 103 ≤ 102 is false.\n\nBut the conjecture is marked as \"solved\" with `@[category research solved, AMS 5]`. \n\nHmm, maybe I'm wrong about what b(G) means. Let me check. \"b(G) is the size of a largest induced bipartite subgraph.\" \n\nIn my example, the largest induced bipartite subgraph has 102 vertices (remove one vertex from K_3). So b(G) = 102.\n\nAnd n/⌊d_avg⌋ = 103/1 = 103 > 102. So the conjecture is false.\n\nUnless... maybe the conjecture has additional conditions I'm missing? Let me re-read.\n\n\"For a simple connected graph G, b(G) ≥ n(G) / ⌊deg_avg(G)⌋\"\n\nThe graph must be simple and connected. My example is simple and connected. So the conjecture should apply.\n\nWait, maybe there's a minimum degree condition? Or maybe the conjecture is about minimum degree, not average degree?\n\nLet me look at the reference: \"E. DeLaVina, Written on the Wall II, Conjectures of Graffiti.pc\"\n\nActually, Graffiti.pc conjectures are known to sometimes be false. The \"solved\" category might mean it was resolved (possibly disproven). But the theorem statement uses `≤` which suggests it should be proven true...\n\nActually, in the Formal Conjectures project, \"solved\" might mean the conjecture has been resolved (either proven or disproven). But the theorem as stated has `sorry`, meaning it's claimed to be true and needs a proof.\n\nHmm, let me reconsider my counterexample. Maybe I'm making an arithmetic error.\n\nK_3 with 100 leaves attached to vertices of K_3. Let's say 34 leaves on vertex 1, 33 on vertex 2, 33 on vertex 3.\n\nDegrees: vertex 1: 2 + 34 = 36, vertex 2: 2 + 33 = 35, vertex 3: 2 + 33 = 35. Each leaf: degree 1.\nDegree sum = 36 + 35 + 35 + 100·1 = 106 + 100 = 206. Wait, that's wrong. \n\nLet me redo. K_3 has 3 vertices, each with degree 2 within K_3. Adding leaves: vertex 1 gets 34 extra edges (degree +34), vertex 2 gets 33 (degree +33), vertex 3 gets 33 (degree +33).\n\nDegrees: v1 = 2+34 = 36, v2 = 2+33 = 35, v3 = 2+33 = 35. 100 leaves each with degree 1.\nDegree sum = 36 + 35 + 35 + 100 = 206.\nn = 103.\nd_avg = 206/103 ≈ 2.00097.\n\nOh wait! I made an error earlier. Let me recompute.\n\nK_k has k vertices each with degree k-1. So degree sum from K_k = k(k-1). Adding m leaves, each with degree 1, adds m to the degree sum. But also, the leaves add degree to the clique vertices they're attached to.\n\nWait, I need to be more careful. The degree of a clique vertex v is (k-1) + (number of leaves attached to v). The degree of a leaf is 1.\n\nTotal degree sum = ∑_{v in K_k} [(k-1) + l_v] + ∑_{leaf} 1 = k(k-1) + ∑ l_v + m = k(k-1) + m + m = k(k-1) + 2m.\n\nWait no! ∑ l_v = m (total number of leaves). And each leaf has degree 1, contributing m to the sum. So total degree sum = k(k-1) + m + m = k(k-1) + 2m.\n\nI made an error before! I wrote degree sum = k(k-1) + m, but it should be k(k-1) + 2m.\n\nLet me redo: d_avg = (k(k-1) + 2m) / (k + m).\n\nFor k = 3, m = 100: d_avg = (6 + 200) / 103 = 206/103 ≈ 2.001. ⌊d_avg⌋ = 2.\n\nn/⌊d_avg⌋ = 103/2 = 51.5. b(G) = 102. So 51.5 ≤ 102. True!\n\nI made an arithmetic error earlier. The degree of clique vertices increases when we add leaves. Let me redo the general case.\n\nd_avg = (k(k-1) + 2m) / (k + m).\n\nAs m → ∞: d_avg → 2m/m = 2. So ⌊d_avg⌋ → 2 (from above, since d_avg > 2 for finite m when k ≥ 3, because k(k-1) ≥ 6 > 2k = 6... wait, k(k-1) = 6, 2k = 6, so d_avg = (6 + 2m)/(3+m) = (6+2m)/(3+m). For m = 0: 6/3 = 2. For m > 0: (6+2m)/(3+m) = 2(3+m)/(3+m) = 2. Oh! It's exactly 2 for k = 3!\n\nSo for K_3 with any number of leaves, d_avg = 2 exactly, ⌊d_avg⌋ = 2, n/2 ≤ b(G) = n-1, which means n/2 ≤ n-1, true for n ≥ 2.\n\nOK so my counterexample was wrong due to an arithmetic error. Good.\n\nLet me think about whether the conjecture could still fail with a different construction.\n\nFor the conjecture to fail, we need b(G) < n/⌊d_avg⌋, i.e., n - b(G) > n - n/⌊d_avg⌋ = n(1 - 1/⌊d_avg⌋) = n(⌊d_avg⌋ - 1)/⌊d_avg⌋.\n\nn - b(G) is the minimum number of vertices to remove to make G bipartite. This is related to the \"odd cycle vertex transversal\" number.\n\nFor the conjecture to fail, we need the minimum vertex removal to make bipartite to be large relative to n, while ⌊d_avg⌋ is small.\n\nConsider a graph that is far from bipartite (needs many vertices removed) but has low average degree. \n\nAn odd cycle C_{2k+1}: d_avg = 2, ⌊d_avg⌋ = 2, n/2 = (2k+1)/2. b(G) = 2k (remove one vertex). 2k ≥ (2k+1)/2 = k + 0.5. True for k ≥ 1.\n\nWhat about a graph composed of many odd cycles sharing a vertex? Like a \"flower\" of odd cycles. \n\nConsider k triangles sharing a common vertex v. n = 1 + 2k. Degrees: v has degree 2k, each other vertex has degree 2. Degree sum = 2k + 2k·2 = 2k + 4k = 6k. d_avg = 6k/(1+2k). For large k, d_avg → 3. ⌊d_avg⌋ = 2 for small k, 3 for large k.\n\nFor ⌊d_avg⌋ = 3: n/3 = (1+2k)/3. b(G): to make bipartite, we need to remove at least one vertex from each triangle. Removing v kills all triangles at once. So b(G) = n - 1 = 2k. We need 2k ≥ (1+2k)/3, i.e., 6k ≥ 1+2k, i.e., 4k ≥ 1. True.\n\nFor ⌊d_avg⌋ = 2: n/2 = (1+2k)/2. b(G) = 2k. We need 2k ≥ (1+2k)/2, i.e., 4k ≥ 1+2k, i.e., 2k ≥ 1. True for k ≥ 1.\n\nWhat about a more complex construction? Let me think about graphs where we need to remove many vertices but average degree is low.\n\nConsider a graph that is a disjoint union of... no, must be connected.\n\nConsider a \"chain\" of triangles: triangles connected by paths. This would have low average degree but need one vertex removed per triangle.\n\nLet's say we have k triangles, connected in a chain by edges between consecutive triangles. n = 3k. Each triangle vertex has degree 2 within the triangle, plus possibly 1 for the connecting edge. Degree sum ≈ 6k + 2(k-1) ≈ 8k. d_avg ≈ 8k/3k ≈ 8/3 ≈ 2.67. ⌊d_avg⌋ = 2.\n\nn/⌊d_avg⌋ = 3k/2. b(G): need to remove at least 1 vertex per triangle, so b(G) ≤ 3k - k = 2k. Actually b(G) = 2k (remove one vertex from each triangle, the remaining paths are bipartite). \n\nWe need 2k ≥ 3k/2, i.e., 4k ≥ 3k, i.e., k ≥ 0. True.\n\nHmm, it seems like the conjecture holds in these cases. Let me think about why.\n\nThe key insight might be: if ⌊d_avg⌋ = d, then the graph has average degree at least d, meaning it has a decent number of edges. But a graph that's far from bipartite (needs many vertices removed) must have many odd cycles, which requires edges.\n\nLet me think about a cleaner approach.\n\nApproach via chromatic number and bipartite subgraphs:\n\nWe know b(G) ≥ 2n/χ(G) (take the two largest color classes in an optimal coloring).\n\nWe also know that χ(G) ≤ ⌊d_avg⌋ + 1 is NOT always true (as my earlier analysis showed, but that was based on the wrong computation).\n\nActually wait, let me reconsider. Is χ(G) ≤ ⌊d_avg⌋ + 1 true?\n\nFor K_k with m leaves: d_avg = (k(k-1) + 2m)/(k+m). For large m, d_avg → 2. ⌊d_avg⌋ = 2 (for k=3) or could be higher. χ = k. We need k ≤ 3. For k ≥ 4, this fails.\n\nSo χ(G) ≤ ⌊d_avg⌋ + 1 is false in general. But we need χ(G) ≤ 2⌊d_avg⌋ for the chromatic approach to work.\n\nFor K_k with m leaves: d_avg = (k(k-1) + 2m)/(k+m). As m → ∞, d_avg → 2. So ⌊d_avg⌋ = 2 for large m. We need k ≤ 4. For k ≥ 5, this fails.\n\nBut does the conjecture still hold? b(G) = 2 + m (take 2 clique vertices + all leaves). n/⌊d_avg⌋ = (k+m)/2. We need 2 + m ≥ (k+m)/2, i.e., 4 + 2m ≥ k + m, i.e., m ≥ k - 4. For large m, this is true. For small m, d_avg is larger so ⌊d_avg⌋ is larger.\n\nLet me check k = 5, m = 0 (just K_5): d_avg = 4, ⌊d_avg⌋ = 4, n/4 = 5/4 = 1.25, b(G) = 2. 2 ≥ 1.25. True.\n\nk = 5, m = 1: d_avg = (20 + 2)/6 = 22/6 ≈ 3.67, ⌊d_avg⌋ = 3, n/3 = 6/3 = 2, b(G) = 3. 3 ≥ 2. True.\n\nk = 5, m = 10: d_avg = (20 + 20)/15 = 40/15 ≈ 2.67, ⌊d_avg⌋ = 2, n/2 = 15/2 = 7.5, b(G) = 12. 12 ≥ 7.5. True.\n\nk = 5, m = 3: d_avg = (20+6)/8 = 26/8 = 3.25, ⌊d_avg⌋ = 3, n/3 = 8/3 ≈ 2.67, b(G) = 5. 5 ≥ 2.67. True.\n\nOK so the conjecture seems to hold. The chromatic number approach doesn't directly work, but the conjecture is still true.\n\nLet me think about a different approach.\n\nKey idea: Use the relationship between b(G) and the structure of the graph more directly.\n\nLet me think about what makes a graph far from bipartite. A graph is bipartite iff it has no odd cycles. The minimum number of vertices to remove to make G bipartite is the \"odd cycle vertex transversal\" number, denoted τ_odd(G). Then b(G) = n - τ_odd(G).\n\nThe conjecture becomes: n - τ_odd(G) ≥ n/⌊d_avg⌋, i.e., τ_odd(G) ≤ n(1 - 1/⌊d_avg⌋) = n(⌊d_avg⌋ - 1)/⌊d_avg⌋.\n\nHmm, this is equivalent to: τ_odd(G) ≤ n - n/⌊d_avg⌋.\n\nThis is still not obviously easy to prove.\n\nLet me think about another approach. \n\nApproach via edge count and bipartite subgraphs:\n\nA classic result: every graph with m edges has a bipartite subgraph with at least m/2 edges (take a max cut). But we need vertex count, not edge count.\n\nApproach via greedy coloring / independent sets:\n\nConsider a greedy approach: repeatedly find a maximum independent set, remove it, and repeat. The first two independent sets form a bipartite induced subgraph. \n\nThe size of the first independent set is α(G) ≥ n/(d_avg + 1) by Caro-Wei or Turán. After removing it, the remaining graph has fewer vertices and edges.\n\nActually, let me think about this more carefully using the Caro-Wei bound.\n\nCaro-Wei: α(G) ≥ ∑_{v} 1/(d(v) + 1) ≥ n/(d_avg + 1) by convexity (since 1/(x+1) is convex, Jensen gives ∑ 1/(d(v)+1) ≥ n/(d_avg + 1)).\n\nSo α(G) ≥ n/(d_avg + 1) ≥ n/(⌊d_avg⌋ + 2).\n\nBut we need b(G) ≥ n/⌊d_avg⌋, and b(G) ≥ α(G) gives b(G) ≥ n/(⌊d_avg⌋ + 2), which is weaker.\n\nHmm. Let me think about using two independent sets.\n\nTake a maximum independent set I₁. Then take a maximum independent set I₂ in G - I₁. The induced subgraph on I₁ ∪ I₂ is bipartite (I₁ and I₂ are independent sets, and edges only go between I₁ and I₂... wait, no. Edges can go within I₁ ∪ I₂ that are not captured. Actually, I₁ is independent, I₂ is independent, so all edges in G[I₁ ∪ I₂] go between I₁ and I₂. So G[I₁ ∪ I₂] is bipartite. \n\nSo b(G) ≥ |I₁| + |I₂|.\n\n|I₁| ≥ n/(d_avg + 1). After removing I₁, the remaining graph has n - |I₁| vertices. What can we say about |I₂|?\n\nThe remaining graph G' = G - I₁ has n' = n - |I₁| vertices. Its average degree d'_avg ≤ d_avg (removing an independent set can only decrease or maintain average degree... actually, not necessarily. Removing an independent set removes all edges incident to I₁, so the remaining edges are fewer. But the remaining vertices might have higher or lower average degree.)\n\nHmm, this is getting complicated. Let me think of a cleaner approach.\n\nActually, let me think about the problem differently. \n\nAlternative approach: Use the fact that b(G) ≥ n - τ_odd(G) and bound τ_odd(G) using the average degree.\n\nOr, use a direct probabilistic argument.\n\nProbabilistic argument: Randomly order the vertices. Process them greedily, assigning each vertex to one of two parts (A or B), ensuring the induced subgraph remains bipartite. When we encounter a vertex that would create an odd cycle, we skip it.\n\nActually, this is related to the concept of \"bipartite induced subgraph via random ordering.\"\n\nLet me think about a cleaner approach.\n\nApproach via the following lemma:\n\nLemma: In any graph G, b(G) ≥ n / χ(G).\n\nWait, is this true? If we take a proper χ(G)-coloring, the largest color class has size ≥ n/χ(G), and it's an independent set, hence bipartite. So b(G) ≥ n/χ(G). But we can do better: the two largest color classes give b(G) ≥ 2n/χ(G) (approximately).\n\nMore precisely, if the color classes have sizes s₁ ≥ s₂ ≥ ... ≥ s_χ, then s₁ + s₂ ≥ 2n/χ (since s₁ ≥ n/χ and s₂ ≥ (n - s₁)/(χ-1) ≥ (n - n/χ)/(χ-1) = n(χ-1)/(χ(χ-1)) = n/χ). So s₁ + s₂ ≥ 2n/χ.\n\nSo b(G) ≥ 2n/χ(G).\n\nNow, if we can show χ(G) ≤ 2⌊d_avg⌋, we'd be done. But as I showed, this isn't always true.\n\nHowever, maybe we can use a different bound. Let me think about what bounds on χ(G) in terms of d_avg exist.\n\nActually, there's a result that χ(G) ≤ ⌊ω(G)·(something)⌋... no, that's not helpful.\n\nLet me think about this differently. Maybe the approach isn't through chromatic number at all.\n\nLet me look at this from the perspective of the proof that this conjecture is true (since it's marked solved).\n\nActually, I recall that Graffiti.pc conjectures were tested by computer and many were proven. The proof of this specific conjecture might use a clever combinatorial argument.\n\nLet me think about the key inequality: b(G) ≥ n/⌊d_avg⌋.\n\nEquivalently: ⌊d_avg⌋ ≥ n/b(G), or ⌊d_avg⌋ · b(G) ≥ n.\n\nSince b(G) is the size of the largest induced bipartite subgraph, let S be a maximum induced bipartite subgraph with |S| = b(G). Then G[S] is bipartite with parts A, B where |A| + |B| = b(G).\n\nThe vertices not in S, call T = V \\ S, have |T| = n - b(G). Every vertex in T must be such that adding it to S would create an odd cycle (otherwise S wasn't maximum).\n\nHmm, let me think about what constraints this places.\n\nActually, let me try a different approach entirely. Let me think about the problem in terms of the following:\n\nClaim: b(G) ≥ n/δ(G) where δ(G) is the minimum degree. \n\nNo, that's not the conjecture. The conjecture uses average degree.\n\nLet me try yet another approach. \n\nApproach: We want to show b(G) ≥ n/⌊d_avg⌋. \n\nNote that d_avg = 2|E|/n, so ⌊d_avg⌋ = ⌊2|E|/n⌋.\n\nThe conjecture is: b(G) ≥ n/⌊2|E|/n⌋.\n\nLet me think about small cases to build intuition.\n\nCase 1: G is a tree. d_avg = 2(n-1)/n < 2. ⌊d_avg⌋ = 1 (for n ≥ 2). n/1 = n. b(G) = n (trees are bipartite). n ≥ n. True.\n\nCase 2: G is an odd cycle C_{2k+1}. d_avg = 2. ⌊d_avg⌋ = 2. n/2 = (2k+1)/2. b(G) = 2k. 2k ≥ (2k+1)/2. True.\n\nCase 3: G is a complete graph K_n. d_avg = n-1. ⌊d_avg⌋ = n-1. n/(n-1). b(G) = 2 (K_2 is the largest bipartite induced subgraph). 2 ≥ n/(n-1) = 1 + 1/(n-1). True for n ≥ 2.\n\nCase 4: G is a complete bipartite graph K_{a,b}. d_avg = 2ab/(a+b). b(G) = a+b = n. n/⌊d_avg⌋ ≤ n. True since b(G) = n.\n\nOK so the conjecture holds in all these cases. Let me think about the general proof.\n\nKey insight: Let me use the following approach.\n\nConsider a maximum induced bipartite subgraph with vertex set S, |S| = b(G), and bipartition (A, B) of G[S].\n\nFor each vertex v ∉ S, adding v to S would make it non-bipartite. This means v has neighbors in both A and B such that adding v creates an odd cycle. More precisely, v must have a neighbor in A and a neighbor in B that are connected by an even-length path in G[S] (which would create an odd cycle with v). Since G[S] is bipartite with parts A, B, an even-length path in G[S] connects vertices in the same part. So v must have a neighbor a ∈ A and a neighbor b ∈ B such that there's an even-length path from a to b in G[S]... wait, that would be a path from A to B of even length, which is impossible in a bipartite graph (paths from A to B have odd length, paths within A or within B have even length).\n\nHmm, let me reconsider. If v has a neighbor a ∈ A, then adding v to B would keep it bipartite (v is only adjacent to a ∈ A, so v goes in B). But if v also has a neighbor b ∈ B, then v can't go in A (adjacent to b ∈ B) and can't go in B (adjacent to a ∈ A). So v can't be added to either side. \n\nBut wait, that's only if v has neighbors in both A and B. If v has neighbors only in A, we can add v to B. If v has neighbors only in B, we can add v to A. If v has no neighbors in S, we can add v to either side.\n\nSo for v ∉ S, v must have at least one neighbor in A and at least one neighbor in B. This means d_S(v) ≥ 2 (at least 2 neighbors in S, one in each part).\n\nNow, count the edges between S and T = V \\ S:\n∑_{v ∈ T} d_S(v) ≥ 2|T| = 2(n - b(G)).\n\nAlso, ∑_{v ∈ T} d_S(v) ≤ ∑_{v ∈ T} d(v) = (sum of degrees of vertices in T).\n\nAnd ∑_{v ∈ S} d(v) ≥ ∑_{v ∈ S} d_S(v) = (edges within S) · 2... wait, let me be more careful.\n\nTotal degree sum = ∑_v d(v) = 2|E| = d_avg · n.\n\n∑_{v ∈ T} d(v) ≥ 2|T| (since each v ∈ T has d_S(v) ≥ 2, and d(v) ≥ d_S(v)).\n\nSo ∑_{v ∈ T} d(v) ≥ 2(n - b(G)).\n\nAlso, ∑_{v ∈ S} d(v) ≥ 2|E(S)| (edges within S contribute 2 to the sum, edges from S to T contribute 1 to each endpoint). Actually, ∑_{v ∈ S} d(v) = 2|E(S)| + |E(S,T)| where E(S,T) is the set of edges between S and T.\n\nAnd ∑_{v ∈ T} d(v) = 2|E(T)| + |E(S,T)|.\n\nTotal: ∑_v d(v) = 2|E(S)| + 2|E(T)| + 2|E(S,T)| = 2|E|. ✓\n\nNow, |E(S,T)| = ∑_{v ∈ T} d_S(v) ≥ 2|T| = 2(n - b(G)).\n\nAlso, |E(S,T)| = ∑_{v ∈ S} d_T(v).\n\nNow, d_avg · n = 2|E| = 2|E(S)| + 2|E(T)| + 2|E(S,T)|.\n\nSince G[S] is bipartite with parts A, B: |E(S)| ≤ |A| · |B| ≤ (b(G)/2)² = b(G)²/4.\n\nAnd |E(T)| ≤ |T|(|T|-1)/2 = (n-b(G))(n-b(G)-1)/2.\n\nAnd |E(S,T)| ≥ 2(n - b(G)).\n\nSo d_avg · n ≥ 2 · 2(n - b(G)) = 4(n - b(G)).\n\nThis gives d_avg ≥ 4(n - b(G))/n = 4(1 - b(G)/n).\n\nSo b(G)/n ≥ 1 - d_avg/4.\n\nThis gives b(G) ≥ n - n·d_avg/4 = n(1 - d_avg/4).\n\nWe want b(G) ≥ n/⌊d_avg⌋. So we need n(1 - d_avg/4) ≥ n/⌊d_avg⌋, i.e., 1 - d_avg/4 ≥ 1/⌊d_avg⌋.\n\nFor d_avg = 2: 1 - 1/2 = 1/2 ≥ 1/2. ✓ (equality)\nFor d_avg = 3: 1 - 3/4 = 1/4 ≥ 1/3? No! 1/4 < 1/3. ✗\n\nSo this approach doesn't work for d_avg ≥ 3. The bound is too weak.\n\nLet me try to get a better bound. The issue is that I used |E(S,T)| ≥ 2|T|, but maybe I can get a better bound.\n\nActually, let me reconsider. Each vertex in T has at least one neighbor in A and at least one neighbor in B. So d_S(v) ≥ 2 for v ∈ T. But can we say more?\n\nNot in general—a vertex in T could have exactly 2 neighbors in S, one in A and one in B.\n\nBut we also know something about the edges within T. Each vertex in T has d(v) ≥ d_S(v) ≥ 2, but could have many more edges within T.\n\nHmm, let me think about this differently.\n\nAlternative approach: Let's use the fact that b(G) ≥ 2α(G) is NOT true in general (the two largest independent sets might overlap in terms of the bipartite structure). But b(G) ≥ α(G) + α(G - I) where I is a maximum independent set.\n\nActually, I showed earlier that if I₁ is a max independent set and I₂ is a max independent set of G - I₁, then G[I₁ ∪ I₂] is bipartite, so b(G) ≥ |I₁| + |I₂|.\n\n|I₁| ≥ n/(d_avg + 1) by Caro-Wei.\n\nFor |I₂|: G' = G - I₁ has n' = n - |I₁| vertices. The degree of each vertex in G' is at most its degree in G. The average degree of G' is d'_avg = 2|E'|/n'. \n\n|E'| = |E| - |E(I₁, V)| = |E| - ∑_{v ∈ I₁} d(v) + |E(I₁)|. Since I₁ is independent, |E(I₁)| = 0. So |E'| = |E| - ∑_{v ∈ I₁} d(v).\n\nHmm, this is getting complicated. Let me try a completely different approach.\n\nLet me look at this from the perspective of known results about induced bipartite subgraphs.\n\nKnown result (Alon, 1996): Every graph on n vertices has an induced bipartite subgraph on at least n/2 vertices... no, that's not quite right. Actually, I think the result is about subgraphs, not induced subgraphs.\n\nWait, actually there's a result that says every graph has an induced bipartite subgraph on at least n/2 vertices. This follows from the fact that a random subset of vertices, with each vertex included independently with probability 1/2, gives an induced subgraph that is bipartite with positive probability... no, that's not right either.\n\nActually, the result is: every graph has an induced bipartite subgraph on at least n·(1/2 + 1/(2χ)) vertices or something like that. Let me think more carefully.\n\nHmm, actually the simplest result is: take any graph G, and consider a random bipartition (A, B) of V. The expected number of \"bad\" edges (edges within A or within B) is |E|/2. But this doesn't directly give an induced bipartite subgraph.\n\nLet me think about the problem from scratch.\n\nNew approach: \n\nWe want to show b(G) ≥ n/⌊d_avg⌋.\n\nLet d = ⌊d_avg⌋. We want b(G) ≥ n/d.\n\nNote d ≥ 1 (since G is connected with n ≥ 2, d_avg ≥ 2(n-1)/n ≥ 1).\n\nIf d = 1, we need b(G) ≥ n, which means G is bipartite. When is ⌊d_avg⌋ = 1? When d_avg < 2, i.e., 2|E|/n < 2, i.e., |E| < n. A connected graph with |E| < n has |E| = n-1 (tree) or... wait, a connected graph has |E| ≥ n-1. So |E| < n means |E| = n-1, which means G is a tree, which is bipartite. So b(G) = n ≥ n. ✓\n\nWait, but what if |E| = n-1 but G has an odd cycle? That's impossible—a connected graph with n-1 edges is a tree, which has no cycles.\n\nWhat if |E| = n? Then d_avg = 2n/n = 2, ⌊d_avg⌋ = 2. So d = 1 only when |E| = n-1 (tree). ✓\n\nIf d = 2, we need b(G) ≥ n/2. When is ⌊d_avg⌋ = 2? When 2 ≤ d_avg < 3, i.e., n ≤ |E| < 3n/2.\n\nWe need to show that any connected graph with n ≤ |E| < 3n/2 has an induced bipartite subgraph on at least n/2 vertices.\n\nIs this true? Consider a graph that is a single odd cycle of length n. |E| = n, d_avg = 2, ⌊d_avg⌋ = 2. b(G) = n-1 (remove one vertex). n-1 ≥ n/2 for n ≥ 2. ✓\n\nWhat about a graph with many odd cycles? Like a graph where we need to remove close to n/2 vertices to make it bipartite?\n\nConsider a graph that is a complete graph K_k with n = k vertices. |E| = k(k-1)/2. d_avg = k-1. For ⌊d_avg⌋ = 2, we need k-1 ∈ [2,3), so k = 3. K_3: b(G) = 2, n/2 = 1.5. 2 ≥ 1.5. ✓\n\nWhat about a graph with n = 100, |E| = 100 (so d_avg = 2, ⌊d_avg⌋ = 2), and we need to remove 50 vertices to make it bipartite? Can such a graph exist?\n\nA graph with 100 vertices and 100 edges that needs 50 vertices removed to be bipartite. This would mean 50 edge-disjoint odd cycles (roughly), each needing one vertex removed. But 50 odd cycles need at least 50·3 = 150 edges. We only have 100 edges. So we can have at most 33 edge-disjoint triangles, needing 33 vertices removed. b(G) ≥ 67 > 50 = n/2. ✓\n\nMore generally, if we need to remove t vertices to make G bipartite, then G has at least t edge-disjoint odd cycles (by LP duality or direct argument). Each odd cycle has at least 3 edges, so |E| ≥ 3t. Thus t ≤ |E|/3.\n\nb(G) = n - t ≥ n - |E|/3.\n\nWe want b(G) ≥ n/d where d = ⌊d_avg⌋ = ⌊2|E|/n⌋.\n\nSo we need n - |E|/3 ≥ n/⌊2|E|/n⌋.\n\nLet e = |E|. We need n - e/3 ≥ n/⌊2e/n⌋.\n\nLet d = ⌊2e/n⌋, so 2e/n ∈ [d, d+1), i.e., e ∈ [dn/2, (d+1)n/2).\n\nWe need n - e/3 ≥ n/d.\n\nThe worst case is e as large as possible: e → (d+1)n/2. Then n - (d+1)n/6 ≥ n/d, i.e., 1 - (d+1)/6 ≥ 1/d, i.e., (6 - d - 1)/6 ≥ 1/d, i.e., (5-d)/6 ≥ 1/d, i.e., d(5-d) ≥ 6, i.e., 5d - d² ≥ 6, i.e., d² - 5d + 6 ≤ 0, i.e., (d-2)(d-3) ≤ 0.\n\nThis holds for d ∈ [2, 3]. For d ≥ 4, it fails!\n\nSo this approach (using edge-disjoint odd cycles) works for d ≤ 3 but not for d ≥ 4.\n\nHmm. Let me think about a better bound on t (the number of vertices to remove).\n\nActually, the bound t ≤ |E|/3 is quite weak. Let me think about a better bound.\n\nEach vertex we remove can \"kill\" multiple odd cycles. But the key constraint is that the remaining graph is bipartite, so all edges in the remaining graph form a bipartite graph, which has at most n²/4 edges (by König's theorem / bipartite edge bound).\n\nIf we remove t vertices, the remaining graph has n-t vertices and is bipartite, so has at most (n-t)²/4 edges. The removed t vertices account for at least |E| - (n-t)²/4 edges (the edges incident to removed vertices plus edges among removed vertices).\n\nActually, let me think about it differently. Let S be a maximum induced bipartite subgraph, |S| = b = b(G). G[S] is bipartite with parts A, B, |A| + |B| = b. |E(S)| ≤ |A|·|B| ≤ b²/4.\n\nThe total edges: |E| = |E(S)| + |E(S,T)| + |E(T)| ≤ b²/4 + |E(S,T)| + |T|²/2.\n\nAnd |E(S,T)| ≤ b·|T| (each vertex in S has at most |T| neighbors in T, but also each vertex in T has at most b neighbors in S). Actually, |E(S,T)| ≤ min(b·|T|, ...) but we also know |E(S,T)| ≥ 2|T| (from the earlier argument that each vertex in T has at least 2 neighbors in S).\n\nSo |E| ≤ b²/4 + b·(n-b) + (n-b)²/2.\n\nWe want to show b ≥ n/d where d = ⌊2|E|/n⌋.\n\nThis is getting complicated. Let me try a different approach.\n\nLet me look for the actual proof of this conjecture. Since it's from Graffiti.pc and marked as solved, there should be a known proof.\n\nActually, let me think about the approach via the following key lemma:\n\nLemma: For any graph G, b(G) ≥ n²/(2|E| + n).\n\nIf this is true, then since d_avg = 2|E|/n, we have 2|E| = d_avg · n, so b(G) ≥ n²/(d_avg·n + n) = n/(d_avg + 1).\n\nBut we need b(G) ≥ n/⌊d_avg⌋, and n/(d_avg + 1) ≤ n/(⌊d_avg⌋ + 1) < n/⌊d_avg⌋. So this isn't strong enough.\n\nHmm. Let me think about a stronger bound.\n\nActually, let me reconsider the approach via two independent sets.\n\nb(G) ≥ |I₁| + |I₂| where I₁ is a max independent set and I₂ is a max independent set of G - I₁.\n\nBy Caro-Wei: |I₁| ≥ ∑_v 1/(d(v)+1).\n\nFor I₂: after removing I₁, each remaining vertex v has degree d'(v) = d(v) - d_{I₁}(v) ≤ d(v). So d'(v) + 1 ≤ d(v) + 1, and 1/(d'(v)+1) ≥ 1/(d(v)+1). Thus |I₂| ≥ ∑_{v ∉ I₁} 1/(d'(v)+1) ≥ ∑_{v ∉ I₁} 1/(d(v)+1).\n\nSo b(G) ≥ |I₁| + |I₂| ≥ ∑_v 1/(d(v)+1) + ∑_{v ∉ I₁} 1/(d(v)+1) = 2∑_v 1/(d(v)+1) - ∑_{v ∈ I₁} 1/(d(v)+1).\n\nHmm, this doesn't simplify nicely.\n\nLet me try a different approach. Let me use the following:\n\nb(G) ≥ |I₁| + |I₂| ≥ n/(d_avg + 1) + (n - |I₁|)/(d'_avg + 1).\n\nwhere d'_avg is the average degree of G - I₁.\n\nThis is hard to bound because d'_avg depends on the structure.\n\nLet me try yet another approach.\n\nApproach via the following observation:\n\nFor any graph G with n vertices and m edges, there exists an induced bipartite subgraph on at least n²/(n + 2m) vertices.\n\nProof: Consider a random subset S where each vertex is included with probability p. The expected size of S is np. The expected number of edges in G[S] is mp². We want G[S] to be bipartite. \n\nHmm, this doesn't directly work because a random subset won't be bipartite.\n\nLet me think about the \"bipartite subgraph\" approach differently.\n\nActually, here's a cleaner approach using the chromatic number.\n\nWe know b(G) ≥ 2n/χ(G) (take the two largest color classes).\n\nWe also know that χ(G) ≤ 1 + max_{H ⊆ G} δ(H) (this is the coloring number / degeneracy bound). The degeneracy of G is at most ⌊d_avg⌋... no, that's not true. Degeneracy can be much larger than average degree.\n\nHmm wait. Actually, degeneracy ≤ max degree, but can be larger than average degree. For example, K_k with many leaves has degeneracy k-1 but average degree close to 2.\n\nSo the degeneracy approach doesn't help directly.\n\nLet me think about this problem from a completely different angle.\n\nOK here's another idea. Let me use the following result:\n\nTheorem (folklore): Every graph G has an induced bipartite subgraph on at least n - τ_odd(G) vertices, where τ_odd(G) is the minimum vertex set whose removal makes G bipartite (odd cycle transversal).\n\nAnd we want to show n - τ_odd(G) ≥ n/⌊d_avg⌋, i.e., τ_odd(G) ≤ n(1 - 1/⌊d_avg⌋).\n\nNow, there's a result relating τ_odd(G) to the number of edges. Specifically:\n\nτ_odd(G) ≤ |E| - (n - τ_odd(G))²/4... no, this is circular.\n\nLet me think about it as: if we remove τ_odd(G) = t vertices, the remaining graph is bipartite with b = n - t vertices and at most b²/4 edges. The t removed vertices have degree sum at least... \n\nTotal edges: |E| = |E(S)| + |E(S,T)| + |E(T)| where S is the bipartite part (size b) and T is the removed part (size t).\n\n|E(S)| ≤ b²/4 (bipartite graph on b vertices).\n|E(T)| ≤ t(t-1)/2.\n|E(S,T)| ≤ bt.\n\nSo |E| ≤ b²/4 + bt + t(t-1)/2 = b²/4 + bt + t²/2 - t/2.\n\nWith b = n - t:\n|E| ≤ (n-t)²/4 + (n-t)t + t²/2 - t/2\n= (n² - 2nt + t²)/4 + nt - t² + t²/2 - t/2\n= n²/4 - nt/2 + t²/4 + nt - t² + t²/2 - t/2\n= n²/4 + nt/2 + t²(1/4 - 1 + 1/2) - t/2\n= n²/4 + nt/2 + t²(-1/4) - t/2\n= n²/4 + nt/2 - t²/4 - t/2\n= n²/4 + t(2n - 2t - 2)/4\n= n²/4 + t(n - t - 1)/2\n\nSo |E| ≤ n²/4 + t(n - t - 1)/2.\n\nSince d_avg = 2|E|/n:\nd_avg · n/2 ≤ n²/4 + t(n - t - 1)/2\nd_avg ≤ n/2 + t(n - t - 1)/n\n\nWe want to show t ≤ n(1 - 1/d) where d = ⌊d_avg⌋, i.e., b = n - t ≥ n/d.\n\nFrom the inequality: d_avg ≤ n/2 + t(n-t-1)/n.\n\nHmm, this gives an upper bound on d_avg in terms of t, but we need a lower bound on d_avg to constrain t. This inequality goes the wrong way.\n\nActually wait, we have |E| ≤ n²/4 + t(n-t-1)/2, which means d_avg ≤ n/2 + t(n-t-1)/n. This is an upper bound on d_avg given t. But we know d_avg (it's given), so this constrains t from below? No, it constrains t from above: if d_avg is small, t can't be too large... wait, no. The inequality says d_avg ≤ something. If the \"something\" is small, then d_avg must be small. But we're given d_avg, so this tells us that the \"something\" must be ≥ d_avg, which constrains t.\n\nLet me rewrite: we need n²/4 + t(n-t-1)/2 ≥ |E| = d_avg·n/2.\n\nSo t(n-t-1)/2 ≥ d_avg·n/2 - n²/4 = n(2d_avg - n)/4.\n\nIf 2d_avg < n (which is usually the case), the right side is negative, and the inequality is automatically satisfied. So this doesn't help.\n\nThe problem is that the upper bound on |E| is too loose. We need a better bound.\n\nLet me reconsider. The issue is that |E(S,T)| can be as large as bt, which is very loose. Let me use the constraint that each vertex in T has at least 2 neighbors in S (one in each part of the bipartition).\n\nActually, I had that earlier: |E(S,T)| ≥ 2t. But this is a lower bound, not useful for upper-bounding |E|.\n\nLet me think about this differently. Maybe I should use a lower bound on |E| in terms of t, not an upper bound.\n\nEach vertex in T has at least 2 neighbors in S. So |E(S,T)| ≥ 2t. Also, each vertex in T has degree ≥ 2 (at least 2 neighbors in S). So the degree sum of T is ≥ 2t. But vertices in T could also have edges among themselves.\n\nHmm, I don't think lower bounds on |E| help directly.\n\nLet me try a completely different approach.\n\nApproach: Direct construction of a large induced bipartite subgraph.\n\nConsider the following greedy algorithm:\n1. Start with all vertices uncolored.\n2. Pick any uncolored vertex v, color it red.\n3. Color all uncolored neighbors of v blue.\n4. Color all uncolored neighbors of blue vertices red.\n5. Continue until no more coloring is possible.\n6. The colored vertices form a bipartite induced subgraph (a connected bipartite piece).\n7. Repeat from step 2 with remaining uncolored vertices.\n\nThis is essentially finding a bipartite subgraph by BFS. The issue is that some edges within the same color class might exist (if the graph has odd cycles), and those vertices would need to be removed.\n\nActually, this doesn't directly give an induced bipartite subgraph because of odd cycles.\n\nLet me think about a different construction.\n\nApproach: Use a random 2-coloring and then fix it.\n\n1. Randomly 2-color all vertices (red/blue).\n2. For each edge within the same color class (a \"bad\" edge), randomly remove one of its endpoints.\n3. The remaining graph is bipartite (induced).\n\nExpected number of bad edges: |E|/2.\nExpected number of vertices removed: at most |E|/2 (removing one vertex per bad edge, but a vertex might be counted multiple times).\n\nBy the probabilistic method, there exists a 2-coloring where the number of bad edges is at most |E|/2. For this coloring, we remove at most |E|/2 vertices (one per bad edge, but with possible double-counting, so actually at most |E|/2 distinct vertices). \n\nWait, but removing one vertex per bad edge could remove the same vertex multiple times. The number of distinct vertices removed is at most the number of bad edges, but could be less.\n\nActually, the number of vertices we need to remove is the size of a minimum vertex cover of the \"bad edge\" graph (the graph formed by edges within color classes). This is at most the number of bad edges.\n\nSo b(G) ≥ n - (number of bad edges) ≥ n - |E|/2.\n\nWe want b(G) ≥ n/d where d = ⌊d_avg⌋ = ⌊2|E|/n⌋.\n\nSo we need n - |E|/2 ≥ n/d, i.e., |E|/2 ≤ n - n/d = n(d-1)/d, i.e., |E| ≤ 2n(d-1)/d.\n\nSince d = ⌊2|E|/n⌋, we have 2|E|/n < d+1, so |E| < n(d+1)/2.\n\nWe need n(d+1)/2 ≤ 2n(d-1)/d, i.e., (d+1)/2 ≤ 2(d-1)/d, i.e., d(d+1) ≤ 4(d-1), i.e., d² + d ≤ 4d - 4, i.e., d² - 3d + 4 ≤ 0.\n\nDiscriminant: 9 - 16 = -7 < 0. So d² - 3d + 4 > 0 for all d. This means the inequality never holds!\n\nSo this approach is too weak. The bound b(G) ≥ n - |E|/2 is not strong enough.\n\nLet me try to improve it. Instead of removing one vertex per bad edge, use a vertex cover of the bad edge graph. The minimum vertex cover is at most the number of bad edges, but by König's theorem (if the bad edge graph is bipartite) or by general bounds, it could be much less.\n\nActually, the bad edge graph consists of two parts: edges within red vertices and edges within blue vertices. Each part is a general graph. The minimum vertex cover of a graph is at most n/2 + ... hmm, no general useful bound.\n\nLet me try a smarter approach.\n\nApproach: Use the fact that we can choose the 2-coloring optimally.\n\nInstead of a random 2-coloring, use a maximum cut. A maximum cut maximizes the number of edges between the two parts, minimizing the number of \"bad\" edges (within parts).\n\nFor a maximum cut, the number of bad edges is at most |E|/2 (since a random cut gives |E|/2 in expectation, and max cut is at least as good). Actually, max cut has at most |E|/2 bad edges.\n\nBut we can do better. For a max cut, each vertex has at least as many edges crossing as not crossing (otherwise, moving it to the other side would improve the cut). So for each vertex v, the number of same-side neighbors is at most d(v)/2.\n\nThe bad edge graph has maximum degree at most max_v d(v)/2. By a greedy vertex cover, the minimum vertex cover of the bad edge graph is at most n/2 (since the bad edge graph has max degree ≤ Δ/2, and... hmm, this doesn't directly give a good bound).\n\nActually, for a max cut, each vertex has at most d(v)/2 bad edges. The bad edge graph B has the property that d_B(v) ≤ d_G(v)/2 for all v. \n\nThe minimum vertex cover of B is at most n - α(B), and α(B) ≥ n/(d_B_avg + 1) ≥ n/(d_G_avg/2 + 1) = n/(d_avg/2 + 1).\n\nSo the number of vertices removed is at most n - n/(d_avg/2 + 1) = n · d_avg/(d_avg + 2).\n\nAnd b(G) ≥ n - n·d_avg/(d_avg + 2) = n · 2/(d_avg + 2) = 2n/(d_avg + 2).\n\nWe want 2n/(d_avg + 2) ≥ n/⌊d_avg⌋, i.e., 2/(d_avg + 2) ≥ 1/⌊d_avg⌋, i.e., 2⌊d_avg⌋ ≥ d_avg + 2.\n\nSince d_avg ≥ ⌊d_avg⌋, we need 2⌊d_avg⌋ ≥ d_avg + 2 ≥ ⌊d_avg⌋ + 2, i.e., ⌊d_avg⌋ ≥ 2.\n\nFor ⌊d_avg⌋ ≥ 2: 2⌊d_avg⌋ ≥ d_avg + 2 iff 2⌊d_avg⌋ - 2 ≥ d_avg iff ⌊d_avg⌋ ≥ d_avg - ⌊d_avg⌋ + ... hmm, let me be more careful.\n\nLet d = ⌊d_avg⌋ and let f = d_avg - d ∈ [0, 1). We need 2d ≥ d + f + 2, i.e., d ≥ f + 2. Since f < 1, we need d ≥ 3 (for d = 2, we need 2 ≥ f + 2, i.e., f ≤ 0, which means d_avg = 2 exactly).\n\nSo for d ≥ 3, this works. For d = 2, it works only when d_avg = 2 exactly (f = 0). For d = 2 and d_avg > 2 (f > 0), it fails.\n\nFor d = 1, we already showed it works (trees are bipartite).\n\nSo we need to handle the case d = 2, d_avg ∈ (2, 3) separately.\n\nWhen d = 2, we need b(G) ≥ n/2. We have d_avg ∈ [2, 3), so |E| ∈ [n, 3n/2).\n\nFrom the max cut approach: b(G) ≥ 2n/(d_avg + 2). For d_avg ∈ [2, 3), this gives b(G) ≥ 2n/5 (at d_avg = 3). But we need b(G) ≥ n/2. 2n/5 < n/2. So this isn't enough.\n\nLet me try to improve the bound for the d = 2 case.\n\nWhen d = 2 and d_avg ∈ (2, 3), the graph has between n and 3n/2 edges. We need b(G) ≥ n/2.\n\nClaim: Any graph with n vertices and at most 3n/2 - 1 edges has an induced bipartite subgraph on at least n/2 vertices.\n\nHmm, is this true? Consider a graph that is a disjoint union of triangles... but it must be connected. \n\nConsider a \"friendship graph\": k triangles sharing a common vertex. n = 2k+1, |E| = 3k. d_avg = 6k/(2k+1) → 3. For this graph, b(G) = 2k (remove the center vertex, remaining is a matching, bipartite). n/2 = (2k+1)/2. 2k ≥ (2k+1)/2 iff 4k ≥ 2k+1 iff 2k ≥ 1. True for k ≥ 1.\n\nWhat about a graph where we need to remove many vertices? Consider k triangles connected in a path. n = 3k, |E| = 3k + (k-1) = 4k-1 (each triangle has 3 edges, plus k-1 edges connecting consecutive triangles). d_avg = 2(4k-1)/(3k) → 8/3 ≈ 2.67. ⌊d_avg⌋ = 2. b(G) = 2k (remove one vertex per triangle). n/2 = 3k/2. 2k ≥ 3k/2 iff k ≥ 0. True.\n\nWhat about a graph with more edges? Say |E| = 3n/2 - 1 (just under 3n/2). Can we still have b(G) ≥ n/2?\n\nConsider a graph that is a complete graph K_4 (n=4, |E|=6, d_avg=3, ⌊d_avg⌋=3). This is d=3, not d=2.\n\nFor d=2, |E| < 3n/2. Let me think of a graph with |E| close to 3n/2 that needs many vertices removed.\n\nConsider a graph made of k copies of K_4 minus one edge, connected by paths. K_4 - e has 4 vertices and 5 edges. It contains a triangle, so it's not bipartite. To make it bipartite, remove one vertex (the one in the triangle that's not the endpoints of the removed edge... actually K_4 - e still has triangles). b(K_4 - e) = 3 (remove one vertex from a triangle). \n\nk copies: n = 4k, |E| = 5k + (k-1) = 6k-1. d_avg = 2(6k-1)/(4k) → 3. For large k, d_avg → 3, ⌊d_avg⌋ = 2 (since d_avg < 3). b(G) = 3k. n/2 = 2k. 3k ≥ 2k. True.\n\nHmm, it seems like b(G) ≥ n/2 is always achievable when d = 2. Let me try to prove this more carefully.\n\nActually, let me go back to the max cut approach and try to tighten it.\n\nFor a max cut (A, B), each vertex has at most d(v)/2 same-side neighbors. The bad edge graph B has d_B(v) ≤ d(v)/2.\n\nWe remove a vertex cover of B. The size of the minimum vertex cover of B is at most n - α(B).\n\nBy Caro-Wei: α(B) ≥ ∑_v 1/(d_B(v) + 1) ≥ ∑_v 1/(d(v)/2 + 1) = ∑_v 2/(d(v) + 2).\n\nBy Jensen (since 2/(x+2) is convex): ∑_v 2/(d(v)+2) ≥ n · 2/(d_avg + 2).\n\nSo α(B) ≥ 2n/(d_avg + 2), and the vertex cover of B has size at most n - 2n/(d_avg + 2) = n·d_avg/(d_avg + 2).\n\nb(G) ≥ n - n·d_avg/(d_avg + 2) = 2n/(d_avg + 2).\n\nFor d = ⌊d_avg⌋ = 2, d_avg ∈ [2, 3): b(G) ≥ 2n/(d_avg + 2) ∈ (2n/5, n/2].\n\nAt d_avg = 2: b(G) ≥ n/2. ✓\nAt d_avg → 3: b(G) ≥ 2n/5. We need n/2. 2n/5 < n/2. ✗\n\nSo for d_avg close to 3, this bound isn't enough. We need a better approach for this range.\n\nLet me try using a better bound on the vertex cover of B.\n\nActually, instead of using Caro-Wei on B, let me use the fact that B has a special structure: it's the \"bad edge\" graph of a max cut, so every vertex in B has d_B(v) ≤ d_G(v)/2.\n\nHmm, but I already used that. Let me think about whether there's a better bound on the vertex cover.\n\nActually, the minimum vertex cover of B is at most the size of a maximal matching in B (by taking one endpoint of each matching edge). And a maximal matching has size at most |E_B|/1 (at least one edge per matching edge). But |E_B| ≤ |E|/2 (bad edges are at most half of all edges in a max cut). So the vertex cover is at most |E|/2.\n\nThis gives b(G) ≥ n - |E|/2. For d = 2, |E| < 3n/2, so b(G) > n - 3n/4 = n/4. We need n/2. Not enough.\n\nLet me try a different approach for the d = 2 case.\n\nApproach for d = 2: We need to show b(G) ≥ n/2 when ⌊d_avg⌋ = 2, i.e., d_avg ∈ [2, 3).\n\nEquivalently, |E| ∈ [n, 3n/2).\n\nWe need to show that any connected graph with n vertices and at most 3n/2 - 1 edges has an induced bipartite subgraph on at least n/2 vertices.\n\nHmm, actually, let me think about whether we can use a stronger bound from the max cut approach.\n\nFor a max cut, each vertex v has at most d(v)/2 bad edges. The bad edge graph B has max degree ≤ Δ/2 where Δ is the max degree of G. But more importantly, the total number of bad edges is at most |E|/2.\n\nNow, instead of finding a vertex cover of B, let me find an independent set of B directly. An independent set of B corresponds to a set of vertices with no bad edges among them, i.e., a set that forms a bipartite induced subgraph (with the original 2-coloring).\n\nSo b(G) ≥ α(B) ≥ 2n/(d_avg + 2) (from Caro-Wei on B).\n\nBut wait, I can also use the fact that B has at most |E|/2 edges. By Turán's theorem, α(B) ≥ n²/(2|E_B| + n) ≥ n²/(|E| + n).\n\nSo b(G) ≥ n²/(|E| + n).\n\nFor d = 2, |E| < 3n/2: b(G) > n²/(3n/2 + n) = n²/(5n/2) = 2n/5. Still not n/2.\n\nHmm. Let me try combining both bounds: b(G) ≥ max(2n/(d_avg+2), n²/(|E|+n)).\n\nFor d_avg = 2.5 (midpoint of [2,3)): \n- 2n/(2.5+2) = 2n/4.5 = 4n/9 ≈ 0.444n\n- n²/(1.25n + n) = n²/2.25n = n/2.25 ≈ 0.444n\n\nBoth give about 0.444n, still less than 0.5n.\n\nI need a fundamentally different approach for the d = 2 case.\n\nLet me think about this more carefully. When d_avg ∈ [2, 3), the graph has between n and 3n/2 edges. A connected graph with n vertices and n edges has exactly one cycle. If that cycle is even, the graph is bipartite (b(G) = n). If odd, b(G) = n-1.\n\nA connected graph with n vertices and n+1 edges has two independent cycles (cyclomatic number 2). \n\nIn general, a connected graph with n vertices and m edges has cyclomatic number m - n + 1. For m < 3n/2, the cyclomatic number is less than n/2 + 1.\n\nThe number of edge-disjoint odd cycles is at most the cyclomatic number. And the number of vertex-disjoint odd cycles is at most the cyclomatic number as well (roughly).\n\nIf the graph has k edge-disjoint odd cycles, we need to remove at least k vertices to make it bipartite (one per odd cycle). So b(G) ≥ n - k ≥ n - (m - n + 1) = 2n - m - 1.\n\nFor m < 3n/2: b(G) > 2n - 3n/2 - 1 = n/2 - 1. Hmm, this gives b(G) > n/2 - 1, which for integer b(G) means b(G) ≥ ⌈n/2⌉ - 1... not quite n/2.\n\nWait, but the number of edge-disjoint odd cycles is at most ⌊(m - n + 1)/1⌋ (each odd cycle uses at least one independent edge). Actually, each odd cycle uses at least 3 edges, and edge-disjoint odd cycles use at least 3 edges each. So the number of edge-disjoint odd cycles is at most m/3.\n\nBut we need vertex-disjoint odd cycles for the vertex removal bound. The number of vertex-disjoint odd cycles is at most n/3 (each uses at least 3 vertices).\n\nHmm, but the relationship between edge-disjoint and vertex-disjoint odd cycles and the minimum vertex removal is more subtle.\n\nLet me use the LP relaxation. The minimum odd cycle edge transversal (minimum set of edges hitting all odd cycles) has size at most the cyclomatic number. But we want vertex transversal.\n\nActually, let me use a different bound. \n\nClaim: τ_odd(G) ≤ m - n + 1 (cyclomatic number).\n\nIs this true? The cyclomatic number is the dimension of the cycle space. Each odd cycle is in the cycle space. But the minimum vertex set hitting all odd cycles... \n\nHmm, actually this isn't obviously true. Let me think of a counterexample. Consider K_4: n=4, m=6, cyclomatic number = 3. τ_odd(K_4) = 2 (remove 2 vertices to get K_2, bipartite). 2 ≤ 3. ✓\n\nConsider K_5: n=5, m=10, cyclomatic number = 6. τ_odd(K_5) = 3 (remove 3 vertices to get K_2, bipartite). 3 ≤ 6. ✓\n\nConsider a graph that is a single odd cycle: n, m=n, cyclomatic number = 1. τ_odd = 1. 1 ≤ 1. ✓\n\nI think τ_odd(G) ≤ cyclomatic number might be true, but I'm not sure. Let me think about why.\n\nActually, I think the correct statement is: the minimum number of edges to remove to make G bipartite is at most the cyclomatic number. This is because we can find a spanning tree (n-1 edges), and the remaining m-n+1 edges each create a fundamental cycle. If we remove one edge from each odd fundamental cycle, we remove at most m-n+1 edges and the graph becomes bipartite.\n\nBut we want vertex removal, not edge removal. The minimum vertex transversal of odd cycles can be larger than the minimum edge transversal (since removing one edge only kills cycles through that edge, while removing one vertex kills all cycles through that vertex, which could be more or fewer).\n\nActually, the minimum vertex transversal is at most the minimum edge transversal, because removing one endpoint of each edge in the edge transversal gives a vertex transversal of the same size. Wait, no—that's not right either. Removing one endpoint of each edge in a minimum edge transversal gives a vertex set that hits all odd cycles, but its size is at most the edge transversal size.\n\nYes! If we have a set of edges F such that G - F is bipartite, then picking one endpoint of each edge in F gives a set of vertices S with |S| ≤ |F| such that G - S is bipartite (since removing S removes all edges in F).\n\nSo τ_odd(G) ≤ (minimum edge transversal of odd cycles) ≤ m - n + 1.\n\nTherefore b(G) = n - τ_odd(G) ≥ n - (m - n + 1) = 2n - m - 1.\n\nFor d = ⌊d_avg⌋ = 2, m < 3n/2: b(G) > 2n - 3n/2 - 1 = n/2 - 1.\n\nSince b(G) is an integer, b(G) ≥ ⌊n/2⌋. But we need b(G) ≥ n/2 (as a real number), which means b(G) ≥ ⌈n/2⌉ (as an integer). \n\nFor even n: b(G) ≥ n/2 - 1 + 1 = n/2 (since b(G) is integer and b(G) > n/2 - 1 means b(G) ≥ n/2). Wait, b(G) > n/2 - 1 and b(G) is an integer. If n is even, n/2 is an integer, and b(G) > n/2 - 1 means b(G) ≥ n/2. ✓\n\nFor odd n: b(G) > n/2 - 1 = (n-2)/2. Since b(G) is an integer, b(G) ≥ (n-1)/2 = ⌊n/2⌋. We need b(G) ≥ n/2 = (n-1)/2 + 1/2, i.e., b(G) ≥ (n+1)/2 = ⌈n/2⌉. But we only have b(G) ≥ (n-1)/2. So this fails for odd n!\n\nHmm. So for odd n and d = 2, the bound b(G) ≥ 2n - m - 1 gives b(G) ≥ (n-1)/2, but we need b(G) ≥ n/2 = (n+1)/2 (as a real number, so b(G) ≥ (n+1)/2 as an integer since b(G) is integer and n/2 is not).\n\nWait, actually the conjecture says (n : ℝ) / (⌊d_avg⌋ : ℝ) ≤ (b G : ℝ). So we need n/2 ≤ b(G) as real numbers. For odd n, n/2 is not an integer, so b(G) ≥ n/2 means b(G) ≥ (n+1)/2 (since b(G) is a positive integer).\n\nSo for odd n, we need b(G) ≥ (n+1)/2, but we only get b(G) ≥ (n-1)/2. Gap of 1.\n\nCan we close this gap? Let me think more carefully.\n\nWhen m = n (d_avg = 2 exactly), the graph has exactly one cycle. If it's even, b(G) = n ≥ n/2. If it's odd, b(G) = n - 1 ≥ n/2 for n ≥ 2 (since n-1 ≥ n/2 iff n ≥ 2). ✓\n\nWhen m = n + 1 (d_avg = 2 + 2/n), cyclomatic number = 2. b(G) ≥ 2n - (n+1) - 1 = n - 2. We need n - 2 ≥ n/2, i.e., n ≥ 4. For n = 3, m = 4: K_3 plus one pendant edge. d_avg = 8/3 ≈ 2.67, ⌊d_avg⌋ = 2. b(G) = 3 (remove the pendant vertex's neighbor in K_3... wait, K_3 with a pendant: vertices a,b,c form K_3, d is pendant to a. Remove a: remaining is {b,c,d} with edge b-c. That's K_2 plus isolated vertex, bipartite. b(G) = 3. n/2 = 2. 3 ≥ 2. ✓\n\nActually, for n = 3, m = 4, b(G) = 3, and n/2 = 1.5. 3 ≥ 1.5. ✓\n\nLet me check n = 5, m = 7 (d_avg = 14/5 = 2.8, ⌊d_avg⌋ = 2). Cyclomatic number = 3. b(G) ≥ 2·5 - 7 - 1 = 2. We need b(G) ≥ 5/2 = 2.5, so b(G) ≥ 3. Is b(G) ≥ 3 always?\n\nConsider a graph with 5 vertices and 7 edges. The maximum edges on 5 vertices is 10. 7 edges is quite dense. K_5 has 10 edges. K_5 minus 3 edges. \n\nHmm, let me think of a specific example. Take K_4 (6 edges) plus one vertex connected to one vertex of K_4. n = 5, m = 7. d_avg = 14/5 = 2.8. b(G): K_4 has b = 2 (need to remove 2 vertices from K_4 to get K_2). With the extra pendant vertex, b(G) = 3 (remove 2 from K_4, keep pendant). n/2 = 2.5. 3 ≥ 2.5. ✓\n\nAnother example: C_5 (5-cycle) plus 2 chords. n = 5, m = 7. If the chords make it K_5 minus 3 edges... Let me think of C_5 with chords (1,3) and (1,4). This graph has triangles: (1,2,3), (1,3,4), (1,4,5). To make bipartite, remove vertex 1: remaining is path 2-3-4-5 with edge (2,3)... wait, let me be more careful.\n\nC_5: 1-2-3-4-5-1. Chords: (1,3), (1,4). Edges: (1,2),(2,3),(3,4),(4,5),(5,1),(1,3),(1,4). 7 edges. \n\nTriangles: (1,2,3), (1,3,4). \nOdd cycles: (1,2,3,4,5), (1,3,4), (1,2,3).\n\nRemove vertex 1: remaining is 2-3-4-5 with edges (2,3),(3,4),(4,5). This is a path, bipartite. b(G) ≥ 4. n/2 = 2.5. 4 ≥ 2.5. ✓\n\nLet me try to find a graph with n = 5, m = 7 where b(G) = 2 (which would falsify the conjecture). We'd need to remove 3 vertices to make it bipartite, leaving only 2. This means 3 vertex-disjoint odd cycles, but with 5 vertices, we can have at most 1 vertex-disjoint odd cycle (since each needs ≥ 3 vertices). So b(G) ≥ 5 - 1 = 4 in the best case for the adversary... wait, that's not right. We need to hit all odd cycles, not just vertex-disjoint ones.\n\nActually, with 5 vertices, the minimum vertex set hitting all odd cycles is at most 2 (since removing 2 vertices leaves 3, and a graph on 3 vertices is bipartite unless it's K_3, but we might have K_3 among the remaining 3). Hmm, it could be that the remaining 3 form K_3.\n\nIf we remove 2 vertices and the remaining 3 form K_3, we need to remove another. So τ_odd could be 3 for n = 5. But then b(G) = 2, and n/2 = 2.5 > 2. This would falsify the conjecture!\n\nCan we have a graph on 5 vertices with 7 edges where τ_odd = 3? That means every set of 3 vertices contains an odd cycle. Equivalently, every set of 3 vertices is not bipartite, meaning every 3-vertex induced subgraph has an odd cycle. A 3-vertex graph has an odd cycle iff it has a triangle (K_3). So every 3-vertex subset must contain a triangle.\n\nThis means every 3 vertices span at least one edge among each pair... actually, a triangle means all 3 edges present. So every 3-vertex subset must be a K_3. This means the graph is K_5. But K_5 has 10 edges, not 7. Contradiction.\n\nSo for n = 5, m = 7, we can't have τ_odd = 3. Hence b(G) ≥ 3 > 2.5 = n/2. ✓\n\nMore generally, for τ_odd(G) = t, we need every subset of n - t + 1 vertices to contain an odd cycle. The complement (the t removed vertices) must be such that every choice of t vertices to remove leaves an odd cycle.\n\nThis is related to the \"odd cycle transversal\" problem. Let me think about the general bound more carefully.\n\nActually, let me revisit the approach. I had:\n\nb(G) ≥ 2n - m - 1 (from the edge transversal bound).\n\nAnd I need b(G) ≥ n/d where d = ⌊2m/n⌋.\n\nFor d = 2: b(G) ≥ 2n - m - 1. We need 2n - m - 1 ≥ n/2, i.e., m ≤ 3n/2 - 1. Since d = 2 means m < 3n/2, i.e., m ≤ 3n/2 - 1/2, i.e., m ≤ ⌊3n/2 - 1/2⌋. For even n: m ≤ 3n/2 - 1. For odd n: m ≤ (3n-1)/2 - 1/2 = (3n-2)/2, i.e., m ≤ (3n-3)/2 = 3(n-1)/2.\n\nFor even n, m ≤ 3n/2 - 1: b(G) ≥ 2n - (3n/2 - 1) - 1 = n/2. ✓\nFor odd n, m ≤ (3n-1)/2 (since m is integer and m < 3n/2): b(G) ≥ 2n - (3n-1)/2 - 1 = (4n - 3n + 1)/2 - 1 = (n+1)/2 - 1 = (n-1)/2. We need (n-1)/2 ≥ n/2, which gives -1/2 ≥ 0. False!\n\nSo for odd n, the bound is off by 1. We get b(G) ≥ (n-1)/2 but need b(G) ≥ n/2, i.e., b(G) ≥ (n+1)/2 (as integer).\n\nHmm. So I need a tighter bound for odd n.\n\nLet me think about whether the bound b(G) ≥ 2n - m - 1 can be improved.\n\nThe bound came from: τ_odd(G) ≤ (min edge transversal) ≤ m - n + 1 (cyclomatic number). And b(G) = n - τ_odd(G) ≥ n - (m - n + 1) = 2n - m - 1.\n\nCan we improve the bound τ_odd(G) ≤ m - n + 1?\n\nActually, the minimum edge transversal of odd cycles is the minimum number of edges whose removal makes the graph bipartite. This is related to the \"max cut\" problem: the minimum edge transversal = |E| - (max cut size). And max cut ≥ |E|/2, so min edge transversal ≤ |E|/2.\n\nSo τ_odd(G) ≤ |E|/2 = m/2 (by picking one endpoint of each edge in the min edge transversal).\n\nThis gives b(G) ≥ n - m/2.\n\nFor d = 2, m < 3n/2: b(G) > n - 3n/4 = n/4. Worse than before!\n\nOK so the max cut bound on edge transversal is worse than the cyclomatic number bound for sparse graphs.\n\nLet me combine: τ_odd(G) ≤ min(m - n + 1, m/2).\n\nFor d = 2, m ∈ [n, 3n/2): m - n + 1 ∈ [1, n/2) and m/2 ∈ [n/2, 3n/4). So the cyclomatic number bound is better.\n\nHmm, so the cyclomatic number bound gives b(G) ≥ 2n - m - 1, which is off by 1 for odd n.\n\nLet me think about whether we can improve by 1.\n\nActually, let me reconsider. The cyclomatic number is m - n + c where c is the number of connected components. For a connected graph, c = 1, so cyclomatic number = m - n + 1.\n\nThe minimum edge set whose removal makes G bipartite: we find a spanning tree T (n-1 edges). The remaining m - (n-1) = m - n + 1 edges each create a fundamental cycle with T. Some of these fundamental cycles are odd. For each odd fundamental cycle, we remove one of its non-tree edges. This kills that fundamental cycle, but might not kill all odd cycles (since odd cycles can be combinations of fundamental cycles).\n\nActually, the correct statement is: the minimum edge set whose removal makes G bipartite is equal to m - (max bipartite subgraph edge count). And max bipartite subgraph has at most n²/4 edges (for a bipartite graph on n vertices). But this is an upper bound on the bipartite subgraph, not directly useful.\n\nLet me think about this differently. \n\nThe minimum number of edges to remove to make G bipartite is |E| - maxcut(G), where maxcut(G) is the maximum cut. And maxcut(G) ≥ |E|/2.\n\nBut also, maxcut(G) ≥ |E| - (m - n + 1) = n - 1 (since we can always find a spanning tree, which is bipartite, with n-1 edges, and the cut separating the tree's bipartition has at least n-1 edges). Wait, that's not right. The cut from a spanning tree's bipartition has at least n-1 edges (the tree edges), but could have more.\n\nActually, for a spanning tree T with bipartition (A, B), the cut (A, B) includes all tree edges (n-1 of them) plus any non-tree edges between A and B. So maxcut ≥ n - 1 + (non-tree edges between A and B). The number of non-tree edges between A and B is at least 0, so maxcut ≥ n - 1.\n\nThus, the minimum edge removal to make bipartite is at most m - (n-1) = m - n + 1. This confirms the cyclomatic number bound.\n\nBut can we do better? The maxcut is at least max(n-1, m/2). For m ≥ 2(n-1), m/2 ≥ n-1, so maxcut ≥ m/2. For m < 2(n-1) (i.e., m ≤ 2n-3), maxcut ≥ n-1, so edge removal ≤ m - n + 1.\n\nFor d = 2, m < 3n/2 ≤ 2n - 3 (for n ≥ 6), so the cyclomatic bound applies: edge removal ≤ m - n + 1.\n\nNow, the vertex transversal τ_odd ≤ edge transversal (by picking one endpoint per edge). But can we do better?\n\nActually, picking one endpoint per edge in the edge transversal gives a vertex set of size ≤ edge transversal size. But we might be able to do better because one vertex can cover multiple edges.\n\nLet me think about this more carefully. We have a set F of at most m - n + 1 edges whose removal makes G bipartite. We want to find a small vertex set S such that G - S is bipartite. \n\nFor each edge in F, we pick one endpoint. This gives |S| ≤ |F| ≤ m - n + 1. But if multiple edges in F share an endpoint, we can pick that endpoint once and cover multiple edges. So |S| could be much smaller.\n\nIn the worst case, the edges in F are a matching, so |S| = |F|. But can the edges in F form a matching?\n\nThe edges in F are the non-tree edges that create odd fundamental cycles. These edges are all non-tree edges, and they could potentially form a matching.\n\nHmm, so in the worst case, τ_odd = m - n + 1, and b(G) = 2n - m - 1.\n\nFor odd n and m = (3n-1)/2 (the maximum for d = 2 with odd n): b(G) = 2n - (3n-1)/2 - 1 = (4n - 3n + 1)/2 - 1 = (n+1)/2 - 1 = (n-1)/2. We need (n+1)/2. Off by 1.\n\nSo I need to either improve the bound by 1 or find a different approach for this case.\n\nLet me think about whether the bound can be tight. Can we have a graph with odd n, m = (3n-1)/2, and b(G) = (n-1)/2?\n\nFor this, we need τ_odd = (n+1)/2. And m - n + 1 = (3n-1)/2 - n + 1 = (n+1)/2. So τ_odd = m - n + 1 = (n+1)/2.\n\nThis means the edge transversal has exactly (n+1)/2 edges, and they form a matching (so vertex transversal = edge transversal). And the graph has (n+1)/2 edge-disjoint odd cycles.\n\nFor n = 5: (n+1)/2 = 3. m = 7. We need 3 edge-disjoint odd cycles in a graph with 5 vertices and 7 edges. Each odd cycle has ≥ 3 edges, so 3 odd cycles need ≥ 9 edges. But we only have 7. Contradiction! So for n = 5, we can't have 3 edge-disjoint odd cycles.\n\nFor n = 7: (n+1)/2 = 4. m = 10. 4 edge-disjoint odd cycles need ≥ 12 edges. We have 10. Contradiction!\n\nFor n = 9: (n+1)/2 = 5. m = 13. 5 odd cycles need ≥ 15 edges. We have 13. Contradiction!\n\nIn general, for odd n, (n+1)/2 edge-disjoint odd cycles need ≥ 3(n+1)/2 edges. But m = (3n-1)/2 < 3(n+1)/2. So we can't have (n+1)/2 edge-disjoint odd cycles!\n\nThis means the bound τ_odd ≤ m - n + 1 is not tight. The actual bound on τ_odd is tighter because of the edge constraint.\n\nLet me use a better bound. The number of edge-disjoint odd cycles is at most m/3 (each needs ≥ 3 edges). And τ_odd ≤ (number of edge-disjoint odd cycles) ... wait, that's not right. τ_odd is the minimum vertex set hitting all odd cycles, which is at most the number of edge-disjoint odd cycles (by picking one vertex from each). No, that's also not right—picking one vertex from each edge-disjoint odd cycle gives a set that hits all edge-disjoint odd cycles, but not necessarily all odd cycles.\n\nActually, by LP duality, the minimum vertex transversal of odd cycles equals the maximum number of vertex-disjoint odd cycles... no, that's for bipartite graphs (König's theorem). For general graphs, the LP relaxation has a gap.\n\nHmm, let me think about this differently.\n\nLet me use the following approach: \n\nThe minimum number of edges to remove to make G bipartite is at most the number of odd fundamental cycles in any spanning tree. But we can choose the spanning tree to minimize this.\n\nActually, let me use a different bound on τ_odd.\n\nClaim: τ_odd(G) ≤ m/3.\n\nProof: Find a maximal set of edge-disjoint odd cycles. Each has ≥ 3 edges, so there are at most m/3 of them. For each, pick one vertex. This vertex set hits all edge-disjoint odd cycles. But does it hit ALL odd cycles?\n\nNo, it doesn't necessarily hit all odd cycles. An odd cycle that shares edges with the edge-disjoint cycles might not be hit.\n\nHmm, so this approach doesn't directly work.\n\nLet me try yet another approach. \n\nActually, let me revisit the problem. The key difficulty is the case d = 2, odd n, m close to 3n/2. Let me try to handle this case directly.\n\nFor d = 2, m < 3n/2. The graph has cyclomatic number m - n + 1 < n/2 + 1.\n\nThe minimum edge set to make bipartite is at most m - n + 1 (from spanning tree argument). So the minimum vertex set is at most m - n + 1.\n\nb(G) ≥ n - (m - n + 1) = 2n - m - 1.\n\nFor m ≤ 3n/2 - 1 (even n) or m ≤ (3n-1)/2 (odd n, since m is integer and m < 3n/2):\n\nEven n: b(G) ≥ 2n - (3n/2 - 1) - 1 = n/2. ✓\nOdd n: b(G) ≥ 2n - (3n-1)/2 - 1 = (n-1)/2. Need (n+1)/2. Off by 1.\n\nFor odd n, I need to show b(G) ≥ (n+1)/2, i.e., τ_odd ≤ (n-1)/2.\n\nSince m ≤ (3n-1)/2 and the graph is connected, m ≥ n (since d_avg ≥ 2, so m ≥ n).\n\nThe cyclomatic number is m - n + 1 ≤ (3n-1)/2 - n + 1 = (n+1)/2.\n\nI need to show τ_odd ≤ (n-1)/2, which is 1 less than the cyclomatic number bound.\n\nIdea: In a connected graph, the cyclomatic number is m - n + 1. The minimum edge set to make bipartite is at most m - n + 1, but can we show it's at most m - n (saving 1) for connected graphs?\n\nActually, for a connected graph, we can find a spanning tree T with n - 1 edges. The remaining m - n + 1 edges create fundamental cycles. If all fundamental cycles are even, the graph is bipartite (τ_odd = 0). If some are odd, we remove one edge per odd fundamental cycle.\n\nBut we can choose the spanning tree to minimize the number of odd fundamental cycles. In particular, if the graph has an even spanning tree (all fundamental cycles even), then the graph is bipartite.\n\nHmm, I don't think we can always save 1.\n\nLet me try a different approach. Instead of the spanning tree method, let me use a direct argument.\n\nFor d = 2 and odd n, I want to show b(G) ≥ (n+1)/2.\n\nEquivalently, τ_odd(G) ≤ (n-1)/2.\n\nConsider a maximum bipartite induced subgraph with parts A, B, |A| + |B| = b, |A| ≤ |B| (WLOG). Then b ≥ (n+1)/2 means |B| ≥ (n+1)/4 and |A| + |B| ≥ (n+1)/2.\n\nHmm, let me try the approach of taking a maximum independent set and then another.\n\nb(G) ≥ α(G) + α(G - I) where I is a maximum independent set.\n\nBy Caro-Wei: α(G) ≥ ∑_v 1/(d(v)+1) ≥ n/(d_avg + 1) (by Jensen).\n\nFor d_avg ∈ [2, 3): α(G) ≥ n/(d_avg + 1) ≥ n/4.\n\nAfter removing I (with |I| ≥ n/4), the remaining graph has n' = n - |I| ≤ 3n/4 vertices. The average degree of G' = G - I is d'_avg = 2|E'|/n'. \n\n|E'| = |E| - (edges incident to I) = |E| - ∑_{v ∈ I} d(v) + |E(I)|. Since I is independent, |E(I)| = 0. So |E'| = |E| - ∑_{v ∈ I} d(v).\n\nSince I is a maximum independent set, the vertices in I tend to have lower degree (they're the ones that are easiest to include in an independent set). But this is hard to quantify.\n\nIn the worst case, ∑_{v ∈ I} d(v) could be as low as |I| (if all vertices in I have degree 1, which is possible in a star-like graph). Then |E'| = |E| - |I| ≥ n - n/4 = 3n/4. d'_avg = 2|E'|/n' ≥ 2·(3n/4)/(3n/4) = 2.\n\nThen α(G') ≥ n'/(d'_avg + 1) ≥ (3n/4)/3 = n/4.\n\nSo b(G) ≥ |I| + |I'| ≥ n/4 + n/4 = n/2.\n\nFor odd n, n/2 = (n-1)/2 + 1/2, so b(G) ≥ n/2 means b(G) ≥ (n+1)/2 (since b(G) is integer). Wait, but we have b(G) ≥ n/2 as a real bound, and b(G) is an integer, so b(G) ≥ ⌈n/2⌉ = (n+1)/2 for odd n",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 21029,
+        "completion_tokens": 25000,
+        "cached_tokens": 12398
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 21029,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12398,
+    "total_steps": 9
+  }
+}

@@ -1,0 +1,68 @@
+I'll solve this directly in the TUI. This is the classic robust least-squares problem (Boyd & Vandenberghe, *Convex Optimization*, §6.4.2) with norm-bounded structured uncertainty. The answer is that $x_{\text{rls}}$ is computed by solving a **semidefinite program (SDP)** obtained via the S-lemma.
+
+---
+
+## Proof
+
+### 1. Reduction to a support-function evaluation
+
+Set
+$$y := \bar A x - b \in \mathbb{R}^m, \qquad F := \begin{bmatrix} A_1 x & A_2 x \end{bmatrix} \in \mathbb{R}^{m\times 2},$$
+so that $(\bar A + u_1 A_1 + u_2 A_2)x - b = y + Fu$. The worst-case residual is
+$$\phi(x) := \sup_{\|u\|_2 \le 1}\|y + Fu\|_2.$$
+
+Using $\|z\|_2 = \sup_{\|v\|_2\le 1} v^T z$ and swapping the two suprema (Sion's minimax theorem; the unit ball is compact convex and the objective is bilinear):
+$$\phi(x) = \sup_{\|v\|_2 \le 1}\Big(v^T y + \sup_{\|u\|_2\le 1} v^T F u\Big) = \sup_{\|v\|_2\le 1}\Big(v^T y + \|F^T v\|_2\Big).$$
+Each summand is convex in $x$ ($v^T y$ is affine; $\|F^T v\|_2 = \big((x^T A_1^T v)^2 + (x^T A_2^T v)^2\big)^{1/2}$ is a norm of an affine function of $x$), so $\phi$ is convex. The robust LS problem is therefore convex.
+
+### 2. Epigraph and the S-lemma
+
+Introduce an epigraph variable $t \ge 0$ with $\phi(x) \le t$, i.e.
+$$\|y + Fu\|_2^2 \le t^2 \quad \text{for every } u \in \mathbb{R}^2 \text{ with } u^T u \le 1.$$
+Equivalently, the quadratic $g(u) := t^2 - \|y + Fu\|_2^2$ is nonnegative on the unit disk. Since $g$ is concave in $u$ and the disk has a strict interior point ($u=0$), the **S-lemma is exact**: $g(u)\ge 0$ for all $\|u\|\le 1$ iff there exists $\lambda \ge 0$ such that
+$$g(u) + \lambda\,(1 - u^T u) \;\ge\; 0 \quad \text{for all } u\in\mathbb{R}^2.$$
+Expanding,
+$$g(u) + \lambda(1-u^T u) = (t^2 - y^T y - \lambda) - 2\,y^T F\,u + u^T\!\big(\lambda I_2 - F^T F\big)u.$$
+This quadratic is nonnegative for all $u$ iff (Schur complement)
+$$\boxed{\;\begin{bmatrix} \lambda I_2 - F^T F & F^T y \\[2pt] y^T F & t^2 - y^T y - \lambda \end{bmatrix} \succeq 0,\qquad \lambda \ge 0.\;}$$
+
+### 3. Linearizing into an LMI
+
+Rewrite the block matrix as
+$$\begin{bmatrix} \lambda I_2 & 0 \\ 0 & t^2 - \lambda \end{bmatrix} - \begin{bmatrix} F^T \\ -y^T \end{bmatrix}\begin{bmatrix} F & -y \end{bmatrix} \succeq 0.$$
+Taking the Schur complement with respect to the positive-definite block $I_m$ gives the equivalent LMI
+$$\begin{bmatrix} \lambda I_2 & 0 & F^T \\ 0 & t^2 - \lambda & -y^T \\ F & -y & I_m \end{bmatrix} \succeq 0.$$
+
+The only nonlinear entry is $t^2$. Since $\phi(x)\ge 0$, minimizing $\phi$ is equivalent to minimizing $\phi^2$; replacing the epigraph variable by $\tau := t^2$ (with $\tau \ge 0$) and minimizing $\tau$ yields the **same optimizer** $x_{\text{rls}}$. Substituting $F = [A_1 x\;\; A_2 x]$ and $y = \bar A x - b$ (both affine in $x$), every entry is now affine in $(x,\tau,\lambda)$.
+
+### 4. The SDP
+
+$x_{\text{rls}}$ is computed as the $x$-component of the solution of the semidefinite program
+
+$$\begin{aligned}
+\text{minimize}\quad & \tau \\
+\text{over}\quad & x\in\mathbb{R}^n,\;\; \tau\in\mathbb{R},\;\; \lambda\in\mathbb{R} \\[2pt]
+\text{subject to}\quad &
+\begin{bmatrix}
+\lambda & 0 & 0 & (A_1 x)^T \\
+0 & \lambda & 0 & (A_2 x)^T \\
+0 & 0 & \tau - \lambda & -(\bar A x - b)^T \\
+A_1 x & A_2 x & -(\bar A x - b) & I_m
+\end{bmatrix} \succeq 0, \\[4pt]
+& \lambda \;\ge\; 0 .
+\end{aligned}$$
+
+The LMI matrix has block sizes $(2,1,m)$: the first two rows/columns carry $\lambda I_2$, the third carries the scalar $\tau-\lambda$, and the last $m$ carry $I_m$. Because the S-lemma is lossless here, this SDP is **equivalent** to the original robust least-squares problem (no conservatism), so its optimal $x$ is exactly $x_{\text{rls}}$.
+
+### 5. How it is computed in practice
+
+The SDP has $n + 2$ scalar variables and one LMI of size $(m+3)\times(m+3)$. It is solved to arbitrary accuracy in polynomial time by any interior-point SDP solver (e.g. an LMI-control solver, SDPT3, SeDuMi, MOSEK, or CVX/CVXPY with the `--` SDP cone). The solver returns $(x^\star,\tau^\star,\lambda^\star)$; then
+$$x_{\text{rls}} := x^\star, \qquad \phi(x_{\text{rls}}) = \sqrt{\tau^\star}.$$
+The optimal worst-case perturbation can also be recovered: at the optimum, the minimizing $u^\star$ satisfies $u^\star \propto (\lambda^\star I_2 - F^{\star T}F^\star)^{\dagger} F^{\star T} y^\star$ (projected onto the unit ball), giving the adversarial $u$ that attains the supremum.
+
+### Summary
+
+The robust least-squares solution $x_{\text{rls}}$ is obtained by solving the SDP above — an LMI epigraph formulation derived by (i) rewriting the worst-case norm via a minimax swap, (ii) applying the (lossless) S-lemma to the unit-disk uncertainty, and (iii) linearizing the resulting quadratic matrix inequality through two Schur complements and the substitution $\tau = t^2$.
+
+### PROOF COMPLETE
+DEVIN_CLI_EXITED code=0

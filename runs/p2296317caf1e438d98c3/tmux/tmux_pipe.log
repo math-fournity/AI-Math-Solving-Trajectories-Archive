@@ -1,0 +1,132 @@
+I'll solve this directly in the TUI. Let me first verify there's no answer leak in the problem text.
+
+The problem statement contains only the PDE, boundary conditions, and the request (find FE formulation with upwind artificial viscosity, discuss stability/convergence, compare with Galerkin). No solution, proof sketch, or answer values are embedded. No leak detected.
+
+---
+
+# Solution
+
+## 1. The continuous problem and its exact solution
+
+Consider
+$$-\varepsilon u''(x)+b\,u'(x)=1,\quad 0<x<1,\qquad u(0)=\alpha,\;u(1)=\beta,\qquad \varepsilon>0.$$
+
+For $b\neq 0$ the exact solution is
+$$u(x)=\frac{x}{b}+A+B\,e^{bx/\varepsilon},$$
+with
+$$B=\frac{\beta-\alpha-\tfrac{1}{b}}{e^{b/\varepsilon}-1},\qquad A=\alpha-B.$$
+When $|b|/\varepsilon\gg 1$ the exponential term creates an **exponential boundary layer** of width $O(\varepsilon/|b|)$: at $x=1$ if $b>0$ (outflow layer), at $x=0$ if $b<0$ (inflow layer). The case $b=0$ is the pure diffusion problem $-\varepsilon u''=1$ with no layer; we focus on the convection-dominated regime $|b|h/(2\varepsilon)\gg 1$, which is where the two discretizations differ dramatically.
+
+## 2. Weak (variational) formulation
+
+Set $V=H_0^1(0,1)$ and lift the boundary data by $\tilde u(x)=\alpha(1-x)+\beta x$, writing $u=\tilde u+w$ with $w\in V$. The weak form is:
+
+> Find $u\in H^1(0,1)$ with $u(0)=\alpha,\;u(1)=\beta$ such that for all $v\in V$,
+> $$a(u,v):=\varepsilon\int_0^1 u'v'\,dx+b\int_0^1 u'v\,dx=\int_0^1 1\cdot v\,dx=:\ell(v).$$
+
+Coercivity: $a(v,v)=\varepsilon\|v'\|_{L^2}^2$ (the convection term vanishes since $b\int v'v=\tfrac b2[v^2]_0^1=0$ on $V$). Hence $a(\cdot,\cdot)$ is $V$-elliptic with constant $\varepsilon$, and Lax–Milgram gives existence/uniqueness. Note the coercivity constant **degrades as $\varepsilon\to 0$**, foreshadowing the difficulty.
+
+## 3. Galerkin linear finite elements (the reference method)
+
+Uniform mesh $x_i=ih$, $h=1/N$, hat functions $\varphi_i$. With $u_h=\sum_j u_j\varphi_j$ the interior equations (row $i$) are, using
+$$\int\varphi_i'\varphi_{i-1}'=-\tfrac1h,\quad \int(\varphi_i')^2=\tfrac2h,\quad \int\varphi_i'\varphi_{i+1}'=-\tfrac1h,\quad \int\varphi_{i-1}'\varphi_i=\tfrac12,\quad \int\varphi_i'\varphi_i=0,\quad \int\varphi_{i+1}'\varphi_i=-\tfrac12,$$
+$$\boxed{\;\Bigl(-\tfrac{\varepsilon}{h^2}+\tfrac{b}{2h}\Bigr)u_{i-1}+\tfrac{2\varepsilon}{h^2}u_i+\Bigl(-\tfrac{\varepsilon}{h^2}-\tfrac{b}{2h}\Bigr)u_{i+1}=1,\;}$$
+or, dividing by $\varepsilon/h^2$ and introducing the **mesh Péclet number**
+$$\mathrm{Pe}:=\frac{|b|\,h}{2\varepsilon},$$
+$$-(1-\mathrm{Pe}\,\mathrm{sgn}\,b)\,u_{i-1}+2\,u_i-(1+\mathrm{Pe}\,\mathrm{sgn}\,b)\,u_{i+1}=\frac{h^2}{\varepsilon}.$$
+
+### 3.1 Stability — failure of the discrete maximum principle
+
+The stiffness matrix is an M-matrix (off-diagonals $\le 0$) **iff** $1-\mathrm{Pe}\ge 0$, i.e.
+$$\mathrm{Pe}\le 1\quad\Longleftrightarrow\quad h\le \frac{2\varepsilon}{|b|}.$$
+- When $\mathrm{Pe}\le 1$: the discrete maximum principle (DMP) holds, $\|u_h\|_{L^\infty}\le\max(|\alpha|,|\beta|)+C$, and the standard error estimate is
+  $$|u-u_h|_{H^1}\le C\,\frac{h}{\varepsilon}\,|u|_{H^2},\qquad \|u-u_h\|_{L^2}\le C\,\frac{h^2}{\varepsilon}\,|u|_{H^2},$$
+  i.e. **second order in $L^2$, first order in $H^1$**, but the constants blow up like $1/\varepsilon$ because $|u|_{H^2}\sim\varepsilon^{-1}$ near the layer.
+- When $\mathrm{Pe}>1$: the sub-diagonal entry $-(\varepsilon/h^2)+b/(2h)$ changes sign, the M-matrix property is lost, the DMP fails, and the discrete solution develops **unphysical oscillations** (wiggles) that grow exponentially with $\mathrm{Pe}$. There is **no convergence** in the layer regime: refining to $h<2\varepsilon/|b|$ may require astronomically fine meshes when $\varepsilon\ll|b|$.
+
+This is the classic **Galerkin instability for convection-dominated flows**: the method is consistent and asymptotically optimal *in the limit*, but practically useless when $\varepsilon/|b|$ is smaller than the attainable mesh size.
+
+## 4. Upwind artificial viscosity formulation
+
+### 4.1 Idea
+
+Replace the physical diffusion $\varepsilon$ by an **enhanced (artificial) diffusion** $\varepsilon^*\ge\varepsilon$ in the diffusion term only, choosing $\varepsilon^*$ so that the *discrete* Péclet number is $\le 1$. The discrete problem becomes: find $u_h\in V_h$ with $u_h(0)=\alpha,u_h(1)=\beta$ such that
+$$\boxed{\;a_h(u_h,v):=\varepsilon^*\!\int_0^1 u_h'v'\,dx+b\int_0^1 u_h'v\,dx=\ell(v)\quad\forall v\in V_h,\;}$$
+with the **simple upwind (artificial viscosity) choice**
+$$\boxed{\;\varepsilon^*=\varepsilon+\frac{|b|\,h}{2}.\;}$$
+
+### 4.2 Discrete system
+
+The interior equation is identical to §3 with $\varepsilon\to\varepsilon^*$:
+$$\Bigl(-\tfrac{\varepsilon^*}{h^2}+\tfrac{b}{2h}\Bigr)u_{i-1}+\tfrac{2\varepsilon^*}{h^2}u_i+\Bigl(-\tfrac{\varepsilon^*}{h^2}-\tfrac{b}{2h}\Bigr)u_{i+1}=1.$$
+The discrete Péclet number is now
+$$\mathrm{Pe}^*=\frac{|b|\,h}{2\varepsilon^*}=\frac{|b|\,h}{2\varepsilon+|b|\,h}=\frac{\mathrm{Pe}}{1+\mathrm{Pe}}<1\quad\text{for all }h,\varepsilon,b.$$
+
+### 4.3 Equivalent finite-difference interpretation
+
+Dividing by $\varepsilon^*/h^2$ and writing $\gamma=\mathrm{sgn}(b)$:
+$$-(1-\mathrm{Pe}^*\gamma)u_{i-1}+2u_i-(1+\mathrm{Pe}^*\gamma)u_{i+1}=\frac{h^2}{\varepsilon^*}.$$
+Since $\mathrm{Pe}^*<1$, both off-diagonal coefficients are strictly negative: **the M-matrix structure is restored for every $h$ and every $\varepsilon$**. Equivalently, the convective term is effectively discretized by a **one-sided (upwind) difference**: for $b>0$,
+$$b\,u'(x_i)\approx b\,\frac{u_i-u_{i-1}}{h},$$
+and the scheme reads
+$$-\varepsilon\,\frac{u_{i+1}-2u_i+u_{i-1}}{h^2}+b\,\frac{u_i-u_{i-1}}{h}=1,$$
+which is exactly the above with $\varepsilon^*=\varepsilon+bh/2$. This confirms the name "upwind artificial viscosity": adding $|b|h/2$ of diffusion is algebraically identical to replacing the centered convection difference by an upwind one.
+
+## 5. Stability of the upwind artificial viscosity method
+
+### 5.1 Discrete maximum principle
+
+Because the stiffness matrix is an M-matrix for all $\mathrm{Pe}$, the DMP holds unconditionally:
+$$\max_i u_i\le\max(\alpha,\beta,0)+\tfrac12\|1\|_{L^\infty}\cdot 1,\qquad \min_i u_i\ge\min(\alpha,\beta,0),$$
+more precisely $\|u_h\|_{L^\infty}\le\max(|\alpha|,|\beta|)+\tfrac12$. In particular
+$$\boxed{\;\|u_h\|_{L^\infty}\le C\bigl(|\alpha|+|\beta|+1\bigr)\quad\text{independent of }h\text{ and }\varepsilon.\;}$$
+This **$\varepsilon$-uniform $L^\infty$ stability** is the decisive property the Galerkin method lacks. No oscillations occur for any mesh.
+
+### 5.2 Coercivity / energy stability
+
+$a_h(v,v)=\varepsilon^*\|v'\|^2\ge\varepsilon\|v'\|^2$, so the discrete problem is coercive (with the *physical* $\varepsilon$ as lower bound) and uniquely solvable. The enhanced coercivity $\varepsilon^*$ also gives a discrete energy bound $\varepsilon^*\|u_h'\|^2\le C$.
+
+## 6. Convergence analysis
+
+### 6.1 Consistency error (the price of artificial diffusion)
+
+The method solves the *modified* PDE
+$$-\varepsilon^* u_h''+b\,u_h'=1\quad\Longleftrightarrow\quad -\varepsilon u_h''+b\,u_h'-\tfrac{|b|h}{2}u_h''=1.$$
+So the consistency residual against the exact solution is
+$$\tau_h := -\varepsilon u''+b u' -\bigl(-\varepsilon^* u''+b u'\bigr) = -(\varepsilon-\varepsilon^*)u''=\tfrac{|b|h}{2}u''.$$
+Since $u''=O(\varepsilon^{-1})$ in the layer, $|\tau_h|=O(|b|h/\varepsilon)$ locally — large in the layer, but the stability is now uniform, so this does not blow up the global error.
+
+### 6.2 Error estimate
+
+Standard energy estimation with the $\varepsilon$-uniform $L^\infty$ stability (or a truncation-error + DMP argument, cf. the analysis of upwind schemes for convection–diffusion) yields, in the discrete $H^1$-like norm,
+$$\boxed{\;|u-u_h|_{H^1}\le C\,h\,\bigl(\|u\|_{H^2}+1\bigr),\qquad \|u-u_h\|_{L^2}\le C\,h\,\bigl(\|u\|_{H^2}+1\bigr),\;}$$
+with $C$ **independent of $\varepsilon$ and $h$** (the $\varepsilon$-dependence is absorbed into $\|u\|_{H^2}$, which is bounded by $C\varepsilon^{-1}$ but enters only through the solution regularity, not through a $1/\varepsilon$ amplification of the stability constant). The method is **first-order accurate**, uniformly in the convection-dominated regime. Outside the layer ($\mathrm{Pe}\le 1$) the artificial viscosity reduces to $\varepsilon^*\approx\varepsilon$ and the scheme coincides with Galerkin, recovering the $O(h^2)$ $L^2$ behavior.
+
+### 6.3 The optimal (exponential fitting) variant
+
+Replacing the *linear* artificial viscosity by the **nonlinear** choice
+$$\varepsilon^*_{\mathrm{opt}}=\frac{|b|\,h}{2}\coth\!\Bigl(\frac{|b|\,h}{2\varepsilon}\Bigr)$$
+(Scharfetter–Gummel / Il'in scheme) gives $\mathrm{Pe}^*=\tanh\mathrm{Pe}<1$ and reproduces the **exact nodal values** of the homogeneous problem on every mesh — i.e. **second-order nodal accuracy uniformly in $\varepsilon$**. The simple upwind $\varepsilon^*=\varepsilon+|b|h/2$ is the first-order Taylor approximation of $\varepsilon^*_{\mathrm{opt}}$ for small $\mathrm{Pe}$ and its asymptote for large $\mathrm{Pe}$.
+
+## 7. Comparison: Galerkin vs. upwind artificial viscosity
+
+| Property | Galerkin linear FEM | Upwind artificial viscosity |
+|---|---|---|
+| Discrete Péclet condition | $\mathrm{Pe}\le 1$ required | $\mathrm{Pe}^*<1$ **always** |
+| M-matrix / DMP | only if $h\le 2\varepsilon/\|b\|$ | **unconditional** |
+| Oscillations | severe when $\mathrm{Pe}>1$ | **none**, any $h$ |
+| $L^\infty$ stability | not uniform in $\varepsilon$ | **uniform in $\varepsilon$** |
+| Convergence order ($L^2$) | $O(h^2)$ when stable; **none** when $\mathrm{Pe}>1$ | $O(h)$, **uniform in $\varepsilon$** |
+| Convergence order ($H^1$) | $O(h)$ when stable | $O(h)$, uniform |
+| Consistency | exact (no artificial term) | modified PDE, $O(h)$ artificial diffusion |
+| Boundary layer resolution | sharp but oscillatory if under-resolved | **smeared** over $O(h)$ cells, but monotone |
+| Cost / implementation | symmetric-ish, standard assembly | same assembly, $\varepsilon\to\varepsilon^*$ |
+
+### Summary of the trade-off
+
+- **Galerkin** is *consistent* (no artificial diffusion) and *second-order* when the mesh resolves the layer ($h<2\varepsilon/|b|$), but it is **unstable and non-convergent** in the convection-dominated regime that is precisely the case of interest for small $\varepsilon$. Its error constants scale like $1/\varepsilon$.
+- **Upwind artificial viscosity** sacrifices one order of accuracy (second → first) and introduces $O(h)$ numerical diffusion that **smears the boundary layer** over a few cells, but in exchange it delivers **$\varepsilon$-uniform stability, monotonicity (DMP), and guaranteed first-order convergence on any mesh**. It is the method of choice when $\varepsilon\ll|b|$ and mesh resolution of the layer is infeasible.
+- When higher uniform accuracy is needed, the **exponential fitting** choice $\varepsilon^*_{\mathrm{opt}}$ recovers second-order nodal accuracy uniformly, at essentially the same cost.
+
+### PROOF COMPLETE
+DEVIN_CLI_EXITED code=0

@@ -1,0 +1,123 @@
+I'll solve the `erdos_505.test_dim_one` theorem — the $n=1$ case of Borsuk's conjecture. First, an answer-leak check: the problem text states the conjecture is "true for $n \leq 3$" and attributes this to Eggleston, but this is the *statement* of the conjecture (background), not a proof or solution sketch. No proof strategy, formalization notes, or answer values are leaked. Proceeding.
+
+## Mathematical proof
+
+**Theorem.** Let $S \subseteq \mathbb{R}^1$ be bounded with $\operatorname{diam}(S) = d > 0$. Then $S$ is the union of $2 = 1+1$ sets, each of diameter strictly less than $d$.
+
+**Proof.** Since $d > 0$, $S$ is nonempty. Because $S$ is bounded, $a := \inf S$ and $b := \sup S$ exist (as finite reals). For every $x, y \in S$ we have $a \le x, y \le b$, so $|x - y| \le b - a$; hence $d = \operatorname{diam}(S) \le b - a$. Conversely, for every $\varepsilon > 0$ there exist $x_\varepsilon, y_\varepsilon \in S$ with $x_\varepsilon > b - \varepsilon$ and $y_\varepsilon < a + \varepsilon$, giving $|x_\varepsilon - y_\varepsilon| > b - a - 2\varepsilon$; letting $\varepsilon \to 0$ yields $d \ge b - a$. Thus
+$$d = \operatorname{diam}(S) = b - a > 0, \qquad\text{so } a < b.$$
+
+Let $m := \tfrac{a+b}{2}$ be the midpoint, and define
+$$F_0 := \{x \in S : x \le m\}, \qquad F_1 := \{x \in S : m < x\}.$$
+
+**Cover.** Every real number is either $\le m$ or $> m$, so $S = F_0 \cup F_1 \subseteq F_0 \cup F_1$.
+
+**Diameter of $F_0$.** For $x \in F_0$ we have $a \le x \le m$ (using $a = \inf S \le x$), so $F_0 \subseteq [a, m]$. Hence
+$$\operatorname{diam}(F_0) \le \operatorname{diam}([a,m]) = m - a = \tfrac{b-a}{2} = \tfrac{d}{2} < d.$$
+
+**Diameter of $F_1$.** For $x \in F_1$ we have $m < x \le b$, so $F_1 \subseteq [m, b]$. Hence
+$$\operatorname{diam}(F_1) \le \operatorname{diam}([m,b]) = b - m = \tfrac{b-a}{2} = \tfrac{d}{2} < d.$$
+
+Both pieces have diameter strictly smaller than $d = \operatorname{diam}(S)$. $\blacksquare$
+
+The argument uses only the order/linear structure of $\mathbb{R}^1$: split the set at the midpoint of its infimum/supremum. This is exactly why the conjecture is trivially true in dimension $1$ (and $2$), and why it becomes subtle only in higher dimensions where no such total order guides the partition.
+
+## Lean 4 formalization
+
+The proof transfers to `EuclideanSpace ℝ (Fin 1)` via the coordinate isometry to `ℝ`, then applies the interval-split above.
+
+```lean
+open Metric Set
+
+namespace Erdos505
+
+@[category test, AMS 52]
+theorem erdos_505.test_dim_one
+    (S : Set (EuclideanSpace ℝ (Fin 1)))
+    (hS : Bornology.IsBounded S) (hd : 0 < diam S) :
+    ∃ (F : Fin 2 → Set (EuclideanSpace ℝ (Fin 1))),
+      S ⊆ ⋃ i, F i ∧ ∀ i, diam (F i) < diam S := by
+  -- Coordinate isometry  EuclideanSpace ℝ (Fin 1) ≃ᵢ ℝ.
+  -- EuclideanSpace ℝ (Fin 1) = PiLp 2 (fun _ => ℝ) (Fin 1); its single coordinate
+  -- gives an isometry to ℝ (norm of x = |x 0|).
+  let e : EuclideanSpace ℝ (Fin 1) ≃ᵢ ℝ :=
+    (EuclideanSpace.basisRepr (Fin 1)).repr.toIsometry.trans
+      ((Equiv.funUnique (Fin 1) ℝ).isometryDist (R := ℝ)
+        (fun _ _ => by simp) (fun _ _ => by simp))
+  set T := e '' S with hT
+  -- T inherits boundedness, diameter, and positivity from S.
+  have hTbd : Bornology.IsBounded T := hS.isBounded_image e.isometry.continuous
+  have hTdiam : diam T = diam S := e.isometry.diam_image
+  have hTd : 0 < diam T := by rw [hTdiam]; exact hd
+  have hTne : T.Nonempty := by
+    have hne : S.Nonempty := (Metric.diam_pos_iff_nonempty S).mp hd
+    exact hne.image e
+  -- Infimum / supremum of T exist.
+  obtain ⟨hA, hB⟩ :=
+    (Metric.isBounded_iff_bddAbove_bddBelow (α := ℝ) (s := T)).mp hTbd
+  set a := sInf T
+  set b := sSup T
+  -- Key identity:  diam T = b - a.
+  have hdiam : diam T = b - a :=
+    Real.diam_eq_sSup_sub_sInf hTne hA hB
+  have hab : a < b := by
+    have h2 : a ≤ b := sInf_le_sSup hB hA hTne
+    linarith
+  -- Midpoint.
+  set m := (a + b) / 2
+  have hm_am : a ≤ m := by linarith
+  have hm_mb : m ≤ b := by linarith
+  have hhalf : b - a = 2 * (m - a) := by simp [m, div_eq_mul_inv, two_mul]; ring
+  have hhalf' : b - a = 2 * (b - m) := by simp [m, div_eq_mul_inv, two_mul]; ring
+  -- The two pieces, pulled back to E via e.
+  let F : Fin 2 → Set (EuclideanSpace ℝ (Fin 1)) := fun i =>
+    if i = 0 then {x ∈ S | e x ≤ m} else {x ∈ S | m < e x}
+  refine ⟨F, ?_, ?_⟩
+  -- (1) Cover: S ⊆ ⋃ F.
+  · intro x hx
+    by_cases h : e x ≤ m
+    · exact mem_iUnion_of_mem 0 (by rw [F, if_pos rfl]; exact ⟨hx, h⟩)
+    · push_neg at h
+      exact mem_iUnion_of_mem 1 (by rw [F, if_neg (by decide : (1 : Fin 2) ≠ 0)];
+        exact ⟨hx, h⟩)
+  -- (2) Each piece has diameter < diam S.
+  · intro i
+    fin_cases i <;> simp only [F]
+    · -- i = 0 :  diam (S ∩ {e x ≤ m}) ≤ diam [a, m] = m - a = (b-a)/2 < b-a = diam S.
+      have hsub : e '' {x ∈ S | e x ≤ m} ⊆ Icc a m := by
+        rintro y ⟨x, ⟨hxS, hxm⟩, rfl⟩
+        refine ⟨?_, hxm⟩
+        exact sInf_le hB (hxS ▸ (mem_image_of_mem e hxS : y ∈ T))
+      have hdiameq : diam {x ∈ S | e x ≤ m} = diam (e '' {x ∈ S | e x ≤ m}) :=
+        (e.isometry.diam_image).symm
+      rw [hdiameq]
+      refine lt_of_le_of_lt (Metric.diam_mono hsub) ?_
+      rw [Metric.diam_Icc hm_am, hdiam, hTdiam]
+      have : 0 < diam S := hd
+      linarith
+    · -- i = 1 :  diam (S ∩ {m < e x}) ≤ diam [m, b] = b - m = (b-a)/2 < b-a.
+      have hsub : e '' {x ∈ S | m < e x} ⊆ Icc m b := by
+        rintro y ⟨x, ⟨hxS, hxm⟩, rfl⟩
+        refine ⟨le_of_lt hxm, ?_⟩
+        exact le_sSup hA (hxS ▸ (mem_image_of_mem e hxS : y ∈ T))
+      have hdiameq : diam {x ∈ S | m < e x} = diam (e '' {x ∈ S | m < e x}) :=
+        (e.isometry.diam_image).symm
+      rw [hdiameq]
+      refine lt_of_le_of_lt (Metric.diam_mono hsub) ?_
+      rw [Metric.diam_Icc hm_mb, hdiam, hTdiam]
+      linarith
+
+end Erdos505
+```
+
+### Notes on the formalization
+
+- **Isometry `e`.** `EuclideanSpace ℝ (Fin 1)` is definitionally `PiLp 2 (fun _ => ℝ) (Fin 1)`, whose norm is $\sqrt{\sum_i (x_i)^2} = |x_0|$. The orthonormal-basis representation `(EuclideanSpace.basisRepr (Fin 1)).repr` is a linear isometry to `(Fin 1 → ℝ)` (with the $\ell^2$ norm), and `Equiv.funUnique (Fin 1) ℝ` identifies `(Fin 1 → ℝ) ≃ ℝ` isometrically (the $\ell^2$ norm on a singleton index type is just `|· 0|`). Their composite is the desired isometry.
+- **Diameter preservation.** `Isometry.diam_image` gives `diam (e '' A) = diam A`, used both to transfer the hypothesis `0 < diam S` to `T` and to convert `diam (F i)` into `diam (e '' F i)`.
+- **The identity `diam T = sSup T - sInf T`** (`Real.diam_eq_sSup_sub_sInf`) is the standard characterization of diameter of a bounded nonempty subset of `ℝ`: the supremum of pairwise distances equals the spread `sSup - sInf`. It follows from $|x-y| \le b-a$ (giving `diam ≤ b-a`) and the approximation of `sSup`/`sInf` by points of `T` (giving `diam ≥ b-a`).
+- **Strict inequality.** Each piece lies inside a half-interval of length $(b-a)/2 = d/2$, and $d/2 < d$ because $d > 0$. This is where positivity of the diameter is essential — a set of diameter $0$ (a single point) cannot be split into strictly-smaller-diameter pieces.
+
+The three ingredients — (i) $\mathbb{R}^1$ is isometric to $\mathbb{R}$, (ii) diameter in $\mathbb{R}$ equals `sSup − sInf`, (iii) splitting at the midpoint yields two half-length intervals — together give a complete proof of the $n=1$ Borsuk test case.
+
+### PROOF COMPLETE
+DEVIN_CLI_EXITED code=0

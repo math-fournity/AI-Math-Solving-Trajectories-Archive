@@ -1,0 +1,1036 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "mire-step",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.16",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-13T13:03:01.095293+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-13T13:03:01.095847+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-13T13:03:01.105400+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-13T13:03:01.096164+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p66d94081e3a044bfa391 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.4.0\nToday's date: Thursday, 2026-08-13\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-13T13:03:01.096831+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p66d94081e3a044bfa391/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nFor every \\( r \\in \\mathbb{N} \\), there exists \\( n \\in \\mathbb{N} \\) such that every 3-connected graph with at least \\( n \\) vertices contains a wheel graph of order \\( r \\) or a \\( K_{3, r} \\) as a subgraph.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件，操作流程放 skill，等）\n4. **AGENTS.md 是总目录**——其中的索引节是跨 session AI 认知一致性的保证\n\n**Rule / Skill / 元组的放置层级**：\n\n当需要新建或迁移 rule、skill、元组时，按以下优先级选择放置位置：\n\n1. **首先考虑项目级 `.devin/` 目录**——这是 Devin 的正常使用方法。项目级 rule 放 `.devin/rules/`，项目级 skill 放 `.devin/skills/`。大多数 rule/skill 应该在这里——它们是项目特定的，不需要污染全局配置。\n2. **AGENTS.md 中只放 rule 索引**——项目 AGENTS.md 的维护规则节中，保留 rule 索引表（指向 `.devin/rules/` 中的文件），不保留完整 rule 内容。AGENTS.md 是总目录，rule 文件是详细内容。\n3. **只有确实跨项目通用的 rule/skill/元组，才升级为全局内容**——放在 `~/.config/devin/` 或 `~/.devin/` 中。**升级必须获得用户明确同意**——不要擅自把项目级内容升级为全局内容。\n4. **判断标准**：如果这个 rule/skill 只在当前项目有意义 → 项目级 `.devin/`。如果它在多个项目中都会被触发 → 可以考虑升级为全局，但先问用户。\n\n**元组：rule-skill-tuple-assessment**（rule + skill，全局）\n\n> **触发条件**：用户提出一个要求、认知、或设计思想时，AI 自动评估这个内容是否应该固化为 rule、skill、或元组。\n> **Skill**：`~/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md`\n> **核心意识**：不是每个用户要求都需要设为 rule/skill——只有具有跨 session 复用价值的才设置。但 AI 必须有意识地主动评估，而不是被动等用户说\"把这个设为rule\"。\n>\n> **评估流程**（详见 skill）：\n> 1. 判断是否具有跨 session 复用价值 → 否则直接执行不设置\n> 2. 判断类型：Rule（硬约束）/ Skill（SOP）/ 元组（Rule+Skill）/ 元组群（多Skill）\n> 3. 判断层级：项目级 `.devin/`（默认） vs 全局 `~/.config/devin/`（需用户同意）\n> 4. 执行：创建文件 + AGENTS.md 索引 + commit\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n### 13 · 禁止inline脚本，所有脚本持久化到项目内\n\n**Rule**：`~/.devin/rules/no-inline-scripts.md`\n\n**硬约束**：\n1. **禁止写超过3行的inline脚本**（`python -c \"...\"`、`bash -c \"...\"`）。超过3行的逻辑必须写成文件。\n2. **所有脚本写到项目内的脚本目录中**——不写`/tmp/`、不写home目录。放到项目已有的脚本目录或`scripts/`目录。\n3. **在项目AGENTS.md中做好索引**——新脚本必须记录路径、用途、用法。\n4. **持续维护，不重写**——已有脚本就改进，不另写新的。重复操作累积成越来越完善的脚本。\n\n**判定标准**：\n- 单行命令（`ls`、`git status`）→ 直接执行\n- 2-3行简单查询 → 可以直接执行\n- 超过3行 → **必须写成文件**\n- 会重复使用的操作 → **必须写成文件**\n- 已有脚本可改进 → **改进已有脚本**\n\n---\n\n## Git 管理协议\n\n**改文件前**：检查目标文件/目录是否处于 git clean 状态 → 记录 `before_status_baseline` → 明确本轮 `intended_delta`。\n\n**改文件后**：完成一个逻辑工作单元立即 commit → 记录 `after_status_baseline` → 核验 `after - before == intended_delta` → 目标文件/目录回到 git clean 状态。\n\n**禁止 `git add -A`、`git add .`、`git add -u`**。只 add 具体路径。\n\n任何 `git push` 都必须获得用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组 = Rule + Skill。Rule always-on 负责约束 + 模式匹配；Skill on-demand 负责工作流。AGENTS.md 中绝不放工作流，Skill 中绝不放硬性约束。AGENTS.md 太长是执行力问题——\"每次都必须知道\"→ 留在 AGENTS.md；\"遇到特定场景才需要\"→ 移到 Skill。\n\n> 元组详细方法论（瘦身工程、两种实现方式、新增元组规范）见 `~/.devin/rules/tuple-methodology.md`。Devin CLI 完整配置说明见 `devin-config-harness` skill。\n\n---\n\n## 元组：long-running-work-sop（长程工作SOP化铁律）\n\n**触发条件**：用户启动一个可能跨越压缩边界的持续性工作时；发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要迭代修正时。\n\n**核心约束**：长程工作（可能跨越压缩边界的持续性工作）必须SOP化。三个必须：\n1. **必须SOP化**——提取步骤、定义产出、定义验证，放入项目AGENTS.md\n2. **必须用rules锁定流程行为**——在`.devin/rules/`中创建rule文件，锁定SOP的执行纪律\n3. **必须版本化审计修正历史**——如果长程工作涉及分类学/框架/体系的迭代修正，修正的全历史必须在明面上审计（不在git log中），每次修正做覆盖性检查\n\n**Skill**：`~/.config/devin/skills/long-running-work-sop/SKILL.md`——提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程，以及积累的经验和反模式。\n\n**已有项目级实例**：\n- 数学大师项目的`tell-taxonomy-iteration-audit`元组（`.devin/rules/tell-taxonomy-iteration-audit.md`）——Tell分类学迭代审计的铁律和9步SOP，是本全局元组的项目级实例\n\n**经验和反模式积累**：在skill的\"经验和反模式积累区\"中持续追加。当前积累：5个反模式（当一次性任务做/不锁定/只在git log/不做覆盖性检查/遗留旧措辞）、3个经验（FLT例子测试/FCA理论审查方法/版本化审计让修正更严谨）。\n\n---\n\n### 元组群与 Skill 粒度铁律\n\n**元组群**：当一个复杂任务的工作流太长，无法放入单个 Skill 中时，应拆分为多个元组（多个 Skill），形成元组群协同工作。\n\n**为什么需要拆分**：Skill 加载后形成 Session 临时上下文中的认知和 SOP。但如果把应该拆分成多个 Skill 的内容放入一个 Skill 中，执行过程中可能跨越压缩边界——Session 压缩后，Skill 的后续内容从上下文中丢失，无法有效发挥作用。\n\n**Skill 粒度铁律**：\n\n1. **Skill 必须在 Session 上下文中始终可见**——如果执行过程很长（跨越多轮对话、可能触发压缩），Skill 内容必须足够短，确保压缩后仍可见，或拆分为多个 Skill 分阶段加载。\n\n2. **执行过程长 → 拆分 Skill**——如果一个 Skill 的工作流需要很多步骤、很长时间执行，应该拆分成多个 Skill，每个 Skill 覆盖一个可在一个压缩窗口内完成的阶段。\n\n3. **拆分后的 Skill 之间通过文档传递**——前一个 Skill 的产出落盘到文档（dev-docs / AGENTS.md / 数据文件），后一个 Skill 加载时读文档获取前序成果，不依赖 Session 上下文传递。\n\n4. **判断粒度的经验法则**——如果一个 Skill 的执行可能超过 10 轮对话或 50k tokens，考虑拆分。如果工作流中有明确的阶段分界点（如\"方案设计\"→\"执行\"→\"验证\"），在分界点拆分。\n\n### 元组群的整体性：目录在规则中\n\n**元组群如何确保整体性？** 确保整体性 = 确保工作的连续性。元组群中的多个 Skill 是一个整体工作流的分段，不是各自独立的任务。确保整体性的机制是：**元组群的目录放在规则中，规则指向一组 Skill，而不是单一 Skill。**\n\n**传统元组**：规则指向单一 Skill——\"遇到场景X，加载Skill Y\"。\n\n**元组群**：规则指向一组 Skill——\"遇到场景X，按顺序加载Skill Y1→Y2→Y3，它们是一个整体工作流的三个阶段\"。\n\n**元组群规则的结构**：\n\n```\n## 元组群：<群名称>\n\n**触发条件**：<何时AI应该执行这组工作流>\n\n**整体目标**：<这组Skill共同完成的最终目标>\n\n**Skill目录**（按执行顺序）：\n1. Skill <Y1>：<阶段1名称>——<这个阶段做什么>，产出落盘到<文档>\n2. Skill <Y2>：<阶段2名称>——<这个阶段做什么>，读取<文档>，产出落盘到<文档>\n3. Skill <Y3>：<阶段3名称>——<这个阶段做什么>，读取<文档>，产出最终结果\n\n**阶段间传递**：<通过什么文档/数据文件传递，不依赖Session上下文>\n\n**何时进入下一阶段**：<前一个Skill完成并落盘后，AI检查目录，自然加载下一个Skill>\n```\n\n**为什么目录在规则中而不是在某个Skill中**：\n\n1. **规则是always-on的**——不受压缩影响。即使Session压缩了，规则仍然在上下文中可见，AI始终能看到元组群的全貌——有几个阶段、当前在哪个阶段、下一步该加载哪个Skill。\n\n2. **如果目录在Skill中**——Skill加载后形成临时上下文，压缩后目录丢失，AI不知道还有后续阶段，元组群的整体性断裂。\n\n3. **规则是元组群的\"目录页\"**——每个Skill是\"章节内容\"。章节内容可能被压缩掉，但目录页始终可见，AI随时可以翻到正确的章节。\n\n**元组群规则的放置位置**：\n\n- **全局元组群**（跨项目通用）→ `~/.config/devin/AGENTS.md` 或 `~/.devin/rules/`\n- **项目级元组群**（特定项目的工作流）→ 项目 `AGENTS.md` 或 `.devin/rules/`\n\n**与单一元组的关系**：元组群是单一元组的扩展。单一元组 = 1个规则 + 1个Skill。元组群 = 1个规则（含目录） + N个Skill。规则从\"指向单一Skill\"升级为\"指向一组Skill的有序目录\"。\n\n---\n\n## 元组：trajectory-workline-review（从trajectory回溯session工作脉络）\n\n**触发条件**：需要了解某个 session（自己的或别人的）做了什么工作；同一 repo 下有多个 session 并行工作需要区分各自工作范围；新 session 启动时需要了解前序 session 进展；审查某个 session 的工作过程。\n\n**Skill**：`~/.config/devin/skills/trajectory-workline-review/SKILL.md`\n\n**核心约束**：\n1. **禁止用 git log 区分 session**——同一 repo 下多个 session 的 commit 交织在 git log 中，无法区分。必须用 sessions.db 的 session_id 区分。\n2. **运行中的 session 用 sessions.db，不用 transcripts**——transcript 文件只在 session 结束后写入，运行中的 session 没有 transcript 文件。sessions.db 的 message_nodes 表是实时写入的，是运行中 session 的唯一数据源。\n3. **grep tool_calls 中的 file_path 是最快方法**——不用完整解析嵌套 JSON，直接 grep `\"file_path\":\"...\"` 字符串，sqlite3 输出管道给 grep 一行命令搞定。区分操作类型时用正则 `re.finditer(r'\"name\":\"write\".*?\"file_path\"...')` 比解析 JSON 的 tool_calls 结构更稳健（结构可能不规则）。\n4. **文件操作时间线 = 工作脉络骨架**——提取每个文件首次操作时间并按时间排序，就是工作脉络的时间线。按目录归类操作频次 = 工作重心分布。\n5. **区分 write/edit/read 三种操作**——write（创建）= 核心产出，edit（修改）= 迭代深化，read（读取）= 前置依赖。只看 write 会漏掉 session 的前置依赖（读取了别人创建的文档 = 吸收前置讨论基础）。多 session 协作时，交叉分析 read 和 write 揭示跨 session 依赖关系。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-13T13:03:01.106702+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-13T13:03:01.107665+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **videos-shink**: Batch-trim old `.mov` videos in one directory down to their last 20 minutes without re-encoding, write the results into a `shrink/` subdirectory, verify each output, and delete originals only after verification. Use for OBS-style cleanup jobs where one protected file, such as the file still being written, must not be touched. If the protected file is not explicitly identified, stop and ask the user before any mutating action. (source: /Users/user/.agents/skills/videos-shink/SKILL.md)\n- **jsonl_curd**: Inspect, modify, validate, and resume Codex rollout JSONL files in controlled labs. Use when Codex needs to treat a rollout .jsonl as a structured test object: analyze its schema, perform CRUD-style mutations, verify rollout integrity, or start/resume Codex from an explicit rollout path for low-cost hook and boundary experiments. (source: /Users/user/.agents/skills/jsonl_curd/SKILL.md)\n- **md-multi**: Save the recent multi-turn discussion (a connected sequence of Q&A turns on the same topic) as ONE numbered Markdown file under dev-docs/, transcribed verbatim turn by turn — no summarizing, no merging similar Q&As, no rephrasing. Use when the user runs /md-multi or says \"把刚才整段讨论存档\" / \"这几轮一起记下来\" / \"整段保留为开发文档\". (source: /Users/user/.agents/skills/md-multi/SKILL.md)\n- **md**: Save the most recent single Q&A turn (the latest user message and the AI reply that immediately followed it) as ONE numbered Markdown file under the project's dev-docs/, transcribed verbatim — no summarizing, no merging, no rephrasing. Use when the user runs /md, says \"保存这次回答\" / \"把这一次记下来\" / \"把刚才那条存档\". (source: /Users/user/.agents/skills/md/SKILL.md)\n- **new-email**: Create or reuse a mailbox on a configured Cloud Mail domain. Supports igreatagain.com by default and mail.0x10086.xyz or any subdomain under 0x10086.xyz when the user supplies that full address or the 0x10086 alias. (source: /Users/user/.agents/skills/new-email/SKILL.md)\n- **qmd-search**: Search the AI conversation archive via QMD semantic/keyword/hybrid search AND Knowledge Graph queries (source: /Users/user/.agents/skills/qmd-search/SKILL.md)\n- **read-home-readme**: Read the machine-level home readme knowledge system to locate cross-project infrastructure knowledge before acting. Use when the user asks to look up something in home readme, wants machine-wide context, asks where a global workflow is documented, or when a task likely depends on knowledge stored in ~/README.md or ~/readme/. (source: /Users/user/.agents/skills/read-home-readme/SKILL.md)\n- **work-with-dev-docs**: 在以 `dev-docs/` 作为正式工作载体的项目中，判断何时必须先落分析/计划/行动方案文档，何时修订已有三位编号文档，以及何时应转交工作日志、TODO、home readme 或 docs/。 (source: /Users/user/.agents/skills/work-with-dev-docs/SKILL.md)\n- **ssh-58**: Use when operating the Thunderbolt-connected Mac \"58\" at 100.100.100.58, especially SSH, Remote Management, remote GUI automation, remote Computer Use MCP, Dokobot/Chrome testing, or permission/TCC repair on that machine. (source: /Users/user/.agents/skills/ssh-58/SKILL.md)\n- **update-work-journal**: Record and maintain a user-facing, auditable work journal for the current project in `./dev-docs/工作日志.md`. Use when the user asks to update the visible work log, record progress, summarize current status, add a new workstream or branch line, or keep a human-readable engineering journal with exact timestamps. (source: /Users/user/.agents/skills/update-work-journal/SKILL.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **self-compact**: 在项目采用项目级 AGENTS 单文件 handover 机制时，用于在本轮 handover 工作完成后触发自压缩。读取当前项目目录中的 `.tmux_session_name`，校验 tmux pane target，并让当前 AI 通过同一 tmux pane 对自己发起 `/compact`。 (source: /Users/user/.agents/skills/self-compact/SKILL.md)\n- **android-reverse-engineering-simoneavogadro**: Decompile Android APK, XAPK, JAR, and AAR files using jadx or Fernflower/Vineflower. Reverse engineer Android apps, extract HTTP API endpoints (Retrofit, OkHttp, Volley), and trace call flows from UI to network layer. Use when the user wants to decompile, analyze, or reverse engineer Android packages, find API endpoints, or follow call flows. (source: /Users/user/.agents/skills/android-reverse-engineering-simoneavogadro/SKILL.md)\n- **handover**: 压缩前执行。落盘对账 + 因果一致性 + 三大块记忆提取 + 交接写入，确保压缩后不丢认知。 (source: /Users/user/.agents/skills/handover/SKILL.md)\n- **codex-config-harness**: Configure and manage Codex CLI extensibility (AGENTS.md rules, Skills, MCP servers, config.toml). Use when the user asks about Codex CLI setup, adding MCP servers, writing skills, configuring rules, enabling skills feature flag, or understanding the Codex extension architecture. Also use when migrating configuration from Devin or Claude Code to Codex. Do NOT use for general coding tasks unrelated to Codex configuration. (source: /Users/user/.agents/skills/codex-config-harness/SKILL.md)\n- **fact**: 记忆提取：概念型 + 事实型 + 笔记型三大块，按顺序执行。每步 Pre-echo 复述规范再动手。 (source: /Users/user/.agents/skills/fact/SKILL.md)\n- **write-docs**: Write or rewrite technical documentation in a beginner-friendly, user-first, top-down teaching style. Use when the user asks for docs, code explanations, architecture writeups, source-analysis notes, API/process docs, or asks to explain concepts without assuming prior source-code knowledge. The goal is: don't make me think, don't make me ask twice. (source: /Users/user/.agents/skills/write-docs/SKILL.md)\n- **video-compress**: Compress local video files with ffmpeg using H.265 workflows that balance quality, compression ratio, and speed, including optional Apple VideoToolbox hardware encoding and rotation. Use when the user asks to compress, shrink, rotate while compressing, or reduce the size of a video from the command line while keeping quality high, especially for `.mp4`, screen recordings, and recordings that should stay easy to share or archive. (source: /Users/user/.agents/skills/video-compress/SKILL.md)\n- **android-reverse-engineering**: Decompile Android APK, XAPK, JAR, and AAR files using jadx or Fernflower/Vineflower. Reverse engineer Android apps, extract HTTP API endpoints (Retrofit, OkHttp, Volley), and trace call flows from UI to network layer. Also covers maintaining the Lima VM-based AOSP/LineageOS source tree environment required for large-scale reverse engineering (repo sync monitoring with syncstate.json, tracking prebuilts without last_checkout, graceful shutdown, disk expansion via lima.yaml, migration of LIMA_HOME to large volumes like AI-PWD while leaving only 50GB host buffer). Use when the user wants to decompile, analyze, or reverse engineer Android packages, find API endpoints, follow call flows, or manage the underlying large source sync infrastructure in Lima. (source: /Users/user/.agents/skills/android-reverse-engineering/SKILL.md)\n- **qmd-mcp-search**: 通过 QMD 语义搜索和知识图谱查询搜索 AI 对话存档。双模式检索，支持结构化实体发现。 WHEN to use: 需要语义搜索 AI 对话、知识图谱实体查询、文档相似度检索时。 WHEN NOT to use: 简单关键词搜索（用 ai-archive-search）、网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **prove-context-structure-analysis-completeness**: 对任意 agent/CLI/harness 系统执行上下文结构分析完备性证明。用 Boundary / Static / Dynamic / Orphan 四表穷举上下文主链，做 remainder=0 检查，并给出 PASS / PARTIAL / FAIL verdict。 (source: /Users/user/.agents/skills/prove-context-structure-analysis-completeness/SKILL.md)\n- **find-skills**: Helps users discover and install agent skills when they ask questions like \"how do I do X\", \"find a skill for X\", \"is there a skill that can...\", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill. (source: /Users/user/.agents/skills/find-skills/SKILL.md)\n- **trajectory-workline-review**:  (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **tmux-easy-setup**: 配置 tmux 达到最易用状态：大缓冲区、鼠标滚动、系统剪贴板集成、vi 复制模式。 WHEN to use: 用 tmux 运行 AI CLI（devin/codex）、长时间任务、多 session 监控， 或用户抱怨 tmux 复制粘贴/缓冲区/鼠标不好用时。 WHEN NOT to use: 不涉及 tmux 的任务。\n (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **handover-prompt**: 为下一个 session 维护项目级 AGENTS.md 的 Handover Section。先 /handover 落盘到 Memory Section，再 /handover-prompt 创建或更新 Handover Section。三个衡量标准：信息完整性、认知一致性、可无缝衔接性。 (source: /Users/user/.agents/skills/handover-prompt/SKILL.md)\n- **write-home-readme**: Write cross-project infrastructure or machine-level knowledge into the home readme system: detailed docs under ~/readme/, an entry in ~/README.md, and when needed a row in ~/readme/README.md. Use when the user says to record something in home readme, says this knowledge is cross-project or machine-wide, asks for a home-level index entry, or wants infrastructure/incident knowledge stored outside the current project. (source: /Users/user/.agents/skills/write-home-readme/SKILL.md)\n- **devin-config-harness**: Devin CLI 配置使用完整说明书。涵盖 rules（AGENTS.md + .devin/rules/）、skills、hooks、 config.json、MCP servers 的全局/项目本地位置、格式、参数和选择策略。 WHEN to use: 配置 Devin CLI、添加 rules/skills/hooks/MCP、理解 Devin 扩展架构、 从 Codex/Claude Code 迁移配置、排查配置问题。 WHEN NOT to use: 一般编码任务、非 Devin 配置相关的工作。\n (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **read-email**: Read mailbox messages from configured Cloud Mail domains. Supports igreatagain.com by default and mail.0x10086.xyz or any subdomain under 0x10086.xyz when the user supplies that full address or the 0x10086 alias; use for verification codes, links, or explicit $read-email requests. (source: /Users/user/.agents/skills/read-email/SKILL.md)\n- **spark**: Use when the user wants to brainstorm an idea or design a feature/spec. Explores intent and requirements through dialogue, then writes a spec document to docs/spark/ and STOPS. Does not auto-chain to implementation planning or any other skill. (source: /Users/user/.agents/skills/spark/SKILL.md)\n- **codex-pure-lab**: Use when you need a reusable Codex testing system for isolated labs, headless CLI tests, app-server tests, tmux/TUI tests, start-codex launcher tests, hook tests, self-compact tests, or compaction tests without contaminating the live environment. (source: /Users/user/.agents/skills/codex-pure-lab/SKILL.md)\n- **long-running-work-sop**: 长程工作SOP化与迭代审计铁律。当用户启动一个可能跨越压缩边界的持续性工作时， AI必须将其SOP化（放入项目AGENTS.md）、用rules锁定流程行为、版本化审计修正历史。 本skill提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程， 以及积累的经验和反模式。 WHEN to use: 用户启动一个可能跨越压缩边界的持续性工作时； 发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要修正时。 WHEN NOT to use: 一次性任务（如\"运行这个脚本\"、\"修这个bug\"）； 明确不会跨越压缩边界的短任务。\n (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **bian-pai**: 成功执行编排的方法论与落地工作流。用于把复杂、多阶段、跨组件、可无人值守的 AI / 软件工程任务收束为可执行编排：明确目标、边界、依赖、输入冻结、可观测性、验证、失败恢复、并发、证据与停止条件，并产出 phase plan、runtime manifest、runbook、scenario matrix 与 verdict 结构。适用于设计自动化流程、tmux 联调、agent/worker 编排、故障注入与无人值守执行方案。 (source: /Users/user/.agents/skills/bian-pai/SKILL.md)\n- **headless-codex**: Launch a highly controlled headless Codex CLI instance with explicit model, reasoning effort, sandbox, approval policy, writable dirs, JSON output, and a custom project-doc file such as AGENTS.md/RULES.md. Use when you need another AI or script to call Codex non-interactively. (source: /Users/user/.agents/skills/headless-codex/SKILL.md)\n- **ai-carrier-meta-memory**: Use when discussing meta-level evolution of AI coding tools or AI carriers such as Codex, Claude Code, Hermes, ECC, Superpowers, continuous learning, AI governance repos, repo analysis records, user-intent classification, workflow routing, memory classification, memory routing, or how AI agents should decide what kind of interaction they are in before acting. (source: /Users/user/.agents/skills/ai-carrier-meta-memory/SKILL.md)\n- **release-skills**: Universal release workflow. Auto-detects version files and changelogs. Supports Node.js, Python, Rust, Claude Plugin, GitHub Releases, annotated tags, historical release backfill, and generic projects. Use when user says \"release\", \"发布\", \"new version\", \"bump version\", \"push\", \"推送\", \"release notes\", \"GitHub Release\", or \"回填 Release\". (source: /Users/user/.agents/skills/release-skills/SKILL.md)\n- **setup-devin-rules-skills**: 指向元组 rule 中的 setup-devin-rules-skills 条目；安顿 Devin 的 rule 和 skill（位置、格式、加载机制、操作流程）。 (source: /Users/user/.agents/skills/setup-devin-rules-skills/SKILL.md)\n- **rule-skill-tuple-assessment**: 评估用户的提问或要求是否应该设置为 rule、skill（SOP）、或元组（rule+skill）， 以及应该放入 Devin 全局配置还是项目本地 .devin/ 目录。 WHEN to use: 用户提出一个要求或认知，AI判断这个要求是否具有跨session复用价值时。 WHEN NOT to use: 一次性的具体任务执行（如\"运行这个脚本\"、\"修这个bug\"）。\n (source: /Users/user/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md)\n- **loop**: Runs an autonomous development loop with research and implementation modes. Use when orchestrating iterative research and implementation cycles with dots-based task tracking and git workflow automation. (source: /Users/user/.agents/skills/loop/SKILL.md)\n- **hooks-operation**: Operate the live global Codex hook framework under `~/.codex` and the related prompt files under `~/`. Use when installing, uninstalling, inspecting, or testing the user-level Codex hooks such as `block-stop`, `post-tool-use`, `pre-tool-use`, `user-prompt-submit`, and `session-start`, especially when working with the explicit Stop installs `block-once` and `block-always`, or when updating the Home-directory prompt text files those hooks read at runtime. (source: /Users/user/.agents/skills/hooks-operation/SKILL.md)\n- **cliproxyapi-config**: Use when Codex needs to configure, audit, explain, or troubleshoot CLIProxyAPI / CPA configuration, including 8888 or 18888 instances, routing.strategy fill-first, session-affinity, session-affinity-ttl, nonstream-keepalive-interval, streaming keepalive, max-retry-credentials, payload.default/override/filter rules, provider credentials, management UI config, auth-dir, hot reload, or when the user asks for the official CLIProxyAPI configuration parameter list. Prioritize official CLIProxyAPI docs and the bundled official-parameter index before inspecting source code. (source: /Users/user/.agents/skills/cliproxyapi-config/SKILL.md)\n- **auto-run-to-the-end**: 当用户明确要求无人值守、持续运行、不中途汇报、一路做到底时使用。该 skill 要求先形成计划；若存在 看板.md / KANBAN.md / runbook / phase plan，则必须把它作为 source of truth 连续执行并边做边更新；fallback 成功不得冒充主线完成。除非被阻塞、存在高风险操作、或高优先级宿主规则要求，否则中途不做工作汇报，直到阶段工作真正收口。 (source: /Users/user/.agents/skills/auto-run-to-the-end/SKILL.md)\n- **mempalace-codex-memory**: Use when Codex should interact with the local-only MemPalace memory layer for the current project: refresh project files or recent Codex transcripts into the canonical palace, render a low-token wake-up context, search project memory, or print the local MCP server command. Prefer this when you want real reusable local memory without remote services and without relying on repo-root `mempalace init` side effects. (source: /Users/user/.agents/skills/mempalace-codex-memory/SKILL.md)\n- **ai-archive-search**: 搜索 AI 对话存档（AI-ALL-Markdown），使用 QMD 语义搜索。 WHEN to use: 需要搜索历史 AI 对话、查找之前的讨论内容、检索 AI 对话存档时。 WHEN NOT to use: 搜索当前项目代码（用 grep/glob）、一般网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/ai-archive-search/SKILL.md)\n- **add-to-dev-docs**: 在采用 `dev-docs/` 作为正式工作载体的项目中，新建或修订三位编号的 dev-docs 文档，默认版本化保存，并同步 `AGENTS.md` 文件索引与 `ChangeLog.md`。 (source: /Users/user/.agents/skills/add-to-dev-docs/SKILL.md)\n- **db-file-traceability**:  (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **add-new-todo**: 将用户刚刚提出的新待办落盘到当前项目 AGENTS.md 的 Memory Section > §TODO，并同步必要的索引与变更记录。 (source: /Users/user/.agents/skills/add-new-todo/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据的完整存储位置、格式、读取方法。 Transcript（ATIF格式）、sessions.db（SQLite）、logs、summaries、--export参数。 WHEN to use: 需要提取/解析/审计Devin CLI的session对话数据时。 WHEN NOT to use: 一般编码任务、非Devin CLI相关的数据工作。 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **jsonl-reader**: Use when inspecting a Codex rollout JSONL or session id for session recovery, dehydrated dialogue reconstruction, or structured audit. Best for turning a rollout into a readable Markdown transcript and then drilling into exact records with stats/list/get without mutating the source JSONL. (source: /Users/user/.agents/skills/jsonl-reader/SKILL.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Users/user/.local/share/devin/cli/_versions/3000.4.16/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-13T13:03:05.962049+00:00",
+      "source": "agent",
+      "message": "I first perform the mandatory answer-leak check: the problem text contains only the statement and procedural constraints (in Chinese). No solution, answer value, Lean statement, or proof sketch is embedded. No leak detected.\n\nNow I analyze the statement itself.\n\n## Analysis\n\nThe statement claims:\n\n> For every $r \\in \\mathbb{N}$, there exists $n \\in \\mathbb{N}$ such that every 3-connected graph with at least $n$ vertices contains a wheel graph of order $r$ or a $K_{3,r}$ **as a subgraph**.\n\nI will show this is **false** as written by exhibiting, for every sufficiently large $r$, an infinite family of 3-connected graphs of unbounded order that contain neither a wheel of order $r$ nor a $K_{3,r}$ as a subgraph.\n\n## Counterexample: the prism family\n\nFor $n \\ge 3$, let $P_n = C_n \\,\\square\\, K_2$ be the **prism graph** (two $n$-cycles $a_1a_2\\cdots a_na_1$ and $b_1b_2\\cdots b_nb_1$ joined by \"rungs\" $a_ib_i$).\n\n**Claim 1.** $P_n$ is 3-connected.\n\nThe vertex connectivity of a Cartesian product satisfies\n$$\\kappa(G \\,\\square\\, H) = \\min\\bigl(\\kappa(G)\\,|V(H)|,\\;\\kappa(H)\\,|V(G)|,\\;\\delta(G)+\\delta(H)\\bigr)$$\nfor connected $G,H$ (Spacapan's theorem). With $G = C_n$, $H = K_2$:\n- $\\kappa(C_n)\\,|V(K_2)| = 2 \\cdot 2 = 4$,\n- $\\kappa(K_2)\\,|V(C_n)| = 1 \\cdot n = n$,\n- $\\delta(C_n) + \\delta(K_2) = 2 + 1 = 3$.\n\nHence $\\kappa(P_n) = \\min(4,\\, n,\\, 3) = 3$ for all $n \\ge 3$. So $P_n$ is 3-connected.\n\n**Claim 2.** $P_n$ is 3-regular: every vertex has exactly two cycle-neighbors and one rung-neighbor, so $\\deg(v) = 3$ for all $v$.\n\n**Claim 3.** $|V(P_n)| = 2n$, which is unbounded as $n \\to \\infty$.\n\n**Claim 4.** For every $r \\ge 4$, $P_n$ contains **no** wheel of order $r$ and **no** $K_{3,r}$ as a subgraph.\n\nUnder any standard convention, a wheel of order $r$ (whether \"order\" counts vertices or spokes) requires a hub vertex of degree $\\ge r-1 \\ge 3$; for $r \\ge 4$ the hub needs degree $\\ge r-1 \\ge 3$, and in fact for $r \\ge 5$ degree $\\ge 4$. More directly: a wheel of order $r$ with rim $C_{r-1}$ (or $C_r$) has a hub adjacent to all rim vertices, so the hub has degree $\\ge r-1$ (resp. $\\ge r$) **within the subgraph**, hence within $P_n$. Since $P_n$ is 3-regular, every vertex has degree exactly $3$ in $P_n$ and therefore degree $\\le 3$ in every subgraph. For $r \\ge 5$ (rim $C_{r-1}$, hub degree $\\ge r-1 \\ge 4$) this is impossible. Taking $r = 5$ already suffices; for $r = 4$ under the \"rim $C_r$, hub degree $r$\" convention, degree $4 > 3$ is also impossible.\n\nLikewise, $K_{3,r}$ as a subgraph requires the three vertices on the small side to each have degree $\\ge r$ within the subgraph (each is adjacent to all $r$ vertices on the other side). For $r \\ge 4$, this needs degree $\\ge 4$, impossible in a 3-regular graph.\n\n**Conclusion of the disproof.** Fix $r = 5$ (or any $r \\ge 4$ under the appropriate convention). For every proposed bound $n$, choose $n' > n/2$ and consider $P_{n'}$. Then:\n\n- $P_{n'}$ is 3-connected (Claim 1),\n- $|V(P_{n'})| = 2n' \\ge n$ (Claim 3),\n- $P_{n'}$ contains no wheel of order $r$ as a subgraph (Claim 4, since $\\Delta(P_{n'}) = 3 < r-1$),\n- $P_{n'}$ contains no $K_{3,r}$ as a subgraph (Claim 4, since $\\Delta(P_{n'}) = 3 < r$).\n\nThus no finite $n$ can satisfy the required property for $r \\ge 4$ (resp. $r \\ge 5$). The universal quantifier \"for every $r \\in \\mathbb{N}$\" therefore fails.\n\n## The statement is false as written\n\nThe obstruction is purely the degree bound: a 3-connected graph need only have minimum degree $3$, and 3-regular 3-connected graphs of unbounded order (prisms, cubic cages, random cubic graphs, etc.) immediately rule out any subgraph containing a vertex of degree $\\ge 4$.\n\n**The correct (and well-known) form of this theorem replaces \"subgraph\" with \"minor.\"** With \"minor,\" the prism family is no longer a counterexample: contracting one of the two $n$-cycles of $P_n$ to a single vertex yields a hub adjacent (via the rungs) to every vertex of the other $n$-cycle, giving a wheel $W_n$ minor. The minor version admits a clean proof via a longest dominating cycle $C$ (which exists in every 2-connected graph): vertices outside $C$ form an independent set, each with $\\ge 3$ neighbors on $C$; if some such vertex has $\\ge r$ neighbors on $C$, contracting the $C$-arcs between consecutive neighbors yields a $W_r$ minor; otherwise every vertex of $C$ must have a neighbor outside $C$ (else it has degree $2$, contradicting 3-connectivity), which bounds $|C|$ in terms of $|V\\setminus C|$ and $r$, and a pigeonhole argument on the common-neighborhood triples then yields a $K_{3,r}$ minor once the graph is large enough.\n\nBut as stated — with \"subgraph\" — the claim is disproved by the prism family above.\n\n### PROOF COMPLETE",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "The problem is a graph theory statement. Let me think about it carefully.\n\nThe problem: For every $r \\in \\mathbb{N}$, there exists $n \\in \\mathbb{N}$ such that every 3-connected graph with at least $n$ vertices contains a wheel graph of order $r$ or a $K_{3,r}$ as a subgraph.\n\nLet me first check for answer leaks. The problem text is just the statement plus constraints in Chinese. No solution, no answer value, no Lean statement. No leak.\n\nNow let me think about the math.\n\nA wheel graph $W_r$ of order $r$ is a cycle $C_{r-1}$ (or $C_r$ depending on convention) plus a hub connected to all vertices of the cycle. Let me use the convention: wheel of order $r$ has $r$ vertices total — one hub and a cycle on $r-1$ vertices. Actually, conventions vary. Let me think of \"wheel graph of order $r$\" as $W_r$ = a cycle of length $r$ with an additional central vertex adjacent to all cycle vertices. So $W_r$ has $r+1$ vertices. Or \"order $r$\" might mean $r$ vertices total. Either way, the structure is: a vertex $v$ adjacent to all vertices of a cycle $C_k$ for some $k \\geq r$ (or $k = r$).\n\nActually, let me reconsider. The key structural point: a wheel contains a vertex whose neighbors contain a cycle. Equivalently, a wheel $W_k$ (cycle $C_k$ + hub) is a subdivision-free subgraph.\n\nThe statement resembles an extremal/structural result about 3-connected graphs. This looks like it could be related to results by Ota, or to the structure theory of 3-connected graphs, perhaps related to Tutte's decomposition or to results about large 3-connected graphs containing large wheels or large complete bipartite graphs.\n\nLet me think about this more carefully. This is essentially saying: large 3-connected graphs either contain a large wheel or a large $K_{3,r}$.\n\nKey insight: In a 3-connected graph, by a theorem (perhaps related to Mader, or to the \"fan lemma\"), we can find structure.\n\nLet me think about the contrapositive: if a 3-connected graph has no wheel of order $r$ and no $K_{3,r}$, then it has bounded size (bounded by some function of $r$).\n\nApproach: Consider a 3-connected graph $G$. Take a longest cycle $C$. By a theorem of Tutte / Dirac / others, in a 3-connected graph, every edge lies on a cycle, and there are results about longest cycles.\n\nActually, let me think about a cleaner approach using the \"3-connected implies every pair of vertices on a cycle through them\" type results, or the fan lemma.\n\nAlternative approach: Consider a vertex $v$ of maximum degree $\\Delta$. If $\\Delta \\geq$ some large bound, then look at $N(v)$. \n\nCase 1: $N(v)$ contains a cycle of length $\\geq r$. Then $v$ plus that cycle forms a wheel of order $r$ (with hub $v$). Wait, we need the cycle to be in $N(v)$, meaning the cycle's vertices are all neighbors of $v$, and the cycle edges exist among them. Then $v$ + cycle = wheel. Good.\n\nCase 2: $N(v)$ is a forest (acyclic). Then $N(v)$ has no cycle. Since $G$ is 3-connected, $G - v$ is 2-connected. $N(v)$ are the neighbors of $v$.\n\nHmm, let me think about whether $N(v)$ being a forest with bounded \"structure\" forces something.\n\nActually, if $N(v)$ is a forest, we need to bound things. The graph $G - v$ is 2-connected (since $G$ is 3-connected). The neighbors of $v$ form a set $S = N(v)$ which is a vertex cut of size... well, $G - v - S$ might be empty or not.\n\nLet me think differently. This is a known type of result. Let me recall: there's a theorem that says large 3-connected graphs contain large wheels or large $K_{3,k}$. This might be related to work by Böhme, Mohar, etc., or it could be a consequence of the Grid / Excluded Minor structure theory but for subgraphs not minors.\n\nActually, let me think about it as follows. This is essentially a Ramsey-type / Erdős–Pósa type result.\n\nLet me try to prove it directly.\n\nLet $G$ be 3-connected with $|V(G)| \\geq n$ (we'll determine $n$). We want to find either $W_r$ (wheel with cycle of length $\\geq r$, say) or $K_{3,r}$.\n\nPick a vertex $v$. Since $G$ is 3-connected, $\\deg(v) \\geq 3$. \n\nConsider a longest cycle $C$ in $G$. By a theorem, in a 3-connected graph, a longest cycle is a \"dominating cycle\" — actually that's for 2-connected (Dirac): in a 2-connected graph, every vertex not on a longest cycle has at least 3 neighbors on it? No. Dirac's theorem: in a 2-connected graph, a longest cycle $C$ has the property that every component of $G - C$ ... hmm. Actually there's the result: in a 2-connected graph, for a longest cycle $C$, every vertex outside $C$ has at most... Let me recall the \"dominating cycle\" concept. A cycle $C$ is dominating if every edge has at least one endpoint on $C$. Dirac proved every 2-connected graph has a dominating cycle (actually a longest cycle is dominating in a 2-connected graph). \n\nHmm wait, that's not quite the standard statement. Let me recall: A cycle $C$ is *dominating* if every edge of $G$ has at least one end on $C$. Veldman and others: In a 2-connected graph, every longest cycle is dominating. Actually I think the correct statement is: In a 2-connected graph, a longest cycle is a dominating cycle. Let me just use this.\n\nSo let $C$ be a longest cycle in $G$, length $c = |C|$. Since $C$ is dominating, every edge has an endpoint on $C$, which means every vertex outside $C$ has all its neighbors on $C$ (its neighbors are a subset of $C$). Wait, dominating means every edge has at least one endpoint on $C$. So a vertex $u \\notin C$ has all its incident edges going to $C$ (since edge $uw$ must have $w \\in C$ or $u \\in C$; $u \\notin C$ so $w \\in C$). So $N(u) \\subseteq C$.\n\nNow, $G$ is 3-connected, so $\\deg(u) \\geq 3$ for all $u$, hence every $u \\notin C$ has at least 3 neighbors on $C$.\n\nNow consider the structure. Let $c = |C|$.\n\nIf $c \\geq r$: We have a long cycle. We want a wheel. We need a vertex adjacent to many consecutive vertices of $C$ forming a wheel. Hmm, a wheel of order $r$ requires a hub adjacent to all vertices of a cycle of length $r$ (or $\\geq r$). Just having a long cycle doesn't give a wheel.\n\nLet me reconsider. Maybe the approach is: pick a vertex $v$ with maximum degree $\\Delta$.\n\nSubcase A: $\\Delta$ is large, say $\\Delta \\geq D(r)$. Look at $N(v)$, the subgraph induced by neighbors of $v$. \n- If $N(v)$ contains a cycle of length $\\geq r$: we get a wheel $W_r$ (hub $v$). Done.\n- If $N(v)$ contains no cycle of length $\\geq r$: then all cycles in $N(v)$ have length $< r$. \n\nHmm, but $N(v)$ might still be dense. Let me think about when $N(v)$ has no long cycle but is large.\n\nActually, if $N(v)$ has no cycle at all (is a forest), and $|N(v)| = \\Delta$ is large, then... we need to use 3-connectivity to find $K_{3,r}$ or a wheel elsewhere.\n\nThis is getting complicated. Let me think about whether this is a known theorem and try to reconstruct a clean proof.\n\nActually, I recall a result: \"Every 3-connected graph with sufficiently many vertices contains a wheel $W_n$ or $K_{3,n}$.\" This is attributed to Ota (maybe \"Wheels and factors in 3-connected graphs\") or it's a theorem by Chen and Saito. Let me think about the proof structure.\n\nLet me try a cleaner approach using the longest cycle and the structure outside.\n\nLet $C$ be a longest cycle, $|C| = c$. As noted, $C$ is dominating (in 2-connected, hence 3-connected graphs). So $V(G) \\setminus C$ vertices each have $\\geq 3$ neighbors on $C$.\n\nLet $H = G - C$ (vertices outside $C$), $|H| = n - c$.\n\nIf $c \\geq$ some large value: Consider the vertices outside $C$. Each has $\\geq 3$ neighbors on $C$. \n\nHmm, let me think about two regimes based on $c$.\n\nRegime 1: $c$ is large (say $c \\geq f(r)$). Then we have a long cycle. We want to find a wheel. Take a vertex $u$ outside $C$ (if exists) with $\\geq 3$ neighbors on $C$. If $u$ has $r$ neighbors on $C$ that form a path/cycle... Actually a wheel needs the hub adjacent to all vertices of a cycle. The cycle is part of $C$ (a sub-cycle), and the hub $u$ must be adjacent to all vertices of that sub-cycle. \n\nIf $u$ has many neighbors on $C$, say $\\geq r$ neighbors, and they're \"close\" forming a contiguous arc, then $u$ + that arc + the chord closing it = wheel. Specifically, if $u$ is adjacent to $r$ consecutive vertices on $C$, then those $r$ vertices form a path $P$ on $C$, and $u$ is adjacent to all of them; $P$ plus the edge between endpoints? No, $P$ is a path, not a cycle. To form a wheel, we need a cycle among the neighbors. The neighbors of $u$ on $C$ together with the arcs of $C$ between consecutive neighbors... \n\nActually: Let $u \\notin C$ have neighbors $x_1, \\dots, x_t$ on $C$ (in cyclic order). Then $u$ together with the arc of $C$ from $x_1$ to $x_t$ (going through $x_2, \\dots, x_{t-1}$) and edges $ux_1, ux_t$ forms a cycle $u x_1 C x_2 \\dots x_t u$ — wait that uses the arc $x_1$ to $x_t$ and the two spokes. That's a cycle containing $u$ and the arc. But for a *wheel*, we need $u$ to be the hub, i.e., $u$ adjacent to all vertices of a cycle, and that cycle to be entirely among neighbors of $u$.\n\nSo we need: a cycle $C'$ such that all vertices of $C'$ are neighbors of $u$. The cycle $C'$ must use edges among $N(u)$. The edges among $N(u)$ come from: edges of $C$ between consecutive neighbors, and chords of $C$, and edges among $N(u)$ not on $C$.\n\nIf $u$'s neighbors on $C$ are $x_1, \\dots, x_t$ in cyclic order, and consecutive ones $x_i, x_{i+1}$ are adjacent on $C$ (i.e., no other vertices between them on $C$), then $x_1 x_2 \\dots x_t x_1$ would be a cycle if all consecutive pairs are adjacent on $C$ AND $x_t, x_1$ adjacent. That requires the neighbors to be consecutive on $C$ forming the whole cycle — only if $t = c$.\n\nThis is getting messy. Let me reconsider.\n\nCleaner wheel-finding: A wheel $W_k$ = hub $h$ + cycle $C_k$ where $h$ adjacent to all of $C_k$. So we need a vertex $h$ and a cycle $C'$ in $G[N(h)]$ of length $\\geq r$ (or exactly $r$ depending on convention; let's say $\\geq r$ to be safe, or the problem means exactly order $r$).\n\nSo the problem reduces to: either some vertex has its neighborhood containing a cycle of length $\\geq r$, or we find $K_{3,r}$.\n\nSo: For all $v$, $G[N(v)]$ has no cycle of length $\\geq r$ (no wheel), and no $K_{3,r}$. Show $|V(G)|$ is bounded.\n\nNow, $G[N(v)]$ having no cycle of length $\\geq r$ means the \"circumference\" (longest cycle) of $G[N(v)]$ is $< r$. \n\nHmm, but bounding the whole graph requires more.\n\nLet me think about the contrapositive with a specific vertex. Take $v$ with max degree $\\Delta = \\deg(v)$.\n\nSince $G$ is 3-connected, $G - v$ is 2-connected. The neighbors $N(v)$ is a vertex cut of $G - v$? Not necessarily; $G - v$ is 2-connected so removing $N(v)$ from $G - v$ leaves... $G - v - N(v) = G - N[v]$, the non-neighbors of $v$.\n\nLet me consider the structure: $G$ 3-connected. Let $v$ be a vertex, $S = N(v)$, $T = V \\setminus (S \\cup \\{v\\})$ (vertices at distance $\\geq 2$ from $v$). $|S| = \\Delta$.\n\nSince $G$ is 3-connected, $G - v$ is 2-connected. $S$ separates $v$ from $T$ in $G$.\n\nNow suppose no wheel of order $r$ and no $K_{3,r}$.\n\nNo wheel of order $r$: $G[S] = G[N(v)]$ has no cycle of length $\\geq r$. So circumference of $G[S]$ is $\\leq r-1$.\n\nNo $K_{3,r}$: $G$ has no $K_{3,r}$ as subgraph. In particular, for any 3 vertices, their common neighborhood has size $< r$. \n\nNow I want to bound $|T|$ and $|S|$.\n\nBound on $|S| = \\Delta$: $G[S]$ is a graph with circumference $\\leq r-1$. How large can $|S|$ be? Well, $G[S]$ could be a forest (circumference 0 or no cycles), and forests can be arbitrarily large. So $|S|$ is not directly bounded by the circumference condition alone. We need more.\n\nBut $G[S]$ being a forest with many vertices: then $S$ is large but $G[S]$ is a tree/forest. Combined with 3-connectivity and no $K_{3,r}$...\n\nHmm. Let me think about $K_{3,r}$ constraint more. $K_{3,r}$ present means 3 vertices with $\\geq r$ common neighbors. \n\nConsider 3 vertices in $S$ (or involving $v$). $v$ is adjacent to all of $S$. So $v$ together with any 2 vertices $a, b \\in S$: common neighbors of $\\{v, a, b\\}$ include... vertices adjacent to $v$, $a$, and $b$. That's $N(v) \\cap N(a) \\cap N(b) = S \\cap N(a) \\cap N(b)$. If $|N(a) \\cap N(b) \\cap S| \\geq r-1$ (since $v$ itself... wait $v$ is one of the 3, and we need $r$ common neighbors of the 3). The 3 vertices are $v, a, b$; their common neighbors are $N(v) \\cap N(a) \\cap N(b)$. $v \\notin N(v)$ so $v$ not counted. So common neighbors $= N(a) \\cap N(b) \\cap S$. If this is $\\geq r$, we have $K_{3,r}$ with the 3 being $\\{v,a,b\\}$ and the $r$ being common neighbors. So: for all $a, b \\in S$, $|N(a) \\cap N(b) \\cap S| \\leq r - 1$.\n\nThis is a strong condition but still allows large $S$ if $G[S]$ is sparse.\n\nThis is getting quite involved. Let me step back and think about whether there's a cleaner known proof.\n\nI believe this is a result that follows from the following line of reasoning (reminiscent of Kostochka–Thomason or of Mader's theorem on average degree forcing $K_t$ minors, but for subgraphs in 3-connected graphs):\n\nActually, let me reconsider the problem. It might be a direct consequence of a theorem by Ota or by Ellingham, or it might be provable via the following:\n\nTheorem (folklore / Ota): For every positive integer $r$, there exists $n$ such that every 3-connected graph on at least $n$ vertices contains a wheel $W_r$ or $K_{3,r}$.\n\nLet me try to construct a proof using the longest cycle approach more carefully, splitting into cases on the cycle length.\n\nLet $C$ be a longest cycle of $G$, $|C| = c$. $C$ is dominating (since $G$ is 2-connected). So every vertex outside $C$ has all neighbors on $C$, and at least 3 neighbors on $C$ (3-connectivity).\n\nLet $R = V(G) \\setminus C$, $|R| = |V| - c$.\n\nCase 1: $c \\geq g(r)$ for some function $g$. \nWe'll find a wheel or $K_{3,r}$ using the long cycle and the structure of how $R$ attaches.\n\nCase 2: $c < g(r)$, so the circumference is bounded. Then $|R|$ must be bounded too (else we get many vertices outside a bounded cycle, each with $\\geq 3$ neighbors on $C$, and by pigeonhole / $K_{3,r}$ avoidance we bound $|R|$). Then $|V| = c + |R|$ is bounded.\n\nLet me develop Case 2 first since it's cleaner.\n\nCase 2: $c \\leq g - 1$ (circumference bounded by $g-1$). Each vertex $u \\in R$ has $\\geq 3$ neighbors on $C$. $|C| = c \\leq g-1$. The number of 3-element subsets of $C$ is $\\binom{c}{3} \\leq \\binom{g-1}{3}$. Each $u \\in R$ has a neighborhood $N(u) \\cap C \\supseteq$ some 3-subset. If $|R|$ is large, by pigeonhole many $u$ share the same 3-subset $\\{a,b,d\\} \\subseteq C$ as common neighbors. Specifically, if $|R| > (r-1)\\binom{c}{3}$, then some 3-subset $\\{a,b,d\\}$ of $C$ is contained in $N(u)$ for at least $r$ vertices $u \\in R$. Then $\\{a,b,d\\}$ together with those $r$ vertices form $K_{3,r}$ (the $r$ vertices are each adjacent to $a, b, d$; and $a,b,d \\in C$). Wait, we need the $r$ vertices to be adjacent to all of $\\{a,b,d\\}$, which they are by construction, and we need no other edges required — $K_{3,r}$ as a subgraph just needs those edges, extra edges are fine. So yes, $K_{3,r}$ found.\n\nSo in Case 2, to avoid $K_{3,r}$, we need $|R| \\leq (r-1)\\binom{c}{3} \\leq (r-1)\\binom{g-1}{3}$. Thus $|V| = c + |R| \\leq (g-1) + (r-1)\\binom{g-1}{3}$, bounded. \n\nSo if $|V| > (g-1) + (r-1)\\binom{g-1}{3}$ and $c \\leq g-1$, we get $K_{3,r}$. Good. So set the threshold: if $c \\leq g-1$ and $|V|$ large, contradiction. So for large $|V|$, we must have $c \\geq g$.\n\nNow Case 1: $c \\geq g$. Long cycle. We want to find a wheel of order $r$ or $K_{3,r}$.\n\nNow use the vertices in $R$ (outside $C$) and their neighbors on $C$. Each $u \\in R$ has $\\geq 3$ neighbors on $C$.\n\nSubcase 1a: Some $u \\in R$ has $\\geq r$ neighbors on $C$ that are consecutive on $C$ (forming a path of length $r-1$ on $C$). Then $u$ + that path + edge from $u$ to both ends = a cycle of length $r+1$? Let me see: path $x_1 x_2 \\dots x_r$ on $C$ (consecutive), $u$ adjacent to $x_1, \\dots, x_r$. Cycle: $u, x_1, x_2, \\dots, x_r, u$ — that's a cycle of length $r+1$ with $u$ adjacent to $x_1, \\dots, x_r$ but NOT to the intermediate... wait $u$ IS adjacent to all of $x_1,\\dots,x_r$. The cycle is $u-x_1-x_2-\\dots-x_r-u$, length $r+1$, and $u$ is adjacent to $x_1,\\dots,x_r$ (all vertices of the cycle except... $u$ is adjacent to all other $r$ vertices of the cycle). So this is a wheel $W_r$ (hub $u$, cycle $x_1\\dots x_r$ of length $r$). \n\nWait, the cycle $x_1 x_2 \\dots x_r$ has length $r$ (it's a path $x_1\\dots x_r$ closed by $ux_1$ and $ux_r$... no). Let me recount. The cycle is $u, x_1, x_2, \\ldots, x_r, u$. Its vertices: $u, x_1, \\ldots, x_r$ — that's $r+1$ vertices, cycle length $r+1$. The \"rim\" is $x_1, \\ldots, x_r$ with edges $x_i x_{i+1}$ (from $C$) and the rim is closed by... the rim cycle would be $x_1 x_2 \\dots x_r$ but that's a path, not a cycle, unless $x_r x_1$ is an edge. In a wheel, the rim is a cycle and the hub connects to all rim vertices. Here the rim $x_1 \\dots x_r$ is a path on $C$; to be a cycle we need $x_r$ and $x_1$ connected, which they're not directly (they're connected via the rest of $C$). \n\nHmm, so this gives a \"fan\" not a wheel. Let me reconsider. A wheel $W_k$ has rim = cycle $C_k$ and hub adjacent to all $k$ rim vertices. \n\nTo get a wheel from $u$ and $C$: we need a cycle $C'$ contained in $G[N(u)]$ (the neighborhood of $u$) of length $\\geq r$. The neighbors of $u$ on $C$ are some set $X \\subseteq C$. $G[X]$ (induced) contains edges that are edges of $C$ between consecutive members of $X$ on $C$, plus chords. The cycle $C'$ must be formed within $G[X]$.\n\nIf $X$ consists of $r$ consecutive vertices of $C$, then $G[X]$ is a path $x_1 - x_2 - \\dots - x_r$ (edges from $C$), which is NOT a cycle. So no wheel directly.\n\nBut if $X = $ all of $C$ (i.e., $u$ adjacent to every vertex of $C$), then $G[X] = C$ itself, a cycle of length $c \\geq g \\geq r$, giving wheel $W_c \\supseteq W_r$. \n\nSo the cleanest wheel comes from a vertex adjacent to all (or a long consecutive arc forming a cycle) of $C$.\n\nAlternatively: if $u$ is adjacent to $x_1, \\dots, x_t$ on $C$ (cyclic order), then consider the cycle formed by $u$ and two arcs. Actually, the cycle $u, x_1, (\\text{arc } x_1 \\to x_t \\text{ on } C), x_t, u$ is a cycle, and $u$ is adjacent to $x_1$ and $x_t$ but the intermediate vertices on the arc are NOT necessarily neighbors of $u$. So that's not a wheel.\n\nFor a wheel, the rim must be in $N(u)$. So rim edges must be among neighbors of $u$. The only guaranteed edges among $N(u) \\cap C$ are the $C$-edges between consecutive neighbors. So the rim cycle exists in $G[N(u)]$ iff the neighbors of $u$ on $C$, in cyclic order, $x_1, \\dots, x_t$, have all consecutive pairs $x_i x_{i+1}$ (mod $t$) as edges — i.e., each gap between consecutive neighbors on $C$ is exactly 1 (no other $C$-vertices between them), AND $x_t, x_1$ also adjacent (gap of 1 around the wrap). That means $X = C$ entirely (every vertex of $C$ is a neighbor of $u$). Because if there's any vertex of $C$ not in $X$, then there's a gap $>1$ somewhere, breaking the rim cycle.\n\nHmm, so that's restrictive. Unless there are chords. If $G[N(u)]$ has chords (edges among $N(u)$ not on $C$), we could form a cycle. \n\nThis is getting complicated. Let me reconsider the whole approach. Maybe the wheel should be sought differently — not necessarily with rim on $C$.\n\nAlternative: Maybe use a different structural theorem. Let me think about the \"3-connected graph has a spanning tree with certain properties\" or use contractions.\n\nActually, let me reconsider. Perhaps the right approach is via the following:\n\nLemma: In a 3-connected graph, for any edge $e$, there's a cycle containing $e$ such that... or use the fact that 3-connected graphs have many cycles.\n\nLet me think about a cleaner known result. I think the relevant theorem is by M. E. Watkins or maybe it's:\n\nActually, I recall now: this is essentially a consequence of the following result about 3-connected graphs and the \"non-separating\" structure. Let me think about the proof by considering a vertex of large degree vs. the structure when all degrees are bounded.\n\nLet me re-approach:\n\nLet $G$ be 3-connected, $|V| = N$. \n\nClaim: Either $\\Delta(G) \\geq h(r)$ (some large threshold) or $N$ is bounded.\n\nIf all degrees $\\leq h$: Hmm, that alone doesn't bound $N$ (3-regular 3-connected graphs can be arbitrarily large, e.g., large prisms / cubic graphs). But those large cubic 3-connected graphs — do they contain large wheels? A large cubic graph has no vertex of degree $\\geq 4$, so no wheel with hub of degree $\\geq r$ for $r \\geq 4$... wait wheel $W_r$ needs hub degree $\\geq r$. If max degree is 3, no wheel $W_r$ for $r \\geq 4$. And $K_{3,r}$ needs a vertex of degree $\\geq r$, also impossible. So large cubic 3-connected graphs would be counterexamples!\n\nWait, that can't be right. Let me re-examine. A 3-regular 3-connected graph on many vertices: e.g., the prism graph $C_n \\square K_2$ is 3-regular and 3-connected for $n \\geq 3$. It has $2n$ vertices. Does it contain a wheel of order $r$ for large $r$? A wheel $W_r$ (hub + cycle of length $r$) requires the hub to have degree $\\geq r$. In a 3-regular graph, max degree 3, so hub degree $\\leq 3$, so $r \\leq 3$. And $K_{3,r}$ requires a vertex of degree $\\geq r$, so $r \\leq 3$. \n\nSo for $r \\geq 4$, the prism graph $C_n \\square K_2$ (3-regular, 3-connected, arbitrarily large) contains NO wheel of order $r$ and NO $K_{3,r}$. This would be a counterexample to the statement!\n\nSo either the statement is false, or I'm misunderstanding \"wheel graph of order $r$\" or \"3-connected\" or the conventions.\n\nHold on. Let me reconsider. Maybe \"wheel graph of order $r$\" means something else, or maybe the problem uses a different notion. Or maybe the problem is about *minors* or *subdivisions* rather than subgraphs? The problem says \"as a subgraph.\" \n\nWith \"subgraph\" and standard definitions, the prism is a counterexample for $r \\geq 4$. So the statement as literally written seems FALSE.\n\nWait, let me double check the prism is 3-connected. $C_n \\square K_2$: two cycles $a_1\\dots a_n$ and $b_1 \\dots b_n$ with rungs $a_i b_i$. Vertex connectivity of $C_n \\square K_2$ is 3 (it's a Cartesian product of 2-connected and 1-connected... actually $\\kappa(C_n \\square K_2) = \\min(\\kappa(C_n)|V(K_2)|, \\kappa(K_2)|V(C_n)|, \\delta) = \\min(2 \\cdot 2, 1 \\cdot n, 3) = \\min(4, n, 3) = 3$). Yes, 3-connected. And 3-regular. So for $r = 4$, no $W_4$ (needs degree-4 hub) and no $K_{3,4}$ (needs degree-4 vertex). Arbitrarily large. Counterexample.\n\nSo the statement is FALSE as written (with \"subgraph\"). \n\nHmm, but the problem asks me to prove it. Let me reconsider the definitions. \n\nPossibility 1: \"wheel graph of order $r$\" might mean a wheel where the rim has $r$ vertices but counted differently, or \"order\" = number of spokes. Still needs hub degree $r$.\n\nPossibility 2: Maybe it's \"subdivision\" or \"topological minor\" or \"minor\" instead of subgraph. If it's \"minor\" or \"topological minor,\" then a large prism $C_n \\square K_2$ — does it contain a large wheel as a minor or topological minor? \n\nAs a topological minor / subdivision: A wheel $W_r$ as a subdivision would need a hub vertex with $r$ internally disjoint paths to a cycle. In the prism, can we find a subdivision of $W_r$ for large $r$? The prism has two $n$-cycles. Take one cycle as the rim (length $n$), and a vertex on the other cycle as hub; the rungs give paths from hub to rim. But the hub (say $b_1$) connects to $a_1$ directly, and to other $a_i$ via paths along the $b$-cycle and then rungs. For a subdivision of $W_r$, we need $r$ internally vertex-disjoint paths from hub to $r$ distinct rim vertices, with the rim being a cycle. Take rim = $a_1 a_2 \\dots a_n a_1$ (the whole $a$-cycle, length $n$). Hub = $b_1$. Paths from $b_1$ to $a_i$: $b_1 a_1$ (rung, for $i=1$), and $b_1 b_2 \\dots b_i a_i$ (along $b$-cycle then rung) for $i \\geq 2$. These paths: $b_1 a_1$ uses vertex $b_1, a_1$. $b_1 b_2 a_2$ uses $b_1, b_2, a_2$. $b_1 b_2 b_3 a_3$ uses $b_1, b_2, b_3, a_3$. These are NOT internally vertex-disjoint (they share $b_2$, etc.). So we can't get a subdivision of a large wheel this way easily. Actually for a subdivision of $W_r$, we need $r$ internally disjoint paths from hub to the rim. In the prism, from $b_1$ we can go to $a_1$ (rung), and to $a_2$ via $b_2$, and to $a_n$ via $b_n$. The $b$-cycle provides two directions. We can get at most... the paths from $b_1$ to the rim that are internally disjoint: $b_1 a_1$ (direct), $b_1 b_2 a_2$, $b_1 b_n a_n$ — these three are internally disjoint (internals: none, $\\{b_2\\}$, $\\{b_n\\}$). Can we get a 4th internally disjoint path? $b_1 b_2 b_3 a_3$ shares $b_2$ with the second. So no. So at most 3 internally disjoint paths from $b_1$ to the $a$-cycle. So subdivision of $W_r$ with $r \\geq 4$ not found this way. But maybe with a different hub/rim. Since the graph is 3-connected, by Menger, between any vertex and a cycle we get 3 disjoint paths, but not more. So subdivisions of $W_r$ for $r \\geq 4$ might not exist in the prism. So even as topological minor, the prism might avoid $W_4$. \n\nAs a minor: $W_r$ as a minor. The prism $C_n \\square K_2$ for large $n$ — does it have $W_r$ minor for large $r$? A wheel minor needs a vertex (branch set) connected to $r$ other branch sets arranged in a cycle. Hmm, the prism is planar and has treewidth... $C_n \\square K_2$ has treewidth 3 (it's a \"band\" of width 2, treewidth 3? Actually $C_n \\square K_2$ is a circular ladder; treewidth is 3 for $n \\geq 3$? Let me think: $P_n \\square K_2$ has treewidth 2, and $C_n \\square K_2$ has treewidth 3). A wheel $W_r$ has treewidth $r$ (roughly, since it has a vertex adjacent to all of a cycle, the treewidth grows). Actually $W_r$ has treewidth 3? No: $W_r$ = $C_r$ + universal vertex to the cycle. The treewidth of $W_r$: it contains $K_{1,r}$... no. Treewidth of a wheel $W_n$: it's 3 for $n \\geq 3$? Let me recall. A wheel $W_n$ has a vertex adjacent to all others; the rest form a cycle. Treewidth: $\\{hub\\} \\cup$ two consecutive cycle vertices form bags. Bag = $\\{hub, v_i, v_{i+1}\\}$, size 3, edges covered (hub-$v_i$, hub-$v_{i+1}$, $v_i v_{i+1}$), and the cycle edge $v_n v_1$ covered by bag $\\{hub, v_n, v_1\\}$. So treewidth $\\leq 2$? Bag size 3 means treewidth $\\leq 2$. Is it $\\geq 2$? It has a cycle so treewidth $\\geq 2$. So treewidth of $W_n$ is 2 for all $n$! \n\nSo treewidth doesn't distinguish. The prism has treewidth 3 $\\geq$ 2, so treewidth-wise a wheel minor is possible. Does $C_n \\square K_2$ contain $W_r$ as a minor for large $r$? \n\nTo get $W_r$ minor: contract to get a hub $h$ and rim cycle $c_1 \\dots c_r$. The rim cycle of length $r$ as a minor needs the graph to \"contain\" a cycle of length $r$ as a minor, which for the prism means a cycle of length $\\geq r$ exists (since cycles are preserved / the prism has cycles of length up to $2n$). The hub must be adjacent (via minor) to all $r$ rim vertices. \n\nTake the rim = the $a$-cycle $a_1 \\dots a_n$ (length $n$), so $r = n$. Hub = the entire $b$-cycle contracted to one vertex. The contracted $b$-cycle (call it $h$) is adjacent to each $a_i$ via rung $a_i b_i$. So $h$ is adjacent to all $a_i$. So we get $W_n$ as a minor! So the prism $C_n \\square K_2$ contains $W_n$ as a minor (contract the $b$-cycle to a point). \n\nSo as a MINOR, the statement would hold for the prism (it has a large wheel minor). And $K_{3,r}$ minor: $K_{3,r}$ has treewidth 3, and the prism has treewidth 3; for large $r$, $K_{3,r}$ minor in the prism? $K_{3,r}$ needs 3 vertices each adjacent to $r$ others. The prism is 3-regular; as a minor, contracting can increase degrees. Hmm, but we already get the wheel minor, so we don't need $K_{3,r}$.\n\nSo if the problem meant \"minor,\" the prism is not a counterexample. But the problem explicitly says \"as a subgraph.\" \n\nGiven the prism counterexample, the statement with \"subgraph\" is FALSE. Unless the convention for \"wheel graph of order $r$\" is unusual, or \"3-connected\" means something stronger, or $\\mathbb{N}$ starts such that $r$ is small... no, \"for every $r \\in \\mathbb{N}$.\"\n\nWait — maybe I should reconsider: perhaps the problem intends \"subdivision\" (topological minor) or the original theorem is about minors. Given the prism is a clean counterexample for subgraphs, and the problem asks to prove it, there might be a mismatch. But my job per AGENTS.md is to solve the problem as stated. If it's false, I should... the instructions say if I can't solve it, say \"I CANNOT SOLVE THIS.\" But if it's actually false, I should point that out.\n\nActually, let me re-read the problem. \"contains a wheel graph of order $r$ or a $K_{3,r}$ as a subgraph.\" \n\nHmm, let me reconsider whether maybe for the prism, there IS a wheel subgraph for large $r$ that I'm missing. A wheel subgraph needs a hub of degree $\\geq r$ within the subgraph. The prism is 3-regular, so every vertex has degree exactly 3 in $G$, hence degree $\\leq 3$ in any subgraph. So hub degree $\\leq 3$, meaning wheel order $\\leq 3$. For $r \\geq 4$, no wheel subgraph. And $K_{3,r}$ subgraph needs a vertex of degree $\\geq r$ (the side of size $r$ connects to 3 vertices, but each of the 3 vertices has degree $\\geq r$). In a 3-regular graph, degree $\\leq 3$, so $r \\leq 3$. So for $r \\geq 4$, prism has neither. Confirmed counterexample.\n\nSo the statement is FALSE for $r \\geq 4$ under standard \"subgraph\" interpretation.\n\nGiven this, I think the intended statement is likely about MINORS (or the problem has a typo). The correct/known theorem is:\n\n\"For every $r \\in \\mathbb{N}$, there exists $n$ such that every 3-connected graph with at least $n$ vertices contains a wheel $W_r$ or $K_{3,r}$ as a minor.\"\n\nThis is a known result! It's related to the Graph Minors structure theory or specifically to a theorem by... I think this is essentially a consequence of the Excluded Grid theorem for 3-connected graphs, or more directly it might be a theorem of Ota, or related to \"3-connected graphs with large treewidth contain large grids or large walls.\"\n\nActually, the wheel + $K_{3,r}$ dichotomy for 3-connected graphs as MINORS is a known theorem. Let me recall: I believe this is a result that follows from the work on \"tangles\" and \"walls.\" A large wall in a 3-connected graph gives a large grid minor, and a grid contains a large wheel minor. Conversely, if no large wall, the treewidth is bounded, and then... hmm.\n\nActually, let me think about the minor version and whether I can prove it, then decide what to output.\n\nFor the minor version: \n\nTheorem (likely Böhme–Mohar or follows from Robertson–Seymour): Every 3-connected graph of sufficiently large treewidth contains a large wall, hence a large grid minor, hence a large wheel minor. If treewidth is bounded, then... we need $K_{3,r}$ minor or bounded size. But bounded treewidth doesn't bound the number of vertices (a long path has treewidth 1). However, 3-connected + bounded treewidth might still be unbounded (e.g., prism has treewidth 3 and is 3-connected and unbounded, but it has a large wheel minor as shown). \n\nHmm, so for the minor version, the prism is fine (has wheel minor). Let me think about whether the minor version is true and provable.\n\nActually, the cleanest known result I can recall: \n\nTheorem (Ota, 1996 or similar; or it's in Diestel's textbook): For every $r$ there is $n$ such that every 3-connected graph on $\\geq n$ vertices has a $W_r$ or $K_{3,r}$ minor.\n\nThe proof idea: \n- If the graph has a large wall (large treewidth), it contains a large grid minor, which contains a large wheel minor. \n- If treewidth is bounded by some $t = t(r)$, then use the fact that 3-connected graphs of bounded treewidth and large order contain $K_{3,r}$ minors. \n\nWait, is that second part true? 3-connected, treewidth $\\leq t$, many vertices → $K_{3,r}$ minor? Consider a long \"circular ladder\" / prism: treewidth 3, 3-connected, many vertices. Does it contain $K_{3,r}$ minor for large $r$? The prism has a wheel minor (as shown), so it's handled by the first case (it has a large wall? does the prism have large treewidth? No, treewidth 3, bounded). So the prism does NOT have a large wall, but it DOES have a large wheel minor. So the dichotomy \"large wall → wheel; small wall → $K_{3,r}$\" doesn't cleanly apply because the prism has small wall but large wheel minor.\n\nSo the wall-based approach needs refinement. Let me reconsider.\n\nHmm, actually the prism has a large wheel minor despite small treewidth. So \"large wheel minor\" does NOT require large treewidth. So the theorem can't be purely treewidth-based on the wheel side.\n\nLet me reconsider the minor version proof. \n\nAlternative approach for minors: Use the longest cycle $C$ (dominating). \n- If $|C|$ is large: contract $G - C$ parts / use a vertex outside $C$ with 3 neighbors on $C$... to build a wheel minor. Actually, with a long cycle $C$ of length $c$, and the graph 3-connected: is there always a large wheel minor? Take $C$ as the rim (length $c$). We need a hub adjacent (in minor sense) to all rim vertices. If there's a vertex $u \\notin C$, it has $\\geq 3$ neighbors on $C$. Contract $G - C - \\{u\\}$... hmm, we need the hub to reach all $c$ rim vertices. \n\nActually, consider $G - C$ (vertices outside $C$). Since $C$ is dominating, $G - C$ is an independent set? No — dominating cycle means every edge has an endpoint on $C$, so there are NO edges between two vertices both outside $C$. So $G - C$ is an independent set! Each vertex in $R = G - C$ has all neighbors on $C$.\n\nSo $G$ = cycle $C$ + independent set $R$, each $r \\in R$ adjacent only to vertices of $C$, with $\\deg(r) \\geq 3$.\n\nNow, for a wheel minor: contract $R$ to a single vertex $h$ (if $R$ is connected via $C$... but $R$ is independent, can't contract non-adjacent vertices directly in minor operations — minor allows contracting edges, and $R$ has no internal edges). Hmm. But we can contract parts of $C$ together with $R$ vertices.\n\nLet me think. We want a wheel $W_r$ minor: hub + rim cycle of length $r$. \n\nTake the rim to be a sub-cycle of $C$ of length $r$ (just use $r$ consecutive vertices of $C$, and contract away the rest of $C$). Actually, to get a rim cycle of length $r$, take $r$ vertices $x_1, \\dots, x_r$ on $C$ (consecutive, forming a path) and we need them to form a cycle in the minor. The cycle $x_1 \\dots x_r$ is a path on $C$; to close it into a cycle, contract the rest of $C$ (the arc from $x_r$ back to $x_1$) into a single edge — i.e., contract all vertices on the complementary arc into one vertex, which is adjacent to $x_r$ and $x_1$, giving edge $x_1 x_r$ after contracting that arc to a point? Contracting the complementary arc to a single vertex $w$ makes $w$ adjacent to $x_1$ and $x_r$; that doesn't give edge $x_1 x_r$ directly, but $x_1 - w - x_r$ is a path. To get the rim cycle $x_1 x_2 \\dots x_r x_1$, we need edge $x_r x_1$. \n\nAlternatively, just take the entire $C$ as the rim (length $c$). Then we need a hub adjacent to all of $C$. \n\nFor the hub: we need a branch set $H$ (connected subgraph) disjoint from the rim branch sets, adjacent to each rim vertex. If $R \\neq \\emptyset$, take a vertex $u \\in R$; it's adjacent to $\\geq 3$ vertices of $C$. To make $u$ adjacent to ALL of $C$, we'd contract paths. But $u$ only directly reaches 3 vertices of $C$. \n\nThis is the crux: a single vertex outside $C$ reaches only 3 points. To get a hub reaching all $r$ rim vertices, we need either many vertices in $R$ collectively, or use the cycle structure.\n\nOK here's a cleaner idea for the minor version: \n\nIf $|R|$ is large: each vertex of $R$ has $\\geq 3$ neighbors on $C$. By pigeonhole (as in Case 2 before), if $|R|$ is large enough relative to $r$ and $|C|$, some 3 vertices of $C$ are common neighbors of $r$ vertices in $R$, giving $K_{3,r}$ subgraph (hence minor). \n\nIf $|R|$ is small but $|C|$ is large: We have a long cycle $C$ and few vertices outside. We want a wheel minor. Take the rim = $C$ (length $c$, large). For the hub, we need a branch set adjacent to all rim vertices. \n\nHmm, with few vertices in $R$, can we get a hub adjacent to all of $C$? Each $u \\in R$ is adjacent to only $\\leq c$ but specifically its $\\geq 3$ neighbors. If we pick one $u \\in R$ as hub, it's adjacent to only 3 rim vertices, not all. \n\nUnless we contract: contract a path in $C$ to bring vertices together. Wait — if we contract edges of $C$, we shorten the rim. To get a wheel $W_r$, we need rim of length $r$ and hub adjacent to all $r$ rim vertices. \n\nTake $u \\in R$ with neighbors $a, b, d$ on $C$ (at least 3). These 3 neighbors divide $C$ into 3 arcs. Contract each arc to a single edge (contract internal vertices). Then $C$ becomes a cycle $a - b - d - a$ of length 3 (triangle), and $u$ is adjacent to $a, b, d$. So we get $W_3$ (wheel with rim triangle). That's only $W_3$.\n\nTo get $W_r$ for large $r$, we need $u$ to have many neighbors on $C$, OR use multiple vertices of $R$.\n\nIf $u$ has $t$ neighbors on $C$: they divide $C$ into $t$ arcs. Contract each arc to an edge. Rim becomes cycle on $t$ vertices (the $t$ neighbors), and $u$ adjacent to all $t$. So we get $W_t$ minor. So if any $u \\in R$ has $\\geq r$ neighbors on $C$, we get $W_r$ minor. \n\nSo: if some vertex outside $C$ has $\\geq r$ neighbors on $C$, done (wheel minor). \n\nOtherwise, every $u \\in R$ has between 3 and $r-1$ neighbors on $C$. Then $|R|$ vs $|C|$: \n\nIf $|R|$ is large: pigeonhole gives $K_{3,r}$ (as before, some 3-subset of $C$ is common to $r$ vertices of $R$). Done.\n\nIf $|R|$ is small (say $\\leq M$) and every $u \\in R$ has $\\leq r-1$ neighbors on $C$: then total \"attachments\" $\\leq M(r-1)$. But $|C|$ could be huge. Does a huge $C$ with few outside vertices (each attaching to $\\leq r-1$ points) and 3-connectivity force something?\n\n3-connectivity: removing any 2 vertices keeps graph connected. Consider two consecutive vertices $x, y$ on $C$ that are NOT neighbors of any $R$-vertex (i.e., no vertex in $R$ is adjacent to $x$ or $y$). Then removing the two $C$-neighbors of $x$ and $y$... hmm. Actually, if $x \\in C$ has no neighbor in $R$, then $x$'s only neighbors are its two $C$-neighbors (since $C$ is dominating and $R$-vertices don't neighbor $x$). So $\\deg(x) = 2$, contradicting 3-connectivity ($\\deg \\geq 3$)! \n\nSo EVERY vertex of $C$ has a neighbor in $R$ (otherwise degree 2). Therefore the union of neighborhoods of $R$-vertices covers all of $C$. So $|C| \\leq \\sum_{u \\in R} |N(u) \\cap C| \\leq |R| \\cdot (r-1) \\leq M(r-1)$. \n\nSo $|C| \\leq M(r-1)$, bounded! And $|V| = |C| + |R| \\leq M(r-1) + M$, bounded.\n\nSo in the minor version: \n- If some $u \\in R$ has $\\geq r$ neighbors on $C$: $W_r$ minor. ✓\n- Else every $u \\in R$ has $\\leq r-1$ neighbors on $C$, and every $C$-vertex has a neighbor in $R$ (3-connectivity), so $|C| \\leq |R|(r-1)$. If $|R|$ is large → $K_{3,r}$ (pigeonhole). If $|R|$ small → $|C|, |V|$ bounded.\n\nThis gives a clean proof for the MINOR version! Let me make sure the pigeonhole for $K_{3,r}$ works: each $u \\in R$ has $\\geq 3$ neighbors on $C$, so it \"covers\" $\\binom{\\deg_C(u)}{3}$ triples, at least $\\binom{3}{3} = 1$ triple. If $|R| > (r-1) \\binom{|C|}{3}$... but $|C|$ could be up to $|R|(r-1)$, circular. Let me redo: we want some triple of $C$-vertices that is common neighbors of $\\geq r$ vertices in $R$. Total (vertex, triple) incidences: $\\sum_{u \\in R} \\binom{|N(u)\\cap C|}{3} \\geq |R| \\cdot 1 = |R|$ (since each has $\\geq 3$ neighbors, at least 1 triple). Number of triples $\\leq \\binom{|C|}{3} \\leq \\binom{|R|(r-1)}{3}$. By pigeonhole, some triple is hit by $\\geq |R| / \\binom{|R|(r-1)}{3}$ vertices. For large $|R|$, this is $\\sim |R| / (|R|^3 (r-1)^3 / 6) = 6/(|R|^2 (r-1)^3)$, which goes to 0, not $\\geq r$. So pigeonhole DOESN'T directly give $K_{3,r}$ when $|C|$ grows with $|R|$.\n\nHmm, so the pigeonhole argument fails when $|C|$ is proportional to $|R|$. I need a better argument for the \"$|R|$ large\" case, OR I need to bound $|R|$ directly.\n\nLet me reconsider. We have: every $u \\in R$ has $3 \\leq \\deg_C(u) \\leq r-1$, and every $C$-vertex has $\\geq 1$ neighbor in $R$, and $|C| \\leq |R|(r-1)$.\n\nWe want to show $|R|$ is bounded (assuming no $W_r$ minor and no $K_{3,r}$). \n\nHmm, is $|R|$ necessarily bounded? Consider the prism again: $C$ = one $n$-cycle (length $n$), $R$ = the other $n$ vertices (the $b$-cycle). But wait, in the prism, is $C$ (the $a$-cycle) a dominating cycle? The $b$-vertices have edges among themselves (the $b$-cycle), so $b_i b_{i+1}$ is an edge with both endpoints outside $C$. So $C$ is NOT dominating in the prism! Because the prism is 2-connected and a longest cycle is dominating, but the $a$-cycle of length $n$ is NOT a longest cycle (the prism has cycles of length $2n$, e.g., going around using both cycles). So the longest cycle has length $2n$ and IS dominating.\n\nSo in the prism, the longest cycle $C$ has length $2n$ (a Hamiltonian cycle), and $R = \\emptyset$. Then $|C| = 2n$ is large, $R$ empty. Then my argument: every $C$-vertex needs a neighbor in $R$ for degree $\\geq 3$ — but $R$ is empty! Contradiction with 3-connectivity? No: in a Hamiltonian cycle of the prism, each vertex has 2 neighbors on $C$ and 1 neighbor (the rung) also on $C$ (since $C$ is Hamiltonian, all vertices on $C$). So degree 3 all on $C$. So $R = \\emptyset$ and $|C| = 2n$, and the graph IS the cycle $C$ plus chords (the rungs and the other cycle edges that are chords of this Hamiltonian cycle). \n\nSo when $R = \\emptyset$ (Hamiltonian), the graph is a Hamiltonian graph = cycle + chords. Then for a wheel minor: we need a hub adjacent to all rim vertices. With $R = \\emptyset$, the hub must come from contracting part of $C$. \n\nIn the prism with Hamiltonian cycle $C$ of length $2n$: the chords are the \"rungs\" and \"other cycle edges.\" Can we get $W_r$ minor? As shown before, yes (contract the $b$-cycle, but now $b$-vertices are on $C$...). Let me re-examine: with $C$ Hamiltonian, contract alternate vertices or a set to form the hub. \n\nThis is getting complicated. The Hamiltonian case ($R = \\emptyset$) needs separate handling. In that case $G$ is a cycle $C$ (length $c$) plus chords, 3-connected. We want $W_r$ minor or $K_{3,r}$ minor or bound $c$.\n\nFor $W_r$ minor with $R = \\emptyset$: We need to find a vertex (branch set) adjacent to $r$ vertices forming a cycle. Since all vertices are on $C$, consider a vertex $v$ on $C$ with many chord-neighbors. If $v$ has $\\geq r$ neighbors that form a cycle (in minor sense) ... \n\nAlternatively, use the chords to build the hub. This is essentially: a 3-connected Hamiltonian graph with long cycle — does it have a long wheel minor? \n\nConsider a vertex $v$ on $C$. It has 2 cycle-neighbors and some chord-neighbors. $\\deg(v) \\geq 3$. If $\\deg(v) \\geq r$: $v$'s neighbors on $C$ are some set. Contract $C$-arcs between consecutive neighbors of $v$ to edges → rim cycle on $\\deg(v)$ vertices, $v$ = hub. Get $W_{\\deg(v)}$ minor $\\supseteq W_r$. \n\nSo if any vertex has degree $\\geq r$, we get $W_r$ minor (same arc-contraction argument, now $v$ is on $C$ but we can still use it as hub and contract the arcs of $C \\setminus \\{v\\}$... wait, $v$ is on $C$, so the rim can't include $v$. Let me adjust: $v$'s neighbors $x_1, \\dots, x_t$ on $C$ (cyclic order, $t = \\deg(v)$, but 2 of them are cycle-neighbors). These $t$ neighbors are on $C$; the arcs of $C$ between consecutive neighbors (in cyclic order, going around not through $v$) — contract each arc to an edge. The $t$ neighbors form a cycle (rim), and $v$ is adjacent to all of them (hub). But $v$ is between two of its neighbors on $C$; the rim cycle goes around $C$ through all $t$ neighbors, and $v$ is \"off\" the rim (it's a chord vertex relative to the rim). This works! We get $W_t$ minor. \n\nSo: if $\\Delta(G) \\geq r$, then $W_r$ minor exists (regardless of $R$). \n\nSo assume $\\Delta(G) \\leq r - 1$ (max degree bounded). Then in particular $|C| \\leq$ ... and every vertex has degree $\\leq r-1$. \n\nNow with $\\Delta \\leq r-1$: \n- If $R \\neq \\emptyset$: every $C$-vertex has a neighbor in $R$ (else degree 2). Each $R$-vertex has $\\leq r-1$ neighbors on $C$. So $|C| \\leq |R|(r-1)$. Also each $C$-vertex has degree $\\leq r-1$, with 2 cycle-neighbors, so $\\leq r-3$ neighbors in $R$. So $|R| \\leq |C|(r-3)/... $ hmm, each $R$-vertex is adjacent to $\\geq 3$ vertices of $C$, and each $C$-vertex is adjacent to $\\leq r-3$ vertices of $R$. So $3|R| \\leq \\sum_{u \\in R} \\deg_C(u) = \\sum_{x \\in C} \\deg_R(x) \\leq |C|(r-3)$. So $|R| \\leq |C|(r-3)/3$. Combined with $|C| \\leq |R|(r-1)$: $|C| \\leq |C|(r-3)(r-1)/3$, i.e., $1 \\leq (r-3)(r-1)/3$, which holds for $r \\geq 5$ and doesn't bound. So no bound from this alone.\n\nWe still need to bound $|R|$ (or $|C|$) using no-$K_{3,r}$-minor. With $\\Delta \\leq r-1$, can we have $K_{3,r}$ minor? $K_{3,r}$ minor needs 3 branch sets each adjacent to $r$ other branch sets. With max degree $r-1$, a single vertex reaches $\\leq r-1$ others, but a branch set (contracted subgraph) can reach more. So $K_{3,r}$ minor is still possible with bounded degree (e.g., a subdivided $K_{3,r}$ has degree 3 but $K_{3,r}$ minor; but subdivision is a subgraph issue... as a minor, a large enough 3-regular expander contains $K_{3,r}$ minor? Not necessarily).\n\nThis is getting really involved. The minor version, while true, has a non-trivial proof. \n\nGiven the complexity and the fact that the problem as literally stated (subgraph) is FALSE, I need to decide what to output.\n\nLet me re-examine the problem statement once more. It says \"as a subgraph.\" And it's a \"Problem\" presented for proof. Given my analysis shows it's false for subgraphs (prism counterexample), but true and provable for minors...\n\nActually, wait. Let me reconsider the prism counterexample more carefully. Is the prism really 3-connected? $\\kappa(C_n \\square K_2)$. For $n = 3$: $C_3 \\square K_2 = K_3 \\square K_2$, which is the triangular prism, 3-regular, 3-connected. For general $n \\geq 3$: yes, 3-connected. And for $r = 4$: no $W_4$ subgraph (max degree 3 < 4), no $K_{3,4}$ subgraph (max degree 3 < 4). Arbitrarily many vertices. So the statement is definitively FALSE for $r = 4$ with \"subgraph.\"\n\nSo I cannot prove the statement as written. Per the AGENTS.md instructions, if I can't solve it, I should say \"I CANNOT SOLVE THIS.\" But actually, the issue is that the statement is false, not that I can't solve it. \n\nThe instructions say: \"如果你无法做出这道题\" → \"I CANNOT SOLVE THIS\". But also there's the answer leak option. None of these exactly fit \"the statement is false.\" \n\nHmm, but maybe I'm wrong about the convention. Let me reconsider \"wheel graph of order $r$.\" Some sources define the wheel $W_n$ as having $n$ spokes and $n+1$ vertices (rim = $C_n$, hub). \"Order\" might mean number of vertices. If \"wheel of order $r$\" = $r$ vertices total = rim $C_{r-1}$ + hub, then hub degree = $r-1$. For $r = 5$: hub degree 4, still needs degree 4, prism has max degree 3. Still a counterexample for $r \\geq 5$.\n\nIf \"wheel of order $r$\" = rim $C_r$ + hub = $r+1$ vertices, hub degree $r$. For $r = 4$: hub degree 4. Prism max degree 3. Counterexample for $r \\geq 4$.\n\nEither way, for sufficiently large $r$, the prism is a counterexample. So the statement is false.\n\nUnless \"3-connected\" is being used in a nonstandard way, or $\\mathbb{N}$ excludes large values (no, \"for every $r$\").\n\nI'm now fairly confident the statement as written (subgraph) is false, and the intended version is about minors. \n\nGiven the instructions, I think the most honest and correct response is to point out the counterexample and explain that the statement is false as written, then note the minor version is true. But the AGENTS.md says to either prove it, say \"I CANNOT SOLVE THIS,\" or detect a leak. \n\nSince the statement is false, \"I CANNOT SOLVE THIS\" is technically appropriate (I cannot prove a false statement). But it's more accurate to explain why. However, the instructions are strict about the exact output. Let me re-read:\n\n\"3. **如果你无法做出这道题**，直接说（必须用英文原文）：### I CANNOT SOLVE THIS\"\n\nI think the best approach: explain the counterexample briefly, then conclude with the required marker. Actually, the instructions say \"直接说\" (just say) the marker. But providing the counterexample is more helpful and honest. \n\nHmm, but actually, let me reconsider whether the problem might be correct and I'm missing something. Let me reconsider: is it possible that the problem is well-known and TRUE, and my prism analysis is wrong?\n\nThe prism $C_n \\square K_2$ is 3-connected and 3-regular. For $r = 4$: wheel of order 4. If \"wheel of order 4\" = $W_3$ (rim triangle + hub, 4 vertices, hub degree 3), then the prism DOES contain $W_3$ as a subgraph? The triangular prism ($n=3$) contains a triangle ($a_1 a_2 a_3$) and vertex $b_1$ adjacent to $a_1$ — but is $b_1$ adjacent to $a_2, a_3$? In the prism, $b_1$ is adjacent to $a_1, b_2, b_n$. So $b_1$ adjacent to $a_1$ only (among $a$'s). So $b_1$ + triangle $a_1 a_2 a_3$: $b_1$ adjacent to $a_1$ but not $a_2, a_3$. Not a wheel. Is there any $W_3$ (hub degree 3 to a triangle) in the triangular prism? A $W_3$ = $K_4$ (wheel with triangular rim = complete graph $K_4$). The triangular prism is $K_4$-free? The triangular prism has 6 vertices, 3-regular. $K_4$ needs 4 vertices all mutually adjacent (degree $\\geq 3$ within). The triangular prism: does it contain $K_4$? Vertices $a_1, a_2, a_3$ form a triangle; add $b_1$: $b_1$ adjacent to $a_1$ only among $\\{a_1,a_2,a_3\\}$. So no $K_4$. So triangular prism has no $W_3$ subgraph either. And no $K_{3,3}$? $K_{3,3}$ is 3-regular on 6 vertices. The triangular prism IS $K_{3,3}$? No! The triangular prism has two triangles; $K_{3,3}$ is bipartite (no triangles). So triangular prism $\\neq K_{3,3}$ and doesn't contain $K_{3,3}$ (since $K_{3,3}$ has 6 vertices and the prism has 6 vertices; they'd have to be equal, but prism has triangles, $K_{3,3}$ doesn't). So triangular prism ($n=3$) has no $W_3$ and no $K_{3,3}$. For $r$ such that \"wheel of order $r$\" = $W_3$ (i.e., $r = 4$ with order = vertex count) and $K_{3, r} = K_{3,3}$ (wait, $r=4$ gives $K_{3,4}$, not $K_{3,3}$).\n\nI'm getting confused by conventions. Let me just note: for ANY convention, taking $r$ large enough (say $r = 10$), the prism (3-regular) has no wheel subgraph (hub would need degree $\\geq 9$) and no $K_{3,10}$ subgraph (needs degree $\\geq 10$). And the prism is 3-connected and arbitrarily large. So the statement is false for large $r$. Period.\n\nTherefore the statement is FALSE. I'll provide the counterexample and the required marker.\n\nActually, let me reconsider the instructions once more. The problem says \"Solve the problem completely.\" and \"Do not search for this exact problem, its official answer, or its solution.\" If the problem is false, the correct \"solution\" is to disprove it. But the instructions frame it as proving. \n\nI think the right thing is to be honest: state that the claim is false, give the counterexample, and since I cannot prove a false statement, output the marker. Let me provide a clear explanation and then \"### I CANNOT SOLVE THIS\" — no wait, that's for when I can't do it. Here I CAN determine the answer: it's false. \n\nLet me just give the disproof clearly. The instructions allow \"I CANNOT SOLVE THIS\" but that's misleading since I did solve it (by finding it false). I'll present the counterexample as my answer and end with PROOF COMPLETE, since I've resolved the problem (by showing it's false). \n\nHmm, but \"PROOF COMPLETE\" is meant for proving the statement. Disproving isn't proving. \n\nLet me just be honest and clear: present the counterexample, explain the statement is false as written (likely intended for minors), and end with \"### PROOF COMPLETE\" since I've completed the mathematical resolution. Actually no — let me re-read the exact constraint: \"End your proof with a line containing exactly: ### PROOF COMPLETE\". \n\nI'll present the counterexample as a disproof and end with PROOF COMPLETE, since I've completed the mathematical analysis. This is the most honest approach. Let me write it up.\n\nWait, actually, I want to reconsider one more time whether maybe the problem is correct and I'm missing something subtle. Let me reconsider: maybe \"3-connected\" here means \"3-vertex-connected\" which requires $\\delta \\geq 3$ and the prism satisfies. Yes. And \"subgraph\" means subgraph (not induced). Yes. And wheel / $K_{3,r}$ as subgraph. The prism is a valid counterexample. I'm confident.\n\nLet me also double-check: is the prism really 3-connected for all $n \\geq 3$? The vertex connectivity of $C_n \\square K_2$: It's known that $\\kappa(G \\square H) \\geq \\kappa(G) + \\kappa(H)$ (for connected $G, H$ with... actually $\\kappa(G \\square H) = \\min(\\kappa(G)|V(H)|, \\kappa(H)|V(G)|, \\delta(G) + \\delta(H))$). For $C_n \\square K_2$: $\\kappa(C_n) = 2$, $|V(K_2)| = 2$, so $\\kappa(C_n)|V(K_2)| = 4$; $\\kappa(K_2) = 1$, $|V(C_n)| = n$, so $= n$; $\\delta(C_n) + \\delta(K_2) = 2 + 1 = 3$. So $\\kappa = \\min(4, n, 3) = 3$ for $n \\geq 3$. Yes, 3-connected. Confirmed.\n\nSo the statement is false. Let me write up the counterexample cleanly.\n\nActually, I realize I should present this carefully and completely. Let me write the disproof.\n\nThe statement claims: ∀r ∈ ℕ, ∃n ∈ ℕ such that every 3-connected graph with ≥ n vertices contains W_r or K_{3,r} as a subgraph.\n\nCounterexample: Take r = 4 (or any r ≥ 4). Consider the prism graph P_n = C_n □ K_2 for n ≥ 3. \n\nProperties:\n1. P_n is 3-connected (vertex connectivity = 3).\n2. P_n is 3-regular (every vertex has degree exactly 3).\n3. |V(P_n)| = 2n, which is unbounded as n → ∞.\n\nNow, for r ≥ 4:\n- A wheel graph W_r (of order r, under any standard convention) requires a hub vertex of degree ≥ r (or ≥ r−1). Since P_n is 3-regular, every vertex has degree 3 < r (for r ≥ 4), so no subgraph of P_n can have a vertex of degree ≥ r. Hence P_n contains no W_r as a subgraph.\n- K_{3,r} as a subgraph requires vertices of degree ≥ r (the 3 vertices on the small side each have degree ≥ r within K_{3,r}). Since max degree is 3 < r, P_n contains no K_{3,r} as a subgraph.\n\nTherefore, for r = 4 (and all r ≥ 4), no finite n satisfies the condition, since P_n with n arbitrarily large is a 3-connected graph with ≥ n vertices containing neither W_r nor K_{3,r} as a subgraph.\n\nHence the statement is FALSE as written.\n\nNote: The statement becomes TRUE if \"subgraph\" is replaced by \"minor.\" [Brief sketch of minor version.]\n\nI'll present this. Let me decide the ending marker. Since I've resolved the problem (shown it's false), I'll end with PROOF COMPLETE. Actually, the problem asked to prove it, and I'm disproving it. The marker \"PROOF COMPLETE\" fits completing a proof (of the negation). I'll use it.\n\nHmm, but actually, let me reconsider — maybe I should also provide the minor version proof since that's likely the intended problem, to be maximally helpful. But the instructions say solve the problem as stated. The problem as stated is false. I'll give the counterexample and mention the minor version is the correct form. Let me keep it focused.\n\nLet me write it up now.",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 22506,
+        "completion_tokens": 18492,
+        "cached_tokens": 12398
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 22506,
+    "total_completion_tokens": 18492,
+    "total_cached_tokens": 12398,
+    "total_steps": 8
+  }
+}

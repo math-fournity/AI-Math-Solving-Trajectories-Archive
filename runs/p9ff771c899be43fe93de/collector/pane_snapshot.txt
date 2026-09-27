@@ -1,0 +1,230 @@
+Looking at this problem, I need to:
+1. Check for answer leaks (none found — the problem only states the task)
+2. Write an ML (Standard ML) program constructing pushouts in FinSet
+3. Prove the construction satisfies the universal property
+
+Let me reason through the mathematics and code.
+
+**Key idea**: The pushout of f: a→b and g: a→c in FinSet is d = (b ⊔ c)/~, where
+ ~ is the smallest equivalence relation on the disjoint union with f(x) ~ g(x) f
+or all x ∈ a. The arrows p: b→d and q: c→d are the canonical injections followed
+ by the quotient.
+
+---
+
+## ML Program
+
+```sml
+(* pushout.sml — Pushout construction in FinSet *)
+
+(* Representation:
+   finite set  = list of distinct ints
+   function    = list of (domain_elem, codomain_elem) pairs *)
+
+datatype tag = L of int | R of int   (* disjoint union tags *)
+
+fun teq (L x, L y) = x = y
+  | teq (R x, R y) = x = y
+  | teq _          = false
+
+(* Class equality by membership *)
+fun classEq (c1, c2) =
+  length c1 = length c2 andalso
+  List.all (fn x => List.exists (fn y => teq(x,y)) c2) c1
+
+(* === Simple Union-Find === *)
+(* partition = list of classes; class = list of tagged elements *)
+
+fun classOf (e, []) = raise Fail "not found"
+  | classOf (e, c::cs) =
+      if List.exists (fn x => teq(x,e)) c then c else classOf(e, cs)
+
+fun union (e1, e2, part) =
+  let val c1 = classOf(e1, part)
+      val c2 = classOf(e2, part)
+  in
+    if List.exists (fn x => teq(x,e2)) c1 then part  (* same class *)
+    else
+      let val merged = c1 @ c2
+          val rest = List.filter
+            (fn c => not (List.exists (fn x => teq(x,e1)) c)
+                     andalso not (List.exists (fn x => teq(x,e2)) c)) part
+      in merged :: rest end
+  end
+
+fun discrete [] = []
+  | discrete (x::xs) = [x] :: discrete xs
+
+(* === Pushout === *)
+(* pushout(f, g, elemsB, elemsC) = (d, p, q) *)
+fun pushout (f, g, elemsB, elemsC) =
+  let
+    val taggedB = map L elemsB
+    val taggedC = map R elemsC
+    val part0   = discrete (taggedB @ taggedC)
+
+    fun getG x = #2 (valOf (List.find (fn (a,_) => a = x) g))
+
+    fun close [] part = part
+      | close ((x, fx)::rest) part = close rest (union(L fx, R(getG x), part))
+
+    val d = close f part0
+    val p = map (fn bi => (bi, classOf(L bi, d))) elemsB
+    val q = map (fn cj => (cj, classOf(R cj, d))) elemsC
+  in (d, p, q) end
+
+(* === Commutativity check: p(f(x)) = q(g(x)) for all x === *)
+fun commutes (f, g, p, q) =
+  let
+    fun pOf bi = #2 (valOf (List.find (fn (b,_) => b = bi) p))
+    fun qOf cj = #2 (valOf (List.find (fn (c,_) => c = cj) q))
+    fun getG x = #2 (valOf (List.find (fn (a,_) => a = x) g))
+  in
+    List.all (fn (x, fx) => classEq (pOf fx, qOf (getG x))) f
+  end
+
+(* === Universal property verification === *)
+(* Given (e, h, k) with h∘f = k∘g, construct u: d→e, check u∘p=h, u∘q=k *)
+fun universalProperty (f, g, elemsB, elemsC, d, p, q, e, h, k) =
+  let
+    fun hOf bi = #2 (valOf (List.find (fn (b,_) => b = bi) h))
+    fun kOf cj = #2 (valOf (List.find (fn (c,_) => c = cj) k))
+    fun pOf bi = #2 (valOf (List.find (fn (b,_) => b = bi) p))
+    fun qOf cj = #2 (valOf (List.find (fn (c,_) => c = cj) q))
+    fun getG x = #2 (valOf (List.find (fn (a,_) => a = x) g))
+
+    val precond = List.all (fn (x, fx) => hOf fx = kOf (getG x)) f
+
+    (* Construct u: pick any element in each class *)
+    fun repVal [] = raise Fail "empty class"
+      | repVal (L bi :: _) = hOf bi
+      | repVal (R cj :: _) = kOf cj
+
+    val u = map (fn cls => (cls, repVal cls)) d
+    fun uOf cls = #2 (valOf (List.find (fn (c,_) => classEq(c, cls)) u))
+
+    val up = List.all (fn bi => uOf(pOf bi) = hOf bi) elemsB
+    val uq = List.all (fn cj => uOf(qOf cj) = kOf cj) elemsC
+  in
+    precond andalso up andalso uq
+  end
+
+(* === Example === *)
+(* a={0,1,2}, b={0,1}, c={0,1,2}
+   f: 0|->0, 1|->0, 2|->1
+   g: 0|->0, 1|->1, 2|->2
+   Unions: L0~R0, L0~R1, L1~R2  =>  d = {{L0,R0,R1},{L1,R2}}, |d|=2 *)
+val f = [(0,0),(1,0),(2,1)]
+val g = [(0,0),(1,1),(2,2)]
+val elemsB = [0,1]
+val elemsC = [0,1,2]
+
+val (d, p, q) = pushout(f, g, elemsB, elemsC)
+val _ = print ("|d| = " ^ Int.toString (length d) ^ "\n")
+val _ = print ("commutes: " ^ Bool.toString (commutes(f, g, p, q)) ^ "\n")
+
+(* Universal property test: e={0,1}, h=[(0,0),(1,1)], k=[(0,0),(1,0),(2,1)] *)
+val e = [0,1]
+val h = [(0,0),(1,1)]
+val k = [(0,0),(1,0),(2,1)]
+val _ = print ("universal: " ^
+  Bool.toString (universalProperty(f, g, elemsB, elemsC, d, p, q, e, h, k)) ^ "\
+n")
+```
+
+**Expected output**: `|d| = 2`, `commutes: true`, `universal: true`.
+
+---
+
+## Proof of Correctness
+
+**Theorem.** The program `pushout(f, g, elemsB, elemsC)` produces `(d, p, q)` th
+at is a pushout of `f` and `g` in FinSet.
+
+**Construction recap.** Let `b ⊔ c` be the disjoint union (tagged elements). Sta
+rt with the discrete partition where each tagged element is its own class. For e
+ach `x ∈ a`, merge the class of `L(f(x))` with the class of `R(g(x))`. The resul
+ting partition `d` is the set of equivalence classes. Define `p(b_i) = [L(b_i)]`
+ and `q(c_j) = [R(c_j)]`.
+
+### Part 1: The square commutes
+
+For each `x ∈ a`, the `close` function calls `union(L(f(x)), R(g(x)), part)`, wh
+ich places `L(f(x))` and `R(g(x))` in the same equivalence class. Hence:
+```
+p(f(x)) = [L(f(x))] = [R(g(x))] = q(g(x))
+```
+for all `x ∈ a`. So `p ∘ f = q ∘ g`. ✓
+
+### Part 2: Universal property
+
+Let `e` be any finite set with `h: b → e` and `k: c → e` satisfying `h(f(x)) = k
+(g(x))` for all `x ∈ a`.
+
+**Existence of `u: d → e`.** Define `u` on each class `C ∈ d` as follows: `C` is
+ non-empty (every class contains at least one tagged element). Pick any element
+of `C`:
+- If it is `L(b_i)`, set `u(C) = h(b_i)`.
+- If it is `R(c_j)`, set `u(C) = k(c_j)`.
+
+**Well-definedness.** We must show the choice of representative doesn't matter.
+The equivalence relation `~` on `b ⊔ c` is the transitive-symmetric-reflexive cl
+osure of the generating set `{(L(f(x)), R(g(x))) : x ∈ a}`. So any two elements
+in the same class are connected by a zigzag path through generating pairs.
+
+We prove by induction on path length that any two elements `s, t` in the same cl
+ass yield the same value:
+
+- **Base case** (path length 0): `s = t`, trivially same value.
+- **Inductive step**: Suppose `s ~ s'` via one generating step, and by induction
+ `s'` and `t` yield the same value. The generating step is either:
+  - `s = L(f(x))` and `s' = R(g(x))` (or vice versa): then the value at `s` is `
+h(f(x))` and at `s'` is `k(g(x))`, which are equal by the precondition `h(f(x))
+= k(g(x))`.
+  - `s = s'` (reflexivity): trivial.
+  - Symmetry: handled by reversing.
+
+For two `L`-elements `L(b_i)` and `L(b_j)` in the same class, the zigzag path go
+es through `R`-elements: `L(b_i) = L(f(x_1)) ~ R(g(x_1))`, then `R(g(x_1)) = R(g
+(x_2))` (if `g(x_1) = g(x_2)`, so `k(g(x_1)) = k(g(x_2))` since `k` is a functio
+n), then `R(g(x_2)) ~ L(f(x_2)) = L(b_j)`. At each step, the values agree by the
+ precondition and functionarity of `h, k`. By induction, `h(b_i) = h(b_j)`. The
+cases of two `R`-elements or one `L` and one `R` are analogous.
+
+Hence `u` is well-defined.
+
+**Factorization.** For any `b_i ∈ b`:
+```
+u(p(b_i)) = u([L(b_i)]) = h(b_i)     ✓
+```
+For any `c_j ∈ c`:
+```
+u(q(c_j)) = u([R(c_j)]) = k(c_j)     ✓
+```
+
+**Uniqueness.** Suppose `u': d → e` also satisfies `u' ∘ p = h` and `u' ∘ q = k`
+. Every class `C ∈ d` contains at least one tagged element:
+- If `C` contains `L(b_i)`: `u'(C) = u'(p(b_i)) = h(b_i) = u(C)`.
+- If `C` contains `R(c_j)`: `u'(C) = u'(q(c_j)) = k(c_j) = u(C)`.
+
+So `u' = u` on all of `d`. ∎
+
+---
+
+## Summary
+
+The program constructs the pushout in FinSet by:
+1. Forming the disjoint union `b ⊔ c` (tagged elements)
+2. Building the equivalence relation generated by `f(x) ~ g(x)` via union-find
+3. The quotient `d = (b ⊔ c)/~` is the pushout object
+4. `p` and `q` are the quotient maps from `b` and `c` respectively
+
+The square commutes by construction (each generating pair is merged), and the un
+iversal property holds because any compatible pair `(h, k)` factors uniquely thr
+ough `d` — existence follows from well-definedness (the precondition `h∘f = k∘g`
+ ensures consistency along all generating identifications), and uniqueness follo
+ws because every equivalence class is hit by `p` or `q`.
+
+### PROOF COMPLETE
+DEVIN_CLI_EXITED code=0
+

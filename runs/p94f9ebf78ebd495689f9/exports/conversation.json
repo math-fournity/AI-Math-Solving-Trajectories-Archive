@@ -1,0 +1,1048 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "aback-attempt",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-20T15:37:22.881605+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-20T15:37:22.882075+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-20T15:37:22.890282+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-20T15:37:22.882407+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p94f9ebf78ebd495689f9 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Thursday, 2026-08-20\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-20T15:37:22.882896+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在AGENTS.md中只记录脚本路径和一行用法示例。AGENTS.md是认知索引和规则，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。放到项目已有的脚本目录（如`xishujuzhen/solver_harness/`）或项目的`scripts/`目录中。\n\n4. **在项目AGENTS.md中做好索引**——新脚本必须在项目AGENTS.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **必须写成文件** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 检查项目内是否已有类似脚本（grep搜索、看AGENTS.md索引）\n3. **已有** → 改进那个脚本（edit工具修改），编译验证\n4. **没有** → 在项目脚本目录中创建新文件（write工具），编译验证\n5. 在项目AGENTS.md中记录脚本索引（如已有相关节则更新，如没有则新增）\n6. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新AGENTS.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是索引不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ✅ 改进`batch_status.py`的`cmd_dead_cleanup`函数\n- ✅ 新建`enqueue_problem.py`并在AGENTS.md硬约束6中记录\n- ✅ AGENTS.md中只写`pipe_control.py status`一行用法，不写完整调用参数和输出示例\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p94f9ebf78ebd495689f9/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nConsider a square grid of size \\(2011 \\times 2011\\) where each cell is labeled with a unique integer from 1 to \\(2011^2\\). The grid is wrapped to form a torus by identifying the left and right edges, as well as the top and bottom edges. Determine the largest positive integer \\(M\\) such that, for any labeling of the grid, there exist two neighboring cells with a difference in their labels of at least \\(M\\). Cells \\((x,y)\\) and \\((x',y')\\) are neighbors if \\(x = x'\\) and \\(y - y' \\equiv \\pm 1 \\pmod{2011}\\), or if \\(y = y'\\) and \\(x - x' \\equiv \\pm 1 \\pmod{2011}\\).\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-20T15:37:22.882915+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-20T15:37:22.892287+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-20T15:37:22.893199+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **search-tools**: 网络搜索武器库（Exa/Serper/Jina等） (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-20T15:37:26.185517+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me solve this problem. It's a 2011×2011 torus grid labeled 1 to 2011². Find largest M such that for any labeling, there exist two neighboring cells with difference ≥ M.\n\nLet me think. This is a classic problem. Let me think about it carefully.\n\nWe have a toroidal grid of size n×n where n=2011. Each cell labeled uniquely 1 to n². We want the largest M such that any labeling has two adjacent cells differing by at least M.\n\nUpper bound (construction): We need to find a labeling where the maximum difference between neighbors is small. The minimum possible maximum neighbor difference.\n\nLower bound: We need to show that in any labeling, some two neighbors differ by at least M.\n\nLet me think about the structure. The torus grid is an n×n grid where n=2011 (odd).\n\nThe grid graph is 4-regular on n² vertices. We want to find the \"bandwidth\" of this graph essentially - the minimum over labelings of the maximum difference between adjacent vertices. Then M = bandwidth.\n\nWait, actually M is the largest integer such that for ANY labeling, there exist two neighbors with difference ≥ M. So M = min over labelings of (max over edges of |label difference|). That's exactly the bandwidth of the graph.\n\nSo we need the bandwidth of the torus grid C_n × C_n where n = 2011.\n\nThe bandwidth of the torus C_n × C_n... Let me recall. For the grid P_n × P_n (path product), bandwidth is n. For the torus C_n × C_n, it's different.\n\nLet me think about the torus bandwidth.\n\nFor C_n × C_n (Cartesian product of two cycles), the bandwidth is known.\n\nLet me think. The torus has n² vertices. Each vertex (i,j) with i,j ∈ Z_n. Edges between (i,j) and (i±1,j), (i,j±1).\n\nLet me think about lower bound. Consider any labeling. Take the cell labeled 1 and the cell labeled n². The distance in the graph between them is at most... the diameter of the torus. The diameter of C_n × C_n is 2·⌊n/2⌋ = n-1 (since n is odd, ⌊n/2⌋ = (n-1)/2, so diameter = 2·(n-1)/2 = n-1).\n\nSo the shortest path between label 1 and label n² has at most n-1 edges. Along this path, the labels go from 1 to n², total difference n²-1. By pigeonhole, some edge on the path has difference ≥ (n²-1)/(n-1) = (n²-1)/(n-1) = n+1.\n\nSo M ≥ n+1 = 2012.\n\nNow can we achieve a labeling where max neighbor difference = n+1? Or is the bound higher?\n\nWait, let me reconsider. The path has at most n-1 edges (diameter). Actually the path could have fewer edges if they're closer. To get the best lower bound, we use the diameter: the path has at most n-1 edges, so some edge has difference ≥ (n²-1)/(n-1) = n+1.\n\nHmm, but actually we should be more careful. The path from label 1 to label n² has some length d ≤ n-1. The sum of differences along the path is at least n²-1 (telescoping, since it goes from 1 to n², but the intermediate could go up and down, so actually the sum of absolute differences ≥ n²-1). So max difference ≥ (n²-1)/d ≥ (n²-1)/(n-1) = n+1.\n\nSo M ≥ n+1 = 2012.\n\nNow, is the bandwidth exactly n+1? Let me check if there's a labeling achieving max difference n+1.\n\nHmm, let me think about small cases. For n=3, torus 3×3, 9 vertices. Bandwidth?\n\nLet me try to construct a labeling for general odd n with max neighbor difference n+1.\n\nActually, let me reconsider. Let me think about whether the bandwidth could be larger.\n\nConsider the labeling as a bijection f: Z_n × Z_n → {1, ..., n²}. \n\nLet me think about a different lower bound approach. Consider the \"isoperimetric\" approach.\n\nActually, let me reconsider the problem. The bandwidth of C_n × C_n.\n\nI recall that for the torus, the bandwidth might be 2n-1 or something. Let me think more carefully.\n\nHmm wait. Let me reconsider. Let me think about n=3.\n\n3×3 torus, 9 vertices. Let me try to find bandwidth.\n\nLabel:\n```\n1 2 3\n4 5 6\n7 8 9\n```\nNeighbors of cell (0,0)=1: (1,0)=4, (2,0)=7, (0,1)=2, (0,2)=3. Differences: 3, 6, 1, 2. Max so far 6.\nNeighbors of (0,1)=2: (1,1)=5, (2,1)=8, (0,0)=1, (0,2)=3. Diff: 3,6,1,1.\nNeighbors of (0,2)=3: (1,2)=6,(2,2)=9,(0,1)=2,(0,0)=1. Diff:3,6,1,2.\nNeighbors of (1,0)=4: (2,0)=7,(0,0)=1,(1,1)=5,(1,2)=6. Diff:3,3,1,2.\nNeighbors of (1,1)=5: (2,1)=8,(0,1)=2,(1,0)=4,(1,2)=6. Diff:3,3,1,1.\nNeighbors of (1,2)=6: (2,2)=9,(0,2)=3,(1,1)=5,(1,0)=4. Diff:3,3,1,2.\nNeighbors of (2,0)=7: (0,0)=1,(2,1)=8,(2,2)=9. Diff:6,1,2.\nNeighbors of (2,1)=8: (0,1)=2,(2,0)=7,(2,2)=9. Diff:6,1,1.\nNeighbors of (2,2)=9: (0,2)=3,(2,1)=8,(2,0)=7. Diff:6,1,2.\n\nMax difference = 6. So bandwidth ≤ 6 for n=3. And n+1 = 4. So 6 > 4. So the simple row labeling gives 6, but maybe there's better.\n\nCan we do better than 6 for n=3? Let me try a different labeling.\n\nThe diameter of 3×3 torus is 2. So lower bound from diameter argument: (9-1)/2 = 4. So M ≥ 4.\n\nBut can we achieve 4? Let me think. We need every pair of adjacent cells to differ by at most 4.\n\nLet me try:\n```\n1 3 5\n7 9 2\n4 6 8\n```\nCheck neighbors of 1 (pos 0,0): right (0,1)=3 diff2, down (1,0)=7 diff6. Bad.\n\nLet me think differently. We want a Hamiltonian-like path ordering where consecutive in path are close, but the torus edges...\n\nActually, let me think about it as: we want to assign labels so that adjacent vertices have close labels.\n\nLet me try for n=3, target bandwidth 4.\n\nVertices: 9. Each vertex degree 4. \n\nLet me try labeling by a \"snake\" that respects torus structure.\n\nHmm, this is getting complicated. Let me think about the general theory.\n\nActually, I recall that the bandwidth of the torus C_n × C_n for odd n is 2n - 1? Or maybe n²/something. Let me think again.\n\nWait, let me reconsider. Let me look at this differently.\n\nActually, I think the answer might be related to a cleaner argument. Let me reconsider.\n\nLet me think about the problem as bandwidth. Let me search my memory: bandwidth of Cartesian product of cycles.\n\nThe bandwidth of C_m × C_n... I think for the torus it's been studied.\n\nLet me think about a better lower bound. \n\nConsider the labeling. Look at the set S_k = {cells with label ≤ k} for various k. The \"boundary\" of S_k (cells in S_k adjacent to cells not in S_k) relates to bandwidth.\n\nIf the bandwidth is B, then for any k, the cells with labels in {k-B+1, ..., k} that are adjacent to cells with labels ≥ k+1... hmm.\n\nActually here's a cleaner approach. If max neighbor difference is B, then consider the cell with label k. Its neighbors have labels in [k-B, k+B]. \n\nLet me think about it via the \"vertex boundary\" / isoperimetric.\n\nConsider labels 1, 2, ..., k forming a set S. The neighbors of S outside S must have labels... well they're adjacent to something in S with label ≤ k, so they have label ≤ k + B. So the \"vertex boundary\" ∂S (vertices not in S but adjacent to S) is contained in labels {k+1, ..., k+B}, so |∂S| ≤ B.\n\nSo B ≥ max_k |∂S_k| where S_k = {cells labeled 1..k}.\n\nTo minimize the max boundary, we want to choose sets S_1 ⊂ S_2 ⊂ ... ⊂ S_{n²} that grow nicely with small boundaries. The minimum possible max boundary over all such chains is the bandwidth.\n\nThe minimum boundary of a set of size k in the torus... For the torus C_n × C_n, the isoperimetric problem. The minimum vertex boundary of a set of size k.\n\nFor small k, the best is a \"ball\" shape. The boundary of a diamond (L1 ball) of radius r in the torus... \n\nFor a set that's an L1 ball of radius r (when r < n/2, no wraparound), the size is 2r²+2r+1 and boundary is 4r+4 (the next layer). Actually let me compute. L1 ball radius r: |{(x,y): |x|+|y| ≤ r}| = 2r²+2r+1. Boundary (|x|+|y|=r+1): 4(r+1) = 4r+4.\n\nSo for a set of size ~2r², boundary ~4r. The ratio boundary/size ~ 4r/2r² = 2/r, decreasing.\n\nThe maximum boundary occurs at... when the set is about half. For the torus, the maximum minimum-boundary over all sizes.\n\nHmm, but we're taking a chain, so we need every intermediate size. The worst case is when the boundary is largest.\n\nFor the torus n×n with n odd, the maximum vertex boundary of the optimal set over all sizes k from 1 to n²...\n\nWhen the set grows as a diamond until it hits the wraparound, then it becomes complicated.\n\nLet me think about the maximum. The diamond grows until radius (n-1)/2. At radius r = (n-1)/2, the diamond has size 2·((n-1)/2)² + 2·(n-1)/2 + 1 = (n-1)²/2 + (n-1) + 1 = ((n-1)² + 2(n-1) + 2)/2 = (n²-2n+1+2n-2+2)/2 = (n²+1)/2. And boundary 4·(n-1)/2 + 4 = 2(n-1)+4 = 2n+2.\n\nHmm, but at that point the diamond touches itself around the torus. The boundary at the \"equator\"...\n\nActually when r = (n-1)/2, the diamond |x|+|y| ≤ (n-1)/2 in Z_n. Since n is odd, (n-1)/2 is the max L1 distance (diameter/2). The set |x|+|y| ≤ (n-1)/2 is actually exactly half... no. |{(x,y): |x|+|y| ≤ (n-1)/2}| where |x| means min(x, n-x).\n\nHmm, this is getting complicated with wraparound. Let me think differently.\n\nActually, the maximum boundary for the torus. Let me think about what size gives the largest boundary.\n\nFor the torus, the vertex isoperimetric peak. I think the maximum boundary is around 2n.\n\nLet me reconsider. For a \"strip\" of width w (a set of w consecutive columns), the boundary is 2n (two edges of length n, but as vertex boundary it's 2n vertices - the two columns adjacent). Wait, vertex boundary of a strip of w columns: the boundary is the two columns just outside, so 2n vertices. That's constant regardless of w (as long as 1 ≤ w ≤ n-2).\n\nSo a strip of any width has vertex boundary 2n. That's bad for bandwidth - it means B ≥ 2n.\n\nWait, but that's for a specific set shape. The optimal set might do better. But the strip shows that if our chain ever looks like a strip, boundary is 2n.\n\nBut we get to choose the chain! We choose the chain to minimize the max boundary. So we'd avoid strips.\n\nBut can we avoid having boundary ≥ 2n at some point? \n\nConsider the set S_k for k = n²/2 (half the vertices). By isoperimetry on the torus, what's the minimum vertex boundary of a set of size (n²-1)/2 or (n²+1)/2?\n\nFor the torus, I believe the minimum vertex boundary of a set of size ~n²/2 is 2n. Because: the set and its complement both have size ~n²/2, and the edge boundary between them... \n\nHmm, let me think. Edge isoperimetric: minimum edge boundary of half the torus. A strip of n/2 columns has edge boundary 2n (n edges on each side). Can we do better with a different shape? \n\nFor vertex boundary: a strip of (n-1)/2 columns has vertex boundary 2n (the two adjacent columns, each of size n). \n\nCan a non-strip shape of size ~n²/2 have smaller vertex boundary? \n\nConsider a \"staircase\" or diagonal cut. A diagonal set {(x,y): x+y ≤ c mod n}. The boundary... For a diagonal half, the boundary is 2n as well I think (two diagonal lines).\n\nHmm, actually for vertex boundary, let me think. The set A = {(x,y): y ≤ (n-1)/2} (a horizontal strip of (n+1)/2 rows). Boundary = row (n+1)/2 and row... wait. The rows are 0,...,n-1. Set is rows 0 to (n-1)/2, that's (n+1)/2 rows. Boundary vertices: row (n+1)/2 (adjacent from below) — n vertices. And the top: row 0 is in the set, its neighbor row n-1 is outside (since n-1 > (n-1)/2 for n≥3). So row n-1 is also boundary — n vertices. Total boundary 2n.\n\nSo vertex boundary of half the torus is at least... is it exactly 2n? \n\nClaim: minimum vertex boundary of a set of size ⌊n²/2⌋ in C_n × C_n is 2n.\n\nHmm, I'm not sure. Let me think about whether we can do better.\n\nActually, let me think about edge boundary first. Edge isoperimetric for torus: the minimum edge boundary of a set of size k. For the torus, Harper's theorem type results... \n\nFor the torus C_n × C_n, I believe the edge-isoperimetric sets are \"strips\" (rectangles that wrap). The minimum edge boundary of a set of size k = a·n (multiple of n) is 2n (a strip of a rows). For non-multiples, it's a bit more.\n\nSo edge boundary of half = 2n. Vertex boundary: each boundary edge contributes, but vertex boundary ≤ edge boundary. Vertex boundary of strip of a rows = 2n (two rows of n vertices). \n\nCould vertex boundary be less than 2n for a cleverly shaped half-set? \n\nLet me think: if |A| = (n²-1)/2 and |A^c| = (n²+1)/2, the vertex boundary ∂A ⊆ A^c. Each vertex in ∂A is adjacent to A. \n\nConsider the edge boundary δ(A). |δ(A)| ≥ 2n (edge isoperimetric). Each vertex in ∂A is incident to at most... well a vertex in ∂A can be adjacent to up to 4 vertices in A. So |∂A| ≥ |δ(A)|/4 ≥ 2n/4 = n/2. That's a weak bound.\n\nHmm, so vertex boundary could potentially be as low as ~n/2? That doesn't match the strip.\n\nWait, but we want to MINIMIZE the boundary to get a good (low) bandwidth. So if vertex boundary can be ~n/2 for half-set, then bandwidth could be ~n/2? But the diameter argument gave n+1. Let me recheck.\n\nDiameter argument: M ≥ n+1 = 2012. If vertex boundary can be lower, the bandwidth might still be n+1 from the diameter bound, and we need to check if construction achieves n+1.\n\nHmm wait, I need to reconcile. The bandwidth = min over chains of max boundary. The diameter gives bandwidth ≥ n+1. The vertex boundary approach gives bandwidth ≥ max_k min_boundary(k). These should be consistent.\n\nLet me reconsider. Actually the relationship: bandwidth B means for the optimal chain, max_k |∂S_k| ≤ B. And B ≥ n+1 from diameter. \n\nSo we need: is there a chain where every boundary ≤ n+1? If vertex boundary of half-set is ≥ 2n > n+1, then bandwidth ≥ 2n, contradicting... no wait, that would mean bandwidth ≥ 2n which is stronger than n+1.\n\nSo the question is: what is the minimum possible max vertex boundary over all chains?\n\nIf the minimum vertex boundary of the half-set is 2n, then bandwidth ≥ 2n. And we need a construction achieving 2n.\n\nLet me verify: is min vertex boundary of half-set really 2n?\n\nLet me think about n=3. Half-set size = 4 (since 9 vertices, (9-1)/2=4 or (9+1)/2=5). \n\n3×3 torus. Set of size 4. What's min vertex boundary?\n\nTake A = {(0,0),(0,1),(1,0),(1,1)} (a 2×2 block). Boundary: vertices adjacent to A but not in A. \n(0,0) neighbors: (1,0)∈A,(2,0),(0,1)∈A,(0,2). So (2,0),(0,2) boundary.\n(0,1) neighbors: (1,1)∈A,(2,1),(0,0)∈A,(0,2). So (2,1) boundary, (0,2) already.\n(1,0) neighbors: (2,0),(0,0)∈A,(1,1)∈A,(1,2). So (1,2) boundary.\n(1,1) neighbors: (2,1),(0,1)∈A,(1,0)∈A,(1,2). \nBoundary = {(2,0),(0,2),(2,1),(1,2)} = 4 vertices. |∂A|=4. And 2n=6. So 4 < 6!\n\nSo for n=3, min vertex boundary of size-4 set is 4, not 6. So my claim was wrong.\n\nHmm. So the 2×2 block has boundary 4 = 2(n-1)? For n=3, 2(n-1)=4. Yes.\n\nSo maybe the min vertex boundary of half-set is 2(n-1)? Let me check for general n.\n\nFor general odd n, consider the set A = {(x,y): 0 ≤ x ≤ (n-1)/2, 0 ≤ y ≤ (n-1)/2}, a square of side (n+1)/2. Size = ((n+1)/2)². That's not half.\n\nHalf is (n²-1)/2 ≈ n²/2. A square of side n/√2... \n\nHmm, let me think about the optimal shape. For vertex isoperimetry on the torus, the optimal shapes are more complex.\n\nActually, let me reconsider the whole approach. Let me think about what the bandwidth of C_n × C_n actually is.\n\nLet me just try to compute for small n and see the pattern.\n\nn=3: Let me find the bandwidth by trying to construct a labeling with small max difference.\n\nWe found row-major gives max 6. Let me try to do better.\n\nGoal: find labeling of 3×3 torus minimizing max neighbor difference.\n\nLet me try:\n```\n1 2 4\n6 5 3\n7 8 9\n```\nNeighbors of 1(0,0): (1,0)=6 diff5, (2,0)=7 diff6, (0,1)=2 diff1, (0,2)=4 diff3. Max 6.\nBad.\n\nLet me try to think about it. The torus 3×3 is actually the complete graph K_3,3... no. Each vertex has degree 4, 9 vertices, 18 edges. \n\nActually 3×3 torus: each vertex connected to 4 others. Since there are 9 vertices and each has degree 4, it's quite dense. The complement has degree 4 as well (9-1-4=4). \n\nThe non-neighbors of (0,0) are (1,1) and (2,2) (the \"diagonal\"). So (0,0) is non-adjacent to exactly 2 vertices.\n\nFor bandwidth, we want to order vertices so adjacent ones are close in order.\n\nLet me try:\nPosition 1: (0,0)\nPosition 2: (0,1) [neighbor of 1, diff 1]\nPosition 3: (1,0) [neighbor of 1, diff 2 with 1; neighbor of... (1,1)? not yet placed]\nPosition 4: (1,1) [neighbor of (0,1) diff2, neighbor of (1,0) diff1]\nPosition 5: (0,2) [neighbor of (0,0)=1 diff4, neighbor of (0,1)=2 diff3]\nHmm, (0,2) is neighbor of (0,0) which is label 1, so diff 4.\n\nThis is getting complicated. Let me just think about the general answer.\n\nLet me reconsider. I'll look at this from the perspective of known results. The bandwidth of the torus.\n\nI recall that the bandwidth of the n×n torus (C_n × C_n) is 2n - 2 for... no.\n\nHmm, let me think about the path product P_n × P_n first. Its bandwidth is n (well-known). For the torus, adding wraparound edges increases bandwidth.\n\nFor the torus, the wraparound means vertex (0,j) is adjacent to (n-1,j). In a good bandwidth labeling of P_n × P_n (row-major), (0,j) and (n-1,j) differ by (n-1)·n, which is huge. So row-major is terrible for torus.\n\nFor the torus, we need a labeling where wraparound neighbors are also close.\n\nLet me think about a \"diagonal\" labeling. Label (i,j) by something like (i + j·s mod n) for some step s, combined with a layer.\n\nActually, here's an idea: use a Hamiltonian cycle/path that's also a \"space-filling\" curve respecting the torus structure.\n\nLet me think about the following labeling. Consider the map (i,j) → (i + 2j mod n, j) or some shear, then row-major.\n\nHmm, let me think about the lower bound more carefully and the construction.\n\nLower bound via diameter: B ≥ n+1.\n\nCan we improve the lower bound? Let me think about a vertex-isoperimetric argument that might give more.\n\nActually, let me reconsider. Let me think about the \"two far apart\" argument more carefully, or a counting argument.\n\nAlternative lower bound: Consider the cell with label 1. It has 4 neighbors. Consider cells with labels n², n²-1, n²-2, n²-3 (top 4 labels). If any of these is a neighbor of label 1, difference ≥ n²-1-1 = n²-2, huge. Otherwise, all 4 neighbors of cell-1 have labels ≤ n²-4.\n\nHmm, that doesn't directly help.\n\nLet me think about the bandwidth of the torus more carefully via the isoperimetric approach.\n\nThe bandwidth B satisfies B ≥ max_{k} β(k) where β(k) = min vertex boundary of a k-set, and we take the max over k of the min boundary... no. B = min over chains of max_k |∂S_k|. And min over chains of max ≥ max over k of min over k-sets of boundary? No, that's not right either.\n\nActually: B = min_{chain} max_k |∂S_k| ≥ max_k min_{S:|S|=k} |∂S| = max_k β(k).\n\nWait is that right? For a fixed chain, max_k |∂S_k| ≥ max_k β(k) since |∂S_k| ≥ β(k) for each k. So B ≥ max_k β(k). Yes.\n\nSo B ≥ max_k β(k) where β(k) is the min vertex boundary of a k-set.\n\nAnd we need to find max_k β(k) for the torus, and then find a chain achieving it.\n\nFor the torus C_n × C_n, what is max_k β(k)?\n\nβ(k) increases then decreases. The max is around k = n²/2.\n\nFor the grid P_n × P_n (no wraparound), the max β(k) is n (achieved by a full row). And bandwidth = n. Consistent.\n\nFor the torus, the wraparound changes things. A full row in the torus has vertex boundary 2n (two adjacent rows, each n vertices, since both sides wrap). But β(k) is the MIN boundary, so we'd avoid full rows.\n\nFor the torus, what shape minimizes boundary at size ~n²/2?\n\nLet me think about a \"diagonal strip\": A = {(x,y): x + y mod n ∈ {0,1,...,t-1}} for some t. This is a diagonal strip of width t. Its boundary: the two diagonal lines x+y = t and x+y = t-1+... hmm. The set is t diagonal lines. Boundary = 2 diagonal lines (x+y=t and x+y = -1 = n-1 mod n), each of size n. So vertex boundary = 2n. Same as horizontal strip.\n\nWhat about a \"diamond\" (L1 ball)? At the point where the diamond fills half the torus, the boundary...\n\nFor odd n, the L1 ball of radius r = (n-1)/2: |x|+|y| ≤ (n-1)/2 where |x| = min(x, n-x). \n\nThe number of points with |x|+|y| ≤ (n-1)/2: Since the diameter is n-1, and (n-1)/2 is half the diameter... \n\nPoints with L1 distance ≤ (n-1)/2 from origin. For each x with |x| ≤ (n-1)/2, y ranges over |y| ≤ (n-1)/2 - |x|, but also |y| ≤ (n-1)/2 (since max |y| is (n-1)/2). So it's exactly the diamond.\n\n|A| = sum_{x=-(n-1)/2}^{(n-1)/2} (2((n-1)/2 - |x|) + 1) = sum_{d=0}^{(n-1)/2} [for |x|=d, 2·(n-1-2d+1)] wait let me recompute.\n\nFor |x| = d (d from 0 to (n-1)/2), the number of x values is 1 if d=0, 2 if d>0. For each such x, |y| ≤ (n-1)/2 - d, giving 2((n-1)/2 - d) + 1 = n - 2d values of y.\n\n|A| = (n-1+1) [d=0: 1·n] + sum_{d=1}^{(n-1)/2} 2·(n-2d)\n= n + 2·sum_{d=1}^{(n-1)/2} (n-2d)\n= n + 2·[(n-1)/2 · n - 2·sum_{d=1}^{(n-1)/2} d]\n= n + 2·[n(n-1)/2 - 2·((n-1)/2)((n-1)/2+1)/2]\n= n + 2·[n(n-1)/2 - (n-1)(n+1)/4]\n= n + n(n-1) - (n-1)(n+1)/2\n= n + (n-1)[n - (n+1)/2]\n= n + (n-1)(n-1)/2\n= n + (n-1)²/2\n= [2n + (n-1)²]/2\n= [2n + n² - 2n + 1]/2\n= (n²+1)/2.\n\nSo the L1 ball of radius (n-1)/2 has size (n²+1)/2. Its boundary: points with L1 distance exactly (n+1)/2 from origin... but wait, (n-1)/2 + 1 = (n+1)/2. But the max L1 distance is n-1. So boundary = points with |x|+|y| = (n+1)/2.\n\nNumber of such points: for |x|=d, |y|=(n+1)/2-d, d from 0 to (n+1)/2. But |y| ≤ (n-1)/2, so (n+1)/2 - d ≤ (n-1)/2, i.e., d ≥ 1. And |x| ≤ (n-1)/2 so d ≤ (n-1)/2. Also need |x|+|y| = (n+1)/2 with both |x|,|y| ≤ (n-1)/2.\n\nd from 1 to (n-1)/2, and for each d, |y| = (n+1)/2 - d which ranges from (n+1)/2 - (n-1)/2 = 1 to (n+1)/2 - 1 = (n-1)/2. So all valid.\n\nCount: d=0: |x|=0 (1 way), |y|=(n+1)/2. But |y|=(n+1)/2 > (n-1)/2, so |y| wraps: min((n+1)/2, n-(n+1)/2) = min((n+1)/2, (n-1)/2) = (n-1)/2. So |y| as circular distance is (n-1)/2, not (n+1)/2. So the point (0, (n+1)/2) has circular L1 distance |0| + |(n+1)/2|_circ = 0 + (n-1)/2 = (n-1)/2, which is INSIDE the ball, not on boundary!\n\nOh I see, the issue is that on the torus, the L1 ball of radius (n-1)/2 actually might wrap around and the \"boundary\" is different.\n\nThis is getting really complicated. Let me step back and think about whether the answer is simply n+1 = 2012, or something else.\n\nLet me reconsider the diameter lower bound and try to construct a matching upper bound.\n\nDiameter lower bound: B ≥ n+1 = 2012.\n\nConstruction for upper bound: Can we label the torus so that every pair of neighbors differs by at most n+1?\n\nIdea: Use a Hamiltonian cycle on the torus and label along it. But a Hamiltonian cycle labeling would make consecutive labels differ by 1 (good for those edges) but the \"chords\" (other torus edges) could differ by a lot.\n\nIn the torus, each vertex has 4 edges. A Hamiltonian cycle uses 2 per vertex. The other 2 edges per vertex are \"chords.\"\n\nIf we use a Hamiltonian cycle that's also a \"good\" cycle where chording edges are short...\n\nConsider the Hamiltonian cycle: (0,0)→(1,0)→(2,0)→...→(n-1,0)→(n-1,1)→(n-2,1)→...→(0,1)→(0,2)→... (snake/boustrophedon). This is the standard snake. Consecutive labels differ by 1. The chord edges: (i,j)~(i,j±1) mostly handled by the snake, but (i,j)~(i+1,j) for the \"vertical\" connections... \n\nIn the snake, row j goes left-to-right if j even, right-to-left if j odd. The horizontal edges (i,j)~(i+1,j) are all in the cycle (consecutive). The vertical edges (i,j)~(i,j+1): only at the \"turn\" points (end of row) is one vertical edge in the cycle. The other vertical edges are chords.\n\nLabel of (i,j) in snake: if j even, label = j·n + i + 1. If j odd, label = j·n + (n-1-i) + 1 = (j+1)·n - i.\n\nVertical chord: (i,j)~(i,j+1) where both even/odd rows or the turn. Say j even, j+1 odd. Label(i,j) = jn+i+1. Label(i,j+1) = (j+2)n - i. Difference = (j+2)n - i - jn - i - 1 = 2n - 2i - 1. Max when i=0: 2n-1. Min when i=n-1: 2n-2n+2-1=1.\n\nAlso (i,j)~(i,j-1): j even, j-1 odd. Label(i,j)=jn+i+1. Label(i,j-1) = j·n - i (since j-1 odd, label = (j-1+1)n - i = jn - i). Diff = jn+i+1 - jn + i = 2i+1. Max when i=n-1: 2n-1.\n\nSo the snake gives max difference 2n-1. For n=2011, that's 4021. But we want n+1=2012. So snake is not optimal.\n\nHmm. So the snake gives 2n-1, and diameter gives n+1. The truth is somewhere in between.\n\nCan we do better than the snake? Let me think about a different Hamiltonian cycle or a non-Hamiltonian labeling.\n\nIdea: \"Diagonal\" snake. Instead of snaking row by row, snake along diagonals.\n\nConsider labeling by diagonals: order cells by (i+j mod n, then by i). \n\nActually, let me think about a different approach. Consider the labeling f(i,j) = i + n·((j - i) mod n) + 1, or some affine map followed by row-major.\n\nHmm, let me think about what makes neighbor differences small.\n\nNeighbors of (i,j): (i±1,j), (i,j±1). We want f(i±1,j) - f(i,j) and f(i,j±1) - f(i,j) to be small in absolute value.\n\nIf f is \"linear\" f(i,j) = ai + bj + n·g(i,j) for some function g that handles the torus wraparound...\n\nActually, here's a key insight: the torus C_n × C_n is a Cayley graph of Z_n × Z_n with generators {(±1,0),(0,±1)}. We want to find a bijection to {1,...,n²} minimizing max edge difference.\n\nConsider the labeling f(i,j) = (i + s·j mod n) + n·j + 1 for some step s. Wait, that's not a bijection unless... f(i,j) = ((i + s·j) mod n) + n·j. Is this a bijection? For fixed j, as i ranges over 0..n-1, (i+sj) mod n ranges over 0..n-1 (bijection). So f ranges over {nj, nj+1, ..., nj+n-1} for row j. Different rows give different ranges. So yes, it's a bijection to {0,...,n²-1}.\n\nThis is a \"sheared\" row-major: within each row, we shift by s·j.\n\nNeighbor (i+1,j): f(i+1,j) - f(i,j) = ((i+1+sj) mod n) - ((i+sj) mod n). Usually +1, but -（n-1) at wraparound. So difference is either 1 or -(n-1). Absolute: 1 or n-1.\n\nNeighbor (i,j+1): f(i,j+1) - f(i,j) = [(i+s(j+1)) mod n + n(j+1)] - [(i+sj) mod n + nj] = [(i+sj+s) mod n - (i+sj) mod n] + n. The mod difference is either s or s-n. So total difference is n+s or n+s-n = s. So |difference| is either |n+s| or |s|... wait. \n\nIf (i+sj) mod n + s < n: difference = s + n. If ≥ n: difference = s + n - n = s. So the difference is either n+s (no wrap) or s (wrap). \n\nWe want both |n+s| and |s| to be small, and also n-1 (from horizontal wraparound) to be small. But n-1 is fixed at 2010, which is already > n+1 = 2012? No, n-1 = 2010 < 2012. OK so horizontal wraparound gives n-1 = 2010.\n\nFor vertical: differences are n+s and s. We want max(|n+s|, |s|, n-1) minimized. \n\n|s| small and |n+s| small: s near 0 gives |s| small but |n+s| ≈ n. s near -n gives |n+s| small but |s| ≈ n. \n\nTo minimize max(|s|, |n+s|): set |s| = |n+s|, i.e., s = -n/2. But n is odd. s = -(n-1)/2 or -(n+1)/2.\n\nIf s = -(n-1)/2: |s| = (n-1)/2, |n+s| = |n - (n-1)/2| = (n+1)/2. Max = (n+1)/2.\nIf s = -(n+1)/2: |s| = (n+1)/2, |n+s| = (n-1)/2. Max = (n+1)/2.\n\nSo with s = -(n±1)/2, vertical differences are at most (n+1)/2, and horizontal differences are at most n-1.\n\nSo max difference = max(n-1, (n+1)/2) = n-1 = 2010.\n\nWait, that gives bandwidth ≤ n-1 = 2010? But the diameter lower bound says B ≥ n+1 = 2012. Contradiction!\n\nLet me recheck. The diameter of C_n × C_n for odd n: distance between (0,0) and the farthest point. The farthest point is at L1 distance... the diameter is 2·⌊n/2⌋ = n-1. So the shortest path between label 1 and label n² has at most n-1 edges. Sum of |differences| ≥ n²-1. So max ≥ (n²-1)/(n-1) = n+1.\n\nBut my construction gives max difference n-1 < n+1. That's a contradiction, so I made an error.\n\nLet me recheck the construction. f(i,j) = ((i + sj) mod n) + n·j, with s = -(n-1)/2.\n\nWait, I need to double check that the horizontal wraparound difference is really n-1.\n\nf(i,j) = ((i + sj) mod n) + nj. \n\nHorizontal neighbor (i+1, j) (mod n): f((i+1) mod n, j) = (((i+1) mod n + sj) mod n) + nj.\n\nIf i < n-1: (i+1+sj) mod n = (i+sj) mod n + 1 (if no wrap) or wraps. Let me denote a = (i+sj) mod n. Then (i+1+sj) mod n = (a+1) mod n. If a < n-1: = a+1, difference = 1. If a = n-1: = 0, difference = -(n-1).\n\nSo horizontal difference is 1 or -(n-1), absolute value 1 or n-1. OK.\n\nVertical neighbor (i, j+1 mod n): f(i, (j+1) mod n) = ((i + s(j+1)) mod n) + n·((j+1) mod n).\n\nCase j < n-1: = ((i+sj+s) mod n) + n(j+1) = ((i+sj+s) mod n) + nj + n.\nLet a = (i+sj) mod n. Then (i+sj+s) mod n = (a+s) mod n.\nIf a + s < n (and ≥ 0): = a+s, so f(i,j+1) - f(i,j) = a+s+n - (a+nj)... wait f(i,j) = a + nj. f(i,j+1) = (a+s) + n(j+1) = a+s+nj+n. Difference = s + n.\nIf a + s ≥ n: (a+s) mod n = a+s-n. f(i,j+1) = a+s-n+nj+n = a+s+nj. Difference = s.\nIf a + s < 0: (a+s) mod n = a+s+n. f(i,j+1) = a+s+n+nj+n = a+s+nj+2n. Difference = s+2n.\n\nOh, I missed the case a+s < 0! Since s = -(n-1)/2 < 0, and a can be 0, a+s can be negative.\n\nSo if a + s < 0: difference = s + 2n. |s + 2n| = |2n - (n-1)/2| = |(4n - n + 1)/2| = (3n+1)/2. That's huge!\n\nSo the construction has a problem when a + s < 0. The difference becomes s + 2n ≈ 3n/2.\n\nSo my construction doesn't work as stated. The issue is the modular arithmetic creating large jumps.\n\nHmm. So the sheared row-major doesn't directly work because of the wraparound in the modular part.\n\nLet me reconsider. The problem is that when (i+sj) mod n wraps around (from the shift), the vertical difference can be large.\n\nSo actually, the bandwidth is not n-1. Let me reconsider.\n\nOK so the diameter bound n+1 = 2012 is a valid lower bound. Let me think about whether the answer is exactly n+1 or higher.\n\nLet me reconsider the snake: it gives 2n-1. Can we do better?\n\nLet me think about the problem differently. \n\nActually, let me reconsider the vertex isoperimetric approach, which gives the exact bandwidth.\n\nB = min over chains of max_k |∂S_k|.\n\nAnd B ≥ max_k β(k) where β(k) = min vertex boundary of k-set.\n\nFor the torus, I need to find max_k β(k).\n\nLet me think about β(k) for the torus C_n × C_n.\n\nFor the grid (path product) P_n × P_n, the vertex isoperimetric peak is n (a full row has boundary n, and that's the max of β). \n\nFor the torus, the wraparound means a full row has boundary 2n. But β(k) is the MIN, so we avoid full rows. The question is what's the min boundary at the critical sizes.\n\nLet me think about it. For the torus, consider a set that's a \"rectangle\" a×b (a rows, b columns, with a,b ≤ n). If a < n and b < n (no wraparound), the vertex boundary is 2a + 2b (the four sides). Wait, vertex boundary: the cells just outside the rectangle. Top and bottom: 2b cells. Left and right: 2a cells. But corners... vertex boundary = 2a + 2b (the cells adjacent to the rectangle but outside). Actually for an a×b rectangle, boundary = 2(a+2) + 2(b+2) - 8... no. Let me just count. Rectangle = {1..a} × {1..b} (in a grid, not torus). Boundary vertices: {0,b+1}×{1..a} ∪ {1..b}×{0,a+1} ∪ corners. = 2a + 2b + 4. Hmm, for a grid. On the torus (no boundary), if the rectangle doesn't wrap, boundary = 2a + 2b.\n\nSo for an a×b rectangle on the torus (a,b < n), vertex boundary = 2a + 2b, size = ab.\n\nTo minimize boundary for given size ab = k: minimize a+b subject to ab = k. Best when a ≈ b ≈ √k. Boundary ≈ 4√k.\n\nFor k = n²/2: a ≈ b ≈ n/√2, boundary ≈ 4n/√2 = 2√2 n ≈ 2.83n.\n\nBut we can also consider strip-like shapes. A strip of 1 row (a=1, b=n, wraps around): but that's a full row, boundary = 2n (two adjacent rows). Size = n. Boundary = 2n. Hmm, for size n, boundary 2n. But a √n × √n square has boundary 4√n < 2n for large n. So strips are not optimal for small k.\n\nFor k near n²/2, the rectangle a×b with a≈b≈n/√2 has boundary 2√2 n. But can we do better?\n\nWhat about a \"diagonal\" shape? Or a shape that uses the torus structure?\n\nConsider a \"thick diagonal\": A = {(x,y): (x+y) mod n ∈ {0,1,...,t-1}} for t ≈ n/2. This is a diagonal strip of width t. Size = tn. Boundary = 2n (two diagonal lines). For t = (n-1)/2, size = (n-1)/2 · n ≈ n²/2, boundary = 2n.\n\nSo the diagonal strip of width (n-1)/2 has size n(n-1)/2 ≈ n²/2 and boundary 2n. Compare to the square: boundary 2√2 n ≈ 2.83n. So the diagonal strip is better! Boundary 2n < 2.83n.\n\nCan we do even better? What about boundary < 2n for size ~n²/2?\n\nConsider the complement: if |A| = (n²-1)/2, then |A^c| = (n²+1)/2. The boundary of A equals the boundary of A^c (vertex boundary is symmetric? No, vertex boundary ∂A = {v ∉ A : v ~ A}. ∂(A^c) = {v ∉ A^c : v ~ A^c} = {v ∈ A : v ~ A^c}. These are different in general but |∂A| and |∂(A^c)| can differ.)\n\nHmm. For the diagonal strip of width t, ∂A = the two adjacent diagonal lines, size 2n. Can we find a set of size ~n²/2 with boundary < 2n?\n\nI claim no. Here's an argument: For any set A with |A| = (n²-1)/2, the edge boundary δ(A) has |δ(A)| ≥ 2n (edge isoperimetric for torus, since the diagonal strip achieves 2n). Each boundary vertex is incident to at least 1 boundary edge, so |∂A| ≤ |δ(A)|... no that's the wrong direction. |δ(A)| ≤ 4|∂A| (each boundary vertex has ≤ 4 edges to A). So |∂A| ≥ |δ(A)|/4 ≥ 2n/4 = n/2. Weak.\n\nHmm, so vertex boundary could be as low as n/2? That seems too low. Let me think again.\n\nActually, for the diagonal strip, the vertex boundary IS 2n (each of the 2 boundary diagonal lines has n vertices, all adjacent to A). So β((n-1)n/2) ≤ 2n. \n\nBut could a different shape achieve lower vertex boundary? Let me think about a \"zigzag\" boundary.\n\nConsider a set A where the boundary is a single zigzag path that wraps around. If the boundary is a Hamiltonian path of the torus... no.\n\nActually, think about it this way: the vertex boundary ∂A consists of vertices outside A adjacent to A. If A is \"half\" the torus, the boundary separates A from A^c. \n\nFor a \"thick\" separator: if the boundary between A and A^c is a single cycle (Hamiltonian cycle), then ∂A could be ~n (one cycle of length n²... no, a cycle separating two halves).\n\nHmm, let me think about a specific example. Take A = {(x,y) : y < (n-1)/2 or (y = (n-1)/2 and x < (n-1)/2)}. This is a horizontal strip of (n-1)/2 rows plus half a row. Size = (n-1)/2 · n + (n-1)/2 = (n-1)(n+1)/2 = (n²-1)/2. \n\nBoundary ∂A: row (n-1)/2, columns (n-1)/2 to n-1 (the part not in A): that's (n+1)/2 vertices. Plus row (n+1)/2 (adjacent to row (n-1)/2 which is partially in A): all n vertices adjacent to the part of row (n-1)/2 in A... \n\nHmm wait. Row (n-1)/2 has columns 0 to (n-3)/2 in A (that's (n-1)/2 columns), and columns (n-1)/2 to n-1 not in A. The vertices in row (n+1)/2 adjacent to A: those adjacent to row (n-1)/2 columns in A, i.e., row (n+1)/2 columns 0 to (n-3)/2, plus column (n-1)/2 (adjacent to (n-1)/2, (n-1)/2-1 = (n-3)/2 which is in A)... \n\nThis is getting complicated. Let me just note: the boundary includes row (n-1)/2 columns (n-1)/2 to n-1 = (n+1)/2 vertices, and row (n+1)/2 columns 0 to (n-1)/2 = (n+1)/2 vertices (adjacent to row (n-1)/2 in-A part). Plus the wraparound: row 0 is in A (if (n-1)/2 ≥ 1, yes for n≥3), and row n-1 is adjacent to row 0. Row n-1 is not in A (since n-1 > (n-1)/2). So row n-1 is in ∂A: all n vertices.\n\nSo ∂A ≥ n (from row n-1) + (n+1)/2 + (n+1)/2 = n + n + 1 = 2n+1. Worse than the diagonal strip.\n\nOK so the diagonal strip with boundary 2n seems good. Let me hypothesize that β(k) for k near n²/2 is 2n, and the max of β(k) is 2n.\n\nBut wait, we should check: is there a size k where β(k) > 2n?\n\nFor the diagonal strip of width t, boundary = 2n for any 1 ≤ t ≤ n-1. So β(tn) ≤ 2n for all t. For sizes between tn and (t+1)n, we can add vertices to the strip one by one. Adding a vertex to the boundary of the strip: it was a boundary vertex, now it's interior. Its neighbors that were outside might become boundary. Net change in boundary: roughly 0 (remove 1 from boundary, add its outside neighbors ~2). Hmm.\n\nActually, when we add a boundary vertex v to A: v leaves ∂A (-1). Neighbors of v not in A∪{v}: they might enter ∂A. v has 4 neighbors, some in A, some in A^c. The ones in A^c that weren't already in ∂A (because all their A-neighbors were... no, if they're adjacent to v which was in ∂A, they're already adjacent to A, so already in ∂A). Wait, v was in ∂A, so v ∉ A but v ~ A. v's neighbors in A^c: they are adjacent to v. Before adding v, were they in ∂A? They're adjacent to v which is in A^c, not necessarily adjacent to A. So they might not be in ∂A. After adding v to A, they become adjacent to A (through v), so they enter ∂A.\n\nSo adding v: -1 (v leaves ∂A) + (number of v's neighbors in A^c that weren't already in ∂A). \n\nThis can increase the boundary. So the boundary isn't monotone.\n\nThe point is: the max of β(k) over all k might be > 2n at some intermediate sizes.\n\nHmm, this is getting really involved. Let me look at this from a different angle.\n\nLet me just consider: is the answer 2n = 4022, or n+1 = 2012, or something else?\n\nLet me try to find the bandwidth for small n by brute force reasoning.\n\nn=3: Let me try to find a labeling with max difference 4 (= n+1) and check if 3 is possible.\n\nDiameter bound: B ≥ (9-1)/2 = 4. So B ≥ 4.\n\nCan we achieve 4? Need every adjacent pair to differ by ≤ 4.\n\n3×3 torus, 9 vertices, each degree 4. Non-neighbors of each vertex: the 4 vertices at \"diagonal\" distance. Specifically (i,j) is non-adjacent to (i+1,j+1), (i+1,j-1), (i-1,j+1), (i-1,j-1) (mod 3). And itself. So non-neighbors = 4 diagonal + self = 5, neighbors = 4. Wait 9-1=8 others, 4 neighbors, 4 non-neighbors. Yes.\n\nSo the graph is the complement of... the \"diagonal\" graph. (i,j)~(i',j') in complement iff i'≠i, j'≠j, and i'-i ≠ ±(j'-j)... no. (i,j) and (i',j') are non-adjacent in torus iff i'≠i±1 and j'≠j±1 (when i'=i or j'=j they're adjacent only if the other differs by ±1). \n\nNon-adjacent: either both coordinates differ (and not by ±1 in the right way)... Let me just list for (0,0): neighbors are (1,0),(2,0),(0,1),(0,2). Non-neighbors (among the 8 others): (1,1),(1,2),(2,1),(2,2). These are the 4 cells with both coordinates different from 0.\n\nSo the complement graph: (i,j) ~ (i',j') iff i≠i' and j≠j'. This is the \"rook's complement\" or the graph K_3 □ K_3... actually it's the tensor product or something. It's the graph where two cells are connected iff they're in different rows AND different columns. This is the complement of the rook graph K_3 □ K_3 (where rook graph = same row or same column).\n\nAnyway, for bandwidth 4: we need to label 1-9 such that adjacent (torus) cells differ by ≤ 4. Equivalently, cells differing by ≥ 5 must be non-adjacent (i.e., in different rows and columns).\n\nPairs differing by ≥ 5: (1,6),(1,7),(1,8),(1,9),(2,7),(2,8),(2,9),(3,8),(3,9),(4,9). That's 10 pairs. Each such pair must be in different rows and different columns.\n\nAlso pairs differing by exactly 5,6,7,8. Let me list all pairs with diff ≥ 5:\ndiff 8: (1,9)\ndiff 7: (1,8),(2,9)\ndiff 6: (1,7),(2,8),(3,9)\ndiff 5: (1,6),(2,7),(3,8),(4,9)\nTotal: 1+2+3+4 = 10 pairs.\n\nAll 10 must be \"non-adjacent\" = different row and column.\n\nLet me try to construct. Place 1 at (0,0). Then 6,7,8,9 must be in rows ≠ 0 and cols ≠ 0, i.e., in {(1,1),(1,2),(2,1),(2,2)}. That's 4 cells for 4 labels {6,7,8,9}. \n\nPlace 9 at (1,1). Then 1,2,3 must be in rows ≠ 1 and cols ≠ 1 (since 9-1≥5, 9-2≥5, 9-3≥5, but 9-4=5≥5 too). Wait, 9-4=5≥5, so 4 must also be non-adjacent to 9. And 9-5=4<5, OK. So 1,2,3,4 must be in rows ≠ 1 and cols ≠ 1, i.e., in {(0,0),(0,2),(2,0),(2,2)}. That's 4 cells for {1,2,3,4}.\n\n1 is at (0,0). So 2,3,4 in {(0,2),(2,0),(2,2)}.\n\nNow 8: 8 must be non-adjacent to 1,2,3 (diff ≥ 5). 8 is in {(1,1),(1,2),(2,1),(2,2)} minus {(1,1)} (occupied by 9). So 8 ∈ {(1,2),(2,1),(2,2)}.\n\n8 non-adjacent to 1 (row≠0, col≠0): all of (1,2),(2,1),(2,2) satisfy. \n8 non-adjacent to 2: depends where 2 is.\n8 non-adjacent to 3: depends where 3 is.\n\nLet me try 2 at (0,2), 3 at (2,0), 4 at (2,2).\nThen 8 must be non-adjacent to 1(0,0): row≠0,col≠0 ✓ for (1,2),(2,1),(2,2).\n8 non-adjacent to 2(0,2): row≠0, col≠2. (1,2): col=2 ✗. (2,1): row=2≠0,col=1≠2 ✓. (2,2): col=2 ✗. So 8 at (2,1).\n8 non-adjacent to 3(2,0): row≠2, col≠0. But 8 is at (2,1), row=2 ✗. Contradiction!\n\nTry 2 at (2,0), 3 at (0,2), 4 at (2,2).\n8 non-adj to 1(0,0): (1,2),(2,1),(2,2) all ok.\n8 non-adj to 2(2,0): row≠2, col≠0. (1,2)✓, (2,1)✗row, (2,2)✗row. So 8 at (1,2).\n8 non-adj to 3(0,2): row≠0, col≠2. (1,2): col=2 ✗. Contradiction!\n\nTry 2 at (0,2), 3 at (2,2), 4 at (2,0).\n8 non-adj to 1: (1,2),(2,1),(2,2).\n8 non-adj to 2(0,2): row≠0,col≠2. (2,1)✓, (2,2)col=2✗, (1,2)col=2✗. So 8 at (2,1).\n8 non-adj to 3(2,2): row≠2, col≠2. (2,1) row=2 ✗. Contradiction.\n\nTry 2 at (2,2), 3 at (0,2), 4 at (2,0).\n8 non-adj to 1: (1,2),(2,1),(2,2).\n8 non-adj to 2(2,2): row≠2,col≠2. (1,2)col=2✗,(2,1)col=1≠2,row=2✗,(2,2)✗. None! Contradiction.\n\nTry 2 at (2,2), 3 at (2,0), 4 at (0,2).\n8 non-adj to 2(2,2): row≠2,col≠2 → (1,2)col2✗, (2,1)row2✗, (2,2)✗. None. Contradiction.\n\nTry 2 at (2,0), 3 at (2,2), 4 at (0,2).\n8 non-adj to 2(2,0): row≠2,col≠0 → (1,2)✓. So 8 at (1,2).\n8 non-adj to 3(2,2): row≠2,col≠2. (1,2) col=2 ✗. Contradiction.\n\nSo with 9 at (1,1), all placements of 2,3,4 fail. Let me try 9 at a different position.\n\n9 at (1,2). Then 1,2,3,4 in rows≠1, cols≠2: {(0,0),(0,1),(2,0),(2,1)}. 1 at (0,0). 2,3,4 in {(0,1),(2,0),(2,1)}.\n\n6,7,8 in {(1,1),(1,2),(2,1),(2,2)} minus (1,2) = {(1,1),(2,1),(2,2)}.\n\n8 non-adj to 1,2,3.\n8 non-adj to 1(0,0): row≠0,col≠0. (1,1)✓,(2,1)col1≠0,row2≠0✓,(2,2)✓. All ok.\n\nTry 2 at (0,1), 3 at (2,0), 4 at (2,1).\n8 non-adj to 2(0,1): row≠0,col≠1. (1,1)col1✗,(2,1)col1✗,(2,2)✓. So 8 at (2,2).\n8 non-adj to 3(2,0): row≠2,col≠0. (2,2) row=2 ✗. Contradiction.\n\nTry 2 at (2,0), 3 at (0,1), 4 at (2,1).\n8 non-adj to 2(2,0): row≠2,col≠0 → (1,1)✓. 8 at (1,1).\n8 non-adj to 3(0,1): row≠0,col≠1. (1,1)col=1✗. Contradiction.\n\nTry 2 at (0,1), 3 at (2,1), 4 at (2,0).\n8 non-adj to 2(0,1): (2,2). 8 at (2,2).\n8 non-adj to 3(2,1): row≠2,col≠1. (2,2) row=2✗. Contradiction.\n\nTry 2 at (2,1), 3 at (0,1), 4 at (2,0).\n8 non-adj to 2(2,1): row≠2,col≠1 → (1,1)col1✗. None (from {(1,1),(2,1),(2,2)}: (1,1)col1✗,(2,1)✗,(2,2)row2col2≠1 but row=2✗). Actually (2,2): row=2≠... wait row≠2 means row≠2, (2,2) has row 2, so ✗. So none. Contradiction.\n\nTry 2 at (2,1), 3 at (2,0), 4 at (0,1).\n8 non-adj to 2(2,1): row≠2,col≠1 → from {(1,1),(2,1),(2,2)}: (1,1)col=1✗, (2,1)✗, (2,2)row=2✗. None. Contradiction.\n\nTry 2 at (2,0), 3 at (2,1), 4 at (0,1).\n8 non-adj to 2(2,0): (1,1). 8 at (1,1).\n8 non-adj to 3(2,1): row≠2,col≠1. (1,1)col=1✗. Contradiction.\n\nSo 9 at (1,2) also fails. By symmetry, 9 at (2,1) or (2,2) will similarly fail (just relabeling).\n\nSo bandwidth 4 is impossible for n=3! So B > 4 for n=3.\n\nLet me try bandwidth 5. Pairs differing by ≥ 6: (1,7),(1,8),(1,9),(2,8),(2,9),(3,9). 6 pairs. These must be non-adjacent.\n\n1 at (0,0). 7,8,9 in rows≠0,cols≠0: {(1,1),(1,2),(2,1),(2,2)}. 3 labels in 4 cells.\n9 at (1,1). 1,2,3 in rows≠1,cols≠1: {(0,0),(0,2),(2,0),(2,2)}. 1 at (0,0). 2,3 in {(0,2),(2,0),(2,2)}.\n\n8 non-adj to 1,2 (diff ≥ 6: 8-1=7≥6, 8-2=6≥6). 8 in {(1,1),(1,2),(2,1),(2,2)} minus (1,1) = {(1,2),(2,1),(2,2)}.\n8 non-adj to 1(0,0): all ok.\n8 non-adj to 2: depends.\n\nTry 2 at (0,2), 3 at (2,0). 8 non-adj to 2(0,2): row≠0,col≠2 → (2,1)✓,(1,2)col2✗,(2,2)col2✗. 8 at (2,1).\nNow 7 in {(1,2),(2,2)} (remaining from the 4 cells). 7 non-adj to 1(0,0): both ok. 7 non-adj to 2(0,2): row≠0,col≠2. (1,2)col2✗, (2,2)col2✗. Neither works! Contradiction.\n\nTry 2 at (0,2), 3 at (2,2). 8 non-adj to 2(0,2): (2,1). 8 at (2,1).\n7 in {(1,2),(2,2)} minus (2,2)[occupied by 3] = {(1,2)}. 7 at (1,2).\n7 non-adj to 1(0,0): row1≠0,col2≠0 ✓. 7 non-adj to 2(0,2): row≠0,col≠2. (1,2) col=2 ✗. Contradiction.\n\nTry 2 at (2,0), 3 at (0,2). 8 non-adj to 2(2,0): row≠2,col≠0 → (1,2)✓. 8 at (1,2).\n7 in {(2,1),(2,2)}. 7 non-adj to 1: ok. 7 non-adj to 2(2,0): row≠2,col≠0. (2,1)row2✗,(2,2)row2✗. Contradiction.\n\nTry 2 at (2,0), 3 at (2,2). 8 non-adj to 2(2,0): (1,2). 8 at (1,2).\n7 in {(2,1),(2,2)} minus (2,2) = {(2,1)}. 7 at (2,1).\n7 non-adj to 1(0,0): ✓. 7 non-adj to 2(2,0): row≠2,col≠0. (2,1) row=2 ✗. Contradiction.\n\nTry 2 at (2,2), 3 at (0,2). 8 non-adj to 2(2,2): row≠2,col≠2 → (1,2)col2✗. None from {(1,2),(2,1),(2,2)}: (1,2)col2✗,(2,1)col1≠2 but row2≠2✗,(2,2)✗. None. Contradiction.\n\nTry 2 at (2,2), 3 at (2,0). 8 non-adj to 2(2,2): none. Contradiction.\n\nSo 9 at (1,1) fails for bandwidth 5 too. Let me try 9 at (1,2).\n\n9 at (1,2). 1,2,3 in rows≠1,cols≠2: {(0,0),(0,1),(2,0),(2,1)}. 1 at (0,0). 2,3 in {(0,1),(2,0),(2,1)}.\n7,8 in {(1,1),(2,1),(2,2)} (from the 4 cells minus (1,2)).\n8 non-adj to 1,2.\n\nTry 2 at (0,1), 3 at (2,0). 8 non-adj to 1(0,0): (1,1)✓,(2,1)✓,(2,2)✓. 8 non-adj to 2(0,1): row≠0,col≠1 → (2,2)✓. 8 at (2,2).\n7 at (1,1) or (2,1). 7 non-adj to 1: ok. 7 non-adj to 2(0,1): row≠0,col≠1. (1,1)col1✗, (2,1)col1✗. Neither! Contradiction.\n\nTry 2 at (0,1), 3 at (2,1). 8 non-adj to 2(0,1): (2,2). 8 at (2,2).\n7 in {(1,1),(2,1)} minus (2,1) = {(1,1)}. 7 at (1,1).\n7 non-adj to 2(0,1): row≠0,col≠1. (1,1) col=1 ✗. Contradiction.\n\nTry 2 at (2,0), 3 at (0,1). 8 non-adj to 2(2,0): row≠2,col≠0 → (1,1)✓. 8 at (1,1).\n7 in {(2,1),(2,2)}. 7 non-adj to 1: ok. 7 non-adj to 2(2,0): row≠2,col≠0. (2,1)row2✗,(2,2)row2✗. Contradiction.\n\nTry 2 at (2,0), 3 at (2,1). 8 non-adj to 2(2,0): (1,1). 8 at (1,1).\n7 in {(2,1),(2,2)} minus (2,1) = {(2,2)}. 7 at (2,2).\n7 non-adj to 2(2,0): row≠2. (2,2) row=2 ✗. Contradiction.\n\nTry 2 at (2,1), 3 at (0,1). 8 non-adj to 2(2,1): row≠2,col≠1 → from {(1,1),(2,1),(2,2)}: (1,1)col1✗. None. Contradiction.\n\nTry 2 at (2,1), 3 at (2,0). 8 non-adj to 2(2,1): none. Contradiction.\n\nSo bandwidth 5 also fails for n=3. Let me try 6.\n\nWe already know row-major gives 6. So bandwidth = 6 for n=3.\n\nn=3, bandwidth = 6 = 2n = 2·3. \n\nSo for n=3, B = 2n = 6. The diameter bound gave n+1 = 4, but actual is 6 = 2n.\n\nSo the answer might be 2n = 4022 for n=2011.\n\nLet me verify: is the bandwidth of C_n × C_n equal to 2n for odd n?\n\nFor n=3, B=6=2n. Let me check n=5 or think about general.\n\nActually, let me reconsider. For n=3, 2n=6 and n+1=4. The snake gives 2n-1=5, but actual bandwidth is 6=2n. Wait, the snake gave 2n-1=5 for general n, but for n=3 we found bandwidth 6 > 5. Let me recheck the snake for n=3.\n\nSnake for n=3:\nRow 0 (even): (0,0)=1, (1,0)=2, (2,0)=3.\nRow 1 (odd): (2,1)=4, (1,1)=5, (0,1)=6.\nRow 2 (even): (0,2)=7, (1,2)=8, (2,2)=9.\n\nWait I need to recompute. Snake: row 0 left to right, row 1 right to left, row 2 left to right.\n(0,0)=1,(1,0)=2,(2,0)=3,(2,1)=4,(1,1)=5,(0,1)=6,(0,2)=7,(1,2)=8,(2,2)=9.\n\nCheck all edges:\n(0,0)=1: neighbors (1,0)=2 diff1, (2,0)=3 diff2, (0,1)=6 diff5, (0,2)=7 diff6. Max 6.\n(1,0)=2: neighbors (2,0)=3 diff1,(0,0)=1 diff1,(1,1)=5 diff3,(1,2)=8 diff6. Max 6.\n(2,0)=3: neighbors (0,0)=1 diff2,(1,0)=2 diff1,(2,1)=4 diff1,(2,2)=9 diff6. Max 6.\n(2,1)=4: neighbors (0,1)=6 diff2,(1,1)=5 diff1,(2,0)=3 diff1,(2,2)=9 diff5. Max 5.\n(1,1)=5: neighbors (2,1)=4 diff1,(0,1)=6 diff1,(1,0)=2 diff3,(1,2)=8 diff3. Max 3.\n(0,1)=6: neighbors (1,1)=5 diff1,(2,1)=4 diff2,(0,0)=1 diff5,(0,2)=7 diff1. Max 5.\n(0,2)=7: neighbors (1,2)=8 diff1,(2,2)=9 diff2,(0,0)=1 diff6,(0,1)=6 diff1. Max 6.\n(1,2)=8: neighbors (2,2)=9 diff1,(0,2)=7 diff1,(1,0)=2 diff6,(1,1)=5 diff3. Max 6.\n(2,2)=9: neighbors (0,2)=7 diff2,(1,2)=8 diff1,(2,0)=3 diff6,(2,1)=4 diff5. Max 6.\n\nMax = 6 = 2n. So the snake gives 2n for n=3 (not 2n-1). Let me recheck my formula.\n\nEarlier I computed snake max difference = 2n-1. Let me recheck. The vertical chord (i,j)~(i,j+1) with j even: diff = 2n-2i-1, max at i=0: 2n-1. And (i,j)~(i,j-1) with j even: diff = 2i+1, max at i=n-1: 2n-1.\n\nBut there's also the wraparound vertical edge: (i, 0) ~ (i, n-1). Row 0 is even, row n-1: if n is odd, n-1 is even. So both rows even. \n\n(0,0)=1 (row 0 even, label = 0·n + 0 + 1 = 1). (0, n-1) = (0,2) for n=3, row 2 even, label = 2·3 + 0 + 1 = 7. Diff = 6 = 2n. \n\nSo the wraparound vertical edge between row 0 and row n-1 (both even) gives difference (n-1)·n + 1 - 1 = n(n-1)... no. Label(0,0) = 1, label(0,n-1) = (n-1)·n + 0 + 1 = n²-n+1. Diff = n²-n. That's huge!\n\nWait for n=3: label(0,2) = 2·3+0+1 = 7. label(0,0) = 1. Diff = 6. And n²-n = 9-3 = 6. Yes.\n\nSo the snake has a wraparound vertical edge with difference n²-n, which for n=3 is 6 = 2n (coincidence since n²-n = n(n-1) = 3·2 = 6 = 2·3). For general n, n²-n is much larger than 2n.\n\nWait, but for n=3, n²-n = 6 = 2n. For n=5, n²-n = 20, but 2n = 10. So the snake would give 20 for n=5, not 10.\n\nHmm, so the snake is actually terrible for the torus because of the row 0 / row n-1 wraparound.\n\nSo for n=3, the snake happens to give 2n=6 because n²-n = 2n when n=3. But for larger n, the snake gives n²-n which is much worse.\n\nSo I need a better construction for the torus.\n\nOK let me reconsider. For n=3, bandwidth = 6 = 2n. Let me figure out the general pattern.\n\nLet me think about the lower bound more carefully. \n\nVertex isoperimetric approach: B ≥ max_k β(k).\n\nFor the torus, I conjecture max_k β(k) = 2n. Let me verify for n=3: β(k) for k=4 (half). We found the 2×2 block has boundary 4. But 2n = 6. So β(4) = 4 < 6? But bandwidth is 6. \n\nHmm, so max_k β(k) might be < 2n, but bandwidth is still 2n. That means the vertex isoperimetric lower bound is not tight.\n\nWait, let me recompute. For n=3, the 2×2 block A = {(0,0),(0,1),(1,0),(1,1)}, boundary = {(2,0),(0,2),(2,1),(1,2)} = 4 vertices. So β(4) ≤ 4.\n\nBut bandwidth = 6 > 4. So the bound B ≥ max_k β(k) gives B ≥ max_k β(k), and if max β(k) < 6, then this bound is weaker than the actual bandwidth.\n\nHmm, so the vertex isoperimetric bound is not tight for the torus. Let me reconsider.\n\nActually wait, I think I need to be more careful. The bandwidth is min over chains of max_k |∂S_k|. The bound B ≥ max_k β(k) uses β(k) = min boundary. But the actual chain might be forced to have larger boundaries at some k because of the chain constraint (nested sets).\n\nBut actually, max_k β(k) ≤ B, and we showed for n=3 that B=6 but max β(k) could be 4. So the isoperimetric bound gives only 4, weaker than 6.\n\nSo where does the lower bound 6 come from for n=3? The diameter bound gives 4. So neither standard bound gives 6. \n\nLet me reconsider. Maybe I made an error and bandwidth for n=3 is actually 4 or 5, not 6.\n\nWait, I showed bandwidth 5 is impossible (exhaustive search above). Let me double-check that.\n\nFor bandwidth 5, pairs with diff ≥ 6 must be non-adjacent. I listed: (1,7),(1,8),(1,9),(2,8),(2,9),(3,9). 6 pairs.\n\nHmm, but I only checked 9 at (1,1) and (1,2). By the symmetry of the torus (rotations and reflections), (1,1),(1,2),(2,1),(2,2) are all equivalent (they're all \"diagonal\" cells from (0,0)). So checking (1,1) and (1,2) covers all cases up to symmetry. And both failed. So bandwidth 5 is indeed impossible for n=3.\n\nBut wait, I fixed 1 at (0,0) and 9 at a diagonal cell. Is it necessary that 9 is at a diagonal cell from 1? 9-1=8≥6, so 1 and 9 must be non-adjacent, meaning different row and column. So yes, 9 is at a diagonal cell from 1. And by symmetry, WLOG 9 at (1,1). I checked (1,1) and it failed. So bandwidth 5 impossible. Good.\n\nSo for n=3, B = 6 = 2n.\n\nNow, the diameter bound gives n+1 = 4, but actual is 2n = 6. So the diameter bound is not tight.\n\nLet me find a better lower bound argument that gives 2n.\n\nBetter lower bound idea: Consider the cell labeled 1 and the cell labeled n². They're at distance d ≤ n-1. But also consider cells labeled 2, 3, etc.\n\nActually, let me think about a \"bipartite\" or \"cut\" argument.\n\nHere's an idea: Consider the labeling. For each \"row\" of the torus (fixing x-coordinate), the n cells in that row have some labels. The row forms a cycle C_n. The bandwidth of C_n is 2 (for n ≥ 4) or... actually bandwidth of C_n is 2 for n ≥ 4, and for n=3 it's 2 as well (C_3 = K_3, bandwidth 2). Hmm, that's about within-row differences, not helpful directly.\n\nLet me think differently. \n\nHere's another approach for the lower bound. Consider the n cells in any row. They form a cycle. Their labels are some n values from 1 to n². The max label minus min label in a row is at least n-1 (since n distinct values). Actually, the range (max - min) of n values is at least n-1.\n\nNow, the cells in a row are connected in a cycle. Going around the cycle, the labels go up and down. The max difference between consecutive cells in the row is at least... well, the bandwidth of C_n with these specific labels. \n\nHmm, this isn't leading anywhere clean.\n\nLet me think about the problem from the construction side. Can we achieve bandwidth 2n for general odd n?\n\nFor n=3, we found B=6=2n with the snake (which happened to work). For general n, we need a construction with max difference 2n, and a lower bound of 2n.\n\nLet me think about a construction. \n\nConstruction idea: \"Diagonal snake.\" Order cells by diagonals.\n\nConsider the diagonals d = (x + y) mod n, for d = 0, 1, ..., n-1. Each diagonal has n cells. Order cells by diagonal, and within each diagonal, by x-coordinate.\n\nLabel of (x, y): d = (x+y) mod n. Within diagonal d, cells are (x, d-x mod n) for x = 0, ..., n-1. Label = d·n + x + 1 (say).\n\nSo f(x,y) = ((x+y) mod n) · n + x + 1.\n\nCheck neighbors:\n(x+1, y): d' = (x+1+y) mod n = (d+1) mod n. f(x+1,y) = d'·n + (x+1) + 1.\nIf d < n-1: d' = d+1. f(x+1,y) - f(x,y) = (d+1)·n + x + 2 - (d·n + x + 1) = n + 1.\nIf d = n-1: d' = 0. f(x+1,y) - f(x,y) = 0·n + x + 2 - ((n-1)·n + x + 1) = x + 2 - n² + n - x - 1 = -n² + n + 1. Absolute: n² - n - 1. Huge!\n\nSo the diagonal ordering has a huge jump at the wraparound. Bad.\n\nLet me try a different within-diagonal ordering. Within diagonal d, order by x but alternate direction based on d parity.\n\nf(x,y) = d·n + (x if d even, (n-1-x) if d odd) + 1.\n\n(x+1,y): d' = (d+1) mod n. \nIf d < n-1: d' = d+1.\n  If d even: f(x,y) = d·n + x + 1. f(x+1,y) = (d+1)·n + (n-1-(x+1)) + 1 = (d+1)·n + n-1-x = (d+1)·n + n - 1 - x. Diff = (d+1)n + n - 1 - x - dn - x - 1 = 2n - 2x - 2. Max at x=0: 2n-2. Min at x=n-1: 2n-2n+2-2 = 0.\n  If d odd: f(x,y) = d·n + (n-1-x) + 1 = d·n + n - x. f(x+1,y) = (d+1)·n + (x+1) + 1 = (d+1)·n + x + 2. Diff = (d+1)n + x + 2 - dn - n + x = 2x + 2. Max at x=n-1: 2n. \n\nHmm, 2n at x=n-1 when d odd. So max difference 2n from horizontal edges.\n\nIf d = n-1 (wraparound): d' = 0.\n  n-1 is even (n odd). f(x,y) = (n-1)·n + x + 1. f(x+1,y) = 0·n + (n-1-(x+1)) + 1 = n-1-x. Diff = n-1-x - (n-1)n - x - 1 = n - 1 - x - n² + n - x - 1 = -n² + 2n - 2x - 2. Huge.\n\nStill a huge wraparound jump. The problem is the diagonal wraparound.\n\nThe issue is fundamental: any \"linear\" ordering of the torus will have a wraparound jump somewhere. The torus has two wraparound directions, and we can only \"hide\" one of them with a snake.\n\nLet me think about this more carefully. The torus has n² vertices. In any labeling 1 to n², consider the cells labeled 1 and n². They're at distance ≤ n-1. The path between them has ≤ n-1 edges, giving the diameter bound n+1.\n\nBut there are also wraparound edges that connect \"far\" parts of the labeling. The question is how to minimize the maximum.\n\nLet me think about the lower bound 2n.\n\nLower bound argument for 2n:\n\nConsider any labeling. Look at the cell with label 1, call it v. Consider the n cells in the same row as v (including v). Their labels include 1 and n-1 others. The max label among them is at least n (since n distinct values, min is 1, so max ≥ n). Call the cell with max label in this row w, with label ≥ n.\n\nNow w is in the same row as v, so the distance from v to w along the row is at most ⌊n/2⌋ = (n-1)/2. The path from v to w along the row has at most (n-1)/2 edges. The label difference is at least n-1. So some edge on this path has difference ≥ (n-1)/((n-1)/2) = 2. That's weak.\n\nLet me think differently. \n\nHmm, let me think about the problem as follows. Consider the labeling. Define for each edge the difference. We want to show some edge has difference ≥ 2n.\n\nConsider the n rows. Each row is a cycle of n cells. The labels in a row are n distinct values. The \"span\" of a row (max - min label) is at least n-1.\n\nTotal span: the sum of spans over all rows is at least n(n-1). But the total \"variation\" is related to edge differences.\n\nActually, here's a cleaner approach. Consider the columns. Each column is a cycle. \n\nLet me think about a \"projection\" argument.\n\nFor each row r, let m_r = min label in row r, M_r = max label in row r. Span_r = M_r - m_r ≥ n-1.\n\nThe rows are connected by vertical edges. Consider two adjacent rows r and r+1. The vertical edges connect (x, r) to (x, r+1) for each x.\n\nHmm, I'm not finding a clean argument. Let me try yet another approach.\n\nLet me think about the problem as a graph bandwidth problem and recall/search for the bandwidth of the torus.\n\nThe bandwidth of C_n × C_n. I believe for the torus, the bandwidth is 2n for n ≥ 3 (odd or even, maybe with small exceptions). Let me see if this is consistent with n=3: 2·3 = 6. ✓.\n\nActually, I recall now: the bandwidth of the Cartesian product of two cycles C_m × C_n (for m, n ≥ 3) is 2·min(m, n) when m = n, or more generally... Let me think. \n\nActually, I think the bandwidth of C_n × C_n is 2n for n ≥ 3. And more generally, bandwidth of C_m × C_n is 2·min(m,n) for m,n ≥ 3.\n\nLet me try to prove B = 2n for our case (n = 2011).\n\nLower bound B ≥ 2n:\n\nConsider any labeling f: V → {1, ..., n²}. We want to show some edge has |f(u) - f(v)| ≥ 2n.\n\nConsider the cell c with f(c) = 1. Consider the cells with labels n², n²-1, ..., n²-2n+1 (the top 2n labels). There are 2n such cells.\n\nThe cells at distance ≥ 2 from c (in the torus graph): how many cells are at distance 0 or 1 from c? Distance 0: 1 cell (c itself). Distance 1: 4 cells (neighbors). So 5 cells at distance ≤ 1. The rest (n² - 5) are at distance ≥ 2.\n\nHmm, this doesn't directly give 2n.\n\nLet me think about it differently. \n\nConsider the cell c with label 1. The 4 neighbors of c have labels in {2, ..., n²}. If any neighbor has label ≥ 2n+1, then that edge has difference ≥ 2n, done. So assume all 4 neighbors of c have labels ≤ 2n.\n\nNow consider the cell c' with label n². Its 4 neighbors have labels in {1, ..., n²-1}. If any neighbor has label ≤ n²-2n, then that edge has difference ≥ 2n, done. So assume all 4 neighbors of c' have labels ≥ n²-2n+1.\n\nThe 4 neighbors of c have labels ≤ 2n (4 labels from {2,...,2n}).\nThe 4 neighbors of c' have labels ≥ n²-2n+1 (4 labels from {n²-2n+1,...,n²-1}).\n\nIf c and c' are far apart, their neighborhoods don't overlap, and we've used 8 labels from the \"extremes.\" This doesn't immediately give a contradiction.\n\nLet me try a different approach for the lower bound.\n\nApproach: Consider the \"middle\" of the labeling. Look at the set A = {cells with label ≤ n²/2} and B = {cells with label > n²/2}. |A| = (n²-1)/2 (since n² is odd, (n²-1)/2 labels are ≤ (n²-1)/2, and (n²+1)/2 labels are ≥ (n²+1)/2). \n\nHmm, let me use A = {cells with label ≤ (n²-1)/2}, |A| = (n²-1)/2.\n\nThe edge boundary δ(A): edges between A and B. Each such edge (u,v) has f(u) ≤ (n²-1)/2 and f(v) ≥ (n²+1)/2, so |f(u)-f(v)| ≥ 1. But we want ≥ 2n.\n\nHmm, that's not enough. The issue is that the boundary edges could have small differences.\n\nLet me think about it more carefully. If the bandwidth is B, then every boundary edge has difference ≤ B. The number of boundary edges is |δ(A)|. \n\nThe labels in A are {1, ..., (n²-1)/2} and in B are {(n²+1)/2, ..., n²}. The boundary edges connect A to B. Each boundary edge has difference between 1 and B.\n\nHmm, I don't see how to get 2n from this directly.\n\nLet me try yet another approach. \n\nConsider the labeling as a function f on the torus. Think of the torus as Z_n × Z_n. \n\nFor each \"row\" x (fixed x-coordinate), the cells (x, 0), (x, 1), ..., (x, n-1) form a cycle. Their labels are n distinct numbers. The sum of |differences| around the cycle is at least 2(max - min) ≥ 2(n-1). So some edge in the row has difference ≥ 2(n-1)/n ≈ 2. Weak.\n\nFor each \"column\" y, similarly.\n\nTotal over all rows: sum of all horizontal edge differences ≥ n · 2(n-1) = 2n(n-1). There are n² horizontal edges. So max horizontal edge difference ≥ 2n(n-1)/n² = 2(n-1)/n ≈ 2. Weak.\n\nThis approach is too weak because it averages over all edges.\n\nLet me think about the problem more carefully. I'll try to find the exact bandwidth.\n\nLet me look at this from the perspective of the \"dual\" problem. The bandwidth of a graph G is the minimum B such that there's a labeling where adjacent vertices differ by ≤ B. Equivalently, it's the minimum B such that we can partition {1,...,N} into intervals of length... no.\n\nActually, bandwidth B means: there's an ordering v_1, ..., v_N such that if v_i ~ v_j then |i-j| ≤ B. Equivalently, for every i, the neighbors of v_i are in {v_{i-B}, ..., v_{i+B}}.\n\nAnother equivalent formulation: B is the minimum such that there's a labeling where for every k, the set {v_1, ..., v_k} has no edges to {v_{k+B+1}, ..., v_N}. I.e., the \"vertex boundary\" (in terms of the ordering) is ≤ B.\n\nThis is the same as: for every k, ∂S_k ⊆ {v_{k+1}, ..., v_{k+B}}, so |∂S_k| ≤ B.\n\nAnd B = min over orderings of max_k |∂S_k|. Which is what I had.\n\nSo B ≥ max_k β(k) where β(k) = min vertex boundary of a k-set. But this might not be tight.\n\nFor the exact bandwidth, we need the \"vertex isoperimetric number\" in the ordering sense, which is the \"bandwidth\" itself.\n\nFor the torus, let me think about what β(k) is and whether the bound is tight.\n\nFor n=3: β(4) = 4 (the 2×2 block). But bandwidth = 6. So the bound max β(k) ≤ B gives max β(k) ≤ 6, and we need to check if max β(k) = 6 or less.\n\nLet me compute β(k) for all k for n=3:\nβ(1) = 4 (single cell, 4 neighbors).\nβ(2) = ? Two adjacent cells: boundary = 6 (4+4-2 = 6). Two non-adjacent cells: boundary = 8 (if non-adjacent, no overlap) or 6 or 7. Min is 6 (adjacent pair).\nβ(3) = ? Three cells. Best: an L-shape or line. Three in a row (on the torus, a path of 3): boundary = ? Cells (0,0),(1,0),(2,0) - that's a full row. Boundary: (0,1),(1,1),(2,1),(0,2),(1,2),(2,2) = 6. An L-shape (0,0),(1,0),(0,1): boundary = (2,0),(0,2),(1,1),(2,1),(1,2) = 5. So β(3) ≤ 5.\nβ(4) = 4 (2×2 block, computed above).\nβ(5) = β(4) by complement... ∂A for |A|=5: complement has size 4. ∂A = {v ∉ A: v ~ A}. Hmm, not directly related to β(4). Let me compute. A = 2×2 block + 1 cell. Say A = {(0,0),(0,1),(1,0),(1,1),(2,0)}. Boundary: (0,2),(1,2),(2,1),(2,2) = 4. So β(5) ≤ 4.\nβ(6): complement size 3. A = everything except 3 cells. ∂A = {v ∉ A: v~A} = the 3 excluded cells that are adjacent to A. If the 3 excluded cells form a path, all 3 are adjacent to A. So β(6) ≤ 3.\nβ(7): complement size 2. ∂A = 2 (the 2 excluded cells, if adjacent to A). β(7) ≤ 2.\nβ(8): complement size 1. ∂A = 1. β(8) = 1.\n\nSo max β(k) for n=3 is β(1) = 4 or β(2) = 6 or β(3) = 5. β(2) = 6! So max β(k) = 6 = 2n. \n\nSo for n=3, max β(k) = 6 = 2n, achieved at k=2. And bandwidth = 6. So the bound IS tight for n=3.\n\nβ(2) = 6: two adjacent cells have boundary 6. Let me verify. Two adjacent cells (0,0) and (1,0) on 3×3 torus. Boundary: neighbors of (0,0) not in A: (2,0),(0,1),(0,2). Neighbors of (1,0) not in A: (2,0),(1,1),(1,2). Union: (2,0),(0,1),(0,2),(1,1),(1,2) = 5. Hmm, that's 5, not 6.\n\nLet me recount. (0,0) neighbors: (1,0)∈A, (2,0), (0,1), (0,2). So boundary from (0,0): (2,0),(0,1),(0,2).\n(1,0) neighbors: (0,0)∈A, (2,0), (1,1), (1,2). Boundary from (1,0): (2,0),(1,1),(1,2).\nUnion: {(2,0),(0,1),(0,2),(1,1),(1,2)} = 5.\n\nTwo non-adjacent cells, say (0,0) and (1,1). \n(0,0) neighbors: (1,0),(2,0),(0,1),(0,2). None in A (A={(0,0),(1,1)}). All 4 are boundary.\n(1,1) neighbors: (0,1),(2,1),(1,0),(1,2). None in A. All 4 are boundary.\nUnion: {(1,0),(2,0),(0,1),(0,2),(2,1),(1,2)} = 6. (0,1) and (1,0) appear in both). Let me list: from (0,0): (1,0),(2,0),(0,1),(0,2). From (1,1): (0,1),(2,1),(1,0),(1,2). Union: (1,0),(2,0),(0,1),(0,2),(2,1),(1,2) = 6.\n\nSo two non-adjacent cells have boundary 6, two adjacent have boundary 5. So β(2) = min = 5 (adjacent pair). Not 6.\n\nHmm, so β(2) = 5, not 6. Let me recompute max β(k).\nβ(1) = 4, β(2) = 5, β(3) = 5, β(4) = 4, β(5) = 4, β(6) = 3, β(7) = 2, β(8) = 1.\nMax = 5 (at k=2 or k=3). But bandwidth = 6. So max β(k) = 5 < 6 = B.\n\nSo the vertex isoperimetric bound is NOT tight for n=3. The bandwidth 6 > max β(k) = 5.\n\nHmm. So where does 6 come from? Let me reconsider.\n\nThe bandwidth is min over chains of max |∂S_k|. The bound B ≥ max β(k) = 5 is not tight. The actual B = 6 means that in any chain, some |∂S_k| ≥ 6, even though for each k individually, there exists a k-set with boundary ≤ 5.\n\nThis is because the chain constraint forces suboptimal boundaries at some sizes.\n\nOK so this approach is complex. Let me try to find the answer differently.\n\nLet me reconsider: for n=3, is the bandwidth really 6? I showed bandwidth 5 is impossible. And the snake gives 6. So B = 6 = 2n. Let me also verify that 6 is achievable (the snake gives max 6, yes).\n\nNow for general odd n, is B = 2n?\n\nLet me think about the lower bound B ≥ 2n.\n\nHere's an approach: Consider any labeling. Look at the cell v with label 1. Consider the cell w with label n². \n\nDistance from v to w is at most n-1 (diameter). Let d = dist(v,w) ≤ n-1.\n\nNow, consider a shortest path v = u_0, u_1, ..., u_d = w. The labels go from 1 to n². The sum of |f(u_{i+1}) - f(u_i)| ≥ n² - 1 (telescoping). So max ≥ (n²-1)/d ≥ (n²-1)/(n-1) = n+1.\n\nBut we want 2n, not n+1. So the diameter bound only gives n+1.\n\nTo get 2n, we need a different argument. Let me think about using two paths or a 2D argument.\n\nHere's an idea: Consider the cell v with label 1. Consider the \"cross\" through v: the row and column containing v. The row has n cells, the column has n cells, sharing v, so 2n-1 cells total.\n\nThe labels on these 2n-1 cells include 1 and 2n-2 others. The max label on the cross is at least 2n-1 (since 2n-1 distinct values, min is 1). Actually, the max label on the cross is at least 2n-1 (pigeonhole: 2n-1 cells, labels are distinct positive integers, min is 1, so max ≥ 2n-1).\n\nHmm, but that doesn't directly help.\n\nLet me think about it differently. Consider the cell with label 1, call it (a, b). The row a (cells (a, 0), ..., (a, n-1)) and column b (cells (0, b), ..., (n-1, b)) form a cross.\n\nNow consider the cell with label n², call it (c, d). \n\nCase 1: (c, d) is on the cross (same row or column as (a,b)). Then the distance from (a,b) to (c,d) is at most (n-1)/2 (along the row or column). The path has at most (n-1)/2 edges. Sum of differences ≥ n²-1. Max ≥ (n²-1)/((n-1)/2) = 2(n+1). So some edge has difference ≥ 2(n+1) > 2n. Done.\n\nCase 2: (c, d) is not on the cross, i.e., c ≠ a and d ≠ b. \n\nIn this case, consider the path from (a,b) to (c,d): go along the row from (a,b) to (a,d), then along the column from (a,d) to (c,d). The row part has length dist(b, d) ≤ (n-1)/2, and the column part has length dist(a, c) ≤ (n-1)/2. Total ≤ n-1.\n\nThis gives the diameter bound n+1 again. Not enough.\n\nBut wait, in Case 2, (c,d) is not on the cross. Let me use a different argument.\n\nConsider the cross (row a and column b). It has 2n-1 cells. The labels on the cross are 2n-1 distinct values including 1. So the max label on the cross is ≥ 2n-1. \n\nNow, the cell (c, d) with label n² is not on the cross. Consider the 4 neighbors of (c,d): (c±1, d) and (c, d±1). At least... hmm.\n\nActually, let me think about the neighbors of (c,d) = (c, d) where c ≠ a, d ≠ b. The neighbors are (c+1,d), (c-1,d), (c,d+1), (c,d-1). Are any of these on the cross? (c+1,d) is on the cross iff c+1 = a (i.e., c = a-1) or d = b (but d ≠ b). So (c+1,d) on cross iff c = a-1. Similarly (c-1,d) on cross iff c = a+1. (c,d+1) on cross iff d = b-1. (c,d-1) on cross iff d = b+1.\n\nSo the number of neighbors of (c,d) on the cross is between 0 and 4. If c is adjacent to a (c = a±1) and d is adjacent to b (d = b±1), then all 4 neighbors are on the cross. If neither, 0 neighbors on cross.\n\nThis is getting complicated. Let me try a cleaner approach.\n\nAlternative lower bound approach:\n\nConsider any labeling with bandwidth B. We want to show B ≥ 2n.\n\nConsider the set S = {cells with label ≤ n}. |S| = n. \n\nThe vertex boundary ∂S has all labels in {n+1, ..., n+B} (since boundary cells are adjacent to S, which has max label n, so boundary cells have label ≤ n",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 20617,
+        "completion_tokens": 25000,
+        "cached_tokens": 12398
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 20617,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12398,
+    "total_steps": 9
+  }
+}

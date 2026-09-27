@@ -1,0 +1,1089 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "pyrite-butterkase",
+  "agent": {
+    "name": "devin",
+    "version": "3000.5.20",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_plan",
+          "description": "Write the session's plan file. Replaces the whole plan, so pass the complete plan every time; call it again with updated content as your understanding evolves. The title, summary, and plan are rendered into a Markdown document at the session's plan-file path automatically.",
+          "parameters": {
+            "required": [
+              "title",
+              "summary",
+              "plan"
+            ],
+            "properties": {
+              "title": {
+                "description": "Short title of the plan, rendered as the top-level `# ` heading.",
+                "type": "string"
+              },
+              "summary": {
+                "description": "One-sentence summary of the plan, rendered as the first paragraph.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The full plan in Markdown, rendered after the summary. Use `## `\nheadings for sections; do not repeat the title or summary.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression using Rust regex syntax (like `rg` defaults): look-ahead/look-behind (e.g. `(?!...)`, `(?<=...)`) and backreferences are NOT supported. Rewrite without them, e.g. use `foo\\([^)]` instead of `foo\\((?!\\))`.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for a finite command to finish, set a long timeout and do not repeatedly poll. For a process that is expected to keep running (dev servers, watchers, daemons), a long timeout always waits the full duration — use a short timeout (10-30s) to read its startup output, repeating until the ready signal appears, or verify readiness directly (e.g. curl the port).\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-22T12:23:52.241748+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-22T12:23:52.242397+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-22T12:23:52.253809+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-22T12:23:52.242738+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/pf6c1672ada364d1397e1 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Saturday, 2026-08-22\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-22T12:23:52.243350+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"global_rules\" path=\"/Users/user/.codeium/windsurf/memories/global_rules.md\">\n\n</rule>\n\n<rule name=\"search-default-internal\" path=\"/Users/user/.devin/rules/search-default-internal.md\">\n# 搜索默认走内置工具\n\n## 硬约束\n\n**默认情况下，使用 devin 内置的 `web_search` 和 `webfetch` 工具。** 不要一遇到搜索就加载 `search-tools` skill。\n\n`search-tools` skill 是重型武器库（6 个工具、38 个端点、完整参数表），只在以下场景才加载：\n\n## 何时加载 search-tools skill\n\n只有同时满足以下条件时才加载：\n\n1. **完备搜索**——内置 `web_search` 结果不够、需要多引擎交叉验证、需要语义搜索、需要学术论文搜索\n2. **大量抓取**——需要抓取多个 URL 转 Markdown、需要 PDF 转 Markdown、需要省 token 的批量取页\n\n## 何时只用内置工具\n\n以下场景**不需要**加载 `search-tools` skill，直接用 `web_search` + `webfetch`：\n\n- 查一个 API 怎么用——`web_search` 搜文档，`webfetch` 取页\n- 查一个概念/术语——`web_search` 一下就够\n- 查一个库的最新版本——`web_search`\n- 取一个 URL 的内容——`webfetch`\n- 简单的事实核查——`web_search`\n\n## 判断流程\n\n```\n需要网络搜索或抓取？\n├─ 查一两个东西就够了 → web_search + webfetch（内置）\n└─ 需要完备搜索或大量抓取\n   ├─ 多引擎交叉验证 → 加载 search-tools skill\n   ├─ 语义搜索 → 加载 search-tools skill\n   ├─ 学术论文搜索 → 加载 search-tools skill\n   ├─ PDF 转 Markdown → 加载 search-tools skill\n   ├─ 批量 URL 抓取 → 加载 search-tools skill\n   └─ 其他简单场景 → web_search + webfetch（内置）\n```\n\n## 理由\n\n`search-tools` skill 内容很长（500+ 行），加载它会占用大量上下文。日常搜索用内置工具完全够用，只有真正需要重型武器时才值得加载。\n</rule>\n\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在README.md中只记录脚本路径和一行用法示例。AGENTS.md是铁律和每次必须知道的认知，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。脚本分两类，存放位置不同（见下方\"脚本分类\"）。\n\n4. **在项目README.md中做好索引**——持久化脚本必须在项目README.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n6. **临时脚本必须在相关文档中建立索引**——如果某项任务有对应的方案文档或调查报告（如`dev-docs/`下的文档），临时脚本必须在文档中记录：脚本路径、用途、用法。这是为了让未来的审计AI可以追溯——如果后来审计发现异常，可以知道是哪个脚本产生的结果，检查脚本是否有问题。\n\n## 脚本分类\n\n脚本分两类，存放位置和索引方式不同：\n\n### 持久化脚本（可复用的操作工具）\n\n- **定义**：会重复使用的操作（如清理僵尸session、批量落盘、进度查询、队列准备）\n- **存放位置**：项目已有的脚本目录或项目的`scripts/`目录\n- **索引位置**：项目README.md\n- **维护方式**：持续改进，不重写\n\n### 临时脚本（一次性任务专用）\n\n- **定义**：为某个具体任务写的一次性脚本（如数据迁移、一次性查询、调查验证脚本）\n- **存放位置**：项目的`tmp-scripts/`子目录\n- **索引位置**：如果该任务有相关文档（方案文档、调查报告等），在文档中记录脚本路径+用途+用法；如果没有相关文档，在README.md中记录\n- **审计目的**：临时脚本的文档索引是为了审计可追溯——如果后来审计发现数据异常或结果异常，审计AI可以定位是哪个脚本产生的，检查脚本逻辑是否有bug\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n- **临时脚本的文档索引保证审计可追溯**——如果审计发现异常结果，可以回溯到产生该结果的脚本，检查脚本逻辑是否有bug\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **写成持久化脚本，放scripts/，索引到README.md** |\n| 一次性任务专用脚本（数据迁移、调查验证） | **写成临时脚本，放tmp-scripts/，索引到相关文档** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 判断脚本类型：持久化（可复用）还是临时（一次性任务）\n3. 检查项目内是否已有类似脚本（grep搜索、看README.md索引）\n4. **已有** → 改进那个脚本（edit工具修改），编译验证\n5. **没有** → 创建新文件：\n   - 持久化脚本 → 放项目脚本目录（如`scripts/`）\n   - 临时脚本 → 放`tmp-scripts/`子目录\n6. 建立索引：\n   - 持久化脚本 → 在项目README.md中记录\n   - 临时脚本 → 在相关文档中记录（如方案文档、调查报告）；无相关文档则在README.md中记录\n7. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新README.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是铁律不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ❌ **临时脚本不建立文档索引**——审计AI无法追溯异常结果的来源脚本\n- ❌ **临时脚本放到`/tmp/`或home目录**——不在项目内，无法git追踪，无法审计\n- ✅ 改进已有脚本的某个函数（而非另写新的）\n- ✅ 新建脚本并在README.md代码索引中记录\n- ✅ README.md中只写一行用法示例，不写完整调用参数和输出\n- ✅ 临时调查脚本放`tmp-scripts/`，在调查报告文档中记录脚本路径和用途\n</rule>\n\n<rule name=\"readme-structure-index\" path=\"/Users/user/.devin/rules/readme-structure-index.md\">\n# AGENTS.md与README.md的职责分工\n\n## 硬约束\n\n**AGENTS.md中不索引任何文档和代码。** repo的详细结构信息放在repo根目录的`README.md`中。\n\n## AGENTS.md只放什么\n\nAGENTS.md是always-on的，每一行都占用AI的上下文窗口。只放\"AI每次工作都必须知道的\"：\n\n1. **角色**——AI在这个repo中的身份和职责（一句话）\n2. **repo基本信息**——分支、Python路径、DB/Redis连接信息、.env位置、关键外部路径\n3. **铁律**——必须遵守的硬约束（编号列表）\n4. **运维认知**——监控/健康检查时容易误判的认知（如\"空pane是正常现象\"）\n5. **系统架构概要**——概念性架构图 + 核心服务表 + 启停命令 + 并发控制（不索引具体代码文件）\n6. **数据库表设计**——指向DATABASE.md的引用 + 关键JOIN关系 + 已知问题（不展开字段表）\n\n## README.md放什么\n\nREADME.md是AI工作引导地图，按需加载（不占always-on上下文）。放\"需要时才查的详细结构信息\"：\n\n1. **文档索引**——\"你要做什么→加载什么文档\"的对照表 + 各文档的关键节索引\n2. **代码文件索引**——按目录分组的代码文件表（文件名/用途/用法）\n3. **运行目录结构**——trajectory数据/solver工作目录的目录树 + 文件存在率表\n4. **Skills和Rules索引**——项目级skills/rules的用途表 + 全局skill引用\n5. **关键经验**——操作经验列表（如rate limit风暴、3秒启动间隔等）\n6. **与其他repo的关系**——依赖关系、共享资源\n\n## 判定标准\n\n| 内容 | 放哪里 | 判断依据 |\n|---|---|---|\n| 铁律（\"必须做/不能做\"） | AGENTS.md | 每次工作都必须知道 |\n| 运维认知（\"容易误判的\"） | AGENTS.md | 监控时必须知道 |\n| 启停命令 | AGENTS.md | 运行系统时必须知道 |\n| 文档索引（\"做什么→读什么\"） | README.md | 按需加载时才查 |\n| 代码文件索引（\"什么文件做什么\"） | README.md | 需要找代码时才查 |\n| 目录结构 | README.md | 需要找文件时才查 |\n| status枚举表 | README.md | 需要查终态时才查 |\n| 操作经验 | README.md | 遇到问题时才查 |\n\n## 反模式\n\n- ❌ AGENTS.md中有\"文档索引\"节——应该移到README.md\n- ❌ AGENTS.md中有\"代码文件索引\"节——应该移到README.md\n- ❌ AGENTS.md中列出每个文档的用途和路径——这是README.md的职责\n- ❌ AGENTS.md中列出每个代码文件的用途和用法——这是README.md的职责\n- ❌ README.md中放铁律——铁律在AGENTS.md中always-on\n- ❌ 没有README.md——每个repo必须有README.md作为引导地图\n- ✅ AGENTS.md只有铁律+角色+基本信息+运维认知+架构概要\n- ✅ README.md有完整的文档索引和代码索引\n- ✅ AGENTS.md中有一行\"详细结构信息见README.md\"的指引\n\n## 与三层架构的关系\n\n三层架构：AGENTS.md（铁律）→ README.md（引导地图）→ 具体文档/代码\n\n- **AGENTS.md** = 铁律 + 每次必须知道的认知（always-on，占上下文）\n- **README.md** = 引导地图（按需加载，不占always-on上下文）\n- **具体文档/代码** = 按需加载（从README.md索引中找到后加载）\n\n本规则确保AGENTS.md不膨胀——详细结构信息在README.md中，AI需要时才加载，不永久占用上下文。\n\n## 详见\n\n- `read` skill（操作流程：如何从README.md出发加载认知）\n- `read-sync` skill（维护模式：如何同步README.md和映射数据库）\n- `cognition-trace-ironlaws.md` §17（认知加载铁律）\n- `tuple-methodology.md`（AGENTS.md瘦身工程）\n</rule>\n\n<rule name=\"global-vs-project-local\" path=\"/Users/user/.devin/rules/global-vs-project-local.md\">\n# 全局vs项目本地判断铁律\n\n## 硬约束\n\n**用户说\"更新AGENTS.md\"或\"添加元组/rule/skill\"时，AI必须先判断这是全局还是项目本地内容，不能直接动手。**\n\n## 判断流程\n\n```\n用户说\"更新AGENTS.md\"或\"添加元组/rule/skill\"\n  ↓\n第一步：判断作用范围\n  ├─ 只在当前项目有意义 → 项目本地\n  └─ 在多个项目中都适用 → 全局\n  ↓\n第二步：判断用户意图\n  ├─ 用户明确说\"全局\" → 全局\n  ├─ 用户明确说\"项目本地\" → 项目本地\n  └─ 用户没说 → 必须问用户\n  ↓\n第三步：放到正确位置\n  ├─ 全局rule → ~/.devin/rules/<name>.md\n  ├─ 全局skill → ~/.config/devin/skills/<name>/SKILL.md\n  ├─ 全局AGENTS.md → ~/.config/devin/AGENTS.md\n  ├─ 项目本地rule → ./.devin/rules/<name>.md\n  ├─ 项目本地skill → ./.devin/skills/<name>/SKILL.md\n  └─ 项目本地AGENTS.md → ./AGENTS.md\n```\n\n## 判断标准\n\n| 信号 | 倾向 |\n|---|---|\n| 内容引用了具体项目的路径、脚本名、目录结构 | 项目本地 |\n| 内容是某个项目特有的操作流程、运维认知 | 项目本地 |\n| 内容是跨项目通用的约束、规范、工作流 | 全局 |\n| 内容修改会影响所有项目的AI行为 | 全局 |\n| 用户说\"以后所有项目都要...\" | 全局 |\n| 用户说\"这个项目要...\" | 项目本地 |\n\n## 禁止\n\n- ❌ 不判断就改全局配置（`~/.devin/`或`~/.config/devin/`）\n- ❌ 不判断就改项目本地配置（`./.devin/`或`./AGENTS.md`）\n- ❌ 把项目本地内容放到全局规则中（污染全局配置）\n- ❌ 把全局通用内容放到项目本地（其他项目无法复用）\n- ❌ 用户没说全局还是本地时自作主张决定\n\n## 必须\n\n- ✅ 先判断作用范围（全局还是项目本地）\n- ✅ 用户没明确说时，先问用户\n- ✅ 判断后告诉用户放在哪里，再动手\n- ✅ 改全局配置时遵循`global-config-git-commit`规则（三个独立repo分别commit）\n\n## 详见\n\n- `tuple-methodology.md`——元组的设计原则、全局vs项目本地的选择策略\n- `global-config-git-commit.md`——全局配置的git提交规则\n- `readme-structure-index.md`——AGENTS.md与README.md的职责分工\n</rule>\n\n<rule name=\"db-delete-backup-first\" path=\"/Users/user/.devin/rules/db-delete-backup-first.md\">\n# 删除数据库数据前必须先备份\n\n**硬约束**：删除数据库的任何数据之前，必须先备份相关的数据，确保删除错误的情况下可以恢复数据。\n\n## 为什么\n\nDB 删除操作不可逆。一旦执行 DELETE/DROP/TRUNCATE/批量删除，数据就没了。如果删除条件写错（比如 WHERE 条件不精确、dry-run 和实际执行结果不一致、脚本有 bug），会丢失不该删的数据，且无法恢复。\n\n历史教训（2026-08-21）：`cleanup_continuation_runs.py` 删除了 p27_continuation_runs 中 224 条 prepared 记录，删除后才发现实际删除数（224）与 dry-run 预期数（223）不一致——因为 collector 在 dry-run 和实际执行之间又创建了 1 条记录。虽然这次差异无害，但如果差异方向反过来（多删了不该删的），就无法恢复了。\n\n## 必做动作\n\n### 步骤1：备份\n\n删除前必须把要删除的数据导出到文件。备份文件路径记录在操作审计文档中。\n\n```bash\n# ArangoDB：用 AQL 导出要删除的记录到 JSON 文件\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\n# 用与删除相同的查询条件查出要删除的完整记录\nrecords = list(db.aql.execute('FOR r IN collection FILTER <删除条件> RETURN r', ttl=120))\nwith open('backup_<collection>_<date>.json', 'w') as f:\n    json.dump(records, f, ensure_ascii=False, indent=2)\nprint(f'备份 {len(records)} 条记录到 backup_<collection>_<date>.json')\n\"\n```\n\n### 步骤2：验证备份\n\n确认备份文件非空、记录数与预期一致、每条记录有完整的字段（特别是 `_key`/`_id`，恢复时需要）。\n\n### 步骤3：执行删除\n\n备份完成且验证通过后，才能执行删除。\n\n### 步骤4：记录审计\n\n在 dev-docs 中记录：备份文件路径、删除条件、删除数量、备份记录数。\n\n## 恢复方法\n\n如果删除后发现错误，用备份文件恢复：\n\n```bash\n# ArangoDB：从 JSON 文件恢复\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\nwith open('backup_<collection>_<date>.json') as f:\n    records = json.load(f)\ncol = db.collection('collection')\nfor r in records:\n    r.pop('_rev', None)  # _rev 不能手动设置\n    col.insert(r)\nprint(f'恢复 {len(records)} 条记录')\n\"\n```\n\n## 禁止\n\n- 禁止不备份就直接执行批量删除\n- 禁止只 dry-run 不备份就执行删除——dry-run 和实际执行之间可能有状态变化\n- 禁止备份后不验证备份文件就执行删除\n- 禁止删除后不记录备份文件路径——找不到备份=没备份\n\n## 例外\n\n| 情况 | 是否需要备份 |\n|---|---|\n| 批量删除（DELETE/FOR...REMOVE） | ✅ 必须 |\n| DROP collection | ✅ 必须（先导出全集合） |\n| TRUNCATE | ✅ 必须（先导出全集合） |\n| 覆盖写入（insert overwrite） | ✅ 必须（先导出被覆盖的数据） |\n| 单条记录删除 | 可不备份（影响小，可通过日志追溯） |\n| 单条记录状态更新（非删除） | 不需要 |\n| 只读查询 | 不需要 |\n\n## 与其他 rule 的关系\n\n| rule | 关系 |\n|---|---|\n| `closure-checklist-impact-analysis` | commit 前分析影响——本 rule 在删除操作前就触发，更早 |\n| `verify-with-logs` | 删除后验证——本 rule 是删除前预防 |\n| 全局 AGENTS.md §可审计性纪律 | \"重大分析、调查、审查必须留下 file:line 定位\"——本 rule 是其具体化到 DB 删除场景 |\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"database-schema-doc\" path=\"/Users/user/.devin/rules/database-schema-doc.md\">\n# 数据库表结构强制文档化\n\n## 硬约束\n\n**所有项目的数据库表结构集中存放在 `/Users/user/database/` 目录**，每个项目一个文件，文件名与项目名对应。文件开头必须写明该项目的repo全路径。\n\n## 文件命名和位置\n\n- **存放目录**：`/Users/user/database/`\n- **文件名**：`<项目名>.md`（与repo目录名一致，如`AI-Math-Normal-Solver.md`）\n- **文件开头**：必须写明repo全路径，格式：\n  ```\n  > **Repo全路径**：`/Users/user/<repo目录名>/`\n  ```\n\n## 何时必须更新\n\n- 新建表/集合时\n- 修改表/集合的字段时（增删改字段、改字段类型、改字段含义）\n- 新增索引时\n- 修改字段语义时（如字段值从一种含义变为另一种含义）\n\n## 何时必须先读\n\n- **写查数据库的脚本前**——必须先读 `/Users/user/database/<项目名>.md` 了解表结构，不能凭猜测写AQL/SQL\n- **查数据库前**——必须先读对应文档确认字段名、字段类型、字段含义\n- **设计涉及数据库的功能前**——必须先读对应文档了解现有表结构\n\n## 内容要求\n\n每个表/集合必须记录：\n\n1. **表名/集合名** + 用途（一句话）\n2. **字段表**：字段名、类型、含义、是否必填、默认值\n3. **索引**：索引字段、索引类型\n4. **关键JOIN关系**：和其他表/集合的关联字段\n5. **字段值枚举**：如果字段是枚举值（如status），列出所有取值和含义\n6. **已知问题/注意事项**：字段不一致、缺失字段、历史遗留等\n\n## 多数据库情况\n\n- 如果一个repo涉及多个数据库，文档中分节记录每个数据库\n- 如果表结构由其他repo管理（如本repo只读另一个repo的数据库），文档中注明\"由XXX repo管理\"，并记录本repo依赖的字段\n\n## 反模式\n\n- ❌ 在代码中散落数据库字段名，没有集中文档\n- ❌ 写查数据库脚本前不读文档，凭猜测写AQL\n- ❌ 改了表结构但不更新 `/Users/user/database/` 中的文档\n- ❌ 文档只记表名不记字段\n- ❌ 文档记了字段但不记枚举值\n- ❌ 文档开头不写repo全路径\n- ❌ 把数据库文档放在repo内部而不是集中目录\n- ✅ 每次改表结构同时更新 `/Users/user/database/<项目名>.md` 并commit\n- ✅ 写查数据库脚本前先读 `/Users/user/database/<项目名>.md` 确认字段名和类型\n- ✅ 文档记录已知问题（如字段不一致、历史遗留）\n- ✅ 文档开头写明repo全路径\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/pf6c1672ada364d1397e1/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nLet $G$ be a complete graph with $n$ vertices. The edges of $G$ are colored with $k=3$ colors such that the subgraph formed by the edges of each color is connected. Let $N$ be the number of triples of vertices $\\{A, B, C\\}$ such that the edges $AB, BC,$ and $AC$ are of three distinct colors. Determine the minimum possible value of $N$ for any such coloring of $G$ with $n \\ge 3$.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-22T12:23:52.243358+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\nThese rules were triggered but could not be injected due to token limits. Read them when relevant using the read_file tool:\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\" />\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "overflow"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-22T12:23:52.243372+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **opencode-openrouter-config**: opencode 对接 OpenRouter API 的配置格式和密钥复用规则。在项目根目录创建 opencode.json， 用 provider.openrouter.options.apiKey 字段写入密钥。密钥复用——不问用户要新密钥， 从已有项目的 opencode.json 读取现有密钥。 WHEN to use: 为某个项目配置 opencode+OpenRouter 时；用户要求创建/修改 opencode.json 时； AI 需要找 OpenRouter 密钥时。 WHEN NOT to use: 配置 opencode 的其他 provider（非 OpenRouter）；配置 Devin CLI（用 devin-config-harness skill）。\n (path: /Users/user/.devin/rules/opencode-openrouter-config.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **explicit-model-and-effort**: 使用 devin cli 时（无论 -p 模式还是 acp 模式）必须显式指明模型；推理强度当前 devin CLI 无独立开关（2026-08-21 核查），由模型默认行为控制——若未来版本提供 强度/思考参数，必须同样显式设置。opencode 侧的对应 rule 见 ~/.config/opencode/rules/explicit-model-and-effort.md（其 ACP 有 effort 接口， 且实测不显式选模型会落到内建默认）。 WHEN to use: 写 devin -p 命令时；写/改 devin acp 客户端启动参数时； 排查\"AI 表现与预期不符\"时。 WHEN NOT to use: 用户明确指定其他模型的对话。\n (path: /Users/user/.devin/rules/explicit-model-and-effort.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **search-tools**: 搜索武器库——按需求组织：网页搜索完备性 + Markdown 网页抓取。所有方案免费可用。 WHEN to use: 需要网络搜索、网页抓取读取、学术论文搜索、PDF 转 Markdown、语义嵌入、结果重排时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-22T12:23:52.256658+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-22T12:23:52.257871+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **openrouter-key-gen**:  (source: /Users/user/.config/devin/skills/openrouter-key-gen/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **devin-acp-protocol**: Devin CLI ACP(Agent Client Protocol)模式使用指南——devin acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call/permission)、thinking实时流式推送、 权限处理、session管理、v1协议细节、实测验证的信号清单和检测逻辑。 WHEN to use: 需要用ACP模式启动devin cli(替代-p模式)时；需要实时检测AI工作状态(thinking spin/卡住)时； 需要从session/update通知组装conversation.json时；需要处理ACP权限请求时； 设计/实现/调试ACP客户端时；将现有-p模式管线改造为ACP模式时。 WHEN NOT to use: 只需要-p模式的简单非交互运行(用noninteractive-solver-run skill)； 只需要session最终产出(看文件即可)；只需要git历史(用git log)。 (source: /Users/user/.config/devin/skills/devin-acp-protocol/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **openrouter-key-query**:  (source: /Users/user/.config/devin/skills/openrouter-key-query/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **opencode-acp-protocol**: OpenCode ACP(Agent Client Protocol)模式完整指南——opencode acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call)、thinking实时流式推送、权限自动批准、 session管理(close/fork/list/resume)、v1协议细节、与Devin CLI ACP的关键区别。 WHEN to use: 用opencode acp启动为ACP server时；写ACP客户端对接opencode时； 需要实时检测AI工作状态(thinking/tool执行/卡住)时；从session/update通知组装trajectory时； 对比opencode ACP和devin ACP选方案时；将现有管线改造为ACP模式时。 WHEN NOT to use: 只需要opencode的最终结果(用opencode run)；非ACP的opencode使用； 只需要devin ACP(用devin-acp-protocol skill)。 (source: /Users/user/.config/devin/skills/opencode-acp-protocol/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **search-tools**: 搜索武器库技术说明书——按需求组织：网页搜索完备性 + Markdown 网页抓取。 所有方案均为免费可用，基于 2026-08-21 实测数据编写。 (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **zcode-trajectory**: ZCode (z.ai 桌面客户端) model-io session trajectory 数据的 JSONL schema 与读取方法。 (source: /Users/user/.config/devin/skills/zcode-trajectory/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **iga-email-create**:  (source: /Users/user/.config/devin/skills/iga-email-create/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.5.20/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n- **upload-secrets**: Securely upload local secrets (dotenv files, env vars, API keys) to the Devin Cloud secrets manager — values never enter the conversation (source: builtin:upload-secrets)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-22T12:23:55.240183+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me solve this problem. We have a complete graph $K_n$ with edges colored with 3 colors, each color forming a connected subgraph. We need to find the minimum number of \"rainbow triangles\" (triangles with all 3 edges of distinct colors).\n\nLet me think about this carefully.\n\nFirst, let me check for answer leaks — the problem text doesn't contain any solution or answer. Good.\n\nLet me think about the structure. We have 3 colors, say red, blue, green. Each color class forms a connected spanning subgraph (since the graph is complete on n vertices, \"connected\" means the subgraph on all n vertices using only edges of that color is connected).\n\nWe want to minimize the number of rainbow triangles (triangles where all 3 edges have different colors).\n\nLet me think about small cases first.\n\nFor $n = 3$: We have a triangle with 3 edges. Each color must form a connected subgraph. With 3 vertices and 3 colors, each color class must be connected. A connected subgraph on 3 vertices needs at least 2 edges. But we only have 3 edges total, and we need 3 colors each with at least 2 edges = 6 edges. That's impossible. Wait, let me reconsider.\n\nActually, \"the subgraph formed by the edges of each color is connected\" — this means the subgraph induced by edges of that color is connected. But does it need to span all vertices? A connected graph on n vertices has all n vertices. So each color class must be a connected spanning subgraph, requiring at least $n-1$ edges.\n\nWith 3 colors, we need at least $3(n-1)$ edges. The complete graph has $\\binom{n}{2} = \\frac{n(n-1)}{2}$ edges. So we need $3(n-1) \\le \\frac{n(n-1)}{2}$, i.e., $3 \\le \\frac{n}{2}$, i.e., $n \\ge 6$.\n\nWait, but the problem says $n \\ge 3$. Let me re-read.\n\n\"the subgraph formed by the edges of each color is connected\"\n\nHmm, maybe this means the subgraph formed by edges of each color is connected, but it doesn't have to span all vertices? No, a \"subgraph formed by the edges of each color\" — if we take all edges of one color, the subgraph they form. If this subgraph is connected, it must be connected as a graph. The vertices of this subgraph are the endpoints of edges of that color. So it doesn't necessarily span all n vertices.\n\nWait, but actually, let me reconsider. If a color has no edges incident to some vertex, then that vertex isn't in the subgraph. The subgraph being \"connected\" just means the edges of that color form a connected graph (on whatever vertices they touch).\n\nHmm, but actually, re-reading: \"the subgraph formed by the edges of each color is connected.\" I think this means: take all edges of color $i$, and the subgraph they induce. This subgraph should be connected. The vertices of this subgraph are all vertices that are incident to at least one edge of color $i$.\n\nActually, I think the standard interpretation is that each color class spans all vertices and is connected. Let me reconsider with the spanning interpretation.\n\nWith spanning: each color needs $\\ge n-1$ edges, total $\\ge 3(n-1)$, and $\\binom{n}{2} \\ge 3(n-1)$ requires $n \\ge 6$.\n\nBut the problem says $n \\ge 3$. So maybe the interpretation is that each color class is connected (on its own vertex set, not necessarily spanning).\n\nActually wait — if a color class is connected but doesn't span all vertices, then some vertex has no edge of that color. That's fine. The constraint is just that the edges of each color form a connected graph.\n\nHmm, but actually, let me reconsider. In many combinatorics problems, \"the subgraph formed by the edges of each color is connected\" means the spanning subgraph is connected, i.e., it spans all vertices. But that requires $n \\ge 6$.\n\nLet me consider the non-spanning interpretation for $n = 3$: We have 3 edges, 3 colors. Each color must have at least 1 edge (to be \"connected\" — a single edge is connected). With 3 edges and 3 colors, each color gets exactly 1 edge. Then the triangle has all 3 colors = 1 rainbow triangle. So $N = 1$ for $n = 3$.\n\nBut wait, can we do better? With 3 edges and 3 colors, if each color must be used (to be connected, each color needs at least 1 edge), then each color gets exactly 1 edge, and the triangle is rainbow. So $N = 1$.\n\nHmm, but does each color need to be used? If a color has 0 edges, is the \"subgraph formed by edges of that color\" connected? An empty graph (no edges, no vertices) — is it connected? Typically, the empty graph is considered connected (vacuously) or not. This is ambiguous.\n\nLet me think about this differently. The problem likely intends that each color class is a connected spanning subgraph. Let me check: for $n \\ge 6$, we need $3(n-1) \\le \\binom{n}{2}$, which gives $n \\ge 6$. So the problem should say $n \\ge 6$, but it says $n \\ge 3$.\n\nHmm, let me re-read the problem: \"the subgraph formed by the edges of each color is connected.\" \n\nI think the most natural reading is: for each color, the graph whose edge set is all edges of that color (and whose vertex set is all n vertices) is connected. This is the spanning interpretation. But then $n \\ge 6$ is required.\n\nAlternatively, maybe the problem means the subgraph (not necessarily spanning) is connected. Then for small $n$, some colors might have very few edges.\n\nActually, you know what, let me just consider both interpretations and see which gives a cleaner answer.\n\nLet me think about the problem more carefully with the spanning interpretation (which I believe is intended, and the constraint $n \\ge 3$ might just be a general statement, with the understanding that for $n < 6$ no valid coloring exists, or perhaps the problem means something slightly different).\n\nActually, wait. Let me re-read: \"Let $G$ be a complete graph with $n$ vertices. The edges of $G$ are colored with $k=3$ colors such that the subgraph formed by the edges of each color is connected.\"\n\nI think \"the subgraph formed by the edges of each color\" means: for each color $c$, consider the subgraph $G_c$ of $G$ consisting of all edges colored $c$ and all $n$ vertices. This subgraph must be connected. This is the spanning interpretation.\n\nFor this to be possible, we need $3(n-1) \\le \\binom{n}{2}$, i.e., $n \\ge 6$.\n\nBut the problem says $n \\ge 3$. Maybe the problem is just stating the general setup and the answer formula works for all $n \\ge 3$ (with the understanding that for $n < 6$, no valid coloring exists, so the minimum is over an empty set, which is undefined, or maybe the problem means something else).\n\nHmm, let me try the non-spanning interpretation. Under this interpretation, each color class must be connected (as a graph on its own vertices). A single edge is connected. So each color needs at least 1 edge (if it has any edges at all). But does each color need to be used?\n\nIf we allow a color to have 0 edges (and consider the empty graph as connected or just not requiring it), then we could use only 1 or 2 colors. But the problem says \"colored with $k=3$ colors\" which I think means all 3 colors are used.\n\nOK let me just try to solve the problem assuming the spanning interpretation and see what answer I get. If the answer is clean, that's probably right.\n\n**Spanning interpretation, $n \\ge 6$:**\n\nWe want to minimize rainbow triangles. Let me think about what structure minimizes rainbow triangles.\n\nA rainbow triangle is one where all 3 edges have different colors. To minimize these, we want to use as few colors as possible in each triangle.\n\nOne approach: use a \"Gallai coloring\" type structure. In a Gallai coloring (no rainbow triangle), the vertices can be partitioned into groups such that edges between groups use at most 2 colors. But Gallai colorings have the property that each color class might not be connected.\n\nLet me think about this differently. Let's denote the three colors as 1, 2, 3.\n\nConsider a partition of vertices into 3 non-empty parts $A, B, C$. Color all edges within each part with color 1. Color edges between $A$ and $B$ with color 2, between $B$ and $C$ with color 3, and between $A$ and $C$ with color 1 (or some other assignment).\n\nWait, let me think more carefully. We need each color to be connected (spanning).\n\nLet me try a specific construction. Partition vertices into 3 parts $V_1, V_2, V_3$ of sizes $a, b, c$ with $a + b + c = n$.\n\nColor scheme:\n- Edges within $V_1$: color 1\n- Edges within $V_2$: color 2  \n- Edges within $V_3$: color 3\n- Edges between $V_1$ and $V_2$: color 1\n- Edges between $V_2$ and $V_3$: color 2\n- Edges between $V_1$ and $V_3$: color 3\n\nCheck connectivity:\n- Color 1: edges within $V_1$ and between $V_1, V_2$. This connects $V_1 \\cup V_2$. But $V_3$ is not connected to the rest via color 1. So color 1 is NOT spanning-connected unless $V_3$ is empty. Not good.\n\nLet me try another scheme. \n\nActually, let me think about it as follows. We need each color to form a connected spanning subgraph. The minimum number of edges for a connected spanning subgraph is $n-1$ (a tree). With 3 colors, we need at least $3(n-1)$ edges used, and we have $\\binom{n}{2}$ edges.\n\nTo minimize rainbow triangles, we want to maximize the number of triangles that use at most 2 colors.\n\nLet me think about a \"caterpillar\" or \"path-like\" structure.\n\nConsider ordering the vertices $v_1, v_2, \\ldots, v_n$. \n\nActually, let me think about a simpler construction. Consider a spanning tree $T_1$ of color 1, a spanning tree $T_2$ of color 2, and a spanning tree $T_3$ of color 3. These three trees together use $3(n-1)$ edges. The remaining $\\binom{n}{2} - 3(n-1)$ edges can be colored to minimize rainbow triangles.\n\nBut this is getting complicated. Let me think about specific small cases.\n\n**Case $n = 6$:** $\\binom{6}{2} = 15$ edges, $3 \\cdot 5 = 15$. So each color must be a spanning tree (exactly 5 edges each). \n\nHmm, this is a very constrained case. Let me think about whether we can avoid rainbow triangles entirely.\n\nActually, let me think about the problem differently. Let me consider the general approach.\n\n**Key idea:** Consider a partition of vertices into 3 non-empty parts $A, B, C$. \n\nColor all edges between different parts as follows:\n- $A$-$B$ edges: color 1\n- $B$-$C$ edges: color 2\n- $A$-$C$ edges: color 3\n\nColor all edges within each part with a single color, chosen to ensure connectivity.\n\nFor color 1 to be connected: color 1 has all $A$-$B$ edges. For color 1 to span all vertices, we need color 1 edges within $C$ as well, or some other connection. Actually, color 1 connects $A$ and $B$ but not $C$. So we need some edges of color 1 incident to $C$.\n\nThis is getting complicated. Let me try a different approach.\n\n**Approach: Think about it as a 3-coloring where we want to minimize rainbow triangles, subject to each color being connected.**\n\nLet me think about what happens with a \"star-like\" structure.\n\nConstruction: Pick a vertex $v$. Color edge $vv_i$ with color $i \\mod 3$ (cycling through colors). Then color the remaining edges (between non-$v$ vertices) to minimize rainbow triangles while maintaining connectivity.\n\nHmm, this is still complex. Let me try to think about the problem from the perspective of known results.\n\nActually, I recall that there's a result related to this. The problem of minimizing rainbow triangles in a 3-coloring of $K_n$ where each color class is connected.\n\nLet me think about it more carefully.\n\n**Claim:** The minimum number of rainbow triangles is $\\binom{n-2}{1} \\cdot$ something... let me think.\n\nLet me try a specific construction for general $n$.\n\n**Construction 1:** Take a path $v_1 - v_2 - \\cdots - v_n$. \n\nHmm, let me try yet another approach. Let me think about the structure that minimizes rainbow triangles.\n\nA triangle is rainbow iff all 3 edges have different colors. A triangle is NOT rainbow iff at least two edges share a color.\n\nConsider the following construction:\n- Partition $\\{1, \\ldots, n\\}$ into 3 parts $A, B, C$ with $|A| = a, |B| = b, |C| = c$, $a+b+c=n$, $a,b,c \\ge 1$.\n- Edges within $A$: color 1\n- Edges within $B$: color 2\n- Edges within $C$: color 3\n- Edges between $A$ and $B$: color 3\n- Edges between $B$ and $C$: color 1\n- Edges between $A$ and $C$: color 2\n\nCheck connectivity:\n- Color 1: within $A$ + between $B$ and $C$. This connects $A$ (internally) and connects $B$ to $C$. But is $A$ connected to $B \\cup C$ via color 1? Only if there's a color-1 edge between $A$ and $B \\cup C$. The edges between $A$ and $B$ are color 3, between $A$ and $C$ are color 2. So color 1 does NOT connect $A$ to the rest. Not connected.\n\nLet me try:\n- Edges within $A$: color 1\n- Edges within $B$: color 2\n- Edges within $C$: color 3\n- Edges between $A$ and $B$: color 1\n- Edges between $B$ and $C$: color 2\n- Edges between $A$ and $C$: color 3\n\nCheck connectivity:\n- Color 1: within $A$ + between $A$ and $B$. Connects $A \\cup B$. Missing $C$. Not spanning-connected.\n\nHmm. The issue is that with 3 parts and 3 between-part color assignments, we can't make all 3 colors spanning-connected unless we're clever.\n\nLet me try:\n- Edges between $A$ and $B$: color 1\n- Edges between $B$ and $C$: color 2\n- Edges between $A$ and $C$: color 3\n- Edges within $A$: color 1 (connects $A$ to $B$ via color 1)\n- Edges within $B$: color 2 (connects $B$ to $C$ via color 2)\n- Edges within $C$: color 3 (connects $C$ to $A$ via color 3)\n\nCheck connectivity:\n- Color 1: within $A$ + between $A,B$. Connects $A \\cup B$. Missing $C$. ❌\n\nThe problem is that with this symmetric assignment, each color connects exactly 2 of the 3 parts.\n\nTo fix this, we need each color to touch all 3 parts. Let me modify:\n\n- Edges between $A$ and $B$: color 1\n- Edges between $B$ and $C$: color 2\n- Edges between $A$ and $C$: color 3\n- Edges within $A$: color 2 (so color 2 is within $A$ + between $B,C$, connecting $A$ to... wait, color 2 within $A$ connects vertices in $A$, and color 2 between $B,C$ connects $B$ to $C$. But $A$ is not connected to $B \\cup C$ via color 2.)\n\nThis doesn't work either. The fundamental issue is that with a 3-partition and each between-part pair getting a single color, each color appears on exactly one between-part pair, connecting only 2 parts.\n\nTo make each color spanning-connected, we need each color to appear on edges that connect all 3 parts. This means we can't simply assign one color per between-part pair.\n\nLet me try a different construction.\n\n**Construction 2:** \n- Pick a vertex $v_0$.\n- Partition remaining vertices into $A$ and $B$ (non-empty).\n- Edges from $v_0$ to $A$: color 1\n- Edges from $v_0$ to $B$: color 2\n- Edges within $A$: color 1\n- Edges within $B$: color 2\n- Edges between $A$ and $B$: color 3\n\nCheck connectivity:\n- Color 1: $v_0$ to $A$ + within $A$. Connects $v_0 \\cup A$. Missing $B$. ❌\n\nStill missing one part. The issue is that color 3 (between $A$ and $B$) connects $A$ and $B$, but color 1 and 2 each miss one part.\n\nLet me add color 3 edges to connect the missing parts:\n- Edges from $v_0$ to $A$: color 1\n- Edges from $v_0$ to $B$: color 2\n- Edges within $A$: color 1\n- Edges within $B$: color 2\n- Edges between $A$ and $B$: color 3\n- Some edge from $v_0$ to somewhere: color 3\n\nIf we make one edge from $v_0$ to some vertex in $A$ be color 3, and one edge from $v_0$ to some vertex in $B$ be color 3:\n\nActually, let me be more precise. Let $A = \\{a_1, \\ldots, a_p\\}$, $B = \\{b_1, \\ldots, b_q\\}$, $v_0$.\n\n- $v_0 a_i$: color 1 for all $i$\n- $v_0 b_j$: color 2 for all $j$\n- $a_i a_j$: color 1\n- $b_i b_j$: color 2\n- $a_i b_j$: color 3\n\nColor 1: $v_0 \\cup A$ connected. Missing $B$.\nColor 2: $v_0 \\cup B$ connected. Missing $A$.\nColor 3: all $A$-$B$ edges. Connects $A \\cup B$. Missing $v_0$.\n\nTo fix: change one edge. Make $v_0 a_1$ color 3 instead of color 1. Then:\n- Color 1: within $A$ (minus $a_1$ if $a_1$ only connects via $v_0$... wait, $a_1$ is still connected to other $a_i$ via color 1 within $A$). Color 1: $v_0 a_i$ for $i \\ge 2$ + within $A$. This connects $v_0 \\cup A$. Still missing $B$. ❌\n\nThe problem persists. Let me think differently.\n\nTo make color 1 connect to $B$, we need at least one color-1 edge between $\\{v_0\\} \\cup A$ and $B$. Similarly for color 2 to connect to $A$, and color 3 to connect to $v_0$.\n\nModified construction:\n- $v_0 a_i$: color 1 for $i = 1, \\ldots, p$\n- $v_0 b_j$: color 2 for $j = 1, \\ldots, q$\n- $a_i a_j$: color 1\n- $b_i b_j$: color 2\n- $a_i b_j$: color 3 for most pairs\n- $a_1 b_1$: color 1 (to connect color 1 to $B$)\n- $a_1 b_2$: color 2 (to connect color 2 to $A$) [if $q \\ge 2$]\n- $v_0 a_1$: color 3 (to connect color 3 to $v_0$)\n\nWait, this is getting messy. Let me think about it more carefully.\n\nActually, let me reconsider. Maybe I should think about this problem with a cleaner approach.\n\n**Reformulation:** We have a 3-edge-coloring of $K_n$ where each color class is a connected spanning subgraph. We want to minimize the number of rainbow triangles.\n\nLet me think about what a rainbow triangle looks like. A triangle $\\{u, v, w\\}$ is rainbow iff the three edges $uv, vw, uw$ have three different colors.\n\n**Key observation:** Consider the color of edge $uv$ as a function $c(u,v) \\in \\{1, 2, 3\\}$.\n\nA triangle $\\{u, v, w\\}$ is rainbow iff $c(u,v), c(v,w), c(u,w)$ are all distinct.\n\nA triangle is NOT rainbow iff at least two of the three edges share a color.\n\n**Approach: Use a \"blow-up\" of a rainbow triangle.**\n\nConsider 3 groups $A, B, C$ with $|A| = a, |B| = b, |C| = c$, $a + b + c = n$.\n\nColor between groups:\n- $A$-$B$: color 1\n- $B$-$C$: color 2\n- $A$-$C$: color 3\n\nColor within groups: we need to choose colors for within-group edges such that each color is connected.\n\nColor 1 has edges between $A$ and $B$. To be spanning-connected, color 1 needs to reach $C$. So we need at least one color-1 edge incident to $C$ — either within $C$ or between $A$-$C$ or $B$-$C$.\n\nSimilarly, color 2 (between $B$ and $C$) needs to reach $A$, and color 3 (between $A$ and $C$) needs to reach $B$.\n\nOne way: \n- Within $A$: color 1 (so color 1 reaches $A$ via internal edges, but $A$ is already connected to $B$ via color 1 between-group edges). Wait, color 1 already connects $A$ and $B$. The issue is $C$.\n- Within $B$: color 2\n- Within $C$: color 3\n\nThen:\n- Color 1: $A$-$B$ edges + within $A$. Connects $A \\cup B$. Missing $C$. ❌\n\nTo connect $C$ to color 1, change one edge. E.g., make one $A$-$C$ edge color 1 instead of color 3. Say $a_1 c_1$ is color 1.\n\n- Color 1: $A$-$B$ + within $A$ + $a_1 c_1$. Now $C$ is connected via $c_1 - a_1 - \\ldots$. ✓ (if $a \\ge 1, b \\ge 1, c \\ge 1$)\n\nSimilarly, to connect $A$ to color 2, make one $A$-$B$ edge color 2. Say $a_1 b_1$ is color 2.\n\n- Color 2: $B$-$C$ + within $B$ + $a_1 b_1$. Now $A$ is connected via $a_1 - b_1 - \\ldots$. ✓\n\nAnd to connect $B$ to color 3, make one $B$-$C$ edge color 3. Say $b_1 c_1$ is color 3.\n\n- Color 3: $A$-$C$ + within $C$ + $b_1 c_1$. Now $B$ is connected via $b_1 - c_1 - \\ldots$. ✓\n\nBut now we've changed 3 edges: $a_1 c_1$ from color 3 to color 1, $a_1 b_1$ from color 1 to color 2, $b_1 c_1$ from color 2 to color 3.\n\nLet me count rainbow triangles in this construction.\n\nThe between-group coloring is:\n- $A$-$B$: color 1 (except $a_1 b_1$ which is color 2)\n- $B$-$C$: color 2 (except $b_1 c_1$ which is color 3)\n- $A$-$C$: color 3 (except $a_1 c_1$ which is color 1)\n\nWithin-group:\n- Within $A$: color 1\n- Within $B$: color 2\n- Within $C$: color 3\n\nNow let's count rainbow triangles. A triangle can have vertices from:\n1. All in one group: all edges same color → not rainbow.\n2. Two in one group, one in another:\n   - Two in $A$, one in $B$: edges are within-$A$ (color 1), $A$-$B$ (color 1, except possibly $a_1 b_1$). So two edges are color 1, one is color 1 (or color 2 for the special edge). Not rainbow (at least two edges are color 1). Wait, let me be more careful.\n   \n   For two vertices $a_i, a_j \\in A$ and one $b_k \\in B$:\n   - $a_i a_j$: color 1\n   - $a_i b_k$: color 1 (or color 2 if $i=1, k=1$)\n   - $a_j b_k$: color 1 (or color 2 if $j=1, k=1$)\n   \n   If neither $a_i$ nor $a_j$ is $a_1$, or $b_k \\neq b_1$: all three edges are color 1. Not rainbow.\n   If one of them is $a_1$ and $b_k = b_1$: edges are color 1, color 2, color 1. Not rainbow (two color 1).\n   \n   So no rainbow triangles of this type. ✓\n\n   Similarly for two in $A$, one in $C$:\n   - $a_i a_j$: color 1\n   - $a_i c_k$: color 3 (or color 1 if $i=1, k=1$)\n   - $a_j c_k$: color 3 (or color 1 if $j=1, k=1$)\n   \n   Normally: colors 1, 3, 3. Not rainbow.\n   Special: colors 1, 1, 3 or 1, 3, 1. Not rainbow.\n   \n   No rainbow triangles. ✓\n\n   Two in $B$, one in $A$: \n   - $b_i b_j$: color 2\n   - $b_i a_k$: color 1 (or color 2 if $i=1, k=1$)\n   - $b_j a_k$: color 1 (or color 2 if $j=1, k=1$)\n   \n   Normally: 2, 1, 1. Not rainbow.\n   Special: 2, 2, 1 or 2, 1, 2. Not rainbow.\n   \n   No rainbow. ✓\n\n   Two in $B$, one in $C$:\n   - $b_i b_j$: color 2\n   - $b_i c_k$: color 2 (or color 3 if $i=1, k=1$)\n   - $b_j c_k$: color 2 (or color 3 if $j=1, k=1$)\n   \n   Normally: 2, 2, 2. Not rainbow.\n   Special: 2, 3, 2 or 2, 2, 3. Not rainbow.\n   \n   No rainbow. ✓\n\n   Two in $C$, one in $A$:\n   - $c_i c_j$: color 3\n   - $c_i a_k$: color 3 (or color 1 if $i=1, k=1$)\n   - $c_j a_k$: color 3 (or color 1 if $j=1, k=1$)\n   \n   Normally: 3, 3, 3. Not rainbow.\n   Special: 3, 1, 3 or 3, 3, 1. Not rainbow.\n   \n   No rainbow. ✓\n\n   Two in $C$, one in $B$:\n   - $c_i c_j$: color 3\n   - $c_i b_k$: color 2 (or color 3 if $i=1, k=1$)\n   - $c_j b_k$: color 2 (or color 3 if $j=1, k=1$)\n   \n   Normally: 3, 2, 2. Not rainbow.\n   Special: 3, 3, 2 or 3, 2, 3. Not rainbow.\n   \n   No rainbow. ✓\n\n3. One from each group $A, B, C$:\n   - $a_i b_j$: color 1 (or color 2 if $i=1, j=1$)\n   - $b_j c_k$: color 2 (or color 3 if $j=1, k=1$)\n   - $a_i c_k$: color 3 (or color 1 if $i=1, k=1$)\n   \n   Normally (no special edges): colors 1, 2, 3. RAINBOW! ✓\n   \n   So every \"transversal\" triangle (one from each group) is rainbow, except possibly those involving special edges.\n   \n   Let's count the special cases:\n   - $a_1, b_1, c_k$ ($k \\neq 1$): $a_1 b_1$ = color 2, $b_1 c_k$ = color 2, $a_1 c_k$ = color 3. Colors: 2, 2, 3. Not rainbow.\n   - $a_1, b_j, c_1$ ($j \\neq 1$): $a_1 b_j$ = color 1, $b_j c_1$ = color 2, $a_1 c_1$ = color 1. Colors: 1, 2, 1. Not rainbow.\n   - $a_i, b_1, c_1$ ($i \\neq 1$): $a_i b_1$ = color 1, $b_1 c_1$ = color 3, $a_i c_1$ = color 3. Colors: 1, 3, 3. Not rainbow.\n   - $a_1, b_1, c_1$: $a_1 b_1$ = color 2, $b_1 c_1$ = color 3, $a_1 c_1$ = color 1. Colors: 2, 3, 1. RAINBOW!\n   \n   So the rainbow triangles of type \"one from each group\" are:\n   - All $a \\cdot b \\cdot c$ transversal triangles, minus the non-rainbow ones.\n   - Non-rainbow transversal triangles: those with exactly two of $\\{a_1, b_1, c_1\\}$ but not all three.\n     - $(a_1, b_1, c_k)$ for $k \\neq 1$: $c - 1$ triangles\n     - $(a_1, b_j, c_1)$ for $j \\neq 1$: $b - 1$ triangles\n     - $(a_i, b_1, c_1)$ for $i \\neq 1$: $a - 1$ triangles\n   - Total non-rainbow transversal: $(a-1) + (b-1) + (c-1) = a + b + c - 3 = n - 3$\n   - Rainbow transversal: $abc - (n - 3)$\n\nWait, but I need to double-check the $(a_1, b_1, c_1)$ case. It IS rainbow (colors 2, 3, 1). So it's counted in the $abc$ total and not subtracted. Good.\n\nSo total rainbow triangles = $abc - (n-3)$.\n\nTo minimize this, we want to minimize $abc$ subject to $a + b + c = n$, $a, b, c \\ge 1$.\n\nThe minimum of $abc$ with $a + b + c = n$ and $a, b, c \\ge 1$ is achieved when two of them are 1 and the third is $n - 2$. So $abc = 1 \\cdot 1 \\cdot (n-2) = n - 2$.\n\nThen the number of rainbow triangles = $(n-2) - (n-3) = 1$.\n\nWait, that gives $N = 1$ for all $n$? That seems surprisingly low. Let me verify.\n\nWith $a = 1, b = 1, c = n-2$:\n- $A = \\{a_1\\}$, $B = \\{b_1\\}$, $C = \\{c_1, c_2, \\ldots, c_{n-2}\\}$.\n\nTransversal triangles: $1 \\cdot 1 \\cdot (n-2) = n-2$ triangles, each $(a_1, b_1, c_k)$.\n\nFor $k = 1$: $(a_1, b_1, c_1)$ — colors 2, 3, 1 — rainbow.\nFor $k \\neq 1$: $(a_1, b_1, c_k)$ — $a_1 b_1$ = color 2, $b_1 c_k$ = color 2, $a_1 c_k$ = color 3 — colors 2, 2, 3 — not rainbow.\n\nSo rainbow transversal triangles = 1 (just $(a_1, b_1, c_1)$).\n\nAnd we showed no other type of triangle is rainbow. So $N = 1$.\n\nBut wait, can we do even better? Can we get $N = 0$?\n\nIf $N = 0$, there are no rainbow triangles. This is a Gallai coloring. In a Gallai coloring of $K_n$ with 3 colors, the vertices can be partitioned into non-empty parts such that between parts, at most 2 colors are used, and within parts, the coloring is again a Gallai coloring.\n\nBut in a Gallai coloring, can each color class be connected (spanning)?\n\nIn a Gallai coloring with the top-level partition into parts $P_1, \\ldots, P_m$ where between parts only 2 colors (say 1 and 2) are used: color 3 only appears within parts. For color 3 to be spanning-connected, it must connect all vertices, but it only appears within parts. If there are $\\ge 2$ parts, color 3 can't connect vertices in different parts. So color 3 is not spanning-connected. Contradiction.\n\nUnless there's only 1 part, but then we're not really partitioning. If $m = 1$, the whole graph is one part, and we recurse. Eventually, we reach a base case.\n\nActually, in a Gallai coloring, the top-level partition has $m \\ge 2$ parts. Between parts, at most 2 colors are used. The third color only appears within parts. For the third color to be spanning-connected, it must connect all parts, but it can't (it only appears within parts). So the third color is disconnected. Hence, no Gallai coloring with 3 colors can have all 3 color classes connected (spanning).\n\nWait, unless one of the parts is the entire vertex set, which contradicts $m \\ge 2$. So indeed, $N \\ge 1$.\n\nActually, let me be more careful. The Gallai coloring theorem says: if a complete graph is edge-colored with no rainbow triangle, then the vertices can be partitioned into $m \\ge 2$ non-empty parts such that between parts, at most 2 colors are used, and each part is colored (recursively) as a Gallai coloring.\n\nSo if $N = 0$ (Gallai coloring), there exist $m \\ge 2$ parts with at most 2 colors between parts. The third color (the one not used between parts) only appears within parts. Since $m \\ge 2$, this third color can't connect vertices in different parts, so it's not spanning-connected. Hence $N \\ge 1$.\n\nSo the minimum is $N = 1$, achieved by our construction.\n\nWait, but I need to verify that our construction actually works for all $n \\ge 3$ (or $n \\ge 6$ if spanning is required). Let me re-examine.\n\nWith $a = 1, b = 1, c = n-2$:\n- $A = \\{a_1\\}$, $B = \\{b_1\\}$, $C = \\{c_1, \\ldots, c_{n-2}\\}$.\n\nEdges:\n- $a_1 b_1$: color 2 (special, was color 1)\n- $a_1 c_k$: color 3 for $k \\neq 1$, color 1 for $k = 1$ (special)\n- $b_1 c_k$: color 2 for $k \\neq 1$, color 3 for $k = 1$ (special)\n- $c_i c_j$: color 3 for all $i, j$\n\nWait, I need to re-examine the within-group coloring. Within $C$: color 3. Within $A$: color 1 (but $A$ has only 1 vertex, so no internal edges). Within $B$: color 2 (but $B$ has only 1 vertex, so no internal edges).\n\nLet me recheck connectivity:\n- Color 1: $a_1 c_1$ (the special edge) + $A$-$B$ edges (which is just $a_1 b_1$, but that's color 2). Wait, I need to re-examine.\n\nLet me restate the construction clearly.\n\nBetween-group edges (before special modifications):\n- $A$-$B$: color 1\n- $B$-$C$: color 2\n- $A$-$C$: color 3\n\nWithin-group:\n- Within $A$: color 1\n- Within $B$: color 2\n- Within $C$: color 3\n\nSpecial modifications (to ensure connectivity):\n- $a_1 b_1$: change from color 1 to color 2\n- $b_1 c_1$: change from color 2 to color 3\n- $a_1 c_1$: change from color 3 to color 1\n\nNow with $a = 1, b = 1, c = n - 2$:\n\nEdges:\n- $a_1 b_1$: color 2 (modified)\n- $a_1 c_1$: color 1 (modified)\n- $a_1 c_k$ for $k \\ge 2$: color 3\n- $b_1 c_1$: color 3 (modified)\n- $b_1 c_k$ for $k \\ge 2$: color 2\n- $c_i c_j$ for $i \\neq j$: color 3\n\nConnectivity:\n- Color 1: only edge is $a_1 c_1$. This is a single edge connecting $a_1$ and $c_1$. But we need it to span all $n$ vertices. It only connects 2 vertices. NOT spanning-connected. ❌\n\nOops. With $a = 1, b = 1$, there are very few edges of each color. Let me recount.\n\nColor 1 edges: $a_1 c_1$ (the modified edge). That's it, since within $A$ there are no edges (only 1 vertex), within $B$ no edges, $A$-$B$ was color 1 but $a_1 b_1$ was changed to color 2. So color 1 has only 1 edge. Not connected for $n \\ge 4$.\n\nThis construction doesn't work for $a = 1, b = 1$ because there aren't enough edges of each color.\n\nI need to reconsider. The issue is that with small parts, the between-group edges are too few.\n\nLet me reconsider the construction with larger parts. We need each color to have at least $n - 1$ edges (for spanning connectivity).\n\nLet me redo the analysis. With parts $A, B, C$ of sizes $a, b, c$:\n\nBefore modifications:\n- Color 1: $A$-$B$ edges ($ab$) + within $A$ ($\\binom{a}{2}$). Total: $ab + \\binom{a}{2}$.\n- Color 2: $B$-$C$ edges ($bc$) + within $B$ ($\\binom{b}{2}$). Total: $bc + \\binom{b}{2}$.\n- Color 3: $A$-$C$ edges ($ac$) + within $C$ ($\\binom{c}{2}$). Total: $ac + \\binom{c}{2}$.\n\nAfter modifications (changing 3 edges):\n- Color 1: $ab + \\binom{a}{2} - 1 + 1 = ab + \\binom{a}{2}$ (lost $a_1 b_1$, gained $a_1 c_1$)\n- Color 2: $bc + \\binom{b}{2} - 1 + 1 = bc + \\binom{b}{2}$ (lost $b_1 c_1$, gained $a_1 b_1$)\n- Color 3: $ac + \\binom{c}{2} - 1 + 1 = ac + \\binom{c}{2}$ (lost $a_1 c_1$, gained $b_1 c_1$)\n\nFor spanning connectivity, each color needs $\\ge n - 1$ edges:\n- Color 1: $ab + \\binom{a}{2} \\ge n - 1$\n- Color 2: $bc + \\binom{b}{2} \\ge n - 1$\n- Color 3: $ac + \\binom{c}{2} \\ge n - 1$\n\nWith $a + b + c = n$:\n- $ab + \\binom{a}{2} = ab + \\frac{a(a-1)}{2} = \\frac{a(2b + a - 1)}{2} = \\frac{a(a + 2b - 1)}{2}$\n\nSince $a + b + c = n$, $a + 2b = n - c + b$. So $\\frac{a(n - c + b - 1)}{2} \\ge n - 1$.\n\nThis is getting complicated. Let me try specific values.\n\nFor $a = b = c = n/3$ (balanced):\n- Color 1: $(n/3)^2 + \\binom{n/3}{2} = n^2/9 + n(n/3-1)/6 = n^2/9 + n^2/18 - n/6 = n^2/6 - n/6 = n(n-1)/6$\n- This is $\\ge n-1$ iff $n/6 \\ge 1$ iff $n \\ge 6$. ✓ for $n \\ge 6$.\n\nRainbow triangles with balanced partition: $abc - (n-3) = (n/3)^3 - (n-3) = n^3/27 - n + 3$.\n\nFor $n = 6$: $8 - 3 = 5$. But we showed the minimum should be 1. So the balanced partition is not optimal.\n\nThe issue is that with $a = 1, b = 1$, the construction doesn't have enough edges for connectivity. So we need a different approach for extreme partitions.\n\nLet me reconsider. Maybe the construction needs to be modified for small parts.\n\n**Alternative construction for $a = 1, b = 1, c = n - 2$:**\n\nWe have $A = \\{a\\}$, $B = \\{b\\}$, $C = \\{c_1, \\ldots, c_{n-2}\\}$.\n\nWe need to color edges such that:\n1. Each color is spanning-connected.\n2. Minimize rainbow triangles.\n\nEdges:\n- $ab$: 1 edge\n- $a c_i$: $n - 2$ edges\n- $b c_i$: $n - 2$ edges\n- $c_i c_j$: $\\binom{n-2}{2}$ edges\n\nTotal: $1 + 2(n-2) + \\binom{n-2}{2} = \\binom{n}{2}$. ✓\n\nFor each color to be spanning-connected ($n - 1$ edges minimum), and we have 3 colors, we need $3(n-1) \\le \\binom{n}{2}$, i.e., $n \\ge 6$.\n\nLet me try the following coloring:\n- $ab$: color 1\n- $a c_i$: color 1 for all $i$\n- $b c_i$: color 2 for all $i$\n- $c_i c_j$: color 3 for all $i, j$\n\nConnectivity:\n- Color 1: $ab$ + $a c_i$ for all $i$. This is a star centered at $a$, spanning all vertices. Connected. ✓\n- Color 2: $b c_i$ for all $i$. This is a star centered at $b$, spanning $b$ and all $c_i$. Missing $a$. NOT spanning-connected. ❌\n\nFix: change one edge, say $a c_1$ from color 1 to color 2.\n- Color 1: $ab$ + $a c_i$ for $i \\ge 2$. Connects $a, b, c_2, \\ldots, c_{n-2}$. Missing $c_1$. ❌\n\nHmm. Change $ab$ to color 2 instead:\n- Color 1: $a c_i$ for all $i$. Star at $a$, spanning $a$ and all $c_i$. Missing $b$. ❌\n\nThis is tricky. Let me try:\n- $ab$: color 3\n- $a c_1$: color 2\n- $a c_i$ for $i \\ge 2$: color 1\n- $b c_i$ for all $i$: color 2\n- $c_i c_j$: color 3\n\nConnectivity:\n- Color 1: $a c_i$ for $i \\ge 2$. Connects $a, c_2, \\ldots, c_{n-2}$. Missing $b, c_1$. ❌\n\nStill not working. The problem is that with $a = 1, b = 1$, there are very few edges incident to $a$ or $b$, so it's hard to get all 3 colors to reach both $a$ and $b$.\n\nLet me think about this differently. Each color must be a connected spanning subgraph, so each color must have edges incident to every vertex. In particular, each vertex must have at least one edge of each color.\n\nVertex $a$ has $n - 1$ incident edges. With 3 colors, $a$ needs at least 1 edge of each color, so $n - 1 \\ge 3$, i.e., $n \\ge 4$.\n\nSimilarly for $b$. And for each $c_i$, which has $n - 1$ incident edges, same constraint.\n\nSo for $n \\ge 4$, each vertex can have edges of all 3 colors. But we also need each color to be connected.\n\nLet me try for $a = 1, b = 1, c = n - 2$ with $n \\ge 6$:\n\n- $ab$: color 3\n- $a c_1$: color 2\n- $a c_2$: color 1\n- $a c_i$ for $i \\ge 3$: color 1\n- $b c_1$: color 2\n- $b c_i$ for $i \\ge 2$: color 2\n- $c_i c_j$: color 3 for all $i \\neq j$\n\nConnectivity:\n- Color 1: $a c_i$ for $i \\ge 2$. Connects $\\{a, c_2, c_3, \\ldots, c_{n-2}\\}$. Missing $b, c_1$. ❌\n\nI need color 1 to also reach $b$ and $c_1$. But the only edges incident to $b$ are $ab$ (color 3) and $b c_i$ (color 2). So $b$ has no color-1 edge. To fix, change one $b c_i$ to color 1.\n\n- $b c_2$: color 1 (changed from color 2)\n\nNow:\n- Color 1: $a c_i$ for $i \\ge 2$ + $b c_2$. Connects $a, c_2, c_3, \\ldots, c_{n-2}, b$. Missing $c_1$. ❌\n\nChange $c_1 c_2$ to color 1:\n- Color 1: $a c_i$ for $i \\ge 2$ + $b c_2$ + $c_1 c_2$. Now $c_1$ is connected via $c_1 c_2$. Connects all. ✓\n\nBut now:\n- Color 2: $a c_1$ + $b c_1$ + $b c_i$ for $i \\ge 3$. Connects $a, c_1, b, c_3, \\ldots, c_{n-2}$. Missing $c_2$. ❌\n\nChange another edge... this is getting into a whack-a-mole situation. Let me think more systematically.\n\nActually, let me step back and think about the problem differently.\n\n**Key insight:** The answer might not be 1. Let me reconsider.\n\nI showed that $N \\ge 1$ (Gallai coloring argument). And I had a construction that gives $N = abc - (n-3)$ which can be as low as 1 when $abc = n - 2$ (i.e., $a = b = 1, c = n-2$). But that construction doesn't work for small parts due to connectivity issues.\n\nLet me reconsider: maybe the minimum is not 1 but something larger.\n\nActually, wait. Let me reconsider the Gallai argument more carefully. I showed that if $N = 0$, we have a Gallai coloring, and in a Gallai coloring, one color is confined within parts and can't be spanning-connected. So $N \\ge 1$. But maybe $N \\ge 1$ is not tight, and the actual minimum is larger.\n\nLet me think about whether $N = 1$ is achievable.\n\nFor $N = 1$, we need a coloring with exactly 1 rainbow triangle and all color classes connected. Let me try to construct such a coloring.\n\n**Construction for $N = 1$:**\n\nConsider the following approach. Start with a Gallai coloring (no rainbow triangles) and then modify it slightly to make all colors connected, at the cost of creating exactly 1 rainbow triangle.\n\nA simple Gallai coloring: partition vertices into 2 parts $X, Y$. Color all $X$-$Y$ edges with color 1. Within $X$, use colors 2 and 3 (Gallai coloring). Within $Y$, use colors 2 and 3 (Gallai coloring).\n\nBut this has color 1 spanning-connected (it's a complete bipartite graph between $X$ and $Y$), but colors 2 and 3 are confined within $X$ and $Y$ separately, so they're not spanning-connected.\n\nTo make color 2 spanning-connected, we need a color-2 edge between $X$ and $Y$. Similarly for color 3.\n\nIf we change one $X$-$Y$ edge from color 1 to color 2, and another from color 1 to color 3:\n\nLet $X = \\{x_1, \\ldots, x_p\\}$, $Y = \\{y_1, \\ldots, y_q\\}$.\n\n- All $X$-$Y$ edges: color 1, except $x_1 y_1$ = color 2 and $x_2 y_2$ = color 3 (assuming $p \\ge 2, q \\ge 2$).\n- Within $X$: Gallai coloring with colors 2, 3 (no rainbow triangle within $X$ since only 2 colors).\n- Within $Y$: Gallai coloring with colors 2, 3.\n\nNow:\n- Color 1: all $X$-$Y$ edges except 2. Still connects $X$ and $Y$ (as long as $p \\ge 2, q \\ge 2$ or the remaining edges suffice). Connected. ✓\n- Color 2: within $X$ (color 2 edges) + within $Y$ (color 2 edges) + $x_1 y_1$. If color 2 is connected within $X$ and within $Y$, then $x_1 y_1$ connects them. But color 2 within $X$ might not be connected.\n\nHmm, this depends on the within-part coloring. Let me make it simpler.\n\nWithin $X$: all edges color 2.\nWithin $Y$: all edges color 3.\n\nThen:\n- Color 2: within $X$ (all edges, so $X$ is a clique of color 2) + $x_1 y_1$. Connects $X \\cup \\{y_1\\}$. Missing $Y \\setminus \\{y_1\\}$. ❌\n\nTo fix, we need color 2 to also reach $Y \\setminus \\{y_1\\}$. Add another color-2 edge between $X$ and $Y$, say $x_1 y_2$ = color 2.\n\n- Color 2: within $X$ + $x_1 y_1$ + $x_1 y_2$. Connects $X \\cup \\{y_1, y_2\\}$. Missing $Y \\setminus \\{y_1, y_2\\}$. ❌ if $q > 2$.\n\nThis approach requires many color-2 edges between $X$ and $Y$ to connect all of $Y$. Specifically, we need color 2 to reach every vertex in $Y$, so we need at least $q$ color-2 edges between $X$ and $Y$ (one for each $Y$ vertex) or color-2 edges within $Y$.\n\nAlternative: within $Y$, use color 2 for some edges.\n\nLet me try:\n- Within $X$: all color 2\n- Within $Y$: all color 2\n- $X$-$Y$ edges: color 1, except $x_1 y_1$ = color 2 and $x_1 y_2$ = color 3.\n\nThen:\n- Color 2: within $X$ + within $Y$ + $x_1 y_1$. Since within $X$ is a clique and within $Y$ is a clique, and $x_1 y_1$ connects them. Connected. ✓\n- Color 3: $x_1 y_2$ only. Just 1 edge. Not connected for $n \\ge 4$. ❌\n\nColor 3 has only 1 edge. We need more color-3 edges. \n\nLet me try:\n- Within $X$: all color 2\n- Within $Y$: all color 3\n- $X$-$Y$ edges: color 1, except $x_1 y_1$ = color 2 and $x_2 y_1$ = color 3 (assuming $p \\ge 2$).\n\nThen:\n- Color 1: $X$-$Y$ edges except 2. Connects $X$ and $Y$ (if enough edges remain). ✓ (as long as not all edges from some vertex are removed)\n- Color 2: within $X$ + $x_1 y_1$. Connects $X \\cup \\{y_1\\}$. Missing $Y \\setminus \\{y_1\\}$. ❌\n\nStill missing. The issue is that color 2 within $Y$ is empty (within $Y$ is all color 3).\n\nI think the fundamental tension is: we need each color to be spanning-connected, which requires each color to have edges reaching all parts of any partition. But to avoid rainbow triangles, we want a Gallai-like structure where between parts, only 2 colors are used.\n\nLet me try a 3-part construction more carefully.\n\n**Construction with 3 parts, carefully:**\n\n$A, B, C$ with $|A| = a, |B| = b, |C| = c$, $a + b + c = n$.\n\n- Within $A$: color 1\n- Within $B$: color 2\n- Within $C$: color 3\n- $A$-$B$: color 1\n- $B$-$C$: color 2\n- $A$-$C$: color 3\n\nThis gives:\n- Color 1: within $A$ + $A$-$B$. Connects $A \\cup B$. Missing $C$.\n- Color 2: within $B$ + $B$-$C$. Connects $B \\cup C$. Missing $A$.\n- Color 3: within $C$ + $A$-$C$. Connects $A \\cup C$. Missing $B$.\n\nEach color misses exactly one part. To fix, we need to add one edge of each color to the missing part.\n\n- Add color-1 edge to $C$: change one $A$-$C$ edge from color 3 to color 1. Say $a_1 c_1$ = color 1.\n- Add color-2 edge to $A$: change one $A$-$B$ edge from color 1 to color 2. Say $a_1 b_1$ = color 2.\n- Add color-3 edge to $B$: change one $B$-$C$ edge from color 2 to color 3. Say $b_1 c_1$ = color 3.\n\nNow:\n- Color 1: within $A$ + $A$-$B$ (except $a_1 b_1$) + $a_1 c_1$. Connects $A \\cup B \\cup \\{c_1\\} \\subseteq A \\cup B \\cup C$. ✓ (since $c_1$ is connected to $a_1$ via color 1, and $a_1$ is in $A$ which is connected via color 1)\n\nWait, but does color 1 connect all of $C$? Color 1 has $a_1 c_1$ and within $A$ and $A$-$B$ (except $a_1 b_1$). So color 1 connects $A \\cup B \\cup \\{c_1\\}$. But $C \\setminus \\{c_1\\}$ is not connected via color 1. ❌\n\nUnless $c = 1$, i.e., $C = \\{c_1\\}$. Then color 1 connects everything. ✓\n\nSimilarly, color 2 connects $B \\cup C \\cup \\{a_1\\}$. If $a = 1$, then $A = \\{a_1\\}$ and color 2 connects everything. ✓\n\nAnd color 3 connects $A \\cup C \\cup \\{b_1\\}$. If $b = 1$, then $B = \\{b_1\\}$ and color 3 connects everything. ✓\n\nSo this construction works when $a = 1, b = 1, c = n - 2$ (or any permutation). But we need to check that each color has enough edges.\n\nWith $a = 1, b = 1, c = n - 2$:\n- Color 1: within $A$ (0 edges) + $A$-$B$ except $a_1 b_1$ (0 edges, since $a_1 b_1$ is the only $A$-$B$ edge and it's been changed to color 2) + $a_1 c_1$ (1 edge). Total: 1 edge. For $n \\ge 4$, need $n - 1 \\ge 3$ edges. ❌\n\nSo this doesn't work. The construction with $a = b = 1$ gives too few edges for colors 1 and 2.\n\nOK so the issue is clear: with extreme partitions, we don't have enough edges. We need a different approach.\n\nLet me think about what partition sizes work.\n\nWith the 3-part construction (before modifications):\n- Color 1: $\\binom{a}{2} + ab = \\frac{a(a-1)}{2} + ab = \\frac{a(a - 1 + 2b)}{2} = \\frac{a(a + 2b - 1)}{2}$\n- Color 2: $\\frac{b(b + 2c - 1)}{2}$\n- Color 3: $\\frac{c(c + 2a - 1)}{2}$\n\nWait, let me recompute. Color 3 is within $C$ + $A$-$C$ = $\\binom{c}{2} + ac = \\frac{c(c-1)}{2} + ac = \\frac{c(c - 1 + 2a)}{2} = \\frac{c(c + 2a - 1)}{2}$.\n\nAfter modifications (3 edges changed, each color loses 1 and gains 1, so counts stay the same):\n- Color 1: $\\frac{a(a + 2b - 1)}{2}$\n- Color 2: $\\frac{b(b + 2c - 1)}{2}$\n- Color 3: $\\frac{c(c + 2a - 1)}{2}$\n\nFor connectivity, each needs $\\ge n - 1$ edges:\n- $\\frac{a(a + 2b - 1)}{2} \\ge n - 1 = a + b + c - 1$\n- $\\frac{b(b + 2c - 1)}{2} \\ge a + b + c - 1$\n- $\\frac{c(c + 2a - 1)}{2} \\ge a + b + c - 1$\n\nAnd we need each color to actually be connected (not just have enough edges). After modifications, color 1 connects $A \\cup B \\cup \\{c_1\\}$. For color 1 to connect all of $C$, we need $C$ to be connected to $c_1$ via color 1. But color 1 within $C$ has no edges (within $C$ is color 3). So color 1 only reaches $c_1$ from $C$, not the rest of $C$.\n\nUnless $c = 1$. But then we need $a + b = n - 1$ and we need enough edges.\n\nHmm, so the modification only adds one vertex from the missing part. To connect the entire missing part, we'd need more modifications.\n\n**Revised approach:** Instead of changing just 1 edge per color, change enough edges to connect the missing part.\n\nFor color 1 to connect $C$: we need color-1 edges from $C$ to $A \\cup B$, or color-1 edges within $C$. Since within $C$ is color 3, we need color-1 edges between $A$ and $C$ (or $B$ and $C$, but $B$-$C$ is color 2).\n\nChange $a_1 c_j$ from color 3 to color 1 for all $j = 1, \\ldots, c$. Then color 1 reaches all of $C$ via $a_1$.\n\nBut this changes $c$ edges from color 3 to color 1. Color 3 loses $c$ edges (all $a_1 c_j$ edges) and gains... nothing from this modification. We'd need to compensate.\n\nThis is getting complicated. Let me think about it differently.\n\n**New idea:** Use a \"hub\" vertex.\n\nPick a vertex $v$. Connect $v$ to all other vertices using all 3 colors (some edges color 1, some color 2, some color 3). Then color the remaining edges (between non-$v$ vertices) to minimize rainbow triangles and ensure connectivity.\n\nLet $v$ connect to $a_1, \\ldots, a_p$ with color 1, $b_1, \\ldots, b_q$ with color 2, $c_1, \\ldots, c_r$ with color 3, where $p + q + r = n - 1$ and $p, q, r \\ge 1$.\n\nFor color 1 to be connected: $v$ and $a_1, \\ldots, a_p$ are connected via color 1 (star). Need to also connect $b_1, \\ldots, b_q, c_1, \\ldots, c_r$. So need color-1 edges among non-$a$ vertices.\n\nSimilarly for colors 2 and 3.\n\nTo minimize rainbow triangles: a triangle $v, x, y$ is rainbow iff the colors of $vx, vy, xy$ are all different. So if $vx$ is color $i$ and $vy$ is color $j$ with $i \\neq j$, then $xy$ must not be the third color.\n\nFor triangles not involving $v$: $x, y, z$ where $x, y, z \\neq v$. The color of $xy, yz, xz$ determines if it's rainbow.\n\nThis is still complex. Let me try a very specific construction.\n\n**Specific construction:**\n\nLet $n \\ge 6$. Partition vertices into $A = \\{a_1, \\ldots, a_p\\}$, $B = \\{b_1, \\ldots, b_q\\}$, $C = \\{c_1, \\ldots, c_r\\}$ with $p + q + r = n$, $p, q, r \\ge 2$.\n\nColoring:\n- Within $A$: color 1\n- Within $B$: color 2\n- Within $C$: color 3\n- $A$-$B$: color 3\n- $B$-$C$: color 1\n- $A$-$C$: color 2\n\nCheck connectivity:\n- Color 1: within $A$ + $B$-$C$. Connects $A$ and $B \\cup C$ separately. $A$ is connected internally, $B \\cup C$ is connected via $B$-$C$ edges. But $A$ is not connected to $B \\cup C$ via color 1. ❌\n\nHmm. Let me try:\n- Within $A$: color 1\n- Within $B$: color 2\n- Within $C$: color 3\n- $A$-$B$: color 1\n- $B$-$C$: color 2\n- $A$-$C$: color 3\n\nColor 1: within $A$ + $A$-$B$. Connects $A \\cup B$. Missing $C$. ❌\n\nSame as before. The issue is structural: with 3 parts and 3 between-part pairs, each color gets one between-part pair and one within-part group, connecting 2 of the 3 parts.\n\n**Key realization:** To make all 3 colors spanning-connected with a 3-partition, we can't simply assign one color per between-part pair. We need a more nuanced approach.\n\nLet me try:\n- $A$-$B$: color 1\n- $B$-$C$: color 2\n- $A$-$C$: color 3\n- Within $A$: mix of colors 1 and 3 (to connect $A$ to both $B$ via color 1 and $C$ via color 3)\n- Within $B$: mix of colors 1 and 2\n- Within $C$: mix of colors 2 and 3\n\nSpecifically:\n- Within $A$: color 1 (so color 1 connects $A \\cup B$)\n- Within $B$: color 2 (so color 2 connects $B \\cup C$)\n- Within $C$: color 3 (so color 3 connects $A \\cup C$)\n\nThis is the same as before. Each color connects 2 parts.\n\nTo connect the third part, we need to \"bridge\" with a different color. The minimum number of bridges is 1 per color (to connect the missing part), but as we saw, 1 bridge only connects 1 vertex of the missing part.\n\nUnless the missing part has size 1. So if $c = 1$, color 1 (which connects $A \\cup B$) just needs 1 bridge to $c_1$, which connects all of $C = \\{c_1\\}$.\n\nSo the construction works when one part has size 1. But then the edge count might be insufficient.\n\nWith $c = 1$, $a + b = n - 1$:\n- Color 1: $\\binom{a}{2} + ab = \\frac{a(a-1)}{2} + ab = \\frac{a(a + 2b - 1)}{2}$\n- Color 2: $\\binom{b}{2} + b \\cdot 1 = \\frac{b(b-1)}{2} + b = \\frac{b(b+1)}{2}$\n- Color 3: $\\binom{1}{2} + a \\cdot 1 = 0 + a = a$\n\nAfter modifications (change $a_1 c_1$ to color 1, $a_1 b_1$ to color 2, $b_1 c_1$ to color 3):\n- Color 1: $\\frac{a(a + 2b - 1)}{2}$ (lost $a_1 b_1$, gained $a_1 c_1$)\n- Color 2: $\\frac{b(b+1)}{2}$ (lost $b_1 c_1$, gained $a_1 b_1$)\n- Color 3: $a$ (lost $a_1 c_1$, gained $b_1 c_1$)\n\nFor connectivity ($\\ge n - 1 = a + b$ edges):\n- Color 1: $\\frac{a(a + 2b - 1)}{2} \\ge a + b$. With $a + 2b - 1 = a + 2b - 1$ and $a + b = n - 1$:\n  $\\frac{a(a + 2b - 1)}{2} \\ge a + b$\n  $a(a + 2b - 1) \\ge 2(a + b)$\n  $a^2 + 2ab - a \\ge 2a + 2b$\n  $a^2 + 2ab - 3a - 2b \\ge 0$\n  $a^2 + 2ab - 3a - 2b \\ge 0$\n  \n  With $b = n - 1 - a$:\n  $a^2 + 2a(n-1-a) - 3a - 2(n-1-a) \\ge 0$\n  $a^2 + 2a(n-1) - 2a^2 - 3a - 2n + 2 + 2a \\ge 0$\n  $-a^2 + 2a(n-1) - a - 2n + 2 \\ge 0$\n  $-a^2 + 2an - 2a - a - 2n + 2 \\ge 0$\n  $-a^2 + 2an - 3a - 2n + 2 \\ge 0$\n  $a^2 - 2an + 3a + 2n - 2 \\le 0$\n  $a^2 - (2n-3)a + 2n - 2 \\le 0$\n  \n  Roots: $a = \\frac{(2n-3) \\pm \\sqrt{(2n-3)^2 - 4(2n-2)}}{2} = \\frac{(2n-3) \\pm \\sqrt{4n^2 - 12n + 9 - 8n + 8}}{2} = \\frac{(2n-3) \\pm \\sqrt{4n^2 - 20n + 17}}{2}$\n  \n  For large $n$, this is approximately $a \\approx \\frac{(2n-3) \\pm (2n - 5)}{2}$, so $a \\approx n - 4$ or $a \\approx 1$.\n  \n  So color 1 has enough edges when $a$ is between roughly 1 and $n - 4$.\n\n- Color 3: $a \\ge a + b = n - 1$. This requires $a \\ge n - 1$, i.e., $b \\le 0$. ❌\n\nColor 3 only has $a$ edges, but needs $n - 1 = a + b$ edges. So $a \\ge a + b$ requires $b \\le 0$. Impossible for $b \\ge 1$.\n\nSo with $c = 1$, color 3 doesn't have enough edges. The construction fails.\n\n**Fundamental issue:** With a 3-partition where one part is small, the color associated with that part's internal edges has too few edges.\n\nLet me try $c = 1$ but with a different color assignment.\n\n- Within $A$: color 1\n- Within $B$: color 1 (changed from color 2)\n- Within $C$ ($= \\{c_1\\}$): no internal edges\n- $A$-$B$: color 2\n- $B$-$C$: color 3\n- $A$-$C$: color 3\n\nCheck:\n- Color 1: within $A$ + within $B$. Connects $A$ and $B$ separately. Not connected to each other. ❌\n\nHmm. Let me try:\n- Within $A$: color 1\n- Within $B$: color 1\n- $A$-$B$: color 1\n- $A$-$C$: color 2\n- $B$-$C$: color 3\n\nColor 1: within $A$ + within $B$ + $A$-$B$. Connects $A \\cup B$. Missing $C = \\{c_1\\}$. ❌\n\nChange one edge, say $a_1 c_1$ from color 2 to color 1:\n- Color 1: within $A$ + within $B$ + $A$-$B$ + $a_1 c_1$. Connects everything. ✓\n- Color 2: $A$-$C$ except $a_1 c_1$ = $a - 1$ edges. Connects $\\{a_2, \\ldots, a_p\\} \\cup \\{c_1\\}$. Missing $a_1$ and $B$. ❌\n\nColor 2 has $a - 1$ edges, all between $A \\setminus \\{a_1\\}$ and $c_1$. This is a star at $c_1$ connecting to $a_2, \\ldots, a_p$. Missing $a_1$ and all of $B$.\n\nTo connect $B$ to color 2, change one $B$-$C$ edge from color 3 to color 2, say $b_1 c_1$ = color 2:\n- Color 2: $a_i c_1$ for $i \\ge 2$ + $b_1 c_1$. Star at $c_1$ connecting to $a_2, \\ldots, a_p, b_1$. Missing $a_1$ and $B \\setminus \\{b_1\\}$. ❌\n\nStill missing. We need color 2 to reach $a_1$ and all of $B$. \n\nChange $a_1 b_1$ from color 1 to color 2:\n- Color 2: $a_i c_1$ for $i \\ge 2$ + $b_1 c_1$ + $a_1 b_1$. Now $a_1$ is connected via $a_1 b_1 c_1$. But $B \\setminus \\{b_1\\}$ still missing. ❌\n\nWe need color 2 to reach all of $B$. Either add more color-2 edges from $B$ to $c_1$ or within $B$.\n\nIf we make all $B$-$C$ edges color 2: $b_j c_1$ = color 2 for all $j$. Then color 2 has $(a-1) + q$ edges (where $q = |B|$), connecting $c_1$ to $a_2, \\ldots, a_p$ and $b_1, \\ldots, b_q$, plus $a_1 b_1$. This connects $c_1, a_2, \\ldots, a_p, b_1, \\ldots, b_q, a_1$. That's everyone! ✓\n\nBut now color 3 has no $B$-$C$ edges. Color 3 only has... what? Let me recheck.\n\nOriginal:\n- Within $A$: color 1\n- Within $B$: color 1\n- $A$-$B$: color 1\n- $A$-$C$: color 2 (except $a_1 c_1$ = color 1)\n- $B$-$C$: color 2 (all, changed from color 3)\n\nWait, I changed all $B$-$C$ to color 2. So color 3 has... no edges? That can't be right.\n\nLet me restart this construction more carefully.\n\n**Clean construction attempt:**\n\nVertices: $A = \\{a_1, \\ldots, a_p\\}$, $B = \\{b_1, \\ldots, b_q\\}$, $c_1$. ($n = p + q + 1$)\n\nEdges:\n- Within $A$: color 1\n- Within $B$: color 1\n- $A$-$B$: color 1\n- $A$-$c_1$: color 2 for $a_2, \\ldots, a_p$; color 1 for $a_1$\n- $B$-$c_1$: color 3 for $b_2, \\ldots, b_q$; color 2 for $b_1$\n\nWait, I need to think about this more carefully. Let me assign:\n\n- $a_1 c_1$: color 1\n- $a_i c_1$ for $i \\ge 2$: color 2\n- $b_1 c_1$: color 2\n- $b_j c_1$ for $j \\ge 2$: color 3\n- All edges within $A \\cup B$ (i.e., within $A$, within $B$, and $A$-$B$): color 1\n\nConnectivity:\n- Color 1: all edges within $A \\cup B$ + $a_1 c_1$. Connects $A \\cup B \\cup \\{c_1\\}$ = everything. ✓\n- Color 2: $a_i c_1$ for $i \\ge 2$ + $b_1 c_1$. Star at $c_1$ connecting to $a_2, \\ldots, a_p, b_1$. Missing $a_1$ and $b_2, \\ldots, b_q$. ❌\n\nColor 2 is not connected. Need to add more color-2 edges.\n\nLet me add $a_1 b_1$ = color 2 (change from color 1):\n- Color 2: $a_i c_1$ for $i \\ge 2$ + $b_1 c_1$ + $a_1 b_1$. Now $a_1$ is connected via $a_1 - b_1 - c_1$. But $b_2, \\ldots, b_q$ still missing. ❌\n\nAdd $b_j b_1$ = color 2 for all $j \\ge 2$ (change from color 1):\n- Color 2: $a_i c_1$ for $i \\ge 2$ + $b_1 c_1$ + $a_1 b_1$ + $b_j b_1$ for $j \\ge 2$. Now all $b_j$ are connected via $b_j - b_1 - c_1$. And $a_i$ for $i \\ge 2$ via $a_i - c_1$. And $a_1$ via $a_1 - b_1$. Connected! ✓\n\nBut now color 1 lost the edges $a_1 b_1$ and $b_j b_1$ for $j \\ge 2$. Color 1 still has: within $A$ + within $B$ (except $b_j b_1$) + $A$-$B$ (except $a_1 b_1$) + $a_1 c_1$.\n\nIs color 1 still connected? $a_1$ is connected to $c_1$ via $a_1 c_1$. $a_1$ is connected to other $a_i$ via within-$A$ edges (color 1). $a_i$ is connected to $b_j$ via $A$-$B$ edges (color 1, except $a_1 b_1$). $b_j$ is connected to $b_k$ via within-$B$ edges (color 1, except $b_j b_1$). \n\nIs $b_1$ connected via color 1? $b_1$'s color-1 edges: $a_i b_1$ for $i \\ge 2$ (from $A$-$B$, color 1). Yes, $b_1$ is connected to $a_2$ via color 1. ✓\n\nSo color 1 is connected. ✓\n\nNow color 3: $b_j c_1$ for $j \\ge 2$. Star at $c_1$ connecting to $b_2, \\ldots, b_q$. Missing $A$ and $b_1$. ❌\n\nNeed to add color-3 edges to connect $A$ and $b_1$.\n\nAdd $a_1 b_2$ = color 3 (change from color 1):\n- Color 3: $b_j c_1$ for $j \\ge 2$ + $a_1 b_2$. Now $a_1$ is connected via $a_1 - b_2 - c_1$. But rest of $A$ and $b_1$ still missing. ❌\n\nThis is getting really messy. Each fix creates new problems. Let me think about this more abstractly.\n\n**Abstract approach:**\n\nThe problem is to minimize rainbow triangles in a 3-coloring of $K_n$ where each color class is connected (spanning).\n\nI proved $N \\ge 1$ using the Gallai coloring argument. The question is whether $N = 1$ is achievable.\n\nLet me think about small cases.\n\n**Case $n = 6$:** $\\binom{6}{2} = 15 = 3 \\times 5 = 3(n-1)$. So each color must be a spanning tree (exactly 5 edges).\n\nCan we have $N = 1$ with $n = 6$?\n\nWith $N = 1$, there's exactly 1 rainbow triangle. The other $\\binom{6}{3} - 1 = 19$ triangles are not rainbow.\n\nHmm, this is a very constrained problem. Let me think about whether $N = 1$ is possible for $n = 6$.\n\nActually, let me think about the problem differently. Maybe the answer is not 1 but something like $n - 2$ or $\\binom{n-2}{1}$ or some other formula.\n\nLet me reconsider. I'll think about the problem more carefully.\n\n**Re-examination of the Gallai argument:**\n\nI showed $N \\ge 1$. But maybe the minimum is higher. Let me think about lower bounds more carefully.\n\nConsider a vertex $v$. The edges from $v$ to the other $n-1$ vertices are colored with 3 colors. Let $d_1, d_2, d_3$ be the number of edges of each color from $v$, with $d_1 + d_2 + d_3 = n - 1$.\n\nFor each color to be connected, $v$ must have at least 1 edge of each color (otherwise $v$ is isolated in that color). So $d_1, d_2, d_3 \\ge 1$.\n\nNow, consider a triangle $\\{v, x, y\\}$ where $vx$ is color $i$ and $vy$ is color $j$, $i \\neq j$. This triangle is rainbow iff $xy$ is the third color $k \\notin \\{i, j\\}$.\n\nThe number of rainbow triangles containing $v$ is:\n$$R_v = \\sum_{\\{i,j,k\\} = \\{1,2,3\\}} |\\{xy : vx \\text{ is color } i, vy \\text{ is color } j, xy \\text{ is color } k\\}|$$\n\nFor each pair of color classes from $v$, say $S_i$ (vertices connected to $v$ by color $i$) and $S_j$, the edges between $S_i$ and $S_j$ that are color $k$ contribute to rainbow triangles.\n\nTo minimize $R_v$, we want edges between $S_i$ and $S_j$ to avoid color $k$ (the third color).\n\nBut we also need color $k$ to be connected. If all edges between $S_i$ and $S_j$ avoid color $k$, then color $k$ can only connect $S_i$ and $S_j$ through other paths (via $S_k$ or within $S_i$ or $S_j$).\n\nThis is getting complex. Let me try to think about the problem from a different angle.\n\n**Alternative approach: Think about the problem as minimizing rainbow triangles with connectivity constraints.**\n\nLet me consider the following construction, which I'll call the \"path construction.\"\n\nOrder the vertices $v_1, v_2, \\ldots, v_n$. \n\nColor the edges as follows:\n- $v_i v_{i+1}$ for $i = 1, \\ldots, n-1$: these form a path. Color them cyclically: $v_1 v_2$ = color 1, $v_2 v_3$ = color 2, $v_3 v_4$ = color 3, $v_4 v_5$ = color 1, etc.\n- All other edges: color them to minimize rainbow triangles.\n\nBut this doesn't directly give a clean construction. Let me think differently.\n\n**Let me try to look at this from the perspective of the answer.**\n\nI suspect the answer might be $n - 2$. Let me check if this makes sense.\n\nFor $n = 3$: $N = 1$. With 3 vertices and 3 colors, each color needs at least 1 edge (for the color to be non-empty and connected — a single edge is connected). With 3 edges and 3 colors, each color gets exactly 1 edge, making the triangle rainbow. So $N = 1 = 3 - 2$. ✓\n\nFor $n = 4$: $N = 2 = 4 - 2$? Let me check. $\\binom{4}{2} = 6$ edges, $3 \\times 3 = 9 > 6$. So with the spanning interpretation, $n = 4$ is impossible. With the non-spanning interpretation, each color just needs to be connected (on its own vertices).\n\nHmm, the problem says $n \\ge 3$, which suggests the non-spanning interpretation (or that the answer formula works for all $n \\ge 3$).\n\nLet me reconsider with the non-spanning interpretation: each color class is connected (as a graph on the vertices it touches), but doesn't need to span all $n$ vertices.\n\nWait, but if a color doesn't span all vertices, then some vertex has no edge of that color. Is that allowed? The problem says \"the subgraph formed by the edges of each color is connected.\" If a color has edges only among a subset of vertices, and those edges form a connected graph, then the subgraph is connected. The vertices not incident to any edge of that color are simply not in the subgraph.\n\nUnder this interpretation, for $n = 3$: 3 edges, 3 colors. Each color must have at least 1 edge (to form a non-empty connected subgraph; or maybe a color can have 0 edges?). If each color has exactly 1 edge, the triangle is rainbow, $N = 1$.\n\nBut can a color have 0 edges? If color 3 has 0 edges, is the \"subgraph formed by edges of color 3\" connected? The empty graph (no vertices, no edges) is typically considered connected (vacuously) or not a graph at all. This is ambiguous.\n\nIf we allow 0-edge colors, then for $n = 3$, we could use only 1 color (all 3 edges same color), and the other 2 colors have 0 edges. Then $N = 0$. But that seems to trivialize the problem.\n\nI think the intended interpretation is that each color class is a connected spanning subgraph (spans all $n$ vertices). This requires $n \\ge 6$.\n\nBut the problem says $n \\ge 3$. Maybe the problem is using \"connected\" to mean the subgraph (on all $n$ vertices) is connected, which requires each color to span all vertices. For $n < 6$, this is impossible, so the problem might have an error, or the constraint $n \\ge 3$ is just a general statement and the actual constraint is $n \\ge 6$.\n\nAlternatively, maybe \"connected\" means something weaker, like each color class has at least one edge and forms a connected graph (not necessarily spanning).\n\nYou know what, let me just consider the spanning interpretation and assume $n \\ge 6$ (or that the formula extends). Let me try to figure out the answer.\n\n**Let me try to compute the answer for $n = 6$ by brute force reasoning.**\n\nFor $n = 6$, each color is a spanning tree (5 edges). Total edges = 15 = 3 × 5.\n\nWe want to minimize rainbow triangles. I showed $N \\ge 1$.\n\nCan $N = 1$ for $n = 6$? Let me try to construct such a coloring.\n\nConsider the following: vertices $1, 2, 3, 4, 5, 6$.\n\nColor 1 tree: $1-2, 2-3, 3-4, 4-5, 5-6$ (path $1-2-3-4-5-6$)\nColor 2 tree: $1-3, 3-5, 5-2, 2-6, 6-4$ \nColor 3 tree: remaining edges: $1-4, 1-5, 1-6, 2-4, 2-5, 3-6, 4-6$... wait, that's 7 edges, not 5.\n\nLet me count. Total edges = 15. Color 1 has 5, color 2 has 5, color 3 has 5. The remaining 15 - 10 = 5 edges are color 3.\n\nEdges of $K_6$: $12, 13, 14, 15, 16, 23, 24, 25, 26, 34, 35, 36, 45, 46, 56$.\n\nColor 1: $12, 23, 34, 45, 56$ (path)\nColor 2: $13, 35, 25, 26, 46$ — is this a tree? Edges: $13, 35, 25, 26, 46$. Vertices: 1,2,3,4,5,6. Check: $1-3-5-2-6-4$. Yes, it's a path $1-3-5-2-6-4$, which is a tree. ✓\n\nColor 3: remaining edges = $14, 15, 16, 24, 36$. Is this a tree? Edges: $14, 15, 16, 24, 36$. Vertices: 1,2,3,4,5,6. Check connectivity: $1-4, 1-5, 1-6, 2-4, 3-6$. So $1$ connects to $4,5,6$. $2$ connects to $4$ (via $2-4$). $3$ connects to $6$ (via $3-6$). So the graph is: $2-4-1-5, 1-6-3$. All connected: $2-4-1-5$ and $1-6-3$, so $2-4-1-6-3$ and $2-4-1-5$. Yes, connected. 5 edges, 6 vertices, connected = tree. ✓\n\nNow count rainbow triangles. A triangle $\\{i,j,k\\}$ is rainbow if its 3 edges have 3 different colors.\n\nLet me list all 20 triangles and their edge colors:\n\nEdges by color:\n- Color 1: 12, 23, 34, 45, 56\n- Color 2: 13, 35, 25, 26, 46\n- Color 3: 14, 15, 16, 24, 36\n\nTriangles:\n1. {1,2,3}: 12(c1), 23(c1), 13(c2) → c1,c1,c2 → not rainbow\n2. {1,2,4}: 12(c1), 24(c3), 14(c3) → c1,c3,c3 → not rainbow\n3. {1,2,5}: 12(c1), 25(c2), 15(c3) → c1,c2,c3 → RAINBOW\n4. {1,2,6}: 12(c1), 26(c2), 16(c3) → c1,c2,c3 → RAINBOW\n5. {1,3,4}: 13(c2), 34(c1), 14(c3) → c2,c1,c3 → RAINBOW\n6. {1,3,5}: 13(c2), 35(c2), 15(c3) → c2,c2,c3 → not rainbow\n7. {1,3,6}: 13(c2), 36(c3), 16(c3) → c2,c3,c3 → not rainbow\n8. {1,4,5}: 14(c3), 45(c1), 15(c3) → c3,c1,c3 → not rainbow\n9. {1,4,6}: 14(c3), 46(c2), 16(c3) → c3,c2,c3 → not rainbow\n10. {1,5,6}: 15(c3), 56(c1), 16(c3) → c3,c1,c3 → not rainbow\n11. {2,3,4}: 23(c1), 34(c1), 24(c3) → c1,c1,c3 → not rainbow\n12. {2,3,5}: 23(c1), 35(c2), 25(c2) → c1,c2,c2 → not rainbow\n13. {2,3,6}: 23(c1), 36(c3), 26(c2) → c1,c3,c2 → RAINBOW\n14. {2,4,5}: 24(c3), 45(c1), 25(c2) → c3,c1,c2 → RAINBOW\n15. {2,4,6}: 24(c3), 46(c2), 26(c2) → c3,c2,c2 → not rainbow\n16. {2,5,6}: 25(c2), 56(c1), 26(c2) → c2,c1,c2 → not rainbow\n17. {3,4,5}: 34(c1), 45(c1), 35(c2) → c1,c1,c2 → not rainbow\n18. {3,4,6}: 34(c1), 46(c2), 36(c3) → c1,c2,c3 → RAINBOW\n19. {3,5,6}: 35(c2), 56(c1), 36(c3) → c2,c1,c3 → RAINBOW\n20. {4,5,6}: 45(c1), 56(c1), 46(c2) → c1,c1,c2 → not rainbow\n\nRainbow triangles: {1,2,5}, {1,2,6}, {1,3,4}, {2,3,6}, {2,4,5}, {3,4,6}, {3,5,6}. That's 7 rainbow triangles.\n\nSo this particular coloring gives $N = 7$ for $n = 6$. Can we do better?\n\nLet me try a different coloring.\n\n**Attempt 2 for $n = 6$:**\n\nLet me try a more structured approach. Use the 3-partition with $a = b = c = 2$.\n\n$A = \\{1, 2\\}, B = \\{3, 4\\}, C = \\{5, 6\\}$.\n\n- Within $A$ ($12$): color 1\n- Within $B$ ($34$): color 2\n- Within $C$ ($56$): color 3\n- $A$-$B$ ($13, 14, 23, 24$): color 1\n- $B$-$C$ ($35, 36, 45, 46$): color 2\n- $A$-$C$ ($15, 16, 25, 26$): color 3\n\nColor 1: $12, 13, 14, 23, 24$. Connects $\\{1,2,3,4\\}$. Missing $\\{5,6\\}$. ❌\n\nModifications: change $15$ from color 3 to color 1, $13$ from color 1 to color 2, $35$ from color 2 to color 3.\n\n- $15$: color 1 (was 3)\n- $13$: color 2 (was 1)\n- $35$: color 3 (was 2)\n\nColor 1: $12, 14, 23, 24, 15$. Connects: $1-2, 1-4, 2-3, 2-4, 1-5$. So $\\{1,2,3,4,5\\}$. Missing $\\{6\\}$. ❌\n\nStill missing vertex 6. The modification only added vertex 5 to color 1's reach.\n\nI need to also connect vertex 6. Change $16$ from color 3 to color 1:\nColor 1: $12, 14, 23, 24, 15, 16$. Now connects $\\{1,2,3,4,5,6\\}$. ✓ But that's 6 edges, and we need color 1 to be a tree (5 edges) for $n = 6$. 6 edges on 6 vertices = connected with 1 cycle. That's fine, it's still connected (just not a tree).\n\nBut now color 3 lost $15$ and $16$, so color 3 has: $56, 25, 26, 35$. That's 4 edges. Color 3 needs $\\ge 5$ edges for spanning connectivity. ❌\n\nHmm. For $n = 6$, each color needs exactly 5 edges (since $3 \\times 5 = 15 = \\binom{6}{2}$). So each color is a spanning tree.\n\nThe modifications need to preserve the edge count per color. Each modification that changes an edge from color $i$ to color $j$ must be balanced by a change from color $j$ to color $i$.\n\nThis is very constrained. Let me think about it as a system of 3 edge-disjoint spanning trees of $K_6$ that minimize rainbow triangles.\n\nThis is actually a well-studied problem: decomposing $K_n$ into spanning trees. For $K_6$, we need 3 edge-disjoint spanning trees (since $3(n-1) = 15 = \\binom{6}{2}$).\n\nBy Nash-Williams' theorem, $K_n$ can be decomposed into $\\lfloor n/2 \\rfloor$ edge-disjoint spanning trees. For $n = 6$, that's 3 trees. ✓\n\nNow, given a decomposition of $K_6$ into 3 spanning trees $T_1, T_2, T_3$, we want to minimize the number of rainbow triangles.\n\nThis is a combinatorial optimization problem. Let me think about what structure of 3 spanning trees minimizes rainbow triangles.\n\nA rainbow triangle uses one edge from each tree. So we want to minimize the number of triangles that use one edge from each tree.\n\nHmm, let me think about this differently. \n\nActually, I realize this problem might have a clean answer. Let me think about what the answer could be.\n\nLet me consider the possibility that the answer is $n - 2$.\n\nFor $n = 3$ (non-spanning interpretation): $N = 1 = 3 - 2$. ✓\nFor $n = 6$: $N = 4$?\n\nOr maybe the answer is $\\binom{n-2}{2}$ or $n - 2$ or something else.\n\nLet me think about the lower bound more carefully.\n\n**Lower bound argument:**\n\nConsider any valid 3-coloring. Pick any vertex $v$. The edges from $v$ are colored with 3 colors, and each color appears at least once (for connectivity). Let $S_1, S_2, S_3$ be the sets of vertices connected to $v$ by colors 1, 2, 3 respectively, with $|S_i| = d_i \\ge 1$ and $d_1 + d_2 + d_3 = n - 1$.\n\nFor each pair $(x, y)$ with $x \\in S_i, y \\in S_j, i \\neq j$: the triangle $\\{v, x, y\\}$ is rainbow iff $xy$ has the third color.\n\nNow, for color $k$ (the third color, $k \\neq i, j$) to be connected, there must be a path in color $k$ from $v$ to every vertex. In particular, color $k$ must connect $v$ to vertices in $S_i$ and $S_j$ (since $v \\in S_k$-adjacent, i.e., $v$ has color-$k$ edges to $S_k$).\n\nWait, $v$ has color-$k$ edges to $S_k$. For color $k$ to be connected, every vertex in $S_i$ and $S_j$ must be connected to $v$ via color-$k$ edges. This can happen through color-$k$ edges within $S_i$, within $S_j$, between $S_i$ and $S_j$, between $S_i$ and $S_k$, etc.\n\nThis is getting complicated. Let me try a different approach to the lower bound.\n\n**Lower bound via counting:**\n\nLet $e_{ij}$ be the number of edges of color $k$ between $S_i$ and $S_j$ (where $\\{i,j,k\\} = \\{1,2,3\\}$). Then the number of rainbow triangles containing $v$ is:\n\n$$R_v = e_{12}^{(3)} + e_{13}^{(2)} + e_{23}^{(1)}$$\n\nwhere $e_{ij}^{(k)}$ is the number of color-$k$ edges between $S_i$ and $S_j$.\n\nTo minimize $R_v$, we want to minimize the number of \"cross-color\" edges between different $S_i$ groups.\n\nBut we need each color to be connected. Color $k$ must connect all vertices, including those in $S_i$ and $S_j$ (for $i, j \\neq k$). The color-$k$ edges available for this are:\n- Within $S_k$ (connecting $v$'s color-$k$ neighbors)\n- Between $S_k$ and $S_i$ (color-$k$ edges)\n- Between $S_k$ and $S_j$ (color-$k$ edges)\n- Within $S_i$ (color-$k$ edges)\n- Within $S_j$ (color-$k$ edges)\n- Between $S_i$ and $S_j$ (color-$k$ edges) — these are $e_{ij}^{(k)}$, which contribute to rainbow triangles\n\nTo connect $S_i$ to the rest via color $k$, we can use color-$k$ edges between $S_k$ and $S_i$ (which don't contribute to rainbow triangles through $v$) or within $S_i$ (also don't contribute) or between $S_i$ and $S_j$ (which DO contribute to rainbow triangles).\n\nSo to minimize rainbow triangles, we should connect $S_i$ to $S_k$ via color-$k$ edges between $S_i$ and $S_k$, avoiding color-$k$ edges between $S_i$ and $S_j$.\n\nIf we can do this for all colors, then $R_v = 0$. But can we?\n\nFor $R_v = 0$: no color-$k$ edges between $S_i$ and $S_j$ for any $\\{i,j,k\\} = \\{1,2,3\\}$. This means:\n- No color-3 edges between $S_1$ and $S_2$\n- No color-2 edges between $S_1$ and $S_3$\n- No color-1 edges between $S_2$ and $S_3$\n\nSo edges between $S_1$ and $S_2$ are only colors 1 or 2. Edges between $S_1$ and $S_3$ are only colors 1 or 3. Edges between $S_2$ and $S_3$ are only colors 2 or 3.\n\nThis is exactly the Gallai coloring condition (between groups, at most 2 colors). And we showed this leads to one color not being spanning-connected.\n\nSo $R_v \\ge 1$ for every vertex $v$? Not necessarily — $R_v = 0$ for some $v$ is possible, but not for all $v$ simultaneously (since that would be a Gallai coloring).\n\nActually, $R_v = 0$ means no rainbow triangle through $v$. If $R_v = 0$ for all $v$, then $N = 0$, which is impossible. So there exists at least one vertex with $R_v \\ge 1$. But this only gives $N \\ge 1$ (since each rainbow triangle is counted 3 times in $\\sum_v R_v$, so $N = \\frac{1}{3} \\sum_v R_v \\ge \\frac{1}{3}$, hence $N \\ge 1$).\n\nThis confirms $N \\ge 1$ but doesn't give a stronger bound.\n\nLet me think about whether $N = 1$ is achievable.\n\n**Trying to achieve $N = 1$:**\n\nFor $N = 1$, we need exactly 1 rainbow triangle, say $\\{a, b, c\\}$ with edges of colors 1, 2, 3.\n\nFor every other triangle, at least two edges share a color.\n\nThis is almost a Gallai coloring — it's a Gallai coloring plus one rainbow triangle.\n\nIn a Gallai coloring, the vertices can be hierarchically partitioned. Let me think about what happens if we take a Gallai coloring and modify one edge to create exactly 1 rainbow triangle.\n\n**Gallai coloring base:** Partition vertices into 2 groups $X, Y$. All $X$-$Y$ edges are color 1. Within $X$ and $Y$, use colors 2 and 3 in a Gallai coloring (i.e., 2-coloring, which is trivially Gallai).\n\nFor example:\n- $X$-$Y$: color 1\n- Within $X$: color 2\n- Within $Y$: color 3\n\nThis is a Gallai coloring (no rainbow triangles). But color 2 is only within $X$ and color 3 only within $Y$, so they're not spanning-connected.\n\nNow modify: change one $X$-$Y$ edge from color 1 to color 2, and another from color 1 to color 3.\n\nLet $X = \\{x_1, \\ldots, x_p\\}, Y = \\{y_1, \\ldots, y_q\\}$, $p + q = n$, $p, q \\ge 2$.\n\n- $X$-$Y$: color 1, except $x_1 y_1$ = color 2, $x_1 y_2$ = color 3 (assuming $q \\ge 2$).\n- Within $X$: color 2\n- Within $Y$: color 3\n\nCheck connectivity:\n- Color 1: $X$-$Y$ edges except 2. Still connects $X$ and $Y$ (since $p \\ge 2$ or $q \\ge 3$, there are remaining edges). ✓ (need to verify)\n- Color 2: within $X$ + $x_1 y_1$. Connects $X \\cup \\{y_1\\}$. Missing $Y \\setminus \\{y_1\\}$. ❌\n\nColor 2 is not spanning-connected. To fix, we need color 2 to reach all of $Y$. \n\nOption: make within $Y$ also have some color-2 edges. But then within $Y$ is not all color 3, which might create rainbow triangles.\n\nLet me try:\n- Within $X$: color 2\n- Within $Y$: color 2 (changed from color 3)\n- $X$-$Y$: color 1, except $x_1 y_1$ = color 2\n- Need color 3 somewhere.\n\nColor 3: only $x_1 y_2$ (if we keep that). Just 1 edge. Not connected. ❌\n\nThis doesn't work. The issue is that color 3 needs to be spanning-connected, which requires many edges.\n\nLet me try a different base Gallai coloring.\n\n**3-part Gallai coloring:** Partition into $A, B, C$. Between parts, use only 2 colors.\n\n- $A$-$B$: color 1\n- $B$-$C$: color 1\n- $A$-$C$: color 2\n- Within $A$: color 3\n- Within $B$: color 3\n- Within $C$: color 2\n\nThis is Gallai (between parts, only colors 1 and 2). No rainbow triangles.\n\nCheck connectivity",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 25003,
+        "completion_tokens": 25000,
+        "cached_tokens": 10685
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 25003,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 10685,
+    "total_steps": 10
+  }
+}

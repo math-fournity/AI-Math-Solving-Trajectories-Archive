@@ -1,0 +1,1060 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "lying-approval",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-22T03:12:37.275842+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-22T03:12:37.276513+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-22T03:12:37.284139+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-22T03:12:37.276851+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/pea5ffd87ae194cfe9ff0 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Friday, 2026-08-21\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-22T03:12:37.277438+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"db-delete-backup-first\" path=\"/Users/user/.devin/rules/db-delete-backup-first.md\">\n# 删除数据库数据前必须先备份\n\n**硬约束**：删除数据库的任何数据之前，必须先备份相关的数据，确保删除错误的情况下可以恢复数据。\n\n## 为什么\n\nDB 删除操作不可逆。一旦执行 DELETE/DROP/TRUNCATE/批量删除，数据就没了。如果删除条件写错（比如 WHERE 条件不精确、dry-run 和实际执行结果不一致、脚本有 bug），会丢失不该删的数据，且无法恢复。\n\n历史教训（2026-08-21）：`cleanup_continuation_runs.py` 删除了 p27_continuation_runs 中 224 条 prepared 记录，删除后才发现实际删除数（224）与 dry-run 预期数（223）不一致——因为 collector 在 dry-run 和实际执行之间又创建了 1 条记录。虽然这次差异无害，但如果差异方向反过来（多删了不该删的），就无法恢复了。\n\n## 必做动作\n\n### 步骤1：备份\n\n删除前必须把要删除的数据导出到文件。备份文件路径记录在操作审计文档中。\n\n```bash\n# ArangoDB：用 AQL 导出要删除的记录到 JSON 文件\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\n# 用与删除相同的查询条件查出要删除的完整记录\nrecords = list(db.aql.execute('FOR r IN collection FILTER <删除条件> RETURN r', ttl=120))\nwith open('backup_<collection>_<date>.json', 'w') as f:\n    json.dump(records, f, ensure_ascii=False, indent=2)\nprint(f'备份 {len(records)} 条记录到 backup_<collection>_<date>.json')\n\"\n```\n\n### 步骤2：验证备份\n\n确认备份文件非空、记录数与预期一致、每条记录有完整的字段（特别是 `_key`/`_id`，恢复时需要）。\n\n### 步骤3：执行删除\n\n备份完成且验证通过后，才能执行删除。\n\n### 步骤4：记录审计\n\n在 dev-docs 中记录：备份文件路径、删除条件、删除数量、备份记录数。\n\n## 恢复方法\n\n如果删除后发现错误，用备份文件恢复：\n\n```bash\n# ArangoDB：从 JSON 文件恢复\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\nwith open('backup_<collection>_<date>.json') as f:\n    records = json.load(f)\ncol = db.collection('collection')\nfor r in records:\n    r.pop('_rev', None)  # _rev 不能手动设置\n    col.insert(r)\nprint(f'恢复 {len(records)} 条记录')\n\"\n```\n\n## 禁止\n\n- 禁止不备份就直接执行批量删除\n- 禁止只 dry-run 不备份就执行删除——dry-run 和实际执行之间可能有状态变化\n- 禁止备份后不验证备份文件就执行删除\n- 禁止删除后不记录备份文件路径——找不到备份=没备份\n\n## 例外\n\n| 情况 | 是否需要备份 |\n|---|---|\n| 批量删除（DELETE/FOR...REMOVE） | ✅ 必须 |\n| DROP collection | ✅ 必须（先导出全集合） |\n| TRUNCATE | ✅ 必须（先导出全集合） |\n| 覆盖写入（insert overwrite） | ✅ 必须（先导出被覆盖的数据） |\n| 单条记录删除 | 可不备份（影响小，可通过日志追溯） |\n| 单条记录状态更新（非删除） | 不需要 |\n| 只读查询 | 不需要 |\n\n## 与其他 rule 的关系\n\n| rule | 关系 |\n|---|---|\n| `closure-checklist-impact-analysis` | commit 前分析影响——本 rule 在删除操作前就触发，更早 |\n| `verify-with-logs` | 删除后验证——本 rule 是删除前预防 |\n| 全局 AGENTS.md §可审计性纪律 | \"重大分析、调查、审查必须留下 file:line 定位\"——本 rule 是其具体化到 DB 删除场景 |\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"search-default-internal\" path=\"/Users/user/.devin/rules/search-default-internal.md\">\n# 搜索默认走内置工具\n\n## 硬约束\n\n**默认情况下，使用 devin 内置的 `web_search` 和 `webfetch` 工具。** 不要一遇到搜索就加载 `search-tools` skill。\n\n`search-tools` skill 是重型武器库（6 个工具、38 个端点、完整参数表），只在以下场景才加载：\n\n## 何时加载 search-tools skill\n\n只有同时满足以下条件时才加载：\n\n1. **完备搜索**——内置 `web_search` 结果不够、需要多引擎交叉验证、需要语义搜索、需要学术论文搜索\n2. **大量抓取**——需要抓取多个 URL 转 Markdown、需要 PDF 转 Markdown、需要省 token 的批量取页\n\n## 何时只用内置工具\n\n以下场景**不需要**加载 `search-tools` skill，直接用 `web_search` + `webfetch`：\n\n- 查一个 API 怎么用——`web_search` 搜文档，`webfetch` 取页\n- 查一个概念/术语——`web_search` 一下就够\n- 查一个库的最新版本——`web_search`\n- 取一个 URL 的内容——`webfetch`\n- 简单的事实核查——`web_search`\n\n## 判断流程\n\n```\n需要网络搜索或抓取？\n├─ 查一两个东西就够了 → web_search + webfetch（内置）\n└─ 需要完备搜索或大量抓取\n   ├─ 多引擎交叉验证 → 加载 search-tools skill\n   ├─ 语义搜索 → 加载 search-tools skill\n   ├─ 学术论文搜索 → 加载 search-tools skill\n   ├─ PDF 转 Markdown → 加载 search-tools skill\n   ├─ 批量 URL 抓取 → 加载 search-tools skill\n   └─ 其他简单场景 → web_search + webfetch（内置）\n```\n\n## 理由\n\n`search-tools` skill 内容很长（500+ 行），加载它会占用大量上下文。日常搜索用内置工具完全够用，只有真正需要重型武器时才值得加载。\n</rule>\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在README.md中只记录脚本路径和一行用法示例。AGENTS.md是铁律和每次必须知道的认知，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。脚本分两类，存放位置不同（见下方\"脚本分类\"）。\n\n4. **在项目README.md中做好索引**——持久化脚本必须在项目README.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n6. **临时脚本必须在相关文档中建立索引**——如果某项任务有对应的方案文档或调查报告（如`dev-docs/`下的文档），临时脚本必须在文档中记录：脚本路径、用途、用法。这是为了让未来的审计AI可以追溯——如果后来审计发现异常，可以知道是哪个脚本产生的结果，检查脚本是否有问题。\n\n## 脚本分类\n\n脚本分两类，存放位置和索引方式不同：\n\n### 持久化脚本（可复用的操作工具）\n\n- **定义**：会重复使用的操作（如清理僵尸session、批量落盘、进度查询、队列准备）\n- **存放位置**：项目已有的脚本目录或项目的`scripts/`目录\n- **索引位置**：项目README.md\n- **维护方式**：持续改进，不重写\n\n### 临时脚本（一次性任务专用）\n\n- **定义**：为某个具体任务写的一次性脚本（如数据迁移、一次性查询、调查验证脚本）\n- **存放位置**：项目的`tmp-scripts/`子目录\n- **索引位置**：如果该任务有相关文档（方案文档、调查报告等），在文档中记录脚本路径+用途+用法；如果没有相关文档，在README.md中记录\n- **审计目的**：临时脚本的文档索引是为了审计可追溯——如果后来审计发现数据异常或结果异常，审计AI可以定位是哪个脚本产生的，检查脚本逻辑是否有bug\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n- **临时脚本的文档索引保证审计可追溯**——如果审计发现异常结果，可以回溯到产生该结果的脚本，检查脚本逻辑是否有bug\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **写成持久化脚本，放scripts/，索引到README.md** |\n| 一次性任务专用脚本（数据迁移、调查验证） | **写成临时脚本，放tmp-scripts/，索引到相关文档** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 判断脚本类型：持久化（可复用）还是临时（一次性任务）\n3. 检查项目内是否已有类似脚本（grep搜索、看README.md索引）\n4. **已有** → 改进那个脚本（edit工具修改），编译验证\n5. **没有** → 创建新文件：\n   - 持久化脚本 → 放项目脚本目录（如`scripts/`）\n   - 临时脚本 → 放`tmp-scripts/`子目录\n6. 建立索引：\n   - 持久化脚本 → 在项目README.md中记录\n   - 临时脚本 → 在相关文档中记录（如方案文档、调查报告）；无相关文档则在README.md中记录\n7. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新README.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是铁律不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ❌ **临时脚本不建立文档索引**——审计AI无法追溯异常结果的来源脚本\n- ❌ **临时脚本放到`/tmp/`或home目录**——不在项目内，无法git追踪，无法审计\n- ✅ 改进已有脚本的某个函数（而非另写新的）\n- ✅ 新建脚本并在README.md代码索引中记录\n- ✅ README.md中只写一行用法示例，不写完整调用参数和输出\n- ✅ 临时调查脚本放`tmp-scripts/`，在调查报告文档中记录脚本路径和用途\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/pea5ffd87ae194cfe9ff0/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nLet $S$ be the set of all ordered pairs $(x, y)$ of nonnegative integers $0 \\le x \\le 19$ and $0 \\le y \\le 2$. Compute the number of permutations $(x_1, y_1), (x_2, y_2), \\ldots, (x_{60}, y_{60})$ of the elements of $S$ such that\n\\begin{itemize}\n\\item $y_1 = 2$ and $y_{60} = 0$;\n\\item for all nonnegative integers $1 \\le i \\le 59$, exactly one of the following holds:\n\\begin{itemize}\n\\item $x_i = x_{i+1}$ and $|y_i - y_{i+1}| = 1$,\n\\item $y_i = y_{i+1}$ and $x_i - x_{i+1}$ is $-1$ or $19$.\n\\end{itemize}\n\\end{itemize}\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"readme-structure-index\" path=\"/Users/user/.devin/rules/readme-structure-index.md\">\n# AGENTS.md与README.md的职责分工\n\n## 硬约束\n\n**AGENTS.md中不索引任何文档和代码。** repo的详细结构信息放在repo根目录的`README.md`中。\n\n## AGENTS.md只放什么\n\nAGENTS.md是always-on的，每一行都占用AI的上下文窗口。只放\"AI每次工作都必须知道的\"：\n\n1. **角色**——AI在这个repo中的身份和职责（一句话）\n2. **repo基本信息**——分支、Python路径、DB/Redis连接信息、.env位置、关键外部路径\n3. **铁律**——必须遵守的硬约束（编号列表）\n4. **运维认知**——监控/健康检查时容易误判的认知（如\"空pane是正常现象\"）\n5. **系统架构概要**——概念性架构图 + 核心服务表 + 启停命令 + 并发控制（不索引具体代码文件）\n6. **数据库表设计**——指向DATABASE.md的引用 + 关键JOIN关系 + 已知问题（不展开字段表）\n\n## README.md放什么\n\nREADME.md是AI工作引导地图，按需加载（不占always-on上下文）。放\"需要时才查的详细结构信息\"：\n\n1. **文档索引**——\"你要做什么→加载什么文档\"的对照表 + 各文档的关键节索引\n2. **代码文件索引**——按目录分组的代码文件表（文件名/用途/用法）\n3. **运行目录结构**——trajectory数据/solver工作目录的目录树 + 文件存在率表\n4. **Skills和Rules索引**——项目级skills/rules的用途表 + 全局skill引用\n5. **关键经验**——操作经验列表（如rate limit风暴、3秒启动间隔等）\n6. **与其他repo的关系**——依赖关系、共享资源\n\n## 判定标准\n\n| 内容 | 放哪里 | 判断依据 |\n|---|---|---|\n| 铁律（\"必须做/不能做\"） | AGENTS.md | 每次工作都必须知道 |\n| 运维认知（\"容易误判的\"） | AGENTS.md | 监控时必须知道 |\n| 启停命令 | AGENTS.md | 运行系统时必须知道 |\n| 文档索引（\"做什么→读什么\"） | README.md | 按需加载时才查 |\n| 代码文件索引（\"什么文件做什么\"） | README.md | 需要找代码时才查 |\n| 目录结构 | README.md | 需要找文件时才查 |\n| status枚举表 | README.md | 需要查终态时才查 |\n| 操作经验 | README.md | 遇到问题时才查 |\n\n## 反模式\n\n- ❌ AGENTS.md中有\"文档索引\"节——应该移到README.md\n- ❌ AGENTS.md中有\"代码文件索引\"节——应该移到README.md\n- ❌ AGENTS.md中列出每个文档的用途和路径——这是README.md的职责\n- ❌ AGENTS.md中列出每个代码文件的用途和用法——这是README.md的职责\n- ❌ README.md中放铁律——铁律在AGENTS.md中always-on\n- ❌ 没有README.md——每个repo必须有README.md作为引导地图\n- ✅ AGENTS.md只有铁律+角色+基本信息+运维认知+架构概要\n- ✅ README.md有完整的文档索引和代码索引\n- ✅ AGENTS.md中有一行\"详细结构信息见README.md\"的指引\n\n## 与三层架构的关系\n\n三层架构：AGENTS.md（铁律）→ README.md（引导地图）→ 具体文档/代码\n\n- **AGENTS.md** = 铁律 + 每次必须知道的认知（always-on，占上下文）\n- **README.md** = 引导地图（按需加载，不占always-on上下文）\n- **具体文档/代码** = 按需加载（从README.md索引中找到后加载）\n\n本规则确保AGENTS.md不膨胀——详细结构信息在README.md中，AI需要时才加载，不永久占用上下文。\n\n## 详见\n\n- `read` skill（操作流程：如何从README.md出发加载认知）\n- `read-sync` skill（维护模式：如何同步README.md和映射数据库）\n- `cognition-trace-ironlaws.md` §17（认知加载铁律）\n- `tuple-methodology.md`（AGENTS.md瘦身工程）\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-22T03:12:37.277446+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\nThese rules were triggered but could not be injected due to token limits. Read them when relevant using the read_file tool:\n\n<rule name=\"global-vs-project-local\" path=\"/Users/user/.devin/rules/global-vs-project-local.md\" />\n<rule name=\"database-schema-doc\" path=\"/Users/user/.devin/rules/database-schema-doc.md\" />\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "overflow"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-22T03:12:37.277459+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **explicit-model-and-effort**: 使用 devin cli 时（无论 -p 模式还是 acp 模式）必须显式指明模型；推理强度当前 devin CLI 无独立开关（2026-08-21 核查），由模型默认行为控制——若未来版本提供 强度/思考参数，必须同样显式设置。opencode 侧的对应 rule 见 ~/.config/opencode/rules/explicit-model-and-effort.md（其 ACP 有 effort 接口， 且实测不显式选模型会落到内建默认）。 WHEN to use: 写 devin -p 命令时；写/改 devin acp 客户端启动参数时； 排查\"AI 表现与预期不符\"时。 WHEN NOT to use: 用户明确指定其他模型的对话。\n (path: /Users/user/.devin/rules/explicit-model-and-effort.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **search-tools**: 搜索武器库——按需求组织：网页搜索完备性 + Markdown 网页抓取。所有方案免费可用。 WHEN to use: 需要网络搜索、网页抓取读取、学术论文搜索、PDF 转 Markdown、语义嵌入、结果重排时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-22T03:12:37.286582+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-22T03:12:37.287415+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **devin-acp-protocol**: Devin CLI ACP(Agent Client Protocol)模式使用指南——devin acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call/permission)、thinking实时流式推送、 权限处理、session管理、v1协议细节、实测验证的信号清单和检测逻辑。 WHEN to use: 需要用ACP模式启动devin cli(替代-p模式)时；需要实时检测AI工作状态(thinking spin/卡住)时； 需要从session/update通知组装conversation.json时；需要处理ACP权限请求时； 设计/实现/调试ACP客户端时；将现有-p模式管线改造为ACP模式时。 WHEN NOT to use: 只需要-p模式的简单非交互运行(用noninteractive-solver-run skill)； 只需要session最终产出(看文件即可)；只需要git历史(用git log)。 (source: /Users/user/.config/devin/skills/devin-acp-protocol/SKILL.md)\n- **opencode-acp-protocol**: OpenCode ACP(Agent Client Protocol)模式完整指南——opencode acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call)、thinking实时流式推送、权限自动批准、 session管理(close/fork/list/resume)、v1协议细节、与Devin CLI ACP的关键区别。 WHEN to use: 用opencode acp启动为ACP server时；写ACP客户端对接opencode时； 需要实时检测AI工作状态(thinking/tool执行/卡住)时；从session/update通知组装trajectory时； 对比opencode ACP和devin ACP选方案时；将现有管线改造为ACP模式时。 WHEN NOT to use: 只需要opencode的最终结果(用opencode run)；非ACP的opencode使用； 只需要devin ACP(用devin-acp-protocol skill)。 (source: /Users/user/.config/devin/skills/opencode-acp-protocol/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **search-tools**: 搜索武器库技术说明书——按需求组织：网页搜索完备性 + Markdown 网页抓取。 所有方案均为免费可用，基于 2026-08-21 实测数据编写。 (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **zcode-trajectory**: ZCode (z.ai 桌面客户端) model-io session trajectory 数据的 JSONL schema 与读取方法。 (source: /Users/user/.config/devin/skills/zcode-trajectory/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-22T03:12:41.456694+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me carefully analyze this problem.\n\nWe have $S = \\{(x,y) : 0 \\le x \\le 19, 0 \\le y \\le 2\\}$, so 60 points (20 columns × 3 rows).\n\nWe need to count permutations (Hamiltonian paths) of all 60 elements such that:\n- $y_1 = 2$ (start at top row) and $y_{60} = 0$ (end at bottom row)\n- Consecutive elements are adjacent by either:\n  - Same column, $|y_i - y_{i+1}| = 1$ (vertical move)\n  - Same row, $x_i - x_{i+1} \\in \\{-1, 19\\}$ (horizontal move, wrapping around — since $x$ ranges 0 to 19, $x_i - x_{i+1} = -1$ means moving right, and $x_i - x_{i+1} = 19$ means $x_i = 19, x_{i+1} = 0$, i.e., wrapping from right edge to left edge)\n\nWait, let me re-read. $x_i - x_{i+1}$ is $-1$ or $19$. So $x_i - x_{i+1} = -1$ means $x_{i+1} = x_i + 1$ (move right). $x_i - x_{i+1} = 19$ means $x_{i+1} = x_i - 19$, so $x_i = 19, x_{i+1} = 0$ (wrap from 19 to 0). \n\nSo horizontal moves go right (increasing $x$) with wraparound. This is a cylinder! The $x$ direction wraps around (cyclic group $\\mathbb{Z}_{20}$), and $y$ goes 0, 1, 2 (a path of length 3, not a cycle).\n\nSo the graph is $C_{20} \\times P_3$ (cylinder graph), where $C_{20}$ is the cycle on 20 vertices and $P_3$ is the path on 3 vertices.\n\nWe need Hamiltonian paths on this cylinder graph $C_{20} \\times P_3$ starting at some vertex with $y=2$ and ending at some vertex with $y=0$.\n\nWait, but we also need to count which specific start and end vertices. The start has $y_1 = 2$ (any $x$), and end has $y_{60} = 0$ (any $x$). So we sum over all valid (start, end) pairs.\n\nLet me think about the structure. The cylinder $C_{20} \\times P_3$ has 60 vertices. A Hamiltonian path visits all 60 vertices.\n\nLet me think about this more carefully. The graph is a cylinder: 20 columns arranged in a cycle, 3 rows. Each vertex $(x,y)$ has neighbors:\n- $(x, y-1)$ and $(x, y+1)$ if they exist (vertical)\n- $(x-1 \\bmod 20, y)$ and $(x+1 \\bmod 20, y)$ (horizontal, wrapping)\n\nSo each vertex has degree: \n- $y=1$ (middle row): 4 neighbors (2 vertical + 2 horizontal)\n- $y=0$ or $y=2$ (edge rows): 3 neighbors (1 vertical + 2 horizontal)\n\nThis is a 3-regular graph at the boundary and 4-regular in the middle.\n\nWe need Hamiltonian paths from row 2 to row 0.\n\nLet me think about the structure of Hamiltonian paths on a cylinder.\n\nActually, let me think about this differently. A Hamiltonian path on the cylinder $C_n \\times P_m$.\n\nFor a cylinder, Hamiltonian paths/cycles have been studied. Let me think about what constraints exist.\n\nEach vertex in the path has degree 2 in the path (except endpoints which have degree 1). The endpoints are at $y=2$ and $y=0$.\n\nLet me think column by column. Consider the edges used in the Hamiltonian path. \n\nActually, let me think about this using the \"transfer matrix\" or \"column-by-column\" approach, but with the cylinder wraparound it's tricky.\n\nLet me think about it differently. Let's consider the vertical edges. In each column $x$, there are 2 vertical edges: $(x,0)-(x,1)$ and $(x,1)-(x,2)$. Each vertical edge is either used or not used in the path.\n\nThe horizontal edges: between column $x$ and column $x+1$ (mod 20), in each row $y$, there's one edge. So 3 horizontal edges between each pair of adjacent columns.\n\nIn a Hamiltonian path, each vertex has degree 1 or 2 in the path. Let me think about the degree of each vertex.\n\nFor a vertex $(x,y)$:\n- If it's an endpoint: degree 1\n- Otherwise: degree 2\n\nEndpoints: one at $y=2$, one at $y=0$.\n\nLet me think about the vertical edges more carefully. In column $x$:\n- Edge $a_x$: $(x,0)-(x,1)$ — bottom vertical\n- Edge $b_x$: $(x,1)-(x,2)$ — top vertical\n\nFor each column, the vertical edges used can be: none, $a_x$ only, $b_x$ only, or both.\n\nIf both vertical edges in a column are used, then the middle vertex $(x,1)$ uses both its vertical edges, so it has degree 2 from vertical edges alone, meaning no horizontal edges are used at $(x,1)$. Similarly, $(x,0)$ uses one vertical edge (so needs 1 more from horizontal, unless it's an endpoint), and $(x,2)$ uses one vertical edge (so needs 1 more from horizontal, unless it's an endpoint).\n\nIf no vertical edges in a column are used, then all three vertices must get their degree from horizontal edges. $(x,1)$ needs 2 horizontal edges (both left and right, unless endpoint), $(x,0)$ needs 2 horizontal edges (unless endpoint), $(x,2)$ needs 2 horizontal edges (unless endpoint).\n\nIf only $a_x$ is used: $(x,0)$ and $(x,1)$ are connected vertically. $(x,0)$ needs 1 more edge (horizontal, or it's an endpoint), $(x,1)$ needs 1 more edge (horizontal), $(x,2)$ needs 2 horizontal edges (unless endpoint).\n\nIf only $b_x$ is used: $(x,1)$ and $(x,2)$ are connected vertically. $(x,1)$ needs 1 more (horizontal), $(x,2)$ needs 1 more (horizontal, or endpoint), $(x,0)$ needs 2 horizontal (unless endpoint).\n\nThis is getting complex. Let me think about it as a transfer matrix problem along the cycle.\n\nActually, since the columns form a cycle ($C_{20}$), we can't simply do a linear transfer matrix. But we can think of it as: fix the state at the \"cut\" between column 19 and column 0, then do a transfer matrix around the cycle.\n\nLet me define the state at the boundary between column $x$ and column $x+1$. The state captures which horizontal edges are used and the \"connectivity\" of the partial path.\n\nHmm, this is a standard but complex transfer matrix computation. Let me think if there's a simpler structure.\n\nActually, for a cylinder graph $C_n \\times P_m$ with small $m$, the transfer matrix approach is feasible. With $m=3$, the state space is manageable.\n\nLet me think about the state more carefully. At each column boundary, we have 3 horizontal edges (one per row). Each can be \"used\" or \"not used\". But we also need to track connectivity — which vertices on the boundary are connected to which, to ensure we form a single path (not multiple cycles).\n\nActually, let me reconsider. The standard approach for Hamiltonian paths on grid-like graphs uses transfer matrices tracking the \"profile\" at each cut.\n\nLet me think about the cut between column $x$ and column $x+1$ (mod 20). The 3 edges crossing this cut are $e_0 = ((x,0),(x+1,0))$, $e_1 = ((x,1),(x+1,1))$, $e_2 = ((x,2),(x+1,2))$.\n\nThe state needs to capture:\n1. Which of these 3 edges are used (subset of $\\{e_0, e_1, e_2\\}$)\n2. The connectivity pattern of the \"dangling\" path endpoints on the left side\n\nThis is the standard transfer matrix for Hamiltonian paths, but on a cylinder it's more complex because of the wraparound.\n\nLet me think about whether there's a pattern or formula.\n\nFor Hamiltonian cycles on $C_n \\times P_m$ (cylinders), there are known results. For Hamiltonian paths, it depends on the endpoints.\n\nActually, let me think about this problem more concretely. With $m=3$ (3 rows), the transfer matrix has a manageable size.\n\nLet me set up the transfer matrix. I'll process columns $0, 1, 2, \\ldots, 19$ around the cycle. At each step, I add a column of 3 vertices and the vertical edges within it, plus the horizontal edges connecting to the next column.\n\nState: The state at the boundary after processing column $x$ describes the 3 horizontal edges going from column $x$ to column $x+1$, and the connectivity of the path fragments.\n\nActually, let me think about this more carefully using the standard formulation.\n\nFor a Hamiltonian path (not cycle), we have two endpoints. The endpoints are at $y=2$ (start) and $y=0$ (end). So exactly one vertex in row 2 has degree 1 (the start), exactly one vertex in row 0 has degree 1 (the end), and all other 58 vertices have degree 2.\n\nLet me think about the column types. For each column $x$, the vertical edge configuration is one of:\n- Type 0: no vertical edges\n- Type A: only $a_x$ (bottom) used\n- Type B: only $b_x$ (top) used  \n- Type AB: both used\n\nAnd the horizontal edges at each row level connect adjacent columns.\n\nLet me think about the \"degree budget\" for each vertex:\n- $(x, 0)$: degree 2 unless it's the endpoint (then degree 1)\n- $(x, 1)$: degree 2 always (middle row, never an endpoint)\n- $(x, 2)$: degree 2 unless it's the endpoint (then degree 1)\n\nFor vertex $(x, 0)$: it has potential edges to $(x,1)$ [vertical $a_x$], $(x-1,0)$ [horizontal left], $(x+1,0)$ [horizontal right]. Its degree in the path is 2 (or 1 if endpoint).\n\nFor vertex $(x, 1)$: edges to $(x,0)$ [$a_x$], $(x,2)$ [$b_x$], $(x-1,1)$ [horizontal left], $(x+1,1)$ [horizontal right]. Degree 2.\n\nFor vertex $(x, 2)$: edges to $(x,1)$ [$b_x$], $(x-1,2)$ [horizontal left], $(x+1,2)$ [horizontal right]. Degree 2 (or 1 if endpoint).\n\nLet me denote the horizontal edges. Let $h_{x,y}$ be the horizontal edge between $(x,y)$ and $(x+1 \\bmod 20, y)$. There are $20 \\times 3 = 60$ horizontal edges.\n\nLet me denote: for each column $x$, the vertical edge usage as $(a_x, b_x) \\in \\{0,1\\}^2$.\n\nNow, the degree constraints:\n- For $(x,0)$: $a_x + h_{x-1,0} + h_{x,0} = 2$ (or 1 if endpoint at $(x,0)$)\n- For $(x,1)$: $a_x + b_x + h_{x-1,1} + h_{x,1} = 2$\n- For $(x,2)$: $b_x + h_{x-1,2} + h_{x,2} = 2$ (or 1 if endpoint at $(x,2)$)\n\n(All indices mod 20 for horizontal edges.)\n\nFrom the middle row constraint: $a_x + b_x + h_{x-1,1} + h_{x,1} = 2$.\n\nSo $a_x + b_x \\in \\{0, 1, 2\\}$ and $h_{x-1,1} + h_{x,1} = 2 - (a_x + b_x)$.\n\nCase 1: $a_x + b_x = 2$ (both vertical edges used). Then $h_{x-1,1} = h_{x,1} = 0$. The middle vertex uses both vertical edges.\n\nCase 2: $a_x + b_x = 1$ (exactly one vertical edge used). Then $h_{x-1,1} + h_{x,1} = 1$, so exactly one of $h_{x-1,1}, h_{x,1}$ is used.\n\nCase 3: $a_x + b_x = 0$ (no vertical edges). Then $h_{x-1,1} + h_{x,1} = 2$, so both $h_{x-1,1} = h_{x,1} = 1$.\n\nNow for the top and bottom rows:\n\nBottom row $(x,0)$: $a_x + h_{x-1,0} + h_{x,0} = 2$ (or 1 if endpoint).\nTop row $(x,2)$: $b_x + h_{x-1,2} + h_{x,2} = 2$ (or 1 if endpoint).\n\nLet me think about the horizontal edges in each row as forming a pattern around the cycle $C_{20}$.\n\nFor the middle row: $h_{x,1}$ is determined by $a_x + b_x$. Specifically, $h_{x,1} = 1$ iff $a_x + b_x \\le 1$ and the specific choice in Case 2.\n\nActually, let me think about this differently. Let me focus on the horizontal edges row by row.\n\nFor row $y$, the horizontal edges $h_{0,y}, h_{1,y}, \\ldots, h_{19,y}$ form a subset of edges of $C_{20}$. The degree of vertex $(x,y)$ in the horizontal subgraph of row $y$ is $h_{x-1,y} + h_{x,y}$.\n\nFor the middle row ($y=1$): $h_{x-1,1} + h_{x,1} = 2 - (a_x + b_x)$.\n\nFor the bottom row ($y=0$): $h_{x-1,0} + h_{x,0} = 2 - a_x$ (or $1 - a_x$ if endpoint at $(x,0)$).\n\nFor the top row ($y=2$): $h_{x-1,2} + h_{x,2} = 2 - b_x$ (or $1 - b_x$ if endpoint at $(x,2)$).\n\nNow, the horizontal edges in each row form a subgraph of $C_{20}$ where each vertex has a specified degree (1 or 2, or 0 in extreme cases). A subgraph of $C_{20}$ where every vertex has degree 2 is the entire cycle. A subgraph where every vertex has degree 1 is a perfect matching of $C_{20}$ (which exists only if $n=20$ is even, which it is). A subgraph with mixed degrees 0, 1, 2 corresponds to a union of paths and cycles.\n\nBut we also need the overall structure to be a single Hamiltonian path, not a union of paths and cycles. This is where connectivity comes in.\n\nLet me think about this more carefully.\n\nLet me consider the possible \"types\" of columns based on $(a_x, b_x)$:\n\nType 0: $(a_x, b_x) = (0, 0)$ — no vertical edges\n- Middle: $h_{x-1,1} + h_{x,1} = 2$, so both horizontal edges in middle row used\n- Bottom: $h_{x-1,0} + h_{x,0} = 2$ (or 1 if endpoint), so both horizontal in bottom used (or one if endpoint)\n- Top: $h_{x-1,2} + h_{x,2} = 2$ (or 1 if endpoint), so both horizontal in top used (or one if endpoint)\n\nType A: $(a_x, b_x) = (1, 0)$ — only bottom vertical\n- Middle: $h_{x-1,1} + h_{x,1} = 1$, so exactly one horizontal in middle\n- Bottom: $h_{x-1,0} + h_{x,0} = 1$ (or 0 if endpoint), so exactly one horizontal in bottom (or zero if endpoint)\n- Top: $h_{x-1,2} + h_{x,2} = 2$ (or 1 if endpoint), so both horizontal in top (or one if endpoint)\n\nType B: $(a_x, b_x) = (0, 1)$ — only top vertical\n- Middle: $h_{x-1,1} + h_{x,1} = 1$, so exactly one horizontal in middle\n- Bottom: $h_{x-1,0} + h_{x,0} = 2$ (or 1 if endpoint), so both horizontal in bottom (or one if endpoint)\n- Top: $h_{x-1,2} + h_{x,2} = 1$ (or 0 if endpoint), so exactly one horizontal in top (or zero if endpoint)\n\nType AB: $(a_x, b_x) = (1, 1)$ — both vertical\n- Middle: $h_{x-1,1} + h_{x,1} = 0$, so no horizontal in middle\n- Bottom: $h_{x-1,0} + h_{x,0} = 1$ (or 0 if endpoint), so exactly one horizontal in bottom (or zero if endpoint)\n- Top: $h_{x-1,2} + h_{x,2} = 1$ (or 0 if endpoint), so exactly one horizontal in top (or zero if endpoint)\n\nNow, the key insight: in the middle row, the horizontal edges form a subgraph of $C_{20}$ where each vertex has degree $2 - (a_x + b_x)$. So:\n- Type 0 columns: degree 2 in middle horizontal\n- Type A, B columns: degree 1 in middle horizontal\n- Type AB columns: degree 0 in middle horizontal\n\nThe middle row horizontal edges form a subgraph of $C_{20}$ where the degree at vertex $x$ is $d_x = 2 - (a_x + b_x) \\in \\{0, 1, 2\\}$.\n\nFor this to be realizable as a subgraph of $C_{20}$: the sum of degrees must be even (handshake lemma), and the subgraph must exist.\n\nIf all $d_x = 2$: the middle horizontal is the full cycle $C_{20}$.\nIf all $d_x = 0$: no middle horizontal edges.\nIf we have a mix: the middle horizontal edges form paths (between degree-0 vertices) and the full cycle isn't formed.\n\nActually, a subgraph of $C_{20}$ with specified degrees is a union of paths and cycles. Since $C_{20}$ is itself a cycle, a subgraph is obtained by removing some edges. Each removed edge creates two degree-1 endpoints (or reduces degrees). \n\nLet me think about it as: the middle row horizontal edges are a subset of the 20 edges of $C_{20}$. The degree of vertex $x$ in this subset is $d_x = h_{x-1,1} + h_{x,1}$.\n\nIf $d_x = 2$: both adjacent edges present.\nIf $d_x = 1$: exactly one adjacent edge present.\nIf $d_x = 0$: no adjacent edges present.\n\nThe removed edges (edges of $C_{20}$ not in the subset) are the $h_{x,1} = 0$ edges. Each removed edge $h_{x,1}$ affects the degrees of vertices $x$ and $x+1$.\n\nIf we remove a set $R$ of edges from $C_{20}$, the degree of vertex $x$ becomes $2 - |\\{r \\in R : r \\text{ adjacent to } x\\}|$. So $d_x = 2 - |R \\cap \\{h_{x-1,1}, h_{x,1}\\}|$.\n\nWe need $d_x = 2 - (a_x + b_x)$, so $|R \\cap \\{h_{x-1,1}, h_{x,1}\\}| = a_x + b_x$.\n\nThis means: the number of removed middle-row edges adjacent to vertex $x$ equals $a_x + b_x$.\n\nSo:\n- Type 0 ($a_x+b_x=0$): no removed edges adjacent to $x$\n- Type A or B ($a_x+b_x=1$): exactly 1 removed edge adjacent to $x$\n- Type AB ($a_x+b_x=2$): both adjacent edges removed\n\nThe removed edges $R$ in the middle row: an edge $h_{x,1}$ is removed iff both... no. $h_{x,1}$ is removed iff $h_{x,1} = 0$. And $h_{x,1} = 0$ iff $a_x + b_x \\ge 1$ AND $a_{x+1} + b_{x+1} \\ge 1$... no, that's not right either.\n\nLet me reconsider. $h_{x,1}$ is the edge between vertex $x$ and vertex $x+1$ in the middle row. It's removed (not used) iff $h_{x,1} = 0$.\n\nThe constraint is: for each vertex $x$, the number of removed edges among $\\{h_{x-1,1}, h_{x,1}\\}$ equals $a_x + b_x$.\n\nSo $[h_{x-1,1} = 0] + [h_{x,1} = 0] = a_x + b_x$.\n\nThis means:\n- If $a_x + b_x = 0$: $h_{x-1,1} = 1$ and $h_{x,1} = 1$ (both present)\n- If $a_x + b_x = 1$: exactly one of $h_{x-1,1}, h_{x,1}$ is 0\n- If $a_x + b_x = 2$: $h_{x-1,1} = 0$ and $h_{x,1} = 0$ (both absent)\n\nSo the removed edges in the middle row are exactly the edges $h_{x,1}$ where both endpoints have $a+b \\ge 1$... no. Let me think again.\n\nIf $a_x + b_x = 2$ (Type AB), then both $h_{x-1,1} = 0$ and $h_{x,1} = 0$. So all edges adjacent to an AB column are removed.\n\nIf $a_x + b_x = 0$ (Type 0), then both $h_{x-1,1} = 1$ and $h_{x,1} = 1$. So all edges adjacent to a Type 0 column are present.\n\nIf $a_x + b_x = 1$ (Type A or B), then exactly one of $h_{x-1,1}, h_{x,1}$ is 0.\n\nSo the removed edges in the middle row are determined by the types:\n- An edge $h_{x,1}$ between columns $x$ and $x+1$ is removed iff... it must be 0. \n  - If column $x$ is Type 0: $h_{x,1} = 1$ (forced present)\n  - If column $x+1$ is Type 0: $h_{x,1} = 1$ (forced present, since $h_{x,1} = h_{(x+1)-1,1}$ and for column $x+1$ Type 0, $h_{x,1} = 1$)\n  - If column $x$ is Type AB: $h_{x,1} = 0$ (forced absent)\n  - If column $x+1$ is Type AB: $h_{x,1} = 0$ (forced absent)\n  - If both columns $x$ and $x+1$ are Type A or B: $h_{x,1}$ can be 0 or 1, but with constraints from both sides.\n\nWait, there's a potential conflict. If column $x$ is Type 0 (forcing $h_{x,1} = 1$) but column $x+1$ is Type AB (forcing $h_{x,1} = 0$), that's a contradiction. So Type 0 and Type AB cannot be adjacent!\n\nMore generally, the constraint is: for each edge $h_{x,1}$, the constraints from column $x$ and column $x+1$ must be compatible.\n\nFrom column $x$: if Type 0, $h_{x,1} = 1$; if Type AB, $h_{x,1} = 0$; if Type A/B, $h_{x,1}$ is free but $h_{x-1,1} + h_{x,1} = 1$ (one is 0, one is 1).\n\nFrom column $x+1$: if Type 0, $h_{x,1} = 1$; if Type AB, $h_{x,1} = 0$; if Type A/B, $h_{x,1}$ is free but $h_{x,1} + h_{x+1,1} = 1$.\n\nSo:\n- Type 0 next to Type 0: $h = 1$ ✓\n- Type 0 next to Type AB: conflict ✗\n- Type 0 next to Type A/B: $h = 1$, and for the A/B column, $h_{x,1} = 1$ means $h_{\\text{other side}} = 0$.\n- Type AB next to Type AB: $h = 0$ ✓\n- Type AB next to Type A/B: $h = 0$, and for the A/B column, $h_{x,1} = 0$ means $h_{\\text{other side}} = 1$.\n- Type A/B next to Type A/B: $h$ is free, but constrained by both sides.\n\nThis is getting complex. Let me think about the structure differently.\n\nThe middle row's removed edges partition $C_{20}$ into paths. Each path is a maximal sequence of consecutive columns connected by middle-row horizontal edges. The endpoints of each path are columns where the middle-row edge is removed on one side.\n\nActually, let me think about the \"runs\" of the middle row. The present edges in the middle row form a set of paths on $C_{20}$ (subgraphs of the cycle). Each path has its endpoints at columns where the adjacent middle edge is removed.\n\nA column with $a+b = 2$ (Type AB) has both middle edges removed, so it's isolated in the middle row (a path of length 0, i.e., just the vertex itself, but with degree 0 in middle horizontal). Actually, it's not part of any middle-row path.\n\nA column with $a+b = 0$ (Type 0) has both middle edges present, so it's an internal vertex of a middle-row path.\n\nA column with $a+b = 1$ (Type A/B) has exactly one middle edge present, so it's an endpoint of a middle-row path.\n\nSo the middle-row paths are sequences of consecutive columns, where:\n- Internal columns are Type 0\n- End columns are Type A or B\n- Type AB columns are not part of any middle-row path (they're isolated, with no middle horizontal edges)\n\nWait, but a Type AB column has no middle horizontal edges, so it's not in any path. The paths are formed by Type 0 columns (internal) and Type A/B columns (endpoints).\n\nA middle-row path looks like: [Type A/B] - [Type 0]* - [Type A/B], where the two endpoints are Type A or B, and the internal columns are all Type 0. The path could also be a single Type A/B column with both middle edges removed... no, a Type A/B column has exactly one middle edge present, so it's always an endpoint of a path of length ≥ 1 (at least one edge).\n\nHmm wait. If we have two consecutive Type A/B columns, say columns $x$ and $x+1$ are both Type A/B. Then $h_{x,1}$ could be 0 or 1. If $h_{x,1} = 1$, they're connected, forming a path of length 1 (edge). If $h_{x,1} = 0$, they're not connected, and each is an endpoint of a different path.\n\nBut if $h_{x,1} = 0$ for two consecutive Type A/B columns, then column $x$ has $h_{x-1,1} = 1$ (since $h_{x-1,1} + h_{x,1} = 1$) and column $x+1$ has $h_{x+1,1} = 1$. So they're endpoints of paths extending in opposite directions.\n\nIf $h_{x,1} = 1$, then column $x$ has $h_{x-1,1} = 0$ and column $x+1$ has $h_{x+1,1} = 0$. So they form a path of length 1 (just the edge between them), with both endpoints being Type A/B.\n\nOK so this is a valid configuration. Two Type A/B columns adjacent with $h = 1$ form a path of length 1.\n\nNow, the key constraint for a Hamiltonian path (not multiple paths/cycles): the overall graph formed by all used edges must be a single path.\n\nLet me think about the overall structure. The used edges form a graph where every vertex has degree 2 except two endpoints (degree 1). This graph must be connected (a single path, not a union of paths and cycles).\n\nLet me think about what the middle-row paths look like and how they connect to the top and bottom rows.\n\nConsider a middle-row path: columns $x_1, x_1+1, \\ldots, x_2$ (consecutive), where $x_1$ and $x_2$ are Type A/B, and $x_1+1, \\ldots, x_2-1$ are Type 0 (if $x_2 > x_1$; if $x_2 = x_1$, it's a single Type A/B column with a self-loop... no, that can't happen on a simple graph).\n\nWait, I need to be more careful. A middle-row path is a maximal set of consecutive columns connected by present middle-row edges. The path consists of edges, not vertices. Let me re-define.\n\nThe present middle-row edges form a set of paths on the cycle $C_{20}$. Each path is a sequence of edges $h_{x,1}, h_{x+1,1}, \\ldots, h_{x+k,1}$ that are all present, with $h_{x-1,1}$ and $h_{x+k+1,1}$ absent. The vertices of this path are columns $x, x+1, \\ldots, x+k+1$.\n\nThe endpoints (columns $x$ and $x+k+1$) have one present middle edge, so they're Type A/B.\nThe internal vertices (columns $x+1, \\ldots, x+k$) have two present middle edges, so they're Type 0.\n\nWait, I think I need to be more careful about the direction. Let me re-define.\n\nA middle-row path is defined by a maximal run of present edges. If edges $h_{x,1}, h_{x+1,1}, \\ldots, h_{x+k-1,1}$ are present and $h_{x-1,1}$ and $h_{x+k,1}$ are absent, then the path visits columns $x, x+1, \\ldots, x+k$. The endpoints are columns $x$ and $x+k$ (each with one present middle edge, so Type A/B), and internal columns $x+1, \\ldots, x+k-1$ are Type 0 (if $k \\ge 2$).\n\nIf $k = 1$: the path is a single edge between columns $x$ and $x+1$, both Type A/B.\n\nIf all 20 middle edges are present: the middle row is a full cycle $C_{20}$, and all columns are Type 0. But then there are no Type A/B or AB columns, meaning no vertical edges at all. The path would be three separate cycles (one per row), which is not a Hamiltonian path. So this case is invalid.\n\nIf no middle edges are present: all columns are Type AB. The middle row is completely disconnected. Each column has both vertical edges used. The path structure is purely vertical within each column, plus horizontal in top and bottom rows. Let's see if this can form a Hamiltonian path.\n\nIf all columns are Type AB: \n- Middle row: no horizontal edges, each $(x,1)$ connected to $(x,0)$ and $(x,2)$ vertically.\n- Bottom row: $h_{x-1,0} + h_{x,0} = 1$ for each $x$ (since $a_x = 1$, degree = 1, unless endpoint). So the bottom row horizontal edges form a perfect matching of $C_{20}$ (each vertex degree 1), except for the endpoint column which has degree 0.\n- Top row: similarly, $h_{x-1,2} + h_{x,2} = 1$ for each $x$ (since $b_x = 1$), except for the endpoint column which has degree 0.\n\nSo with all Type AB: the bottom row has a near-perfect matching (one vertex excluded, the endpoint), and the top row has a near-perfect matching (one vertex excluded, the other endpoint). The vertical edges connect $(x,0)-(x,1)-(x,2)$ in each column.\n\nThe overall graph: each column forms a vertical path $(x,0)-(x,1)-(x,2)$. The bottom matching connects some pairs of columns at the bottom, and the top matching connects some pairs at the top. This forms a graph where we need to check if it's a single path.\n\nEach column is a path of length 2 (3 vertices). The bottom matching connects endpoints of column-paths at the bottom, and the top matching connects endpoints at the top. This is like a \"ladder\" structure.\n\nWith 20 columns, the bottom matching pairs up 19 columns (one is the endpoint, unmatched) and the top matching pairs up 19 columns (one is the other endpoint, unmatched). Each matching on $C_{20}$ with one vertex removed: the remaining 19 vertices... wait, a matching on 19 vertices can cover at most 18, leaving one unmatched. Hmm, but we said degree 1 for non-endpoint and degree 0 for endpoint. So 19 vertices have degree 1 and 1 has degree 0. A subgraph of $C_{20}$ where 19 vertices have degree 1 and 1 has degree 0: this is a path on all 20 vertices! (A path $P_{20}$ has 18 vertices of degree 2, 2 of degree 1... no.)\n\nWait, I need to reconsider. In the bottom row, the horizontal edges form a subgraph of $C_{20}$ where vertex $x$ has degree $h_{x-1,0} + h_{x,0} = 1$ for non-endpoint columns and $0$ for the endpoint column. A subgraph of $C_{20}$ where one vertex has degree 0 and the rest have degree 1: this is a perfect matching of $C_{20} \\setminus \\{v\\}$ where $v$ is the endpoint. But $C_{20} \\setminus \\{v\\}$ is a path $P_{19}$, and a perfect matching of $P_{19}$ (19 vertices) doesn't exist (odd number). \n\nHmm, so this means: if all columns are Type AB, the bottom row needs a subgraph of $C_{20}$ with degrees (1,1,...,1,0) (one 0, nineteen 1s). The sum of degrees is 19, which is odd. But the sum of degrees in any graph must be even. Contradiction!\n\nSo all-Type-AB is impossible! Good, that rules out that case.\n\nLet me reconsider. The sum of degrees in the bottom row horizontal subgraph is $\\sum_x (h_{x-1,0} + h_{x,0}) = 2 \\sum_x h_{x,0}$, which is always even. So $\\sum_x (2 - a_x - [\\text{endpoint at } x]) = $ even. Wait, the degree of vertex $x$ in the bottom row is $2 - a_x$ (normally) or $1 - a_x$ (if endpoint). Sum = $\\sum_x (2 - a_x) - 1 = 2 \\cdot 20 - \\sum a_x - 1 = 39 - \\sum a_x$. This must be even, so $\\sum a_x$ must be odd.\n\nSimilarly for the top row: sum of degrees = $39 - \\sum b_x$, must be even, so $\\sum b_x$ must be odd.\n\nFor the middle row: sum of degrees = $\\sum (2 - a_x - b_x) = 40 - \\sum(a_x + b_x)$, always even. ✓\n\nSo we need $\\sum a_x$ odd and $\\sum b_x$ odd.\n\nNow, the endpoint at the bottom is at some column $x_0$ with $y=0$, and the endpoint at the top is at some column $x_1$ with $y=2$.\n\nLet me now think about the structure more carefully. I'll consider the middle row paths and how they connect to the top and bottom.\n\nEach middle-row path has two endpoints, which are Type A or Type B columns. At a Type A column (only $a_x$ used, i.e., bottom vertical), the middle vertex $(x,1)$ connects downward to $(x,0)$. At a Type B column (only $b_x$ used, i.e., top vertical), the middle vertex $(x,1)$ connects upward to $(x,2)$.\n\nSo each middle-row path is a path in the middle row, and at each endpoint, it connects either upward (Type B) or downward (Type A) to the top or bottom row.\n\nFor the overall graph to be a single path (not multiple components), the middle-row paths must be connected through the top and bottom rows.\n\nLet me think about this as a \"macro\" structure. The middle-row paths are segments. Each segment has two ends, each going up or down. The top and bottom rows connect these segments.\n\nActually, let me think about it as follows. The middle row is divided into paths by the removed edges. Each path has two ends. At each end, the path connects to either the top or bottom row. The top and bottom rows then connect these ends together.\n\nFor the overall structure to be a single Hamiltonian path, the connections must form a single path, not cycles or multiple paths.\n\nLet me think about the top and bottom rows. In the top row, the horizontal edges form a subgraph of $C_{20}$ with specified degrees. Similarly for the bottom row.\n\nFor a Type 0 column: top degree = 2, bottom degree = 2 (both horizontal edges present in both rows, unless endpoint).\nFor a Type A column: top degree = 2, bottom degree = 1 (top: both horizontal present; bottom: one horizontal present, plus one vertical).\nFor a Type B column: top degree = 1, bottom degree = 2 (top: one horizontal present, plus one vertical; bottom: both horizontal present).\nFor a Type AB column: top degree = 1, bottom degree = 1 (one horizontal in each, plus vertical in each).\n\n(All adjusted by -1 if the column is the endpoint in that row.)\n\nSo in the top row, the degree of column $x$ is:\n- Type 0: 2 (or 1 if endpoint)\n- Type A: 2 (or 1 if endpoint)\n- Type B: 1 (or 0 if endpoint)\n- Type AB: 1 (or 0 if endpoint)\n\nIn the bottom row, the degree of column $x$ is:\n- Type 0: 2 (or 1 if endpoint)\n- Type A: 1 (or 0 if endpoint)\n- Type B: 2 (or 1 if endpoint)\n- Type AB: 1 (or 0 if endpoint)\n\nNow, the top row horizontal subgraph: columns with degree 2 are \"internal\" to top-row paths, columns with degree 1 are \"endpoints\" of top-row paths, and columns with degree 0 are isolated.\n\nType 0 and Type A columns have top degree 2 (internal to top-row paths).\nType B and Type AB columns have top degree 1 (endpoints of top-row paths).\n\nSimilarly for the bottom row:\nType 0 and Type B columns have bottom degree 2 (internal to bottom-row paths).\nType A and Type AB columns have bottom degree 1 (endpoints of bottom-row paths).\n\nSo the top-row paths have endpoints at Type B and Type AB columns, and internal vertices at Type 0 and Type A columns.\n\nThe bottom-row paths have endpoints at Type A and Type AB columns, and internal vertices at Type 0 and Type B columns.\n\nNow, let me think about the overall connectivity. The Hamiltonian path is a single path visiting all 60 vertices. The structure is:\n\n1. Middle-row paths connect columns in the middle row.\n2. At Type A endpoints, the middle path connects down to the bottom row.\n3. At Type B endpoints, the middle path connects up to the top row.\n4. Top-row paths connect columns in the top row, with endpoints at Type B/AB columns.\n5. Bottom-row paths connect columns in the bottom row, with endpoints at Type A/AB columns.\n6. Type AB columns have vertical connections in both directions, connecting top-middle-bottom.\n\nFor Type AB columns: the vertical path goes $(x,2)-(x,1)-(x,0)$, connecting the top row to the bottom row through the middle. The top-row path ending at this column connects to the bottom-row path starting at this column (through the vertical edges).\n\nFor Type A columns: the vertical edge connects $(x,1)-(x,0)$, connecting the middle-row path to the bottom-row path.\n\nFor Type B columns: the vertical edge connects $(x,1)-(x,2)$, connecting the middle-row path to the top-row path.\n\nFor Type 0 columns: no vertical edges. The middle, top, and bottom rows are independent at this column. The middle-row path passes through, the top-row path passes through, and the bottom-row path passes through, all independently.\n\nSo the overall path structure is: the Hamiltonian path alternates between middle-row paths, top-row paths, and bottom-row paths, connected at Type A, B, and AB columns.\n\nLet me think about this as a \"meta-graph\". The nodes of the meta-graph are the path segments (middle-row paths, top-row paths, bottom-row paths). The edges of the meta-graph are the vertical connections at Type A, B, AB columns.\n\nFor a Hamiltonian path (single path), the meta-graph must be a single path.\n\nThis is getting quite involved. Let me try to think about it computationally. Given the complexity, maybe I should set up a transfer matrix computation.\n\nActually, wait. Let me think about whether there's a cleaner way to see this.\n\nLet me consider the \"column type sequence\" $(t_0, t_1, \\ldots, t_{19})$ where $t_x \\in \\{0, A, B, AB\\}$. This sequence determines the middle-row edge pattern (up to the choices at Type A/B boundaries), and the top/bottom row degree sequences.\n\nBut the top and bottom row edge patterns also have choices (which edges to include when degree is 1).\n\nThis is a complex combinatorial problem. Let me try to think about it using a transfer matrix approach, processing columns one at a time around the cycle.\n\nActually, since it's a cycle, I need to handle the wraparound. Let me think about fixing the state at the boundary between column 19 and column 0, and then doing a transfer matrix for columns 0 through 19.\n\nThe state at a boundary needs to capture:\n1. Which horizontal edges are used (3 bits: one per row)\n2. The connectivity of the path fragments crossing the boundary\n\nFor a Hamiltonian path on a cylinder, the transfer matrix approach is standard but the state space can be large.\n\nWith 3 rows, the number of possible \"connectivity states\" at a boundary is manageable. Let me think about what states are possible.\n\nAt a boundary between column $x$ and column $x+1$, the horizontal edges $h_{x,0}, h_{x,1}, h_{x,2}$ can be present or absent. If present, they connect path fragments on the left to fragments on the right.\n\nThe connectivity state tracks how the \"open ends\" on the left side are connected to each other (through the already-processed part of the graph). The open ends are the vertices on the boundary that have an edge going to the right (i.e., $h_{x,y} = 1$ means vertex $(x,y)$ has an open end going right).\n\nWait, I think the standard approach is: process columns left to right. At each boundary, track which vertices have \"dangling\" edges going right, and how the dangling edges on the left are connected to each other through the already-processed part.\n\nWith 3 rows, at most 3 edges cross the boundary. The connectivity of these edges can be described by a partition of the set of crossing edges.\n\nThe possible states:\n- 0 edges crossing: state $\\emptyset$ (no open ends)\n- 1 edge crossing: state $\\{y\\}$ for $y \\in \\{0, 1, 2\\}$ (one open end at row $y$)\n- 2 edges crossing: states $\\{y_1, y_2\\}$ where the two open ends are either connected to each other (forming a path that will close) or separate (two independent path fragments)\n- 3 edges crossing: states with 3 open ends, with various connectivity patterns\n\nFor a Hamiltonian path (not cycle), we also need to track the two endpoints. The endpoints are the start (at $y=2$) and end (at $y=0$). These are vertices with degree 1 in the path.\n\nHmm, this is getting complex. Let me think about whether there's a simpler approach.\n\nActually, let me reconsider the problem. Maybe I should think about it in terms of the \"snake\" structure on the cylinder.\n\nLet me think about small cases first to get intuition. Consider $C_n \\times P_3$ for small $n$.\n\nFor $n = 1$: $C_1 \\times P_3$ is just $P_3$ (a path of 3 vertices). But $C_1$ is a single vertex with a self-loop, which doesn't make sense. Let me start with $n = 2$.\n\nFor $n = 2$: $C_2 \\times P_3$ has 6 vertices. $C_2$ is two vertices connected by two edges (a multigraph), but in our context, $x$ ranges 0 to 1, and the horizontal edges wrap: $h_{0,y}$ connects $(0,y)$ to $(1,y)$, and $h_{1,y}$ connects $(1,y)$ to $(0,y)$. But these are the same edge! So $C_2 \\times P_3$ is actually $K_{2} \\times P_3$... hmm, this is getting confusing with the wraparound for small $n$.\n\nLet me not worry about small cases and instead think about the general structure.\n\nLet me try a different approach. I'll think about the problem as counting Hamiltonian paths on the cylinder $C_{20} \\times P_3$ with endpoints in specific rows.\n\nActually, let me try to think about this problem using the transfer matrix method more carefully, and see if I can compute the answer.\n\nThe cylinder has 20 columns and 3 rows. I'll process columns 0, 1, ..., 19 in order. The state at each boundary tracks the connectivity of open ends.\n\nLet me define the state more carefully. After processing columns 0 through $x$, the boundary is between column $x$ and column $x+1$. The state consists of:\n\n1. Which horizontal edges $h_{x,0}, h_{x,1}, h_{x,2}$ are present (going right from column $x$).\n2. How the open ends at this boundary are connected through the processed part (columns 0 to $x$).\n3. Whether the two endpoints (start at $y=2$, end at $y=0$) have been placed among the processed columns.\n\nThe connectivity is described by a matching on the set of open ends. Each open end is a vertex $(x, y)$ with $h_{x,y} = 1$. Two open ends are \"connected\" if they're part of the same path fragment in the processed part.\n\nFor a Hamiltonian path, the processed part consists of path fragments. Each fragment has two ends (which are either open ends at the boundary, or the global endpoints). The connectivity state tracks which open ends are paired (in the same fragment).\n\nWith at most 3 open ends, the possible connectivity patterns are:\n- 0 open ends: $\\emptyset$\n- 1 open end: $\\{a\\}$ (one fragment with one end at the boundary and one end being a global endpoint)\n- 2 open ends: $\\{a, b\\}$ (two possibilities: $a$ and $b$ are in the same fragment, or in different fragments)\n  - Same fragment: $(ab)$ — they're connected through the processed part\n  - Different fragments: $(a)(b)$ — two separate fragments\n- 3 open ends: $\\{a, b, c\\}$ (partitions into connected components)\n  - All same: $(abc)$ — but this would mean a path with 3 ends, which is impossible (a path has 2 ends). So this can't happen unless one end is a global endpoint.\n  \nHmm, actually I need to be more careful. Each path fragment has exactly 2 ends. The ends are either open ends (at the boundary) or global endpoints (the start and end of the Hamiltonian path). So if a fragment has both ends as open ends, it's a \"closed\" fragment (will be connected later). If a fragment has one open end and one global endpoint, it's a \"half-open\" fragment. If a fragment has both ends as global endpoints, it's the complete path (but this only happens at the end).\n\nSo the state needs to track:\n- The open ends at the boundary\n- Which open ends are connected to each other (in the same fragment)\n- Which open ends are connected to global endpoints\n- How many global endpoints have been placed (0, 1, or 2)\n\nThis is getting complex but manageable for 3 rows.\n\nLet me enumerate the possible states. The open ends are a subset of $\\{0, 1, 2\\}$ (rows with horizontal edges going right). For each subset, the connectivity is a partition of the open ends into pairs (fragments with both ends open) and singletons (fragments with one end open and one end being a global endpoint).\n\nBut we also need to track how many global endpoints have been used. Let me denote the state as $(S, \\pi, k)$ where $S$ is the set of open ends, $\\pi$ is the partition (pairing) of $S$ into pairs and singletons, and $k$ is the number of global endpoints placed (0, 1, or 2).\n\nWait, but the singletons correspond to fragments connected to global endpoints. So the number of singletons equals the number of global endpoints that are connected to open ends. But a global endpoint might also be in a completed fragment (both ends in the processed part), which would create a cycle — not allowed for a Hamiltonian path.\n\nActually, let me reconsider. In the transfer matrix for Hamiltonian paths, the key constraint is:\n1. No cycles are formed in the processed part (except possibly at the very end).\n2. The final result is a single path (not multiple paths).\n\nThe standard approach tracks the connectivity of open ends. Two open ends are \"connected\" if they're in the same path fragment. When we add a new column, we might connect open ends, potentially closing a cycle (which is only allowed at the very end if it completes the Hamiltonian path/cycle).\n\nFor a Hamiltonian path (not cycle), we have two special vertices (endpoints) with degree 1. These need to be tracked separately.\n\nLet me simplify by considering the endpoints as additional \"virtual\" open ends that are always present. So the state tracks the connectivity of the real open ends plus the two virtual endpoints.\n\nHmm, this is getting complicated. Let me try a different approach.\n\nLet me think about the problem structure more carefully.\n\nGoing back to the column type analysis: each column is Type 0, A, B, or AB. The sequence of types around the cycle determines the structure.\n\nKey constraints:\n1. Type 0 and Type AB cannot be adjacent (as shown earlier).\n2. $\\sum a_x$ is odd, $\\sum b_x$ is odd.\n3. The overall graph is a single path (not multiple components or cycles).\n\nLet me think about constraint 1 more carefully. Type 0 has $a+b=0$ and Type AB has $a+b=2$. They can't be adjacent because the middle-row edge between them would need to be both present (from Type 0's perspective) and absent (from Type AB's perspective).\n\nWhat about the top and bottom rows? Let me check if there are similar constraints.\n\nFor the top row: the degree of column $x$ is $2 - b_x$ (normally) or $1 - b_x$ (if endpoint). The top-row horizontal edges form a subgraph of $C_{20}$ with these degrees.\n\nType 0: top degree 2 (both top horizontal edges present)\nType A: top degree 2 (both top horizontal edges present)  \nType B: top degree 1 (one top horizontal edge present)\nType AB: top degree 1 (one top horizontal edge present)\n\nSo in the top row, Type 0 and Type A columns have degree 2, and Type B and Type AB have degree 1. The removed top-row edges are adjacent to Type B/AB columns.\n\nAn edge $h_{x,2}$ is removed iff it's not used. The constraint is: for column $x$, the number of removed top-row edges adjacent to $x$ is $b_x$ (or $b_x + 1$ if endpoint).\n\nWait, let me redo this. Top row degree of column $x$: $h_{x-1,2} + h_{x,2} = 2 - b_x$ (normally) or $1 - b_x$ (if endpoint at $(x,2)$).\n\nSo the number of removed top edges adjacent to $x$ is $b_x$ (normally) or $b_x + 1$ (if endpoint).\n\nFor Type 0 ($b_x = 0$): 0 removed edges adjacent (both present), or 1 if endpoint.\nFor Type A ($b_x = 0$): same as Type 0.\nFor Type B ($b_x = 1$): 1 removed edge adjacent, or 2 if endpoint.\nFor Type AB ($b_x = 1$): same as Type B.\n\nSo in the top row, the removed edges are adjacent to Type B/AB columns (and the endpoint column). Type 0/A columns have no removed edges adjacent (both top horizontal edges present), unless the endpoint is there.\n\nSimilar to the middle row, Type 0/A and Type B/AB have constraints on adjacency. Specifically, a Type 0/A column forces both adjacent top edges present, while a Type B/AB column forces at least one adjacent top edge absent. If a Type 0/A is next to a Type B/AB, the edge between them is forced present (by Type 0/A) but the Type B/AB column needs one of its two adjacent edges absent — so the other edge of the Type B/AB column must be absent.\n\nThis is analogous to the middle row but with different type classifications.\n\nOK, I think the transfer matrix approach is the way to go, but it's complex. Let me try to set it up systematically.\n\nActually, let me try to think about this problem differently. Let me consider the \"boundary\" between top and bottom through the middle row.\n\nThe middle row divides the cylinder into two halves: the top part (rows 1 and 2) and the bottom part (rows 0 and 1). But row 1 is shared, so this doesn't cleanly separate.\n\nLet me try yet another approach. Let me think about the Hamiltonian path as it traverses the cylinder.\n\nOn a cylinder $C_n \\times P_m$, a Hamiltonian path can be thought of as a \"snake\" that winds around the cylinder. The path can go around the cylinder multiple times, moving up and down between rows.\n\nFor $m = 3$ (3 rows), the path has 60 vertices. Each \"lap\" around the cylinder visits 3 vertices (one per row) if going straight, or more if weaving.\n\nHmm, let me think about this more carefully using the transfer matrix.\n\nLet me set up the transfer matrix properly. I'll process the cylinder column by column, starting from column 0. Since it's a cycle, I'll fix the state at the \"seam\" between column 19 and column 0, and then the transfer matrix gives me the number of ways to go from that state back to itself (with the endpoints placed correctly).\n\nThe state at a boundary needs to capture:\n1. The horizontal edges crossing the boundary (subset of $\\{0, 1, 2\\}$)\n2. The connectivity of the path fragments at the boundary\n3. The placement of endpoints\n\nLet me think about the possible states more carefully.\n\nAt any boundary, the open ends are the vertices on the left side of the boundary that have a horizontal edge going right. Each open end is at some row $y \\in \\{0, 1, 2\\}$.\n\nThe path fragments in the processed part connect these open ends (and possibly the two global endpoints). Each fragment is a path, so it has exactly 2 ends. The ends can be:\n- Two open ends (the fragment connects two open ends through the processed part)\n- One open end and one global endpoint\n- Two global endpoints (this would be the complete Hamiltonian path — only valid at the end)\n\nSo the state is: a partition of the open ends into pairs (fragments connecting two open ends) and singletons (fragments connecting an open end to a global endpoint), plus a count of how many global endpoints have been used.\n\nBut we also need to ensure no cycles are formed. A cycle would be a fragment with no open ends and no global endpoints — a closed loop in the processed part. This is not allowed (except at the very end for a Hamiltonian cycle, but we want a path).\n\nLet me enumerate the states. The open ends are a subset $S \\subseteq \\{0, 1, 2\\}$. The partition of $S$ into pairs and singletons, plus the number of \"used\" global endpoints (which equals the number of singletons), gives the state.\n\nBut we also need to track whether a global endpoint has been placed but is not connected to any open end (i.e., it's in a completed fragment). But a completed fragment with a global endpoint would need to be a path from the global endpoint to... somewhere. If it's a path from the global endpoint to another open end, that's a singleton. If it's a path from the global endpoint to itself, that's a cycle — not allowed. If it's a path from the global endpoint to the other global endpoint, that's the complete path — only valid at the end.\n\nSo actually, if a global endpoint is placed and not connected to an open end, it must be connected to the other global endpoint, forming the complete path. This is only valid at the very end (after processing all columns). So during the transfer, we can't have a global endpoint that's \"free\" (not connected to an open end) unless it's the final state.\n\nWait, but what if a global endpoint is at a vertex that's fully processed (all its edges are within the processed columns)? Then it's a degree-1 vertex in the processed part, connected to one neighbor. That neighbor is also in the processed part. So the global endpoint is part of a fragment. If the fragment has its other end as an open end, it's a singleton. If the other end is the other global endpoint, it's the complete path.\n\nBut the fragment could also have both ends as open ends, with the global endpoint in the middle. No, that can't happen — the global endpoint has degree 1, so it's always an end of its fragment.\n\nOK so the state is fully described by: (set of open ends $S$, partition of $S$ into pairs and singletons). The number of singletons equals the number of global endpoints used so far, and this must be at most 2.\n\nWait, but I also need to distinguish which singleton corresponds to which global endpoint (start at $y=2$ or end at $y=0$). Because the start must be at $y=2$ and the end at $y=0$.\n\nHmm, actually, the global endpoints are specific vertices, not just \"some vertex at $y=2$\". The start is at some specific $(x_s, 2)$ and the end is at some specific $(x_e, 0)$. These are determined by the path.\n\nIn the transfer matrix, when we process a column, we might place an endpoint at a vertex in that column. We need to track which endpoints have been placed.\n\nLet me reconsider. The endpoints are:\n- Start: at some $(x_s, 2)$ — degree 1, at row 2\n- End: at some $(x_e, 0)$ — degree 1, at row 0\n\nWhen processing column by column, at each column we decide the vertical edge configuration and which horizontal edges connect to the next column. We also decide if any vertex in this column is an endpoint.\n\nThe state needs to track:\n1. Open ends at the boundary (subset of $\\{0, 1, 2\\}$)\n2. Connectivity of open ends (which are paired, which are singletons)\n3. Which endpoints have been placed (none, start only, end only, both)\n\nBut the singletons in the partition correspond to endpoints. If a singleton is at row $y$, and it corresponds to the start endpoint, then $y$ must be 2 (since start is at row 2). Similarly for the end at row 0.\n\nWait, but the singleton's row is the row of the open end, not the row of the endpoint. The open end is at the boundary, and the endpoint is somewhere in the processed columns. The fragment connects the open end (at the boundary) to the endpoint (somewhere in the processed columns). The row of the open end doesn't directly tell us which endpoint it is.\n\nHmm, but we need to ensure the start is at row 2 and the end is at row 0. So we need to track which singleton is the start and which is the end.\n\nLet me simplify: the state tracks (open ends, pairing, endpoint status). The endpoint status can be:\n- No endpoints placed\n- Start placed (connected to some open end as a singleton)\n- End placed (connected to some open end as a singleton)\n- Both placed (two singletons, one for start and one for end)\n\nAnd we need to ensure that when the start is placed, it's at a vertex with $y=2$, and when the end is placed, it's at a vertex with $y=0$.\n\nThis is getting complex but let me try to enumerate the states.\n\nOpen ends $S \\subseteq \\{0, 1, 2\\}$: $2^3 = 8$ possibilities, but we also need the connectivity.\n\nFor $|S| = 0$: one state (no open ends, no singletons). Endpoint status: none, both (if both endpoints are in a completed path — but that's the final state).\n\nActually, for $|S| = 0$ and both endpoints placed: this means the entire Hamiltonian path is within the processed columns. This is only valid if all 60 vertices are processed, i.e., at the end. During the transfer, this would mean a closed path — not valid unless it's the final state.\n\nFor $|S| = 0$ and no endpoints placed: all fragments are closed cycles — not valid (no cycles allowed).\n\nFor $|S| = 0$ and one endpoint placed: the endpoint is in a completed fragment with no open ends — this means a cycle with one endpoint, which is a path from the endpoint to itself — impossible. Actually, a fragment with one endpoint and no open ends would be a path from the endpoint to... the other end of the fragment, which has no open end and no endpoint — that's a cycle. Not valid.\n\nSo $|S| = 0$ is only valid as the final state (with both endpoints placed and the complete path formed), or not at all during the transfer.\n\nWait, I think I need to reconsider. Let me re-examine.\n\nIn the transfer matrix method for Hamiltonian paths on a cylinder:\n- We process columns one by one.\n- At each boundary, we track the \"profile\": which edges cross the boundary and how the crossing edges are connected.\n- A \"connection\" means two crossing edges are part of the same path fragment (connected through the processed columns).\n- We must avoid creating cycles (a cycle is formed when two ends of the same fragment are connected).\n- At the end (after processing all columns), we must have a single path (not multiple fragments).\n\nFor a Hamiltonian path (not cycle), the two endpoints have degree 1. These are \"defects\" in the otherwise degree-2 structure.\n\nLet me use a cleaner formulation. I'll think of the endpoints as \"half-edges\" that are always present. So the state at a boundary includes the real open ends (horizontal edges crossing the boundary) plus the \"virtual\" open ends (the endpoints, if they've been placed in the processed columns).\n\nThe total set of \"dangling ends\" at the boundary is: real open ends ∪ virtual open ends (placed endpoints). The connectivity is a pairing of these dangling ends (each pair represents a path fragment connecting them).\n\nFor a valid state:\n- The pairing must be a valid partition into pairs (each fragment has exactly 2 ends).\n- No cycles (a cycle would be a fragment with both ends in the processed part and no dangling ends — but in our formulation, all fragments have dangling ends, so cycles are automatically avoided... wait, no).\n\nHmm, actually cycles can form within the processed part. A cycle is a closed loop with no dangling ends. In our formulation, if a fragment has both ends as \"virtual\" (both endpoints), it's a path from start to end — the complete Hamiltonian path. But if it's formed before processing all columns, it means there's a closed path in the processed part, and the remaining columns form separate fragments — not a single Hamiltonian path.\n\nSo we need to ensure that the \"both endpoints connected to each other\" state only occurs at the very end.\n\nOK let me just try to set up the transfer matrix computationally. I'll enumerate all possible states and transitions.\n\nLet me define a state as: (subset of rows with open horizontal edges, pairing of open ends + endpoints, which endpoints are placed).\n\nThe open ends are labeled by their row: 0, 1, 2. The endpoints are labeled: S (start, at row 2) and E (end, at row 0).\n\nA state is a partition of (open ends ∪ placed endpoints) into pairs, where each pair represents a path fragment connecting the two ends.\n\nConstraints:\n- Open ends are a subset of {0, 1, 2}.\n- Placed endpoints are a subset of {S, E}.\n- The total number of elements (open ends + placed endpoints) must be even (for a valid pairing).\n- No pair can connect two open ends that are at the same row... actually, they can, since the path can go from one open end at row 0 to another open end at row 0 through the processed columns.\n\nWait, but two open ends at the same row would mean two horizontal edges at the same row crossing the boundary. But there's only one horizontal edge per row at each boundary. So we can have at most one open end per row. So the open ends are a subset of {0, 1, 2} with at most one per row — which is just any subset.\n\nSo the elements to be paired are: open ends (subset of {0,1,2}) ∪ placed endpoints (subset of {S,E}). The total must be even, and the pairing is a perfect matching of these elements.\n\nLet me enumerate:\n\nCase 1: No endpoints placed. Open ends must be even-sized: 0 or 2.\n- |S|=0: state () — no fragments. Valid only if no columns processed yet, or all fragments are cycles (invalid).\n- |S|=2: states with 2 open ends, paired together. E.g., (0-1), (0-2), (1-2), (0-0)... wait, can't have two open ends at the same row. So the 2 open ends are at distinct rows. The pairing is just the one pair: (a-b) where a, b are distinct rows.\n\nActually wait, with 2 open ends and no endpoints, the pairing must pair the 2 open ends together. So the state is just the set of 2 open ends: {0,1}, {0,2}, {1,2}. The pairing is forced: (0-1), (0-2), (1-2).\n\nCase 2: One endpoint placed (say S). Open ends + S must be even, so |open ends| is odd: 1 or 3.\n- |S|=1: one open end, paired with S. States: (0-S), (1-S), (2-S).\n- |S|=3: three open ends + S = 4 elements, paired into 2 pairs. The pairings are:\n  - (0-1)(2-S), (0-2)(1-S), (1-2)(0-S), (0-S)(1-2), etc. — wait, these are the same as above. The 3 open ends {0,1,2} plus S, paired into 2 pairs. The possible pairings:\n    - S paired with 0: (S-0)(1-2)\n    - S paired with 1: (S-1)(0-2)\n    - S paired with 2: (S-2)(0-1)\n\nCase 3: One endpoint placed (E). Similar to Case 2 with E instead of S.\n- |S|=1: (0-E), (1-E), (2-E)\n- |S|=3: (E-0)(1-2), (E-1)(0-2), (E-2)(0-1)\n\nCase 4: Both endpoints placed (S and E). Open ends + S + E must be even, so |open ends| is even: 0 or 2.\n- |S|=0: S and E paired together: (S-E). This is the complete path — valid only at the end.\n- |S|=2: two open ends + S + E = 4 elements, paired into 2 pairs. Pairings:\n  - (S-E)(a-b): the complete path plus a separate fragment — invalid (two fragments).\n  - (S-a)(E-b) or (S-b)(E-a): two fragments, each connecting an endpoint to an open end. Valid.\n\nWait, (S-E)(a-b) means the complete Hamiltonian path is formed (S connected to E) plus a separate fragment (a-b). This is invalid because we'd have a closed path and a separate fragment. Actually, (S-E) is the complete path, and (a-b) is a separate fragment. This means the processed part has two components: the Hamiltonian path and another fragment. This is only valid if the other fragment doesn't exist, i.e., at the very end with |S|=0.\n\nSo for |S|=2 with both endpoints: the valid pairings are (S-a)(E-b) and (S-b)(E-a), where {a,b} are the two open ends. The pairing (S-E)(a-b) is invalid (premature completion).\n\nOK so let me enumerate all valid states:\n\nNo endpoints:\n- () with |S|=0 — only valid at start (no columns processed)\n- {0,1} paired as (0-1)\n- {0,2} paired as (0-2)\n- {1,2} paired as (1-2)\n\nStart only (S placed):\n- {0} paired as (0-S)\n- {1} paired as (1-S)\n- {2} paired as (2-S)\n- {0,1,2} with pairings: (S-0)(1-2), (S-1)(0-2), (S-2)(0-1)\n\nEnd only (E placed):\n- {0} paired as (0-E)\n- {1} paired as (1-E)\n- {2} paired as (2-E)\n- {0,1,2} with pairings: (E-0)(1-2), (E-1)(0-2), (E-2)(0-1)\n\nBoth endpoints (S and E placed):\n- (S-E) with |S|=0 — only valid at end\n- {0,1} with pairings: (S-0)(E-1), (S-1)(E-0)\n- {0,2} with pairings: (S-0)(E-2), (S-2)(E-0)\n- {1,2} with pairings: (S-1)(E-2), (S-2)(E-1)\n\nWait, but I also need to track which specific pairing we have. For the \"both endpoints\" case with |S|=2, there are 2 pairings for each set of open ends. But I need to distinguish them because they lead to different futures.\n\nLet me count the total number of states:\n- No endpoints: 1 (empty, start only) + 3 = 4\n- Start only: 3 + 3 = 6\n- End only: 3 + 3 = 6\n- Both: 1 (final) + 6 = 7\n\nTotal: 4 + 6 + 6 + 7 = 23 states.\n\nBut the empty state at start and the (S-E) state at end are special. During the transfer (processing columns 1 through 19), the valid states are the non-special ones.\n\nActually, I realize the empty state (no open ends, no endpoints) is also valid mid-transfer if it means... no, it means no fragments, which means all processed vertices form cycles — invalid. So the empty state is only valid at the very start (before any column is processed).\n\nHmm wait, actually the empty state with no endpoints means all processed vertices have degree 2 and form closed cycles. That's invalid for a Hamiltonian path. So the empty state is only valid at the start (no vertices processed).\n\nSimilarly, the (S-E) state with no open ends means the complete path is formed — only valid at the end (all vertices processed).\n\nSo during the transfer, the valid states are:\n- No endpoints: {0,1}, {0,2}, {1,2} — 3 states\n- Start only: 6 states\n- End only: 6 states\n- Both: 6 states (excluding the final (S-E) state)\n\nTotal mid-transfer states: 3 + 6 + 6 + 6 = 21 states.\n\nPlus the initial state (empty, no endpoints) and the final state (S-E, no open ends).\n\nNow, for the cylinder, we start at the seam between column 19 and column 0. We fix the state at this seam, process columns 0 through 19, and return to the same seam. The total count is the sum over all seam states of (number of ways to go from seam state back to seam state, with endpoints placed correctly).\n\nBut the seam state is the state at the boundary between column 19 and column 0. The horizontal edges at this boundary are $h_{19,0}, h_{19,1}, h_{19,2}$. The open ends at this seam are the rows where these edges are present.\n\nFor the cylinder, the seam state must be consistent: the open ends at the start (seam) must match the open ends at the end (seam), and the connectivity must be consistent.\n\nWait, I think the transfer matrix approach for a cycle works as follows:\n1. Fix the state at the seam (boundary between column 19 and column 0).\n2. Process columns 0, 1, ..., 19, tracking the state at each boundary.\n3. After processing column 19, the state at the boundary between column 19 and column 0 must match the fixed seam state.\n4. Sum over all possible seam states.\n\nBut there's a subtlety: the seam state includes the horizontal edges $h_{19,y}$ and the connectivity. When we process column 0, we need to know $h_{19,y}$ (the edges coming from the left, i.e., from column 19). These are the same edges as the seam state.\n\nSo the transfer matrix for one column takes: (state at boundary $x-1$ to $x$) → (state at boundary $x$ to $x+1$). The state includes the open ends (horizontal edges) and the connectivity.\n\nFor the cycle, we compute $T^{20}$ where $T$ is the transfer matrix for one column, and then take the trace (sum of diagonal entries) to get the number of Hamiltonian cycles... but we want Hamiltonian paths, not cycles.\n\nFor Hamiltonian paths with specific endpoints, the approach is:\n1. The seam state has some open ends and connectivity.\n2. We process 20 columns, and the final state must match the seam state.\n3. But the endpoints must be placed during the processing.\n\nActually, I think the right approach is:\n- The transfer matrix $T$ maps a state at boundary $(x-1, x)$ to a state at boundary $(x, x+1)$, incorporating the vertices and edges of column $x$.\n- For the cycle, we compute the trace of $T^{20}$, but with the endpoint constraints.\n- The initial state (at the seam) can be any valid state. After 20 columns, we return to the seam. The final state must be the same as the initial state, but with both endpoints placed (since all 60 vertices have been processed).\n\nWait, that's not quite right either. Let me think again.\n\nThe seam is between column 19 and column 0. The state at the seam includes the horizontal edges $h_{19, y}$ (going from column 19 to column 0) and the connectivity of the path fragments crossing the seam.\n\nWhen we process column 0, we incorporate the vertices $(0,0), (0,1), (0,2)$ and the edges within column 0 (vertical edges $a_0, b_0$) and the horizontal edges $h_{0,y}$ (going from column 0 to column 1). The input state has open ends from $h_{19,y}$ and the output state has open ends from $h_{0,y}$.\n\nAfter processing all 20 columns (0 through 19), the output state has open ends from $h_{19,y}$ — the same as the input state. So we need the output state to match the input state. But the output state also has the endpoints placed (since all vertices have been processed).\n\nSo the initial state has no endpoints placed (or some placed), and the final state must have both endpoints placed and the same open ends and connectivity.\n\nHmm, but the connectivity might change. Let me think...\n\nActually, the connectivity at the seam is about how the open ends (horizontal edges crossing the seam) are connected through the processed columns. After processing all 20 columns, the open ends at the seam are connected through all 60 vertices. For a Hamiltonian path, the result should be a single path from S to E, with no open ends (if the path doesn't cross the seam) or with open ends that are connected through the path.\n\nWait, I think I'm overcomplicating this. Let me reconsider.\n\nFor a Hamiltonian path on a cylinder, the path visits all 60 vertices. The horizontal edges at the seam ($h_{19,y}$) are either used or not. If used, they're part of the path. The path is a single path from S to E.\n\nAfter processing all 20 columns, the \"fragments\" at the seam should form a single path from S to E. This means:\n- If no horizontal edges cross the seam: the state is (S-E) with no open ends — the complete path.\n- If some horizontal edges cross the seam: the open ends at the seam are connected through the path, and the path goes from S to E, possibly crossing the seam multiple times.\n\nBut wait, each horizontal edge at the seam is used at most once. And the path is a single path. If the path crosses the seam $k$ times (using $k$ horizontal edges at the seam), then the path is divided into $k$ segments by the seam, and these segments are connected through the seam edges.\n\nThe state at the seam describes how the open ends (seam edges) are connected through the processed columns (which is all columns). For a single Hamiltonian path from S to E:\n- If $k = 0$ (no seam edges): the path doesn't cross the seam, so it's entirely within the \"unwrapped\" cylinder. State: (S-E).\n- If $k = 2$ (two seam edges): the path crosses the seam twice. The two seam edges are connected through the path, and S and E are also connected through the path. The state could be (S-a)(E-b) or (S-b)(E-a) where {a,b} are the two seam edges. But wait, the path is a single path from S to E. If it crosses the seam at rows a and b, then the path goes: S ... a (cross seam) ... b (cross seam) ... E, or S ... b (cross seam) ... a (cross seam) ... E. In the first case, the state at the seam is: a and b are connected through the \"other side\" of the seam (the unprocessed side, but we've processed all columns, so the \"other side\" is the same as the \"processed side\"). Hmm, I'm getting confused.\n\nLet me think about this differently. On the cylinder, the seam is an artificial cut. The path doesn't know about the seam. We cut the cylinder at the seam and \"unroll\" it into a strip of 20 columns. The horizontal edges at the seam become \"dangling\" edges.\n\nAfter processing all 20 columns, the state at the seam describes how the dangling edges are connected through the 20 columns. For the path to be a single Hamiltonian path from S to E:\n- The dangling edges and the endpoints S, E must form a single connected path.\n- This means: the pairing of (dangling edges ∪ {S, E}) must be such that following the connections gives a single path.\n\nIf there are 0 dangling edges: S and E must be paired together → state (S-E).\nIf there are 2 dangling edges (a, b): the pairing must be (S-a)(E-b) or (S-b)(E-a). The pairing (S-E)(a-b) would give two separate components (the S-E path and the a-b cycle), which is invalid.\n\nWait, but (S-a)(E-b) means S is connected to a through the columns, and E is connected to b through the columns. The full path is: S ... a [seam] b ... E (or S ... a [seam] ... hmm, the seam connects a on one side to a on the other side, and b on one side to b on the other side).\n\nActually, I think the seam edges connect the same row on both sides. So if $h_{19, a}$ is used, it connects $(19, a)$ to $(0, a)$. In the unrolled view, this is a dangling edge at row $a$ on both the left side (column 19) and the right side (column 0). But in the transfer matrix, we process left to right, so the dangling edge at the left side is the \"input\" and at the right side is the \"output\". For the cycle, the input and output are the same (the seam).\n\nSo the state at the seam (both input and output) has the same open ends. The connectivity through the 20 columns pairs the input open ends with the output open ends and the endpoints. For a single path:\n- The input and output open ends are the same set (same rows).\n- The pairing connects input open ends to output open ends and endpoints, forming a single path.\n\nIf the open ends are {a, b} and both endpoints are placed:\n- Pairing (S-a_in)(E-b_in)(a_out-b_out)? No, this doesn't make sense. The input and output are the same edges.\n\nI think I need to reconsider the formulation. Let me think of it as: the seam has some open ends. These open ends are connected through the 20 columns (the \"inside\" of the cylinder). The endpoints S and E are also somewhere in the 20 columns. The overall structure must be a single path.\n\nIf the seam has open ends {a, b}, then through the 20 columns, a is connected to something, and b is connected to something. The possible connections:\n- a connected to b (through the columns), and S connected to E (through the columns): two components, invalid.\n- a connected to S, b connected to E: one path a-S and one path b-E. On the cylinder, a_in connects to a_out (same edge), so the full path is: a_out [seam edge] a_in ... S ... hmm, no. \n\nI think the issue is that on the cylinder, the seam edge at row a connects $(19, a)$ to $(0, a)$. In the transfer matrix, the \"input\" open end at row a is $(19, a)$ (the left side of the seam), and the \"output\" open end at row a is $(0, a)$ (the right side of the seam). They're connected by the seam edge.\n\nSo the full path on the cylinder is: follow the path through the columns from one seam edge to another, then cross the seam, then follow through the columns again, etc.\n\nIf the seam has open ends at rows a and b:\n- Through the columns, a_out (=(0,a)) is connected to some other end, and b_out (=(0,b)) is connected to some other end. Similarly, a_in (=(19,a)) and b_in (=(19,b)) are ends on the input side.\n\nWait, I think the transfer matrix processes columns 0, 1, ..., 19. The input state is at the boundary between column 19 and column 0 (the seam), and the output state is also at the boundary between column 19 and column 0 (after going all the way around). The input open ends are the edges from column 19 to column 0 (i.e., $h_{19,y}$), and the output open ends are also $h_{19,y}$ (the same edges, since we've gone all the way around).\n\nThe connectivity in the input state describes how the input open ends are connected through... nothing (they're the starting point). The connectivity in the output state describes how the output open ends are connected through all 20 columns.\n\nFor the cycle to close properly, the input and output must be compatible. Specifically, the input open ends and output open ends are the same edges. The path through the columns connects input ends to output ends and endpoints. On the cylinder, the seam edges connect input to output (same edge). So the full path is formed by: input end → seam edge → output end → through columns → ...\n\nFor a single Hamiltonian path from S to E:\n- The path starts at S, goes through some columns, possibly crosses the seam, goes through more columns, etc., and ends at E.\n- The seam crossings are the open ends at the seam.\n\nIf there are 0 seam crossings: the path is entirely within the 20 columns (no seam crossing). State: (S-E) with no open ends. The path goes from S to E through the columns without crossing the seam.\n\nIf there are 2 seam crossings (rows a and b): the path crosses the seam at rows a and b. Through the columns, the path connects: S to one of {a_out, b_out}, the other of {a_out, b_out} to one of {a_in, b_in}, and the remaining to E. But a_in and a_out are the same edge (seam edge at row a), so a_in connects to a_out through the seam.\n\nHmm, I think the correct way to think about it is:\n- The transfer matrix takes input state (open ends at the seam, with connectivity) and produces output state (open ends at the seam, with connectivity through the 20 columns).\n- For the cylinder to close, the output state must be \"compatible\" with the input state.\n- The input state's connectivity is trivial (no connections yet). The output state's connectivity describes how the open ends are connected through the 20 columns.\n- On the cylinder, the seam edges connect input open ends to output open ends. So the full path is: input open end → seam edge → output open end → through columns → input open end → seam edge → ...\n\nFor a single path from S to E, the connections through the columns, plus the seam edges, must form a single path.\n\nIf the open ends are {a, b} and the output connectivity is (S-a)(E-b): this means through the columns, S is connected to a and E is connected to b. On the cylinder, a_in connects to a_out (seam edge), and b_in connects to b_out (seam edge). The full path is: S ... a_out [seam] a_in ... but a_in is the same as the input, and the input has no connections. So the full path is: S ... a_out - a_in [seam edge] and E ... b_out - b_in [seam edge]. This gives two separate paths: S-a and E-b. Not a single path!\n\nHmm, so (S-a)(E-b) with 2 open ends gives two components, not one. That's invalid.\n\nWhat about (S-a)(b-E) with the seam connecting a to a and b to b? Still two components.\n\nWhat about (a-b) with S and E in a completed path? That would be (S-E)(a-b), which is also two components.\n\nSo with 2 open ends, there's no valid configuration for a single Hamiltonian path? That can't be right...\n\nOh wait, I think I'm confusing myself. Let me reconsider.\n\nThe transfer matrix processes columns 0 through 19. The input state is at the left boundary (seam, between column 19 and column 0), and the output state is at the right boundary (also the seam, between column 19 and column 0, but after processing all columns).\n\nThe input open ends are the edges $h_{19,y}$ going from column 19 to column 0. But column 19 hasn't been processed yet at the input! The input state describes the \"left side\" of the cut.\n\nActually, I think the correct formulation is:\n- We cut the cylinder at the seam between column 19 and column 0.\n- We process columns 0, 1, ..., 19 from left to right.\n- The input state (at the left of column 0) describes the open ends coming from the right of column 19 (i.e., the seam edges $h_{19,y}$).\n- The output state (at the right of column 19) describes the open ends going to the left of column 0 (i.e., the same seam edges $h_{19,y}$).\n- For the cylinder to close, the input and output open ends must be the same (same set of rows).\n- The connectivity: the input state has some connectivity (how the input open ends are related — initially, they're all independent, i.e., no connections). The output state has connectivity through the 20 columns.\n- On the cylinder, the seam edges connect the output open ends to the input open ends (same edges). So the full connectivity is: output connectivity + seam connections + input connectivity.\n\nFor the input state: the open ends are \"fresh\" — they haven't been connected through any columns. So the input connectivity is: all open ends are singletons (each is the end of a separate fragment). But wait, the input open ends are the left ends of the seam edges. The right ends are at column 0. When we process column 0, the right ends of the seam edges become part of the column 0 processing.\n\nI think the correct way is:\n- The input state describes the open ends at the left boundary and their connectivity through the \"already processed\" part. But at the start, nothing is processed, so the open ends are all singletons (each is an independent fragment end).\n- Wait, but the open ends at the input are the left ends of the seam edges. These are at column 19, which hasn't been processed. So they're \"virtual\" ends that will be connected when we process column 19.\n\nHmm, I think the issue is that in the standard transfer matrix for a cycle, we fix the state at the seam and then check consistency at the end. Let me re-formulate.\n\nStandard approach for Hamiltonian cycles on a cylinder:\n1. Fix the \"profile\" at the seam: which edges cross the seam and their connectivity.\n2. Process columns 0 through 19, starting with the fixed profile as input.\n3. After processing all columns, the output profile must match the input profile.\n4. The \"matching\" means: the open ends are the same, and the connectivity is consistent.\n\nFor the connectivity to be consistent: the input profile says \"open ends a and b are connected through the unprocessed part\" (but at the start, the unprocessed part is everything, so this is the connectivity through the full cylinder minus the seam). The output profile says \"open ends a and b are connected through the processed part\" (the 20 columns). On the cylinder, the full connectivity is: input connectivity (through the \"unprocessed\" part, which is nothing) + output connectivity (through the 20 columns) + seam edges.\n\nWait, I think for a cycle, the standard approach is:\n- The input state has open ends with some connectivity (through the \"outside\" of the transfer, which is the seam).\n- The output state has open ends with connectivity through the 20 columns.\n- For consistency, the combined connectivity (input + output) must form a single cycle (for Hamiltonian cycle) or a single path (for Hamiltonian path).\n\nFor the input state, the \"connectivity\" is through the seam, which is trivial (the seam edges connect each row to itself). So the input connectivity is: each open end is a singleton (no connections through the seam, since the seam just connects each edge to itself).\n\nNo wait, the seam edges connect the left side of the cut to the right side. The left side is the input, the right side is the output. The seam edge at row y connects input open end y to output open end y. So the \"seam connectivity\" pairs input y with output y.\n\nFor the full path to be a single path from S to E:\n- The 20 columns connect the output open ends and the endpoints S, E.\n- The seam connects input open ends to output open ends.\n- The input open ends are the \"other ends\" of the seam edges.\n\nSo the full path is: start at S, follow connections through the 20 columns to some output open end, cross the seam to the corresponding input open end, follow connections through the 20 columns (from the input side, which is the same as going around the cylinder again)...\n\nWait, this doesn't make sense. The 20 columns are processed once, not twice. The input and output are at the same seam, but the path goes through the 20 columns only once.\n\nI think the correct picture is:\n- The cylinder is cut at the seam. We get a strip of 20 columns.\n- The seam edges become \"dangling\" edges on both sides of the strip.\n- The left side has dangling edges (input open ends) and the right side has dangling edges (output open ends).\n- The path goes through the strip, using some of the dangling edges to \"wrap around\" the cylinder.\n- On the cylinder, the left dangling edge at row y connects to the right dangling edge at row y (same seam edge).\n\nSo the full path on the cylinder is: S → (through strip) → right dangling edge at row a → (seam) → left dangling edge at row a → (through strip) → right dangling edge at row b → (seam) → left dangling edge at row b → (through strip) → E.\n\nBut the \"through strip\" parts are all within the 20 columns. The path enters the strip from the left (via a left dangling edge), goes through some columns, and exits from the right (via a right dangling edge) or ends at S or E.\n\nSo the transfer matrix processes the 20 columns. The input state (left side) has open ends (left dangling edges) and the output state (right side) has open ends (right dangling edges). The connectivity through the 20 columns pairs input open ends with output open ends and endpoints.\n\nFor the cylinder to close: the left and right dangling edges at the same row are connected (seam edge). So the full path is formed by: the connections through the 20 columns + the seam connections.\n\nIf the input and output open ends are both {a, b} (same set), and the connections through the 20 columns are:\n- (a_in - S) and (b_in - E) and (a_out - b_out): this means a_in is connected to S, b_in is connected to E, and a_out is connected to b_out. But wait, the transfer matrix pairs input and output open ends and endpoints. The pairing is a perfect matching of (input open ends ∪ output open ends ∪ endpoints).\n\nHmm, I think the state at each boundary tracks the open ends at that boundary and their connectivity. The input boundary has open ends (left dangling edges), and the output boundary has open ends (right dangling edges). The transfer matrix maps input state to output state, and the connectivity through the columns is captured in the output state.\n\nBut the input and output states are at different boundaries. The input state's open ends are the left dangling edges, and the output state's open ends are the right dangling edges. The connectivity in the output state describes how the right open ends are connected to each other and to the endpoints, through the columns.\n\nWait, but the input state's connectivity describes how the left open ends are connected to each other. At the start (before processing any columns), the left open ends are all singletons (no connections). After processing all 20 columns, the output state's connectivity describes how the right open ends are connected through the 20 columns.\n\nFor the cylinder to close: the left open ends and right open ends are the same (same rows). The seam connects left y to right y. The full path is: follow connections from S through the columns to some right open end, cross the seam to the corresponding left open end, follow connections from that left open end through the columns to another right open end, etc.\n\nBut the connections from the left open ends through the columns are described by the output state (which is the result of processing all 20 columns). The left open ends are the input, and the output state describes how they're connected to the right open ends and endpoints.\n\nSo the output state's connectivity pairs: input open ends, output open ends, and endpoints. The pairing describes how they're connected through the 20 columns.\n\nFor the cylinder: the seam pairs input y with output y. The output state pairs input/output open ends and endpoints through the columns. The full path is the combination.\n\nFor a single Hamiltonian path from S to E:\n- The combination of seam pairs and column pairs must form a single path from S to E.\n- The seam pairs are: (in_y - out_y) for each open end y.\n- The column pairs are: the pairing in the output state.\n\nThe full path is formed by alternating: column pair → seam pair → column pair → seam pair → ...\n\nFor this to be a single path from S to E:\n- Start at S, follow column pair to some out_y, follow seam to in_y, follow column pair to some out_z, follow seam to in_z, ..., eventually reach E.\n- All open ends must be used exactly once in this traversal.\n\nThis is equivalent to: the combination of seam pairs and column pairs forms a single path (not multiple paths or cycles).\n\nThe seam pairs are fixed: (in_y - out_y) for each y in the open end set.\nThe column pairs are the pairing in the output state.\n\nThe combination is a graph on the vertices {in_y, out_y : y in open ends} ∪ {S, E}. The edges are the seam pairs and column pairs. This graph must be a single path from S to E.\n\nFor this to be a single path:\n- If there are 0 open ends: the column pairs must be (S-E). The graph is just S-E. ✓\n- If there are 2 open ends {a, b}: \n  - Seam pairs: (in_a - out_a), (in_b - out_b).\n  - Column pairs: must pair {in_a, in_b, out_a, out_b, S, E} into 3 pairs. Wait, that's 6 elements, so 3 pairs. But the column pairs only pair the elements that are \"in the columns\" — which is all of them. Hmm, I think the output state pairs the input open ends, output open ends, and endpoints.\n\nActually, I think I need to reconsider the state definition. Let me re-define.\n\nThe state at a boundary tracks:\n1. The open ends at that boundary (which horizontal edges cross the boundary).\n2. The connectivity of ALL open ends (both input and output) and endpoints through the processed columns.\n\nBut this is too much — the state would need to track the full connectivity, which grows with each column.\n\nI think the standard approach is: the state at a boundary tracks the open ends at that boundary and their connectivity (how they're paired through the processed columns). The input open ends are \"consumed\" as we process columns, and the output open ends are \"produced.\"\n\nLet me re-read how transfer matrices work for Hamiltonian paths.\n\nOK, I think the standard transfer matrix for Hamiltonian paths on a grid/cylinder works as follows:\n\nProcess columns left to right. At each boundary, the state is:\n- The set of \"active\" edges crossing the boundary (horizontal edges).\n- A partition of these edges into connected components (through the processed columns).\n\nTwo edges are in the same component if they're connected through the processed columns (i.e., there's a path between them using only processed vertices and edges).\n\nWhen we process a new column, we:\n1. Consume the input active edges (they connect to the new column's vertices).\n2. Add the new column's vertices and vertical edges.\n3. Produce the output active edges (horizontal edges to the next column).\n4. Update the connectivity: merge components that are now connected through the new column, and handle endpoints.\n\nThe key constraint: we must not close a cycle (connect two edges in the same component) unless it's the final step that completes the Hamiltonian path/cycle.\n\nFor a Hamiltonian path, we also track the endpoints. An endpoint is a vertex with degree 1. When we place an endpoint at a vertex, it becomes the end of a component.\n\nLet me re-formulate the state:\n- Active edges: subset of {0, 1, 2} (rows with horizontal edges crossing the boundary).\n- Partition of active edges into components.\n- Endpoint status: which endpoints (S, E) have been placed, and which component they belong to.\n\nA component can be:\n- A \"path\" component with two active edges (both ends are active edges).\n- A \"path\" component with one active edge and one endpoint.\n- A \"path\" component with two endpoints (the complete path — only valid at the end).\n- A \"cycle\" component with no active edges and no endpoints — invalid (never allowed).\n\nSo the state is: (active edges, partition of active edges into pairs and singletons, endpoint placement).\n\nA singleton in the partition means the active edge is connected to an endpoint. A pair means the two active edges are connected to each other.\n\nThe number of singletons equals the number of placed endpoints (each singleton corresponds to one endpoint).\n\nThis is exactly what I had before. Let me re-enumerate:\n\nStates with 0 endpoints placed:\n- 0 active edges: () — only valid at start (no vertices processed)\n- 2 active edges: {a,b} paired as (a-b) — one component connecting a and b\n\nStates with 1 endpoint placed (S or E):\n- 1 active edge: {a} as singleton (a-S) or (a-E)\n- 3 active edges: {a,b,c} with one singleton and one pair:\n  - (a-S)(b-c), (b-S)(a-c), (c-S)(a-b) — if S is placed\n  - (a-E)(b-c), (b-E)(a-c), (c-E)(a-b) — if E is placed\n\nStates with 2 endpoints placed (S and E):\n- 0 active edges: (S-E) — complete path, only valid at end\n- 2 active edges: {a,b} with two singletons: (a-S)(b-E) or (a-E)(b-S)\n\nNow, for the cylinder, we start at the seam. The initial state has 0 endpoints placed and some active edges. After processing 20 columns, the final state must have 2 endpoints placed and the same active edges, with consistent connectivity.\n\nBut wait — for the cylinder, the initial and final boundaries are the same (the seam). The active edges at the start and end must be the same. The connectivity must also be consistent.\n\nAt the start: the active edges are the seam edges. The connectivity is \"no connections\" — each active edge is a singleton? No, at the start, no vertices have been processed, so the active edges are just \"dangling\" with no connections. But in our state formulation, each active edge must be part of a component. With 0 endpoints placed, the active edges must be paired (0 or 2 active edges). With 0 active edges, the state is () — valid at start. With 2 active edges, the state is (a-b) — meaning a and b are connected through... nothing? That doesn't make sense at the start.\n\nI think the issue is that at the start, the active edges haven't been connected through any columns. So they're all singletons. But with 0 endpoints, singletons aren't allowed (each singleton needs an endpoint). \n\nHmm, I think the resolution is: at the start, the active edges are \"input\" edges that will be connected as we process columns. They're not yet part of any component. The state at the start is just the set of active edges, with no connectivity.\n\nBut in our state formulation, we need the connectivity. I think the right way is: at the start, the active edges are all in separate components, and each component has only one member (the active edge). But a component with one member and no endpoint is a path with one end — which doesn't make sense (a path has two ends).\n\nI think the issue is that the \"active edges\" at the start are the left ends of the seam edges. The right ends are at column 0. When we process column 0, the right ends are consumed. The left ends remain as \"the other ends\" of the seam edges. These left ends are not part of the processed columns — they're at column 19, which is processed last.\n\nSo the state at the start should be: the active edges are the seam edges, and they're all singletons (each is one end of a path, with the other end at column 19). But singletons without endpoints don't fit our state formulation.\n\nI think I need to modify the state formulation. Let me think of the active edges as having two sides: the \"left\" side (input) and the \"right\" side (output). At the start, the input side has the seam edges, and they're not yet connected to anything. As we process columns, the input edges are consumed and output edges are produced. At the end, the output edges are the seam edges, and they must match the input.\n\nActually, I think the standard approach for a cycle is:\n1. Fix the seam state: the set of active edges at the seam and their connectivity.\n2. Process columns, starting with the seam state as input.\n3. At the end, the output state must match the seam state.\n4. The \"matching\" includes: same active edges, and the connectivity is \"compatible.\"\n\nThe compatibility means: if we combine the input connectivity and output connectivity (through the seam), we get a valid Hamiltonian path/cycle.\n\nFor the input state at the seam: the active edges are the seam edges, and the connectivity is \"all separate\" (each is a singleton, not connected to anything through the \"unprocessed\" part — but there is no unprocessed part, since we process all columns).\n\nHmm, I think the right way is: the input state's connectivity describes how the active edges are connected through the \"outside\" of the transfer (the seam). Since the seam just connects each edge to itself (the left end to the right end), the input connectivity is: each active edge is a singleton (connected to its own other end through the seam).\n\nBut singletons without endpoints don't fit. I think the issue is that the seam connections are not \"through the processed columns\" but \"through the seam.\" The state should only track connections through the processed columns.\n\nLet me try a different formulation. The state at a boundary tracks:\n- The active edges (horizontal edges crossing the boundary).\n- The connectivity of the active edges through the processed columns (to the left).\n\nAt the start (seam), the processed columns are none, so the active edges have no connections. The state is just the set of active edges, with no pairing.\n\nAt the end (seam, after processing all columns), the active edges have connections through all 20 columns. The state includes the pairing.\n\nFor the cylinder to close: the start and end states must be compatible. The start state has active edges with no connections. The end state has active edges with connections through the 20 columns. The seam connects the start and end: each active edge at the start is the same as the corresponding active edge at the end (same seam edge).\n\nThe full path on the cylinder is: the connections through the 20 columns + the seam connections. The seam connects start edge y to end edge y. The columns connect the end edges to each other and to the endpoints.\n\nFor a single Hamiltonian path from S to E:\n- The columns pair the end edges and endpoints.\n- The seam pairs start edge y with end edge y.\n- The full path is: S → (columns) → end edge a → (seam) → start edge a → ??? \n\nBut start edge a is at the beginning of the transfer, and there's nothing connecting it to anything else (it's the input, not connected through any columns). So the path would be: S → (columns) → end edge a → (seam) → start edge a, and that's it — a dead end.\n\nThis doesn't work. I think the issue is that the seam edges are used once (they're part of the path), and the path goes through the 20 columns, possibly crossing the seam multiple times.\n\nLet me reconsider. On the cylinder, the path is a single path that visits all 60 vertices. It may cross the seam (the cut between column 19 and column 0) multiple times. Each crossing uses one horizontal edge at the seam.\n\nWhen we cut the cylinder at the seam and unroll it, the path becomes a set of path segments in the strip, connected by the seam edges. Each seam edge connects the right end of one segment to the left end of another.\n\nThe transfer matrix processes the strip column by column. At each boundary, the active edges are the path's crossings of that boundary. The connectivity tracks how the crossings are connected through the processed columns.\n\nAt the start (left boundary of the strip = seam), the active edges are the seam crossings. At the end (right boundary of the strip = seam), the active edges are also the seam crossings. The connectivity at the end describes how the seam crossings are connected through the strip.\n\nOn the cylinder, the seam crossings connect the right boundary to the left boundary. So the full path is: the connections through the strip + the seam connections (right to left).\n\nFor a single path from S to E:\n- The strip connects the right seam crossings to each other and to S and E.\n- The seam connects right seam crossing y to left seam crossing y.\n- The left seam crossings are the \"other ends\" of the seam edges. They're the ends at column 0.\n\nWait, I think the left seam crossings are at column 0 (the leftmost column), and the right seam crossings are at column 19",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 24418,
+        "completion_tokens": 25000,
+        "cached_tokens": 1355
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 24418,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 1355,
+    "total_steps": 10
+  }
+}

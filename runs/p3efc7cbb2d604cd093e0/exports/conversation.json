@@ -1,0 +1,1036 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "second-sheet",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-15T02:48:58.806917+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-15T02:48:58.807590+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-15T02:48:58.815699+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-15T02:48:58.807976+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p3efc7cbb2d604cd093e0 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.4.0\nToday's date: Friday, 2026-08-14\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-15T02:48:58.808449+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件，操作流程放 skill，等）\n4. **AGENTS.md 是总目录**——其中的索引节是跨 session AI 认知一致性的保证\n\n**Rule / Skill / 元组的放置层级**：\n\n当需要新建或迁移 rule、skill、元组时，按以下优先级选择放置位置：\n\n1. **首先考虑项目级 `.devin/` 目录**——这是 Devin 的正常使用方法。项目级 rule 放 `.devin/rules/`，项目级 skill 放 `.devin/skills/`。大多数 rule/skill 应该在这里——它们是项目特定的，不需要污染全局配置。\n2. **AGENTS.md 中只放 rule 索引**——项目 AGENTS.md 的维护规则节中，保留 rule 索引表（指向 `.devin/rules/` 中的文件），不保留完整 rule 内容。AGENTS.md 是总目录，rule 文件是详细内容。\n3. **只有确实跨项目通用的 rule/skill/元组，才升级为全局内容**——放在 `~/.config/devin/` 或 `~/.devin/` 中。**升级必须获得用户明确同意**——不要擅自把项目级内容升级为全局内容。\n4. **判断标准**：如果这个 rule/skill 只在当前项目有意义 → 项目级 `.devin/`。如果它在多个项目中都会被触发 → 可以考虑升级为全局，但先问用户。\n\n**元组：rule-skill-tuple-assessment**（rule + skill，全局）\n\n> **触发条件**：用户提出一个要求、认知、或设计思想时，AI 自动评估这个内容是否应该固化为 rule、skill、或元组。\n> **Skill**：`~/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md`\n> **核心意识**：不是每个用户要求都需要设为 rule/skill——只有具有跨 session 复用价值的才设置。但 AI 必须有意识地主动评估，而不是被动等用户说\"把这个设为rule\"。\n>\n> **评估流程**（详见 skill）：\n> 1. 判断是否具有跨 session 复用价值 → 否则直接执行不设置\n> 2. 判断类型：Rule（硬约束）/ Skill（SOP）/ 元组（Rule+Skill）/ 元组群（多Skill）\n> 3. 判断层级：项目级 `.devin/`（默认） vs 全局 `~/.config/devin/`（需用户同意）\n> 4. 执行：创建文件 + AGENTS.md 索引 + commit\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n### 13 · 禁止inline脚本，所有脚本持久化到项目内\n\n**Rule**：`~/.devin/rules/no-inline-scripts.md`\n\n**硬约束**：\n1. **禁止写超过3行的inline脚本**（`python -c \"...\"`、`bash -c \"...\"`）。超过3行的逻辑必须写成文件。\n2. **所有脚本写到项目内的脚本目录中**——不写`/tmp/`、不写home目录。放到项目已有的脚本目录或`scripts/`目录。\n3. **在项目AGENTS.md中做好索引**——新脚本必须记录路径、用途、用法。\n4. **持续维护，不重写**——已有脚本就改进，不另写新的。重复操作累积成越来越完善的脚本。\n\n**判定标准**：\n- 单行命令（`ls`、`git status`）→ 直接执行\n- 2-3行简单查询 → 可以直接执行\n- 超过3行 → **必须写成文件**\n- 会重复使用的操作 → **必须写成文件**\n- 已有脚本可改进 → **改进已有脚本**\n\n---\n\n## Git 管理协议\n\n**改文件前**：检查目标文件/目录是否处于 git clean 状态 → 记录 `before_status_baseline` → 明确本轮 `intended_delta`。\n\n**改文件后**：完成一个逻辑工作单元立即 commit → 记录 `after_status_baseline` → 核验 `after - before == intended_delta` → 目标文件/目录回到 git clean 状态。\n\n**禁止 `git add -A`、`git add .`、`git add -u`**。只 add 具体路径。\n\n任何 `git push` 都必须获得用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组 = Rule + Skill。Rule always-on 负责约束 + 模式匹配；Skill on-demand 负责工作流。AGENTS.md 中绝不放工作流，Skill 中绝不放硬性约束。AGENTS.md 太长是执行力问题——\"每次都必须知道\"→ 留在 AGENTS.md；\"遇到特定场景才需要\"→ 移到 Skill。\n\n> 元组详细方法论（瘦身工程、两种实现方式、新增元组规范）见 `~/.devin/rules/tuple-methodology.md`。Devin CLI 完整配置说明见 `devin-config-harness` skill。\n\n---\n\n## 元组：long-running-work-sop（长程工作SOP化铁律）\n\n**触发条件**：用户启动一个可能跨越压缩边界的持续性工作时；发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要迭代修正时。\n\n**核心约束**：长程工作（可能跨越压缩边界的持续性工作）必须SOP化。三个必须：\n1. **必须SOP化**——提取步骤、定义产出、定义验证，放入项目AGENTS.md\n2. **必须用rules锁定流程行为**——在`.devin/rules/`中创建rule文件，锁定SOP的执行纪律\n3. **必须版本化审计修正历史**——如果长程工作涉及分类学/框架/体系的迭代修正，修正的全历史必须在明面上审计（不在git log中），每次修正做覆盖性检查\n\n**Skill**：`~/.config/devin/skills/long-running-work-sop/SKILL.md`——提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程，以及积累的经验和反模式。\n\n**已有项目级实例**：\n- 数学大师项目的`tell-taxonomy-iteration-audit`元组（`.devin/rules/tell-taxonomy-iteration-audit.md`）——Tell分类学迭代审计的铁律和9步SOP，是本全局元组的项目级实例\n\n**经验和反模式积累**：在skill的\"经验和反模式积累区\"中持续追加。当前积累：5个反模式（当一次性任务做/不锁定/只在git log/不做覆盖性检查/遗留旧措辞）、3个经验（FLT例子测试/FCA理论审查方法/版本化审计让修正更严谨）。\n\n---\n\n### 元组群与 Skill 粒度铁律\n\n**元组群**：当一个复杂任务的工作流太长，无法放入单个 Skill 中时，应拆分为多个元组（多个 Skill），形成元组群协同工作。\n\n**为什么需要拆分**：Skill 加载后形成 Session 临时上下文中的认知和 SOP。但如果把应该拆分成多个 Skill 的内容放入一个 Skill 中，执行过程中可能跨越压缩边界——Session 压缩后，Skill 的后续内容从上下文中丢失，无法有效发挥作用。\n\n**Skill 粒度铁律**：\n\n1. **Skill 必须在 Session 上下文中始终可见**——如果执行过程很长（跨越多轮对话、可能触发压缩），Skill 内容必须足够短，确保压缩后仍可见，或拆分为多个 Skill 分阶段加载。\n\n2. **执行过程长 → 拆分 Skill**——如果一个 Skill 的工作流需要很多步骤、很长时间执行，应该拆分成多个 Skill，每个 Skill 覆盖一个可在一个压缩窗口内完成的阶段。\n\n3. **拆分后的 Skill 之间通过文档传递**——前一个 Skill 的产出落盘到文档（dev-docs / AGENTS.md / 数据文件），后一个 Skill 加载时读文档获取前序成果，不依赖 Session 上下文传递。\n\n4. **判断粒度的经验法则**——如果一个 Skill 的执行可能超过 10 轮对话或 50k tokens，考虑拆分。如果工作流中有明确的阶段分界点（如\"方案设计\"→\"执行\"→\"验证\"），在分界点拆分。\n\n### 元组群的整体性：目录在规则中\n\n**元组群如何确保整体性？** 确保整体性 = 确保工作的连续性。元组群中的多个 Skill 是一个整体工作流的分段，不是各自独立的任务。确保整体性的机制是：**元组群的目录放在规则中，规则指向一组 Skill，而不是单一 Skill。**\n\n**传统元组**：规则指向单一 Skill——\"遇到场景X，加载Skill Y\"。\n\n**元组群**：规则指向一组 Skill——\"遇到场景X，按顺序加载Skill Y1→Y2→Y3，它们是一个整体工作流的三个阶段\"。\n\n**元组群规则的结构**：\n\n```\n## 元组群：<群名称>\n\n**触发条件**：<何时AI应该执行这组工作流>\n\n**整体目标**：<这组Skill共同完成的最终目标>\n\n**Skill目录**（按执行顺序）：\n1. Skill <Y1>：<阶段1名称>——<这个阶段做什么>，产出落盘到<文档>\n2. Skill <Y2>：<阶段2名称>——<这个阶段做什么>，读取<文档>，产出落盘到<文档>\n3. Skill <Y3>：<阶段3名称>——<这个阶段做什么>，读取<文档>，产出最终结果\n\n**阶段间传递**：<通过什么文档/数据文件传递，不依赖Session上下文>\n\n**何时进入下一阶段**：<前一个Skill完成并落盘后，AI检查目录，自然加载下一个Skill>\n```\n\n**为什么目录在规则中而不是在某个Skill中**：\n\n1. **规则是always-on的**——不受压缩影响。即使Session压缩了，规则仍然在上下文中可见，AI始终能看到元组群的全貌——有几个阶段、当前在哪个阶段、下一步该加载哪个Skill。\n\n2. **如果目录在Skill中**——Skill加载后形成临时上下文，压缩后目录丢失，AI不知道还有后续阶段，元组群的整体性断裂。\n\n3. **规则是元组群的\"目录页\"**——每个Skill是\"章节内容\"。章节内容可能被压缩掉，但目录页始终可见，AI随时可以翻到正确的章节。\n\n**元组群规则的放置位置**：\n\n- **全局元组群**（跨项目通用）→ `~/.config/devin/AGENTS.md` 或 `~/.devin/rules/`\n- **项目级元组群**（特定项目的工作流）→ 项目 `AGENTS.md` 或 `.devin/rules/`\n\n**与单一元组的关系**：元组群是单一元组的扩展。单一元组 = 1个规则 + 1个Skill。元组群 = 1个规则（含目录） + N个Skill。规则从\"指向单一Skill\"升级为\"指向一组Skill的有序目录\"。\n\n---\n\n## 元组：trajectory-workline-review（从trajectory回溯session工作脉络）\n\n**触发条件**：需要了解某个 session（自己的或别人的）做了什么工作；同一 repo 下有多个 session 并行工作需要区分各自工作范围；新 session 启动时需要了解前序 session 进展；审查某个 session 的工作过程。\n\n**Skill**：`~/.config/devin/skills/trajectory-workline-review/SKILL.md`\n\n**核心约束**：\n1. **禁止用 git log 区分 session**——同一 repo 下多个 session 的 commit 交织在 git log 中，无法区分。必须用 sessions.db 的 session_id 区分。\n2. **运行中的 session 用 sessions.db，不用 transcripts**——transcript 文件只在 session 结束后写入，运行中的 session 没有 transcript 文件。sessions.db 的 message_nodes 表是实时写入的，是运行中 session 的唯一数据源。\n3. **grep tool_calls 中的 file_path 是最快方法**——不用完整解析嵌套 JSON，直接 grep `\"file_path\":\"...\"` 字符串，sqlite3 输出管道给 grep 一行命令搞定。区分操作类型时用正则 `re.finditer(r'\"name\":\"write\".*?\"file_path\"...')` 比解析 JSON 的 tool_calls 结构更稳健（结构可能不规则）。\n4. **文件操作时间线 = 工作脉络骨架**——提取每个文件首次操作时间并按时间排序，就是工作脉络的时间线。按目录归类操作频次 = 工作重心分布。\n5. **区分 write/edit/read 三种操作**——write（创建）= 核心产出，edit（修改）= 迭代深化，read（读取）= 前置依赖。只看 write 会漏掉 session 的前置依赖（读取了别人创建的文档 = 吸收前置讨论基础）。多 session 协作时，交叉分析 read 和 write 揭示跨 session 依赖关系。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p3efc7cbb2d604cd093e0/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nIn the city of Graphia, there are 25 residential districts. To facilitate travel, every single pair of districts in the city is connected by exactly one direct road.\n\nAmong all these roads, exactly 50 are designated as \"Two-Way Boulevards,\" meaning vehicles can travel in either direction along them. Every other road in the city is a \"One-Way Alley,\" restricted to travel in a single, specific direction.\n\nThe City Planning Committee defines a \"Perfect Quartet\" as a set of four distinct districts that is internally seamless: it must be possible to travel from any district in the set to any other district in the same set by using only the six roads that directly connect those four districts to one another.\n\nDetermine the largest possible number of Perfect Quartets that can exist in Graphia given these infrastructure constraints.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-15T02:48:58.817315+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-15T02:48:58.818231+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **devin-config-harness**: Devin CLI 配置使用完整说明书。涵盖 rules（AGENTS.md + .devin/rules/）、skills、hooks、 config.json、MCP servers 的全局/项目本地位置、格式、参数和选择策略。 WHEN to use: 配置 Devin CLI、添加 rules/skills/hooks/MCP、理解 Devin 扩展架构、 从 Codex/Claude Code 迁移配置、排查配置问题。 WHEN NOT to use: 一般编码任务、非 Devin 配置相关的工作。\n (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **trajectory-workline-review**:  (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **rule-skill-tuple-assessment**: 评估用户的提问或要求是否应该设置为 rule、skill（SOP）、或元组（rule+skill）， 以及应该放入 Devin 全局配置还是项目本地 .devin/ 目录。 WHEN to use: 用户提出一个要求或认知，AI判断这个要求是否具有跨session复用价值时。 WHEN NOT to use: 一次性的具体任务执行（如\"运行这个脚本\"、\"修这个bug\"）。\n (source: /Users/user/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md)\n- **ai-archive-search**: 搜索 AI 对话存档（AI-ALL-Markdown），使用 QMD 语义搜索。 WHEN to use: 需要搜索历史 AI 对话、查找之前的讨论内容、检索 AI 对话存档时。 WHEN NOT to use: 搜索当前项目代码（用 grep/glob）、一般网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/ai-archive-search/SKILL.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据的完整存储位置、格式、读取方法。 Transcript（ATIF格式）、sessions.db（SQLite）、logs、summaries、--export参数。 WHEN to use: 需要提取/解析/审计Devin CLI的session对话数据时。 WHEN NOT to use: 一般编码任务、非Devin CLI相关的数据工作。 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **long-running-work-sop**: 长程工作SOP化与迭代审计铁律。当用户启动一个可能跨越压缩边界的持续性工作时， AI必须将其SOP化（放入项目AGENTS.md）、用rules锁定流程行为、版本化审计修正历史。 本skill提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程， 以及积累的经验和反模式。 WHEN to use: 用户启动一个可能跨越压缩边界的持续性工作时； 发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要修正时。 WHEN NOT to use: 一次性任务（如\"运行这个脚本\"、\"修这个bug\"）； 明确不会跨越压缩边界的短任务。\n (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **db-file-traceability**:  (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **qmd-mcp-search**: 通过 QMD 语义搜索和知识图谱查询搜索 AI 对话存档。双模式检索，支持结构化实体发现。 WHEN to use: 需要语义搜索 AI 对话、知识图谱实体查询、文档相似度检索时。 WHEN NOT to use: 简单关键词搜索（用 ai-archive-search）、网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **tmux-easy-setup**: 配置 tmux 达到最易用状态：大缓冲区、鼠标滚动、系统剪贴板集成、vi 复制模式。 WHEN to use: 用 tmux 运行 AI CLI（devin/codex）、长时间任务、多 session 监控， 或用户抱怨 tmux 复制粘贴/缓冲区/鼠标不好用时。 WHEN NOT to use: 不涉及 tmux 的任务。\n (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Users/user/.local/share/devin/cli/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-15T02:49:00.967503+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me solve this problem. We have 25 vertices, complete graph K_25. 50 edges are bidirectional (two-way), the rest are directed (one-way, single direction). A \"Perfect Quartet\" is a set of 4 vertices where the induced subgraph (using only the 6 edges among them) is strongly connected — you can travel from any vertex to any other using only those 6 roads.\n\nWe want to maximize the number of 4-subsets that are strongly connected.\n\nLet me think about this carefully.\n\nFirst, the structure: each edge is either bidirectional or unidirectional. The bidirectional edges form an undirected graph G on 25 vertices with 50 edges. The remaining edges (each pair has exactly one road) — for non-bidirectional pairs, we choose a direction.\n\nA quartet {a,b,c,d} is \"perfect\" if the induced directed graph on these 4 vertices (6 edges total) is strongly connected.\n\nWe want to maximize the count of strongly connected 4-subsets.\n\nLet me think about what makes a 4-set strongly connected.\n\nThe 6 edges among 4 vertices: some bidirectional, some unidirectional. The directed graph is strongly connected iff there's a directed path between every ordered pair.\n\nLet me think about the complementary question: when is a 4-set NOT strongly connected?\n\nA directed graph is not strongly connected iff there's a proper nonempty subset S such that all edges between S and its complement point from S to complement (i.e., no edge goes from complement back to S). Actually more precisely: not strongly connected iff there exists a partition into strongly connected components with a topological order, and the condensation is not a single node. The \"source\" SCC has all edges to the rest going out, none coming back.\n\nLet me think about this differently. Let me consider the structure.\n\nLet me think about small cases first to build intuition.\n\nFor a 4-set to be strongly connected, we need at minimum... a directed Hamiltonian cycle would suffice. With 4 vertices, a directed 4-cycle uses 4 edges and is strongly connected. But we have 6 edges available (all pairs connected, each either one-way or two-way).\n\nActually, since every pair is connected by exactly one road (either bidirectional or one-directional), the 4-set always has exactly 6 \"roads\" but bidirectional ones count as two arcs.\n\nLet me reconsider. Each pair of vertices has exactly one road. If it's a two-way boulevard, vehicles can go both ways. If one-way, only one direction. So the directed graph on all 25 vertices: for each pair, either both arcs exist (bidirectional) or exactly one arc exists.\n\nA 4-set is strongly connected if the induced directed graph is strongly connected.\n\nStrategy: We want to maximize strongly connected quartets. Let's think about what configurations maximize this.\n\nIntuition: If we make the bidirectional edges form a nice structure, and orient the remaining edges consistently, we might get many strongly connected quartets.\n\nLet me think about an upper bound first.\n\nA 4-set fails to be strongly connected iff there's a \"cut\" — a partition of the 4 vertices into two nonempty parts A, B such that all roads between A and B go from A to B (no road from B to A). Wait, that's not quite right either. Let me think again.\n\nNot strongly connected means the condensation DAG has at least 2 nodes. The source SCC: all edges between source SCC and the rest go out. So there's a partition (S, T) where S is a union of source SCCs and T is the rest, such that every road between S and T goes from S to T (i.e., for each pair (s,t) with s∈S, t∈T: if bidirectional, that's a problem because then there's an arc t→s; so all such pairs must be one-way from S to T).\n\nWait, more carefully: if there's a bidirectional edge between S and T, then there's an arc from T to S, contradicting S being a source. So for S to be a \"source side\", every pair between S and T must be one-way directed from S to T.\n\nSo a 4-set is NOT strongly connected iff there exists a nonempty proper subset S such that every edge between S and its complement (within the 4-set) is one-way pointing from S to complement.\n\nThe possible partitions of 4 elements: 1|3 (4 ways), 2|2 (3 ways), 3|1 (4 ways). But note S being a source means edges go S→T. If S has size 3 and T size 1, edges go from the 3 to the 1. If S size 1, T size 3, edges go from the 1 to the 3.\n\nLet me count: a 4-set is bad if ∃ nonempty proper S with all cross-edges one-way S→T.\n\nLet me think about maximizing good quartets = minimizing bad quartets.\n\nTotal quartets: C(25,4) = 12650.\n\nHmm, let me think about a specific construction.\n\nConstruction idea: Partition the 25 vertices into groups, make bidirectional edges within and between groups strategically, orient one-way edges to create strong connectivity.\n\nAlternative: Think about it as a tournament-like structure. A tournament (all one-way) on 4 vertices is strongly connected iff it's strongly connected as a tournament. The number of strongly connected tournaments on 4 labeled vertices: total tournaments on 4 vertices = 2^6 = 64. Strongly connected ones: Let me recall. A tournament is strongly connected iff it has no \"king\" that dominates all... no. A tournament is strongly connected iff it's not \"transitive-like\" with a source or sink component.\n\nA tournament on 4 vertices is not strongly connected iff there's a vertex that dominates all others (source) or is dominated by all (sink), or a 2-2 split where... Actually for tournaments, not strongly connected iff there's a nonempty proper S with all edges S→T. For tournaments this means the condensation is a transitive tournament with ≥2 nodes.\n\nNumber of strongly connected tournaments on n vertices: for n=4, it's 24. Let me verify: total = 64. Not strongly connected: those with a source vertex (vertex beats all 3 others): the remaining 3 form any tournament (2^3=8), so 4*8=32, but we overcount... Actually a tournament with a source: pick the source (4 ways), remaining 3 vertices form any tournament (8 ways) = 32. Similarly sink: 32. But tournaments with both a source and sink: the source beats everyone, sink loses to everyone. If n=4, source and sink are distinct, the other 2 vertices: source beats both, both beat sink, and between the two middle vertices any direction. So 4*3*2 = 24 such tournaments (pick source 4 ways, sink 3 ways, middle edge 2 ways). By inclusion-exclusion: |source ∪ sink| = 32 + 32 - 24 = 40. So strongly connected = 64 - 40 = 24. Yes, 24 strongly connected tournaments on 4 vertices.\n\nSo if all edges were one-way (a tournament), we'd get some number of strongly connected quartets. But we have 50 bidirectional edges to use, which should help.\n\nLet me think about the problem more carefully. We have freedom to choose:\n1. Which 50 edges are bidirectional (forming graph G, undirected, 25 vertices, 50 edges).\n2. The orientation of each remaining edge.\n\nGoal: maximize strongly connected 4-subsets.\n\nKey insight: A bidirectional edge is \"better\" because it provides connectivity in both directions, making strong connectivity easier.\n\nLet me think about when a 4-set is guaranteed strongly connected. If the bidirectional edges within the 4-set form a connected spanning subgraph, then... no, not necessarily, because the one-way edges could create issues? No wait — if bidirectional edges connect all 4 vertices (spanning tree), then you can traverse the tree in both directions, so it's strongly connected! Because bidirectional edges let you go both ways, and a connected graph of bidirectional edges means strong connectivity.\n\nSo: a 4-set is strongly connected if the bidirectional edges induced on it form a connected graph (on 4 vertices, need at least 3 edges forming a spanning tree, or more).\n\nWait, that's a sufficient condition, not necessary. A 4-set could be strongly connected even if bidirectional edges don't span it, via one-way edges forming cycles.\n\nSo good quartets ≥ quartets where bidirectional subgraph is connected. But we can do better with one-way edges too.\n\nLet me think about the upper bound more carefully.\n\nA 4-set is bad iff ∃ S (nonempty proper subset) with all |S|×|4-S| cross-edges being one-way S→T.\n\nLet me think about counting bad quartets via inclusion-exclusion or union bound.\n\nFor a fixed partition type, let me count how many 4-sets have a \"witness\" S.\n\nLet me think about it from the perspective of the one-way edges. Define the directed graph D where we have all arcs (bidirectional edges give 2 arcs, one-way give 1). \n\nActually, let me think about a cleaner approach. Let me consider the \"underlying\" structure.\n\nLet me define: for the bidirectional graph G (undirected, 25 vertices, 50 edges), and orientations for non-edges of G.\n\nA 4-set Q is strongly connected iff no \"source cut\" exists.\n\nLet me think about the complementary counting. A 4-set is bad if there's a subset S⊆Q, 1≤|S|≤3, such that all edges between S and Q\\S are one-way from S to Q\\S.\n\nFor |S|=1: vertex v is a \"source\" in Q if all 3 edges from v to Q\\{v} are one-way from v. \nFor |S|=3: equivalent to |Q\\S|=1, vertex v is a \"sink\" if all 3 edges from Q\\{v} to v are one-way towards v.\nFor |S|=2: pair {a,b} is a source-pair if all 4 edges between {a,b} and the other 2 are one-way from {a,b}.\n\nLet me think about a construction that might be optimal.\n\nConstruction: Make G (bidirectional graph) a complete bipartite graph or some regular structure, and orient remaining edges as a tournament consistently.\n\nHmm, let me think about a very structured approach.\n\nConstruction 1: Take G = complete graph on some subset? No, 50 edges on 25 vertices.\n\nLet me think about what maximizes strongly connected quartets.\n\nAlternative approach: Let's think about the problem as follows. Consider the directed graph D on 25 vertices. We want to maximize the number of 4-subsets that induce a strongly connected subgraph.\n\nLet me think about a \"blow-up\" construction. \n\nConstruction idea: Partition 25 vertices into groups. Within each group, all edges bidirectional. Between groups, orient all edges in one direction (tournament between groups). \n\nSay we partition into k groups of sizes n_1, ..., n_k. Bidirectional edges: sum of C(n_i, 2) for within-group. Between groups, all one-way (tournament orientation between groups).\n\nNumber of bidirectional edges: Σ C(n_i, 2) = 50.\n\nA 4-set is strongly connected iff... let's see. If all 4 vertices are in the same group, all 6 edges bidirectional → strongly connected. If vertices span multiple groups, the between-group edges are one-way according to the tournament. \n\nFor a 4-set with vertices in groups forming a pattern: the induced directed graph is strongly connected iff the tournament on the groups (restricted to groups present) is strongly connected AND within each group the vertices are connected (they are, since all bidirectional within group).\n\nWait, more precisely: if the 4 vertices are in groups g_1, ..., g_m (m≤4), the between-group edges follow the tournament. The 4-set is strongly connected iff:\n- The tournament restricted to {g_1,...,g_m} is strongly connected, OR\n- Actually even if the tournament on groups isn't strongly connected, bidirectional within-group edges might help... but if all 4 are in different groups and the tournament on those 4 groups isn't strongly connected, then it's bad.\n\nHmm, this is getting complicated. Let me think about whether this construction is even good.\n\nActually, let me reconsider. The within-group bidirectional edges only help if multiple vertices of the 4-set are in the same group. If all 4 are in distinct groups, it's purely a tournament question.\n\nLet me think about a different, perhaps better construction.\n\nConstruction 2: Make G a nice graph and orient the complement carefully.\n\nLet me think about the upper bound first.\n\nUpper bound approach: Count bad quartets.\n\nA quartet Q is bad if ∃ a source cut. Let's count using the structure.\n\nLet me think about it differently. For each vertex v, let d^+_G(v) = number of bidirectional edges incident to v (degree in G), and the one-way edges: v has some out-edges and in-edges among non-G edges.\n\nHmm, this is complex. Let me think about specific small constructions and compute.\n\nLet me try Construction 1 with specific parameters.\n\nWe need Σ C(n_i, 2) = 50, Σ n_i = 25.\n\nIf we use 5 groups of 5: Σ C(5,2) = 5 × 10 = 50. \n\nSo partition 25 vertices into 5 groups of 5, all within-group edges bidirectional (50 edges), and between groups, orient as a tournament. We need the tournament on 5 groups to be strongly connected (to maximize).\n\nA strongly connected tournament on 5 vertices exists (e.g., a regular tournament on 5 vertices, which is the cyclic tournament).\n\nNow count strongly connected quartets:\n\nCase 1: All 4 in same group. C(5,4) × 5 = 5 × 5 = 25. All bidirectional → strongly connected. ✓\n\nCase 2: 3 in one group, 1 in another. Choose group for 3 (5 ways), choose 3 of 5 (C(5,3)=10), choose group for 1 (4 ways), choose 1 of 5 (5). Total = 5×10×4×5 = 1000. \n\nIs it strongly connected? The 3 vertices in the same group are mutually bidirectionally connected. The 1 vertex in another group: edges between the group and this vertex's group are all one-way (either all from group A to group B or all from B to A, depending on tournament). \n\nIf edges go from A (the group of 3) to B (the group of 1): then the single vertex in B has all edges pointing towards it from A, but no edges back. So B's vertex is a sink → NOT strongly connected.\n\nIf edges go from B to A: the single vertex in B points to all 3 in A, but A's vertices can't get back to B. So B's vertex is a source → NOT strongly connected.\n\nEither way, NOT strongly connected. So Case 2 contributes 0.\n\nCase 3: 2 in one group, 2 in another. Choose 2 groups (C(5,2)=10), choose 2 from each (C(5,2)²=100). Total = 10 × 100 = 1000.\n\nThe 2 vertices in each group are bidirectionally connected. Between the two groups, all edges one-way (say A→B). Then A's pair can reach B's pair, but B's pair can't reach A's pair. NOT strongly connected. Contributes 0.\n\nCase 4: 2 in one group, 1 in another, 1 in a third. Choose group for 2 (5), choose 2 of 5 (10), choose 2 more groups from remaining 4 (C(4,2)=6), choose 1 from each (5×5=25). Total = 5×10×6×25 = 7500.\n\nLet the groups be A (size 2 in quartet), B (size 1), C (size 1). The tournament on {A,B,C} (3 groups) — for the quartet to be strongly connected, we need... The 2 vertices in A are bidirectionally connected. Edges between A,B: all one-way (A→B or B→A). Edges between A,C: all one-way. Edges between B,C: one-way (single edge).\n\nThe quartet is strongly connected iff the \"condensed\" structure is strongly connected. Condense A into a single node (since internally strongly connected). Now we have 3 nodes: A, B, C with tournament edges. The quartet is strongly connected iff this 3-node tournament is strongly connected.\n\nA 3-node tournament is strongly connected iff it's a 3-cycle (not transitive). \n\nIn a strongly connected tournament on 5 groups, what fraction of 3-subsets form a 3-cycle? In a regular tournament on 5 vertices (cyclic), the number of 3-cycles: total 3-subsets = C(5,3)=10. Transitive triples: in a regular tournament on 5 vertices, each vertex has out-degree 2. Number of transitive triples = Σ C(d^+(v), 2) = 5 × C(2,2) = 5. So 3-cycles = 10 - 5 = 5.\n\nSo for Case 4, the quartet is strongly connected iff the 3 groups form a 3-cycle in the tournament. That's 5 out of 10 triples. So fraction = 1/2.\n\nNumber of strongly connected in Case 4: 7500 × (5/10) = 3750.\n\nCase 5: All 4 in distinct groups. Choose 4 groups from 5 (C(5,4)=5), choose 1 from each (5^4 = 625). Total = 5 × 625 = 3125.\n\nThe quartet is strongly connected iff the tournament on the 4 chosen groups is strongly connected. In a regular tournament on 5 vertices, how many 4-subsets are strongly connected?\n\n4-subsets of 5 vertices: C(5,4) = 5. Each 4-subset is a tournament on 4 vertices. In a regular tournament on 5 vertices (cyclic: 0→1→2→3→4→0, and 0→2, 1→3, 2→4, 3→0, 4→1), let me check each 4-subset.\n\nActually, the number of strongly connected 4-vertex tournaments within a regular 5-tournament. Let me compute. The regular tournament on 5 vertices: vertex i beats i+1 and i+2 (mod 5). \n\n4-subset {0,1,2,3}: edges: 0→1,0→2, 1→2,1→3, 2→3, 3→0 (since 3 beats 3+1=4 and 3+2=0, so 3→0). Let me list all edges among {0,1,2,3}:\n- 0 vs 1: 0→1\n- 0 vs 2: 0→2\n- 0 vs 3: 3→0 (3 beats 0)\n- 1 vs 2: 1→2\n- 1 vs 3: 1→3\n- 2 vs 3: 2→3\n\nIs this strongly connected? 0→1→3, 3→0, so {0,1,3} cycle. 0→2→3→0, so 2 is connected. Yes, strongly connected.\n\n4-subset {0,1,2,4}: \n- 0→1, 0→2, 4→0 (4 beats 0)\n- 1→2, 4→1 (4 beats 1), \n- 2→4 (2 beats 4)\nEdges: 0→1, 0→2, 4→0, 1→2, 4→1, 2→4.\nCycle: 0→1→2→4→0. Strongly connected. ✓\n\n4-subset {0,1,3,4}:\n- 0→1, 3→0, 4→0\n- 1→3, 4→1\n- 3→4 (3 beats 4? 3 beats 3+1=4, yes 3→4)\nEdges: 0→1, 3→0, 4→0, 1→3, 4→1, 3→4.\nCycle: 0→1→3→4→0. Strongly connected. ✓\n\n4-subset {0,2,3,4}:\n- 0→2, 3→0, 4→0\n- 2→3, 2→4\n- 3→4\nEdges: 0→2, 3→0, 4→0, 2→3, 2→4, 3→4.\nIs there a cycle? 0→2→3→0. And 4: 4→0, 0→2→4? 2→4 yes. 4→0→2→4 cycle. Strongly connected. ✓\n\n4-subset {1,2,3,4}:\n- 1→2, 1→3, 2→3, 2→4, 3→4, 4→1\nEdges: 1→2, 1→3, 2→3, 2→4, 3→4, 4→1.\nCycle: 1→2→4→1? 2→4, 4→1, 1→2. Yes! And 3: 1→3→4→1. Strongly connected. ✓\n\nSo all 5 four-subsets are strongly connected! So Case 5 contributes 3125.\n\nWait, that's interesting. In a regular tournament on 5 vertices, all 4-subsets are strongly connected. Let me double-check: a regular tournament on 5 vertices is \"strongly 4-connected\" in the sense that every 4-subset is strongly connected. Actually, this makes sense because a regular tournament on 5 vertices is vertex-transitive and quite connected.\n\nHmm wait, let me recheck {0,1,2,3}. Is vertex 2 a sink? 2→3, so no. Is any vertex a source or sink? 0: beats 1,2; loses to 3. Not source/sink. 1: beats 2,3; loses to 0. Not source/sink. 2: beats 3; loses to 0,1. Not source/sink (beats 1, loses to 2). 3: beats 0; loses to 1,2. Not source/sink. So no vertex is source or sink. Could there be a 2-2 source cut? {0,1} vs {2,3}: edges 0→2, 0→... wait need all 4 edges from {0,1} to {2,3} to go from {0,1} to {2,3}. 0→2 ✓, 0→3? 3→0, so no. Not a source cut. So yes, strongly connected. ✓\n\nGreat, so total for Construction 1 (5 groups of 5, regular tournament between groups):\n\nStrongly connected quartets = 25 (Case 1) + 0 (Case 2) + 0 (Case 3) + 3750 (Case 4) + 3125 (Case 5) = 6900.\n\nHmm, can we do better? The problem is that Cases 2 and 3 contribute 0, which is a lot of wasted quartets (2000 quartets lost).\n\nLet me think about whether we can improve.\n\nThe issue with Construction 1 is that between-group edges are all one-way, so any quartet with vertices in exactly 2 groups is not strongly connected (1000 quartets in Case 3, 1000 in Case 2).\n\nWhat if instead of making between-group edges all one-way, we make some of them bidirectional? But we've used all 50 bidirectional edges within groups.\n\nAlternative: use fewer groups or different group sizes, freeing up bidirectional edges for between-group use.\n\nLet me think about a different approach.\n\nConstruction 2: What if G (bidirectional graph) is designed so that many 4-sets have a connected bidirectional subgraph?\n\nIf the bidirectional edges on a 4-set form a connected graph, the 4-set is strongly connected. So we want to maximize the number of 4-sets where G induces a connected subgraph.\n\nBut we also get strongly connected quartets from 4-sets where G is not connected but one-way edges complete the strong connectivity.\n\nLet me think about maximizing 4-sets with connected G-induced subgraph.\n\nG has 25 vertices, 50 edges. We want to maximize the number of 4-subsets where G restricted to the subset is connected.\n\nA 4-subset has G connected iff it's not the case that G restricted to it is disconnected. G restricted to 4 vertices is disconnected iff there's a partition with no G-edge crossing.\n\nHmm, this is related to the number of \"connected\" 4-subgraphs. \n\nIf G is a complete graph K_n, all 4-subsets are connected. But we only have 50 edges.\n\nLet me think: if G is a complete graph on 11 vertices (K_11 has 55 edges, too many). K_10 has 45 edges, plus 5 more edges. \n\nWith K_10 (45 edges) + 5 extra edges: 4-subsets within the 10-clique: C(10,4) = 210, all connected. 4-subsets with 3 in clique and 1 outside: connected iff the outside vertex has a G-edge to at least one of the 3. 4-subsets with 2 in clique and 2 outside, etc.\n\nThis seems like it might give fewer than 6900. Let me compute roughly: C(10,4) = 210 from the clique. That's way less than 6900. So the clique approach is bad for this metric.\n\nBut wait, we also get strongly connected quartets from one-way edges. Let me reconsider.\n\nActually, the key realization: in Construction 1, we got 6900. Let me think about whether we can beat this.\n\nLet me think about the problem from the upper bound side.\n\nTotal quartets: C(25,4) = 12650.\n\nBad quartets = 12650 - (good quartets). We want to minimize bad quartets.\n\nA quartet is bad if it has a source cut. Let me think about lower-bounding bad quartets.\n\nHmm, this is hard. Let me think about it differently.\n\nLet me consider a different construction.\n\nConstruction 3: Instead of grouping, use a \"cyclic\" orientation. \n\nArrange 25 vertices in a circle. Make G a cycle-related graph... hmm.\n\nActually, let me think about the problem more carefully. Let me reconsider Construction 1 but with a different group structure.\n\nWhat if we use fewer, larger groups? We need Σ C(n_i,2) = 50.\n\nOption: 2 groups. C(n_1,2) + C(n_2,2) = 50, n_1 + n_2 = 25. \nC(12,2) + C(13,2) = 66 + 78 = 144 ≠ 50. Too many.\nWe need smaller. With 2 groups, min is C(1,2)+C(24,2) = 0 + 276 = 276. Way too many. So 2 groups don't work (need exactly 50 bidirectional edges, and 2 groups give too many).\n\nWait, I was constraining that ALL within-group edges are bidirectional and ALL between-group edges are one-way. But we don't have to do that. We have exactly 50 bidirectional edges to place anywhere.\n\nLet me reconsider. The constraint is: exactly 50 bidirectional edges, rest one-way. We have full freedom.\n\nLet me think about Construction 1 again but more carefully. We had 5 groups of 5, 50 bidirectional within groups, tournament between groups. Got 6900.\n\nCan we do better by using some bidirectional edges between groups instead of within?\n\nAlternative: 5 groups of 5, but instead of all 50 bidirectional within groups, use some between groups.\n\nIf we remove one within-group bidirectional edge and add one between-group bidirectional edge: \n\nRemoving a within-group edge: affects quartets within that group. Specifically, a 4-set within the group that used this edge for connectivity might become not strongly connected (but might still be strongly connected via other bidirectional edges in the group).\n\nAdding a between-group bidirectional edge: might make some 2-group quartets strongly connected.\n\nThis trade-off is complex. Let me think about whether there's a fundamentally better construction.\n\nLet me think about the upper bound more carefully.\n\nUpper bound via counting: Let me think about what fraction of quartets can be strongly connected.\n\nConsider the \"bad\" condition: a quartet {a,b,c,d} is bad if ∃ S with all cross-edges one-way S→T.\n\nLet me think about a specific type of badness: a vertex v is a \"source\" in quartet Q if all 3 edges from v to Q\\{v} are one-way from v. \n\nFor vertex v, let f(v) = number of one-way edges directed away from v (out-degree in the one-way part), and g(v) = number of bidirectional edges at v. Then f(v) + g(v) = 24 (total edges from v).\n\nThe number of quartets where v is a source: we need to choose 3 vertices from v's one-way out-neighbors. That's C(f(v), 3).\n\nBut wait, v being a source in Q means all 3 edges v→(other) are one-way from v. The other 3 edges among the other 3 vertices can be anything. So the count is C(f(v), 3).\n\nSimilarly, v is a sink in Q if all 3 edges from Q\\{v} to v are one-way towards v. Count: C(h(v), 3) where h(v) = number of one-way edges directed towards v (in-degree in one-way part). h(v) = 24 - f(v) - g(v).\n\nWait, f(v) + h(v) + g(v) = 24. f(v) = out-degree (one-way), h(v) = in-degree (one-way), g(v) = bidirectional degree.\n\nNumber of quartets where v is a source: C(f(v), 3).\nNumber of quartets where v is a sink: C(h(v), 3).\n\nBy union bound, bad quartets ≥ ... but this overcounts (a quartet can have multiple source cuts, and also 2-2 cuts).\n\nThis is getting complicated. Let me think about whether 6900 is optimal or if we can do better.\n\nLet me try a different construction.\n\nConstruction 4: \"Blow-up of a strongly connected tournament.\"\n\nTake a strongly connected tournament T on t vertices. Replace each vertex with a group of size n_i (Σ n_i = 25). Within each group, all edges bidirectional. Between groups, orient according to T. But we need Σ C(n_i, 2) = 50.\n\nWith t=5, n_i=5: Σ C(5,2) = 50. This is Construction 1. Result: 6900.\n\nWhat about t=4? We need Σ C(n_i,2) = 50, Σ n_i = 25, 4 groups. \nC(n_1,2)+...+C(n_4,2) = 50. \nIf all equal: 4 × C(n,2) = 50, C(n,2) = 12.5, not integer.\nTry n_i = 6,6,6,7: 3×15 + 21 = 66 ≠ 50.\nTry n_i = 5,5,5,10: 3×10 + 45 = 75 ≠ 50.\nTry n_i = 4,4,8,9: 6+6+28+36 = 76 ≠ 50.\nHmm, hard to get 50 with 4 groups summing to 25.\n\nActually Σ C(n_i,2) = (Σ n_i² - Σ n_i)/2 = (Σ n_i² - 25)/2 = 50, so Σ n_i² = 125. With 4 groups: n_1²+n_2²+n_3²+n_4² = 125, n_1+...+n_4 = 25. \n\nBy Cauchy-Schwarz, Σ n_i² ≥ 25²/4 = 156.25 > 125. So impossible! 4 groups can't achieve Σ n_i² = 125.\n\nWith 5 groups: Σ n_i² ≥ 25²/5 = 125. So Σ n_i² = 125 iff all n_i = 5. That's exactly Construction 1.\n\nWith 6 groups: Σ n_i² ≥ 25²/6 ≈ 104.2. So Σ n_i² = 125 is achievable. E.g., 5,5,5,5,4,1: 25+25+25+25+16+1 = 117 ≠ 125. Try 5,5,5,5,5,0 — no, need 6 positive. Try 5,4,4,4,4,4: 25+16×5 = 105 ≠ 125. Try 6,5,5,5,2,2: 36+25+25+25+4+4 = 119. Try 7,5,5,5,2,1: 49+25+25+25+4+1=129. Try 6,5,5,4,4,1: 36+25+25+16+16+1=119. Try 7,5,4,4,4,1: 49+25+16+16+16+1=123. Try 7,5,5,4,3,1: 49+25+25+16+9+1=125! Yes!\n\nSo 6 groups: 7,5,5,4,3,1. Σ C(n_i,2) = 21+10+10+6+3+0 = 50. ✓\n\nBut with 6 groups and a tournament between them, the analysis gets more complex. Also, smaller groups mean fewer within-group quartets.\n\nHmm, but the key issue with Construction 1 was that 2-group quartets and 3+1 quartets are not strongly connected. With more groups, even more quartets span multiple groups.\n\nActually wait. In Construction 1, the 2-group quartets (Case 3: 2+2) are not strongly connected because between two groups all edges go one way. But if we had bidirectional edges between groups, some of these could become strongly connected.\n\nLet me think about a hybrid construction.\n\nConstruction 5: 5 groups of 5. Use 40 bidirectional edges within groups (not all), and 10 bidirectional edges between groups.\n\nWait, but within a group of 5, there are C(5,2)=10 edges. 5 groups × 10 = 50. If we use all 50 within groups, we have none between. If we use fewer within, we have some between.\n\nLet me think: remove k within-group bidirectional edges (making them one-way) and add k between-group bidirectional edges (making them bidirectional instead of one-way). Net bidirectional count stays 50.\n\nEffect of removing a within-group bidirectional edge (within group A, between vertices a1, a2): \n- 4-sets within A that include both a1 and a2: C(3,2) = 3 quartets. These were strongly connected (all bidirectional). Now the edge a1-a2 is one-way. The quartet {a1,a2,x,y} where x,y ∈ A\\{a1,a2}: the other 5 edges are still bidirectional. Is it still strongly connected? Yes! Because x-y, a1-x, a1-y, a2-x, a2-y are all bidirectional, so a1 can reach a2 via x or y. So removing one within-group bidirectional edge doesn't lose any within-group quartets (as long as the group has ≥4 vertices and the remaining bidirectional edges keep it connected).\n\nActually, within a group of 5, if we remove one bidirectional edge, the remaining 9 bidirectional edges still connect all 5 vertices (it's K_5 minus one edge, still connected). So all C(5,4)=5 quartets within the group are still strongly connected. \n\nSo we can remove some within-group bidirectional edges without losing within-group quartets, and use those edges between groups.\n\nHow many within-group edges can we remove while keeping each group's bidirectional graph connected? A group of 5 needs at least 4 bidirectional edges (spanning tree) to stay connected. So we can remove up to 10-4 = 6 per group, 30 total. But we need the induced bidirectional subgraph on each 4-subset to be connected too. Actually, for a 4-subset within the group to have connected bidirectional subgraph, we need... if the group's bidirectional graph is connected, is every 4-subset's induced bidirectional graph connected? Not necessarily. E.g., if the spanning tree is a path 1-2-3-4-5, the 4-subset {1,3,4,5} has edges 3-4,4-5 (connected) but {1,2,4,5} has edges 1-2, 4-5 (disconnected). \n\nSo we need to be more careful. But even if some within-group 4-subsets lose strong connectivity via bidirectional edges, they might still be strongly connected via one-way edges within the group.\n\nThis is getting complex. Let me think about whether the between-group bidirectional edges can help enough.\n\nEffect of adding a between-group bidirectional edge (between groups A and B, vertices a∈A, b∈B):\n\nThis helps quartets that include both a and b and vertices from A and/or B. Specifically:\n\n- Quartet {a, b, x, y} where x∈A\\{a}, y∈B\\{b}: previously (Case 3, 2+2), all edges between A and B were one-way (say A→B). Now a-b is bidirectional. Is the quartet strongly connected? The edges: a-x bidirectional (within A), b-y bidirectional (within B), a-b bidirectional, a-y one-way (A→B), x-b one-way (A→B), x-y one-way (A→B). \n\nCan we get from B to A? b→a (bidirectional), a→x (bidirectional). So b→a→x. And y→b→a. So yes, B can reach A via the bidirectional a-b edge. And A can reach B (via one-way A→B edges, or via a→b). So the quartet IS strongly connected!\n\nSo adding one bidirectional edge between groups A and B makes all 2+2 quartets containing both endpoints strongly connected. The number of such quartets: choose x from A\\{a} (4 choices) and y from B\\{b} (4 choices) = 16 quartets. Plus quartets {a, b, x, z} where x,z ∈ A (3+1 from A's perspective, 1 from B): these were Case 2, not strongly connected. With the bidirectional a-b edge: {a,b,x,z} where x,z∈A. Edges: a-b bidirectional, a-x, a-z, x-z all bidirectional (within A), b-x one-way (A→B means x→b, so b←x, i.e., x→b), b-z one-way (z→b). So from b: b→a (bidirectional), a→x, a→z. So b can reach everyone. Can everyone reach b? x→b (one-way), z→b (one-way), a→b (bidirectional). Yes! So this quartet is strongly connected too.\n\nSo adding bidirectional edge a-b (between groups A, B) makes strongly connected:\n- {a, b, x, y}, x∈A\\{a}, y∈B\\{b}: 4×4 = 16 quartets (Case 3 type)\n- {a, b, x, z}, x,z∈A\\{a}: C(4,2) = 6 quartets (Case 2 type, 3 from A + 1 from B)\n- {a, b, y, w}, y,w∈B\\{b}: C(4,2) = 6 quartets (Case 2 type, 1 from A + 3 from B)\n\nTotal: 16 + 6 + 6 = 28 quartets newly strongly connected (assuming they weren't before).\n\nBut wait, some of these might overlap with quartets made strongly connected by other between-group bidirectional edges. And we need to check that removing within-group edges doesn't lose any.\n\nIf we can remove within-group edges without losing any strongly connected quartets, and each between-group bidirectional edge gains 28 new quartets, then:\n\nRemove 30 within-group edges (keeping each group connected as a tree, 4 edges per group), add 30 between-group bidirectional edges. Gain: 30 × 28 = 840? But there are overlaps and the between-group edges need to be between specific pairs.\n\nHmm wait, but 30 between-group edges: there are C(5,2) = 10 pairs of groups. Each pair has 5×5 = 25 potential between-group edges. We can add 30 among these 250 potential edges.\n\nBut the gain per edge depends on which other between-group edges exist (overlaps). Let me think more carefully.\n\nActually, let me reconsider. The 28 quartets gained per between-group edge might overlap. Two between-group edges between the same pair of groups A, B: say a1-b1 and a2-b2. The quartet {a1, b1, a2, b2} is counted for both edges. So there's overlap.\n\nThis is getting complicated. Let me think about a cleaner approach.\n\nLet me reconsider the problem. Maybe there's a cleaner optimal construction.\n\nLet me think about the problem from the perspective of the bidirectional graph G and the orientation of its complement.\n\nClaim: A 4-set Q is strongly connected if and only if G[Q] (bidirectional subgraph induced on Q) is connected, OR the one-way edges provide strong connectivity.\n\nActually, let me think about sufficient conditions:\n1. G[Q] connected → strongly connected. (Because bidirectional edges give two-way connectivity.)\n2. G[Q] not connected but one-way edges complete cycles → might be strongly connected.\n\nAnd necessary condition for NOT strongly connected: ∃ source cut S, meaning all cross-edges between S and Q\\S are one-way S→Q\\S. In particular, no bidirectional edge crosses the cut.\n\nSo: Q is bad ⟹ ∃ a partition of Q into S, T such that no bidirectional edge crosses between S and T, AND all one-way edges go S→T.\n\nKey insight: If G[Q] is connected, then for every partition of Q, there's a bidirectional edge crossing it, so no source cut exists, so Q is strongly connected. This confirms condition 1.\n\nIf G[Q] is disconnected, say with components C_1, ..., C_k, then for Q to be strongly connected, the one-way edges between components must create strong connectivity. Specifically, the \"condensation\" using one-way edges between G-components must be strongly connected.\n\nSo: Q is strongly connected iff either G[Q] is connected, or G[Q] is disconnected but the one-way edges between G-components form a strongly connected directed graph.\n\nQ is bad iff G[Q] is disconnected AND the one-way edges between G-components do NOT form a strongly connected graph (i.e., there's a source cut among the components, which means a union of G-components S such that all one-way edges between S and the rest go S→rest).\n\nHmm, so to minimize bad quartets, we want:\n1. Maximize quartets with G[Q] connected.\n2. For quartets with G[Q] disconnected, orient one-way edges to make the component graph strongly connected.\n\nFor point 2: if G[Q] has components C_1, ..., C_k, we need the tournament (well, not tournament—each pair of components has all one-way edges in the same direction if we use the group construction) between components to be strongly connected.\n\nIn the group construction (Construction 1), G-components within a quartet are exactly the groups. The between-group edges are all one-way in the same direction (tournament). So the component graph is a tournament on the groups present, and it's strongly connected iff that tournament subtournament is strongly connected.\n\nNow, the key improvement: if we add bidirectional edges between groups, some quartets that had disconnected G[Q] now have connected G[Q], making them strongly connected.\n\nLet me think about this more carefully with the improved construction.\n\nImproved Construction: 5 groups of 5. G (bidirectional) = within-group edges (some subset) + between-group edges (some subset), total 50. Orient remaining edges: within each group, orient non-bidirectional edges somehow; between groups, orient non-bidirectional edges according to a tournament T on 5 groups.\n\nFor a quartet Q:\n- If Q ⊂ one group: G[Q] = bidirectional edges within the group restricted to Q. If connected, strongly connected. We want G within each group to keep all 4-subsets connected.\n- If Q spans multiple groups: G[Q] includes within-group bidirectional edges and between-group bidirectional edges. If G[Q] connected, strongly connected. If not, need the component tournament to be strongly connected.\n\nThis is quite involved. Let me try to think about whether there's a known result or a cleaner way.\n\nActually, let me step back and think about the problem from a higher level.\n\nWe have a \"mixed graph\" — some edges bidirectional, some directed. We want to maximize strongly connected 4-subsets.\n\nLet me think about the extremal structure. \n\nAlternative approach: Think of it as a 2-coloring/orientation problem. Each pair {u,v} is either bidirectional or has a direction. We can think of it as: first choose 50 pairs to be bidirectional, then orient the rest as a tournament.\n\nFor a 4-set to be strongly connected, we need no source cut. A source cut S|T requires all |S|·|T| cross-pairs to be one-way S→T.\n\nThe number of cross-pairs for a 4-set:\n- 1|3: 3 pairs\n- 2|2: 4 pairs\n\nFor a 1|3 source cut (vertex v is source): all 3 edges from v go out (one-way from v). \nFor a 2|2 source cut: all 4 cross-edges go from the 2 to the other 2.\n\nLet me think about the problem differently. Let me consider the \"underlying tournament\" — orient ALL edges (including bidirectional ones, pick an arbitrary direction for bidirectional edges). Then the bidirectional edges are \"extra\" — they add reverse arcs.\n\nHmm, this might not simplify things.\n\nLet me try to think about upper bounds more carefully.\n\nUpper bound idea: Count the number of quartets that MUST be bad.\n\nConsider any vertex v. v has g(v) bidirectional edges and 24-g(v) one-way edges. Among the one-way edges, say f(v) go out and h(v) come in, with f(v)+h(v) = 24-g(v).\n\nQuartets where v is a source: v's 3 co-members must all be one-way out-neighbors of v. Count: C(f(v), 3).\nQuartets where v is a sink: C(h(v), 3).\n\nBut a quartet can have v as both source and sink only if f(v)≥3 and h(v)≥3 and the 3 co-members are both out-neighbors and in-neighbors, which is impossible (a one-way edge is either out or in, not both). So source and sink events for the same v are disjoint.\n\nBut different vertices can be sources/sinks of the same quartet, and there are also 2|2 cuts. So by inclusion-exclusion this is complex.\n\nLet me try a different approach: just try to find the optimal construction by exploring a few options computationally (in my head / on paper).\n\nLet me reconsider Construction 1 and see if the improved version does better.\n\nImproved Construction 1: 5 groups of 5, regular tournament T between groups. \n\nStart with all 50 bidirectional within groups. Now reallocate: remove some within-group bidirectional edges, add between-group bidirectional edges.\n\nKey constraint: within each group, keep enough bidirectional edges so all 4-subsets remain connected. In a group of 5, we need every 4-subset to have a connected bidirectional subgraph. \n\nA 4-subset of a 5-group misses one vertex. The bidirectional graph on the 4-subset is the group's bidirectional graph minus the missing vertex. For this to be connected for all 4-subsets, we need the group's bidirectional graph to be \"4-vertex-connected\" in some sense... actually, we need: for every vertex w, G[group \\ {w}] is connected. This means G has no cut-vertex (is 2-vertex-connected) — wait, not exactly. We need that removing any single vertex leaves a connected graph. That's exactly 2-vertex-connectivity (or being a cycle or complete graph, etc.).\n\nActually, \"removing any single vertex leaves a connected graph\" is the definition of 2-vertex-connected (for graphs with ≥3 vertices). Wait, 2-vertex-connected means κ(G) ≥ 2, which means removing any single vertex leaves the graph connected. But we also need the graph itself to be connected. For a graph on 5 vertices, 2-vertex-connected means minimum degree ≥ 2 and no articulation point.\n\nThe minimum number of edges for a 2-vertex-connected graph on 5 vertices: a cycle C_5 has 5 edges and is 2-vertex-connected. So we need at least 5 bidirectional edges per group. We have 10, so we can remove up to 5 per group, 25 total.\n\nBut wait, we also want the 4-subsets to be connected. With C_5 (cycle on 5 vertices), removing any vertex leaves P_4 (path on 4 vertices), which is connected. ✓. So 5 bidirectional edges per group suffice.\n\nSo we can reduce to 5 bidirectional edges per group (25 total within groups) and use 25 bidirectional edges between groups.\n\nNow, with 25 between-group bidirectional edges among 10 pairs of groups (250 potential edges), how should we distribute them?\n\nAnd what's the gain? Let me think about this.\n\nActually, this is getting very complex. Let me try to think about whether there's a cleaner optimal answer.\n\nLet me reconsider the problem. Maybe the answer is a specific number and there's a clean construction.\n\nLet me reconsider Construction 1 result: 6900. Let me see if I can compute the improved version.\n\nActually, let me think about this problem from the competition math perspective. This seems like a competition problem, and the answer is likely a clean number.\n\nLet me reconsider. 25 vertices, 50 bidirectional edges, maximize strongly connected 4-sets.\n\nLet me think about the \"blow-up\" construction more carefully, but with a twist: what if instead of a tournament between groups, we use a more clever orientation?\n\nActually, let me reconsider the problem. Let me re-examine Construction 1 and think about whether we can orient within-group non-bidirectional edges to help.\n\nIn Construction 1, all within-group edges are bidirectional, so there are no within-group one-way edges. If we remove some within-group bidirectional edges and orient them, we need to orient them to maintain strong connectivity of within-group quartets.\n\nIf within a group, the bidirectional graph is C_5 (cycle) and the remaining 5 edges are oriented as a tournament... the within-group quartets need to be strongly connected. With C_5 bidirectional, every 4-subset has a path (P_4) of bidirectional edges, so it's connected → strongly connected. The one-way edges are extra and don't hurt. ✓\n\nNow, the 25 freed-up bidirectional edges go between groups. Let me think about the best way to place them.\n\nWith 5 groups A, B, C, D, E and a regular tournament T between them (say A→B, A→C, B→C, B→D, C→D, C→E, D→E, D→A, E→A, E→B — let me use the cyclic tournament: i beats i+1 and i+2 mod 5).\n\nBetween each pair of groups, there are 25 edges. Currently all one-way (according to T). We make some bidirectional.\n\nLet me think about which quartets benefit. A quartet spanning groups {A, B} (2+2 or 3+1 or 1+3) was not strongly connected (since T on {A,B} is just A→B, not strongly connected). Adding bidirectional edges between A and B can make some of these strongly connected.\n\nA quartet {a1, a2, b1, b2} (2 from A, 2 from B): G[Q] includes within-A bidirectional (a1-a2 if the cycle includes it), within-B bidirectional (b1-b2), and between-A-B bidirectional edges. If any between-A-B bidirectional edge is in Q (i.e., one of a1-b1, a1-b2, a2-b1, a2-b2 is bidirectional), then G[Q] might be connected.\n\nSpecifically, if a1-b1 is bidirectional, and a1-a2 is bidirectional (within A cycle), and b1-b2 is bidirectional (within B cycle), then G[Q] has edges a1-a2, b1-b2, a1-b1, which connects all 4 vertices. So G[Q] is connected → strongly connected.\n\nBut a1-a2 might not be bidirectional (if the cycle doesn't include that edge). In C_5, each vertex has 2 bidirectional neighbors. So a1-a2 is bidirectional iff they're adjacent in the cycle.\n\nThis is getting very detailed. Let me try to think about it more abstractly.\n\nLet me consider a cleaner construction.\n\nConstruction 6: 5 groups of 5. Within each group, C_5 bidirectional (5 edges, 25 total). Between groups, distribute 25 bidirectional edges. Orient remaining between-group edges as regular tournament T. Orient remaining within-group edges (the 5 non-cycle edges per group) arbitrarily (they don't affect within-group strong connectivity since C_5 already connects everything).\n\nNow, for a quartet Q:\n- If Q ⊂ one group: G[Q] ⊇ P_4 (path) → connected → strongly connected. (5 quartets per group, 25 total.)\n- If Q spans 2 groups, say A and B: Q has some vertices from A and some from B. G[Q] includes within-A and within-B cycle edges and between-A-B bidirectional edges. If G[Q] is connected, strongly connected. Otherwise, the component graph is on ≤4 components (G-components within Q), and we need the one-way edges to make it strongly connected. But between A and B, one-way edges all go A→B (or B→A). So if G[Q] has an A-component and a B-component with no bidirectional edge between them, the one-way edges go one way → not strongly connected. So Q is strongly connected iff G[Q] is connected (for 2-group quartets).\n\nWait, that's not quite right. If Q has 2 vertices in A and 2 in B, G[Q] has up to 4 components (if no within-group or between-group bidirectional edges connect them). But within A, the 2 vertices might be connected by a cycle edge (if adjacent in C_5). Similarly within B. And between A and B, there might be bidirectional edges.\n\nIf G[Q] is connected → strongly connected.\nIf G[Q] is not connected → components are within A and within B. Between any A-component and B-component, one-way edges go A→B. So the component graph has all A-components pointing to B-components. This is a DAG with source A-components and sink B-components. Not strongly connected (unless there's only one component, i.e., G[Q] connected).\n\nSo for 2-group quartets: strongly connected iff G[Q] connected.\n\n- If Q spans 3 groups, say A, B, C: G[Q] includes within-group cycle edges and between-group bidirectional edges. If G[Q] connected → strongly connected. If not, components are within groups, and between-group one-way edges follow T. The component graph is a subtournament of T on {A, B, C} (with possible merging if bidirectional edges connect components across groups). If G[Q] is not connected, the component graph is a tournament on a subset of {A,B,C} (those groups that have vertices in Q and aren't connected to others via bidirectional edges). This is strongly connected iff the subtournament is a 3-cycle.\n\nHmm, this is getting complicated. Let me try to just compute for a specific allocation of between-group bidirectional edges.\n\nLet me try: distribute the 25 between-group bidirectional edges equally. 10 pairs of groups, 25 edges, so 2-3 per pair. Let's say each pair gets 2 or 3 bidirectional edges.\n\nActually, let me think about a symmetric allocation. 10 pairs, 25 edges. If each pair gets 2.5... not integer. Let's say 5 pairs get 3 and 5 pairs get 2.\n\nHmm, this is getting unwieldy. Let me think about whether there's a fundamentally different and better construction.\n\nLet me reconsider. Maybe the answer is 6900 and Construction 1 is optimal. Or maybe there's a better construction.\n\nLet me think about upper bounds.\n\nUpper bound attempt: \n\nFor each unordered pair of vertices {u,v}, let e(u,v) = 1 if bidirectional, 0 if one-way. Σ e(u,v) = 50.\n\nFor a 4-set Q = {a,b,c,d}, Q is strongly connected iff no source cut exists.\n\nLet me count the number of \"certificates of badness.\" For each ordered partition (S, T) of Q with |S| = 1 (i.e., S = {v}), the certificate is: all 3 edges from v to T are one-way from v. For |S| = 2, certificate: all 4 cross-edges one-way from S to T.\n\nLet me count the total number of certificates across all quartets.\n\nType 1|3 (source): For each vertex v and each 3-subset S of v's one-way out-neighbors, we get a certificate. Total: Σ_v C(f(v), 3).\n\nType 3|1 (sink): For each vertex v and each 3-subset S of v's one-way in-neighbors, certificate. Total: Σ_v C(h(v), 3).\n\nType 2|2: For each pair {u,v} and each pair {w,x} from the remaining vertices, if all 4 edges u-w, u-x, v-w, v-x are one-way from {u,v} to {w,x}, certificate. \n\nThis is hard to count in general. Let me think about the group construction.\n\nIn Construction 1 (5 groups of 5, regular tournament, all within-group bidirectional):\n\nf(v) = out-degree in tournament = 2 groups × 5 = 10 (each vertex has one-way edges to 2 groups, 5 vertices each). h(v) = 10. g(v) = 4 (within group, bidirectional to 4 others).\n\nΣ_v C(f(v), 3) = 25 × C(10, 3) = 25 × 120 = 3000.\nΣ_v C(h(v), 3) = 25 × C(10, 3) = 3000.\n\nType 2|2: pair {u,v} in same group: cross-edges to {w,x} in other groups. If w,x in same group (different from u,v's group): all 4 edges go one way (tournament). Certificate exists. Count: for each pair within a group (C(5,2)×5 = 50 pairs), and each pair in another group (C(5,2)×4 = 40), but need the tournament direction to be from {u,v}'s group to {w,x}'s group. In a regular tournament, each group beats 2 and loses to 2. So for a pair in group A, pairs in groups that A beats: 2 groups × C(5,2) = 20. Certificate count: 50 × 20 = 1000 (from A→B direction). But also the reverse: pair in B, pair in A where B beats A. Since the tournament is regular, for each ordered pair of groups (X,Y) where X→Y, we get C(5,2)×C(5,2) = 100 certificates. Number of ordered pairs in regular tournament on 5: 10 (C(5,2)). So type 2|2 certificates = 10 × 100 = 1000.\n\nWait, but I need to be more careful. The 2|2 certificate for partition {u,v}|{w,x} requires all 4 cross-edges to go from {u,v} to {w,x}. If u,v are in group A and w,x in group B, and A→B in tournament, then all 4 edges go A→B, so certificate exists. Count: for each ordered pair (A,B) with A→B in T: C(5,2) × C(5,2) = 25 × 25... wait, C(5,2) = 10. So 10 × 10 = 100 per ordered pair. 10 ordered pairs → 1000.\n\nBut also, u,v could be in different groups! If u in A, v in B, w in C, x in D. Then the cross-edges are u-w, u-x, v-w, v-x. For all to be one-way from {u,v} to {w,x}: u→w, u→x, v→w, v→x. This depends on the tournament directions A→C, A→D, B→C, B→D. All four must hold. In a regular tournament on 5, for groups A, B, C, D (4 of 5 groups), this requires A→C, A→D, B→C, B→D. \n\nAlso, u and v are in different groups A and B, so the edge u-v is one-way (say A→B or B→A). But that's within the source set, doesn't matter for the certificate.\n\nHmm, this is getting complicated. Let me just try to verify: in Construction 1, bad quartets = 12650 - 6900 = 5750. And certificates: type 1|3 = 3000, type 3|1 = 3000, type 2|2 = 1000 + (more from cross-group pairs). Total certificates ≥ 7000, but bad quartets = 5750, so there's overcounting (some bad quartets have multiple certificates).\n\nOK this approach is getting complicated. Let me try a different strategy: just try to find the best construction I can and compute its value.\n\nLet me think about the problem from a different angle. \n\nWhat if we don't use groups at all, but instead use a more global structure?\n\nConstruction 7: Let G (bidirectional) be a 4-regular graph on 25 vertices (50 edges, since 25×4/2 = 50). For example, G = C_25² (square of a 25-cycle, where each vertex connects to its 2 nearest neighbors on each side). Then orient the remaining edges as a regular tournament or cyclically.\n\nWith G = C_25², each vertex has 4 bidirectional neighbors. The remaining 20 edges per vertex are one-way.\n\nFor a 4-set Q, G[Q] is connected iff the 4 vertices are \"close enough\" on the cycle. Specifically, G[Q] is connected iff the 4 vertices, when placed on the cycle, have no gap of ≥3 (since C_25² connects vertices within distance 2).\n\nHmm, this might not give many connected 4-sets. Let me think...\n\nActually, the number of 4-subsets of C_25² that induce a connected subgraph: this requires the 4 vertices to span a small portion of the cycle. If the 4 vertices are within a window of 5 consecutive vertices (span ≤ 4), then G[Q] is connected (since C_n² connects distance ≤ 2). If they span more, G[Q] might be disconnected.\n\nThis seems like it would give fewer connected quartets than the group construction. Let me abandon this.\n\nLet me go back to trying to improve Construction 1.\n\nLet me think about the improved construction more carefully.\n\nConstruction 8: 5 groups of 5 (A, B, C, D, E). Regular tournament T between groups (cyclic: A→B, A→C, B→C, B→D, C→D, C→E, D→E, D→A, E→A, E→B).\n\nWithin each group: C_5 bidirectional (5 edges). Total within: 25.\nBetween groups: 25 bidirectional edges distributed among the 10 pairs.\nRemaining edges: within-group (5 per group, 25 total) oriented arbitrarily; between-group (250 - 25 = 225) oriented according to T.\n\nFor a quartet Q, strongly connected iff:\n- G[Q] connected, OR\n- G[Q] disconnected and component tournament strongly connected.\n\nFor 2-group quartets (Q spans groups X, Y): strongly connected iff G[Q] connected (as argued above, since T on {X,Y} is not strongly connected).\n\nFor 3-group quartets (Q spans groups X, Y, Z): strongly connected iff G[Q] connected, OR (G[Q] disconnected and T on the relevant components is a 3-cycle).\n\nFor 4-group quartets (Q spans 4 groups): strongly connected iff G[Q] connected, OR (G[Q] disconnected and T on relevant components is strongly connected).\n\nFor 5-group quartets: not possible (only 4 vertices).\n\nFor 1-group quartets: always strongly connected (C_5 gives connected G[Q]). 25 quartets.\n\nNow, the question is how to distribute the 25 between-group bidirectional edges to maximize strongly connected multi-group quartets.\n\nLet me think about 2-group quartets first. For groups X, Y with k_{XY} bidirectional edges between them, how many 2-group quartets {a, b, c, d} (some from X, some from Y) have G[Q] connected?\n\nA 2-group quartet has 1+3, 2+2, or 3+1 split.\n\nFor a 2+2 quartet {a1, a2, b1, b2} (a's from X, b's from Y): G[Q] has edges a1-a2 (if adjacent in X's C_5), b1-b2 (if adjacent in Y's C_5), and any bidirectional edges among {a1-b1, a1-b2, a2-b1, a2-b2}. G[Q] is connected iff these edges connect all 4 vertices.\n\nFor a 1+3 quartet {a, b1, b2, b3} (a from X, b's from Y): G[Q] has edges among b's (from Y's C_5) and any bidirectional edges a-bi. G[Q] is connected iff a is connected to at least one b via bidirectional, and the b's are connected among themselves (which they are if they form a connected subgraph of C_5, which requires them to be \"close\" on the cycle).\n\nThis is getting very detailed. Let me try to think about it from a higher level and estimate.\n\nActually, I think this problem might have a clean answer. Let me reconsider.\n\nLet me think about the problem differently. What if the answer is related to a specific combinatorial quantity?\n\nTotal quartets: C(25,4) = 12650.\n\nLet me think about the complement: minimize bad quartets.\n\nA quartet is bad iff there's a source cut. The \"most efficient\" way to create badness is through 1|3 cuts (source or sink), since they require only 3 one-way edges (vs 4 for 2|2 cuts).\n\nTo minimize bad quartets, we want to minimize the number of source/sink certificates. A vertex v is a source in C(f(v), 3) quartets and a sink in C(h(v), 3) quartets. To minimize Σ C(f(v),3) + C(h(v),3), we want f(v) and h(v) to be as small as possible, which means g(v) (bidirectional degree) as large as possible. But Σ g(v) = 100 (since 50 edges × 2 endpoints), so average g(v) = 4.\n\nIf all g(v) = 4, then f(v) + h(v) = 20 for each v. To minimize C(f(v),3) + C(h(v),3) with f+h=20, we set f=h=10 (by convexity). Then C(10,3) + C(10,3) = 240 per vertex, 6000 total.\n\nBut this is just the source/sink certificates. We also need to account for 2|2 certificates and overcounting.\n\nIn Construction 1, g(v) = 4, f(v) = h(v) = 10, and we computed source/sink certificates = 6000, 2|2 certificates (same-group pairs) = 1000, plus cross-group 2|2 certificates. Bad quartets = 5750.\n\nHmm, let me think about whether we can reduce bad quartets below 5750.\n\nActually, let me think about this more carefully. The number of bad quartets is at least the number of distinct quartets with at least one certificate. By inclusion-exclusion, it's hard to compute exactly, but we can get a lower bound.\n\nLet me think about a lower bound on bad quartets.\n\nFor each vertex v, the number of quartets where v is a source is C(f(v), 3). These quartets are all bad. But a quartet can have at most 4 sources (one per vertex), so by the union bound:\n\nbad quartets ≥ (Σ_v C(f(v), 3) + Σ_v C(h(v), 3)) / 4\n\nWait, no. A quartet can have at most 1 source (if v is a source, all edges from v go out, so no other vertex can have all edges going out to the rest — actually, could two vertices both be sources? If v and w are both sources of Q={v,w,x,y}, then v→w, v→x, v→y, w→v, w→x, w→y. But v→w and w→v can't both hold (each pair has one road, either bidirectional or one-way). If v-w is bidirectional, then v is not a source (w→v exists). If v-w is one-way v→w, then w is not a source (no w→v). So at most one source. Similarly at most one sink.\n\nBut a quartet can have both a source and a sink (different vertices), or a 2|2 cut, or multiple 2|2 cuts.\n\nSo: each bad quartet has at most 1 source certificate and at most 1 sink certificate, plus possibly 2|2 certificates.\n\nbad quartets ≥ max(Σ C(f(v),3), Σ C(h(v),3)) ≥ (Σ C(f(v),3) + Σ C(h(v),3)) / 2\n\nHmm, actually: each bad quartet has at most 1 source and at most 1 sink. So:\n\n(number of source certificates) + (number of sink certificates) ≤ 2 × (bad quartets)\n\nSo bad quartets ≥ (Σ C(f(v),3) + Σ C(h(v),3)) / 2.\n\nWith g(v) = 4, f(v) = h(v) = 10: bad quartets ≥ 6000/2 = 3000.\n\nBut this is a weak bound. We also need to account for 2|2 cuts and quartets that are bad only due to 2|2 cuts (no source or sink).\n\nHmm, this lower bound of 3000 is much less than 5750, so there might be room for improvement.\n\nLet me think about this differently. Let me try to find a construction that beats 6900.\n\nLet me think about what happens if we use a different group structure or orientation.\n\nActually, let me reconsider. In Construction 1, the 2-group quartets (2000 of them) are ALL bad. That's a big loss. If we can make some of them good, we improve.\n\nIn the improved construction with between-group bidirectional edges, some 2-group quartets become good. Let me estimate how many.\n\nWith 25 between-group bidirectional edges, if we distribute them as 5 pairs of groups with 3 edges and 5 pairs with 2 edges (or some other distribution), how many 2-group quartets become good?\n\nFor a pair of groups (X, Y) with k bidirectional edges between them, the number of 2-group quartets that become good (G[Q] connected) depends on the structure.\n\nLet me think about a specific pair (X, Y) with k bidirectional edges. The 2-group quartets are:\n- 3+1: C(5,3)×5 × 2 = 100 (50 with 3 from X, 50 with 3 from Y)\n- 2+2: C(5,2)×C(5,2) = 100\nTotal: 200 per pair of groups, 2000 total (10 pairs).\n\nFor a 3+1 quartet {x1,x2,x3, y} (3 from X, 1 from Y): G[Q] connected iff y has a bidirectional edge to at least one of x1,x2,x3, AND x1,x2,x3 are connected in X's C_5. The x's are connected in C_5 iff they don't span more than... well, 3 vertices of C_5 are connected iff they're not all mutually non-adjacent. In C_5, 3 vertices are disconnected iff they're every other vertex (e.g., {1,3,5}). There are 5 such triples out of C(5,3)=10. So 5 out of 10 triples are connected.\n\nWait, C_5 = cycle 1-2-3-4-5-1. Triples:\n{1,2,3}: edges 1-2, 2-3 → connected ✓\n{1,2,4}: edges 1-2 → connected ✓ (1-2 edge, 4 isolated? No, 4 is not adjacent to 1 or 2 in C_5. 4 is adjacent to 3 and 5. So {1,2,4} has only edge 1-2, vertex 4 isolated → disconnected ✗)\n\nHmm wait. C_5 has edges {1-2, 2-3, 3-4, 4-5, 5-1}. \n\n{1,2,3}: edges 1-2, 2-3 → connected ✓\n{1,2,4}: edge 1-2 only → 4 isolated → disconnected ✗\n{1,2,5}: edges 1-2, 5-1 → connected ✓\n{1,3,4}: edge 3-4 → 1 isolated → disconnected ✗\n{1,3,5}: edge 5-1 → 3 isolated → disconnected ✗\n{1,4,5}: edges 4-5, 5-1 → connected ✓\n{2,3,4}: edges 2-3, 3-4 → connected ✓\n{2,3,5}: edge 2-3 → 5 isolated → disconnected ✗\n{2,4,5}: edge 4-5 → 2 isolated → disconnected ✗\n{3,4,5}: edges 3-4, 4-5 → connected ✓\n\nSo 5 out of 10 triples are connected in C_5. \n\nFor a 3+1 quartet {x1,x2,x3, y}: G[Q] connected iff (x's connected in C_5) AND (y has bidirectional edge to some x). \n\nIf the x's are connected (5 out of 10 triples), and y has bidirectional edge to at least one x: the probability depends on the bidirectional edges between X and Y.\n\nThis is getting very detailed. Let me try a different approach: maybe I should think about the problem more cleverly.\n\nLet me reconsider. Perhaps the optimal construction is not group-based.\n\nLet me think about the problem as follows. We want to maximize strongly connected 4-sets. A 4-set is strongly connected iff no source cut. \n\nKey observation: If the bidirectional graph G has the property that every 4-set induces a connected subgraph, then ALL quartets are strongly connected. But G has only 50 edges on 25 vertices. Can G have every 4-set connected?\n\nG has every 4-set connected iff the complement of G has no 4-set that is... hmm. G[Q] disconnected iff Q can be partitioned into two nonempty parts with no G-edge between them. This means the complement graph Ḡ has all cross-edges. So G[Q] is disconnected iff Ḡ[Q] contains a complete bipartite graph between the parts.\n\nFor G[Q] to always be connected, we need: for every 4-set Q and every partition of Q, at least one G-edge crosses. Equivalently, Ḡ has no K_{1,3} or K_{2,2} or K_{3,1} as an induced subgraph on 4 vertices... actually, Ḡ[Q] containing a complete bipartite graph between parts means G[Q] is disconnected.\n\nG[Q] is always connected iff G is \"4-vertex-connected\" in the sense that every 4-vertex induced subgraph is connected. This is equivalent to: the complement Ḡ has no independent set of size... no. G[Q] disconnected means Q has a partition with no G-edge crossing, i.e., Ḡ has all edges crossing the partition. The weakest condition is a 1|3 partition: one vertex has no G-edge to the other 3, meaning that vertex has G-degree 0 within Q. So if every vertex has G-degree ≥ 1 in every 4-set containing it... \n\nActually, G[Q] is always connected iff G has minimum degree ≥ n-3 = 22 (since a vertex with degree d is disconnected from n-1-d vertices; in a 4-set, if the vertex has ≤ 0 G-neighbors among the other 3, it's isolated). Wait, a vertex v is isolated in G[Q] iff all 3 other vertices are non-neighbors of v in G, i.e., the 3 are chosen from v's 24-g(v) non-neighbors. This is possible iff 24-g(v) ≥ 3, i.e., g(v) ≤ 21. Since g(v) ≤ 4 (average), this is always possible. So we can't have all 4-sets connected with only 50 edges.\n\nIn fact, with g(v) = 4, each vertex has 20 non-neighbors, so C(20,3) = 1140 quartets where v is isolated in G. So G[Q] is disconnected for many quartets. We can't rely on G alone.\n\nOK so the one-way edges must do heavy lifting. Let me go back to the group construction and try to optimize it.\n\nLet me try to think about this more carefully with the improved construction.\n\nActually, let me try a completely different approach. Let me think about the problem as a tournament with some bidirectional edges.\n\nConsider starting with a regular tournament on 25 vertices (each vertex has out-degree 12, in-degree 12). Then upgrade 50 edges to bidirectional (add reverse arcs). A 4-set in the tournament is strongly connected with some probability, and upgrading edges to bidirectional can fix some bad 4-sets.\n\nIn a regular tournament on 25 vertices, how many 4-sets are strongly connected?\n\nA 4-set in a tournament is strongly connected iff the induced tournament is strongly connected. As computed, 24 out of 64 tournaments on 4 labeled vertices are strongly connected. But the probability depends on the specific tournament.\n\nFor a random tournament, P(strongly connected) = 24/64 = 3/8. For a regular tournament, it might be different.\n\nHmm, but we're not starting from a random tournament. Let me think about this differently.\n\nActually, let me go back to the group construction and try to compute the improved version carefully.\n\nLet me set up the improved construction precisely.\n\nConstruction 8 (detailed):\n- 5 groups of 5: A_0, A_1, A_2, A_3, A_4.\n- Regular tournament T between groups: A_i → A_j iff (j-i) mod 5 ∈ {1, 2}.\n- Within each group: C_5 bidirectional (cycle edges: A_i[j] — A_i[j+1 mod 5]). 5 edges per group, 25 total.\n- Between groups: 25 bidirectional edges. Distribution TBD.\n- Remaining between-group edges: oriented according to T.\n- Remaining within-group edges (the 5 diagonals per group): oriented arbitrarily.\n\nNow I need to choose the 25 between-group bidirectional edges optimally. Let me think about what helps most.\n\nFor 2-group quartets (between groups X, Y): strongly connected iff G[Q] connected. G[Q] includes within-group cycle edges and between-group bidirectional edges. \n\nFor 3-group quartets (groups X, Y, Z): strongly connected iff G[Q] connected OR (G[Q] disconnected and component tournament is a 3-cycle).\n\nFor 4-group quartets (groups W, X, Y, Z): strongly connected iff G[Q] connected OR (G[Q] disconnected and component tournament is strongly connected).\n\nThe 3-group and 4-group quartets might already be strongly connected via the tournament (as in Construction 1, where 3750 + 3125 = 6875 were strongly connected from tournament alone, plus 25 from within-group = 6900). Adding between-group bidirectional edges can make some of the remaining 3-group and 4-group quartets strongly connected (by connecting G[Q]), and also make 2-group quartets strongly connected.\n\nIn Construction 1, the bad quartets were:\n- 2-group: 2000 (all bad)\n- 3-group: 7500 total, 3750 good, 3750 bad\n- 4-group: 3125 total, 3125 good, 0 bad\n- 1-group: 25 good\nTotal bad: 2000 + 3750 = 5750.\n\nWith between-group bidirectional edges, we can fix some of these 5750 bad quartets. Let me think about which ones and how many.\n\nFor 2-group quartets (X, Y): 200 per pair, 2000 total. A quartet becomes good if G[Q] becomes connected. \n\nFor 3-group quartets that are bad (3750): these have T on 3 groups being transitive (not a 3-cycle). Adding bidirectional edges between these groups can connect G[Q], making them good.\n\nLet me focus on 2-group quartets first, as they're the biggest block (2000).\n\nFor a pair (X, Y) with k bidirectional edges between them, how many of the 200 2-group quartets become good?\n\nLet me think about this for a specific pair. Say the k bidirectional edges form a bipartite graph B between X and Y (5+5 vertices, k edges). \n\nA 2+2 quartet {x1, x2, y1, y2}: G[Q] connected iff the 4 vertices are connected via cycle edges (within X and Y) and B-edges (between X and Y). \n\nThe cycle edges within X connect x1-x2 iff they're adjacent in C_5. Similarly for Y. The B-edges connect xi-yj iff (xi, yj) is a bidirectional edge.\n\nG[Q] is connected iff:\n- x1-x2 adjacent AND y1-y2 adjacent (then both pairs connected, but need a cross-edge to connect the two groups: at least one B-edge among {x1-y1, x1-y2, x2-y1, x2-y2}), OR\n- x1-x2 adjacent AND at least one B-edge connects to y1 or y2 (connecting the Y vertex to the X component), AND y1-y2 adjacent or connected via X... \n\nThis is getting complicated. Let me simplify by considering a specific distribution.\n\nLet me try: for each pair of groups, put 2-3 bidirectional edges. Specifically, let me put 5 bidirectional edges for each of the 5 \"forward\" pairs (A_i → A_{i+1}) and 0 for the 5 \"skip\" pairs (A_i → A_{i+2}). That's 5×5 = 25. \n\nWait, that's 25 edges: 5 pairs × 5 edges each. Each pair (A_i, A_{i+1}) gets a perfect matching of 5 bidirectional edges (each vertex in A_i connected to one vertex in A_{i+1}).\n\nHmm, but a perfect matching between two groups of 5 has 5 edges. 5 pairs × 5 = 25. ✓\n\nLet me think about what this does. The bidirectional graph G now includes:\n- Within groups: C_5 (5 edges per group, 25 total)\n- Between consecutive groups: perfect matching (5 edges per pair, 25 total)\nTotal: 50. ✓\n\nNow, G is actually a specific graph. Let me think about its structure. It's like a \"thickened cycle\": 5 groups in a cycle, with C_5 within each group and a perfect matching between consecutive groups.\n\nFor a 2-group quartet between A_i and A_{i+1} (consecutive, with matching):\n\n2+2 quartet {x1, x2, y1, y2}: G[Q] has cycle edges within A_i (x1-x2 if adjacent), cycle edges within A_{i+1} (y1-y2 if adjacent), and matching edges (xi-yj if matched). \n\nG[Q] connected iff the 4 vertices are connected. With the matching, each x is connected to exactly one y (its match). So if x1's match is y1 and x2's match is y2, then we have x1-y1 and x2-y2. If additionally x1-x2 (adjacent in cycle) or y1-y2 (adjacent in cycle), then all 4 connected. If neither, then we have two separate edges x1-y1 and x2-y2, disconnected.\n\nSo G[Q] connected iff (x1-x2 adjacent in C_5) OR (y1-y2 adjacent in C_5) OR (x1's match is y2) OR (x2's match is y1) [cross-matching creates connection].\n\nWait, I need to be more careful. The matching is a bijection m: A_i → A_{i+1}. x1 is matched to m(x1), x2 to m(x2). The B-edges in Q are: x1-m(x1) (if m(x1) ∈ {y1,y2}), x2-m(x2) (if m(x2) ∈ {y1,y2}).\n\nCase: m(x1) = y1, m(x2) = y2 (both matches in Q). Then B-edges: x1-y1, x2-y2. G[Q] connected iff x1-x2 adjacent OR y1-y2 adjacent (to connect the two matching edges).\n\nCase: m(x1) = y2, m(x2) = y1 (cross-matching). Then B-edges: x1-y2, x2-y1. G[Q] connected iff x1-x2 adjacent OR y1-y2 adjacent.\n\nCase: m(x1) = y1, m(x2) ∉ {y1,y2}. Then B-edge: x1-y1 only. G[Q] connected iff x2 connects to the rest via cycle edges: x1-x2 adjacent (then x2 connects via x1) or x2 connects to y2 via... no B-edge for x2. So need x1-x2 adjacent AND y1-y2 adjacent (y2 connects via y1-x1-x2). Or x1-x2 adjacent (x2 connects via x1, and y2 needs to connect: y1-y2 adjacent or y2 has a B-edge, but y2's match is not in Q). So G[Q] connected iff x1-x2 adjacent AND (y1-y2 adjacent). Wait, y2 is connected iff y1-y2 adjacent (since y2's match is not in Q and the only B-edge is x1-y1). So G[Q] = {x1-y1, x1-x2, y1-y2} → connected iff x1-x2 AND y1-y2.\n\nHmm, actually: if x1-x2 adjacent and y1-y2 adjacent and B-edge x1-y1: then path x2-x1-y1-y2 connects all. Connected ✓. If x1-x2 adjacent but y1-y2 not adjacent: x2-x1-y1, but y2 is isolated (no edge to x1, x2, or y1). Disconnected ✗. If x1-x2 not adjacent but y1-y2 adjacent: y2-y1-x1, but x2 is isolated. Disconnected ✗. If neither adjacent: x1-y1, and x2, y2 isolated. Disconnected ✗.\n\nSo in this case, G[Q] connected iff both cycle edges present.\n\nCase: m(x1) ∉ {y1,y2}, m(x2) ∉ {y1,y2}. No B-edges in Q. G[Q] connected iff x1-x2 adjacent AND y1-y2 adjacent (two separate edges, not connected to each other → actually disconnected even if both present, since no cross-edge). Wait, if x1-x2 adjacent and y1-y2 adjacent, G[Q] = {x1-x2, y1-y2}, two components. Disconnected ✗. So G[Q] is always disconnected in this case.\n\nOK so this is getting very detailed. Let me try to count more carefully for the 2+2 case between consecutive groups with a perfect matching.\n\nLet the matching be m. For a 2+2 quartet {x1, x2, y1, y2}:\n- Let a = number of B-edges in Q (0, 1, or 2).\n- a = 2 iff both m(x1), m(x2) ∈ {y1, y2}.\n- a = 1 iff exactly one of m(x1), m(x2) ∈ {y1, y2}.\n- a = 0 iff neither.\n\nP(a = 2): m(x1) and m(x2) are both in {y1, y2}. m(x1) ∈ {y1,y2}: prob 2/5. Given that, m(x2) ∈ {y1,y2} \\ {m(x1)}: prob 1/4. So P(a=2) = (2/5)(1/4) = 1/10. But this is for random y1, y2. Actually, let me think of it as: choose x1, x2 (C(5,2)=10 ways), choose y1, y2 (C(5,2)=10 ways). For fixed x1, x2, the number of {y1,y2} with both m(x1), m(x2) ∈ {y1,y2}: this requires {y1,y2} = {m(x1), m(x2)}, which is 1 choice. So 10 × 1 = 10 quartets with a=2.\n\nFor a=1: exactly one of m(x1), m(x2) in {y1,y2}. Say m(x1) ∈ {y1,y2} but m(x2) ∉ {y1,y2}. Choose y1,y2 to include m(x1) but not m(x2): C(4,1) = 4 ways (choose the other y from the 4 non-m(x2) vertices, but one of them is m(x1) which must be included, so choose 1 from the remaining 3 that are not m(x1) or m(x2)... wait.\n\nLet me recount. For fixed x1, x2: m(x1) and m(x2) are two specific vertices in A_{i+1} (could be same? No, m is a bijection, so m(x1) ≠ m(x2)). \n\n{y1, y2} contains m(x1) but not m(x2): choose 1 from the 3 vertices that are neither m(x1) nor m(x2), pair with m(x1). 3 ways.\n{y1, y2} contains m(x2) but not m(x1): similarly 3 ways.\n{y1, y2} contains both: 1 way.\n{y1, y2} contains neither: choose 2 from the 3 vertices that are neither: C(3,2) = 3 ways.\n\nTotal: 3+3+1+3 = 10 = C(5,2) ✓.\n\nSo for fixed x1, x2: a=2 has 1 quartet, a=1 has 6, a=0 has 3. Over 10 choices of {x1,x2}: a=2: 10, a=1: 60, a=0: 30. Total 100 = C(5,2)² ✓.\n\nNow, for each, G[Q] connected:\n- a=2: both B-edges present. G[Q] connected iff x1-x2 adjacent OR y1-y2 adjacent. \n  - For the a=2 case, {y1,y2} = {m(x1), m(x2)}. y1-y2 adjacent in C_5 iff m(x1), m(x2) adjacent in C_5.\n  - x1-x2 adjacent: depends on x1, x2.\n  - P(connected | a=2) = P(x1-x2 adj OR m(x1)-m(x2) adj). \n  - If the matching m preserves adjacency (m is a cycle automorphism), then x1-x2 adj iff m(x1)-m(x2) adj, so P = P(x1-x2 adj) = 5/10 = 1/2.\n  - Let me assume m is a cycle automorphism (rotation) for simplicity. Then P(connected | a=2) = 1/2.\n  - Count: 10 × 1/2 = 5.\n\n- a=1: one B-edge. Say B-edge is x1-m(x1), and m(x2) ∉ {y1,y2}. Then G[Q] = {x1-m(x1), cycle edges among x1,x2 and y1,y2}. Connected iff x1-x2 adj AND y1-y2 adj (as analyzed above). Wait, I need to recheck. Actually, with a=1, say m(x1) = y1 (one of the y's), m(x2) ∉ {y1,y2}. B-edge: x1-y1. G[Q] edges: x1-y1, x1-x2 (if adj), y1-y2 (if adj). Connected iff x1-x2 adj AND y1-y2 adj (so path x2-x1-y1-y2). \n  - P(x1-x2 adj) = 1/2, P(y1-y2 adj) = ? y1, y2 are chosen from A_{i+1} with one being m(x1) and the other from the 3 non-m(x2) vertices. P(y1-y2 adj) depends on which vertex is chosen. If m is a rotation, m(x1) is some vertex, and the other y is chosen from 3 vertices (not m(x1) or m(x2)). Of these 3, how many are adjacent to m(x1) in C_5? m(x1) has 2 neighbors in C_5. If m(x2) is one of them (i.e., x2 adjacent to x1), then 1 neighbor is available among the 3. If m(x2) is not a neighbor, then 2 neighbors are available among the 3. \n  \n  This is getting very complicated. Let me just assume the matching is a rotation and try to count exactly.\n\nLet me set up coordinates. Group A_i = {0, 1, 2, 3, 4} with C_5 edges i-(i+1 mod 5). Matching m: A_i → A_{i+1} is m(j) = j (identity, both groups labeled 0-4 with same cycle).\n\nFor a 2+2 quartet {x1, x2, y1, y2} with x's from A_i, y's from A_{i+1}:\n\nB-edges: xj-yj' if xj = yj' (since m(j) = j, the matching connects vertex j in A_i to vertex j in A_{i+1}).\n\nSo B-edge exists between x and y iff x = y (same label).\n\nLet me enumerate. Choose {x1, x2} ⊂ {0,1,2,3,4} and {y1, y2} ⊂ {0,1,2,3,4}.\n\nB-edges in Q: pairs (x, y) with x = y. So the number of B-edges = |{x1,x2} ∩ {y1,y2}|.\n\na = |{x1,x2} ∩ {y1,y2}|: can be 0, 1, or 2.\n\nG[Q] connected:\n- a = 2: {x1,x2} = {y1,y2}. B-edges: x1-y1, x2-y2 (where yi = xi). G[Q] = {x1-x2 (if adj in C_5), y1-y2 (if adj, same as x1-x2 since yi=xi), x1-y1, x2-y2}. Since y1-y2 adj iff x1-x2 adj, G[Q] connected iff x1-x2 adj. Count: 10 pairs {x1,x2}, 5 adjacent. So 5 connected.\n  Total a=2 quartets: 10 (one for each {x1,x2} since {y1,y2} = {x1,x2}). Connected: 5.\n\n- a = 1: |{x1,x2} ∩ {y1,y2}| = 1. Say x1 = y1, x2 ≠ y2. B-edge: x1-y1. G[Q] = {x1-y1, x1-x2 (if adj), y1-y2 (if adj)}. Connected iff x1-x2 adj AND y1-y2 adj.\n  For fixed {x1,x2} (10 choices), {y1,y2} must share exactly 1 element with {x1,x2}. Choose the shared element (2 ways: x1 or x2), choose the other y from the 3 remaining (not x1 or x2). So 2×3 = 6 choices. Total a=1: 10×6 = 60.\n  Connected: need x1-x2 adj AND y1-y2 adj. \n  For fixed {x1,x2} adjacent (5 pairs), shared element can be x1 or x2 (2 ways), other y from 3 remaining. y1-y2 adj: y1 is the shared element (= x1 or x2), y2 is the other. Need y1-y2 adjacent in C_5.\n  If shared = x1: y1 = x1, y2 ∈ {0,1,2,3,4} \\ {x1, x2}. y1-y2 adj iff y2 is a neighbor of x1 in C_5. x1 has 2 neighbors, one is x2 (excluded), so 1 neighbor available. So 1 out of 3 choices. \n  If shared = x2: similarly 1 out of 3.\n  So for each adjacent {x1,x2}: 2 × (1/3) × 3 = 2 connected. Wait, let me recount. For fixed adjacent {x1,x2}, shared = x1: y2 chosen from 3, 1 is adjacent to x1. So 1 connected. Shared = x2: y2 chosen from 3, 1 adjacent to x2. So 1 connected. Total: 2 per adjacent pair. 5 adjacent pairs → 10 connected.\n  For fixed non-adjacent {x1,x2} (5 pairs): x1-x2 not adj → not connected. 0.\n  Total a=1 connected: 10.\n\n- a = 0: {x1,x2} ∩ {y1,y2} = ∅. No B-edges. G[Q] = {x1-x2 (if adj), y1-y2 (if adj)}. Two separate components (no cross-edge). Disconnected. 0 connected.\n  Total a=0: 10 × 3 = 30. Connected: 0.\n\nSo for 2+2 quartets between consecutive groups: 5 + 10 + 0 = 15 connected out of 100.\n\nNow 3+1 quartets between consecutive groups: {x1, x2, x3, y} (3 from A_i, 1 from A_{i+1}) or {x, y1, y2, y3} (1 from A_i, 3 from A_{i+1}).\n\nFor {x1, x2, x3, y}: G[Q] = {cycle edges among x1,x2,x3, B-edge xi-y if xi = y}. Connected iff (x's connected in C_5) AND (y matches some xi).\n- x's connected in C_5: 5 out of 10 triples (as computed).\n- y matches some xi: y ∈ {x1,x2,x3}, prob 3/5.\n- But these aren't independent. For a fixed triple {x1,x2,x3}, y is chosen from 5 vertices. y matches some xi iff y ∈ {x1,x2,x3}: 3 out of 5 choices.\n- Connected: 5 connected triples × 3 matching y's = 15. Out of 10 × 5 = 50. So 15 connected.\n\nFor {x, y1, y2, y3}: by symmetry (same structure), 15 connected.\n\nTotal 3+1 between consecutive groups: 15 + 15 = 30 out of 100.\n\nTotal 2-group quartets between consecutive groups: 15 (2+2) + 30 (3+1) = 45 out of 200.\n\nFor non-consecutive groups (A_i, A_{i+2}): no bidirectional edges between them (all 25 edges one-way). So all 200 quartets are bad. 5 such pairs × 200 = 1000 bad.\n\nFor consecutive groups (A_i, A_{i+1}): 45 good out of 200, 155 bad. 5 pairs × 155 = 775 bad.\n\nTotal 2-group bad: 1000 + 775 = 1775. (Was 2000 in Construction 1, improved by 225.)\n\nNow let me compute 3-group and 4-group quartets.\n\n3-group quartets: 7500 total. In Construction 1, 3750 good (3-cycle) and 3750 bad (transitive). With between-group bidirectional edges, some bad ones become good (G[Q] connected).\n\nA 3-group quartet spans 3 groups. The 3 groups either form a 3-cycle in T (good in Construction 1) or a transitive triple (bad in Construction 1).\n\nFor a 3-cycle triple (X→Y→Z→X): already good. Adding bidirectional edges doesn't hurt (still good). 3750 good.\n\nFor a transitive triple (X→Y→Z, i.e., X beats Y and Z, Y beats Z): was bad. Now, with bidirectional edges between some pairs, G[Q] might be connected.\n\nWhich pairs in a transitive triple have bidirectional edges? The consecutive pairs (A_i, A_{i+1}) have matchings. Let me figure out which triples are transitive and which pairs within them are consecutive.\n\nIn the cyclic tournament on 5: A_i → A_j iff (j-i) mod 5 ∈ {1, 2}.\n\n3-subsets of {0,1,2,3,4} and their tournament type:\n- 3-cycles: {i, i+1, i+2} is NOT a 3-cycle (i→i+1, i→i+2, i+1→i+2, transitive). \n  Actually, let me list. T: i→i+1, i→i+2 (mod 5).\n  {0,1,2}: 0→1, 0→2, 1→2. Transitive (0→1→2).\n  {0,1,3}: 0→1, 0→3? (3-0=3, not in {1,2}, so 3→0). 1→3? (3-1=2, yes). So 0→1, 3→0, 1→3. Cycle: 0→1→3→0. 3-cycle!\n  {0,1,4}: 0→1, 4→0 (4→0? (0-4) mod 5 = 1, so 4→0). 1→4? (4-1=3, no, so 4→1). So 0→1, 4→0, 4→1. Transitive: 4→0→1. Wait: 4→0, 4→1, 0→1. So 4 is source, 1 is sink. Transitive.\n  {0,2,3}: 0→2, 0→3? (3-0=3, no, 3→0). 2→3. So 0→2, 3→0, 2→3. Cycle: 0→2→3→0. 3-cycle!\n  {0,2,4}: 0→2, 4→0, 2→4? (4-2=2, yes). So 0→2, 4→0, 2→4. Cycle: 0→2→4→0. 3-cycle!\n  {0,3,4}: 3→0, 4→0, 3→4? (4-3=1, yes). So 3→0, 4→0, 3→4. Transitive: 3→4→0. Wait: 3→4, 3→0, 4→0. Source 3, sink 0. Transitive.\n  {1,2,3}: 1→2, 1→3, 2→3. Transitive.\n  {1,2,4}: 1→2, 4→1, 2→4. Cycle: 1→2→4→1. 3-cycle!\n  {1,3,4}: 1→3, 3→4, 4→1. Cycle: 1→3→4→1. 3-cycle!\n  {2,3,4}: 2→3, 2→4, 3→4. Transitive.\n\n3-cycles: {0,1,3}, {0,2,3}, {0,2,4}, {1,2,4}, {1,3,4}. That's 5. ✓ (matches earlier count)\nTransitive: {0,1,2}, {0,1,4}, {0,3,4}, {1,2,3}, {2,3,4}. That's 5. ✓\n\nFor each transitive triple, which pairs are consecutive (have bidirectional matching)?\n\nConsecutive pairs: (i, i+1 mod 5). So (0,1), (1,2), (2,3), (3,4), (4,0).\n\nTransitive triple {0,1,2}: pairs (0,1)✓, (1,2)✓, (0,2)✗. Two consecutive pairs.\nTransitive triple {0,1,4}: pairs (0,1)✓, (1,4)✗, (0,4)✓ (since (4,0) is consecutive). Two consecutive pairs.\nTransitive triple {0,3,4}: pairs (0,3)✗, (3,4)✓, (0,4)✓. Two consecutive pairs.\nTransitive triple {1,2,3}: pairs (1,2)✓, (2,3)✓, (1,3)✗. Two consecutive pairs.\nTransitive triple {2,3,4}: pairs (2,3)✓, (3,4)✓, (2,4)✗. Two consecutive pairs.\n\nSo each transitive triple has exactly 2 consecutive pairs (with bidirectional matchings) and 1 non-consecutive pair (no bidirectional edges).\n\nFor a 3-group quartet on a transitive triple (X, Y, Z) with X→Y→Z (X source, Z sink): the quartet has vertices from X, Y, Z. G[Q] includes within-group cycle edges and bidirectional matchings between consecutive pairs. \n\nFor G[Q] to be connected, we need the bidirectional edges to connect all components. The within-group cycle edges connect vertices within the same group. The bidirectional matchings connect vertices between consecutive groups. \n\nIn a transitive triple {X, Y, Z} with X→Y, X→Z, Y→Z, and consecutive pairs (X,Y) and (Y,Z) [or other combinations depending on the specific triple], the bidirectional edges form a path X-Y-Z (via matchings). If a quartet has vertices in all 3 groups, and the matching edges connect them, G[Q] could be connected.\n\nLet me analyze a specific case. Take transitive triple {0, 1, 2}: 0→1→2. Consecutive pairs: (0,1) and (1,2). Matching: m_01: A_0[j] ↔ A_1[j], m_12: A_1[j] ↔ A_2[j].\n\nA 3-group quartet has 2+1+1 or 1+2+1 or 1+1+2 vertices from the 3 groups.\n\nCase 2+1+1 (2 from A_0, 1 from A_1, 1 from A_2): {x1, x2, y, z} with x's in A_0, y in A_1, z in A_2.\nG[Q] edges: x1-x2 (if adj in C_5), B-edges x_i-y (if x_i = y), B-edge y-z (if y = z, via matching m_12).\nWait, the matching m_12 connects A_1[j] to A_2[j]. So y-z bidirectional iff y = z (same label).\n\nG[Q] connected iff all 4 vertices connected. The B-edges can connect: x_i to y (if same label), y to z (if same label). So if x1 = y = z, then x1-y and y-z, plus x1-x2 (if adj), connects x2 via x1. Connected iff x1-x2 adj.\n\nIf x1 = y but y ≠ z: x1-y, but z is only connected via y-z (no B-edge) or via one-way edges (which don't help for G[Q]). So z is isolated in G[Q] unless z = x1 or z = x2 (but z is in A_2, x's in A_0, matching is between A_0-A_1 and A_1-A_2, not A_0-A_2). So no B-edge between A_0 and A_2. z is connected only via y-z B-edge (if y = z). So if y ≠ z, z is isolated → G[Q] disconnected.\n\nIf y = z but x1 ≠ y and x2 ≠ y: y-z B-edge, but x1, x2 only connected via x",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 18874,
+        "completion_tokens": 25000,
+        "cached_tokens": 12398
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 18874,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12398,
+    "total_steps": 8
+  }
+}

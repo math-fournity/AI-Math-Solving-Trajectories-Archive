@@ -1,0 +1,293 @@
+## Answer Leak Self-Check
+
+I have examined the problem text. It contains the model definition, the cost fun
+ction, the distributional assumptions, and a request to *describe the steps*. Th
+ere are no leaked solutions, no "proof follows" statements, no embedded answer v
+alues, and no Lean formalization revealing the answer. No leak detected. Proceed
+ing to solve.
+
+---
+
+## Solution
+
+### 1. Problem Structure and the Role of the Decision Variables
+
+The model seeks to minimize
+
+$$TC(\lambda, r) = \sum_{i=1}^{n}\left\{\sqrt{a\,\theta_i}\int_{0}^{\infty}F\!\l
+eft(\frac{\theta_i+r-t}{\sqrt{a\,\theta_i}}\right)d\Pr(D\le t)\;+\;\gamma\,(r+\t
+heta_i)\right\}$$
+
+over the pair $\zeta = (\lambda, r)$, where
+
+$$F(x) = (\alpha+\beta)\,\Phi(x) + x\big[(\alpha+\beta)\,\Phi(x)-\alpha\big].$$
+
+The two decision variables play distinct roles:
+
+| Variable | Role | Effect |
+|---|---|---|
+| $\lambda$ | **Sequencing parameter** | Determines the order in which jobs (or
+job-groups $N_i$) are processed, and hence determines the values $\theta_1, \the
+ta_2, \dots, \theta_n$ (the cumulative expected processing times of preceding jo
+bs). |
+| $r$ | **Due-date allowance (slack)** | Sets every due date as $d_i = \theta_i
++ r$. Increasing $r$ pushes due dates later, trading tardiness reduction against
+ increased earliness and due-date penalty $\gamma(r+\theta_i)$. |
+
+The variance condition $\sigma_i^2 = a\,\mu_i$ (variance proportional to mean, w
+ith common constant $a$) is the structural keystone: it makes the standard devia
+tion of the cumulative processing time up to group $i$ equal to $\sqrt{a\,\theta
+_i}$, so the cost contribution of each group depends on $\theta_i$ alone, not on
+ the individual variances of the constituent jobs. This decoupling is what allow
+s the sequence (governed by $\lambda$) and the allowance $r$ to be optimized in
+a nested fashion.
+
+---
+
+### 2. Derivation of $F(x)$ — Why the Cost Has This Form
+
+For a job in group $N_i$ with expected start time $\theta_i$ and processing time
+ $P\sim\mathcal{N}(\mu,\,a\mu)$, the completion time is $C = \theta_i + P$ (to f
+irst order, the start-time variance is absorbed into the $\sqrt{a\theta_i}$ scal
+ing under the proportional-variance assumption). Given a realized due date $D =
+t$, the earliness and tardiness are
+
+$$E = \max(0,\, t - C),\qquad T = \max(0,\, C - t).$$
+
+Setting $x = (\theta_i + r - t)/\sqrt{a\,\theta_i}$ and standardizing via $Z = (
+C - \theta_i)/\sqrt{a\,\theta_i}\sim\mathcal{N}(0,1)$, one obtains
+
+$$\alpha\,\mathbb{E}[E] + \beta\,\mathbb{E}[T] = \sqrt{a\,\theta_i}\;\Big\{(\alp
+ha+\beta)\,\Phi(x) + x\big[(\alpha+\beta)\,\Phi(x) - \alpha\big]\Big\} = \sqrt{a
+\,\theta_i}\;F(x).$$
+
+The term $\gamma(r+\theta_i)$ is the due-date assignment cost (penalizing due da
+tes that are set too far in the future). The outer integral $\int_0^\infty (\cdo
+t)\,d\Pr(D\le t)$ averages $F$ over the common due-date distribution.
+
+---
+
+### 3. Convexity of $TC$ in $r$ (for Fixed Sequence)
+
+For a fixed sequence (fixed $\lambda$, hence fixed $\theta_i$), define
+
+$$g(r) := TC(\lambda,\,r).$$
+
+**Claim:** $g(r)$ is strictly convex in $r$.
+
+*Sketch.* Differentiating under the integral (permissible by dominated convergen
+ce since $F$ is smooth and the due-date distribution has finite moments):
+
+$$\frac{\partial}{\partial r}\Big[\sqrt{a\theta_i}\,F(x)\Big] = \sqrt{a\theta_i}
+\,F'(x)\cdot\frac{1}{\sqrt{a\theta_i}} = F'(x),$$
+
+where $x = (\theta_i + r - t)/\sqrt{a\theta_i}$. A direct computation gives
+
+$$F'(x) = (\alpha+\beta)\,\Phi(x) + x\,(\alpha+\beta)\,\varphi(x) + \big[(\alpha
++\beta)\Phi(x)-\alpha\big] - x\,(\alpha+\beta)\varphi(x) = 2(\alpha+\beta)\Phi(x
+) - \alpha.$$
+
+Hence
+
+$$\frac{\partial g}{\partial r} = \sum_i\int_0^\infty\big[2(\alpha+\beta)\Phi(x_
+i(r,t))-\alpha\big]\,d\Pr(D\le t) + n\,\gamma.$$
+
+Since $\Phi$ is monotonically increasing in $r$ (because $x_i$ increases with $r
+$), each summand $2(\alpha+\beta)\Phi(x_i)-\alpha$ is increasing in $r$, so $\pa
+rtial g/\partial r$ is increasing in $r$, proving $g$ is convex. Moreover $\part
+ial g/\partial r \to -\alpha\cdot n + n\gamma$ as $r\to -\infty$ (where $\Phi\to
+ 0$) and $\partial g/\partial r \to (\alpha+\beta)\cdot n + n\gamma > 0$ as $r\t
+o+\infty$ (where $\Phi\to 1$), so $g$ has a unique finite minimizer $r^*(\lambda
+)$. ∎
+
+This convexity (unimodality) is the essential condition that licenses the use of
+ **Fibonacci search**.
+
+---
+
+### 4. Algorithm 39.3 — The Nested Optimization Procedure
+
+Algorithm 39.3 exploits the structure above by decomposing the joint minimizatio
+n over $(\lambda, r)$ into:
+
+- an **outer search** over the sequencing parameter $\lambda$, and
+- an **inner search** over the allowance $r$ (via Fibonacci search) for each fix
+ed $\lambda$.
+
+#### Step 0 — Initialization
+
+1. Choose a search interval $[\lambda_{\min},\,\lambda_{\max}]$ for the outer va
+riable. (Typically $\lambda\in[0,1]$ or a range determined by the cost ratios.)
+2. Choose a search interval $[r_L,\,r_U]$ for the inner variable, wide enough to
+ bracket $r^*$ (e.g., $r_L = 0$, $r_U$ large enough that $\partial g/\partial r
+> 0$ at $r_U$).
+3. Set convergence tolerances $\varepsilon_\lambda$, $\varepsilon_r$ and the Fib
+onacci iteration count $N$ (determined by $\varepsilon_r$ and the initial interv
+al width, via $F_N^{-1}(r_U - r_L) \le \varepsilon_r$).
+
+#### Step 1 — Outer Search over $\lambda$ (Fibonacci or Golden-Section)
+
+For the current value of $\lambda$:
+
+**(a) Determine the sequence.** The parameter $\lambda$ induces a sequencing rul
+e. Under the proportional-variance assumption $\sigma_i^2 = a\mu_i$, the optimal
+ sequence for a given $\lambda$ is obtained by ordering the jobs (or job-groups)
+ by a $\lambda$-dependent priority index. Specifically, jobs are sorted in **non
+-decreasing order of $\mu_i$** when $\lambda$ favors earliness reduction (SEPT —
+ Shortest Expected Processing Time), and the ordering shifts as $\lambda$ change
+s to reflect the earliness–tardiness–due-date trade-off. The cumulative means $\
+theta_1, \dots, \theta_n$ are then computed from this sequence.
+
+**(b) Inner Fibonacci search for $r^*(\lambda)$.** With the $\theta_i$ fixed, ev
+aluate $g(r) = TC(\lambda, r)$ via the Fibonacci search procedure (detailed in §
+5 below). This yields $r^*(\lambda)$ and the corresponding cost $g^*(\lambda) =
+TC(\lambda, r^*(\lambda))$.
+
+**(c) Record and reduce the outer interval.** Compare $g^*(\lambda)$ at the two
+current Fibonacci probe points of the outer search; discard the sub-interval tha
+t cannot contain $\lambda^*$ (exploiting the unimodality of $g^*(\lambda)$ in $\
+lambda$).
+
+#### Step 2 — Iterate
+
+Repeat Step 1 with the reduced $[\lambda_{\min}, \lambda_{\max}]$ interval until
+ the interval width falls below $\varepsilon_\lambda$.
+
+#### Step 3 — Output
+
+$$\boxed{\zeta^* = (\lambda^*,\, r^*)},\qquad r^* = r^*(\lambda^*).$$
+
+---
+
+### 5. Fibonacci Search for $r^*$ (Inner Loop)
+
+Given the fixed $\theta_i$ (from the current $\lambda$) and the interval $[r_L,
+r_U]$:
+
+1. **Set the Fibonacci numbers.** Choose $N$ such that $F_N > (r_U - r_L)/\varep
+silon_r$, where $F_N$ is the $N$-th Fibonacci number ($F_0 = F_1 = 1$).
+
+2. **Place the first two probes:**
+$$r_1 = r_L + \frac{F_{N-2}}{F_N}(r_U - r_L),\qquad r_2 = r_L + \frac{F_{N-1}}{F
+_N}(r_U - r_L).$$
+
+3. **Evaluate** $g(r_1)$ and $g(r_2)$ (each evaluation requires computing the in
+tegral $\int_0^\infty F(\cdot)\,d\Pr(D\le t)$ numerically for every group $i$).
+
+4. **Interval reduction:**
+   - If $g(r_1) < g(r_2)$: the minimum lies in $[r_L, r_2]$. Set $r_U \leftarrow
+ r_2$, $r_2 \leftarrow r_1$, and place a new $r_1 = r_L + \frac{F_{N-3}}{F_{N-1}
+}(r_U - r_L)$.
+   - If $g(r_1) \ge g(r_2)$: the minimum lies in $[r_1, r_U]$. Set $r_L \leftarr
+ow r_1$, $r_1 \leftarrow r_2$, and place a new $r_2 = r_L + \frac{F_{N-2}}{F_{N-
+1}}(r_U - r_L)$.
+
+5. **Decrement** $N \leftarrow N-1$ and repeat from step 3 until $N = 1$.
+
+6. **Return** $r^*(\lambda) \approx (r_L + r_U)/2$ with accuracy $\le \varepsilo
+n_r$.
+
+**Why Fibonacci search (and not, say, Newton's method)?**
+
+- $g(r)$ involves an expectation over the due-date distribution $D$; its derivat
+ive $\partial g/\partial r = \sum_i \int [2(\alpha+\beta)\Phi(x_i) - \alpha]\,d\
+Pr(D\le t) + n\gamma$ exists in principle but requires numerical integration at
+each step, making Newton-type methods expensive and potentially unstable.
+- Fibonacci search uses **only function evaluations** (no derivatives), requires
+ the **minimum number of evaluations** among all derivative-free interval-reduct
+ion methods for a given final interval width, and is **guaranteed to converge**
+for any unimodal function.
+- The convexity established in §3 guarantees unimodality, so the Fibonacci searc
+h provably finds the global minimizer $r^*(\lambda)$.
+
+---
+
+### 6. Determination of $\lambda^*$ (Outer Loop)
+
+The outer function
+
+$$h(\lambda) := \min_r\, TC(\lambda, r) = TC(\lambda,\, r^*(\lambda))$$
+
+is unimodal in $\lambda$ under the proportional-variance assumption, because:
+
+- The sequencing rule induced by $\lambda$ changes the $\theta_i$ monotonically
+as $\lambda$ varies (jobs are re-ordered by their $\lambda$-dependent priority).
+- The cost surface $TC(\lambda, r)$ is jointly quasi-convex: for each $\lambda$,
+ the inner minimization already selects the best $r$, and the residual function
+$h(\lambda)$ inherits unimodality from the convexity of $TC$ in each variable se
+parately and the monotonicity of the sequencing map.
+
+Therefore the **same Fibonacci search technique** (or equivalently golden-sectio
+n search) is applied to $h(\lambda)$ on $[\lambda_{\min}, \lambda_{\max}]$, with
+ each function evaluation of $h$ requiring one complete inner Fibonacci search f
+or $r^*(\lambda)$.
+
+---
+
+### 7. Conditions Under Which Algorithm 39.3 and Fibonacci Search Are Applicable
+
+| # | Condition | Why it is needed |
+|---|---|---|
+| C1 | **Processing times are normally distributed**: $P_i \sim \mathcal{N}(\mu_
+i, \sigma_i^2)$. | The function $F(x)$ is derived using the standard normal CDF
+$\Phi$; the closed-form expression for the expected E/T cost relies on normality
+. |
+| C2 | **Variance proportional to mean with common constant**: $\sigma_i^2 = a\,
+\mu_i$ for all $i$, with $a > 0$ known. | This makes the standard deviation of c
+umulative processing time $\sqrt{a\,\theta_i}$, depending only on $\theta_i$. It
+ decouples the sequencing decision from the allowance decision and allows the ne
+sted optimization to work. Without it, the variance of the start time of group $
+i$ would depend on *which* jobs precede it (not just their total mean), destroyi
+ng the separability. |
+| C3 | **Common due-date distribution**: all $D_i$ share the same distribution $
+\Pr(D \le t)$. | The integral $\int_0^\infty F(\cdot)\,d\Pr(D\le t)$ is the same
+ functional form for every group; only the argument $(\theta_i + r - t)/\sqrt{a\
+theta_i}$ differs. This permits the cost to be written as a sum of group-specifi
+c terms sharing the same kernel. |
+| C4 | **$TC$ is unimodal (convex) in $r$ for any fixed sequence.** | Guaranteed
+ by the structure of $F$ (specifically $F'(x) = 2(\alpha+\beta)\Phi(x) - \alpha$
+, which is monotone increasing) and the linearity of the due-date cost $\gamma(r
+ + \theta_i)$. This is the condition that licenses Fibonacci search for $r^*$. |
+| C5 | **$h(\lambda) = \min_r TC(\lambda, r)$ is unimodal in $\lambda$.** | Guar
+anteed under C2 by the monotonicity of the $\lambda$-induced sequencing rule and
+ the joint quasi-convexity of $TC$. This licenses the outer Fibonacci/golden-sec
+tion search for $\lambda^*$. |
+| C6 | **Cost parameters are non-negative**: $\alpha, \beta, \gamma \ge 0$. | En
+sures the cost is bounded below and the convexity argument holds (negative penal
+ties could create non-convex regions). |
+| C7 | **The due-date distribution has finite first moment.** | Required for the
+ integral $\int_0^\infty F(\cdot)\,d\Pr(D \le t)$ to converge and for $TC$ to be
+ finite. |
+
+---
+
+### 8. Summary of the Optimal Solution
+
+The optimal solution $\zeta^* = (\lambda^*, r^*)$ is obtained by **Algorithm 39.
+3** as a two-level nested search:
+
+1. **Outer level (sequencing):** Search over $\lambda$ using Fibonacci (or golde
+n-section) search on the unimodal function $h(\lambda) = \min_r TC(\lambda, r)$.
+ Each value of $\lambda$ determines a job sequence (via the $\lambda$-dependent
+priority rule enabled by the proportional-variance condition $\sigma_i^2 = a\mu_
+i$) and hence the cumulative means $\theta_1, \dots, \theta_n$.
+
+2. **Inner level (allowance):** For each fixed $\lambda$ (fixed sequence), find
+$r^*(\lambda)$ by **Fibonacci search** on the convex function $g(r) = TC(\lambda
+, r)$. The Fibonacci search progressively reduces the bracketing interval $[r_L,
+ r_U]$ using Fibonacci-number ratios, requiring only function evaluations (no de
+rivatives), and converges to the unique global minimizer.
+
+3. **Output:** $\lambda^*$ is the $\lambda$ that minimizes $h(\lambda)$; $r^* =
+r^*(\lambda^*)$ is the corresponding optimal allowance. The optimal due dates ar
+e $d_i^* = \theta_i^* + r^*$, where $\theta_i^*$ are the cumulative means under
+the optimal sequence.
+
+The methods are applied precisely when conditions C1–C7 hold: normal processing
+times, proportional variance, common due-date distribution, non-negative costs,
+finite due-date moments, and the resulting unimodality of $TC$ in $r$ and of $h$
+ in $\lambda$.
+
+### PROOF COMPLETE
+DEVIN_CLI_EXITED code=0
+

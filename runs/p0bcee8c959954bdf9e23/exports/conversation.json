@@ -1,0 +1,1048 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "cloudy-lobster",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-19T23:47:35.819670+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-19T23:47:35.820163+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-19T23:47:35.827250+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-19T23:47:35.820474+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p0bcee8c959954bdf9e23 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Wednesday, 2026-08-19\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-19T23:47:35.820905+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p0bcee8c959954bdf9e23/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nLet \\( G(V,E) \\) be a connected simple graph on \\( n \\) vertices. Initially, each vertex \\( v \\) has a weight \\( a_v \\in \\mathbb{R} \\) such that the sum of initial weights is positive. The game is played as follows: the player picks a vertex \\( v \\) with a negative weight \\( w_v \\) and replaces it by the opposite number, then adds \\( \\frac{2w_v}{\\deg(v)} \\) to the weight of each neighbor of \\( v \\). What are necessary and sufficient conditions on \\( G \\) for the game to always end in a finite time?\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在AGENTS.md中只记录脚本路径和一行用法示例。AGENTS.md是认知索引和规则，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。放到项目已有的脚本目录（如`xishujuzhen/solver_harness/`）或项目的`scripts/`目录中。\n\n4. **在项目AGENTS.md中做好索引**——新脚本必须在项目AGENTS.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **必须写成文件** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 检查项目内是否已有类似脚本（grep搜索、看AGENTS.md索引）\n3. **已有** → 改进那个脚本（edit工具修改），编译验证\n4. **没有** → 在项目脚本目录中创建新文件（write工具），编译验证\n5. 在项目AGENTS.md中记录脚本索引（如已有相关节则更新，如没有则新增）\n6. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新AGENTS.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是索引不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ✅ 改进`batch_status.py`的`cmd_dead_cleanup`函数\n- ✅ 新建`enqueue_problem.py`并在AGENTS.md硬约束6中记录\n- ✅ AGENTS.md中只写`pipe_control.py status`一行用法，不写完整调用参数和输出示例\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 索引（跨 session 认知资产）\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。AI 跨 session 需要找回这些内容时从这里查路径。\n\n| 文档 | 日期 | 内容 |\n|---|---|---|\n| `dev-docs/001-codex-cli-custom-api-and-loading-mechanism.md` | 2026-08-18 | Codex CLI 对接自定义 API（OpenRouter）的完整方案 + Codex 配置加载机制（AGENTS/Rules/Skills 三层）+ 本机清爽化记录（MCP 清理） |\n| `dev-docs/002-agents-md-slimdown-plan.md` | 2026-08-19 | 全局 AGENTS.md 冗余瘦身方案（本次瘦身的执行计划） |\n| `dev-docs/003-devin-rules-not-injected-read-config-from-windsurf.md` | 2026-08-19 | Devin 不注入 windsurf global_rules.md 的调查（read_config_from 机制） |\n| `dev-docs/004-skill-redundancy-analysis.md` | 2026-08-19 | 22 个 skill 的冗余分析报告（5 主题组逐行对比 + unique 信息清单 + 整合优先级 P1-P4） |\n| `dev-docs/005-tuple-structure-preservation-lesson.md` | 2026-08-19 | 元组结构保护——冗余整合方法论修正（P2破坏元组的教训+正确流程+15个元组清单+复盘） |\n| `dev-docs/006-cognitive-closure-concept.md` | 2026-08-19 | 认知闭包（Cognitive Closure）——人机协同开发的底层必要条件；read/akash/workflow/make-plan 底层都是闭包形成机制的不同环节；三层体系启动+trace封闭；含自我指涉验证（构建本概念时闭包不完备的复盘+三个实质修正+描述层/事实层一致性核对） |\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-19T23:47:35.820918+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-19T23:47:35.829011+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-19T23:47:35.829766+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **search-tools**: 网络搜索武器库（Exa/Serper/Jina等） (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-19T23:47:38.312090+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me solve this problem. It's a graph theory / combinatorics problem about a \"weight flipping\" game.\n\nLet me restate the problem:\n- Connected simple graph G(V,E) on n vertices.\n- Each vertex v has weight a_v ∈ ℝ, sum of initial weights is positive.\n- Game: pick a vertex v with negative weight w_v, replace it by -w_v (i.e., flip sign), then add 2w_v/deg(v) to each neighbor of v.\n- Question: necessary and sufficient conditions on G for the game to always end in finite time.\n\nLet me think about this carefully.\n\nWhen we pick vertex v with weight w_v < 0:\n- w_v becomes -w_v (positive now, since w_v < 0)\n- Each neighbor u of v gets w_u += 2w_v/deg(v). Since w_v < 0, this decreases each neighbor's weight.\n\nSo the operation: flip a negative weight to positive, and push negative mass to neighbors.\n\nLet me think about what's conserved. Consider the sum of all weights S = Σ w_v.\n\nWhen we flip v: w_v changes from w_v to -w_v, a change of -2w_v. Each neighbor gets +2w_v/deg(v). There are deg(v) neighbors, so total change to neighbors is deg(v) · 2w_v/deg(v) = 2w_v. So total change = -2w_v + 2w_v = 0. The sum S is conserved!\n\nSo S > 0 is invariant.\n\nNow, the game ends when all weights are non-negative (no vertex has negative weight to flip).\n\nThe question is: for which graphs does the game always terminate, regardless of initial weights (with S > 0)?\n\nLet me think about a potential function. Consider the Laplacian or some quadratic form.\n\nLet me think about the \"energy\" Q = Σ_v w_v². Actually let me think about what happens to various quantities.\n\nWhen we flip v with weight w_v < 0:\n- w_v → -w_v: change in w_v² is (-w_v)² - w_v² = 0. No change!\n- Each neighbor u: w_u → w_u + 2w_v/deg(v). Change in w_u² is (w_u + 2w_v/deg(v))² - w_u² = 4w_v·w_u/deg(v) + 4w_v²/deg(v)².\n\nHmm, this is getting complicated. Let me think differently.\n\nLet me consider a weighted sum. Consider the Laplacian quadratic form or something related to harmonic functions.\n\nActually, let me think about this in terms of the Laplacian. Let L be the Laplacian matrix of G. Consider the quadratic form:\n\nΦ(w) = w^T L^+ w (where L^+ is the pseudoinverse) — this measures how \"non-constant\" w is. But since S is conserved, maybe we should think about the component orthogonal to the all-ones vector.\n\nActually, let me think about a simpler potential. Let me consider:\n\nΦ(w) = Σ_v deg(v) · w_v²\n\nWhen we flip v with weight w_v < 0:\n- Change at v: deg(v)·((-w_v)² - w_v²) = 0.\n- Change at each neighbor u: deg(u)·((w_u + 2w_v/deg(v))² - w_u²) = deg(u)·(4w_v·w_u/deg(v) + 4w_v²/deg(v)²).\n\nThis doesn't simplify nicely either.\n\nLet me try another approach. Let me think about what graphs could cause non-termination.\n\nConsider a path graph P_2 (two vertices connected). deg(v) = 1 for both. Operation: flip v (weight w_v < 0), add 2w_v to neighbor. So if we have weights (a, b) with a + b > 0.\n\nSay a < 0. Flip a: a → -a, b → b + 2a. New sum: -a + b + 2a = a + b. ✓.\n\nNow if b + 2a < 0, flip b: b → -(b+2a) = -b-2a, a → -a + 2(b+2a) = -a + 2b + 4a = 3a + 2b. \n\nHmm, let me try specific values. Let a = -1, b = 2. Sum = 1 > 0.\nFlip a: a → 1, b → 2 + 2(-1) = 0. Now (1, 0). No negative weights. Game ends.\n\nLet a = -3, b = 4. Sum = 1.\nFlip a: a → 3, b → 4 + 2(-3) = -2. Now (3, -2).\nFlip b: b → 2, a → 3 + 2(-2) = -1. Now (-1, 2).\nFlip a: a → 1, b → 2 + 2(-1) = 0. Now (1, 0). Ends.\n\nLet a = -5, b = 6. Sum = 1.\nFlip a: a → 5, b → 6 - 10 = -4. (5, -4).\nFlip b: b → 4, a → 5 - 8 = -3. (-3, 4).\nFlip a: a → 3, b → 4 - 6 = -2. (3, -2).\nFlip b: b → 2, a → 3 - 4 = -1. (-1, 2).\nFlip a: a → 1, b → 2 - 2 = 0. (1, 0). Ends.\n\nSeems to terminate for P_2. The pattern is decreasing.\n\nLet me think about a triangle (K_3). deg = 2 for all. \nWeights (a, b, c) with a+b+c > 0.\nFlip a (a < 0): a → -a, b → b + a, c → c + a (since 2a/2 = a).\nSo each neighbor gets +a (which is negative, so they decrease).\n\nLet me try (-1, 0.5, 0.5). Sum = 0. Not positive enough... sum = 0. Need sum > 0.\n(-1, 1, 1). Sum = 1.\nFlip a: a → 1, b → 1 + (-1) = 0, c → 1 + (-1) = 0. (1, 0, 0). Ends.\n\n(-2, 1.5, 1.5). Sum = 1.\nFlip a: a → 2, b → 1.5 - 2 = -0.5, c → 1.5 - 2 = -0.5. (2, -0.5, -0.5).\nFlip b: b → 0.5, a → 2 + (-0.5) = 1.5, c → -0.5 + (-0.5) = -1. (1.5, 0.5, -1).\nFlip c: c → 1, a → 1.5 + (-1) = 0.5, b → 0.5 + (-1) = -0.5. (0.5, -0.5, 1).\nFlip b: b → 0.5, a → 0.5 + (-0.5) = 0, c → 1 + (-0.5) = 0.5. (0, 0.5, 0.5). Ends.\n\nSeems to terminate for K_3 too.\n\nNow let me think about when it might NOT terminate. Consider a cycle C_n. \n\nActually, let me think about this more carefully using a potential function.\n\nKey insight: Let me look at the quantity Φ = Σ_v w_v² · deg(v) / 2, or maybe just Σ w_v².\n\nActually, let me reconsider. The operation at vertex v:\n- w_v → -w_v\n- w_u → w_u + 2w_v/deg(v) for each neighbor u.\n\nLet me compute the change in Σ w_v²:\nΔ = (-w_v)² - w_v² + Σ_{u~v} [(w_u + 2w_v/deg(v))² - w_u²]\n= 0 + Σ_{u~v} [4w_v·w_u/deg(v) + 4w_v²/deg(v)²]\n= 4w_v/deg(v) · Σ_{u~v} w_u + 4w_v²·deg(v)/deg(v)²\n= 4w_v/deg(v) · Σ_{u~v} w_u + 4w_v²/deg(v)\n\nSince w_v < 0, and if the sum of neighbors is positive, the first term is negative. But the second term is positive. So it's not clear.\n\nLet me try a different potential. What about the \"Dirichlet energy\" type quantity?\n\nConsider Q(w) = Σ_{(u,v)∈E} (w_u - w_v)² = w^T L w where L is the Laplacian.\n\nWhen we flip v:\nΔQ = ?\n\nThis is complex. Let me think about it differently.\n\nActually, let me think about the problem in terms of a \"chip-firing\" or \"abelian sandpile\" type framework, but it's not abelian here since the choice matters.\n\nLet me think about what invariant or monotone quantity could work.\n\nAlternative approach: Think of the weights as a function f: V → ℝ. The operation at v replaces f(v) by -f(v) and adjusts neighbors. \n\nLet me think about the quantity involving the Laplacian. Define g(v) = f(v) for the current weights. The Laplacian Lf at vertex v is deg(v)·f(v) - Σ_{u~v} f(u).\n\nHmm, let me try yet another approach. Let me think about the problem using the Green's function / pseudoinverse of the Laplacian.\n\nSince S = Σ w_v is conserved and positive, let's decompose w = (S/n)·1 + w' where w' ⊥ 1 (i.e., Σ w'_v = 0). The game only affects w', and the constant part S/n > 0 stays.\n\nThe game ends when all w_v ≥ 0, i.e., w'_v ≥ -S/n for all v.\n\nNow, consider the potential Φ(w') = (w')^T L^+ w' = Σ_v Σ_u w'_v (L^+)_{vu} w'_u.\n\nThis is the \"energy\" of the function w'. Let me compute how it changes.\n\nActually, this might be complex. Let me think about specific graph structures that could cause problems.\n\nConsider a bipartite graph. In a bipartite graph, we can partition V = A ∪ B. \n\nHmm, let me think about a star graph K_{1,k}. Center vertex c with deg(c) = k, leaves with deg 1.\n\nIf center has weight w_c < 0, flip it: w_c → -w_c, each leaf gets 2w_c/1 = 2w_c (wait, deg(leaf) = 1, but the operation adds 2w_v/deg(v) to neighbors, where deg(v) is the degree of the vertex being flipped, not the neighbor).\n\nSo flip center c: w_c → -w_c, each leaf u gets 2w_c/k added.\n\nIf a leaf u has w_u < 0, flip it: w_u → -w_u, center gets 2w_u/1 = 2w_u added.\n\nLet me try star K_{1,2} (which is P_3). Center c, leaves a, b. deg(c)=2, deg(a)=deg(b)=1.\n\nWeights: c=-3, a=2, b=2. Sum=1.\nFlip c: c→3, a→2+2(-3)/2=2-3=-1, b→2-3=-1. (3,-1,-1).\nFlip a: a→1, c→3+2(-1)/1=3-2=1, b→-1+2(-1)/1=-1-2=-3. Wait, no. When we flip a, we add 2w_a/deg(a) to each neighbor of a. Neighbors of a is just c. So c → c + 2(-1)/1 = 3 - 2 = 1. b is not a neighbor of a, so b stays -1.\n\nSo (1, 1, -1) where c=1, a=1, b=-1.\nFlip b: b→1, c→1+2(-1)/1=1-2=-1. (c=-1, a=1, b=1).\nFlip c: c→1, a→1+2(-1)/2=1-1=0, b→1-1=0. (1,0,0). Ends.\n\nOK so P_3 terminates too. Let me think about what graph might not terminate.\n\nLet me think about this more carefully. The key question is about which graphs always terminate.\n\nLet me consider the potential function more carefully. \n\nConsider Φ = Σ_v w_v². Let me recompute the change:\n\nΔΦ = Σ_{u~v} [4w_v·w_u/deg(v) + 4w_v²/deg(v)²]\n= 4w_v/deg(v) [Σ_{u~v} w_u + w_v]\n= 4w_v/deg(v) [Σ_{u~v} w_u + w_v]\n\nNote that Σ_{u~v} w_u + w_v = Σ_{u ∈ N(v) ∪ {v}} w_u. But this isn't quite a standard quantity.\n\nActually wait, Σ_{u~v} w_u + w_v = (Lf)(v) related? No. Lf(v) = deg(v)·w_v - Σ_{u~v} w_u. So Σ_{u~v} w_u = deg(v)·w_v - Lf(v). Then:\n\nΣ_{u~v} w_u + w_v = deg(v)·w_v - Lf(v) + w_v = (deg(v)+1)w_v - Lf(v).\n\nSo ΔΦ = 4w_v/deg(v) · [(deg(v)+1)w_v - Lf(v)] = 4w_v(deg(v)+1)/deg(v) · w_v - 4w_v·Lf(v)/deg(v).\n\nSince w_v < 0, the first term 4w_v(deg(v)+1)/deg(v) · w_v = 4(deg(v)+1)/deg(v) · w_v² > 0. The second term -4w_v·Lf(v)/deg(v) could be positive or negative.\n\nThis doesn't immediately give a monotone quantity.\n\nLet me try a weighted potential. Consider Ψ = Σ_v c_v · w_v² for some weights c_v to be determined.\n\nWhen we flip v (w_v < 0):\nΔΨ = c_v · 0 + Σ_{u~v} c_u · [4w_v·w_u/deg(v) + 4w_v²/deg(v)²]\n= 4w_v/deg(v) Σ_{u~v} c_u·w_u + 4w_v²/deg(v)² Σ_{u~v} c_u.\n\nFor this to be a decreasing function (so the game terminates), we'd want ΔΨ < 0 when w_v < 0. But the second term is always positive (w_v² > 0), so we need the first term to dominate. This seems hard to guarantee in general.\n\nLet me think differently. Maybe the right potential isn't quadratic.\n\nActually, let me reconsider the problem. Let me think about what happens with the quantity:\n\nE(w) = Σ_v deg(v) · w_v²\n\nWhen we flip v:\nΔE = deg(v)·0 + Σ_{u~v} deg(u)·[4w_v·w_u/deg(v) + 4w_v²/deg(v)²]\n= 4w_v/deg(v) Σ_{u~v} deg(u)·w_u + 4w_v²/deg(v)² Σ_{u~v} deg(u)\n\nStill complicated.\n\nLet me try to think about this problem from the perspective of known results. This looks like it could be related to the \"lit-only sigma-game\" or similar graph games, or perhaps to the theory of chip-firing.\n\nActually, this reminds me of a problem about \"numbers game\" or \"Mozart game\" on graphs. Let me think...\n\nActually, this is very reminiscent of the \"numbers game\" on graphs studied by Eriksson and others. In the numbers game, you have numbers on vertices of a graph (usually a Dynkin diagram), and you \"fire\" a vertex with a negative number: replace it by its negative, and add its value to each neighbor. The game terminates if and only if the graph is a Dynkin diagram (ADE classification).\n\nBut in our problem, the amount added to neighbors is 2w_v/deg(v), not just w_v. So it's a weighted version.\n\nLet me think about this connection more carefully. In the standard numbers game on a graph with weights (the \"generalized numbers game\" or \"Mozart game\"), when you fire vertex v, you replace a_v by -a_v and add a_v to each neighbor (or some multiple). The termination condition is related to the graph being a Dynkin diagram.\n\nIn our case, the operation is: w_v → -w_v, w_u → w_u + 2w_v/deg(v) for each neighbor u.\n\nLet me rescale. Let x_v = w_v · √(deg(v)/2) or something to normalize. Actually, let me think about this in terms of the matrix.\n\nThe operation at vertex v can be written as: w → M_v · w where M_v is a linear transformation. Specifically:\n- (M_v)_{vv} = -1\n- (M_v)_{uv} = 2/deg(v) for u ~ v (this modifies the v-th column... wait, let me be careful)\n\nActually, w is a vector. The operation modifies w_v and w_u for u ~ v. So:\n- w_v' = -w_v\n- w_u' = w_u + (2/deg(v))·w_v for u ~ v\n- w_u' = w_u for u ≁ v, u ≠ v.\n\nSo M_v acts as: (M_v w)_v = -w_v, (M_v w)_u = w_u + (2/deg(v))w_v for u~v, (M_v w)_u = w_u otherwise.\n\nIn matrix form, M_v = I + modification. The v-th column of M_v is: -1 at position v, 2/deg(v) at positions u~v, 0 elsewhere. Other columns are identity.\n\nSo M_v = I + e_v · c_v^T where... no. Let me think again. M_v w = w + (column modification). The change is: Δw_v = -2w_v, Δw_u = (2/deg(v))w_v for u~v. So Δw = w_v · d_v where d_v is the vector with d_v(v) = -2 and d_v(u) = 2/deg(v) for u~v, 0 elsewhere.\n\nSo M_v = I + d_v · e_v^T (outer product), where e_v is the standard basis vector. Then M_v w = w + d_v · (e_v^T w) = w + d_v · w_v. ✓\n\nNow, M_v = I + d_v e_v^T. This is a rank-1 modification of identity.\n\nFor the numbers game, the key property is that the matrices M_v are reflections. A reflection satisfies M_v² = I. Let's check:\n\nM_v² = (I + d_v e_v^T)² = I + 2d_v e_v^T + d_v e_v^T d_v e_v^T = I + (2 + e_v^T d_v) d_v e_v^T.\n\ne_v^T d_v = d_v(v) = -2. So 2 + e_v^T d_v = 2 - 2 = 0. Therefore M_v² = I. \n\nSo M_v is indeed a reflection! This is the key property.\n\nNow, the numbers game on a graph where the firing operations are reflections is well-studied. The game always terminates if and only if the group generated by the reflections {M_v} is finite.\n\nThe group generated by reflections M_v is finite if and only if the \"Coxeter graph\" is a disjoint union of Dynkin diagrams (ADE type). But we need to figure out what the Coxeter matrix is here.\n\nThe reflections M_v are determined by the vectors they reflect across. M_v = I + d_v e_v^T with e_v^T d_v = -2, which means M_v is the reflection across the hyperplane perpendicular to... let me think. A reflection across the hyperplane perpendicular to vector α is: R_α(x) = x - 2(x·α)/(α·α) · α. \n\nWe have M_v w = w + d_v (e_v^T w) = w + w_v · d_v. For this to be a reflection, we need M_v w = w - 2(w·α_v)/(α_v·α_v) · α_v for some vector α_v.\n\nSo w_v · d_v = -2(w·α_v)/(α_v·α_v) · α_v. Since w_v = e_v^T w = w·e_v (in standard inner product), we need:\n\nd_v = -2 α_v / (α_v · α_v) and e_v = α_v (up to scaling). Wait, that's not right. Let me redo.\n\nWe need: (e_v^T w) d_v = -2 (α_v^T w)/(α_v^T α_v) α_v for all w. This means e_v = α_v / (α_v^T α_v) · (some scalar) and d_v = -2 α_v / (α_v^T α_v) · (some scalar). Actually, we need e_v d_v^T... no.\n\n(e_v^T w) d_v = d_v (e_v^T w) = (d_v e_v^T) w. And -2 α_v (α_v^T w)/(α_v^T α_v) = (-2 α_v α_v^T / (α_v^T α_v)) w. So we need d_v e_v^T = -2 α_v α_v^T / (α_v^T α_v). This is a rank-1 matrix, so d_v must be proportional to α_v and e_v must be proportional to α_v. So d_v = c · α_v and e_v = d · α_v for some scalars. Then d_v e_v^T = cd · α_v α_v^T, and we need cd = -2/(α_v^T α_v).\n\nSince e_v is the standard basis vector, α_v must be proportional to e_v. Say α_v = e_v. Then d_v = -2 e_v / (e_v^T e_v) = -2 e_v. But d_v has components d_v(v) = -2 and d_v(u) = 2/deg(v) for u~v. So d_v = -2 e_v only if 2/deg(v) = 0, which is impossible.\n\nSo M_v is NOT a reflection in the standard inner product. It's a reflection in some other inner product. Let me find the inner product.\n\nM_v is a reflection with respect to some bilinear form B. A B-reflection is: R_v(w) = w - 2 B(w, α_v)/B(α_v, α_v) · α_v. We need this to equal w + w_v · d_v = w + (e_v^T w) d_v.\n\nSo (e_v^T w) d_v = -2 B(w, α_v)/B(α_v, α_v) · α_v. This means α_v ∝ d_v and e_v^T w ∝ B(w, α_v). So B(w, α_v) = k · (e_v^T w) for some constant k, meaning B(e_j, α_v) = k · δ_{jv}. Since α_v ∝ d_v, we have B(e_j, d_v) = k' · δ_{jv} for some k'.\n\nSo the bilinear form B must satisfy: B(e_j, d_v) = 0 for j ≠ v, and B(e_v, d_v) = k' ≠ 0.\n\nd_v has components: d_v(v) = -2, d_v(u) = 2/deg(v) for u ~ v. So B(e_j, d_v) = Σ_i B(e_j, e_i) d_v(i) = Σ_i B_{ji} d_v(i).\n\nFor j ≠ v: Σ_i B_{ji} d_v(i) = 0, i.e., B_{jv}·(-2) + Σ_{i~v} B_{ji} · (2/deg(v)) = 0, i.e., -B_{jv} + (1/deg(v)) Σ_{i~v} B_{ji} = 0, i.e., B_{jv} = (1/deg(v)) Σ_{i~v} B_{ji}.\n\nThis must hold for all v and all j ≠ v. So for each v, B_{jv} = (1/deg(v)) Σ_{i~v} B_{ji} for all j ≠ v.\n\nThis is a strong condition on B. Let me think about what B looks like.\n\nBy symmetry, we also need B_{vj} = (1/deg(j)) Σ_{i~j} B_{vi} for all v ≠ j.\n\nLet me guess that B is related to the Laplacian or some graph matrix. \n\nActually, let me try B = L (the Laplacian). Then B_{jv} = L_{jv}. For j ≠ v: L_{jv} = -1 if j~v, 0 if j≁v. And (1/deg(v)) Σ_{i~v} L_{ji} = (1/deg(v)) Σ_{i~v} (-1 if j~i else 0... wait, L_{ji} = -1 if j~i, 0 if j≠i and j≁i, deg(j) if j=i).\n\nFor j ≠ v: (1/deg(v)) Σ_{i~v} L_{ji}. The sum is over neighbors i of v. L_{ji} = -1 if j~i, 0 if j≠i and j≁i. Since j ≠ v, j could be a neighbor of some i~v.\n\nThis doesn't simplify to L_{jv} in general. So B = L doesn't work directly.\n\nLet me try a different approach. Let me think about what B should be.\n\nThe condition is: for all v and all j ≠ v, B_{jv} = (1/deg(v)) Σ_{i~v} B_{ji}.\n\nThis says that B_{jv} (for j ≠ v) equals the average of B_{ji} over neighbors i of v. In other words, the function f_v(j) = B_{jv} is harmonic at every j ≠ v (with respect to the random walk on G).\n\nA function that is harmonic everywhere except at v, where it has a \"source\", is related to the Green's function of the random walk.\n\nActually, the condition says f_v(j) = B_{jv} is harmonic at j ≠ v. The general solution is f_v(j) = a_v + b_v · h_v(j) where h_v is the harmonic function with a pole at v... but on a finite graph, harmonic functions are constant (if the graph is connected). Wait, but we're not requiring harmonicity at v itself.\n\nActually, f_v is harmonic at all j ≠ v. On a finite connected graph, a function harmonic everywhere except at one point v is determined up to an additive constant. Specifically, f_v(j) = c + d · g(j, v) where g is the Green's function (pseudoinverse of the Laplacian related).\n\nHmm, this is getting complicated. Let me try a completely different approach.\n\nLet me think about the problem in terms of the matrix A where A_{ij} = 2/deg(i) if i~j, 0 otherwise. This is 2 times the transition matrix of the random walk. Actually, let me define the matrix more carefully.\n\nThe operation at vertex v: w_v → -w_v, w_u → w_u + (2/deg(v)) w_v for u~v.\n\nLet me define the matrix N where N_{uv} = 2/deg(v) if u~v, 0 otherwise (including N_{vv} = 0). Then the operation at v is: w → w + (N_{:v} - 2e_v) w_v = (I + (N_{:v} - 2e_v) e_v^T) w.\n\nHmm, I already did this. Let me think about the eigenvalues of the product of reflections.\n\nActually, let me think about this problem differently. Let me consider the approach via the \"amplitude\" or \"energy\" that's standard in the numbers game literature.\n\nIn the numbers game on a graph with Coxeter matrix M (where M_{ij} is related to the angle between simple roots), the game terminates for all initial positions with positive total \"amplitude\" if and only if the graph is a Dynkin diagram.\n\nThe connection is: the numbers game on a graph G with edge weights terminates for all initial configurations (with positive sum) if and only if the associated quadratic form is positive definite, which happens iff G is a Dynkin diagram (A_n, D_n, E_6, E_7, E_8).\n\nBut our game has a specific weighting: the amount added to neighbors is 2w_v/deg(v). Let me figure out what Coxeter graph this corresponds to.\n\nIn the generalized numbers game, when firing vertex v:\n- a_v → -a_v\n- a_u → a_u + m_{uv} · a_v for each neighbor u\n\nwhere m_{uv} are the edge weights. In our case, m_{uv} = 2/deg(v) (note: this depends on v, not symmetric in general).\n\nFor the standard numbers game (Eriksson's), the weights are m_{uv} = 1 for all edges (on a simply-laced graph). For the generalized game, m_{uv} can vary.\n\nThe key theorem (Eriksson, \"Strong confluence and the numbers game\") states that the numbers game terminates for all positions with positive total sum if and only if the associated Coxeter group is finite.\n\nThe Coxeter group is determined by the Coxeter matrix, which is related to the edge weights. For a graph with edge weights m_{uv}, the Coxeter matrix entries are:\n\nThe simple reflections s_i act on the root space. The Cartan matrix is A_{ij} = 2(α_i, α_j)/(α_i, α_i) where the inner product is such that the reflections work out.\n\nActually, let me think about this more concretely. The reflections M_v generate a group. This group is finite iff the game terminates for all initial positions.\n\nFor the group to be finite, we need the reflections to generate a finite reflection group. The finite reflection groups are classified: they correspond to Dynkin diagrams.\n\nThe question is: for which graphs G does the specific weighting 2/deg(v) give a finite reflection group?\n\nLet me compute the Coxeter matrix. Two reflections M_u and M_v: the product M_u M_v has eigenvalues that determine the order of M_u M_v in the group. If the order is finite, the group might be finite.\n\nThe order of M_u M_v is related to the angle between the reflecting hyperplanes. Specifically, if the eigenvalues of M_u M_v are e^{±2πi/k}, then the order of M_u M_v is k. If the eigenvalues are real (and not ±1), the order is infinite.\n\nFor the group to be finite, we need all pairwise products M_u M_v to have finite order (necessary but not sufficient condition — we also need the overall group to be finite, which for irreducible Coxeter groups means the graph is a Dynkin diagram).\n\nLet me compute M_u M_v for adjacent u, v. \n\nActually, let me think about this using the bilinear form B that I was trying to find. The reflections M_v are reflections with respect to B. The Coxeter matrix is determined by B(α_u, α_v) / (B(α_u, α_u) · B(α_v, α_v)).\n\nLet me try to find B explicitly. We need B such that M_v is a B-reflection. We showed that B_{jv} = (1/deg(v)) Σ_{i~v} B_{ji} for j ≠ v.\n\nLet me try B = D^{-1} L D^{-1} where D = diag(deg(v)) and L is the Laplacian. Or maybe B = D^{-1/2} L D^{-1/2} (the normalized Laplacian).\n\nLet me try B = D^{-1} L (the random walk Laplacian). B_{jv} = (1/deg(j)) L_{jv}. For j ≠ v: B_{jv} = (1/deg(j)) · (-1 if j~v else 0). And (1/deg(v)) Σ_{i~v} B_{ji} = (1/deg(v)) Σ_{i~v} (1/deg(j)) L_{ji} = (1/(deg(j)deg(v))) Σ_{i~v} L_{ji}.\n\nFor j ≠ v: Σ_{i~v} L_{ji} = Σ_{i~v} (-1 if j~i else 0 if j≠i, else deg(j)). Since j ≠ v, j could equal some i~v (if j~v, then j is a neighbor of v, so i=j is in the sum). So Σ_{i~v} L_{ji} = L_{jj} (if j~v) + Σ_{i~v, i≠j} L_{ji} = deg(j) (if j~v) + Σ_{i~v, i≠j} (-1 if j~i else 0).\n\nThis is getting messy. Let me try a specific small example.\n\nLet me try B = 2I - N where N is the random walk transition matrix (N_{uv} = 1/deg(v) if u~v). Wait, actually let me think about the normalized Laplacian.\n\nThe normalized Laplacian is L_norm = D^{-1/2} L D^{-1/2} = I - D^{-1/2} A D^{-1/2} where A is the adjacency matrix. Its entries: (L_norm)_{vv} = 1, (L_norm)_{uv} = -1/√(deg(u)deg(v)) for u~v, 0 otherwise.\n\nLet me check: for j ≠ v, B_{jv} = -1/√(deg(j)deg(v)) if j~v, 0 if j≁v.\n(1/deg(v)) Σ_{i~v} B_{ji} = (1/deg(v)) Σ_{i~v} (-1/√(deg(j)deg(i)) if j~i else 0).\n\nFor j ≁ v (and j ≠ v): B_{jv} = 0. We need (1/deg(v)) Σ_{i~v} (-1/√(deg(j)deg(i)) if j~i else 0) = 0. This means Σ_{i~v, j~i} 1/√(deg(j)deg(i)) = 0, which is generally not true (it's a sum of positive terms). So the normalized Laplacian doesn't work either.\n\nOK let me try yet another approach. Let me try to find B by direct computation on small graphs.\n\nLet me try the path P_2 (two vertices 1, 2, connected). deg(1) = deg(2) = 1.\n\nd_1 = (-2, 2/deg(1))^T = (-2, 2)^T.\nd_2 = (2/deg(2), -2)^T = (2, -2)^T.\n\nCondition: B_{jv} = (1/deg(v)) Σ_{i~v} B_{ji} for j ≠ v.\n\nFor v=1, j=2: B_{21} = (1/1) B_{22} = B_{22}. (Since the only neighbor of 1 is 2.)\nFor v=2, j=1: B_{12} = (1/1) B_{11} = B_{11}.\n\nSo B_{21} = B_{22} and B_{12} = B_{11}. By symmetry of B: B_{12} = B_{21}, so B_{11} = B_{22}. Let B_{11} = B_{22} = a, B_{12} = B_{21} = a. So B = a · [[1,1],[1,1]]. This is rank 1 and positive semidefinite (not definite). \n\nHmm, that's degenerate. The all-ones vector is in the kernel, which makes sense because the sum is conserved (the game operates on the subspace orthogonal to all-ones).\n\nSo B is positive definite on the subspace Σ w_v = 0 (the \"root space\"). For P_2, B restricted to this subspace: if w = (t, -t), then w^T B w = a(t² + t² - 2t²) = 0. Wait, that's also 0! That can't be right.\n\nLet me recompute. B = a[[1,1],[1,1]]. w = (t, -t). w^T B w = a(t·t + t·(-t) + (-t)·t + (-t)·(-t)) = a(t² - t² - t² + t²) = 0. \n\nSo B is degenerate even on the sum-zero subspace for P_2. That means the reflection group is infinite? But we saw that P_2 terminates!\n\nHmm, I think I made an error. Let me reconsider.\n\nWait, maybe I need to be more careful. The condition B_{jv} = (1/deg(v)) Σ_{i~v} B_{ji} for j ≠ v might not be the right condition. Let me re-derive.\n\nWe need M_v to be a B-reflection: M_v w = w - 2 B(w, α_v)/B(α_v, α_v) · α_v.\n\nWe have M_v w = w + d_v (e_v^T w). So d_v (e_v^T w) = -2 B(w, α_v)/B(α_v, α_v) · α_v.\n\nThis means α_v ∝ d_v and e_v^T w ∝ B(w, α_v). So B(w, d_v) ∝ e_v^T w, i.e., B(w, d_v) = c · w_v for some constant c (for all w). This means B(e_j, d_v) = c · δ_{jv}.\n\nSo the condition is: B(e_j, d_v) = 0 for j ≠ v, and B(e_v, d_v) = c ≠ 0.\n\nB(e_j, d_v) = Σ_i B_{ji} (d_v)_i = B_{jv}·(-2) + Σ_{i~v} B_{ji} · (2/deg(v)).\n\nFor j ≠ v: -2 B_{jv} + (2/deg(v)) Σ_{i~v} B_{ji} = 0, so B_{jv} = (1/deg(v)) Σ_{i~v} B_{ji}. ✓ (same as before)\n\nFor j = v: -2 B_{vv} + (2/deg(v)) Σ_{i~v} B_{vi} = c.\n\nSo for P_2: B = a[[1,1],[1,1]], and B(e_1, d_1) = B_{11}·(-2) + B_{12}·2 = -2a + 2a = 0. But we need this to be c ≠ 0!\n\nSo B = a[[1,1],[1,1]] gives c = 0, which means M_v is not a proper B-reflection. This means my approach has an issue, or P_2 doesn't fit this framework.\n\nWait, maybe the issue is that for P_2, the reflections M_1 and M_2 act on a 1-dimensional space (the sum-zero subspace), and on that space, they might be the same reflection.\n\nOn the sum-zero subspace of P_2 (spanned by (1,-1)):\nM_1 (1,-1) = (1,-1) + d_1 · 1 = (1,-1) + (-2,2) = (-1, 1) = -(1,-1). So M_1 acts as -1 on this subspace.\nM_2 (1,-1) = (1,-1) + d_2 · (-1) = (1,-1) - (2,-2) = (-1, 1) = -(1,-1). So M_2 also acts as -1.\n\nSo on the 1-dimensional sum-zero subspace, both M_1 and M_2 are just negation. The group they generate is {I, -I}, which is finite (order 2). So the game terminates.\n\nThe issue with B is that B is degenerate on the sum-zero subspace for P_2. This means the standard Coxeter theory doesn't directly apply, or I need to think about it differently.\n\nActually, I think the issue is that the reflections M_v are not \"simple reflections\" in the usual Coxeter sense. In the usual setup, the simple reflections act on a space with a positive definite form, and each reflection fixes a hyperplane. Here, the form might be degenerate.\n\nLet me reconsider. Maybe I should think about this differently.\n\nLet me go back to thinking about the potential function directly.\n\nLet me try the potential Φ(w) = Σ_v w_v² (sum of squares).\n\nWe computed: ΔΦ = 4w_v/deg(v) · [Σ_{u~v} w_u + w_v] = 4w_v/deg(v) · [Σ_{u~v} w_u + w_v].\n\nLet S_v = Σ_{u~v} w_u + w_v = Σ_{u ∈ N[v]} w_u (sum over closed neighborhood of v).\n\nSo ΔΦ = 4w_v · S_v / deg(v).\n\nWhen w_v < 0, ΔΦ < 0 iff S_v > 0. So if whenever we fire a vertex v (with w_v < 0), the sum of weights in the closed neighborhood of v is positive, then Φ decreases and the game terminates.\n\nBut is S_v always positive when w_v < 0? Not necessarily. We could have a situation where w_v < 0 and all neighbors also have negative weights, making S_v < 0.\n\nHmm, but maybe we can choose which vertex to fire strategically? No—the problem says \"the player picks a vertex.\" So the player has a choice. The question is whether the game ALWAYS ends, meaning for any sequence of choices (or maybe for the best strategy?).\n\nRe-reading: \"What are necessary and sufficient conditions on G for the game to always end in a finite time?\" I think \"always end\" means: no matter what choices the player makes, the game terminates. Or maybe it means: there exists a strategy that always terminates. Let me think about which interpretation is standard.\n\nIn the numbers game literature, \"the game terminates\" usually means it terminates regardless of the choices (the game has the strong confluence property). But sometimes it means there exists a terminating sequence.\n\nActually, in the numbers game, a key result is the \"strong confluence\" property: if the game terminates from a position, it terminates regardless of the choices made. This is the \"abelian\" property. So the two interpretations coincide for the numbers game.\n\nBut does our game have this property? Let me check if M_u M_v = M_v M_u for non-adjacent u, v, and the braid relation for adjacent ones.\n\nFor non-adjacent u, v: d_u has nonzero entries only at u and neighbors of u. Since v is not adjacent to u and v ≠ u, (d_u)_v = 0. Similarly (d_v)_u = 0. So M_u M_v = (I + d_u e_u^T)(I + d_v e_v^T) = I + d_u e_u^T + d_v e_v^T + d_u (e_u^T d_v) e_v^T. Now e_u^T d_v = (d_v)_u = 0 (since u ≁ v and u ≠ v). So M_u M_v = I + d_u e_u^T + d_v e_v^T = M_v M_u. ✓ They commute for non-adjacent vertices.\n\nFor adjacent u, v: M_u M_v = I + d_u e_u^T + d_v e_v^T + d_u (e_u^T d_v) e_v^T. Now e_u^T d_v = (d_v)_u = 2/deg(v) (since u ~ v). So M_u M_v = I + d_u e_u^T + d_v e_v^T + (2/deg(v)) d_u e_v^T.\n\nSimilarly M_v M_u = I + d_u e_u^T + d_v e_v^T + (2/deg(u)) d_v e_u^T.\n\nThese are not equal in general. The braid relation would be (M_u M_v)^k = I for some k, which relates to the order of the product.\n\nFor the numbers game to have the strong confluence property (termination regardless of choices), we need the Coxeter relations to hold. The key relation is (M_u M_v)^{m_{uv}} = I for adjacent u, v, where m_{uv} is the order of M_u M_v.\n\nIf all these orders are finite AND the overall group is finite, then the game terminates for all initial positions with positive sum.\n\nSo the question reduces to: for which graphs G is the group generated by {M_v} finite?\n\nThis is equivalent to: the \"Coxeter-like\" group defined by the reflections M_v is finite.\n\nNow, the group is finite iff the associated quadratic form (the B-form restricted to the sum-zero subspace) is positive definite. But we saw that for P_2, B is degenerate on the sum-zero subspace, yet the game terminates. So something is off.\n\nLet me reconsider. Maybe the issue is that on the sum-zero subspace, the reflections can be degenerate (some reflections act trivially or as -I), and we need to quotient out the kernel.\n\nActually, for P_2, the sum-zero subspace is 1-dimensional, and both M_1 and M_2 act as -I on it. The group is {I, -I}, which is finite. The B-form is 0 on this subspace, which is \"positive semidefinite\" (not definite). But the group is still finite.\n\nI think the correct statement is: the group is finite iff the B-form is positive semidefinite on the sum-zero subspace (with the kernel corresponding to directions where all reflections act as ±I, which still gives a finite group).\n\nActually, I think the right framework is: the group generated by the M_v's is finite iff the \"Tits cone\" / fundamental chamber has finite volume, which for Coxeter groups is equivalent to the associated form being positive definite on the span of the simple roots (after quotienting out the radical).\n\nHmm, this is getting quite involved. Let me try a more computational approach.\n\nLet me think about what the B-form looks like in general. We need B_{jv} = (1/deg(v)) Σ_{i~v} B_{ji} for j ≠ v.\n\nThis says: for each v, the j-th entry of the v-th column of B (for j ≠ v) equals the average of the j-th entries of B over the neighbors of v. In other words, the function j ↦ B_{jv} is harmonic at j ≠ v with respect to the random walk on G.\n\nThe general solution: B_{jv} = c_v + d_v · h(j, v) where h is related to the Green's function. But since we need B to be symmetric, this constrains things.\n\nActually, let me try a specific form. Let me guess B = D - A' where A' is some modified adjacency. Or let me try B_{jv} = 2δ_{jv} - 2/deg(v) · 1_{j~v}... no, that's not symmetric.\n\nLet me try B = 2D^{-1} L = 2(I - D^{-1}A) = 2I - 2D^{-1}A. Then B_{jv} = 2δ_{jv} - (2/deg(v))·1_{j~v}. This is not symmetric (B_{jv} ≠ B_{vj} when deg(j) ≠ deg(v)).\n\nLet me try B = L D^{-1} · 2 = 2(L D^{-1}). B_{jv} = 2 L_{jv} / deg(v). For j ≠ v: B_{jv} = -2/deg(v) if j~v, 0 otherwise. And (1/deg(v)) Σ_{i~v} B_{ji} = (1/deg(v)) Σ_{i~v} 2L_{ji}/deg(i).\n\nFor j ≠ v and j ~ v: B_{jv} = -2/deg(v). We need (1/deg(v)) Σ_{i~v} 2L_{ji}/deg(i) = -2/deg(v). So Σ_{i~v} L_{ji}/deg(i) = -1.\n\nL_{ji} = -1 if j~i, deg(j) if j=i, 0 otherwise. Since j ≠ v and j ~ v, j is a neighbor of v, so i=j is in the sum Σ_{i~v}. So Σ_{i~v} L_{ji}/deg(i) = L_{jj}/deg(j) + Σ_{i~v, i≠j} L_{ji}/deg(i) = deg(j)/deg(j) + Σ_{i~v, i≠j} (-1/deg(i) if j~i else 0) = 1 - Σ_{i~v, i≠j, j~i} 1/deg(i).\n\nWe need this to equal -1, so 1 - Σ_{i~v, i≠j, j~i} 1/deg(i) = -1, meaning Σ_{i~v, i≠j, j~i} 1/deg(i) = 2. This is not true in general. So this B doesn't work either.\n\nOK, I think finding B explicitly is hard. Let me try a different approach entirely.\n\nLet me think about the problem using the \"amplitude\" function from the numbers game theory.\n\nIn the numbers game, the key quantity is the \"amplitude\" α(w) = Σ_v a_v · w_v where a_v are the \"amplitudes\" associated with the graph. The amplitude is the thing that's positive and that the game preserves or that determines termination.\n\nWait, actually in the numbers game, the sum Σ w_v is NOT the conserved quantity in general. In our game, the sum IS conserved. Let me think about what role the sum plays.\n\nIn our game:\n- Sum S = Σ w_v is conserved.\n- The game terminates when all w_v ≥ 0 (which, combined with S > 0, means the game is in a \"winning\" state).\n\nThe question is: for which graphs does the game always reach a state with all w_v ≥ 0?\n\nLet me think about the potential Φ = Σ_v w_v² again. We showed ΔΦ = 4w_v · S_v / deg(v) where S_v = Σ_{u ∈ N[v]} w_u (closed neighborhood sum).\n\nIf the game doesn't terminate, there's an infinite sequence of firings. Since Φ ≥ 0, if Φ is always decreasing, the game must terminate. But Φ doesn't always decrease (it decreases only when S_v > 0).\n\nLet me think about whether there's a modified potential that always decreases.\n\nConsider the potential Ψ(w) = w^T Q w for some positive definite matrix Q (on the sum-zero subspace). We want Ψ to decrease with every firing.\n\nWhen we fire v: ΔΨ = (M_v w)^T Q (M_v w) - w^T Q w = w^T (M_v^T Q M_v - Q) w.\n\nFor Ψ to always decrease when w_v < 0, we need M_v^T Q M_v - Q to be negative definite on the region where w_v < 0... but this is a quadratic form, so it can't be negative only when w_v < 0 (it's either negative semidefinite everywhere or not).\n\nActually, for the numbers game, the standard approach is: the potential Ψ = w^T Q w where Q is the inverse of the Cartan matrix (or related to it). The reflections preserve Ψ (they're orthogonal with respect to Q). So Ψ is invariant, not decreasing!\n\nIf Ψ is invariant and the game operates in a bounded region (because S > 0 and the game must stay in some region), then the game must terminate because there are finitely many \"chambers.\"\n\nWait, that's the key insight! If the reflections preserve a positive definite quadratic form (on the sum-zero subspace), then the group is finite (it's a finite subgroup of O(n-1)), and the game terminates because the orbit of any point under a finite group is finite, and the game can't revisit a position (since... hmm, actually it could revisit).\n\nActually, in the numbers game, the argument is different. The game terminates because:\n1. The reflections generate a finite group.\n2. The \"amplitude\" (sum of weights) is positive and conserved.\n3. The game moves through chambers of the reflection arrangement, and the number of chambers is finite.\n4. The game never revisits a chamber (because the amplitude is positive and the game moves in a specific direction).\n\nActually, the standard argument for the numbers game is: if the Coxeter group is finite, then there's a unique \"winning\" position in each orbit (the one where all numbers are non-negative), and the game always reaches it. The game terminates because each firing moves to a new chamber, and there are finitely many chambers.\n\nFor our game, the analogous statement would be: if the group generated by {M_v} is finite, the game terminates. And if the group is infinite, there exist initial positions (with positive sum) for which the game doesn't terminate.\n\nSo the question becomes: for which connected graphs G is the group ⟨M_v : v ∈ V⟩ finite?\n\nNow, the group is finite iff the quadratic form B (the invariant form of the reflection group) is positive definite on the sum-zero subspace (after quotienting out the radical, if any).\n\nLet me try to compute B for a specific graph and see if I can find a pattern.\n\nLet me try the cycle C_3 = K_3. All degrees are 2.\n\nd_v has (d_v)_v = -2, (d_v)_u = 2/2 = 1 for u~v.\n\nCondition: B_{jv} = (1/2) Σ_{i~v} B_{ji} for j ≠ v.\n\nFor K_3 with vertices 1, 2, 3:\nv=1, j=2: B_{21} = (1/2)(B_{21} + B_{23}) [neighbors of 1 are 2 and 3]. So B_{21} = (1/2)(B_{21} + B_{23}), giving B_{21} = B_{23}.\nv=1, j=3: B_{31} = (1/2)(B_{31} + B_{32}), so B_{31} = B_{32}.\nv=2, j=1: B_{12} = (1/2)(B_{12} + B_{13}), so B_{12} = B_{13}.\nv=2, j=3: B_{32} = (1/2)(B_{32} + B_{31}), so B_{32} = B_{31}. (Same as before.)\nv=3, j=1: B_{13} = (1/2)(B_{13} + B_{12}), so B_{13} = B_{12}. (Same.)\nv=3, j=2: B_{23} = (1/2)(B_{23} + B_{21}), so B_{23} = B_{21}. (Same.)\n\nFrom B_{21} = B_{23} and B_{31} = B_{32} and B_{12} = B_{13} and symmetry B_{ij} = B_{ji}:\nB_{12} = B_{21}, B_{13} = B_{31}, B_{23} = B_{32}.\nB_{21} = B_{23} → B_{12} = B_{23}.\nB_{31} = B_{32} → B_{13} = B_{32} = B_{23}.\nB_{12} = B_{13} → B_{12} = B_{13}.\n\nSo all off-diagonal entries are equal: B_{12} = B_{13} = B_{23} = b (say). And B_{11} = B_{22} = B_{33} = a (by symmetry of K_3).\n\nNow, B(e_v, d_v) = c ≠ 0. For v=1: B(e_1, d_1) = B_{11}·(-2) + B_{12}·1 + B_{13}·1 = -2a + 2b = c.\n\nOn the sum-zero subspace (spanned by e.g. (1,-1,0) and (1,0,-1)):\nB restricted: B((1,-1,0),(1,-1,0)) = a - b - b + a = 2(a-b).\nB((1,0,-1),(1,0,-1)) = a - b - b + a = 2(a-b).\nB((1,-1,0),(1,0,-1)) = a - 0 - b + 0 = a - b. Wait let me recompute.\n\nB((1,-1,0),(1,0,-1)) = 1·a·1 + 1·b·0 + 1·b·(-1) + (-1)·b·1 + (-1)·a·0 + (-1)·b·(-1) + 0·b·1 + 0·b·0 + 0·a·(-1)\n= a - b - b + b = a - b.\n\nSo the restricted form has matrix [[2(a-b), a-b],[a-b, 2(a-b)]] = (a-b)[[2,1],[1,2]]. This is positive definite iff a - b > 0 (eigenvalues are (a-b)(2±1) = 3(a-b) and (a-b)).\n\nSo for K_3, the form is positive definite on the sum-zero subspace iff a > b. Since c = -2a + 2b = 2(b-a), we need c ≠ 0, so a ≠ b. If a > b, then c < 0, and the form is positive definite. If a < b, the form is negative definite (and c > 0). Either way, the form is definite (nondegenerate), so the group is finite.\n\nSo K_3 gives a finite group. ✓ (We verified termination computationally.)\n\nNow let me try C_4 (cycle on 4 vertices). All degrees are 2.\n\nVertices 1,2,3,4 in a cycle. d_v: (d_v)_v = -2, (d_v)_u = 1 for u~v.\n\nCondition: B_{jv} = (1/2)(B_{j,v-1} + B_{j,v+1}) for j ≠ v (indices mod 4).\n\nThis says B_{jv} is the average of its neighbors in the v-direction, for j ≠ v. This is a discrete harmonic condition.\n\nFor fixed j, the function f(v) = B_{jv} is harmonic at v ≠ j. On C_4, a function harmonic at 3 out of 4 points... \n\nLet me just set up the equations. By symmetry of C_4, B should be circulant: B_{jv} depends only on (j-v) mod 4. Let B_{jv} = b_{j-v} where b_0 = a, b_1 = b_{-1} = b, b_2 = c (by symmetry b_k = b_{-k}).\n\nSo B = [[a,b,c,b],[b,a,b,c],[c,b,a,b],[b,c,b,a]].\n\nCondition for j ≠ v: B_{jv} = (1/2)(B_{j,v-1} + B_{j,v+1}).\n\nTake j=1, v=2: B_{12} = b. (1/2)(B_{11} + B_{13}) = (1/2)(a + c). So b = (a+c)/2.\nTake j=1, v=3: B_{13} = c. (1/2)(B_{12} + B_{14}) = (1/2)(b + b) = b. So c = b.\nTake j=1, v=4: B_{14} = b. (1/2)(B_{13} + B_{11}) = (1/2)(c + a). So b = (a+c)/2. (Same as first.)\n\nFrom c = b and b = (a+c)/2 = (a+b)/2, we get 2b = a+b, so b = a. Then c = b = a. So B = a · (all ones matrix). This is rank 1, and on the sum-zero subspace, B is 0 (degenerate).\n\nSo for C_4, the B-form is degenerate (zero) on the sum-zero subspace. This means the reflections don't preserve a nondegenerate form on the sum-zero subspace, which suggests the group might be infinite.\n\nLet me verify: does C_4 lead to non-termination?\n\nLet me try weights on C_4: vertices 1,2,3,4. deg = 2 for all. Operation: flip v, add 2w_v/2 = w_v to each neighbor.\n\nLet me try w = (-1, 1, -1, 1). Sum = 0. Need sum > 0. Let me try w = (-1, 2, -1, 1). Sum = 1.\n\nFlip 1 (w_1 = -1): w_1 → 1, w_2 → 2 + (-1) = 1, w_4 → 1 + (-1) = 0. New: (1, 1, -1, 0). Sum = 1. ✓\nFlip 3 (w_3 = -1): w_3 → 1, w_2 → 1 + (-1) = 0, w_4 → 0 + (-1) = -1. New: (1, 0, 1, -1). Sum = 1.\nFlip 4 (w_4 = -1): w_4 → 1, w_1 → 1 + (-1) = 0, w_3 → 1 + (-1) = 0. New: (0, 0, 0, 1). Sum = 1. All non-negative. Terminates!\n\nLet me try a different initial config. w = (-3, 1, 2, 1). Sum = 1.\nFlip 1: w_1 → 3, w_2 → 1 + (-3) = -2, w_4 → 1 + (-3) = -2. New: (3, -2, 2, -2). Sum = 1.\nFlip 2: w_2 → 2, w_1 → 3 + (-2) = 1, w_3 → 2 + (-2) = 0. New: (1, 2, 0, -2). Sum = 1.\nFlip 4: w_4 → 2, w_1 → 1 + (-2) = -1, w_3 → 0 + (-2) = -2. New: (-1, 2, -2, 2). Sum = 1.\nFlip 1: w_1 → 1, w_2 → 2 + (-1) = 1, w_4 → 2 + (-1) = 1. New: (1, 1, -2, 1). Sum = 1.\nFlip 3: w_3 → 2, w_2 → 1 + (-2) = -1, w_4 → 1 + (-2) = -1. New: (1, -1, 2, -1). Sum = 1.\nFlip 2: w_2 → 1, w_1 → 1 + (-1) = 0, w_3 → 2 + (-1) = 1. New: (0, 1, 1, -1). Sum = 1.\nFlip 4: w_4 → 1, w_1 → 0 + (-1) = -1, w_3 → 1 + (-1) = 0. New: (-1, 1, 0, 1). Sum = 1.\nFlip 1: w_1 → 1, w_2 → 1 + (-1) = 0, w_4 → 1 + (-1) = 0. New: (1, 0, 0, 0). Sum = 1. Terminates!\n\nHmm, it terminated. Let me try to find a non-terminating example for C_4.\n\nLet me try w = (-1, 0, -1, 3). Sum = 1.\nFlip 1: (1, -1, -1, 2). \nFlip 2: (0, 1, -2, 2).\nFlip 3: (0, -1, 2, 0).\nFlip 2: (-1, 1, 1, 0).\nFlip 1: (1, 0, 1, -1).\nFlip 4: (0, 0, 0, 1). Terminates.\n\nHmm, C_4 seems to terminate. Let me try to think about why.\n\nActually, wait. Let me reconsider the B-form computation. For C_4, I got B = a·(all ones), which is 0 on the sum-zero subspace. But the game still terminates. So maybe the B-form being degenerate doesn't mean the group is infinite.\n\nLet me compute the group directly for C_4. On the sum-zero subspace (3-dimensional), what do the reflections M_v look like?\n\nFor C_4 with vertices 1,2,3,4:\nd_1 = (-2, 1, 0, 1), d_2 = (1, -2, 1, 0), d_3 = (0, 1, -2, 1), d_4 = (1, 0, 1, -2).\n\nOn the sum-zero subspace, let me use the basis e_1 - e_2, e_2 - e_3, e_3 - e_4 (or something). Actually, let me just compute the matrices.\n\nM_1 = I + d_1 e_1^T. On the full space:\nM_1 = [[-1, 0, 0, 0], [1, 1, 0, 0], [0, 0, 1, 0], [1, 0, 0, 1]].\n\nM_2 = [[1, 1, 0, 0], [0, -1, 0, 0], [0, 1, 1, 0], [0, 0, 0, 1]].\n\nM_3 = [[1, 0, 0, 0], [0, 1, 1, 0], [0, 0, -1, 0], [0, 0, 1, 1]].\n\nM_4 = [[1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 1], [0, 0, 0, -1]].\n\nLet me compute M_1 M_2:\nM_1 M_2 = [[-1,0,0,0],[1,1,0,0],[0,0,1,0],[1,0,0,1]] · [[1,1,0,0],[0,-1,0,0],[0,1,1,0],[0,0,0,1]]\n= [[-1,-1,0,0],[1,0,0,0],[0,1,1,0],[1,1,0,1]].\n\nLet me compute (M_1 M_2)^2:\n(M_1 M_2)^2 = [[-1,-1,0,0],[1,0,0,0],[0,1,1,0],[1,1,0,1]] · [[-1,-1,0,0],[1,0,0,0],[0,1,1,0],[1,1,0,1]]\nRow 1: [(-1)(-1)+(-1)(1)+0+0, (-1)(-1)+(-1)(0)+0+0, 0, 0+0+0+0] = [0, 1, 0, 0]\nRow 2: [1(-1)+0+0+0, 1(-1)+0+0+0, 0, 0] = [-1, -1, 0, 0]\nRow 3: [0+1+0+0, 0+0+1+0, 0+0+1+0, 0+0+0+0] = [1, 1, 1, 0]\nRow 4: [1(-1)+1+0+1, 1(-1)+0+0+1, 0, 0+0+0+1] = [1, 0, 0, 1]\n\nSo (M_1 M_2)^2 = [[0,1,0,0],[-1,-1,0,0],[1,1,1,0],[1,0,0,1]].\n\n(M_1 M_2)^3 = (M_1 M_2)^2 · (M_1 M_2):\nRow 1: [0(-1)+1·1+0+0, 0(-1)+1·0+0+0, 0, 0] = [1, 0, 0, 0]\nRow 2: [-1·(-1)+(-1)·1+0+0, -1·(-1)+(-1)·0+0+0, 0, 0] = [0, 1, 0, 0]\nRow 3: [1·(-1)+1·1+1·0+0, 1·(-1)+1·0+1·1+0, 0+0+1+0, 0] = [0, 0, 1, 0]\nRow 4: [1·(-1)+0+0+1, 1·(-1)+0+0+1, 0, 0+0+0+1] = [0, 0, 0, 1]\n\nSo (M_1 M_2)^3 = I! The order of M_1 M_2 is 3.\n\nSimilarly, by symmetry, (M_v M_{v+1})^3 = I for all adjacent pairs on C_4.\n\nAnd for non-adjacent pairs, M_v M_u = M_u M_v (they commute).\n\nSo the group is generated by 4 reflections with relations (M_i M_{i+1})^3 = I and M_i M_j = M_j M_i for |i-j| = 2. This is the Coxeter group of type... let me think. The Coxeter graph has 4 vertices in a cycle, with all edges labeled 3. \n\nA cycle of 4 vertices with all edges labeled 3 is the affine Dynkin diagram Ã_3 (or D̃_3, which is the same as Ã_3). Affine Coxeter groups are INFINITE!\n\nBut we saw that C_4 terminates in our examples! So either my computation is wrong, or the group being infinite doesn't mean the game doesn't terminate.\n\nWait, let me double-check (M_1 M_2)^3 = I.\n\nActually, let me recheck (M_1 M_2)^2 more carefully.\n\nM_1 M_2:\nRow 1 of M_1: [-1, 0, 0, 0]. Times M_2: [-1·1, -1·1, 0, 0] = [-1, -1, 0, 0]. ✓\nRow 2 of M_1: [1, 1, 0, 0]. Times M_2: [1·1+1·0, 1·1+1·(-1), 0, 0] = [1, 0, 0, 0]. ✓\nRow 3 of M_1: [0, 0, 1, 0]. Times M_2: [0, 1, 1, 0]. ✓\nRow 4 of M_1: [1, 0, 0, 1]. Times M_2: [1·1+1·0, 1·1+1·0, 0, 1] = [1, 1, 0, 1]. ✓\n\n(M_1 M_2)^2 = (M_1 M_2)(M_1 M_2):\nLet A = M_1 M_2 = [[-1,-1,0,0],[1,0,0,0],[0,1,1,0],[1,1,0,1]].\nA^2:\nRow 1: [-1,-1,0,0] · A = [(-1)(-1)+(-1)(1), (-1)(-1)+(-1)(0), 0, 0] = [0, 1, 0, 0]. ✓\nRow 2: [1,0,0,0] · A = [1·(-1), 1·(-1), 0, 0] = [-1, -1, 0, 0]. ✓\nRow 3: [0,1,1,0] · A = [0+1+0, 0+0+1, 0+0+1, 0] = [1, 1, 1, 0]. ✓\nRow 4: [1,1,0,1] · A = [(-1)+1+0+1, (-1)+0+0+1, 0, 0+0+0+1] = [1, 0, 0, 1]. ✓\n\nA^3 = A^2 · A:\nRow 1: [0,1,0,0] · A = [1, 0, 0, 0]. ✓\nRow 2: [-1,-1,0,0] · A = [1-1, 1+0, 0, 0] = [0, 1, 0, 0]. ✓\nRow 3: [1,1,1,0] · A = [-1+1+0, -1+0+1, 0+0+1, 0] = [0, 0, 1, 0]. ✓\nRow 4: [1,0,0,1] · A = [-1+0+0+1, -1+0+0+1, 0, 0+1] = [0, 0, 0, 1]. ✓\n\nSo indeed (M_1 M_2)^3 = I. The Coxeter group of C_4 with these relations is the affine Ã_3, which is infinite. But the game terminates!\n\nThis means the group being infinite does NOT imply the game doesn't terminate. So my approach via Coxeter groups is not directly applicable, or I'm missing something.\n\nHmm wait. Let me reconsider. The Coxeter group might be infinite, but the game might still terminate because the \"amplitude\" (sum) constraint restricts us to a region where the game must terminate.\n\nActually, in the numbers game, the standard result is: the game terminates for ALL initial positions (with positive sum) iff the Coxeter group is finite. If the group is infinite, there exist initial positions for which the game doesn't terminate. But not ALL initial positions lead to non-termination.\n\nSo for C_4, the group is infinite (affine type), which means there EXIST initial positions with positive sum for which the game doesn't terminate. But many initial positions do terminate.\n\nLet me try to find a non-terminating position for C_4.\n\nFor affine Coxeter groups, the null root (the vector in the radical of the bilinear form) gives the direction of non-termination. The game doesn't terminate when the initial position has a component along the null root that's \"too large.\"\n\nFor C_4 (affine Ã_3), the null root is the all-ones vector (1,1,1,1) (up to scaling). But the sum is conserved and positive, so we always have a component along (1,1,1,1). \n\nHmm, but the all-ones vector is in the kernel of B, and the sum being positive means we have a positive component along this kernel direction. In the affine case, the game terminates iff this component (the \"level\") is positive, which it always is in our case!\n\nWait, that would mean the game always terminates for C_4, contradicting the group being infinite. Let me think more carefully.\n\nActually, in the affine numbers game, the situation is: the game terminates for all positions with positive \"amplitude\" (which in our case is the sum). The affine group is infinite, but the game still terminates because the positive amplitude constrains the game to a finite number of chambers.\n\nThe non-termination happens for positions with zero or negative amplitude. Since our game always has positive sum (amplitude), the game always terminates for affine-type graphs!\n\nSo the distinction is:\n- Finite Coxeter group (finite type): game terminates for all positions (including zero and negative amplitude? or just positive?).\n- Affine Coxeter group (affine type): game terminates for all positions with positive amplitude, but not for zero amplitude.\n- Indefinite Coxeter group (indefinite type): game doesn't terminate for some positions with positive amplitude.\n\nIf this is correct, then the game always terminates (for positive sum) iff the graph is of finite or affine type.\n\nNow, the question is: which graphs G give finite or affine Coxeter groups with the specific weighting 2/deg(v)?\n\nThe Coxeter matrix is determined by the order of M_u M_v for adjacent u, v. We computed that for C_4 (all degrees 2), the order is 3. Let me compute the order for general adjacent vertices.\n\nFor adjacent u, v with degrees d_u, d_v:\nM_u M_v = (I + d_u e_u^T)(I + d_v e_v^T) = I + d_u e_u^T + d_v e_v^T + d_u (e_u^T d_v) e_v^T.\n\ne_u^T d_v = (d_v)_u = 2/d_v (since u ~ v). So M_u M_v = I + d_u e_u^T + d_v e_v^T + (2/d_v) d_u e_v^T.\n\nThis is getting complex. Let me compute (M_u M_v)^k for small cases to find the order.\n\nActually, the order of M_u M_v depends on the \"angle\" between the reflections, which is determined by the bilinear form B. Specifically, if B(α_u, α_v) / (|α_u| · |α_v|) = -cos(π/m), then the order is m.\n\nBut we need to find B first, which is the challenge.\n\nLet me try a different approach. Let me compute the order of M_u M_v directly for a general edge.\n\nConsider just the 2-dimensional subspace spanned by e_u and e_v (and the rest is identity). On this subspace:\n\nM_u acts on (w_u, w_v):\nw_u → -w_u\nw_v → w_v + (2/d_u) w_u\n\nSo M_u = [[-1, 0], [2/d_u, 1]] on (w_u, w_v).\n\nM_v acts on (w_u, w_v):\nw_u → w_u + (2/d_v) w_v\nw_v → -w_v\n\nSo M_v = [[1, 2/d_v], [0, -1]] on (w_u, w_v).\n\nM_u M_v = [[-1, 0], [2/d_u, 1]] · [[1, 2/d_v], [0, -1]] = [[-1, -2/d_v], [2/d_u, 2/(d_u d_v) - 1]].\n\nWait, but this is only the action on the (u,v) coordinates. The full matrices also affect neighbors of u and v. So the 2x2 computation isn't sufficient.\n\nHmm, but actually, for the purpose of finding the order of M_u M_v, we need the full matrix. However, if u and v have no common neighbors, then the action on the (u,v) coordinates and on the other coordinates might decouple somewhat.\n\nThis is getting very complicated. Let me try a different approach.\n\nLet me think about the problem from the perspective of the potential function again, but more carefully.\n\nWe have the sum S = Σ w_v conserved and positive. The game terminates when all w_v ≥ 0.\n\nConsider the potential Φ = Σ_v w_v². We showed ΔΦ = 4w_v · S_v / deg(v) where S_v = Σ_{u ∈ N[v]} w_u.\n\nNow, S_v = w_v + Σ_{u~v} w_u. And S = S_v + Σ_{u ∉ N[v]} w_u. So S_v = S - Σ_{u ∉ N[v]} w_u.\n\nWhen we fire v (w_v < 0), ΔΦ = 4w_v · S_v / deg(v). Since w_v < 0, ΔΦ < 0 iff S_v > 0.\n\nIf S_v > 0, Φ decreases. If S_v < 0, Φ increases. If S_v = 0, Φ doesn't change.\n\nThe game might not terminate if we can keep firing vertices where S_v ≤ 0 (so Φ doesn't decrease).\n\nBut can S_v be ≤ 0 when w_v < 0? S_v = w_v + Σ_{u~v} w_u. If w_v < 0 and the sum of neighbors is also very negative, then S_v < 0.\n\nHmm, but the total sum S > 0. So we can't have all S_v < 0. In fact, Σ_v S_v = Σ_v (w_v + Σ_{u~v} w_u) = Σ_v w_v + Σ_v Σ_{u~v} w_u = S + Σ_u deg(u) w_u = S + Σ_u deg(u) w_u. This is not simply related to S.\n\nLet me think about this differently. Maybe I should consider a weighted sum of squares.\n\nLet me try Ψ = Σ_v c_v w_v² for some vertex weights c_v > 0.\n\nΔΨ when firing v (w_v < 0):\n= Σ_{u~v} c_u [(w_u + 2w_v/deg(v))² - w_u²]\n= Σ_{u~v} c_u [4w_v w_u/deg(v) + 4w_v²/deg(v)²]\n= 4w_v/deg(v) Σ_{u~v} c_u w_u + 4w_v²/deg(v)² Σ_{u~v} c_u.\n\nFor Ψ to decrease when w_v < 0, we need:\n4w_v/deg(v) Σ_{u~v} c_u w_u + 4w_v²/deg(v)² Σ_{u~v} c_u < 0\n⟺ Σ_{u~v} c_u w_u + w_v/deg(v) Σ_{u~v} c_u > 0 (dividing by 4w_v/deg(v) < 0 and flipping inequality)\n⟺ Σ_{u~v} c_u w_u > -w_v/deg(v) Σ_{u~v} c_u\n⟺ Σ_{u~v} c_u w_u > |w_v|/deg(v) Σ_{u~v} c_u (since w_v < 0)\n\nThis is a weighted sum of neighbor weights being greater than a threshold. This doesn't always hold, so a simple weighted sum of squares doesn't work as a monotone potential.\n\nLet me try a completely different potential. What about the \"dual\" potential involving the Green's function?\n\nLet L be the Laplacian of G, and L^+ its pseudoinverse. Consider:\n\nΨ(w) = w^T L^+ w = Σ_{u,v} w_u (L^+)_{uv} w_v.\n\nThis is the \"energy\" of the function w (how non-constant it is). Since S is conserved, we can decompose w = (S/n)1 + w' where w' ⊥ 1, and Ψ(w) = Ψ(w') (since L^+ 1 = 0).\n\nWhen we fire v: w → M_v w. ΔΨ = (M_v w)^T L^+ (M_v w) - w^T L^+ w.\n\nSince M_v = I + d_v e_v^T:\nΔΨ = w^T (I + d_v e_v^T)^T L^+ (I + d_v e_v^T) w - w^T L^+ w\n= w^T (L^+ + e_v d_v^T L^+ + L^+ d_v e_v^T + e_v d_v^T L^+ d_v e_v^T) w - w^T L^+ w\n= w^T (e_v d_v^T L^+ + L^+ d_v e_v^T + e_v d_v^T L^+ d_v e_v^T) w\n= 2 w_v (d_v^T L^+ w) + (d_v^T L^+ d_v) w_v².\n\nNow, d_v = -2e_v + (2/deg(v)) Σ_{u~v} e_u = -2e_v + (2/deg(v)) · (column of adjacency matrix at v).\n\nActually, d_v = -2e_v + (2/deg(v)) A e_v where A is the adjacency matrix. And L = D - A where D = diag(deg). So A e_v = D e_v - L e_v = deg(v) e_v - L e_v. Thus:\n\nd_v = -2e_v + (2/deg(v))(deg(v) e_v - L e_v) = -2e_v + 2e_v - (2/deg(v)) L e_v = -(2/deg(v)) L e_v.\n\nSo d_v = -(2/deg(v)) L e_v. That's a nice formula!\n\nNow, d_v^T L^+ w = -(2/deg(v)) e_v^T L L^+ w = -(2/deg(v)) e_v^T (I - (1/n)J) w (since L L^+ = I - (1/n)J where J is all-ones).\n\ne_v^T (I - (1/n)J) w = w_v - S/n where S = Σ w_u.\n\nSo d_v^T L^+ w = -(2/deg(v))(w_v - S/n).\n\nAnd d_v^T L^+ d_v = (4/deg(v)²) e_v^T L L^+ L e_v = (4/deg(v)²) e_v^T (I - (1/n)J) L e_v = (4/deg(v)²) e_v^T L e_v (since L e_v ⊥ 1, so J L e_v = 0).\n\ne_v^T L e_v = L_{vv} = deg(v).\n\nSo d_v^T L^+ d_v = 4/deg(v).\n\nTherefore:\nΔΨ = 2 w_v · (-(2/deg(v))(w_v - S/n)) + (4/deg(v)) w_v²\n= -4w_v(w_v - S/n)/deg(v) + 4w_v²/deg(v)\n= (-4w_v² + 4w_v S/n + 4w_v²)/deg(v)\n= 4w_v S/(n · deg(v)).\n\nSince S > 0 and we fire v only when w_v < 0:\nΔΨ = 4w_v S/(n deg(v)) < 0.\n\nSo Ψ = w^T L^+ w is strictly decreasing with every firing! This is the key potential function.\n\nSince Ψ ≥ 0 (L^+ is positive semidefinite on the sum-zero subspace, and Ψ only depends on the sum-zero component), and Ψ decreases by at least... well, it decreases by 4|w_v|S/(n deg(v)) > 0 with each firing. But this decrease could be arbitrarily small if |w_v| is small.\n\nHowever, the key point is: Ψ is strictly decreasing and bounded below by 0. If the game doesn't terminate, we get an infinite sequence of firings with Ψ decreasing to some limit ≥ 0. The decreases must tend to 0, so |w_v| → 0 for the fired vertices.\n\nBut does |w_v| → 0 imply the game terminates? Not directly, because we might fire vertices with smaller and smaller negative weights.\n\nHmm, but actually, let me think about this more carefully. The game terminates when all w_v ≥ 0. If the game doesn't terminate, there's always some vertex with w_v < 0 to fire.\n\nLet me think about whether Ψ → 0 implies all w_v ≥ 0.\n\nΨ = w'^T L^+ w' where w' = w - (S/n)1. If Ψ → 0, then w' → 0 (since L^+ is positive definite on the sum-zero subspace), so w → (S/n)1. Since S > 0, (S/n) > 0, so all w_v → S/n > 0. This means eventually all w_v > 0, and the game terminates!\n\nWait, but this argument assumes the game can continue indefinitely with Ψ → 0. Let me be more careful.\n\nIf the game doesn't terminate, there's an infinite sequence of firings. Ψ is strictly decreasing and ≥ 0, so Ψ converges to some limit ℓ ≥ 0. The decreases ΔΨ = 4w_v S/(n deg(v)) → 0, so w_v → 0 for the fired vertices.\n\nBut we need to show that ALL weights converge to S/n, not just the fired ones. \n\nActually, let me think about this differently. The state w evolves as w_{k+1} = M_{v_k} w_k where v_k is the vertex fired at step k. We have Ψ(w_k) decreasing and converging.\n\nThe key question is: can the game continue indefinitely?\n\nLet me think about a compactness argument. The weights w lie in the set {w : Σ w_v = S, Ψ(w) ≤ Ψ(w_0)}. This set is compact (it's a closed and bounded subset of the hyperplane Σ w_v = S, since Ψ is a positive definite quadratic form on this hyperplane).\n\nSince the set is compact and Ψ is strictly decreasing, the game must terminate in finite time. Here's why: \n\nSuppose the game doesn't terminate. Then there's an infinite sequence w_0, w_1, w_2, ... in the compact set. By compactness, there's a convergent subsequence w_{k_j} → w*. Since Ψ is continuous and decreasing, Ψ(w*) = ℓ = lim Ψ(w_k).\n\nNow, at each step, we fire a vertex v_k with (w_k)_{v_k} < 0. Since there are finitely many vertices, some vertex v* is fired infinitely often. Along the subsequence where v* is fired, (w_{k_j})_{v*} < 0 and (w_{k_j})_{v*} → 0 (since ΔΨ → 0). \n\nBut also, when v* is fired, the weight at v* becomes -w_{v*} > 0. So after firing v*, the weight at v* is positive. For v* to be fired again, its weight must become negative again, which means some neighbor of v* must be fired and push v*'s weight down.\n\nThis is getting complicated. Let me think about whether the compactness + strict decrease argument actually proves termination.\n\nActually, the issue is that Ψ decreases by 4|w_v|S/(n deg(v)), and |w_v| could be very small, so the decrease could be very small, and we could have infinitely many steps with total decrease bounded.\n\nBut here's the thing: the state space is compact, and at each step, we fire a vertex with strictly negative weight. If the game doesn't terminate, there's always a vertex with negative weight. \n\nLet me think about it this way: suppose the game doesn't terminate. Then there's an infinite sequence. By compactness, w_k has a limit point w*. At w*, there must be some vertex with w*_v < 0 (otherwise the game would have terminated). Say w*_{v*} < 0.\n\nBut then, for k large enough (along the subsequence converging to w*), (w_k)_{v*} < 0 (since w*_{v*} < 0 and the convergence is close). So v* could be fired. But the game might fire a different vertex.\n\nHmm, the issue is that the game might not fire v* even though v* has negative weight. The player has a choice.\n\nWait, but the problem says \"the game always ends in finite time.\" I think this means: regardless of the player's choices, the game terminates. So we need to show that ANY sequence of valid firings terminates.\n\nWith the potential Ψ strictly decreasing, here's the argument:\n\nClaim: The game terminates in finite time regardless of choices.\n\nProof: Suppose not. Then there's an infinite sequence of firings. Ψ is strictly decreasing and bounded below by 0, so Ψ converges. The state w_k lies in the compact set K = {w : Σ w_v = S, Ψ(w) ≤ Ψ(w_0)}, so w_k has a convergent subsequence.\n\nLet w* be a limit point. Since the game doesn't terminate, at each step some vertex has negative weight. \n\nNow I need to show that w* has a vertex with negative weight, and that this leads to a contradiction.\n\nActually, let me think about this more carefully. The potential Ψ decreases by exactly 4|w_v|S/(n deg(v)) at each step. If the game is infinite, the total decrease is finite (bounded by Ψ(w_0)), so Σ_k |w_{v_k}| < ∞ (up to constants). This means |w_{v_k}| → 0.\n\nBut this doesn't directly give a contradiction. The fired vertices have weights approaching 0, but other vertices might have significant negative weights.\n\nHmm, let me think about whether the game could \"avoid\" firing certain vertices.\n\nActually, I realize the potential argument alone might not suffice for a rigorous proof of termination. Let me think about this differently.\n\nLet me reconsider. The potential Ψ = w^T L^+ w decreases by 4|w_v|S/(n deg(v)) > 0 at each step. The state space is compact. \n\nHere's a cleaner argument: Consider the function f(w) = min_v w_v (the minimum weight). The game terminates when f(w) ≥ 0. \n\nSuppose the game doesn't terminate. Then f(w_k) < 0 for all k. Since the state space is compact, f is bounded, and there's a subsequence where w_k → w* with f(w*) ≤ 0.\n\nIf f(w*) < 0, then for k large enough, f(w_k) < f(w*)/2 < 0, so there's always a vertex with weight at most f(w*)/2. When we fire such a vertex, Ψ decreases by at least 4|f(w*)/2|S/(n · max_deg) > 0. But Ψ can only decrease by a finite total amount, so this can happen only finitely many times. Contradiction.\n\nIf f(w*) = 0, then... hmm, this is the tricky case. The minimum weight approaches 0 from below.\n\nActually wait, let me reconsider. If f(w*) = 0, it means the minimum weight approaches 0. But the game doesn't terminate, so f(w_k) < 0 for all k. The fired vertex has w_{v_k} < 0, and |w_{v_k}| → 0. \n\nBut here's the thing: when we fire v_k, the weight at v_k becomes -w_{v_k} > 0 (small positive). The neighbors of v_k get 2w_{v_k}/deg(v_k) added (small negative). So the operation becomes a \"small\" perturbation. The state is converging to some w* with f(w*) = 0.\n\nBut can the game continue with smaller and smaller perturbations? In the limit, the perturbations go to 0, and the state converges. But the game is discrete, so we need to show it can't have infinitely many steps.\n\nHmm, actually, I think the compactness argument does work, but we need to be more careful. Let me think again.\n\nThe key insight: Ψ decreases by 4|w_v|S/(n deg(v)) at each step. If the game is infinite, Σ |w_{v_k}| < ∞ (since the total decrease is bounded). In particular, |w_{v_k}| → 0.\n\nNow, when we fire v_k (with w_{v_k} < 0, |w_{v_k}| → 0):\n- w_{v_k} becomes -w_{v_k} (small positive)\n- Each neighbor u gets 2w_{v_k}/deg(v_k) (small negative change)\n\nSo the total change in the state at step k is O(|w_{v_k}|). Since Σ |w_{v_k}| < ∞, the total change Σ ||w_{k+1} - w_k|| < ∞ (in any norm). This means w_k converges (it's a Cauchy sequence).\n\nLet w* = lim w_k. Since the game doesn't terminate, f(w_k) < 0 for all k, so f(w*) ≤ 0.\n\nCase 1: f(w*) < 0. Then for large k, f(w_k) < f(w*)/2 < 0. The fired vertex has |w_{v_k}| ≥ |f(w*)/2|, so each firing decreases Ψ by at least c > 0. But Ψ is bounded below, so only finitely many firings. Contradiction.\n\nCase 2: f(w*) = 0. Then w* ≥ 0 (all weights non-negative) and Σ w*_v = S > 0. So w* is a non-negative vector with positive sum. But the game hasn't terminated, so at each step, some weight is negative. The weights are converging to w* ≥ 0, so the negative weights are approaching 0.\n\nNow, I need to show this can't happen. The issue is: can we have an infinite sequence of firings with the state converging to a non-negative vector?\n\nWhen we fire v_k with w_{v_k} < 0 (small), the weight at v_k becomes -w_{v_k} > 0 (small), and neighbors decrease slightly. For the game to continue, some vertex must become negative. \n\nIf w* > 0 (strictly positive), then for large k, all w_k > 0 (since w_k → w*), so the game terminates. Contradiction.\n\nIf w* ≥ 0 with some w*_v = 0, then for large k, w_{k,v} is close to 0 and could be slightly negative. We fire such a vertex, making it slightly positive, and decreasing its neighbors slightly. The neighbors that are close to 0 might become slightly negative, and so on.\n\nThis is the delicate case. Can this continue forever?\n\nLet me think about a specific example. Consider C_4 with weights approaching (a, 0, b, 0) where a, b > 0 and a + b = S. The vertices with weight 0 could oscillate around 0.\n\nActually, let me try to construct a non-terminating example for C_4.\n\nLet me use the fact that for C_4, d_v = -(2/deg(v)) L e_v = -(2/2) L e_v = -L e_v. So the operation at v is: w → w - (L e_v) w_v = w - w_v L e_v.\n\nL e_v for C_4 (deg = 2): L e_1 = 2e_1 - e_2 - e_4. So firing vertex 1: w → w - w_1 (2e_1 - e_2 - e_4) = w + |w_1|(2e_1 - e_2 - e_4) (since w_1 < 0). So w_1 → -w_1, w_2 → w_2 + |w_1|, w_4 → w_4 + |w_1|. Wait, that doesn't match. Let me recheck.\n\nd_v = -(2/deg(v)) L e_v. For C_4, deg = 2, so d_v = -L e_v. d_1 = -L e_1 = -(2e_1 - e_2 - e_4) = -2e_1 + e_2 + e_4. So (d_1)_1 = -2, (d_1)_2 = 1, (d_1)_4 = 1. ✓ (matches what we had before).\n\nThe operation: w → w + d_v w_v = w - L e_v w_v (for C_4). So w → w - w_v L e_v.\n\nSince w_v < 0, this is w → w + |w_v| L e_v. But L e_v has positive entry at v and negative entries at neighbors. So w_v increases (becomes positive) and neighbors decrease. ✓\n\nNow, for the potential: Ψ = w^T L^+ w, and ΔΨ = 4w_v S/(n deg(v)) = 4w_v S/(4·2) = w_v S/2 (for C_4 with n=4, deg=2). Since w_v < 0 and S > 0, ΔΨ < 0. ✓\n\nNow, can the game be infinite for C_4? Based on the potential argument, if the game is infinite, w_k → w* with w* ≥ 0 and some entries 0.\n\nLet me try to see if there's a non-terminating sequence. Consider starting near w* = (1/2, 0, 1/2, 0) (sum = 1). \n\nStart with w = (1/2, -ε, 1/2, 0) for small ε > 0. Sum = 1 - ε. Hmm, need to adjust. Let me use w = (1/2 + ε/2, -ε, 1/2 + ε/2, 0). Sum = 1.\n\nFire vertex 2 (w_2 = -ε): w_2 → ε, w_1 → 1/2 + ε/2 + (-ε) = 1/2 - ε/2, w_3 → 1/2 + ε/2 + (-ε) = 1/2 - ε/2. New: (1/2 - ε/2, ε, 1/2 - ε/2, 0).\n\nNow if ε is small, 1/2 - ε/2 > 0, so vertices 1 and 3 are positive. Vertex 4 is 0 (non-negative). Game terminates!\n\nWhat if I start with w = (0, -ε, 0, 1 + ε)? Sum = 1.\nFire vertex 2: w_2 → ε, w_1 → 0 + (-ε) = -ε, w_3 → 0 + (-ε) = -ε. New: (-ε, ε, -ε, 1+ε).\nFire vertex 1: w_1 → ε, w_2 → ε + (-ε) = 0, w_4 → 1+ε + (-ε) = 1. New: (ε, 0, -ε, 1).\nFire vertex 3: w_3 → ε, w_2 → 0 + (-ε) = -ε, w_4 → 1 + (-ε) = 1-ε. New: (ε, -ε, ε, 1-ε).\nFire vertex 2: w_2 → ε, w_1 → ε + (-ε) = 0, w_3 → ε + (-ε) = 0. New: (0, ε, 0, 1-ε). All non-negative (if ε ≤ 1). Terminates!\n\nHmm, it keeps terminating. Let me try to think about whether C_4 can have a non-terminating game.\n\nActually, maybe the answer is that the game ALWAYS terminates for ALL connected graphs! The potential Ψ = w^T L^+ w is strictly decreasing, and the compactness argument shows the game must terminate.\n\nWait, but I was worried about the case f(w*) = 0 with some entries exactly 0. Let me think about this more carefully.\n\nIf w* ≥ 0 with some w*_v = 0, and w_k → w*, then for large k, the negative weights are very small. When we fire a vertex v with w_v ≈ 0⁻, the change to the state is O(|w_v|) ≈ 0. The state barely changes. But the game requires firing a vertex with strictly negative weight, and after firing, that vertex becomes positive (but barely). For the game to continue, some other vertex must be negative.\n\nThe question is: can this \"barely negative\" oscillation continue forever?\n\nLet me think about it in terms of the potential. The total decrease of Ψ is bounded by Ψ(w_0). Each firing decreases Ψ by 4|w_v|S/(n deg(v)). So Σ |w_{v_k}| ≤ Ψ(w_0) · n · max_deg / (4S) < ∞.\n\nNow, the total change to the state: ||w_{k+1} - w_k|| = ||d_{v_k}|| · |w_{v_k}|. Since ||d_v|| is bounded (by a constant depending on the graph), Σ ||w_{k+1} - w_k|| < ∞. So w_k is a Cauchy sequence and converges to some w*.\n\nNow, w* ≥ 0 (since if w* had a negative entry, we'd be in Case 1, which gives a contradiction).\n\nIf w* > 0 (strictly), the game terminates (all weights positive for large k). \n\nIf w* ≥ 0 with some zero entries: Let Z = {v : w*_v = 0} and P = {v : w*_v > 0}. For large k, vertices in P have w_{k,v} > 0 (bounded away from 0), so they're never fired. Only vertices in Z can be fired (they have w_{k,v} close to 0, possibly slightly negative).\n\nWhen we fire v ∈ Z (with w_{k,v} < 0, small):\n- w_{k,v} → -w_{k,v} > 0 (small)\n- Neighbors of v get 2w_{k,v}/deg(v) (small negative)\n\nThe neighbors of v that are in P get a small decrease but remain positive (since they're bounded away from 0). The neighbors of v that are in Z get a small decrease and might become negative.\n\nSo the game restricted to Z is: we have vertices in Z with weights near 0, and firing a vertex in Z slightly decreases its neighbors in Z. The vertices in P act as \"buffers\" that absorb some of the decrease.\n\nBut the total decrease to Z is bounded (since Σ |w_{v_k}| < ∞), and the weights in Z are converging to 0. The question is whether the \"sub-game\" on Z can continue forever.\n\nActually, I think the key observation is: the weights in Z are converging to 0, and the total \"mass\" that can be transferred is finite. Each firing in Z transfers a small amount from the fired vertex to its neighbors (in Z and P). The amount transferred is O(|w_v|), and Σ |w_v| < ∞. So the total transfer is finite, and the game must terminate.\n\nMore rigorously: the weights in Z satisfy |w_{k,v}| → 0 for all v ∈ Z. The firings only happen at vertices in Z (for large k). Each firing at v ∈ Z changes w_v from -|w_v| to |w_v| (a change of 2|w_v|) and changes each neighbor by 2w_v/deg(v) = -2|w_v|/deg(v). \n\nThe total \"activity\" Σ |w_{v_k}| is finite. Since each firing changes the state by O(|w_{v_k}|), and the total change is finite, the state converges. The limit w* has w*_v = 0 for v ∈ Z.\n\nNow, here's the key: after the state converges to w*, no more firings can occur (since all weights are ≥ 0). But the game is supposed to be infinite, so there must be infinitely many firings. Each firing changes the state, and the changes go to 0. But the state is converging, so the changes must go to 0, which they do. \n\nThe question is: is it possible to have infinitely many firings with the state converging? In a discrete game, this would require the firings to become \"smaller and smaller\" but never stop.\n\nI think the answer is NO, because of the following: the game fires a vertex with strictly negative weight. After firing, that vertex has positive weight. For it to be fired again, its weight must become negative again, which requires a neighbor to be fired. This creates a \"chain\" of firings. The total \"energy\" (Σ |w_{v_k}|) is finite, so the total chain length is finite.\n\nHmm, but this isn't quite rigorous. Let me think about it differently.\n\nActually, I think the potential argument IS sufficient, but we need a slightly more careful argument. Here's the key:\n\nThe potential Ψ decreases by 4|w_v|S/(n deg(v)) at each step. The state space is compact. The game terminates when all w_v ≥ 0.\n\nSuppose the game doesn't terminate. Then w_k → w* with w* ≥ 0 (as shown). Let Z = {v : w*_v = 0}. For large k, only vertices in Z can have negative weights (vertices not in Z have weights bounded away from 0).\n\nNow, consider the sum of weights in Z: Σ_{v∈Z} w_{k,v}. This is a continuous function of w_k, converging to 0. \n\nWhen we fire v ∈ Z: w_v changes from w_v to -w_v (change of -2w_v > 0 since w_v < 0), and each neighbor u gets 2w_v/deg(v). The change in Σ_{z∈Z} w_z is:\n- From v: -2w_v (positive, since w_v < 0)\n- From neighbors in Z: Σ_{u∈Z, u~v} 2w_v/deg(v) (negative,",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 20997,
+        "completion_tokens": 25000,
+        "cached_tokens": 12398
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 20997,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12398,
+    "total_steps": 9
+  }
+}

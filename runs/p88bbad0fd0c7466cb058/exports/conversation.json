@@ -1,0 +1,1060 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "bird-scarf",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-22T02:06:46.760726+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-22T02:06:46.763829+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-22T02:06:46.772318+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-22T02:06:46.764200+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p88bbad0fd0c7466cb058 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Friday, 2026-08-21\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-22T02:06:46.764912+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p88bbad0fd0c7466cb058/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nA positive integer is called a \"good number\" if it can be represented as the sum of squares of pairwise differences of $1893$ integers. Find the smallest positive integer $a$ that is not a perfect square, such that multiplying any good number by $a$ still yields a good number.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"db-delete-backup-first\" path=\"/Users/user/.devin/rules/db-delete-backup-first.md\">\n# 删除数据库数据前必须先备份\n\n**硬约束**：删除数据库的任何数据之前，必须先备份相关的数据，确保删除错误的情况下可以恢复数据。\n\n## 为什么\n\nDB 删除操作不可逆。一旦执行 DELETE/DROP/TRUNCATE/批量删除，数据就没了。如果删除条件写错（比如 WHERE 条件不精确、dry-run 和实际执行结果不一致、脚本有 bug），会丢失不该删的数据，且无法恢复。\n\n历史教训（2026-08-21）：`cleanup_continuation_runs.py` 删除了 p27_continuation_runs 中 224 条 prepared 记录，删除后才发现实际删除数（224）与 dry-run 预期数（223）不一致——因为 collector 在 dry-run 和实际执行之间又创建了 1 条记录。虽然这次差异无害，但如果差异方向反过来（多删了不该删的），就无法恢复了。\n\n## 必做动作\n\n### 步骤1：备份\n\n删除前必须把要删除的数据导出到文件。备份文件路径记录在操作审计文档中。\n\n```bash\n# ArangoDB：用 AQL 导出要删除的记录到 JSON 文件\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\n# 用与删除相同的查询条件查出要删除的完整记录\nrecords = list(db.aql.execute('FOR r IN collection FILTER <删除条件> RETURN r', ttl=120))\nwith open('backup_<collection>_<date>.json', 'w') as f:\n    json.dump(records, f, ensure_ascii=False, indent=2)\nprint(f'备份 {len(records)} 条记录到 backup_<collection>_<date>.json')\n\"\n```\n\n### 步骤2：验证备份\n\n确认备份文件非空、记录数与预期一致、每条记录有完整的字段（特别是 `_key`/`_id`，恢复时需要）。\n\n### 步骤3：执行删除\n\n备份完成且验证通过后，才能执行删除。\n\n### 步骤4：记录审计\n\n在 dev-docs 中记录：备份文件路径、删除条件、删除数量、备份记录数。\n\n## 恢复方法\n\n如果删除后发现错误，用备份文件恢复：\n\n```bash\n# ArangoDB：从 JSON 文件恢复\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\nwith open('backup_<collection>_<date>.json') as f:\n    records = json.load(f)\ncol = db.collection('collection')\nfor r in records:\n    r.pop('_rev', None)  # _rev 不能手动设置\n    col.insert(r)\nprint(f'恢复 {len(records)} 条记录')\n\"\n```\n\n## 禁止\n\n- 禁止不备份就直接执行批量删除\n- 禁止只 dry-run 不备份就执行删除——dry-run 和实际执行之间可能有状态变化\n- 禁止备份后不验证备份文件就执行删除\n- 禁止删除后不记录备份文件路径——找不到备份=没备份\n\n## 例外\n\n| 情况 | 是否需要备份 |\n|---|---|\n| 批量删除（DELETE/FOR...REMOVE） | ✅ 必须 |\n| DROP collection | ✅ 必须（先导出全集合） |\n| TRUNCATE | ✅ 必须（先导出全集合） |\n| 覆盖写入（insert overwrite） | ✅ 必须（先导出被覆盖的数据） |\n| 单条记录删除 | 可不备份（影响小，可通过日志追溯） |\n| 单条记录状态更新（非删除） | 不需要 |\n| 只读查询 | 不需要 |\n\n## 与其他 rule 的关系\n\n| rule | 关系 |\n|---|---|\n| `closure-checklist-impact-analysis` | commit 前分析影响——本 rule 在删除操作前就触发，更早 |\n| `verify-with-logs` | 删除后验证——本 rule 是删除前预防 |\n| 全局 AGENTS.md §可审计性纪律 | \"重大分析、调查、审查必须留下 file:line 定位\"——本 rule 是其具体化到 DB 删除场景 |\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在README.md中只记录脚本路径和一行用法示例。AGENTS.md是铁律和每次必须知道的认知，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。脚本分两类，存放位置不同（见下方\"脚本分类\"）。\n\n4. **在项目README.md中做好索引**——持久化脚本必须在项目README.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n6. **临时脚本必须在相关文档中建立索引**——如果某项任务有对应的方案文档或调查报告（如`dev-docs/`下的文档），临时脚本必须在文档中记录：脚本路径、用途、用法。这是为了让未来的审计AI可以追溯——如果后来审计发现异常，可以知道是哪个脚本产生的结果，检查脚本是否有问题。\n\n## 脚本分类\n\n脚本分两类，存放位置和索引方式不同：\n\n### 持久化脚本（可复用的操作工具）\n\n- **定义**：会重复使用的操作（如清理僵尸session、批量落盘、进度查询、队列准备）\n- **存放位置**：项目已有的脚本目录或项目的`scripts/`目录\n- **索引位置**：项目README.md\n- **维护方式**：持续改进，不重写\n\n### 临时脚本（一次性任务专用）\n\n- **定义**：为某个具体任务写的一次性脚本（如数据迁移、一次性查询、调查验证脚本）\n- **存放位置**：项目的`tmp-scripts/`子目录\n- **索引位置**：如果该任务有相关文档（方案文档、调查报告等），在文档中记录脚本路径+用途+用法；如果没有相关文档，在README.md中记录\n- **审计目的**：临时脚本的文档索引是为了审计可追溯——如果后来审计发现数据异常或结果异常，审计AI可以定位是哪个脚本产生的，检查脚本逻辑是否有bug\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n- **临时脚本的文档索引保证审计可追溯**——如果审计发现异常结果，可以回溯到产生该结果的脚本，检查脚本逻辑是否有bug\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **写成持久化脚本，放scripts/，索引到README.md** |\n| 一次性任务专用脚本（数据迁移、调查验证） | **写成临时脚本，放tmp-scripts/，索引到相关文档** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 判断脚本类型：持久化（可复用）还是临时（一次性任务）\n3. 检查项目内是否已有类似脚本（grep搜索、看README.md索引）\n4. **已有** → 改进那个脚本（edit工具修改），编译验证\n5. **没有** → 创建新文件：\n   - 持久化脚本 → 放项目脚本目录（如`scripts/`）\n   - 临时脚本 → 放`tmp-scripts/`子目录\n6. 建立索引：\n   - 持久化脚本 → 在项目README.md中记录\n   - 临时脚本 → 在相关文档中记录（如方案文档、调查报告）；无相关文档则在README.md中记录\n7. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新README.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是铁律不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ❌ **临时脚本不建立文档索引**——审计AI无法追溯异常结果的来源脚本\n- ❌ **临时脚本放到`/tmp/`或home目录**——不在项目内，无法git追踪，无法审计\n- ✅ 改进已有脚本的某个函数（而非另写新的）\n- ✅ 新建脚本并在README.md代码索引中记录\n- ✅ README.md中只写一行用法示例，不写完整调用参数和输出\n- ✅ 临时调查脚本放`tmp-scripts/`，在调查报告文档中记录脚本路径和用途\n</rule>\n\n<rule name=\"readme-structure-index\" path=\"/Users/user/.devin/rules/readme-structure-index.md\">\n# AGENTS.md与README.md的职责分工\n\n## 硬约束\n\n**AGENTS.md中不索引任何文档和代码。** repo的详细结构信息放在repo根目录的`README.md`中。\n\n## AGENTS.md只放什么\n\nAGENTS.md是always-on的，每一行都占用AI的上下文窗口。只放\"AI每次工作都必须知道的\"：\n\n1. **角色**——AI在这个repo中的身份和职责（一句话）\n2. **repo基本信息**——分支、Python路径、DB/Redis连接信息、.env位置、关键外部路径\n3. **铁律**——必须遵守的硬约束（编号列表）\n4. **运维认知**——监控/健康检查时容易误判的认知（如\"空pane是正常现象\"）\n5. **系统架构概要**——概念性架构图 + 核心服务表 + 启停命令 + 并发控制（不索引具体代码文件）\n6. **数据库表设计**——指向DATABASE.md的引用 + 关键JOIN关系 + 已知问题（不展开字段表）\n\n## README.md放什么\n\nREADME.md是AI工作引导地图，按需加载（不占always-on上下文）。放\"需要时才查的详细结构信息\"：\n\n1. **文档索引**——\"你要做什么→加载什么文档\"的对照表 + 各文档的关键节索引\n2. **代码文件索引**——按目录分组的代码文件表（文件名/用途/用法）\n3. **运行目录结构**——trajectory数据/solver工作目录的目录树 + 文件存在率表\n4. **Skills和Rules索引**——项目级skills/rules的用途表 + 全局skill引用\n5. **关键经验**——操作经验列表（如rate limit风暴、3秒启动间隔等）\n6. **与其他repo的关系**——依赖关系、共享资源\n\n## 判定标准\n\n| 内容 | 放哪里 | 判断依据 |\n|---|---|---|\n| 铁律（\"必须做/不能做\"） | AGENTS.md | 每次工作都必须知道 |\n| 运维认知（\"容易误判的\"） | AGENTS.md | 监控时必须知道 |\n| 启停命令 | AGENTS.md | 运行系统时必须知道 |\n| 文档索引（\"做什么→读什么\"） | README.md | 按需加载时才查 |\n| 代码文件索引（\"什么文件做什么\"） | README.md | 需要找代码时才查 |\n| 目录结构 | README.md | 需要找文件时才查 |\n| status枚举表 | README.md | 需要查终态时才查 |\n| 操作经验 | README.md | 遇到问题时才查 |\n\n## 反模式\n\n- ❌ AGENTS.md中有\"文档索引\"节——应该移到README.md\n- ❌ AGENTS.md中有\"代码文件索引\"节——应该移到README.md\n- ❌ AGENTS.md中列出每个文档的用途和路径——这是README.md的职责\n- ❌ AGENTS.md中列出每个代码文件的用途和用法——这是README.md的职责\n- ❌ README.md中放铁律——铁律在AGENTS.md中always-on\n- ❌ 没有README.md——每个repo必须有README.md作为引导地图\n- ✅ AGENTS.md只有铁律+角色+基本信息+运维认知+架构概要\n- ✅ README.md有完整的文档索引和代码索引\n- ✅ AGENTS.md中有一行\"详细结构信息见README.md\"的指引\n\n## 与三层架构的关系\n\n三层架构：AGENTS.md（铁律）→ README.md（引导地图）→ 具体文档/代码\n\n- **AGENTS.md** = 铁律 + 每次必须知道的认知（always-on，占上下文）\n- **README.md** = 引导地图（按需加载，不占always-on上下文）\n- **具体文档/代码** = 按需加载（从README.md索引中找到后加载）\n\n本规则确保AGENTS.md不膨胀——详细结构信息在README.md中，AI需要时才加载，不永久占用上下文。\n\n## 详见\n\n- `read` skill（操作流程：如何从README.md出发加载认知）\n- `read-sync` skill（维护模式：如何同步README.md和映射数据库）\n- `cognition-trace-ironlaws.md` §17（认知加载铁律）\n- `tuple-methodology.md`（AGENTS.md瘦身工程）\n</rule>\n\n<rule name=\"global-vs-project-local\" path=\"/Users/user/.devin/rules/global-vs-project-local.md\">\n# 全局vs项目本地判断铁律\n\n## 硬约束\n\n**用户说\"更新AGENTS.md\"或\"添加元组/rule/skill\"时，AI必须先判断这是全局还是项目本地内容，不能直接动手。**\n\n## 判断流程\n\n```\n用户说\"更新AGENTS.md\"或\"添加元组/rule/skill\"\n  ↓\n第一步：判断作用范围\n  ├─ 只在当前项目有意义 → 项目本地\n  └─ 在多个项目中都适用 → 全局\n  ↓\n第二步：判断用户意图\n  ├─ 用户明确说\"全局\" → 全局\n  ├─ 用户明确说\"项目本地\" → 项目本地\n  └─ 用户没说 → 必须问用户\n  ↓\n第三步：放到正确位置\n  ├─ 全局rule → ~/.devin/rules/<name>.md\n  ├─ 全局skill → ~/.config/devin/skills/<name>/SKILL.md\n  ├─ 全局AGENTS.md → ~/.config/devin/AGENTS.md\n  ├─ 项目本地rule → ./.devin/rules/<name>.md\n  ├─ 项目本地skill → ./.devin/skills/<name>/SKILL.md\n  └─ 项目本地AGENTS.md → ./AGENTS.md\n```\n\n## 判断标准\n\n| 信号 | 倾向 |\n|---|---|\n| 内容引用了具体项目的路径、脚本名、目录结构 | 项目本地 |\n| 内容是某个项目特有的操作流程、运维认知 | 项目本地 |\n| 内容是跨项目通用的约束、规范、工作流 | 全局 |\n| 内容修改会影响所有项目的AI行为 | 全局 |\n| 用户说\"以后所有项目都要...\" | 全局 |\n| 用户说\"这个项目要...\" | 项目本地 |\n\n## 禁止\n\n- ❌ 不判断就改全局配置（`~/.devin/`或`~/.config/devin/`）\n- ❌ 不判断就改项目本地配置（`./.devin/`或`./AGENTS.md`）\n- ❌ 把项目本地内容放到全局规则中（污染全局配置）\n- ❌ 把全局通用内容放到项目本地（其他项目无法复用）\n- ❌ 用户没说全局还是本地时自作主张决定\n\n## 必须\n\n- ✅ 先判断作用范围（全局还是项目本地）\n- ✅ 用户没明确说时，先问用户\n- ✅ 判断后告诉用户放在哪里，再动手\n- ✅ 改全局配置时遵循`global-config-git-commit`规则（三个独立repo分别commit）\n\n## 详见\n\n- `tuple-methodology.md`——元组的设计原则、全局vs项目本地的选择策略\n- `global-config-git-commit.md`——全局配置的git提交规则\n- `readme-structure-index.md`——AGENTS.md与README.md的职责分工\n</rule>\n\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"search-default-internal\" path=\"/Users/user/.devin/rules/search-default-internal.md\">\n# 搜索默认走内置工具\n\n## 硬约束\n\n**默认情况下，使用 devin 内置的 `web_search` 和 `webfetch` 工具。** 不要一遇到搜索就加载 `search-tools` skill。\n\n`search-tools` skill 是重型武器库（6 个工具、38 个端点、完整参数表），只在以下场景才加载：\n\n## 何时加载 search-tools skill\n\n只有同时满足以下条件时才加载：\n\n1. **完备搜索**——内置 `web_search` 结果不够、需要多引擎交叉验证、需要语义搜索、需要学术论文搜索\n2. **大量抓取**——需要抓取多个 URL 转 Markdown、需要 PDF 转 Markdown、需要省 token 的批量取页\n\n## 何时只用内置工具\n\n以下场景**不需要**加载 `search-tools` skill，直接用 `web_search` + `webfetch`：\n\n- 查一个 API 怎么用——`web_search` 搜文档，`webfetch` 取页\n- 查一个概念/术语——`web_search` 一下就够\n- 查一个库的最新版本——`web_search`\n- 取一个 URL 的内容——`webfetch`\n- 简单的事实核查——`web_search`\n\n## 判断流程\n\n```\n需要网络搜索或抓取？\n├─ 查一两个东西就够了 → web_search + webfetch（内置）\n└─ 需要完备搜索或大量抓取\n   ├─ 多引擎交叉验证 → 加载 search-tools skill\n   ├─ 语义搜索 → 加载 search-tools skill\n   ├─ 学术论文搜索 → 加载 search-tools skill\n   ├─ PDF 转 Markdown → 加载 search-tools skill\n   ├─ 批量 URL 抓取 → 加载 search-tools skill\n   └─ 其他简单场景 → web_search + webfetch（内置）\n```\n\n## 理由\n\n`search-tools` skill 内容很长（500+ 行），加载它会占用大量上下文。日常搜索用内置工具完全够用，只有真正需要重型武器时才值得加载。\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-22T02:06:46.764918+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\nThese rules were triggered but could not be injected due to token limits. Read them when relevant using the read_file tool:\n\n<rule name=\"database-schema-doc\" path=\"/Users/user/.devin/rules/database-schema-doc.md\" />\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "overflow"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-22T02:06:46.764933+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **search-tools**: 搜索武器库——按需求组织：网页搜索完备性 + Markdown 网页抓取。所有方案免费可用。 WHEN to use: 需要网络搜索、网页抓取读取、学术论文搜索、PDF 转 Markdown、语义嵌入、结果重排时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **explicit-model-and-effort**: 使用 devin cli 时（无论 -p 模式还是 acp 模式）必须显式指明模型；推理强度当前 devin CLI 无独立开关（2026-08-21 核查），由模型默认行为控制——若未来版本提供 强度/思考参数，必须同样显式设置。opencode 侧的对应 rule 见 ~/.config/opencode/rules/explicit-model-and-effort.md（其 ACP 有 effort 接口， 且实测不显式选模型会落到内建默认）。 WHEN to use: 写 devin -p 命令时；写/改 devin acp 客户端启动参数时； 排查\"AI 表现与预期不符\"时。 WHEN NOT to use: 用户明确指定其他模型的对话。\n (path: /Users/user/.devin/rules/explicit-model-and-effort.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-22T02:06:46.774902+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-22T02:06:46.778222+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **search-tools**: 搜索武器库技术说明书——按需求组织：网页搜索完备性 + Markdown 网页抓取。 所有方案均为免费可用，基于 2026-08-21 实测数据编写。 (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **opencode-acp-protocol**: OpenCode ACP(Agent Client Protocol)模式完整指南——opencode acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call)、thinking实时流式推送、权限自动批准、 session管理(close/fork/list/resume)、v1协议细节、与Devin CLI ACP的关键区别。 WHEN to use: 用opencode acp启动为ACP server时；写ACP客户端对接opencode时； 需要实时检测AI工作状态(thinking/tool执行/卡住)时；从session/update通知组装trajectory时； 对比opencode ACP和devin ACP选方案时；将现有管线改造为ACP模式时。 WHEN NOT to use: 只需要opencode的最终结果(用opencode run)；非ACP的opencode使用； 只需要devin ACP(用devin-acp-protocol skill)。 (source: /Users/user/.config/devin/skills/opencode-acp-protocol/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **zcode-trajectory**: ZCode (z.ai 桌面客户端) model-io session trajectory 数据的 JSONL schema 与读取方法。 (source: /Users/user/.config/devin/skills/zcode-trajectory/SKILL.md)\n- **devin-acp-protocol**: Devin CLI ACP(Agent Client Protocol)模式使用指南——devin acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call/permission)、thinking实时流式推送、 权限处理、session管理、v1协议细节、实测验证的信号清单和检测逻辑。 WHEN to use: 需要用ACP模式启动devin cli(替代-p模式)时；需要实时检测AI工作状态(thinking spin/卡住)时； 需要从session/update通知组装conversation.json时；需要处理ACP权限请求时； 设计/实现/调试ACP客户端时；将现有-p模式管线改造为ACP模式时。 WHEN NOT to use: 只需要-p模式的简单非交互运行(用noninteractive-solver-run skill)； 只需要session最终产出(看文件即可)；只需要git历史(用git log)。 (source: /Users/user/.config/devin/skills/devin-acp-protocol/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-22T02:06:49.536537+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me analyze the problem carefully.\n\nWe have 1893 integers. A \"good number\" is one that can be represented as the sum of squares of pairwise differences of 1893 integers.\n\nSo given integers $x_1, x_2, \\ldots, x_{1893}$, the good number is:\n$$\\sum_{i<j} (x_i - x_j)^2$$\n\nWe need to find the smallest positive integer $a$ that is not a perfect square, such that multiplying any good number by $a$ still yields a good number.\n\nFirst, let me understand the structure of good numbers.\n\nThe sum of squares of pairwise differences:\n$$S = \\sum_{i<j} (x_i - x_j)^2$$\n\nThere's a well-known identity:\n$$\\sum_{i<j} (x_i - x_j)^2 = n \\sum_{i=1}^n x_i^2 - \\left(\\sum_{i=1}^n x_i\\right)^2$$\n\nwhere $n = 1893$.\n\nSo $S = n \\sum x_i^2 - (\\sum x_i)^2$.\n\nLet me denote $\\sum x_i = T$ and $\\sum x_i^2 = Q$. Then $S = nQ - T^2$.\n\nNote that $S \\geq 0$ always, and $S = 0$ iff all $x_i$ are equal. But we want positive good numbers, so $S > 0$.\n\nNow, what values can $S$ take? \n\nLet's think about this modularly. $S = nQ - T^2$ where $n = 1893$.\n\nFirst, let's factor 1893. $1893 = 3 \\times 631$. Is 631 prime? $631 / 7 = 90.1...$, $631/11 = 57.4$, $631/13 = 48.5$, $631/17 = 37.1$, $631/19 = 33.2$, $631/23 = 27.4$, $\\sqrt{631} \\approx 25.1$. Check 5: no. So check primes up to 25: 2,3,5,7,11,13,17,19,23. $631 = 23 \\times 27 + 10$, not divisible. So 631 is prime.\n\nSo $n = 1893 = 3 \\times 631$.\n\nNow, let's think about what good numbers look like. \n\nKey insight: We can shift all $x_i$ by a constant, which doesn't change the pairwise differences. So WLOG we can assume $\\sum x_i = 0$ (by subtracting the mean). Actually, let's be more careful. If we replace $x_i$ by $x_i - c$ for some constant $c$, the pairwise differences don't change. So we can assume WLOG that $\\sum x_i = 0$... wait, but $c$ must be an integer if we want to keep integers. Actually, we can choose $c$ to be any integer, so we can make $\\sum (x_i - c) = \\sum x_i - nc$. We can make this 0 only if $n | \\sum x_i$. \n\nHmm, but actually we don't need $\\sum x_i = 0$. Let me think differently.\n\nActually, let's think about it more carefully. The set of good numbers is the set of all values of $nQ - T^2$ where $x_1, \\ldots, x_n$ are integers, $n = 1893$, $T = \\sum x_i$, $Q = \\sum x_i^2$.\n\nLet me think about what constraints this places.\n\nFirst, note that $S = nQ - T^2 \\equiv -T^2 \\pmod{n}$. So $S \\equiv -T^2 \\pmod{n}$.\n\nSince $T$ can be any integer (we can choose $x_1 = T, x_2 = \\cdots = x_n = 0$, giving $Q = T^2$, $S = nT^2 - T^2 = (n-1)T^2$), we see that $T$ ranges over all integers, so $S \\equiv -T^2 \\pmod{n}$ means $S$ can be $-T^2 \\pmod{n}$ for any $T$.\n\nBut actually we need to think about this more carefully. The question is: what is the set $G$ of all good numbers (positive), and we need the smallest non-square $a$ such that $a \\cdot G \\subseteq G$.\n\nLet me think about the structure of $G$ more carefully.\n\nClaim: The good numbers are exactly the positive integers of the form $nQ - T^2$ where $Q \\geq T^2/n$ (which is automatic since $S \\geq 0$) and $Q, T$ come from actual integer sequences.\n\nActually, let me think about which pairs $(T, Q)$ are achievable. Given integers $x_1, \\ldots, x_n$, we have $T = \\sum x_i$ and $Q = \\sum x_i^2$. \n\nBy Cauchy-Schwarz, $Q \\geq T^2/n$, with equality iff all $x_i$ are equal.\n\nThe question is: for which $(T, Q)$ with $Q \\geq T^2/n$ and $nQ - T^2 \\geq 0$ can we find integers $x_i$ with these sums?\n\nThis is a classical problem. Let me think about it differently.\n\nLet's set $y_i = x_i - \\bar{x}$ where $\\bar{x} = T/n$. But this might not be integer.\n\nAlternative approach: Let's think about the good numbers as a set and find the multiplier.\n\nLet me consider specific constructions:\n\n1. If we take $x_1 = 1, x_2 = \\cdots = x_n = 0$, then $T = 1$, $Q = 1$, $S = n - 1 = 1892$.\n\n2. If we take $x_1 = k, x_2 = \\cdots = x_n = 0$, then $T = k$, $Q = k^2$, $S = nk^2 - k^2 = (n-1)k^2 = 1892k^2$.\n\n3. If we take $x_1 = 1, x_2 = 1, x_3 = \\cdots = x_n = 0$, then $T = 2$, $Q = 2$, $S = 2n - 4 = 2 \\cdot 1893 - 4 = 3782$.\n\n4. If we take $x_1 = 1, x_2 = -1, x_3 = \\cdots = x_n = 0$, then $T = 0$, $Q = 2$, $S = 2n = 3786$.\n\nSo $1892, 3782, 3786$ are all good numbers.\n\nNote that $1892 = 4 \\times 473 = 4 \\times 11 \\times 43$. And $3786 = 2 \\times 1893 = 2 \\times 3 \\times 631$.\n\nLet me think about the general structure. \n\nThe key observation: $S = nQ - T^2$. Let's think about this modulo small numbers.\n\nModulo $n = 1893$: $S \\equiv -T^2 \\pmod{1893}$.\n\nNow, $T$ can be any integer, so $-T^2 \\pmod{1893}$ can be various things. The quadratic residues mod 1893...\n\nActually, let me think about this problem differently. The question asks for the smallest non-square $a$ such that $aG \\subseteq G$ where $G$ is the set of good numbers.\n\nFirst, note that if $g$ is a good number, then $k^2 g$ is also a good number for any positive integer $k$ (just scale all $x_i$ by $k$). So the set of good numbers is closed under multiplication by perfect squares.\n\nNow, we need $a$ such that $ag$ is good for every good $g$.\n\nLet me think about what the good numbers are. \n\nLet's consider the good numbers modulo $n = 1893$. We have $S \\equiv -T^2 \\pmod{n}$.\n\nThe values of $-T^2 \\pmod{n}$ as $T$ varies: these are the negatives of quadratic residues mod $n$.\n\nSince $n = 3 \\times 631$, by CRT, the quadratic residues mod $n$ are determined by quadratic residues mod 3 and mod 631.\n\nQuadratic residues mod 3: $\\{0, 1\\}$.\nQuadratic residues mod 631 (prime): $\\{0\\} \\cup \\{\\text{QRs mod 631}\\}$, which has $(631+1)/2 = 316$ elements including 0.\n\nSo $-T^2 \\pmod{3}$: $T^2 \\pmod{3} \\in \\{0, 1\\}$, so $-T^2 \\pmod{3} \\in \\{0, 2\\}$.\n$-T^2 \\pmod{631}$: $T^2 \\pmod{631}$ ranges over QRs, so $-T^2$ ranges over negatives of QRs.\n\nHmm, this is getting complicated. Let me think about the problem from a higher level.\n\nThe set of good numbers $G$ is the set of positive integers representable as $\\sum_{i<j}(x_i - x_j)^2$ for $n = 1893$ integers.\n\nKey fact: $S = n\\sum x_i^2 - (\\sum x_i)^2$.\n\nLet me think about what $G$ looks like. \n\nFirst, $G$ is closed under multiplication by perfect squares (scaling).\n\nSecond, let's understand $G$ more precisely. \n\nConsider the substitution: let $x_i = y_i + c$ for integer $c$. This doesn't change $S$. So we can normalize. Let's set $c$ such that... well, we can't always make $\\sum x_i = 0$ with integer $c$, but we can reduce.\n\nActually, let me think about it this way. WLOG (by shifting), we can assume $0 \\leq T < n$, i.e., $T = \\sum x_i \\pmod{n}$... no, that's not quite right either. We can subtract $c$ from all $x_i$, changing $T$ to $T - nc$. So we can make $T$ be anything congruent to the original $T$ mod $n$. In particular, we can make $T \\in \\{0, 1, \\ldots, n-1\\}$.\n\nSo WLOG $0 \\leq T \\leq n-1 = 1892$.\n\nThen $S = nQ - T^2$ where $Q = \\sum x_i^2$ and $T = \\sum x_i$ with $0 \\leq T \\leq 1892$.\n\nNow, $Q$ can be any value $\\geq T^2/n$ that's achievable. The minimum $Q$ for a given $T$ is achieved when the $x_i$ are as equal as possible: $\\lfloor T/n \\rfloor$ and $\\lceil T/n \\rceil$. Since $0 \\leq T \\leq 1892 < n = 1893$, we have $T/n < 1$, so the minimum is achieved with $T$ of the $x_i$ equal to 1 and the rest equal to 0, giving $Q_{\\min} = T$.\n\nSo $S_{\\min}(T) = nT - T^2 = T(n - T)$ for $0 \\leq T \\leq n-1$.\n\nAnd then $S$ can take values $nT - T^2, n(T+1) - T^2, n(T+2) - T^2, \\ldots$ i.e., $S = nQ - T^2$ for $Q \\geq T$ (with $Q$ achievable).\n\nWait, but not every $Q \\geq T$ is achievable. We need $Q = \\sum x_i^2$ with $\\sum x_i = T$ and $n = 1893$ terms. \n\nGiven $\\sum x_i = T$ and $n$ terms, what values of $Q = \\sum x_i^2$ are achievable? \n\nWe can start from the minimum configuration ($T$ ones and $n-T$ zeros, giving $Q = T$) and then modify. If we change one 0 to $k$ and one 1 to $1-k$ (keeping sum), we change $Q$ by $k^2 + (1-k)^2 - 1 = 2k^2 - 2k = 2k(k-1)$. For $k = 2$: change is $4$. For $k = -1$: change is $2(-1)(-2) = 4$. Hmm, so we can increase $Q$ by 4.\n\nActually, let me think more generally. We can take two elements $a, b$ with $a + b = s$ fixed and change $Q$ by replacing $(a, b)$ with $(a+t, b-t)$: $Q$ changes by $(a+t)^2 + (b-t)^2 - a^2 - b^2 = 2t(a-b) + 2t^2 = 2t(a-b+t)$.\n\nThis is getting complicated. Let me think about it differently.\n\nActually, the key question is: what is the set $G$ of good numbers, and what is the smallest non-square $a$ with $aG \\subseteq G$?\n\nLet me think about $G$ in terms of its prime factorization structure.\n\nImportant observation: $S = nQ - T^2$. \n\nLet's think about $S \\pmod{n}$. We have $S \\equiv -T^2 \\pmod{n}$. Since $T$ can be any value from 0 to $n-1$, $S \\pmod{n}$ can be $-T^2 \\pmod{n}$ for $T = 0, 1, \\ldots, n-1$.\n\nBut actually, we also need $S > 0$, and for $T = 0$, $S = nQ$ which is a multiple of $n$.\n\nLet me think about this differently. The good numbers form a set, and we want the smallest non-square $a$ such that $a \\cdot g \\in G$ for all $g \\in G$.\n\nLet me consider the structure of $G$ modulo various primes.\n\nFor a prime $p | n = 1893 = 3 \\times 631$:\n\n$S \\equiv -T^2 \\pmod{p}$.\n\nFor $p = 3$: $S \\equiv -T^2 \\pmod{3}$, so $S \\equiv 0$ or $2 \\pmod{3}$. So $S \\not\\equiv 1 \\pmod{3}$... wait, but we also need to check: can $S$ actually be $\\equiv 2 \\pmod{3}$? Yes, take $T = 1$: $S \\equiv -1 \\equiv 2 \\pmod{3}$.\n\nBut wait, we need $S > 0$ and $S$ actually achievable. With $T = 1$, $Q = 1$ (one 1, rest 0): $S = n - 1 = 1892$. $1892 \\pmod{3} = 1892 = 3 \\times 630 + 2$, so $S \\equiv 2 \\pmod{3}$. ✓\n\nWith $T = 0$, $Q = 2$ (one 1, one -1, rest 0): $S = 2n = 3786$. $3786 / 3 = 1262$, so $S \\equiv 0 \\pmod{3}$. ✓\n\nSo good numbers can be $\\equiv 0$ or $2 \\pmod{3}$, but not $\\equiv 1 \\pmod{3}$.\n\nHmm wait, is that right? Let me double-check. $S = nQ - T^2 \\equiv -T^2 \\pmod{3}$ (since $n = 1893 \\equiv 0 \\pmod{3}$). $T^2 \\pmod{3} \\in \\{0, 1\\}$. So $S \\pmod{3} \\in \\{0, 2\\}$. So indeed, good numbers are never $\\equiv 1 \\pmod{3}$.\n\nNow for $p = 631$: $S \\equiv -T^2 \\pmod{631}$. So $S \\pmod{631}$ is either 0 (if $631 | T$) or a negative quadratic residue mod 631.\n\nThe quadratic residues mod 631 (a prime $\\equiv 3 \\pmod{4}$? Let me check: $631 = 4 \\times 157 + 3$, so $631 \\equiv 3 \\pmod{4}$). \n\nFor a prime $p \\equiv 3 \\pmod{4}$, $-1$ is a quadratic non-residue. So the set of $-T^2 \\pmod{p}$ is the set of quadratic non-residues (plus 0). That is, $-T^2 \\pmod{p}$ for $T \\not\\equiv 0$ gives exactly the QNRs mod $p$.\n\nSo $S \\pmod{631}$ is either 0 or a QNR mod 631. In particular, $S$ is never a nonzero QR mod 631.\n\nThis is a strong constraint. Good numbers, when reduced mod 631, are either 0 or quadratic non-residues.\n\nNow, for primes $p \\nmid n$: $S = nQ - T^2 \\pmod{p}$. Here $n$ is invertible mod $p$, so $S \\equiv nQ - T^2 \\pmod{p}$. Since $Q$ and $T$ can vary (subject to constraints), $S$ can potentially take many values mod $p$.\n\nHmm, but actually the constraints on $Q$ and $T$ are that they come from actual integer sequences. Let me think about whether $S$ can take all values mod $p$ for $p \\nmid n$.\n\nActually, let me reconsider. The question is about the multiplicative structure. We need $a$ such that $ag \\in G$ for all $g \\in G$.\n\nLet me think about what properties $G$ has that are preserved under multiplication by $a$.\n\nFrom the analysis above:\n1. $G \\pmod{3} \\subseteq \\{0, 2\\}$ (never 1).\n2. $G \\pmod{631} \\subseteq \\{0\\} \\cup \\text{QNR}_{631}$ (never a nonzero QR).\n\nFor $aG \\subseteq G$, we need:\n1. For all $g \\in G$, $ag \\pmod{3} \\in \\{0, 2\\}$.\n2. For all $g \\in G$, $ag \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}_{631}$.\n\nFor condition 1: We need $a \\cdot 0 \\equiv 0 \\pmod{3}$ (always true) and $a \\cdot 2 \\pmod{3} \\in \\{0, 2\\}$. So $2a \\pmod{3} \\in \\{0, 2\\}$, meaning $a \\pmod{3} \\in \\{0, 1\\}$ (since $2 \\cdot 0 = 0, 2 \\cdot 1 = 2, 2 \\cdot 2 = 1$). So $a \\not\\equiv 2 \\pmod{3}$.\n\nFor condition 2: We need $a \\cdot 0 \\equiv 0$ (always true) and for any QNR $q$ mod 631, $aq \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}_{631}$. Since $q \\not\\equiv 0$, $aq \\equiv 0$ iff $a \\equiv 0 \\pmod{631}$. If $a \\not\\equiv 0 \\pmod{631}$, then $aq$ is a QNR for all QNRs $q$ iff $a$ is a QR mod 631 (since QR × QNR = QNR, QNR × QNR = QR). So we need $a$ to be a QR mod 631, OR $a \\equiv 0 \\pmod{631}$.\n\nWait, let me be more careful. The good numbers mod 631 are $\\{0\\} \\cup \\text{QNR}$. We need $a \\cdot (\\{0\\} \\cup \\text{QNR}) \\subseteq \\{0\\} \\cup \\text{QNR}$.\n\n$0 \\in \\{0\\} \\cup \\text{QNR}$: $a \\cdot 0 = 0$ ✓.\n\nFor $q \\in \\text{QNR}$: $aq \\pmod{631}$.\n- If $a \\equiv 0$: $aq \\equiv 0$ ✓.\n- If $a$ is QR: $aq$ is QNR ✓ (QR × QNR = QNR).\n- If $a$ is QNR: $aq$ is QR ✗ (QNR × QNR = QR, which is not in $\\{0\\} \\cup \\text{QNR}$).\n\nSo condition 2 requires: $a \\equiv 0 \\pmod{631}$ or $a$ is a QR mod 631.\n\nBut wait, I need to also check: are there good numbers that are nonzero QNRs mod 631? And are there good numbers that are 0 mod 631 but nonzero? And similarly for mod 3.\n\nLet me verify that the constraints I found are tight, i.e., that good numbers actually achieve all allowed residues.\n\nFor mod 3: Good numbers can be $\\equiv 0$ (e.g., $S = 2n = 3786 \\equiv 0$) or $\\equiv 2$ (e.g., $S = n-1 = 1892 \\equiv 2$). So both 0 and 2 are achieved. Good.\n\nFor mod 631: Good numbers can be $\\equiv 0$ (e.g., $T = 631$, $Q = 631$: $S = n \\cdot 631 - 631^2 = 631(n - 631) = 631 \\cdot 1262 = 631 \\cdot 2 \\cdot 631 = 2 \\cdot 631^2$. Hmm, $n - 631 = 1893 - 631 = 1262 = 2 \\times 631$. So $S = 631 \\times 1262 = 631 \\times 2 \\times 631 = 2 \\times 631^2$. So $S \\equiv 0 \\pmod{631}$. ✓)\n\nAnd good numbers can be QNR mod 631 (e.g., $T = 1$: $S = n - 1 = 1892$. $1892 \\pmod{631} = 1892 - 3 \\times 631 = 1892 - 1893 = -1 \\equiv 630 \\pmod{631}$. Is $-1$ a QNR mod 631? Since $631 \\equiv 3 \\pmod{4}$, $-1$ is a QNR. ✓)\n\nSo the constraints are tight. Now, for $aG \\subseteq G$, we need:\n- $a \\not\\equiv 2 \\pmod{3}$ (i.e., $a \\equiv 0$ or $1 \\pmod{3}$)\n- $a \\equiv 0 \\pmod{631}$ or $a$ is QR mod 631\n\nBut wait, I also need to check constraints from primes not dividing $n$. Let me think about this more carefully.\n\nFor a prime $p \\nmid n$: What are the possible values of $S \\pmod{p}$?\n\n$S = nQ - T^2 \\pmod{p}$. Here $n$ is invertible mod $p$. \n\nWe need to understand what pairs $(T, Q)$ are achievable mod $p$. Given $n$ integers $x_1, \\ldots, x_n$, we have $T = \\sum x_i$ and $Q = \\sum x_i^2$. Modulo $p$, $T$ and $Q$ can be... well, since we have $n = 1893$ variables, and $n \\geq p$ for small primes (well, $n = 1893$ which is large), we can likely achieve many combinations.\n\nActually, for $p \\nmid n$ and $p$ small enough (relative to $n$), we can probably achieve all residues. Let me think...\n\nIf $p \\nmid n$, then we can set $x_1 = t, x_2 = \\cdots = x_n = 0$, giving $T = t, Q = t^2, S = (n-1)t^2$. As $t$ varies, $S = (n-1)t^2 \\pmod{p}$. So $S$ takes values $(n-1) \\cdot \\text{QR} \\pmod{p}$.\n\nWe can also set $x_1 = a, x_2 = b, x_3 = \\cdots = x_n = 0$, giving $T = a+b, Q = a^2+b^2, S = n(a^2+b^2) - (a+b)^2 = (n-1)(a^2+b^2) - 2ab$.\n\nHmm, this gives more flexibility. Let me think about whether $S$ can take all values mod $p$ for $p \\nmid n$.\n\nWith $x_1 = a, x_2 = b$, rest 0: $S = n(a^2 + b^2) - (a+b)^2 = (n-1)a^2 + (n-1)b^2 - 2ab = (n-1)(a^2+b^2) - 2ab$.\n\nModulo $p$ (with $p \\nmid n$), as $a, b$ range over $\\mathbb{F}_p$, this is a quadratic form in $a, b$. The question is whether it represents all elements of $\\mathbb{F}_p$.\n\nThe quadratic form is $(n-1)a^2 - 2ab + (n-1)b^2$. The discriminant is $4 - 4(n-1)^2 = 4(1 - (n-1)^2)$. \n\nActually, for a non-degenerate binary quadratic form over $\\mathbb{F}_p$ (with $p$ odd), it represents either all of $\\mathbb{F}_p$ or exactly half (the QRs or QNRs times some constant). It represents all of $\\mathbb{F}_p$ iff it's isotropic (represents 0 nontrivially).\n\nThe form represents 0 nontrivially iff the discriminant $4(1-(n-1)^2) = 4(1-n^2+2n-1) = 4(2n - n^2) = 4n(2-n)$ is a QR mod $p$ (including 0). \n\n$4n(2-n) \\pmod{p}$. Since $p \\nmid n$, this is $4n(2-n) \\pmod{p}$. If $p | (2-n)$, i.e., $p | (n-2) = 1891$, then the discriminant is 0 and the form is degenerate. $1891 = ?$. $1891 / 7 = 270.1$, $1891/11 = 171.9$, $1891/13 = 145.5$, $1891/17 = 111.2$, $1891/19 = 99.5$, $1891/23 = 82.3$, $1891/29 = 65.2$, $1891/31 = 61$, $31 \\times 61 = 1891$. So $1891 = 31 \\times 61$.\n\nSo for $p = 31$ or $p = 61$, the binary form is degenerate. For other odd primes $p \\nmid n$, the form is non-degenerate and represents all of $\\mathbb{F}_p$ iff $4n(2-n)$ is a QR mod $p$.\n\nBut even if the binary form doesn't represent all of $\\mathbb{F}_p$, we can use more variables. With 3 or more variables, a non-degenerate quadratic form over $\\mathbb{F}_p$ (for $p$ odd) always represents all elements (by the Chevalley-Warning theorem, any quadratic form in $\\geq 3$ variables over a finite field represents 0 nontrivially, and then by scaling it represents everything).\n\nWait, actually Chevalley-Warning says that a polynomial of degree $d$ in $n > d$ variables over a finite field has a number of zeros divisible by $p$. For a quadratic form ($d = 2$) in $\\geq 3$ variables, this means the number of zeros is divisible by $p$, and since 0 is always a zero, there must be at least $p$ zeros, so there's a nontrivial zero. So the form is isotropic, and an isotropic quadratic form in $\\geq 3$ variables over $\\mathbb{F}_p$ represents all elements.\n\nSo with 3 or more nonzero $x_i$, the form $S = nQ - T^2$ (as a function of $x_1, x_2, x_3$ with rest 0) is a quadratic form in 3 variables, and it represents all elements of $\\mathbb{F}_p$ for any odd prime $p$.\n\nWait, but I need to be careful. $S = n(x_1^2 + x_2^2 + x_3^2) - (x_1 + x_2 + x_3)^2$ is a quadratic form in 3 variables. Is it non-degenerate? The matrix is $nI - J$ where $J$ is the all-ones matrix. The eigenvalues of $J$ (3×3) are 3 (with eigenvector $(1,1,1)$) and 0 (with multiplicity 2). So the eigenvalues of $nI - J$ are $n - 3$ and $n$ (with multiplicity 2). The form is non-degenerate iff $p \\nmid (n-3)$ and $p \\nmid n$, i.e., $p \\nmid n$ and $p \\nmid (n-3) = 1890$.\n\n$1890 = 2 \\times 3^3 \\times 5 \\times 7$. So $1890 = 2 \\times 27 \\times 35 = 2 \\times 945$. Primes dividing 1890: 2, 3, 5, 7.\n\nSo for odd primes $p \\nmid n$ and $p \\nmid 1890$, i.e., $p \\notin \\{3, 5, 7, 631\\}$, the 3-variable form is non-degenerate and represents all of $\\mathbb{F}_p$.\n\nFor $p = 5$ or $p = 7$: the form $nI - J$ in 3 variables has eigenvalue $n - 3 = 1890$, which is divisible by both 5 and 7. So the form is degenerate (the $(1,1,1)$ direction is in the kernel). But we can use 4 variables. With 4 variables, the eigenvalues of $nI - J$ (4×4) are $n - 4 = 1889$ and $n$ (multiplicity 3). $1889 = ?$. $1889 / 7 = 269.86$, not divisible. $1889 / 11 = 171.7$, no. $1889 / 13 = 145.3$, no. $1889 / 17 = 111.1$, no. $1889 / 19 = 99.4$, no. $1889 / 23 = 82.1$, no. $1889 / 29 = 65.1$, no. $1889 / 31 = 60.9$, no. $1889 / 37 = 51.1$, no. $1889 / 41 = 46.1$, no. $1889 / 43 = 43.9$, no. $\\sqrt{1889} \\approx 43.5$. So 1889 is prime? Let me check: $1889 = 1889$. $43^2 = 1849$, $44^2 = 1936$. Check primes up to 43: 2,3,5,7,11,13,17,19,23,29,31,37,41,43. $1889/43 = 43.93$, no. So 1889 is prime.\n\nSo for $p = 5$ or $p = 7$: with 4 variables, eigenvalues are $n - 4 = 1889$ (prime, not divisible by 5 or 7) and $n = 1893$ (not divisible by 5 or 7). So the 4-variable form is non-degenerate for $p = 5, 7$, and represents all of $\\mathbb{F}_p$.\n\nSo for all odd primes $p \\notin \\{3, 631\\}$, $S$ can take all values mod $p$. This means there's no constraint from these primes.\n\nFor $p = 2$: $S = nQ - T^2 = 1893Q - T^2 \\equiv Q - T^2 \\equiv Q - T \\pmod{2}$ (since $T^2 \\equiv T \\pmod{2}$). With $x_1 = 1$, rest 0: $T = 1, Q = 1, S \\equiv 0 \\pmod{2}$. With $x_1 = 1, x_2 = 1$, rest 0: $T = 2, Q = 2, S \\equiv 0 \\pmod{2}$. With $x_1 = 1, x_2 = 0, x_3 = 1$, rest 0: $T = 2, Q = 2, S \\equiv 0$. Hmm, with $x_1 = 1, x_2 = 0, x_3 = 0, x_4 = 1$, rest 0: $T = 2, Q = 2, S \\equiv 0$. With $x_1 = 1, x_2 = 1, x_3 = 1$, rest 0: $T = 3, Q = 3, S \\equiv 0$. With $x_1 = 1, x_2 = 2$, rest 0: $T = 3, Q = 5, S \\equiv 5 - 3 = 2 \\equiv 0$. Hmm, $Q - T \\pmod{2}$: $Q = \\sum x_i^2, T = \\sum x_i$. $Q - T = \\sum (x_i^2 - x_i) = \\sum x_i(x_i - 1)$. Each $x_i(x_i - 1)$ is always even (product of consecutive integers). So $Q - T$ is always even, meaning $S$ is always even!\n\nWait, that's a strong constraint. $S = nQ - T^2 \\equiv Q - T^2 \\pmod{2}$. And $Q - T^2 = \\sum x_i^2 - (\\sum x_i)^2$. Hmm, let me recompute. $S \\pmod{2}$: $n = 1893 \\equiv 1 \\pmod{2}$, so $S \\equiv Q - T^2 \\pmod{2}$. And $T^2 \\equiv T \\pmod{2}$, so $S \\equiv Q - T \\pmod{2}$. And $Q - T = \\sum(x_i^2 - x_i) = \\sum x_i(x_i-1)$, which is always even. So $S$ is always even!\n\nSo all good numbers are even. This is a constraint from $p = 2$.\n\nNow, for $aG \\subseteq G$, since all $g \\in G$ are even, $ag$ is even iff $a$ is any integer (since $g$ is even, $ag$ is even regardless of $a$). So the constraint from $p = 2$ is automatically satisfied.\n\nWait, but I need to be more careful. The constraint is that $S$ is always even. So $G \\subseteq 2\\mathbb{Z}$. For $aG \\subseteq G \\subseteq 2\\mathbb{Z}$, we need $ag$ to be even for all even $g$, which is always true. So no constraint from $p = 2$ on $a$.\n\nHmm wait, but actually I should think about this more carefully. The constraint is not just about parity. Let me think about what $v_2(S)$ can be, i.e., the 2-adic valuation.\n\nActually, let me reconsider. The constraints I've found so far:\n1. $S$ is always even (from $p = 2$).\n2. $S \\pmod{3} \\in \\{0, 2\\}$ (from $p = 3 | n$).\n3. $S \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}_{631}$ (from $p = 631 | n$).\n4. No constraints from other odd primes.\n\nBut I should also think about higher powers of primes, and about the 2-adic structure more carefully.\n\nLet me think about the 2-adic structure. $S = nQ - T^2$ where $n = 1893$ is odd. \n\n$S \\pmod{2}$: always 0 (shown above).\n$S \\pmod{4}$: $n \\equiv 1 \\pmod{4}$ (since $1893 = 4 \\times 473 + 1$). So $S \\equiv Q - T^2 \\pmod{4}$.\n\n$Q - T^2 = \\sum x_i^2 - (\\sum x_i)^2$. Let me compute this mod 4.\n\n$\\sum x_i^2 \\pmod{4}$: each $x_i^2 \\pmod{4}$ is 0 or 1.\n$(\\sum x_i)^2 \\pmod{4}$: if $\\sum x_i$ is even, this is 0; if odd, this is 1.\n\nLet $k$ = number of odd $x_i$. Then $Q \\equiv k \\pmod{2}$ (since $x_i^2 \\equiv x_i \\pmod{2}$, so $Q \\equiv T \\pmod{2}$, which we already knew). More precisely, $Q \\pmod{4}$: each odd $x_i$ contributes 1 mod 4 (if $x_i \\equiv 1, 3 \\pmod{4}$) or... wait, $x_i^2 \\pmod{4}$: if $x_i$ is even, $x_i^2 \\equiv 0 \\pmod{4}$; if $x_i$ is odd, $x_i^2 \\equiv 1 \\pmod{4}$. So $Q \\equiv k \\pmod{4}$ where $k$ is the number of odd $x_i$... no, that's not right either. $Q = \\sum x_i^2$. If $x_i$ is even, $x_i^2 \\equiv 0 \\pmod{4}$. If $x_i$ is odd, $x_i^2 \\equiv 1 \\pmod{4}$. So $Q \\equiv k \\pmod{4}$ where $k$ = number of odd $x_i$.\n\n$T = \\sum x_i$. $T \\pmod{2} \\equiv k \\pmod{2}$. $T^2 \\pmod{4}$: if $T$ even, $T^2 \\equiv 0$; if $T$ odd, $T^2 \\equiv 1$. So $T^2 \\equiv k \\pmod{2}$... no. $T^2 \\pmod{4}$: $T$ even → 0, $T$ odd → 1. And $T \\equiv k \\pmod{2}$, so $T^2 \\equiv k \\pmod{2}$... but mod 4, $T^2$ is 0 or 1, and it's 1 iff $T$ is odd iff $k$ is odd.\n\nSo $S \\equiv Q - T^2 \\equiv k - (k \\bmod 2) \\pmod{4}$.\n\nIf $k$ is even: $S \\equiv k - 0 = k \\pmod{4}$. So $S \\equiv 0$ or $2 \\pmod{4}$ (since $k$ is even).\nIf $k$ is odd: $S \\equiv k - 1 \\pmod{4}$. So $S \\equiv 0$ or $2 \\pmod{4}$ (since $k - 1$ is even).\n\nIn both cases, $S \\equiv 0$ or $2 \\pmod{4}$, i.e., $S$ is even but $S/2$ can be odd or even. So $v_2(S) \\geq 1$ always, and $v_2(S) = 1$ is possible.\n\nLet me verify: $x_1 = 1$, rest 0: $k = 1$ (odd), $S \\equiv 1 - 1 = 0 \\pmod{4}$. $S = 1892 = 4 \\times 473$. So $v_2(1892) = 2$.\n\n$x_1 = 1, x_2 = 1$, rest 0: $k = 2$ (even), $S \\equiv 2 \\pmod{4}$. $S = 2 \\times 1893 - 4 = 3782 = 2 \\times 1891$. $v_2(3782) = 1$. ✓\n\nSo $v_2(S) = 1$ is achievable (e.g., $S = 3782$).\n\nNow, for $aG \\subseteq G$: we need $v_2(ag) \\geq 1$ for all $g \\in G$ with $v_2(g) \\geq 1$. Since $v_2(ag) = v_2(a) + v_2(g) \\geq v_2(a) + 1$, we need $v_2(a) + 1 \\geq 1$, i.e., $v_2(a) \\geq 0$, which is always true. So no constraint from 2-adic valuation on $a$ (beyond what we already have).\n\nBut wait, I need to think more carefully. The constraint isn't just about valuations; it's about the full set $G$. Let me think about what the set $G$ actually is.\n\nLet me reconsider. The constraints on $G$ are:\n- $G \\subseteq \\{S > 0 : S \\text{ even}, S \\bmod 3 \\in \\{0, 2\\}, S \\bmod 631 \\in \\{0\\} \\cup \\text{QNR}_{631}\\}$\n\nBut are these the only constraints? Or are there additional constraints, e.g., from higher powers of 3 or 631?\n\nLet me think about $S \\pmod{9}$. $S = nQ - T^2 = 1893Q - T^2 \\equiv 0 \\cdot Q - T^2 \\equiv -T^2 \\pmod{9}$ (since $1893 = 9 \\times 210 + 3$, so $1893 \\equiv 3 \\pmod{9}$). Wait, $1893 / 9 = 210.33...$, $9 \\times 210 = 1890$, $1893 - 1890 = 3$. So $n \\equiv 3 \\pmod{9}$.\n\n$S \\equiv 3Q - T^2 \\pmod{9}$.\n\n$T^2 \\pmod{9}$: $T \\pmod{9}$ can be 0-8, $T^2 \\pmod{9}$: $0, 1, 4, 0, 7, 7, 0, 4, 1$ for $T = 0, 1, 2, 3, 4, 5, 6, 7, 8$. So $T^2 \\pmod{9} \\in \\{0, 1, 4, 7\\}$.\n\n$3Q \\pmod{9}$: $Q \\pmod{3}$ determines this. $3Q \\pmod{9} \\in \\{0, 3, 6\\}$.\n\nSo $S \\pmod{9} \\in \\{3q - t : q \\in \\{0, 3, 6\\}, t \\in \\{0, 1, 4, 7\\}\\} \\pmod{9}$.\n\nBut we also need $(T, Q)$ to be achievable. Not every combination of $T \\pmod{9}$ and $Q \\pmod{3}$ is achievable.\n\nHmm, this is getting complicated. Let me think about whether there are constraints mod 9.\n\nActually, let me take a step back. The question is asking for the smallest non-square $a$ such that $aG \\subseteq G$. \n\nI think the key insight is that $G$ is characterized by local conditions (congruences), and $a$ must preserve all these conditions.\n\nLet me think about what $G$ is more carefully. \n\nActually, I think the right framework is: $G$ is the set of positive integers represented by the quadratic form $S = n\\sum x_i^2 - (\\sum x_i)^2$ in $n = 1893$ variables. This is a quadratic form over $\\mathbb{Z}$.\n\nThe form $f(x_1, \\ldots, x_n) = n\\sum x_i^2 - (\\sum x_i)^2$ has matrix $A = nI - J$ where $J$ is the all-ones matrix. The eigenvalues of $A$ are $n - n = 0$ (for the all-ones vector) and $n$ (with multiplicity $n-1$). So the form has rank $n - 1 = 1892$ and signature $(1892, 0)$ (positive semidefinite).\n\nThe null space is spanned by $(1, 1, \\ldots, 1)$, which corresponds to the fact that shifting all $x_i$ by the same constant doesn't change $S$.\n\nSo effectively, $S$ is a positive definite quadratic form in $n - 1 = 1892$ variables (after modding out the shift).\n\nNow, for a positive definite quadratic form in many variables, by the theory of quadratic forms (specifically, the Hasse-Minkowski theorem and the fact that forms in many variables are \"almost universal\"), the set of represented integers is determined by local conditions (congruences).\n\nSpecifically, by the theorem of Tartakowsky (or the 290-theorem of Bhargava-Hanke for universal forms), a positive definite quadratic form in sufficiently many variables represents all sufficiently large integers that satisfy the local conditions.\n\nBut here we have $n - 1 = 1892$ variables, which is a lot. The form is $n \\sum x_i^2 - (\\sum x_i)^2$ restricted to the hyperplane $\\sum x_i = 0$ (after the shift). On this hyperplane, $S = n \\sum x_i^2$ (since $T = 0$). Wait, that's not right. If we restrict to $\\sum x_i = 0$, then $S = nQ - 0 = nQ = n \\sum x_i^2$. But we can also have $\\sum x_i \\neq 0$.\n\nHmm, let me reconsider. The form is $S = nQ - T^2$ where $Q = \\sum x_i^2$ and $T = \\sum x_i$. After shifting to make $T = 0$ (when possible), $S = nQ$. But we can't always make $T = 0$ with integer shifts.\n\nLet me think about this differently. We can write $x_i = y_i + c$ where $c = T/n$ (the mean). Then $\\sum y_i = 0$ and $S = n \\sum y_i^2$. But $y_i$ might not be integers. \n\nIf $n | T$, then we can choose $c = T/n$ (integer), and $y_i = x_i - c$ are integers with $\\sum y_i = 0$, and $S = n \\sum y_i^2$.\n\nIf $n \\nmid T$, then $c$ is not an integer, and we can't directly do this. But we can write $T = nq + r$ with $0 \\leq r < n$, and shift by $q$: $y_i = x_i - q$, then $\\sum y_i = r$ and $S = n \\sum y_i^2 - r^2$.\n\nSo the good numbers are: $\\{n \\sum y_i^2 - r^2 : y_i \\in \\mathbb{Z}, \\sum y_i = r, 0 \\leq r < n, S > 0\\}$.\n\nFor $r = 0$: $S = n \\sum y_i^2$ with $\\sum y_i = 0$. These are multiples of $n = 1893$ that can be written as $n$ times a sum of squares with the constraint $\\sum y_i = 0$.\n\nFor $r = 1$: $S = n \\sum y_i^2 - 1$ with $\\sum y_i = 1$.\n\nEtc.\n\nThis is still complex. Let me try a different approach to the problem.\n\nLet me think about what $a$ needs to satisfy. We need $aG \\subseteq G$. \n\nSince $G$ is closed under multiplication by perfect squares (scaling all $x_i$), if $aG \\subseteq G$, then $ak^2 G \\subseteq G$ for all $k$. So we can assume $a$ is squarefree (if $a = a_0 k^2$ with $a_0$ squarefree, then $aG \\subseteq G$ iff $a_0 G \\subseteq G$).\n\nSo WLOG $a$ is squarefree. We want the smallest squarefree $a > 1$ (not a perfect square, and $a > 1$ since $a$ is a positive integer that's not a perfect square; wait, $a = 1$ is a perfect square, so $a \\geq 2$) such that $aG \\subseteq G$.\n\nNow, the constraints I've found:\n1. From $p = 3$: $a \\not\\equiv 2 \\pmod{3}$, i.e., $a \\equiv 0$ or $1 \\pmod{3}$.\n2. From $p = 631$: $a \\equiv 0 \\pmod{631}$ or $a$ is QR mod 631.\n3. From $p = 2$: no constraint (since all good numbers are even, and $a \\cdot \\text{even}$ is always even).\n\nBut I need to check if there are constraints from higher powers of 3 and 631, and from other primes.\n\nLet me think about the constraint from $p = 3$ more carefully. \n\n$S \\equiv -T^2 \\pmod{3}$. So $S \\pmod{3} \\in \\{0, 2\\}$.\n\nFor $aG \\subseteq G$: we need $aS \\pmod{3} \\in \\{0, 2\\}$ for all $S \\in G$.\n\n$S = 0 \\pmod{3}$: $aS \\equiv 0$ ✓.\n$S = 2 \\pmod{3}$: $aS \\equiv 2a \\pmod{3}$. Need $2a \\in \\{0, 2\\} \\pmod{3}$, i.e., $a \\in \\{0, 1\\} \\pmod{3}$.\n\nSo $a \\equiv 0$ or $1 \\pmod{3}$. If $a$ is squarefree and $3 | a$, then $a \\equiv 0 \\pmod{3}$. If $3 \\nmid a$, then $a \\equiv 1 \\pmod{3}$.\n\nNow, is there a constraint mod 9? Let me check.\n\n$S \\pmod{9}$: $S = 3Q - T^2 \\pmod{9}$ (since $n \\equiv 3 \\pmod{9}$).\n\nWe need to understand what values $S \\pmod{9}$ can take. \n\nLet me consider specific constructions:\n- $T = 0, Q = 2$ (i.e., $x_1 = 1, x_2 = -1$, rest 0): $S = 2n = 3786$. $3786 \\pmod{9} = 3786 - 420 \\times 9 = 3786 - 3780 = 6$. So $S \\equiv 6 \\pmod{9}$.\n- $T = 1, Q = 1$: $S = n - 1 = 1892$. $1892 \\pmod{9} = 1892 - 210 \\times 9 = 1892 - 1890 = 2$. So $S \\equiv 2 \\pmod{9}$.\n- $T = 2, Q = 2$: $S = 2n - 4 = 3782$. $3782 \\pmod{9} = 3782 - 420 \\times 9 = 3782 - 3780 = 2$. So $S \\equiv 2 \\pmod{9}$.\n- $T = 0, Q = 4$ (e.g., $x_1 = 1, x_2 = 1, x_3 = -1, x_4 = -1$, rest 0): $S = 4n = 7572$. $7572 \\pmod{9} = 7572 - 841 \\times 9 = 7572 - 7569 = 3$. So $S \\equiv 3 \\pmod{9}$.\n- $T = 0, Q = 8$ (e.g., $x_1 = 2, x_2 = -2$, rest 0): $S = 8n = 15144$. $15144 \\pmod{9} = 15144 - 1682 \\times 9 = 15144 - 15138 = 6$. So $S \\equiv 6 \\pmod{9}$.\n- $T = 3, Q = 3$: $S = 3n - 9 = 5670$. $5670 \\pmod{9} = 5670/9 = 630$. So $S \\equiv 0 \\pmod{9}$.\n- $T = 0, Q = 1$... but we need $\\sum y_i = 0$ and $\\sum y_i^2 = 1$, which is impossible (if $\\sum y_i = 0$ and one $y_i = \\pm 1$, rest 0, then $\\sum y_i = \\pm 1 \\neq 0$). So $Q \\geq 2$ when $T = 0$.\n\nLet me think about what $S \\pmod{9}$ values are achievable. \n\n$S \\equiv 3Q - T^2 \\pmod{9}$.\n\n$T^2 \\pmod{9} \\in \\{0, 1, 4, 7\\}$ (for $T \\equiv 0, \\pm 1, \\pm 2, \\pm 3, \\pm 4 \\pmod{9}$, giving $T^2 \\equiv 0, 1, 4, 0, 7$).\n\n$3Q \\pmod{9} \\in \\{0, 3, 6\\}$ (for $Q \\equiv 0, 1, 2 \\pmod{3}$).\n\nBut we need to know which $(T \\bmod 9, Q \\bmod 3)$ pairs are achievable.\n\nGiven $n = 1893$ integers with $\\sum x_i = T$ and $\\sum x_i^2 = Q$:\n- $Q \\equiv \\sum x_i^2 \\equiv \\sum x_i \\pmod{2}$ (since $x^2 \\equiv x \\pmod{2}$). Not directly relevant for mod 3.\n- $Q \\pmod{3}$: $x_i^2 \\pmod{3} \\in \\{0, 1\\}$. So $Q \\equiv$ (number of $x_i$ not divisible by 3) $\\pmod{3}$.\n- $T \\pmod{3}$: $T \\equiv \\sum x_i \\pmod{3}$.\n\nIf $x_i \\equiv 0 \\pmod{3}$: contributes 0 to both $T$ and $Q$ mod 3.\nIf $x_i \\equiv 1 \\pmod{3}$: contributes 1 to $T$ and 1 to $Q$.\nIf $x_i \\equiv 2 \\pmod{3}$: contributes 2 to $T$ and 1 to $Q$.\n\nSo $Q \\equiv k_1 + k_2 \\pmod{3}$ and $T \\equiv k_1 + 2k_2 \\pmod{3}$ where $k_1$ = number of $x_i \\equiv 1$ and $k_2$ = number of $x_i \\equiv 2$ (mod 3).\n\n$T - Q \\equiv 2k_2 - k_2 = k_2 \\pmod{3}$. And $T + Q \\equiv 2k_1 + 3k_2 \\equiv 2k_1 \\pmod{3}$. So $k_1 \\equiv 2(T + Q) \\pmod{3}$ and $k_2 \\equiv T - Q \\pmod{3}$.\n\nSince $k_1, k_2 \\geq 0$ and $k_1 + k_2 \\leq n = 1893$, and $n$ is large, we can achieve any $(T \\bmod 3, Q \\bmod 3)$ pair as long as we can find non-negative $k_1, k_2$ with $k_1 + k_2 \\leq 1893$ and the right residues. Since 1893 is large, we can always do this (e.g., $k_1$ and $k_2$ can be any values from 0 to 1893, so any residue mod 3 is achievable).\n\nSo all $(T \\bmod 3, Q \\bmod 3)$ pairs are achievable, meaning $3Q \\pmod{9}$ can be 0, 3, or 6 independently of $T^2 \\pmod{9}$... well, not quite independently, because $Q \\bmod 3$ and $T \\bmod 3$ are linked through $k_1, k_2$. But since we can choose $k_1, k_2$ freely (subject to $k_1 + k_2 \\leq 1893$), we can achieve any $(T \\bmod 3, Q \\bmod 3)$.\n\nWait, but $T \\bmod 9$ is more refined than $T \\bmod 3$. Let me think about $T \\bmod 9$ and $Q \\bmod 3$.\n\n$T \\bmod 9$ depends on the actual values of $x_i \\bmod 9$, not just mod 3. And $Q \\bmod 3$ depends on $x_i \\bmod 3$. So the pair $(T \\bmod 9, Q \\bmod 3)$ has more freedom.\n\nActually, I think for the purpose of this problem, I should think about it differently. Let me consider the constraint more carefully.\n\nThe key question is: for $aG \\subseteq G$, what are the necessary and sufficient conditions on $a$?\n\nLet me think about this in terms of the local-global principle for quadratic forms. The form $f = n\\sum x_i^2 - (\\sum x_i)^2$ is a quadratic form in $n$ variables (with a 1-dimensional kernel). The set $G$ of positive integers represented by $f$ is, by the theory of quadratic forms in many variables, essentially determined by local conditions.\n\nFor a quadratic form in sufficiently many variables (and $n - 1 = 1892$ is certainly sufficient), the form represents all positive integers satisfying the local conditions, provided they're large enough. But we also need to worry about small integers.\n\nHowever, the question asks for $a$ such that $aG \\subseteq G$, not $aG = G$. So we need: for every $g \\in G$, $ag$ satisfies the local conditions for being in $G$.\n\nThe local conditions for $G$ are:\n- $g \\equiv 0 \\pmod{2}$ (from $p = 2$)\n- $g \\pmod{3} \\in \\{0, 2\\}$ (from $p = 3$)\n- $g \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}_{631}$ (from $p = 631$)\n- No other local conditions (from other primes, as shown above).\n\nBut wait, I need to also check: are there local conditions from higher powers of 2, 3, or 631?\n\nFor $p = 2$: $S$ is always even. Is $S$ always $\\equiv 0 \\pmod{4}$? No, we showed $S = 3782 \\equiv 2 \\pmod{4}$. So the only condition from $p = 2$ is $v_2(S) \\geq 1$.\n\nBut actually, we need to check: can $S$ be $\\equiv 2 \\pmod{4}$ and also $\\equiv 0 \\pmod{4}$? Yes, both are achievable. So the condition is just $2 | S$.\n\nFor $aG \\subseteq G$: $2 | ag$ for all $g \\in G$ with $2 | g$. This is automatic.\n\nFor $p = 3$: The condition is $S \\pmod{3} \\in \\{0, 2\\}$. But is there a condition mod 9?\n\nLet me check: can $S \\equiv 0 \\pmod{3}$ but $S \\not\\equiv 0 \\pmod{9}$? \n\n$S = 3786 = 2 \\times 1893 = 2 \\times 3 \\times 631$. $3786 / 9 = 420.67$, so $3786 \\equiv 6 \\pmod{9}$. And $3786 \\equiv 0 \\pmod{3}$. So $S \\equiv 0 \\pmod{3}$ but $S \\equiv 6 \\pmod{9}$.\n\nCan $S \\equiv 0 \\pmod{9}$? $S = 5670 = 3 \\times 1890 = 3 \\times 9 \\times 210 = 9 \\times 630$. Yes, $S \\equiv 0 \\pmod{9}$.\n\nCan $S \\equiv 3 \\pmod{9}$? $S = 7572 = 4 \\times 1893 = 4 \\times 3 \\times 631 = 12 \\times 631$. $7572 / 9 = 841.33$, $7572 - 841 \\times 9 = 7572 - 7569 = 3$. Yes, $S \\equiv 3 \\pmod{9}$.\n\nSo when $S \\equiv 0 \\pmod{3}$, $S$ can be $\\equiv 0, 3, 6 \\pmod{9}$, i.e., any multiple of 3 mod 9. So there's no additional constraint mod 9 beyond $S \\equiv 0 \\pmod{3}$.\n\nSimilarly, when $S \\equiv 2 \\pmod{3}$, what can $S$ be mod 9? $S \\equiv 2 \\pmod{3}$ means $S \\equiv 2, 5, 8 \\pmod{9}$.\n\n$S = 1892 \\equiv 2 \\pmod{9}$. $S = 3782 \\equiv 2 \\pmod{9}$. Can $S \\equiv 5 \\pmod{9}$? $S \\equiv 5 \\pmod{9}$ means $S \\equiv 2 \\pmod{3}$, so we need $T \\not\\equiv 0 \\pmod{3}$.\n\nLet me try $T = 1, Q = 2$ (e.g., $x_1 = 1, x_2 = 1$, rest 0, but then $T = 2, Q = 2$). Hmm, let me try $x_1 = 2, x_2 = -1$, rest 0: $T = 1, Q = 5, S = 1893 \\times 5 - 1 = 9464$. $9464 \\pmod{9} = 9464 - 1051 \\times 9 = 9464 - 9459 = 5$. Yes! $S \\equiv 5 \\pmod{9}$.\n\nCan $S \\equiv 8 \\pmod{9}$? Try $T = 2, Q = 5$ (e.g., $x_1 = 2, x_2 = 1, x_3 = -1$, rest 0: $T = 2, Q = 6, S = 1893 \\times 6 - 4 = 11374$. $11374 \\pmod{9} = 11374 - 1263 \\times 9 = 11374 - 11367 = 7$. Hmm, $7 \\pmod{9}$, and $7 \\equiv 1 \\pmod{3}$. But we said $S \\pmod{3} \\in \\{0, 2\\}$, so $S \\equiv 7 \\pmod{9}$ should not be possible. Let me recheck.\n\n$S = 1893 \\times 6 - 4 = 11358 - 4 = 11374$. $11374 / 3 = 3791.33$, so $11374 \\equiv 2 \\pmod{3}$. $11374 \\pmod{9}$: $11374 = 1263 \\times 9 + 7$, so $11374 \\equiv 7 \\pmod{9}$. But $7 \\equiv 1 \\pmod{3}$! Contradiction with $S \\pmod{3} \\in \\{0, 2\\}$?\n\nWait, let me recheck. $n = 1893 \\equiv 3 \\pmod{9}$. $S = nQ - T^2 = 3 \\times 6 - 4 = 18 - 4 = 14 \\equiv 5 \\pmod{9}$. But I computed $11374 \\pmod{9} = 7$. Let me recompute: $1893 \\times 6 = 11358$. $11358 - 4 = 11354$. Wait, $T = 2, T^2 = 4$. $S = 1893 \\times 6 - 4 = 11358 - 4 = 11354$. $11354 \\pmod{9}$: $11354 / 9 = 1261.56$, $1261 \\times 9 = 11349$, $11354 - 11349 = 5$. So $S \\equiv 5 \\pmod{9}$. And $5 \\equiv 2 \\pmod{3}$. ✓\n\nI made an arithmetic error before. Let me redo: $x_1 = 2, x_2 = 1, x_3 = -1$, rest 0: $T = 2, Q = 4 + 1 + 1 = 6, S = 1893 \\times 6 - 4 = 11354$. $11354 \\pmod{9} = 5$. ✓\n\nOK so let me try to get $S \\equiv 8 \\pmod{9}$. $S \\equiv 3Q - T^2 \\pmod{9}$, $S \\equiv 8 \\pmod{9}$, $S \\equiv 2 \\pmod{3}$.\n\n$3Q - T^2 \\equiv 8 \\pmod{9}$. $3Q \\equiv 8 + T^2 \\pmod{9}$. $3Q \\pmod{9} \\in \\{0, 3, 6\\}$. $T^2 \\pmod{9} \\in \\{0, 1, 4, 7\\}$.\n\n$8 + 0 = 8$: $8 \\pmod{9}$, not in $\\{0, 3, 6\\}$.\n$8 + 1 = 9 \\equiv 0$: $0 \\in \\{0, 3, 6\\}$ ✓. So $Q \\equiv 0 \\pmod{3}, T^2 \\equiv 1 \\pmod{9}$, i.e., $T \\equiv \\pm 1 \\pmod{9}$.\n$8 + 4 = 12 \\equiv 3$: $3 \\in \\{0, 3, 6\\}$ ✓. So $Q \\equiv 1 \\pmod{3}, T^2 \\equiv 4 \\pmod{9}$, i.e., $T \\equiv \\pm 2 \\pmod{9}$.\n$8 + 7 = 15 \\equiv 6$: $6 \\in \\{0, 3, 6\\}$ ✓. So $Q \\equiv 2 \\pmod{3}, T^2 \\equiv 7 \\pmod{9}$, i.e., $T \\equiv \\pm 4 \\pmod{9}$.\n\nSo $S \\equiv 8 \\pmod{9}$ is achievable in principle. Let me construct: $T = 1, Q = 3$ (need $\\sum x_i = 1, \\sum x_i^2 = 3$). E.g., $x_1 = 1, x_2 = 1, x_3 = -1$, rest 0: $T = 1, Q = 3, S = 1893 \\times 3 - 1 = 5678$. $5678 \\pmod{9} = 5678 - 630 \\times 9 = 5678 - 5670 = 8$. ✓\n\nSo $S \\equiv 8 \\pmod{9}$ is achievable. So when $S \\equiv 2 \\pmod{3}$, $S$ can be $\\equiv 2, 5, 8 \\pmod{9}$, i.e., any value $\\equiv 2 \\pmod{3}$.\n\nSo the only constraint from $p = 3$ is $S \\pmod{3} \\in \\{0, 2\\}$, with no additional constraint mod 9.\n\nSimilarly, I expect no additional constraints from higher powers of 3 or 631. The reason is that with $n = 1893$ variables, we have enough freedom to achieve all residues consistent with the mod $p$ condition.\n\nLet me also check for $p = 631$: is the only constraint $S \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}_{631}$?\n\n$S \\equiv -T^2 \\pmod{631}$. For $T \\equiv 0 \\pmod{631}$: $S \\equiv 0$. For $T \\not\\equiv 0$: $S \\equiv -T^2$, which is a QNR (since $-1$ is QNR mod 631 as $631 \\equiv 3 \\pmod{4}$, and $T^2$ is QR, so $-T^2$ is QNR).\n\nNow, mod $631^2$: $S = nQ - T^2 = 1893Q - T^2$. $1893 = 3 \\times 631$, so $n \\equiv 0 \\pmod{631}$ but $n \\not\\equiv 0 \\pmod{631^2}$ (since $1893 = 3 \\times 631$ and $631^2 = 398161$, $1893 < 631^2$). So $n = 3 \\times 631$.\n\n$S \\pmod{631^2}$: $S = 3 \\times 631 \\times Q - T^2$. \n\nIf $631 | T$, say $T = 631t$: $S = 3 \\times 631 \\times Q - 631^2 t^2 = 631(3Q - 631t^2)$. So $S \\equiv 0 \\pmod{631}$, and $S/631 \\equiv 3Q \\pmod{631}$. Since $Q$ can be anything (with appropriate $x_i$), $S/631$ can be any multiple of 3 mod 631... well, $3Q \\pmod{631}$ can be anything since $3$ is invertible mod 631 and $Q$ can be anything. So $S/631$ can be any residue mod 631. So $S$ can be $631 \\times k$ for any $k$ (at least mod $631^2$).\n\nIf $631 \\nmid T$: $S \\equiv -T^2 \\pmod{631}$, which is a QNR. And $S \\pmod{631^2}$: $S = 3 \\times 631 \\times Q - T^2$. $S \\pmod{631^2} = 3 \\times 631 \\times Q - T^2 \\pmod{631^2}$. As $Q$ varies, $3 \\times 631 \\times Q$ takes all multiples of $631$ mod $631^2$ (since $\\gcd(3, 631) = 1$... well, $3 \\times 631 \\times Q \\pmod{631^2}$: as $Q$ ranges over $0, 1, \\ldots, 630$, $3 \\times 631 \\times Q \\pmod{631^2}$ takes values $0, 3 \\times 631, 6 \\times 631, \\ldots, 3 \\times 630 \\times 631 \\pmod{631^2}$. Since $\\gcd(3, 631) = 1$, $3Q \\pmod{631}$ takes all values, so $3 \\times 631 \\times Q \\pmod{631^2}$ takes all multiples of 631 mod $631^2$). So $S \\pmod{631^2}$ can be $-T^2 + 631k$ for any $k$, i.e., $S$ can be any value $\\equiv -T^2 \\pmod{631}$, with no additional constraint mod $631^2$.\n\nSo the only constraint from $p = 631$ is indeed $S \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}_{631}$.\n\nNow, let me also verify that there are no constraints from $p = 2$ beyond $2 | S$.\n\n$S \\pmod{4}$: we showed $S \\equiv 0$ or $2 \\pmod{4}$. Can $S \\equiv 0 \\pmod{4}$? Yes ($S = 1892 \\equiv 0$). Can $S \\equiv 2 \\pmod{4}$? Yes ($S = 3782 \\equiv 2$). So the only constraint is $2 | S$.\n\n$S \\pmod{8}$: $n = 1893 \\equiv 5 \\pmod{8}$. $S = nQ - T^2 \\equiv 5Q - T^2 \\pmod{8}$.\n\n$Q \\pmod{8}$: $Q = \\sum x_i^2$. $x_i^2 \\pmod{8}$: $x_i$ even → $x_i^2 \\equiv 0$ or $4 \\pmod{8}$; $x_i$ odd → $x_i^2 \\equiv 1 \\pmod{8}$.\n\n$T^2 \\pmod{8}$: $T$ even → $T^2 \\equiv 0$ or $4$; $T$ odd → $T^2 \\equiv 1$.\n\nThis is getting complicated. Let me just check: can $S \\equiv 2 \\pmod{4}$ (i.e., $v_2(S) = 1$)? Yes, $S = 3782 = 2 \\times 1891$, $v_2 = 1$. Can $S \\equiv 4 \\pmod{8}$ (i.e., $v_2(S) = 2$)? $S = 1892 = 4 \\times 473$, $v_2 = 2$. Can $S \\equiv 0 \\pmod{8}$ (i.e., $v_2(S) \\geq 3$)? $S = 3786 = 2 \\times 1893 = 2 \\times 3 \\times 631$. $v_2(3786) = 1$. Hmm. $S = 4n = 7572 = 4 \\times 1893 = 4 \\times 3 \\times 631$. $v_2(7572) = 2$. $S = 8n = 15144 = 8 \\times 1893$. $v_2(15144) = 3$. Yes, $v_2(S) = 3$ is achievable (with $T = 0, Q = 8$, e.g., $x_1 = 2, x_2 = -2$, rest 0).\n\nSo $v_2(S)$ can be 1, 2, 3, ... and the only constraint is $v_2(S) \\geq 1$, i.e., $2 | S$.\n\nNow, for $aG \\subseteq G$: since $2 | g$ for all $g \\in G$, $2 | ag$ for any $a$. So no constraint from $p = 2$.\n\nGreat. So the constraints on $a$ (for $aG \\subseteq G$) are:\n1. $a \\equiv 0$ or $1 \\pmod{3}$ (from $p = 3$).\n2. $a \\equiv 0 \\pmod{631}$ or $a$ is QR mod 631 (from $p = 631$).\n\nAnd $a$ is not a perfect square, and we want the smallest such $a$.\n\nBut wait, I need to also check that these conditions are sufficient, not just necessary. That is, if $a$ satisfies these conditions, is $aG \\subseteq G$?\n\nThe conditions ensure that $ag$ satisfies the local conditions for being in $G$ (for all $g \\in G$). But we also need $ag$ to actually be representable, not just satisfy the local conditions.\n\nFor large enough $ag$, the local-global principle for quadratic forms in many variables guarantees representability. But for small $ag$, we might have issues.\n\nHowever, the question asks for $a$ such that $ag \\in G$ for ALL $g \\in G$, including small $g$. So we need to be more careful.\n\nHmm, but actually, let me reconsider. The set $G$ is the set of positive integers represented by the form. If $g \\in G$, then $g = f(x_1, \\ldots, x_n)$ for some integers. Then $ag = f(\\sqrt{a} x_1, \\ldots)$... no, that doesn't work unless $a$ is a perfect square.\n\nLet me think about this differently. We need: for every $g \\in G$, $ag \\in G$. \n\nThe key insight is that $G$ is closed under multiplication by perfect squares (scaling). So if $g \\in G$, then $k^2 g \\in G$ for all $k$. \n\nNow, $ag \\in G$ requires $ag$ to be representable. If $a$ satisfies the local conditions, then $ag$ satisfies the local conditions (as we checked). For large $ag$, it's representable by the local-global principle. But for small $ag$, we need to check.\n\nActually, wait. Let me reconsider the problem. The form has $n - 1 = 1892$ positive eigenvalues (after restricting to the orthogonal complement of the kernel). A positive definite quadratic form in 1892 variables is very \"universal\" - it represents all positive integers satisfying the local conditions, with at most finitely many exceptions. And for 1892 variables, the exceptions are likely very small or nonexistent.\n\nBut to be rigorous, let me think about whether the local conditions are sufficient.\n\nActually, I think the key point is this: the form $f = n\\sum x_i^2 - (\\sum x_i)^2$ restricted to $\\sum x_i = 0$ becomes $n \\sum x_i^2$, which is $n$ times a sum of squares. And sums of squares in many variables are very flexible.\n\nLet me think about it more carefully. The good numbers include:\n- When $T = 0$ (i.e., $\\sum x_i = 0$): $S = n \\sum x_i^2$. These are $n$ times a sum of $n$ squares with the constraint $\\sum x_i = 0$.\n- When $T \\neq 0$: $S = nQ - T^2$ with various values.\n\nFor $T = 0$: $S = n \\sum x_i^2$ where $\\sum x_i = 0$. The constraint $\\sum x_i = 0$ with $n = 1893$ variables is not very restrictive. In fact, $\\sum x_i^2$ with $\\sum x_i = 0$ can represent all integers $\\geq 2$ that are sums of squares (well, almost - we need at least 2 nonzero terms to have $\\sum x_i = 0$, and the minimum is $\\sum x_i^2 = 2$ with $x_1 = 1, x_2 = -1$).\n\nActually, by Lagrange's four-square theorem, every non-negative integer is a sum of 4 squares. With the constraint $\\sum x_i = 0$ and $n = 1893$ variables, we can represent any integer $m \\geq 2$ as $\\sum x_i^2$ with $\\sum x_i = 0$: write $m = a^2 + b^2 + c^2 + d^2$ (four-square theorem), then set $x_1 = a, x_2 = b, x_3 = c, x_4 = d, x_5 = -(a+b+c+d), x_6 = \\cdots = x_n = 0$. Then $\\sum x_i = 0$ and $\\sum x_i^2 = a^2 + b^2 + c^2 + d^2 + (a+b+c+d)^2 = m + (a+b+c+d)^2$. Hmm, that adds an extra term.\n\nLet me try differently. Set $x_1 = a, x_2 = -a, x_3 = b, x_4 = c, x_5 = d, x_6 = -(b+c+d), x_7 = \\cdots = x_n = 0$. Then $\\sum x_i = 0$ and $\\sum x_i^2 = 2a^2 + b^2 + c^2 + d^2 + (b+c+d)^2$. This is $2a^2 + b^2 + c^2 + d^2 + b^2 + c^2 + d^2 + 2bc + 2bd + 2cd = 2a^2 + 2b^2 + 2c^2 + 2d^2 + 2bc + 2bd + 2cd = 2(a^2 + b^2 + c^2 + d^2 + bc + bd + cd)$. Hmm, this is always even.\n\nLet me try yet another approach. Set $x_1 = a, x_2 = -a$, rest 0. Then $\\sum x_i = 0, \\sum x_i^2 = 2a^2, S = 2na^2$. So $2na^2 = 2 \\times 1893 \\times a^2 = 3786 a^2$ is a good number for any $a$.\n\nSet $x_1 = a, x_2 = b, x_3 = -(a+b)$, rest 0. Then $\\sum x_i = 0, \\sum x_i^2 = a^2 + b^2 + (a+b)^2 = 2a^2 + 2b^2 + 2ab = 2(a^2 + ab + b^2)$. So $S = 2n(a^2 + ab + b^2)$. The form $a^2 + ab + b^2$ represents integers of the form $x^2 + xy + y^2$, which are known to be exactly the integers whose prime factorization has even exponents for primes $\\equiv 2 \\pmod{3}$.\n\nOK this is getting complicated. Let me take a step back and think about the problem from a higher level.\n\nThe question is: what is the smallest non-square $a$ such that $aG \\subseteq G$?\n\nI've established that the necessary conditions are:\n1. $a \\equiv 0$ or $1 \\pmod{3}$\n2. $a \\equiv 0 \\pmod{631}$ or $a$ is QR mod 631\n\nAnd I believe these are also sufficient (because the form has enough variables that the local-global principle applies without exceptions, or at least the exceptions don't cause problems).\n\nNow, let me also think about whether there might be constraints I'm missing. In particular, I should check: is the set of good numbers exactly the set of positive even integers $S$ with $S \\pmod{3} \\in \\{0, 2\\}$ and $S \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}_{631}$?\n\nIf this is the case, then $aG \\subseteq G$ is equivalent to the two conditions above, and we just need to find the smallest non-square $a$ satisfying them.\n\nBut I should verify this characterization. Let me think about whether every positive even integer with $S \\pmod{3} \\in \\{0, 2\\}$ and $S \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}_{631}$ is a good number.\n\nActually, I realize I need to be more careful. The condition $S \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}_{631}$ combined with $S \\pmod{3} \\in \\{0, 2\\}$ and $2 | S$ might not be sufficient for small values. But for the purpose of finding $a$ such that $aG \\subseteq G$, we need: for every $g \\in G$, $ag \\in G$. If $g$ is a good number, then $g$ satisfies the local conditions, and $ag$ also satisfies them (by our conditions on $a$). If $ag$ is large enough, it's representable. But $g$ could be small, making $ag$ small too.\n\nHowever, note that $G$ is closed under multiplication by perfect squares. So if $g \\in G$, then $k^2 g \\in G$ for all $k$. In particular, $g, 4g, 9g, 16g, \\ldots$ are all in $G$. So $G$ contains arbitrarily large multiples of $g$ (by perfect squares). \n\nNow, for $aG \\subseteq G$: we need $ag \\in G$ for all $g \\in G$. Since $G$ is closed under perfect square multiplication, $a(k^2 g) = k^2 (ag)$. So if $ag \\in G$, then $k^2(ag) \\in G$ automatically. And if $ag \\notin G$ for some $g$, then... we need to check.\n\nActually, the point is: we need $ag \\in G$ for every $g \\in G$. The smallest elements of $G$ are the most restrictive. Let me find the smallest good numbers.\n\nThe smallest good number: we need $S > 0$ and $S = nQ - T^2$ minimized. With $T = 1, Q = 1$: $S = n - 1 = 1892$. With $T = 0, Q = 2$: $S = 2n = 3786$. With $T = 1, Q = 2$: $S = 2n - 1 = 3785$. Wait, is $T = 1, Q = 2$ achievable? We need $\\sum x_i = 1, \\sum x_i^2 = 2$. E.g., $x_1 = 1, x_2 = 1, x_3 = \\cdots = x_n = 0$: $T = 2, Q = 2$. Or $x_1 = 1, x_2 = 0, \\ldots$: $T = 1, Q = 1$. For $T = 1, Q = 2$: $x_1 = 1, x_2 = 1, x_3 = -1$, rest 0: $T = 1, Q = 3$. Hmm. $x_1 = 2, x_2 = -1$, rest 0: $T = 1, Q = 5$. How about $x_1 = 1, x_2 = 1, x_3 = -1, x_4 = 0, \\ldots$: $T = 1, Q = 3$. \n\nFor $T = 1, Q = 2$: we need one $x_i$ to contribute 1 to $T$ and the squares to sum to 2. If one $x_i = 1$ (contributes 1 to $T$ and 1 to $Q$), we need the rest to contribute 0 to $T$ and 1 to $Q$. So we need $\\sum_{i \\geq 2} x_i = 0$ and $\\sum_{i \\geq 2} x_i^2 = 1$. But $\\sum x_i = 0$ and $\\sum x_i^2 = 1$ is impossible (if one $x_i = \\pm 1$ and rest 0, then $\\sum x_i = \\pm 1 \\neq 0$). So $T = 1, Q = 2$ is not achievable.\n\nWhat about $T = 2, Q = 2$: $x_1 = x_2 = 1$, rest 0. $S = 2n - 4 = 3782$. \n$T = 1, Q = 1$: $S = n - 1 = 1892$.\n$T = 0, Q = 2$: $S = 2n = 3786$.\n$T = 2, Q = 3$: $x_1 = 1, x_2 = 1, x_3 = 1, x_4 = -1$, rest 0: $T = 2, Q = 4$. Hmm, that's $Q = 4$. For $Q = 3$: $x_1 = 1, x_2 = 1, x_3 = 1, x_4 = -1$: $T = 2, Q = 4$. $x_1 = 2, x_2 = 0, x_3 = 0, x_4 = 0$: $T = 2, Q = 4$. Hmm. $x_1 = 1, x_2 = 1$, rest 0: $T = 2, Q = 2$. For $T = 2, Q = 3$: need $\\sum x_i = 2, \\sum x_i^2 = 3$. E.g., $x_1 = 1, x_2 = 1, x_3 = 1, x_4 = -1$: $T = 2, Q = 4$. $x_1 = 2, x_2 = 0, \\ldots, x_{n-1} = 0, x_n = 0$: $T = 2, Q = 4$. $x_1 = 1, x_2 = 1, x_3 = 0, \\ldots$: $T = 2, Q = 2$. How about $x_1 = 1, x_2 = 1, x_3 = 1, x_4 = -1, x_5 = 0, \\ldots$: $T = 2, Q = 4$. \n\nFor $T = 2, Q = 3$: We need $\\sum x_i = 2$ and $\\sum x_i^2 = 3$. The minimum $Q$ for $T = 2$ is 2 (two 1's). To get $Q = 3$, we need to increase $Q$ by 1 while keeping $T = 2$. If we change one 0 to $a$ and one 1 to $1-a$: $T$ stays 2, $Q$ changes by $a^2 + (1-a)^2 - 1 = 2a^2 - 2a + 1 - 1 = 2a(a-1)$. For $a = 1$: change is 0. For $a = -1$: change is $2(-1)(-2) = 4$. For $a = 2$: change is $2(2)(1) = 4$. So the change is always even. So $Q$ can only change by even amounts, meaning $Q$ has the same parity as the minimum. The minimum $Q$ for $T = 2$ is 2 (even), so $Q$ is always even when $T = 2$. So $T = 2, Q = 3$ is not achievable.\n\nIn general, $Q \\equiv T \\pmod{2}$ (since $Q - T = \\sum x_i(x_i - 1)$ is always even). So $Q$ and $T$ have the same parity.\n\nSo the achievable $(T, Q)$ pairs have $Q \\equiv T \\pmod{2}$ and $Q \\geq Q_{\\min}(T)$.\n\n$S = nQ - T^2$. Since $n$ is odd, $S \\equiv Q - T^2 \\equiv Q - T \\pmod{2}$ (since $T^2 \\equiv T \\pmod{2}$). And $Q \\equiv T \\pmod{2}$, so $S \\equiv 0 \\pmod{2}$. ✓\n\nNow, the smallest good numbers:\n- $T = 1, Q = 1$: $S = 1892$.\n- $T = 2, Q = 2$: $S = 3782$.\n- $T = 0, Q = 2$: $S = 3786$.\n- $T = 3, Q = 3$: $S = 3 \\times 1893 - 9 = 5670$.\n- $T = 1, Q = 3$: need $Q \\equiv T \\pmod{2}$, $1 \\equiv 3 \\pmod{2}$? $1$ is odd, $3$ is odd. ✓. $S = 3 \\times 1893 - 1 = 5678$.\n- $T = 4, Q = 4$: $S = 4 \\times 1893 - 16 = 7556$.\n- $T = 0, Q = 4$: $S = 4 \\times 1893 = 7572$.\n\nSo the smallest good number is $1892$.\n\nNow, for $aG \\subseteq G$, we need $a \\times 1892 \\in G$. $1892 = 4 \\times 473 = 4 \\times 11 \\times 43$.\n\n$a \\times 1892$ must be a good number, so it must satisfy:\n- $2 | a \\times 1892$: always true since $4 | 1892$.\n- $(a \\times 1892) \\pmod{3} \\in \\{0, 2\\}$: $1892 \\equiv 2 \\pmod{3}$, so $a \\times 1892 \\equiv 2a \\pmod{3}$. Need $2a \\in \\{0, 2\\} \\pmod{3}$, i.e., $a \\in \\{0, 1\\} \\pmod{3}$.\n- $(a \\times 1892) \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}$: $1892 \\equiv -1 \\pmod{631}$ (since $1892 = 3 \\times 631 - 1$). $-1$ is QNR mod 631 (since $631 \\equiv 3 \\pmod{4}$). So $a \\times 1892 \\equiv -a \\pmod{631}$. Need $-a \\in \\{0\\} \\cup \\text{QNR}$, i.e., $a \\in \\{0\\} \\cup \\text{QR}$ (since $-(-\\text{QR}) = \\text{QR}$... wait, let me be careful.\n\n$-a \\pmod{631} \\in \\{0\\} \\cup \\text{QNR}$. \n- If $a \\equiv 0$: $-a \\equiv 0$ ✓.\n- If $a$ is QR: $-a = (-1) \\times a$. $-1$ is QNR, $a$ is QR, so $-a$ is QNR ✓.\n- If $a$ is QNR: $-a = (-1) \\times a$. $-1$ is QNR, $a$ is QNR, so $-a$ is QR ✗.\n\nSo the condition is $a \\equiv 0 \\pmod{631}$ or $a$ is QR mod 631. Same as before. ✓\n\nNow, I also need to check with other good numbers. Let me check with $g = 3782 = 2 \\times 1891 = 2 \\times 31 \\times 61$.\n\n$3782 \\pmod{3} = 3782 - 1260 \\times 3 = 3782 - 3780 = 2$. So $a \\times 3782 \\equiv 2a \\pmod{3}$, same condition.\n\n$3782 \\pmod{631} = 3782 - 6 \\times 631 = 3782 - 3786 = -4 \\equiv 627 \\pmod{631}$. Is $-4$ a QR or QNR mod 631? $-4 = (-1) \\times 4 = (-1) \\times 2^2$. $-1$ is QNR, $4$ is QR, so $-4$ is QNR. So $3782 \\equiv \\text{QNR} \\pmod{631}$.\n\n$a \\times 3782 \\equiv a \\times (-4) \\pmod{631}$. Need this to be in $\\{0\\} \\cup \\text{QNR}$.\n- $a \\equiv 0$: $0$ ✓.\n- $a$ is QR: $a \\times (-4) = \\text{QR} \\times \\text{QNR} = \\text{QNR}$ ✓.\n- $a$ is QNR: $a \\times (-4) = \\text{QNR} \\times \\text{QNR} = \\text{QR}$ ✗.\n\nSame condition. ✓\n\nLet me also check with $g = 3786 = 2 \\times 3 \\times 631$.\n\n$3786 \\pmod{3} = 0$. So $a \\times 3786 \\equiv 0 \\pmod{3}$, always in $\\{0, 2\\}$. ✓ (no additional constraint)\n\n$3786 \\pmod{631} = 0$. So $a \\times 3786 \\equiv 0 \\pmod{631}$, always in $\\{0\\} \\cup \\text{QNR}$. ✓ (no additional constraint)\n\nSo $g = 3786$ gives no additional constraints. Good.\n\nNow, I need to check: are the conditions $a \\equiv 0$ or $1 \\pmod{3}$ and ($a \\equiv 0 \\pmod{631}$ or $a$ is QR mod 631) sufficient for $aG \\subseteq G$?\n\nThe conditions ensure that $ag$ satisfies the local conditions for every $g \\in G$. But we need $ag$ to actually be in $G$ (representable by the form).\n\nI claim that for the form with $n - 1 = 1892$ variables, every sufficiently large positive integer satisfying the local conditions is represented. And since $G$ is closed under multiplication by perfect squares, the set $G$ contains arbitrarily large elements in each \"class\" (determined by the local conditions). So if $ag$ satisfies the local conditions, then $ag \\cdot k^2$ also satisfies them (since $k^2$ is a perfect square and doesn't change the QR/QNR status), and for large enough $k$, $ag \\cdot k^2$ is represented. But we need $ag$ itself to be represented, not just $ag \\cdot k^2$.\n\nHmm, this is the crux. Let me think more carefully.\n\nActually, $G$ is closed under multiplication by perfect squares: if $g \\in G$, then $k^2 g \\in G$. But the converse is not necessarily true: $k^2 g \\in G$ doesn't imply $g \\in G$.\n\nSo we need: for every $g \\in G$, $ag \\in G$. The local conditions on $a$ ensure $ag$ satisfies the local conditions. But we need $ag$ to be representable.\n\nLet me think about this more carefully. The form $f = n\\sum x_i^2 - (\\sum x_i)^2$ in $n = 1893$ variables. After projecting out the kernel, it's a positive definite form in 1892 variables. By the theory of quadratic forms, a positive definite form in $m$ variables represents all positive integers satisfying the local conditions, provided $m$ is large enough (specifically, $m \\geq 5$ for most forms, by the 15-theorem or 290-theorem type results, though these are about universality, not about forms with local conditions).\n\nActually, the relevant theorem is: for a positive definite quadratic form in $m \\geq 5$ variables, the form represents all sufficiently large integers satisfying the local conditions. This is a consequence of the circle method (Hardy-Littlewood) for $m \\geq 5$.\n\nFor $m = 1892$, which is much larger than 5, the form represents all positive integers satisfying the local conditions, with possibly finitely many exceptions. And for such a large number of variables, the exceptions are likely very small (or nonexistent).\n\nBut we need to be careful: we need $ag \\in G$ for ALL $g \\in G$, including the smallest ones. The smallest good number is 1892. So we need $1892a \\in G$.\n\nIf $a$ satisfies the local conditions, then $1892a$ satisfies the local conditions. Is $1892a$ representable? For $a = 1$, $1892 \\in G$ (it's the smallest good number). For general $a$ satisfying the conditions, $1892a$ might be small enough that the circle method doesn't apply.\n\nHmm, but actually, let me think about this differently. The question is asking for the smallest $a$ (not a perfect square) such that $aG \\subseteq G$. Let me just find the candidates and check.\n\nThe conditions on $a$ (squarefree, not a perfect square, so $a > 1$ squarefree):\n1. $a \\equiv 0$ or $1 \\pmod{3}$\n2. $a \\equiv 0 \\pmod{631}$ or $a$ is QR mod 631\n\nWe want the smallest such $a$.\n\nIf $a$ is squarefree, $a \\not\\equiv 0 \\pmod{3}$ means $3 \\nmid a$, so $a \\equiv 1 \\pmod{3}$ (condition 1).\nIf $3 | a$ (and $a$ is squarefree), then $a \\equiv 0 \\pmod{3}$ (condition 1 satisfied).\n\nFor condition 2: if $631 | a$ (and squarefree), condition 2 satisfied. If $631 \\nmid a$, need $a$ to be QR mod 631.\n\nThe smallest squarefree $a > 1$:\n- $a = 2$: $2 \\equiv 2 \\pmod{3}$. Fails condition 1.\n- $a = 3$: $3 \\equiv 0 \\pmod{3}$ ✓. $3 \\pmod{631} = 3$. Is 3 a QR mod 631? Need to check. By quadratic reciprocity: $\\left(\\frac{3}{631}\\right) = \\left(\\frac{631}{3}\\right) \\times (-1)^{(3-1)(631-1)/4} = \\left(\\frac{631}{3}\\right) \\times (-1)^{2 \\times 630/4} = \\left(\\frac{631}{3}\\right) \\times (-1)^{315}$. $631 \\equiv 1 \\pmod{3}$, so $\\left(\\frac{631}{3}\\right) = \\left(\\frac{1}{3}\\right) = 1$. $(-1)^{315} = -1$. So $\\left(\\frac{3}{631}\\right) = -1$, meaning 3 is QNR mod 631. So $a = 3$ fails condition 2.\n- $a = 5$: $5 \\equiv 2 \\pmod{3}$. Fails condition 1.\n- $a = 6 = 2 \\times 3$: $6 \\equiv 0 \\pmod{3}$ ✓. $6 \\pmod{631} = 6$. Is 6 a QR mod 631? $\\left(\\frac{6}{631}\\right) = \\left(\\frac{2}{631}\\right) \\times \\left(\\frac{3}{631}\\right)$. $\\left(\\frac{2}{631}\\right) = (-1)^{(631^2-1)/8}$. $631 \\equiv 7 \\pmod{8}$, so $(631^2-1)/8 = (398161-1)/8 = 398160/8 = 49770$, which is even. So $\\left(\\frac{2}{631}\\right) = 1$. $\\left(\\frac{3}{631}\\right) = -1$ (computed above). So $\\left(\\frac{6}{631}\\right) = 1 \\times (-1) = -1$. 6 is QNR. Fails condition 2.\n- $a = 7$: $7 \\equiv 1 \\pmod{3}$ ✓. Is 7 QR mod 631? $\\left(\\frac{7}{631}\\right)$. By QR: $\\left(\\frac{7}{631}\\right) = \\left(\\frac{631}{7}\\right) \\times (-1)^{(7-1)(631-1)/4} = \\left(\\frac{631}{7}\\right) \\times (-1)^{6 \\times 630/4} = \\left(\\frac{631}{7}\\right) \\times (-1)^{945}$. $631 = 90 \\times 7 + 1$, so $631 \\equiv 1 \\pmod{7}$. $\\left(\\frac{1}{7}\\right) = 1$. $(-1)^{945} = -1$. So $\\left(\\frac{7}{631}\\right) = -1$. 7 is QNR. Fails condition 2.\n- $a = 10 = 2 \\times 5$: $10 \\equiv 1 \\pmod{3}$ ✓. $\\left(\\frac{10}{631}\\right) = \\left(\\frac{2}{631}\\right) \\times \\left(\\frac{5}{631}\\right) = 1 \\times \\left(\\frac{5}{631}\\right)$. $\\left(\\frac{5}{631}\\right) = \\left(\\frac{631}{5}\\right) \\times (-1)^{(5-1)(631-1)/4} = \\left(\\frac{631}{5}\\right) \\times (-1)^{4 \\times 630/4} = \\left(\\frac{631}{5}\\right) \\times (-1)^{630}$. $631 \\equiv 1 \\pmod{5}$, $\\left(\\frac{1}{5}\\right) = 1$. $(-1)^{630} = 1$. So $\\left(\\frac{5}{631}\\right) = 1$. $\\left(\\frac{10}{631}\\right) = 1$. 10 is QR! ✓\n\nSo $a = 10$ satisfies both conditions. But wait, I should check smaller values.\n\nLet me list squarefree $a > 1$ and check:\n- $a = 2$: $2 \\equiv 2 \\pmod 3$ ✗\n- $a = 3$: $3 \\equiv 0 \\pmod 3$ ✓, but 3 is QNR mod 631 ✗\n- $a = 5$: $5 \\equiv 2 \\pmod 3$",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 24880,
+        "completion_tokens": 25000,
+        "cached_tokens": 12398
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 24880,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12398,
+    "total_steps": 10
+  }
+}

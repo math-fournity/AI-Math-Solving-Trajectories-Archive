@@ -1,0 +1,1048 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "stealth-dracorex",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-20T16:45:00.189461+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-20T16:45:00.189965+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-20T16:45:00.197942+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-20T16:45:00.190301+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p392867d2b62e4ff8aabb (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Thursday, 2026-08-20\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-20T16:45:00.190778+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在AGENTS.md中只记录脚本路径和一行用法示例。AGENTS.md是认知索引和规则，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。放到项目已有的脚本目录（如`xishujuzhen/solver_harness/`）或项目的`scripts/`目录中。\n\n4. **在项目AGENTS.md中做好索引**——新脚本必须在项目AGENTS.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **必须写成文件** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 检查项目内是否已有类似脚本（grep搜索、看AGENTS.md索引）\n3. **已有** → 改进那个脚本（edit工具修改），编译验证\n4. **没有** → 在项目脚本目录中创建新文件（write工具），编译验证\n5. 在项目AGENTS.md中记录脚本索引（如已有相关节则更新，如没有则新增）\n6. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新AGENTS.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是索引不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ✅ 改进`batch_status.py`的`cmd_dead_cleanup`函数\n- ✅ 新建`enqueue_problem.py`并在AGENTS.md硬约束6中记录\n- ✅ AGENTS.md中只写`pipe_control.py status`一行用法，不写完整调用参数和输出示例\n</rule>\n\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p392867d2b62e4ff8aabb/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nLet \\( G \\) be a finite subgroup of \\( GL_n(\\mathbb{Q}) \\). Find the minimum positive integer \\( k \\) such that there exists a matrix \\( P \\in GL_n(\\mathbb{Q}) \\) and a subgroup \\( F \\) of \\( GL_n(\\mathbb{Z}) \\) with \\( G = P^{-1}FP \\) and the determinant of \\( P \\) is \\( k \\).\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-20T16:45:00.190792+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-20T16:45:00.199687+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-20T16:45:00.200600+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **search-tools**: 网络搜索武器库（Exa/Serper/Jina等） (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-20T16:45:04.102625+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "The problem: Let G be a finite subgroup of GL_n(Q). Find the minimum positive integer k such that there exists P in GL_n(Q) and subgroup F of GL_n(Z) with G = P^{-1} F P and det(P) = k.\n\nLet me think about this carefully.\n\nFirst, the answer leak check: the problem text doesn't contain any solution or answer. Good.\n\nNow let's solve.\n\nWe have a finite subgroup G of GL_n(Q). We want to conjugate G into GL_n(Z) by some P in GL_n(Q), and minimize det(P) (positive integer).\n\nKey facts:\n1. Every finite subgroup of GL_n(Q) is conjugate (over Q) to a subgroup of GL_n(Z). This is a classical result. The idea: take the standard lattice Z^n, and consider the lattice L = sum_{g in G} g(Z^n). This is a G-stable lattice. Since G is finite, L is a full-rank lattice in Q^n. There exists P in GL_n(Q) such that P(L) = Z^n, i.e., L = P^{-1}(Z^n). Then G stabilizes L, so P G P^{-1} stabilizes Z^n, meaning P G P^{-1} ⊆ GL_n(Z). So F = P G P^{-1} is a subgroup of GL_n(Z) and G = P^{-1} F P.\n\nSo such P always exists. Now we want to minimize det(P) over all such P (with det(P) a positive integer... wait, det(P) is rational, not necessarily integer).\n\nWait, the problem says \"the determinant of P is k\" where k is a positive integer. So we need det(P) to be a positive integer, and we minimize k.\n\nHmm, but det(P) for P in GL_n(Q) is a nonzero rational. We need it to be a positive integer. And we minimize over all valid P.\n\nLet me think about what constraints exist.\n\nActually, let me reconsider. The lattice L = sum_{g in G} g Z^n is G-stable. If P maps L to Z^n (i.e., P L = Z^n), then F = P G P^{-1} ⊆ GL_n(Z).\n\nThe index [L : Z^n] relates to det. Actually, if L = P^{-1} Z^n, then Z^n = P L, and the index [Z^n : P L]... hmm, let me think in terms of covolumes.\n\nThe covolume of a lattice L in R^n is |det(basis of L)|. If L = P^{-1} Z^n, then a basis of L is P^{-1} (standard basis), so covolume(L) = |det(P^{-1})| = 1/|det(P)|.\n\nAlso, L ⊇ Z^n (since L = sum of g Z^n and identity gives Z^n ⊆ L). So [L : Z^n] = covolume(Z^n)/covolume(L) = 1 / (1/|det(P)|) = |det(P)|.\n\nSo [L : Z^n] = |det(P)|.\n\nSo for this particular construction, det(P) = [L : Z^n], which is a positive integer.\n\nNow, is this the minimum? We need to think about what values det(P) can take.\n\nIf G = P^{-1} F P with F ⊆ GL_n(Z), then P G P^{-1} = F ⊆ GL_n(Z), so P G P^{-1} stabilizes Z^n. This means G stabilizes P^{-1} Z^n. Let L' = P^{-1} Z^n. Then L' is a G-stable lattice, and det(P) = [L' : Z^n]... wait, let me check.\n\nL' = P^{-1} Z^n. covolume(L') = |det(P^{-1})| = 1/|det(P)|. And Z^n ⊆ L'? Not necessarily! \n\nHmm wait. We need L' to contain Z^n? No. L' = P^{-1} Z^n is just some lattice. We need det(P) to be a positive integer.\n\nActually, let me reconsider. The condition is just G = P^{-1} F P, F ⊆ GL_n(Z), det(P) = k positive integer.\n\nEquivalently, P G P^{-1} ⊆ GL_n(Z), i.e., G stabilizes the lattice L' = P^{-1} Z^n.\n\nSo det(P) = ±1/covolume(L')... no. covolume(L') = |det(P^{-1})| = 1/|det(P)|. So |det(P)| = 1/covolume(L').\n\nFor det(P) to be a positive integer k, we need covolume(L') = 1/k, i.e., L' has covolume 1/k.\n\nHmm, but L' is a lattice containing... well, L' = P^{-1} Z^n where P ∈ GL_n(Q). So L' is a lattice in Q^n (a full-rank sublattice of some (1/m)Z^n). \n\nActually, since P ∈ GL_n(Q), L' = P^{-1} Z^n is a lattice that is commensurable with Z^n. The covolume of L' is 1/|det(P)|.\n\nNow, Z^n ⊆ L' iff P^{-1} Z^n ⊇ Z^n iff Z^n ⊇ P Z^n... not necessarily.\n\nLet me think differently. We want to minimize det(P) = k, a positive integer. \n\nThe G-stable lattices L' with covolume 1/k (k positive integer) — these are lattices L' such that L' ⊇ Z^n and [L' : Z^n] = k? No, covolume(L') = 1/k means [L' : Z^n]... \n\nIf L' ⊇ Z^n, then covolume(L') ≤ covolume(Z^n) = 1, and [L' : Z^n] = covolume(Z^n)/covolume(L') = 1/(1/k) = k. Wait that gives [L':Z^n] = k only if L' ⊇ Z^n.\n\nBut if L' ⊆ Z^n, then covolume(L') ≥ 1, so 1/k ≥ 1, k ≤ 1, so k = 1.\n\nHmm, I need to be more careful. L' = P^{-1} Z^n. We have det(P) = k > 0. covolume(L') = 1/k.\n\nCase 1: L' ⊇ Z^n (L' contains Z^n). Then [L' : Z^n] = covolume(Z^n)/covolume(L') = 1/(1/k) = k. So k = [L' : Z^n].\n\nCase 2: L' ⊆ Z^n. Then [Z^n : L'] = covolume(L')/covolume(Z^n) = (1/k)/1 = 1/k. For this to be a positive integer, k = 1.\n\nCase 3: L' and Z^n are not nested. Then it's more complex.\n\nSo to minimize k, we want the G-stable lattice L' (with L' = P^{-1}Z^n, det P = k) that minimizes k.\n\nThe minimal k is achieved when L' is the \"smallest\" G-stable superlattice of Z^n... no wait, we want to minimize k = [L' : Z^n] when L' ⊇ Z^n, or k=1 if we can find L' ⊆ Z^n G-stable.\n\nActually, can we always achieve k=1? k=1 means det(P) = 1, i.e., P ∈ SL_n(Q) ∩ GL_n(Z)... well det(P)=1 and P ∈ GL_n(Q). Then L' = P^{-1} Z^n has covolume 1, same as Z^n. And G stabilizes L'. \n\nIf there's a G-stable lattice L' with covolume 1 (same as Z^n) but L' ≠ Z^n, then we can take P with det 1. But does such exist?\n\nActually, the question is: can we always find P with det(P) = 1? That would mean k=1 always. But that seems too easy and probably wrong.\n\nLet me reconsider. The issue is that we need det(P) to be a positive integer. Not all P ∈ GL_n(Q) have integer determinant. \n\nLet me think about what det(P) can be. If G = P^{-1} F P, then for any g ∈ G, det(g) = det(P^{-1}) det(f) det(P) = det(f) where f = P g P^{-1} ∈ F ⊆ GL_n(Z). So det(f) = ±1 (since f ∈ GL_n(Z) means det(f) = ±1). So det(g) = ±1 for all g ∈ G. This is automatically satisfied since G is finite (eigenvalues are roots of unity, det is ±1).\n\nNow, the key question: what is the minimum positive integer k?\n\nLet me think about the lattice perspective more carefully. We need a G-stable lattice L' = P^{-1} Z^n with det(P) = k a positive integer.\n\ndet(P) = k means covolume(L') = 1/k.\n\nNow, L' is a full-rank lattice in Q^n, G-stable, and commensurable with Z^n.\n\nThe condition det(P) ∈ Z_{>0} means 1/covolume(L') ∈ Z_{>0}, i.e., covolume(L') = 1/k for some positive integer k.\n\nHmm, but actually we should think about it as: we're looking for G-stable lattices L' (commensurable with Z^n) such that 1/covolume(L') is a positive integer, and we minimize that integer.\n\nEquivalently, covolume(L') = 1/k, k ∈ Z_{>0}, minimize k.\n\nIf L' ⊇ Z^n, then covolume(L') = 1/[L':Z^n] ≤ 1, and k = [L':Z^n]. So we want to minimize [L':Z^n] over G-stable superlattices of Z^n.\n\nIf L' ⊆ Z^n, covolume(L') = [Z^n:L'] ≥ 1, so 1/k ≥ 1, k=1, and [Z^n:L']=1, so L'=Z^n. This means Z^n itself is G-stable, i.e., G ⊆ GL_n(Z), and we can take P = I, k = 1.\n\nIf L' and Z^n incomparable: covolume(L') = 1/k. This is possible for various k.\n\nSo the question reduces to: what is the minimum k such that there exists a G-stable lattice L' with covolume(L') = 1/k?\n\nThe minimal such k: We always have the lattice L = sum_{g ∈ G} g Z^n, which is G-stable and contains Z^n. [L : Z^n] = some integer m. So k = m works (with L' = L).\n\nBut can we do better? Could there be a G-stable lattice with smaller covolume (i.e., larger k)? No wait, we want to minimize k, which means maximize covolume(L')... no, minimize k means covolume = 1/k, so we want k small, i.e., covolume large (close to 1 or larger).\n\nWait, I need to re-examine. We want minimum k. k = [L':Z^n] if L' ⊇ Z^n. The minimal [L':Z^n] is 1 (if Z^n is G-stable). But if Z^n is not G-stable, we need L' ⊋ Z^n, so [L':Z^n] ≥ 2.\n\nBut we could also use L' not containing Z^n. For example, L' could be a sublattice of Z^n (if G-stable), giving k=1 only if L'=Z^n.\n\nOr L' incomparable with Z^n. Then covolume(L') = 1/k for some k. \n\nHmm, let me think about this differently. Let me think about the index.\n\nActually, I think the answer is k = 1. Let me reconsider.\n\nClaim: We can always find P ∈ GL_n(Q) with det(P) = 1 such that P G P^{-1} ⊆ GL_n(Z).\n\nIs this true? Consider the lattice L = sum_{g∈G} g Z^n. This is G-stable, L ⊇ Z^n, [L:Z^n] = m.\n\nChoose a basis of L, say columns of a matrix A (so L = A Z^n where A is the matrix with basis vectors as columns). Then A ∈ GL_n(Q) (since L is a full-rank lattice in Q^n). We have G A Z^n = A Z^n (G stabilizes L), so A^{-1} G A ⊆ GL_n(Z). So P = A^{-1}... wait, let me be careful.\n\nIf L = A Z^n (A maps Z^n to L), then G L = L means G A Z^n = A Z^n, so A^{-1} G A Z^n = Z^n, so A^{-1} G A ⊆ GL_n(Z). So F = A^{-1} G A, and G = A F A^{-1} = (A^{-1})^{-1} F (A^{-1}). So P = A^{-1}.\n\ndet(P) = det(A^{-1}) = 1/det(A). covolume(L) = |det(A)| = [L:Z^n] = m. So det(P) = 1/m.\n\nBut we need det(P) to be a positive integer! 1/m is not an integer (unless m=1).\n\nSo this construction gives det(P) = 1/m, not an integer. We need to adjust.\n\nWe can scale: take P' = c P for some rational c. Then P' G P'^{-1} = P G P^{-1} = F ⊆ GL_n(Z). And det(P') = c^n det(P) = c^n / m. We need this to be a positive integer.\n\nWe need c^n / m ∈ Z_{>0}. Take c = m, then det(P') = m^n / m = m^{n-1}. That's a positive integer. But is this minimal?\n\nHmm, but we can also choose different G-stable lattices, not just L.\n\nLet me reconsider. The set of valid P (up to the constraint) corresponds to G-stable lattices L' = P^{-1} Z^n. We need det(P) = 1/covolume(L') to be a positive integer.\n\nSo we need covolume(L') = 1/k for k ∈ Z_{>0}, and we minimize k.\n\nThe G-stable lattices commensurable with Z^n form a set. Among these, we want the one with covolume of the form 1/k (k positive integer) that minimizes k.\n\ncovolume(L') = 1/k means k = 1/covolume(L'). To minimize k, we maximize covolume(L').\n\nThe maximum covolume among G-stable lattices with covolume = 1/k... \n\nHmm, actually there's no upper bound on covolume in general (we can take sublattices). Wait, but we need covolume = 1/k, i.e., covolume ≤ 1 (since k ≥ 1). So we need G-stable lattices with covolume ≤ 1, specifically of the form 1/k.\n\nIf there's a G-stable lattice with covolume = 1 (i.e., k=1), that's optimal. covolume 1 means same covolume as Z^n. \n\nA G-stable lattice with covolume 1: this could be Z^n itself (if G ⊆ GL_n(Z)), or another lattice with the same covolume.\n\nBut actually, if L' has covolume 1 and is G-stable, and L' = P^{-1} Z^n with det(P) = 1, then P ∈ SL_n(Q) (det = 1). Does such P always exist?\n\nLet me think about a specific example. Take n=1. GL_1(Q) = Q*. Finite subgroups of Q* are {1} and {1,-1}. \n\nFor G = {1}: G ⊆ GL_1(Z) = {±1}. Take P = 1, F = {1}, det(P) = 1. k = 1.\n\nFor G = {1,-1}: G = GL_1(Z). Take P = 1, F = G, det(P) = 1. k = 1.\n\nSo for n=1, k=1 always. Not very illuminating.\n\nTake n=2. Consider G = {I, -I} (order 2). This is in GL_2(Z), so k=1.\n\nConsider a more interesting example. Let G be generated by a matrix like [[0,1],[1,0]] (swap). This is in GL_2(Z), k=1.\n\nLet me think of a finite subgroup NOT in GL_2(Z). \n\nConsider G = {I, A} where A = [[0, 1/2], [2, 0]]. det(A) = -1, A^2 = I. So G is a finite subgroup of GL_2(Q). \n\nIs G ⊆ GL_2(Z)? No, A has 1/2 entry. \n\nL = Z^2 + A Z^2. A Z^2 = A [[1,0],[0,1]] = [[0,1/2],[2,0]] applied to Z^2 = {(0, 2a) + (b/2, 0) : a,b ∈ Z}... let me compute. A [[x],[y]] = [[y/2],[2x]]. So A Z^2 = {(b/2, 2a) : a,b ∈ Z} = (1/2)Z × 2Z.\n\nL = Z^2 + (1/2)Z × 2Z = (1/2)Z × Z (since 2Z ⊆ Z and Z ⊆ (1/2)Z... wait: Z^2 = Z × Z, and (1/2)Z × 2Z. Sum = (Z + (1/2)Z) × (Z + 2Z) = (1/2)Z × Z.\n\nSo L = (1/2)Z × Z. [L : Z^2] = 2. covolume(L) = 1/2.\n\nUsing the construction: P = A^{-1} where A is the matrix mapping Z^2 to L. L = (1/2)Z × Z, basis: (1/2, 0), (0, 1). So A = [[1/2, 0],[0,1]], det(A) = 1/2. P = A^{-1} = [[2,0],[0,1]], det(P) = 2.\n\nCheck: P G P^{-1} = P {I, A} P^{-1} = {I, P A P^{-1}}. P A P^{-1} = [[2,0],[0,1]] [[0,1/2],[2,0]] [[1/2,0],[0,1]] = [[2,0],[0,1]] [[0,1/2],[1,0]] = [[0,1],[1,0]]. Yes! That's in GL_2(Z). det(P) = 2.\n\nCan we do better? Can we find P with det(P) = 1?\n\nWe need a G-stable lattice L' with covolume 1 (so that det(P) = 1). \n\nG-stable means A L' = L' and L' = Z^2 (well, L' is some lattice with covolume 1).\n\nL' = P^{-1} Z^2, det(P) = 1, so covolume(L') = 1. We need A L' = L'.\n\nThe G-stable lattices: L must satisfy A L = L. A swaps (x,y) → (y/2, 2x). So A L = L means (x,y) ∈ L iff (y/2, 2x) ∈ L.\n\nIf L = (aZ) × (bZ) with ab = 1 (covolume 1, so ab = 1... wait covolume = ab, need ab = 1). A L = (b/2)Z × (2a)Z. For A L = L: a = b/2 and b = 2a. So a = b/2 and b = 2a, which gives a = a. Consistent. And ab = 1, so a · 2a = 1, 2a^2 = 1, a = 1/√2. Not rational! \n\nSo there's no G-stable lattice of the form (aZ)×(bZ) with rational a,b and covolume 1. But maybe non-product lattices work?\n\nLet's think more generally. G-stable lattices L' with covolume 1. We need A L' = L' where A = [[0,1/2],[2,0]].\n\nConsider L' = Z^2 + (1/2)Z × 2Z... no that's L with covolume 1/2.\n\nHmm, what about sublattices? L'' ⊆ Z^2 with A L'' = L'' and covolume 1? covolume 1 and ⊆ Z^2 means L'' = Z^2. But A Z^2 = (1/2)Z × 2Z ≠ Z^2. So Z^2 is not G-stable.\n\nWhat about lattices not comparable to Z^2? Let L' = P^{-1} Z^2 with det(P) = 1, P ∈ SL_2(Q). We need A L' = L'.\n\nLet me parametrize. P ∈ SL_2(Q), so P = [[a,b],[c,d]] with ad-bc = 1, a,b,c,d ∈ Q. L' = P^{-1} Z^2. A L' = L' iff P A P^{-1} ∈ GL_2(Z).\n\nP A P^{-1} = P [[0,1/2],[2,0]] P^{-1}. We need this to be in GL_2(Z), i.e., integer entries and det = ±1 (det is -1 automatically).\n\nLet me try P = [[2,0],[0,1]] / something... det = 2, not 1.\n\nTry P = [[1, 0],[0, 1]] (det 1): P A P^{-1} = A = [[0,1/2],[2,0]], not in GL_2(Z).\n\nTry P = [[1, 1/2],[0, 1]] (det 1): P^{-1} = [[1, -1/2],[0,1]]. P A = [[1,1/2],[0,1]][[0,1/2],[2,0]] = [[1, 1/2],[2, 0]]. P A P^{-1} = [[1,1/2],[2,0]][[1,-1/2],[0,1]] = [[1, 0],[2, -1]]. This is in GL_2(Z)! det = -1. \n\nSo P = [[1, 1/2],[0, 1]], det(P) = 1. And P A P^{-1} = [[1,0],[2,-1]] ∈ GL_2(Z).\n\nSo k = 1 works for this example!\n\nInteresting. So the answer might be k = 1 always.\n\nLet me think about whether k = 1 always works.\n\nWe need: for any finite subgroup G of GL_n(Q), there exists P ∈ SL_n(Q) (det = 1) such that P G P^{-1} ⊆ GL_n(Z).\n\nEquivalently: there exists a G-stable lattice L' with covolume 1 (same as Z^n).\n\nGiven the G-stable lattice L = sum_{g∈G} g Z^n with [L:Z^n] = m, covolume(L) = 1/m. We need to find a G-stable lattice with covolume 1.\n\nIdea: Take L and \"shrink\" it to get covolume 1, while maintaining G-stability. \n\nActually, consider L' = (1/m^{1/n}) L... no, that's not rational.\n\nLet me think differently. Consider the dual approach. Or think about it as follows:\n\nWe have L ⊇ Z^n, [L:Z^n] = m, L is G-stable. We want a G-stable lattice L'' with covolume 1.\n\nConsider L'' = L ∩ (some lattice) or L'' = L + (some lattice)...\n\nActually, here's an idea. Consider the lattice M = L^* (dual lattice) or some scaled version.\n\nAlternatively: we can take any G-stable lattice and scale it. If L is G-stable with covolume c, then (1/t) L is G-stable with covolume c/t^n for any rational t. We want covolume 1, so t^n = c, i.e., t = c^{1/n}. This needs c^{1/n} to be rational.\n\ncovolume(L) = 1/m. So t = (1/m)^{1/n} = m^{-1/n}. This is rational iff m is a perfect n-th power. Not always.\n\nBut we're not restricted to scaling L. We can use any G-stable lattice.\n\nLet me think about this more carefully using the structure of G-stable lattices.\n\nThe G-stable lattices in Q^n form a lattice (in the order-theoretic sense) under inclusion. Given one G-stable lattice L, we can get others by taking sublattices or superlattices that are also G-stable.\n\nKey insight: If L is G-stable and L ⊇ Z^n, consider the lattice (1/m) Z^n... no.\n\nLet me think about it from the P perspective. We have P_0 with det(P_0) = 1/m (from the standard construction, where P_0 = A^{-1}, A maps Z^n to L, det(A) = 1/m). Then P_0 G P_0^{-1} ⊆ GL_n(Z).\n\nNow, any other valid P satisfies P G P^{-1} ⊆ GL_n(Z). If P_0 G P_0^{-1} = F_0 ⊆ GL_n(Z), then P G P^{-1} ⊆ GL_n(Z) means P P_0^{-1} F_0 P_0 P^{-1}... hmm.\n\nLet Q = P P_0^{-1}. Then P = Q P_0. P G P^{-1} = Q P_0 G P_0^{-1} Q^{-1} = Q F_0 Q^{-1}. We need Q F_0 Q^{-1} ⊆ GL_n(Z), i.e., Q normalizes... no, Q conjugates F_0 into GL_n(Z).\n\ndet(P) = det(Q) det(P_0) = det(Q) / m. We want det(P) = k, a positive integer, minimized. So det(Q) = k m. We want to minimize k, i.e., minimize det(Q) (over positive integers that are multiples of m... no, det(Q) = km, k ≥ 1, so det(Q) ≥ m).\n\nWait, we want det(P) = k to be a positive integer. det(P) = det(Q)/m. So det(Q)/m ∈ Z_{>0}, i.e., det(Q) = km for some positive integer k. We minimize k, i.e., minimize det(Q)/m, i.e., minimize det(Q) subject to det(Q) being a positive multiple of m and Q F_0 Q^{-1} ⊆ GL_n(Z).\n\nHmm, this is getting complicated. Let me think about it differently.\n\nActually, Q F_0 Q^{-1} ⊆ GL_n(Z) means Q stabilizes... Q maps the F_0-stable lattices to GL_n(Z)-stable lattices. Since F_0 ⊆ GL_n(Z), Z^n is F_0-stable. Q F_0 Q^{-1} ⊆ GL_n(Z) means Q^{-1} Z^n is F_0-stable... wait: Q F_0 Q^{-1} stabilizes Z^n, so F_0 stabilizes Q^{-1} Z^n. So Q^{-1} Z^n is F_0-stable.\n\nAnd P^{-1} Z^n = P_0^{-1} Q^{-1} Z^n. Since Q^{-1} Z^n is F_0-stable and P_0^{-1} maps F_0-stable lattices to G-stable lattices (since P_0^{-1} F_0 P_0 = G), P_0^{-1} Q^{-1} Z^n is G-stable. OK this is consistent.\n\nLet me think about the problem from a higher level.\n\nThe question is: what is the minimum positive integer k such that there exists a G-stable lattice L' (commensurable with Z^n) with covolume(L') = 1/k?\n\nSince we can always find G-stable lattices of various covolumes, and we need covolume = 1/k for integer k, the question is about what covolumes are achievable.\n\nGiven a G-stable lattice L with covolume c (rational), we can get G-stable lattices with covolume c · (rational n-th power)... no, scaling by t gives covolume c/t^n.\n\nHmm, but we can also take intersections and sums of G-stable lattices.\n\nIf L_1, L_2 are G-stable, so are L_1 + L_2 and L_1 ∩ L_2. covolume(L_1 ∩ L_2) ≥ max(covolumes), covolume(L_1 + L_2) ≤ min(covolumes).\n\nThis is getting complex. Let me think about whether k=1 is always achievable.\n\nAlternative approach: Think about the problem in terms of the rational representation theory.\n\nG is a finite group acting on Q^n. The G-stable lattices are the lattices in Q^n stable under G. \n\nTheorem (maybe?): For any finite subgroup G of GL_n(Q), there exists a G-stable lattice L with covolume 1 (i.e., [L : Z^n] · ... hmm, covolume 1 doesn't mean [L:Z^n] = 1 unless L ⊇ Z^n).\n\nActually, let me reconsider the example. In my example, I found P ∈ SL_2(Q) with P G P^{-1} ⊆ GL_2(Z). The corresponding lattice L' = P^{-1} Z^2 has covolume 1. But L' is not necessarily a superlattice or sublattice of Z^2; it's just some lattice with covolume 1.\n\nSo the question is: does there always exist a G-stable lattice with covolume exactly 1?\n\nLet me think about this. We have the G-stable lattice L with covolume 1/m. Consider the lattice m^{1/n} L... no, not rational.\n\nOK here's another approach. Consider L and the lattice (1/m) Z^n... no.\n\nLet me think about the Z^n ∩ L and Z^n + L.\n\nWe have Z^n ⊆ L (since L = sum g Z^n ⊇ Z^n). [L : Z^n] = m.\n\nConsider the lattice L' = L ∩ (1/m) Z^n... no, this might not be G-stable since (1/m)Z^n might not be G-stable.\n\nHmm. Let me think about the problem differently.\n\nActually, I recall that the answer to this type of problem is k = 1. Let me try to prove it.\n\nClaim: For any finite subgroup G of GL_n(Q), there exists P ∈ SL_n(Q) such that P G P^{-1} ⊆ GL_n(Z).\n\nProof attempt: \n\nStep 1: There exists a G-stable lattice L ⊇ Z^n (e.g., L = sum_{g∈G} g Z^n).\n\nStep 2: We want to find P ∈ SL_n(Q) with P G P^{-1} ⊆ GL_n(Z). This is equivalent to finding a G-stable lattice L' with covolume 1 (then P maps L' to Z^n, i.e., P L' = Z^n, det(P) = covolume(L')/covolume(Z^n) = 1/1 = 1... wait, det(P) = covolume(L')/covolume(Z^n)? \n\nIf P L' = Z^n, then covolume(Z^n) = |det(P)| covolume(L'), so 1 = |det(P)| · covolume(L'), so |det(P)| = 1/covolume(L'). For det(P) = 1, need covolume(L') = 1. Yes.\n\nSo we need a G-stable lattice with covolume 1.\n\nStep 3: Given G-stable L with covolume 1/m, can we find G-stable L' with covolume 1?\n\nIdea: Take L and \"dilate\" it. But we need rational dilation.\n\nAlternative idea: Use the fact that we can find G-stable lattices of many different covolumes.\n\nConsider: L is G-stable, covolume 1/m. For any integer t, (1/t) L is G-stable with covolume 1/(m t^n). We want 1/(m t^n) = 1, so t^n = 1/m, t = m^{-1/n}. Not rational in general.\n\nBut we can also take L_t = L + (1/t) Z^n for various t. This is G-stable (sum of G-stable lattices). Its covolume divides both covolume(L) and covolume((1/t)Z^n) = 1/t^n. \n\nHmm, this doesn't directly give covolume 1.\n\nLet me think about it more carefully. Actually, maybe the answer is not 1. Let me reconsider.\n\nLet me think about what det(P) can be. We need P G P^{-1} ⊆ GL_n(Z). \n\nConsider the character/representation. G acts on Q^n. The G-stable lattices correspond to integral representations of G (over Z). \n\nThe key object is: the set of G-stable lattices in Q^n. Two G-stable lattices L_1, L_2 give the same Z[G]-module structure up to isomorphism iff they are in the same genus... actually, they're isomorphic as Z[G]-modules iff there's a G-equivariant isomorphism, i.e., P ∈ GL_n(Q) with P L_1 = L_2 and P g = g' P... no, P G P^{-1} = G (since both are G-stable, P just needs to commute with G up to the lattice).\n\nHmm, this is getting complicated. Let me think about specific small cases more.\n\nExample: n=2, G = ⟨A⟩ where A = [[0, -1],[1, 0]] (rotation by 90°, order 4). A ∈ GL_2(Z), so G ⊆ GL_2(Z), k=1.\n\nExample: n=2, G = ⟨A⟩ where A = [[0, -1/2],[2, 0]] (order 4: A^2 = [[-1, 0],[0, -1]] = -I, A^4 = I). \n\nA Z^2: A[[x],[y]] = [[-y/2],[2x]]. So A Z^2 = {(-b/2, 2a) : a,b ∈ Z} = (1/2)Z × 2Z... wait, (-b/2, 2a) = (-(1/2)b, 2a), so it's (1/2)Z × 2Z.\n\nL = Z^2 + A Z^2 + A^2 Z^2 + A^3 Z^2. A^2 = -I, so A^2 Z^2 = Z^2. A^3 = -A, A^3 Z^2 = A Z^2. So L = Z^2 + (1/2)Z × 2Z = (1/2)Z × Z. [L:Z^2] = 2. covolume = 1/2.\n\nCan we find a G-stable lattice with covolume 1? We need P ∈ SL_2(Q) with P A P^{-1} ∈ GL_2(Z).\n\nP A P^{-1} ∈ GL_2(Z) and has order 4. The order-4 elements in GL_2(Z) are conjugate to [[0,-1],[1,0]] (since the only order-4 elements in GL_2(Z) are ±[[0,-1],[1,0]] and their conjugates... actually, elements of order 4 in GL_2(Z) must have minimal polynomial x^2+1, and up to conjugacy in GL_2(Z), there's essentially one class, represented by [[0,-1],[1,0]]).\n\nSo we need P A P^{-1} = B where B = [[0,-1],[1,0]] (or conjugate). \n\nA = [[0,-1/2],[2,0]], B = [[0,-1],[1,0]]. Both have the same characteristic polynomial x^2+1, so they're conjugate over Q. Find P with P A = B P.\n\nP = [[a,b],[c,d]]. P A = [[a,b],[c,d]][[0,-1/2],[2,0]] = [[2b, -a/2],[2d, -c/2]]. B P = [[0,-1],[1,0]][[a,b],[c,d]] = [[-c,-d],[a,b]].\n\nSo: 2b = -c, -a/2 = -d → a = 2d, 2d = a (consistent), -c/2 = b → c = -2b (consistent with 2b = -c).\n\nSo P = [[2d, b],[-2b, d]] = d[[2,0],[0,1]] + b[[0,1],[-2,0]]. det(P) = 2d·d - b·(-2b) = 2d^2 + 2b^2 = 2(d^2 + b^2).\n\nWe need det(P) = 1, so 2(d^2 + b^2) = 1, d^2 + b^2 = 1/2. With d, b ∈ Q, we need d^2 + b^2 = 1/2. \n\nTake d = 1/2, b = 1/2: d^2 + b^2 = 1/4 + 1/4 = 1/2. Yes! \n\nSo P = [[2·(1/2), 1/2],[-2·(1/2), 1/2]] = [[1, 1/2],[-1, 1/2]]. det(P) = 1·(1/2) - (1/2)·(-1) = 1/2 + 1/2 = 1. \n\nCheck: P A P^{-1} = B = [[0,-1],[1,0]] ∈ GL_2(Z). \n\nSo k = 1 works here too!\n\nLet me try to see if there's a case where k = 1 doesn't work.\n\nHmm, let me think about the general theory. The question is whether we can always find P ∈ SL_n(Q) conjugating G into GL_n(Z).\n\nThe obstruction would be some invariant related to the determinant.\n\nLet me think about it in terms of the lattice. We have G-stable lattice L ⊇ Z^n, [L:Z^n] = m. We want a G-stable lattice L' with covolume 1.\n\nConsider the lattice L and the lattice Z^n. Both are G-stable? No, Z^n is not necessarily G-stable. L is G-stable.\n\nConsider the dual lattice L^* = {v ∈ Q^n : ⟨v, w⟩ ∈ Z for all w ∈ L}. If L is G-stable, is L^* G-stable? We need ⟨g v, w⟩ = ⟨v, g^{-1} w⟩... this requires G to be orthogonal with respect to the standard inner product, which it's not in general.\n\nHmm. Let me think about the problem differently.\n\nActually, I think the answer is k = 1. Let me try to construct the proof.\n\nTheorem: For any finite subgroup G of GL_n(Q), there exists P ∈ SL_n(Q) such that P G P^{-1} ⊆ GL_n(Z).\n\nProof: \n\nWe know there exists a G-stable lattice L ⊇ Z^n. Let [L : Z^n] = m. Let A be the matrix such that L = A Z^n (columns of A form a basis of L). Then A ∈ GL_n(Q), det(A) = 1/m (covolume of L), and A^{-1} G A ⊆ GL_n(Z).\n\nNow, det(A^{-1}) = m. We want to find P ∈ SL_n(Q) with P G P^{-1} ⊆ GL_n(Z).\n\nConsider P = A^{-1} D where D is a diagonal matrix (or more generally, any matrix) with det(D) = 1/m, so that det(P) = det(A^{-1}) det(D) = m · (1/m) = 1. We need P G P^{-1} = A^{-1} D G D^{-1} A ⊆ GL_n(Z).\n\nIf D commutes with G (D G D^{-1} = G), then P G P^{-1} = A^{-1} G A ⊆ GL_n(Z). So we need D ∈ SL_n(Q)... no, det(D) = 1/m, and D commutes with G.\n\nBut finding D that commutes with G and has det 1/m is not always possible.\n\nAlternative: We don't need D to commute with G. We need A^{-1} D G D^{-1} A ⊆ GL_n(Z), i.e., D G D^{-1} stabilizes L (since A^{-1} (D G D^{-1}) A stabilizes Z^n iff D G D^{-1} stabilizes L = A Z^n). So we need D G D^{-1} to stabilize L. Since G stabilizes L, D G D^{-1} stabilizes D L. So we need D G D^{-1} to stabilize L, i.e., D L is... no. D G D^{-1} stabilizes L iff G stabilizes D^{-1} L. So we need D^{-1} L to be G-stable.\n\nSo: find D ∈ GL_n(Q) with det(D) = 1/m such that D^{-1} L is G-stable.\n\nD^{-1} L is G-stable iff G (D^{-1} L) = D^{-1} L iff D G D^{-1} L = L.\n\nHmm, this is circular. Let me think again.\n\nWe want P ∈ SL_n(Q) with P G P^{-1} ⊆ GL_n(Z). Equivalently, G stabilizes P^{-1} Z^n, and covolume(P^{-1} Z^n) = 1.\n\nSo we need a G-stable lattice L' with covolume 1.\n\nGiven G-stable L with covolume 1/m, we want to find G-stable L' with covolume 1.\n\nApproach: Consider the lattice L' = L ∩ M for some lattice M, or L' = L + M, where M is chosen to adjust the covolume while maintaining G-stability.\n\nIf M is G-stable, then L ∩ M and L + M are G-stable. But we need M to be G-stable.\n\nThe simplest G-stable lattices are scalar multiples of G-stable lattices. If L is G-stable, so is tL for any t ∈ Q*. covolume(tL) = t^n covolume(L) = t^n / m. We want t^n / m = 1, so t = m^{1/n}. Not rational in general.\n\nBut we can use different G-stable lattices, not just scalar multiples of L.\n\nHere's a key idea: Consider the lattice L and also the lattice L' = L^# (some dual or adjoint). Actually, let me think about the following:\n\nConsider the standard bilinear form. The dual lattice of L is L^* = {v : v^T w ∈ Z for all w ∈ L}. If L = A Z^n, then L^* = A^{-T} Z^n. covolume(L^*) = 1/covolume(L) = m.\n\nIs L^* G-stable? G stabilizes L. For g ∈ G, g L = L. Then (gL)^* = L^*, and (gL)^* = g^{-T} L^*. So g^{-T} L^* = L^*, i.e., g^T L^* = L^*. So L^* is stable under G^T = {g^T : g ∈ G}, not G itself.\n\nIf G is closed under transpose (e.g., G is a group of orthogonal matrices, or symmetric group representation), then L^* is G-stable. But not in general.\n\nHmm. Let me think about this differently.\n\nActually, I think the answer might be 1, and the proof uses a clever construction. Let me think about the Smith normal form approach.\n\nWe have L ⊇ Z^n, [L:Z^n] = m. By Smith normal form, there exist U, V ∈ GL_n(Z) and diagonal D = diag(d_1, ..., d_n) with d_1 | d_2 | ... | d_n, d_1...d_n = m, such that L = U D V Z^n. Since U, V ∈ GL_n(Z), U Z^n = Z^n and V Z^n = Z^n. So L = U D Z^n (absorbing V into the basis). Actually, L = U D V Z^n = U D Z^n since V Z^n = Z^n.\n\nSo WLOG L = D Z^n where D = diag(d_1,...,d_n), d_1 | ... | d_n, prod d_i = m.\n\nNow, G stabilizes L = D Z^n. So D^{-1} G D stabilizes Z^n, i.e., D^{-1} G D ⊆ GL_n(Z). Let F = D^{-1} G D. Then G = D F D^{-1} = (D^{-1})^{-1} F D^{-1}, so P = D^{-1}, det(P) = 1/m. Not an integer (unless m=1).\n\nWe want to modify this. We need P ∈ SL_n(Q) with P G P^{-1} ⊆ GL_n(Z).\n\nP G P^{-1} = P D F D^{-1} P^{-1} = (PD) F (PD)^{-1}. Let Q = PD. We need Q F Q^{-1} ⊆ GL_n(Z) and det(Q) = det(P) det(D) = 1 · m = m. So we need Q ∈ GL_n(Q) with det(Q) = m and Q F Q^{-1} ⊆ GL_n(Z).\n\nF ⊆ GL_n(Z) already. We need Q F Q^{-1} ⊆ GL_n(Z) with det(Q) = m.\n\nQ F Q^{-1} ⊆ GL_n(Z) means Q stabilizes... Q F Q^{-1} stabilizes Z^n, so F stabilizes Q^{-1} Z^n. So Q^{-1} Z^n is an F-stable lattice.\n\nF-stable lattices: Z^n is one (since F ⊆ GL_n(Z)). Q^{-1} Z^n is another, with covolume 1/m (since det(Q) = m, covolume(Q^{-1}Z^n) = 1/m).\n\nSo we need an F-stable lattice with covolume 1/m, and Q maps it to Z^n. But we also need det(Q) = m, which is consistent: covolume(Q^{-1}Z^n) = 1/det(Q) = 1/m.\n\nWait, but we already have such a lattice: L = D Z^n is G-stable, and D^{-1} Z^n is F-stable (since F = D^{-1} G D stabilizes D^{-1} L = D^{-1} D Z^n = Z^n... no. F stabilizes Z^n. D^{-1} Z^n: is it F-stable? F = D^{-1} G D. F (D^{-1} Z^n) = D^{-1} G D D^{-1} Z^n = D^{-1} G Z^n. Is G Z^n = Z^n? Not necessarily; G Z^n ⊆ L = D Z^n, so D^{-1} G Z^n ⊆ Z^n. But is G Z^n = Z^n? No, only if G ⊆ GL_n(Z).\n\nHmm, I'm going in circles. Let me try yet another approach.\n\nLet me think about what Q with det(Q) = m and Q F Q^{-1} ⊆ GL_n(Z) means. \n\nQ F Q^{-1} ⊆ GL_n(Z) and F ⊆ GL_n(Z). So Q conjugates F (a subgroup of GL_n(Z)) to another subgroup of GL_n(Z). \n\nThe normalizer of GL_n(Z) in GL_n(Q) is... well, Q F Q^{-1} ⊆ GL_n(Z) doesn't mean Q normalizes all of GL_n(Z), just that it conjugates F into GL_n(Z).\n\nThis is equivalent to: Q^{-1} Z^n is F-stable. The F-stable lattices with covolume 1/m are what we need.\n\nNow, F = D^{-1} G D where D = diag(d_1,...,d_n). The F-stable lattices correspond to G-stable lattices via the map L' ↦ D^{-1} L'. Specifically, L' is G-stable iff D^{-1} L' is F-stable.\n\nSo F-stable lattices with covolume c correspond to G-stable lattices with covolume c (since D ∈ GL_n(Q) with det(D) = 1/m... wait, covolume(D^{-1} L') = covolume(L') / |det(D)| = covolume(L') · m. Hmm, that changes the covolume.\n\nLet me recompute. covolume(D^{-1} L') = |det(D^{-1})| covolume(L') = m · covolume(L'). So if L' has covolume c, D^{-1} L' has covolume mc.\n\nWe want F-stable lattice with covolume 1/m. This corresponds to G-stable lattice L' with m · covolume(L') = 1/m, so covolume(L') = 1/m^2. That doesn't seem right.\n\nI think I'm overcomplicating this. Let me go back to the direct approach.\n\nWe want: G-stable lattice L' with covolume 1.\n\nWe have: G-stable lattice L with covolume 1/m (where L = sum g Z^n, m = [L:Z^n]).\n\nIdea: Use the lattice L and also consider other G-stable lattices obtained by different constructions.\n\nConstruction 2: Consider the lattice L_2 = {v ∈ Q^n : g v ∈ Z^n for all g ∈ G} = ∩_{g∈G} g^{-1} Z^n. This is also G-stable (since h (∩ g^{-1} Z^n) = ∩ hg^{-1} Z^n = ∩ g^{-1} Z^n as h ranges over G... let me check: h L_2 = h ∩_{g} g^{-1} Z^n = ∩_g hg^{-1} Z^n = ∩_{g'} g'^{-1} Z^n = L_2 where g' = gh^{-1}... yes, as g ranges over G, g' = gh^{-1} also ranges over G). So L_2 is G-stable.\n\nL_2 = ∩_{g∈G} g^{-1} Z^n. Since G is finite and contains I, Z^n ⊇ L_2 (taking g=I gives Z^n ⊇ L_2). So L_2 ⊆ Z^n. [Z^n : L_2] = some integer m'. covolume(L_2) = m'.\n\nSo we have G-stable L ⊇ Z^n with covolume 1/m, and G-stable L_2 ⊆ Z^n with covolume m'.\n\nNow, consider L_3 = L ∩ L_2. This is G-stable, and L_2 ⊆ L_3 ⊆ L. covolume(L_3) ≥ covolume(L_2) = m' and covolume(L_3) ≤ covolume(L) = 1/m.\n\nAlso consider L_4 = L + L_2 = L (since L_2 ⊆ Z^n ⊆ L). So that's just L.\n\nHmm. What about L_2? covolume(L_2) = m'. If m' = 1, then L_2 = Z^n and Z^n is G-stable, so k=1. If m' > 1, then covolume(L_2) = m' > 1, and 1/covolume = 1/m' which gives k = m'... but we want k=1.\n\nWe can also take (1/t) L_2 for rational t, giving covolume m'/t^n. For this to be 1, t^n = m', t = m'^{1/n}. Not rational in general.\n\nOK so scalar multiplication doesn't always work. We need a more sophisticated approach.\n\nLet me think about the problem from the perspective of the class group / genus theory of Z[G]-lattices.\n\nActually, let me reconsider. Maybe the answer is not always 1. Let me think about what the possible values of det(P) are.\n\nGiven that P G P^{-1} ⊆ GL_n(Z), we need det(P) to be a positive integer. The set of achievable det(P) values forms a set of positive rationals (since P ∈ GL_n(Q)). We need the minimum positive integer in this set.\n\nFrom the construction with L = sum g Z^n, we get det(P) = 1/m (not an integer). We can scale: P' = t P gives det(P') = t^n / m. For this to be a positive integer, we need t^n / m ∈ Z_{>0}. The minimum such value is achieved by the smallest t^n that is a positive multiple of m and is a perfect n-th power.\n\nWait, t can be any rational, not just integer. t = a/b, t^n = a^n/b^n. We need a^n/(b^n m) ∈ Z_{>0}, i.e., b^n m | a^n. To minimize a^n/(b^n m), we want to minimize this. \n\nHmm, but we're not restricted to scaling a single P. We can use different G-stable lattices.\n\nLet me reconsider the problem. Maybe the answer is 1, and I need to find the right construction.\n\nKey insight: We can use the lattice L_2 = ∩_{g∈G} g^{-1} Z^n (G-stable, ⊆ Z^n, covolume m') and the lattice L = sum g Z^n (G-stable, ⊇ Z^n, covolume 1/m). \n\nConsider the lattice L' = L ∩ (1/s) L_2 for some scalar s. This is G-stable. covolume... hmm, hard to compute.\n\nActually, let me think about a different approach. \n\nConsider the Q-vector space V = Q^n with the G-action. The G-stable lattices are the Z[G]-lattices in V. \n\nThe key fact: the set of G-stable lattices is closed under sum and intersection, and contains lattices of arbitrarily large and small covolume (by scaling). But we need covolume exactly 1, and 1/covolume must be a positive integer.\n\nHmm, wait. We need det(P) = k ∈ Z_{>0}, and covolume(L') = 1/k. So k = 1/covolume(L'). We need 1/covolume(L') to be a positive integer, and we minimize it.\n\nThe minimum positive integer of the form 1/covolume(L') over all G-stable lattices L' is what we seek.\n\nIf there's a G-stable lattice with covolume 1, then k=1. \n\nIf the covolumes of G-stable lattices are all of the form p/q where... hmm.\n\nActually, the covolumes of G-stable lattices form a subset of Q_{>0}. Given one G-stable lattice with covolume c, we get others with covolume c · (r^n) for r ∈ Q* (by scaling). So the set of covolumes is c · (Q*)^n = {c · r^n : r ∈ Q*}.\n\nWait, is that right? If L is G-stable with covolume c, then rL is G-stable with covolume r^n c. But are there G-stable lattices with covolume not of the form r^n c?\n\nYes! For example, L and L_2 might have covolumes that are not related by an n-th power.\n\nIn my first example (n=2): L = (1/2)Z × Z, covolume 1/2. L_2 = ∩ g^{-1} Z^2. G = {I, A} with A = [[0,1/2],[2,0]]. A^{-1} = [[0,1/2],[2,0]]^{-1} = [[0, 1/2],[2,0]]... wait, A^2 = I so A^{-1} = A. So L_2 = Z^2 ∩ A Z^2 = Z^2 ∩ (1/2 Z × 2Z) = Z × 2Z. covolume(L_2) = 2.\n\nSo covolumes of G-stable lattices include 1/2 (from L) and 2 (from L_2). Scaling: r^2 · (1/2) and r^2 · 2 for r ∈ Q*. \n\nCan we get covolume 1? 1 = r^2 · (1/2) → r^2 = 2 → r = √2, not rational. 1 = r^2 · 2 → r^2 = 1/2 → r = 1/√2, not rational. \n\nBut we also have other G-stable lattices! In my example, I found P = [[1, 1/2],[0, 1]] with det 1, corresponding to L' = P^{-1} Z^2. P^{-1} = [[1, -1/2],[0, 1]]. L' = P^{-1} Z^2 = {(a - b/2, b) : a,b ∈ Z} = {(c, b) : c ∈ Z + (1/2)Z, b ∈ Z}... wait. P^{-1} [[x],[y]] = [[x - y/2],[y]]. So L' = {(x - y/2, y) : x,y ∈ Z} = {(a - b/2, b) : a,b ∈ Z}. The first coordinate is a - b/2, which for a,b ∈ Z gives all of (1/2)Z (since a - b/2 covers all half-integers). So L' = (1/2)Z × Z... wait, that's the same as L!\n\nHmm, but det(P) = 1 and covolume(L') = 1/det(P) = 1. But I computed L' = (1/2)Z × Z which has covolume 1/2. Contradiction!\n\nLet me recheck. P = [[1, 1/2],[0, 1]], det(P) = 1. P^{-1} = [[1, -1/2],[0, 1]]. L' = P^{-1} Z^2. \n\nP^{-1} [[1],[0]] = [[1],[0]], P^{-1} [[0],[1]] = [[-1/2],[1]]. So L' is spanned by (1,0) and (-1/2, 1). covolume = |det([[1, -1/2],[0, 1]])| = 1. \n\nOh I see, L' is NOT (1/2)Z × Z. It's the lattice spanned by (1,0) and (-1/2, 1). This is a different lattice from (1/2)Z × Z (which is spanned by (1/2, 0) and (0, 1)).\n\nL' = {a(1,0) + b(-1/2,1) : a,b ∈ Z} = {(a - b/2, b) : a,b ∈ Z}. The set of first coordinates is {a - b/2 : a,b ∈ Z}. For b even, a - b/2 ∈ Z. For b odd, a - b/2 ∈ Z + 1/2. So first coordinate ranges over (1/2)Z. And second coordinate is b ∈ Z. But the pairing is constrained: when first coord is half-integer, second coord is odd; when first coord is integer, second coord is even... no wait, a is free. For any b, a ranges over all Z, so a - b/2 ranges over Z - b/2 = (1/2)Z (shifted by b/2). So first coord ∈ (1/2)Z for any b. And second coord = b ∈ Z. \n\nBut the lattice L' is not the full product (1/2)Z × Z. It's a sublattice. Specifically, (x, y) ∈ L' iff x = a - y/2 for some a ∈ Z, i.e., x + y/2 ∈ Z. So L' = {(x,y) : x + y/2 ∈ Z, y ∈ Z} = {(x,y) : 2x + y ∈ Z, y ∈ Z}... since y ∈ Z, 2x ∈ Z, so x ∈ (1/2)Z. And the constraint is 2x + y ∈ 2Z (since 2x + y = 2a ∈ 2Z). So L' = {(x,y) : x ∈ (1/2)Z, y ∈ Z, 2x + y ∈ 2Z} = {(x,y) : x ∈ (1/2)Z, y ∈ Z, y ≡ -2x (mod 2)}.\n\nWhen x ∈ Z (2x ∈ 2Z), y must be even. When x ∈ Z + 1/2 (2x odd), y must be odd.\n\nSo L' is an index-2 sublattice of (1/2)Z × Z, hence covolume = 2 · (1/2) = 1. And it's different from both L = (1/2)Z × Z (covolume 1/2) and L_2 = Z × 2Z (covolume 2).\n\nSo L' is a G-stable lattice with covolume 1, obtained not by scaling but by a more subtle construction.\n\nSo the G-stable lattices don't just come from scaling; there are genuinely different ones. And we found one with covolume 1.\n\nNow, is it always possible to find a G-stable lattice with covolume 1?\n\nLet me think about this more carefully. The G-stable lattices in Q^n form a set that is closed under sum and intersection. Given L (covolume 1/m) and L_2 (covolume m'), we can form various lattices.\n\nActually, I think the key insight is:\n\nTheorem: The set of covolumes of G-stable lattices in Q^n is a subgroup of Q_{>0} (under multiplication). \n\nIs this true? If L_1, L_2 are G-stable with covolumes c_1, c_2, is there a G-stable lattice with covolume c_1 c_2? \n\nHmm, not obviously. Sum and intersection give covolumes that divide lcm and are multiples of gcd, roughly. \n\nActually, the covolume of L_1 + L_2 divides gcd(c_1, c_2) (in some sense), and covolume(L_1 ∩ L_2) is a multiple of lcm(c_1, c_2). But these are for lattices in the same ambient space.\n\nLet me think about this differently. The covolume of a G-stable lattice L is |det(A)| where L = A Z^n. If we have two G-stable lattices L_1 = A_1 Z^n and L_2 = A_2 Z^n, then L_1 + L_2 = [A_1 | A_2] Z^{2n} ∩ Q^n... this is getting complicated.\n\nLet me try a different approach to the problem. \n\nI think the answer is k = 1. Let me try to prove it directly.\n\nProof that k = 1:\n\nWe need to show there exists P ∈ SL_n(Q) with P G P^{-1} ⊆ GL_n(Z).\n\nStep 1: There exists a G-stable lattice L ⊇ Z^n (standard construction).\n\nStep 2: We'll show there exists a G-stable lattice with covolume 1.\n\nConsider L = Σ_{g∈G} g Z^n (G-stable, ⊇ Z^n, covolume 1/m where m = [L:Z^n]).\nConsider L' = ∩_{g∈G} g^{-1} Z^n (G-stable, ⊆ Z^n, covolume m' where m' = [Z^n:L']).\n\nNote: L' = ∩_{g∈G} g^{-1} Z^n. Since g Z^n ⊆ L for all g (as L = Σ g Z^n), we have Z^n ⊆ g^{-1} L for all g, but that's not directly useful.\n\nActually, let me think about the relationship between L and L'. \n\nL^* (dual of L) = {v : ⟨v,w⟩ ∈ Z ∀w ∈ L}. If L = Σ g Z^n, then L^* = ∩ g^{-T} Z^n (dual of sum is intersection of duals). This is G^T-stable but not G-stable in general.\n\nHmm. Let me try yet another approach.\n\nApproach via the class number / Jordan-Zassenhaus:\n\nThe set of G-stable lattices up to G-equivariant isomorphism is finite (Jordan-Zassenhaus theorem). But we're looking at lattices up to GL_n(Q)-conjugacy that stabilizes G, which is different.\n\nActually, let me think about the problem more concretely.\n\nWe want P ∈ SL_n(Q) with P G P^{-1} ⊆ GL_n(Z). \n\nLet's use the lattice L = Σ g Z^n, with L = A Z^n, A ∈ GL_n(Q), det(A) = 1/m. Then A^{-1} G A ⊆ GL_n(Z), i.e., F := A^{-1} G A is a subgroup of GL_n(Z).\n\nNow, P = A^{-1} Q where Q ∈ GL_n(Q) with Q F Q^{-1} ⊆ GL_n(Z) and det(Q) = m (so det(P) = det(A^{-1}) det(Q) = m · m / ... wait, det(A^{-1}) = m, det(Q) = m, det(P) = m^2? No.\n\ndet(P) = det(A^{-1}) · det(Q) = m · det(Q). We want det(P) = 1, so det(Q) = 1/m.\n\nWe need Q F Q^{-1} ⊆ GL_n(Z) with det(Q) = 1/m.\n\nQ F Q^{-1} ⊆ GL_n(Z) iff Q^{-1} Z^n is F-stable. covolume(Q^{-1} Z^n) = 1/det(Q) = m. So we need an F-stable lattice with covolume m.\n\nF ⊆ GL_n(Z), so Z^n is F-stable (covolume 1). We need an F-stable lattice with covolume m.\n\nNow, F = A^{-1} G A. The F-stable lattices correspond to G-stable lattices via L ↦ A^{-1} L. If L is G-stable, A^{-1} L is F-stable. covolume(A^{-1} L) = covolume(L) / det(A) ... wait, covolume(A^{-1} L) = |det(A^{-1})| covolume(L) = m · covolume(L).\n\nWe want covolume m, so m · covolume(L) = m, covolume(L) = 1. So we need a G-stable lattice with covolume 1. Circular!\n\nOK so the problem exactly reduces to: does there exist a G-stable lattice with covolume 1?\n\nLet me think about whether this is always true.\n\nConsider the G-stable lattice L with covolume 1/m and the G-stable lattice L_2 with covolume m'. \n\nClaim: m · m' is an n-th power of a rational number. No, that doesn't seem right either.\n\nLet me think about specific examples to build intuition.\n\nExample: n=2, G = {I, A} with A = [[0, 1/2],[2, 0]]. We found k=1 works.\n\nExample: n=2, G = {I, A} with A = [[0, 1/3],[3, 0]]. A^2 = I. \nL = Z^2 + A Z^2. A Z^2 = {(b/3, 3a) : a,b ∈ Z} = (1/3)Z × 3Z. L = (1/3)Z × Z. [L:Z^2] = 3. covolume = 1/3.\nL_2 = Z^2 ∩ A^{-1} Z^2 = Z^2 ∩ A Z^2 (since A^2=I) = Z^2 ∩ (1/3)Z × 3Z = Z × 3Z. covolume = 3.\n\nCan we find a G-stable lattice with covolume 1?\n\nWe need P ∈ SL_2(Q) with P A P^{-1} ∈ GL_2(Z). A has order 2, so P A P^{-1} is an involution in GL_2(Z). Involutions in GL_2(Z) with det -1 include [[1,0],[0,-1]], [[0,1],[1,0]], etc.\n\nP A P^{-1} = B where B is an involution in GL_2(Z) with det -1. A = [[0,1/3],[3,0]], char poly x^2 - 1 (since A^2 = I, det A = -1). B must also have char poly x^2 - 1 and det -1.\n\nLet's try B = [[0,1],[1,0]] (swap, det -1, order 2). P A = B P. P = [[a,b],[c,d]]. P A = [[a,b],[c,d]][[0,1/3],[3,0]] = [[3b, a/3],[3d, c/3]]. B P = [[0,1],[1,0]][[a,b],[c,d]] = [[c,d],[a,b]]. So: 3b = c, a/3 = d, 3d = a (consistent), c/3 = b (consistent with c = 3b). So P = [[a, b],[3b, a/3]] with a = 3d, so P = [[3d, b],[3b, d]]. det(P) = 3d·d - b·3b = 3d^2 - 3b^2 = 3(d^2 - b^2). We need det(P) = 1, so 3(d^2 - b^2) = 1, d^2 - b^2 = 1/3. With d, b ∈ Q.\n\nd^2 - b^2 = 1/3. (d-b)(d+b) = 1/3. Let d-b = 1/3, d+b = 1. Then d = 2/3, b = 1/3. Check: d^2 - b^2 = 4/9 - 1/9 = 3/9 = 1/3. Yes!\n\nSo P = [[3·(2/3), 1/3],[3·(1/3), 2/3]] = [[2, 1/3],[1, 2/3]]. det(P) = 2·(2/3) - (1/3)·1 = 4/3 - 1/3 = 1. \n\nSo k = 1 works for this example too!\n\nLet me try B = [[1,0],[0,-1]] instead. P A = B P. P A = [[3b, a/3],[3d, c/3]]. B P = [[a,b],[-c,-d]]. So: 3b = a, a/3 = b (consistent), 3d = -c, c/3 = -d (consistent). So a = 3b, c = -3d. P = [[3b, b],[-3d, d]]. det = 3bd + 3bd = 6bd. Need 6bd = 1. Take b = 1, d = 1/6. P = [[3, 1],[-1/2, 1/6]]. det = 3/6 + 1/2 = 1. Check it's in GL_2(Q): yes. And P A P^{-1} = B = [[1,0],[0,-1]] ∈ GL_2(Z). \n\nSo again k = 1.\n\nIt seems like k = 1 always works. Let me try to prove it in general.\n\nGeneral proof attempt:\n\nGiven finite G ⊆ GL_n(Q), we want P ∈ SL_n(Q) with P G P^{-1} ⊆ GL_n(Z).\n\nStep 1: Find A ∈ GL_n(Q) with F := A^{-1} G A ⊆ GL_n(Z). (Standard: take L = Σ g Z^n, L = A Z^n.)\n\nStep 2: We have det(A) = 1/m for some positive integer m (covolume of L). We want to find Q ∈ GL_n(Q) with det(Q) = 1/m and Q F Q^{-1} ⊆ GL_n(Z), then P = A Q (det(P) = det(A) det(Q) = 1/m · 1/m... no, that gives 1/m^2).\n\nHmm wait. Let me redo. P = A^{-1} Q? No. We have G = A F A^{-1}. We want P G P^{-1} ⊆ GL_n(Z). P G P^{-1} = P A F A^{-1} P^{-1} = (PA) F (PA)^{-1}. Let R = PA. We need R F R^{-1} ⊆ GL_n(Z) and det(R) = det(P) det(A) = 1 · (1/m) = 1/m. So det(R) = 1/m and R F R^{-1} ⊆ GL_n(Z).\n\nR F R^{-1} ⊆ GL_n(Z) iff R^{-1} Z^n is F-stable. covolume(R^{-1} Z^n) = 1/det(R) = m. So we need an F-stable lattice with covolume m.\n\nNow, F ⊆ GL_n(Z). The F-stable lattices include Z^n (covolume 1) and A^{-1} L = A^{-1} A Z^n = Z^n (same). Hmm, that's circular again.\n\nWait, L = A Z^n is G-stable. A^{-1} L = Z^n. So the F-stable lattice corresponding to L is Z^n itself. That makes sense since F = A^{-1} G A ⊆ GL_n(Z) stabilizes Z^n.\n\nWe need another F-stable lattice with covolume m. \n\nConsider the F-stable lattice A^{-1} Z^n. Is it F-stable? F (A^{-1} Z^n) = A^{-1} G A A^{-1} Z^n = A^{-1} G Z^n. Is G Z^n = Z^n? No, not in general. G Z^n ⊆ L = A Z^n, so A^{-1} G Z^n ⊆ Z^n. But A^{-1} G Z^n might not equal A^{-1} Z^n.\n\nHmm. Let me think about the lattice A^{-1} Z^n. covolume(A^{-1} Z^n) = |det(A^{-1})| = m. And is it F-stable?\n\nF · (A^{-1} Z^n) = A^{-1} G A · A^{-1} Z^n = A^{-1} G Z^n. For this to equal A^{-1} Z^n, we need G Z^n = Z^n, i.e., G ⊆ GL_n(Z). Not true in general.\n\nSo A^{-1} Z^n is not necessarily F-stable. But its covolume is m, which is what we want. We need an F-stable lattice with covolume m.\n\nConsider the F-stable lattice M = Σ_{f∈F} f Z^n. This is F-stable, ⊇ Z^n, covolume 1/[M:Z^n]. \n\nAnd M' = ∩_{f∈F} f^{-1} Z^n. F-stable, ⊆ Z^n, covolume [Z^n:M'].\n\nWe need an F-stable lattice with covolume m. \n\nHmm, I don't see why covolume m should be achievable. Let me think about this differently.\n\nGoing back to the direct approach: we need a G-stable lattice with covolume 1.\n\nLet me think about the structure of G-stable lattices more carefully.\n\nGiven two G-stable lattices L_1, L_2 with covolumes c_1, c_2, the lattice L_1 + L_2 is G-stable with covolume dividing min(c_1, c_2) (actually, covolume(L_1 + L_2) | gcd of covolumes in some sense... no. covolume(L_1 + L_2) ≤ min(c_1, c_2) and covolume(L_1 + L_2) ≥ ... hmm.\n\nActually, for lattices in the same space: if L_1 ⊆ L_2, then covolume(L_1) = [L_2:L_1] · covolume(L_2). If they're not nested, it's more complex.\n\nLet me think about the problem using the theory of Z[G]-modules.\n\nThe G-stable lattices in Q^n are precisely the Z[G]-lattices whose tensor with Q gives the Q[G]-module Q^n. \n\nThe key theorem: For a finite group G and a Q[G]-module V, the set of G-stable lattices in V has the property that any two are \"of the same genus\" (locally isomorphic at all primes). And the covolumes of G-stable lattices differ by elements of a specific subgroup of Q_{>0}.\n\nActually, I think the key fact is:\n\nIf L_1 and L_2 are two G-stable lattices, then L_1 and L_2 are commensurable, and [L_1 : L_1 ∩ L_2] / [L_2 : L_1 ∩ L_2] = covolume(L_1)/covolume(L_2).\n\nThe set of covolumes of G-stable lattices is c_0 · H where c_0 is the covolume of any fixed G-stable lattice and H is a subgroup of Q_{>0}.\n\nWhat is H? If L is G-stable with covolume c, and L' = tL is G-stable with covolume t^n c, then t^n ∈ H for all t ∈ Q*. So (Q*)^n ⊆ H. But H might be larger.\n\nActually, H is generated by (Q*)^n and the ratios covolume(L_i)/covolume(L_0) for various G-stable lattices L_i.\n\nHmm, I think the question is whether 1 is in the set of covolumes, i.e., whether c_0 · H contains 1, i.e., whether 1/c_0 ∈ H.\n\nc_0 = 1/m (covolume of L = Σ g Z^n). So we need m ∈ H.\n\nH contains (Q*)^n, so m ∈ H iff m ∈ (Q*)^n, i.e., m is an n-th power of a rational. But m is a positive integer, so m ∈ (Q*)^n iff m is a perfect n-th power. Not always true!\n\nBut H might be larger than (Q*)^n. The question is whether the other G-stable lattices contribute enough to make m ∈ H.\n\nIn my examples (n=2, m=2 and m=3), m is not a perfect square, yet k=1 works. So H is larger than (Q*)^n in those cases.\n\nLet me think about what other elements are in H. \n\nIf L and L_2 are G-stable with covolumes 1/m and m', then m'/（1/m) = mm' ∈ H. So mm' ∈ H.\n\nIn my first example: m = 2, m' = 2, mm' = 4 = 2^2 ∈ (Q*)^2. So this doesn't add anything new.\n\nIn my second example: m = 3, m' = 3, mm' = 9 = 3^2 ∈ (Q*)^2. Same.\n\nHmm, so in these examples, the only G-stable lattices I found (up to scaling) have covolumes in (1/m) · (Q*)^n, and m ∉ (Q*)^n, yet k=1 works. That means there must be other G-stable lattices I'm not accounting for.\n\nIn the first example, the lattice L' with covolume 1 that I found is not a scalar multiple of L or L_2. It's a genuinely new lattice. So the set of G-stable lattices is richer than just scalar multiples of L and L_2.\n\nOK so let me think about this more carefully. The G-stable lattices form a partially ordered set (under inclusion). The covolumes take values in Q_{>0}. The question is whether 1 is achievable.\n\nLet me think about the local structure. For each prime p, the G-stable lattices localized at p form a set. The global G-stable lattices are determined by their localizations (by the local-global principle for lattices).\n\nAt each prime p, the G-stable Z_p-lattices in Q_p^n form a set. The possible \"local indices\" determine the global covolumes.\n\nHmm, this is getting into deep number theory. Let me try a more elementary approach.\n\nDirect construction attempt:\n\nWe have L = Σ g Z^n, G-stable, L ⊇ Z^n, [L:Z^n] = m. Write m = p_1^{a_1} ... p_r^{a_r}.\n\nBy the structure theorem for finite abelian groups (applied to L/Z^n), L/Z^n ≅ Z/d_1 Z × ... × Z/d_n Z where d_1 | d_2 | ... | d_n and d_1 ... d_n = m.\n\nAfter a change of basis (Smith normal form), we can assume L = D Z^n where D = diag(d_1, ..., d_n) with d_1 | ... | d_n, ∏ d_i = m. And G stabilizes D Z^n, i.e., D^{-1} G D ⊆ GL_n(Z).\n\nNow, we want to find a G-stable lattice with covolume 1. \n\nConsider modifying D. We want to find D' ∈ GL_n(Q) with det(D') = 1 (covolume 1) and D'^{-1} G D' ⊆ GL_n(Z), i.e., G stabilizes D' Z^n.\n\nWe know G stabilizes D Z^n. We want G to stabilize D' Z^n with det(D') = 1.\n\nIdea: Use the fact that G also stabilizes other lattices. Specifically, G stabilizes D Z^n, and also stabilizes g D Z^n for any g ∈ G (since g(D Z^n) = D Z^n, so g D Z^n = D Z^n... no, g(D Z^n) = D Z^n means gD = D f for some f ∈ GL_n(Z), so g D Z^n = D f Z^n = D Z^n). So that doesn't give new lattices.\n\nBut G also stabilizes ∩ g^{-1} Z^n = L_2. In the Smith normal form, L_2 = ∩ g^{-1} Z^n. \n\nHmm, let me think about the local approach. At each prime p, the G-stable lattices in Z_p^n form a tree (the Bruhat-Tits tree for GL_n). The G-stable lattices correspond to vertices fixed by G.\n\nThe covolume of a global G-stable lattice is the product over all primes of the local covolumes. The local covolume at p is p^{-v_p(det)} where det is related to the local lattice index.\n\nFor the global covolume to be 1, we need the product of local covolumes to be 1, i.e., the local indices to cancel out.\n\nAt each prime p, the G-stable lattices in Z_p^n include Z_p^n (if G ⊆ GL_n(Z_p), which it is after localization since G is finite and entries are rational with bounded denominators). Wait, G might not be in GL_n(Z_p) for all p.\n\nHmm, let me reconsider. G ⊆ GL_n(Q). For a prime p, G might or might not be in GL_n(Z_p). If all entries of all g ∈ G are p-adic integers and det(g) is a p-adic unit, then G ⊆ GL_n(Z_p).\n\nSince G is finite, the entries of g ∈ G are rational numbers with bounded denominators. For all but finitely many primes p, G ⊆ GL_n(Z_p). For the finitely many \"bad\" primes, G might not be in GL_n(Z_p).\n\nAt a \"good\" prime p (where G ⊆ GL_n(Z_p)), Z_p^n is G-stable, and the G-stable lattices in Z_p^n include Z_p^n and its G-stable sublattices/superlattices. The local covolume of Z_p^n is 1.\n\nAt a \"bad\" prime p, Z_p^n might not be G-stable. The G-stable lattices have local covolumes that are powers of p.\n\nThe global covolume is the product of local covolumes. At good primes, we can achieve local covolume 1 (using Z_p^n). At bad primes, we need to achieve local covolume 1 as well, or compensate.\n\nBut wait—at a bad prime p, can we always achieve local covolume 1? \n\nAt a bad prime p, there exists a G-stable Z_p-lattice (e.g., Σ g Z_p^n). Its local covolume is p^{-a} for some a ≥ 0 (since it contains Z_p^n, the covolume is ≤ 1, so it's p^{-a} with a ≥ 0). \n\nWe need a G-stable Z_p-lattice with local covolume 1, i.e., p^0 = 1. This means a G-stable lattice with the same covolume as Z_p^n. \n\nAt the bad prime, Z_p^n is not G-stable (that's why it's bad). But there might be another G-stable lattice with covolume 1.\n\nIn my example (n=2, A = [[0,1/2],[2,0]]), the bad prime is p=2 (since 1/2 is not a 2-adic integer). At p=2, the G-stable lattices include L ⊗ Z_2 = (1/2)Z_2 × Z_2 (covolume 1/2) and L_2 ⊗ Z_2 = Z_2 × 2Z_2 (covolume 2) and L' ⊗ Z_2 (covolume 1). So at p=2, there is a G-stable lattice with local covolume 1.\n\nIs this always the case? At each bad prime p, is there a G-stable Z_p-lattice with local covolume 1?\n\nHmm, I think the answer is yes, and here's why:\n\nAt a bad prime p, consider the G-stable lattice M_p = Σ_{g∈G} g Z_p^n. This has covolume p^{-a} for some a > 0 (it's a superlattice of Z_p^n). Also consider M_p' = ∩_{g∈G} g^{-1} Z_p^n, which has covolume p^{a'} for some a' > 0 (sublattice of Z_p^n).\n\nNow, consider the lattice N_p = M_p ∩ (1/p) Z_p^n... no, (1/p) Z_p^n might not be G-stable.\n\nActually, let me think about it differently. At the bad prime p, we have G-stable lattices with covolume p^{-a} (superlattice) and p^{a'} (sublattice). The G-stable lattices form a connected set in the Bruhat-Tits tree (for n=2) or building (for general n). The covolumes of G-stable lattices at p are of the form p^k for various integers k. \n\nThe set of achievable k values (local covolume exponents) at prime p: we have -a and a' achievable. By taking intersections and sums, we can get other values. \n\nActually, for n=2, the Bruhat-Tits tree is a (p+1)-regular tree, and G-stable lattices correspond to vertices fixed by G. The covolume exponent is related to the \"level\" of the vertex. If G fixes vertices at levels -a and a', it might fix vertices at intermediate levels too.\n\nBut this is getting very technical. Let me try to think about whether there's a simpler argument.\n\nAlternative approach: Use the fact that we can adjust the determinant by a scalar.\n\nWe have P_0 ∈ GL_n(Q) with P_0 G P_0^{-1} ⊆ GL_n(Z) and det(P_0) = 1/m. We want P ∈ SL_n(Q) with P G P^{-1} ⊆ GL_n(Z).\n\nConsider P = D P_0 where D = λ I_n (scalar matrix). Then P G P^{-1} = D P_0 G P_0^{-1} D^{-1} = D F D^{-1} where F = P_0 G P_0^{-1} ⊆ GL_n(Z). D F D^{-1} = F (since D is scalar, it commutes with everything). So P G P^{-1} = F ⊆ GL_n(Z). And det(P) = λ^n det(P_0) = λ^n / m. We want det(P) = 1, so λ^n = m, λ = m^{1/n}. This is rational iff m is a perfect n-th power.\n\nSo the scalar approach works iff m is a perfect n-th power. When it's not, we need a non-scalar adjustment.\n\nNon-scalar approach: Instead of D = λ I, use D that commutes with F (so D F D^{-1} = F) but is not scalar. Then P = D P_0 gives P G P^{-1} = F ⊆ GL_n(Z) and det(P) = det(D) / m. We want det(D) = m.\n\nSo we need D ∈ GL_n(Q) that commutes with F (i.e., D ∈ Z_{GL_n(Q)}(F), the centralizer of F in GL_n(Q)) with det(D) = m.\n\nThe centralizer of F in GL_n(Q) is the group of Q-linear automorphisms commuting with all of F, i.e., the unit group of the centralizer algebra. By Schur-Weyl type theory, this is related to the decomposition of Q^n into irreducible Q[G]-modules.\n\nIf Q^n is an irreducible Q[G]-module, the centralizer is a division algebra D over Q, and the centralizer in GL_n(Q) is D*. The determinant map D* → Q* has image containing... hmm, the reduced norm. \n\nThis is getting into deep algebra. Let me think about whether the problem has a simpler answer.\n\nActually, wait. Let me reconsider the problem statement. It says \"find the minimum positive integer k.\" This suggests the answer is a specific number, possibly depending on G, or possibly always the same.\n\nGiven the examples all give k=1, and the problem asks to \"find\" k (suggesting a universal answer), I believe the answer is k = 1.\n\nLet me try to prove it more carefully.\n\nProof that k = 1:\n\nWe need to show: for any finite subgroup G of GL_n(Q), there exists P ∈ SL_n(Q) such that P G P^{-1} ⊆ GL_n(Z).\n\nKey idea: Use the lattice L = Σ_{g∈G} g Z^n, which is G-stable with [L:Z^n] = m. Write L = A Z^n with A ∈ GL_n(Q), det(A) = 1/m. Then F = A^{-1} G A ⊆ GL_n(Z).\n\nNow, we need to find R ∈ GL_n(Q) with det(R) = 1/m and R F R^{-1} ⊆ GL_n(Z) (then P = A R has det(P) = (1/m)(1/m)... no, det(P) = det(A) det(R) = (1/m)(1/m) = 1/m^2. That's wrong.\n\nWait, I need P G P^{-1} ⊆ GL_n(Z) with det(P) = 1. G = A F A^{-1}. P G P^{-1} = P A F (PA)^{-1}. Let R = PA. det(R) = det(P) det(A) = 1 · (1/m) = 1/m. So R F R^{-1} ⊆ GL_n(Z) with det(R) = 1/m.\n\nR F R^{-1} ⊆ GL_n(Z) iff R^{-1} Z^n is F-stable. covolume(R^{-1} Z^n) = 1/det(R) = m. So we need an F-stable lattice with covolume m.\n\nSince F ⊆ GL_n(Z), Z^n is F-stable (covolume 1). We need an F-stable lattice with covolume m.\n\nNow, A^{-1} Z^n is a lattice with covolume m (since det(A^{-1}) = m). Is it F-stable?\n\nF (A^{-1} Z^n) = A^{-1} G A A^{-1} Z^n = A^{-1} G Z^n. \n\nG Z^n ⊆ L = A Z^n (since L = Σ g Z^n ⊇ g Z^n for each g, in particular G Z^n ⊆ L). So A^{-1} G Z^n ⊆ A^{-1} L = Z^n. But we need A^{-1} G Z^n = A^{-1} Z^n, i.e., G Z^n = Z^n. This holds iff G ⊆ GL_n(Z), which is not true in general.\n\nSo A^{-1} Z^n is not F-stable in general. But we need some F-stable lattice with covolume m.\n\nHmm. Let me think about what F-stable lattices with covolume m look like.\n\nThe F-stable lattices are in bijection with G-stable lattices (via L ↦ A^{-1} L). The G-stable lattice L = A Z^n corresponds to the F-stable lattice Z^n (covolume 1). We need a G-stable lattice L'' with covolume(A^{-1} L'') = m, i.e., m · covolume(L'') = m, i.e., covolume(L'') = 1. So we need a G-stable lattice with covolume 1. Circular again!\n\nOK so the problem genuinely reduces to: does a G-stable lattice with covolume 1 exist?\n\nLet me try to prove this directly.\n\nLemma: For any finite subgroup G of GL_n(Q), there exists a G-stable lattice L' in Q^n with covolume 1 (i.e., vol(R^n/L') = vol(R^n/Z^n) = 1).\n\nProof of Lemma:\n\nConsider the G-stable lattice L = Σ_{g∈G} g Z^n with [L:Z^n] = m, and the G-stable lattice L_2 = ∩_{g∈G} g^{-1} Z^n with [Z^n:L_2] = m'.\n\nNote that L_2 = {v ∈ Z^n : gv ∈ Z^n for all g ∈ G} (the maximal G-stable sublattice of Z^n). And L = Σ g Z^n is the minimal G-stable superlattice of Z^n.\n\nKey observation: There is a G-equivariant perfect pairing between L/Z^n and Z^n/L_2... hmm, not sure about that.\n\nLet me think about the relationship between m and m'.\n\nActually, consider the map φ: L/Z^n → Z^n/L_2 defined as follows. For v ∈ L, since L is G-stable, gv ∈ L for all g. But we want to map to Z^n/L_2. \n\nHmm, let me think about the dual. The dual lattice of L is L^* = {v ∈ Q^n : ⟨v, w⟩ ∈ Z for all w ∈ L}. Since L ⊇ Z^n, L^* ⊆ Z^n. And L^* is G^T-stable (stable under {g^T : g ∈ G}).\n\nIf we use the trace pairing or some G-invariant pairing, we might get a cleaner relationship.\n\nSince G is finite, there exists a G-invariant positive definite bilinear form on Q^n. Specifically, B(x,y) = Σ_{g∈G} (gx)^T (gy) is G-invariant and positive definite. But this form might not be the standard one.\n\nLet me use the standard inner product for now. Define B(x,y) = Σ_{g∈G} (gx)^T (gy). This is G-invariant: B(hx, hy) = Σ_g (ghx)^T (ghy) = Σ_{g'} (g'x)^T (g'y) = B(x,y). \n\nB is a positive definite symmetric bilinear form on Q^n (since it's a sum of positive definite forms). So B(x,y) = x^T M y for some symmetric positive definite M ∈ GL_n(Q).\n\nNow, M = Σ_{g∈G} g^T g. This is a rational matrix (since g ∈ GL_n(Q)).\n\nThe lattice L_B = {v ∈ Q^n : B(v, w) ∈ Z for all w ∈ Z^n} = {v : v^T M w ∈ Z for all w ∈ Z^n} = M^{-1} Z^n (since v^T M w ∈ Z for all w ∈ Z^n iff Mv ∈ Z^n iff v ∈ M^{-1} Z^n). Wait, B(v,w) = v^T M w, and we need this ∈ Z for all w ∈ Z^n. v^T M w ∈ Z for all w ∈ Z^n iff M^T v ∈ Z^n iff M v ∈ Z^n (M symmetric) iff v ∈ M^{-1} Z^n. So L_B = M^{-1} Z^n.\n\nIs L_B G-stable? B is G-invariant, so B(gv, gw) = B(v,w). For v ∈ L_B, B(gv, w) = B(v, g^{-1}w) ∈ Z for all w ∈ Z^n (since g^{-1}w ∈ Z^n iff w ∈ g Z^n... no, g^{-1} Z^n is not Z^n in general). Hmm, this doesn't directly work.\n\nActually, L_B = M^{-1} Z^n is the dual of Z^n with respect to B. The dual of L with respect to B is L_B^* = {v : B(v,w) ∈ Z for all w ∈ L}. Since L is G-stable and B is G-invariant, L_B^* is G-stable (B(gv, w) = B(v, g^{-1}w) ∈ Z for w ∈ L iff g^{-1}w ∈ L, which is true since L is G-stable). So the B-dual of L is G-stable.\n\nL_B^* = {v : B(v,w) ∈ Z for all w ∈ L} = {v : v^T M w ∈ Z for all w ∈ L} = {v : Mv ∈ L^*} where L^* is the standard dual of L. So L_B^* = M^{-1} L^*.\n\ncovolume(L_B^*) = covolume(M^{-1} L^*) = |det(M^{-1})| covolume(L^*) = (1/det(M)) · (1/covolume(L)) = (1/det(M)) · m.\n\nAlso, L_B^* is G-stable. And covolume(L_B^*) = m / det(M).\n\nSimilarly, the B-dual of Z^n is L_B = M^{-1} Z^n, which has covolume 1/det(M). Is L_B G-stable? \n\nB-dual of Z^n is G-stable iff Z^n is G-stable (since B is G-invariant, the B-dual of a G-stable lattice is G-stable). But Z^n is not G-stable in general. So L_B is not G-stable in general.\n\nHmm. Let me try a different approach.\n\nLet me use the G-invariant form B and consider the lattice L' = {v ∈ Q^n : B(v, w) ∈ Z for all w ∈ L} = M^{-1} L^*. This is G-stable (as shown above). covolume(L') = m/det(M).\n\nAlso, L itself is G-stable with covolume 1/m. And L' is G-stable with covolume m/det(M).\n\nIf I can choose things so that covolume(L') = 1, I'm done. That requires m/det(M) = 1, i.e., det(M) = m. But det(M) = det(Σ g^T g) which is not necessarily m.\n\nHmm. But maybe I can combine L and L' to get covolume 1.\n\nWe have G-stable lattices:\n- L with covolume 1/m\n- L' = M^{-1} L^* with covolume m/det(M)\n\nThe product of covolumes: (1/m) · (m/det(M)) = 1/det(M).\n\nAlso, L'' = M^{-1} Z^n (B-dual of Z^n) has covolume 1/det(M), but it's not G-stable.\n\nHmm, let me try yet another approach. Let me consider the lattice:\n\nL_3 = L ∩ L'. This is G-stable. covolume(L_3) ≥ max(1/m, m/det(M)).\n\nAnd L_4 = L + L'. G-stable. covolume(L_4) ≤ min(1/m, m/det(M)).\n\nThese don't directly give covolume 1.\n\nLet me try to think about the problem from the perspective of the determinant of the centralizer.\n\nActually, let me revisit the approach of finding D in the centralizer of F with det(D) = m.\n\nWe have F = A^{-1} G A ⊆ GL_n(Z), and we want R with R F R^{-1} ⊆ GL_n(Z) and det(R) = 1/m. If we can find D in the centralizer of F (in GL_n(Q)) with det(D) = 1/m, then R = D A^{-1}... no wait.\n\nActually, we want R F R^{-1} ⊆ GL_n(Z) with det(R) = 1/m. If D commutes with F, then (DR) F (DR)^{-1} = D (R F R^{-1}) D^{-1}. For this to be in GL_n(Z), we need D to normalize GL_n(Z), i.e., D ∈ GL_n(Z) (roughly). That's too restrictive.\n\nLet me reconsider. We want R F R^{-1} ⊆ GL_n(Z). The set of such R is {R : R^{-1} Z^n is F-stable}. The F-stable lattices are the lattices L' with F L' = L'. For each such L', R is determined up to left multiplication by GL_n(Z) (i.e., R = (basis of L')^{-1} up to GL_n(Z)).\n\nThe determinant of R is 1/covolume(L'). So the achievable determinants are {1/covolume(L') : L' is F-stable}.\n\nWe want det(R) = 1/m, i.e., covolume(L') = m. So we need an F-stable lattice with covolume m.\n\nNow, F ⊆ GL_n(Z). The F-stable lattices include:\n- Z^n (covolume 1)\n- Σ_{f∈F} f Z^n (covolume 1/[Σ f Z^n : Z^n])\n- ∩_{f∈F} f^{-1} Z^n (covolume [Z^n : ∩ f^{-1} Z^n])\n\nBut we need covolume m, which is the covolume of A^{-1} Z^n. \n\nHmm, I wonder if A^{-1} Z^n is always F-stable. Let me check: F = A^{-1} G A. F (A^{-1} Z^n) = A^{-1} G A A^{-1} Z^n = A^{-1} G Z^n. For this to equal A^{-1} Z^n, we need G Z^n = Z^n, which is not true in general.\n\nBut wait—what if we use a different G-stable lattice, not L = Σ g Z^n, but some other one?\n\nThe point is: we need to find a G-stable lattice with covolume 1. Let me think about this as a fixed point problem.\n\nConsider the map on lattices: L ↦ (1/m) Σ_{g∈G} g L. This maps any lattice to a G-stable lattice (since applying g_0 gives (1/m) Σ g g_0 L = (1/m) Σ_{g'} g' L). And it scales covolume by... (1/m)^n · (covolume changes). Hmm, this doesn't preserve the lattice property nicely.\n\nLet me try a completely different approach. \n\nApproach: Use the fact that GL_n(Q) / (GL_n(Q) ∩ SL_n(Q)) = Q* / (Q*)^... no, GL_n(Q) / SL_n(Q) ≅ Q*.\n\nWe want P ∈ SL_n(Q) with P G P^{-1} ⊆ GL_n(Z). We know P_0 ∈ GL_n(Q) exists with P_0 G P^{-1}_0 ⊆ GL_n(Z) (det(P_0) = 1/m). \n\nAny other P with P G P^{-1} ⊆ GL_n(Z) is of the form P = U P_0 where U P_0 G P_0^{-1} U^{-1} ⊆ GL_n(Z), i.e., U F U^{-1} ⊆ GL_n(Z) where F = P_0 G P_0^{-1}. So U normalizes... no, U conjugates F into GL_n(Z).\n\nThe set of U with U F U^{-1} ⊆ GL_n(Z) is the set of U such that U^{-1} Z^n is F-stable. For each F-stable lattice L', U is determined (up to GL_n(Z)) by U^{-1} Z^n = L', i.e., U = (L' → Z^n).\n\ndet(U) = 1/covolume(L'). So det(P) = det(U) det(P_0) = (1/covolume(L')) · (1/m).\n\nWe want det(P) = 1, so 1/(m · covolume(L')) = 1, covolume(L') = 1/m. So we need an F-stable lattice with covolume 1/m.\n\nNow, F ⊆ GL_n(Z). The F-stable lattices: Z^n (covolume 1), and others. We need one with covolume 1/m.\n\nThe F-stable lattice A^{-1} Z^n has covolume m (not 1/m). The F-stable lattice Z^n has covolume 1. We need 1/m.\n\nHmm, 1/m < 1 (for m > 1), so we need a G-stable superlattice of Z^n with index m... but the minimal superlattice is Σ f Z^n with some index. \n\nWait, I need an F-stable lattice with covolume 1/m, which is a superlattice of Z^n with index m (if it contains Z^n). \n\nIs Σ_{f∈F} f Z^n equal to A^{-1} L = A^{-1} A Z^n = Z^n? No, Σ f Z^n is the minimal F-stable superlattice of Z^n. Since F ⊆ GL_n(Z), f Z^n = Z^n for each f (since f ∈ GL_n(Z) means f Z^n = Z^n). So Σ f Z^n = Z^n! \n\nThat's because F ⊆ GL_n(Z), so each f maps Z^n to Z^n. So the only F-stable superlattice of Z^n that comes from this construction is Z^n itself.\n\nBut there are other F-stable lattices. For example, sublattices of Z^n that are F-stable: ∩ f^{-1} Z^n = Z^n (again since f^{-1} ∈ GL_n(Z)). So Z^n is the only F-stable lattice that is a sublattice or superlattice of Z^n obtained this way.\n\nBut there are F-stable lattices not comparable to Z^n! For example, if F is the trivial group, every lattice is F-stable. If F is non-trivial, the F-stable lattices are those stable under F.\n\nSo the question becomes: does there exist an F-stable lattice with covolume 1/m, where F ⊆ GL_n(Z) and m = [L:Z^n] with L = Σ g Z^n (the original G-stable lattice)?\n\nThis is equivalent to: does there exist a G-stable lattice with covolume 1 (as we've established).\n\nLet me try to think about this using the theory of integral representations.\n\nThe Q[G]-module V = Q^n decomposes as a direct sum of irreducible Q[G]-modules: V = V_1 ⊕ ... ⊕ V_k. A G-stable lattice L in V decomposes (after choosing a compatible basis) as L = L_1 ⊕ ... ⊕ L_k where L_i is a G-stable lattice in V_i (well, not exactly—L might not split, but let's consider the case where it does).\n\nFor each irreducible component V_i, the G-stable lattices in V_i have covolumes that form a coset of some subgroup of Q_{>0}. \n\nThe covolume of L is the product of covolumes of L_i. We want the product to be 1.\n\nFor each V_i, the set of achievable covolumes is c_i · H_i where H_i is a subgroup of Q_{>0}. We want ∏ c_i · h_i = 1 for some h_i ∈ H_i, i.e., ∏ c_i ∈ ∏ H_i.\n\nThis is getting complicated. Let me try to think about the simplest non-trivial case.\n\nCase: V is an irreducible Q[G]-module. Then the centralizer of G in M_n(Q) is a division algebra D over Q (by Schur's lemma). The G-stable lattices in V are the D-lattices... hmm, not exactly.\n\nActually, for an irreducible Q[G]-module V of dimension d, the centralizer End_{Q[G]}(V) is a division algebra D over Q, and dim_Q V = d · [D:Q]^{1/2}... this is getting into deep theory.\n\nLet me try a more elementary approach.\n\nElementary proof attempt:\n\nWe have G-stable lattice L ⊇ Z^n, [L:Z^n] = m. We want a G-stable lattice L' with covolume 1.\n\nConsider the lattice L' = L ∩ (Z^n + v) for some vector v... no, this doesn't make sense.\n\nLet me try the following construction. Write m = ∏ p_i^{a_i}. For each prime p_i, we'll adjust the lattice locally.\n\nAt each prime p, consider the local lattice L_p = L ⊗ Z_p in Q_p^n. This is G-stable (over Z_p). [L_p : Z_p^n] = p^{v_p(m)}.\n\nAt primes p not dividing m, L_p = Z_p^n (since the index is 1), so no adjustment needed.\n\nAt primes p dividing m, we need to find a G-stable Z_p-lattice with covolume 1 (i.e., same covolume as Z_p^n). \n\nAt such a prime p, L_p is a G-stable",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 20541,
+        "completion_tokens": 25000,
+        "cached_tokens": 10588
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 20541,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 10588,
+    "total_steps": 9
+  }
+}

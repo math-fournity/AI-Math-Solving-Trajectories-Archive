@@ -1,0 +1,34 @@
+# Solver Task
+
+You are a mathematical problem solver. Solve the problem completely.
+Do not search for this exact problem, its official answer, or its solution.
+You may use computation for exploration or verification.
+
+Output your complete proof directly in your response (in this TUI).
+Do NOT write any files — do not use write/edit tools.
+End your proof with a line containing exactly: ### PROOF COMPLETE
+Your full reasoning and output are automatically captured by the system.
+
+## Answer Leak Self-Check (MANDATORY before solving)
+
+Before you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.
+
+If you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:
+### ANSWER LEAK DETECTED: <brief description of what leaked>
+
+Then stop. Do not attempt to solve a problem whose answer has been leaked.
+
+Watch for:
+- Phrases like "The proof follows...", "solution sketch", "Formalization notes"
+- Official solutions or answer values embedded in the problem statement
+- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)
+
+## Problem
+
+A configuration of $4027$ points in the plane is called Colombian if it consists of $2013$ red points and $2014$ blue points, and no three of the points of the configuration are collinear. By drawing some lines, the plane is divided into several regions. An arrangement of lines is good for a Colombian configuration if the following two conditions are satisfied:
+
+i) No line passes through any point of the configuration.
+
+ii) No region contains points of both colors.
+
+Find the least value of $k$ such that for any Colombian configuration of $4027$ points, there is a good arrangement of $k$ lines.

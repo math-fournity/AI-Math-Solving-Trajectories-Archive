@@ -1,0 +1,51 @@
+# Solver Task
+
+You are a mathematical problem solver. Solve the problem completely.
+Do not search for this exact problem, its official answer, or its solution.
+You may use computation for exploration or verification.
+
+Output your complete proof directly in your response (in this TUI).
+Do NOT write any files — do not use write/edit tools.
+End your proof with a line containing exactly: ### PROOF COMPLETE
+Your full reasoning and output are automatically captured by the system.
+
+## Answer Leak Self-Check (MANDATORY before solving)
+
+Before you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.
+
+If you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:
+### ANSWER LEAK DETECTED: <brief description of what leaked>
+
+Then stop. Do not attempt to solve a problem whose answer has been leaked.
+
+Watch for:
+- Phrases like "The proof follows...", "solution sketch", "Formalization notes"
+- Official solutions or answer values embedded in the problem statement
+- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)
+
+## Problem
+
+# Problem
+
+Assume that the set of natural numbers $\mathbb{N} = \{0, 1, 2, \ldots\}$ is partitioned into $k \ge 2$ disjoint sets $J(1), \ldots, J(k)$, each with an asymptotic density $d(J(p)) = \lim_{n \to \infty} \frac{1}{n} \frac{|J(p,n)|}{n} > 0$, where $J(p,n) = J(p) \cap \{0, 1, \ldots, n-1\}$. Let $\alpha > 0$ be an irrational number, and define $e(x) = e^{2\pi i x}$ for $x \in \mathbb{R}$. Determine whether the following limit is true:
+\[ \lim_{n \to \infty} \frac{1}{n^2} \sum_{p \neq q} \left( \left( \sum_{j \in J(p,n)} e(j\alpha) \right) \cdot \left( \overline{\sum_{j \in J(q,n)} e(j\alpha)} \right) \right) = 0. \]
+
+## 解题约束（必须严格遵守）
+
+1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。
+   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。
+
+2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。
+   完成证明后，在TUI中直接输出：
+
+   ### PROOF COMPLETE
+
+3. **如果你无法做出这道题**，直接说：
+
+   ### I CANNOT SOLVE THIS
+
+4. **如果你发现题目中包含了答案**（答案泄漏），直接说：
+
+   ### ANSWER LEAK DETECTED
+
+以上是全部约束。现在请解题。

@@ -1,0 +1,56 @@
+# Solver Task
+
+You are a mathematical problem solver. Solve the problem completely.
+Do not search for this exact problem, its official answer, or its solution.
+You may use computation for exploration or verification.
+
+Output your complete proof directly in your response (in this TUI).
+Do NOT write any files — do not use write/edit tools.
+End your proof with a line containing exactly: ### PROOF COMPLETE
+Your full reasoning and output are automatically captured by the system.
+
+## Answer Leak Self-Check (MANDATORY before solving)
+
+Before you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.
+
+If you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:
+### ANSWER LEAK DETECTED: <brief description of what leaked>
+
+Then stop. Do not attempt to solve a problem whose answer has been leaked.
+
+Watch for:
+- Phrases like "The proof follows...", "solution sketch", "Formalization notes"
+- Official solutions or answer values embedded in the problem statement
+- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)
+
+## Problem
+
+# Problem
+
+In a specialized semiconductor research facility, engineers are designing rectangular microchip grids of size $m \times n$ units, where both dimensions $m$ and $n$ must be at least 5. Each unit cell in the grid is assigned one of three specific voltage states. The stability of the chip depends on the local interaction between adjacent cells (those sharing a boundary wall).
+
+The layout must adhere to two strict hardware protocols:
+1. For every cell in the grid, the number of adjacent cells possessing the first alternative voltage state must be exactly equal to the number of adjacent cells possessing the second alternative voltage state.
+2. The four corner cells of the grid are prohibited from having any adjacent neighbors that share their own voltage state.
+
+Let $S$ be the set of all possible dimensions $(m, n)$ that allow for a valid configuration under these protocols. Calculate the total number of distinct pairs $(m, n)$ in $S$ such that $5 \leq m, n \leq 50$.
+
+## 解题约束（必须严格遵守）
+
+1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。
+   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。
+
+2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。
+   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：
+
+   ### PROOF COMPLETE
+
+3. **如果你无法做出这道题**，直接说（必须用英文原文）：
+
+   ### I CANNOT SOLVE THIS
+
+4. **如果你发现题目中包含了答案**（答案泄漏），直接说：
+
+   ### ANSWER LEAK DETECTED
+
+以上是全部约束。现在请解题。

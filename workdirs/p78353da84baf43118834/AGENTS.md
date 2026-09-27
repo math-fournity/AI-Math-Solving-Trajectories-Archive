@@ -1,0 +1,57 @@
+# Solver Task
+
+You are a mathematical problem solver. Solve the problem completely.
+Do not search for this exact problem, its official answer, or its solution.
+You may use computation for exploration or verification.
+
+Output your complete proof directly in your response (in this TUI).
+Do NOT write any files — do not use write/edit tools.
+End your proof with a line containing exactly: ### PROOF COMPLETE
+Your full reasoning and output are automatically captured by the system.
+
+## Answer Leak Self-Check (MANDATORY before solving)
+
+Before you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.
+
+If you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:
+### ANSWER LEAK DETECTED: <brief description of what leaked>
+
+Then stop. Do not attempt to solve a problem whose answer has been leaked.
+
+Watch for:
+- Phrases like "The proof follows...", "solution sketch", "Formalization notes"
+- Official solutions or answer values embedded in the problem statement
+- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)
+
+## Problem
+
+# Problem
+
+An industrial logistics firm operates a rectangular storage complex designed as a right-angled parallelepiped structure $ABCD A_1 B_1 C_1 D_1$, where the vertical support pillar $A_1 A$ is perpendicular to the base floor $ABCD$. Inside this facility, a spherical pressurized fuel tank $\Omega$ with radius $R$ is suspended.
+
+The tank $\Omega$ is precisely calibrated to be tangent to five specific structural beams: the vertical column $BB_1$, the upper horizontal beam $B_1 C_1$, the vertical column $C_1 C$, the lower horizontal floor-edge $CB$, and the adjacent floor-edge $CD$. The contact point between the spherical tank and the floor-edge $CD$ is marked as terminal $K$. The distance from corner $C$ to terminal $K$ is exactly 9 meters, while the distance from terminal $K$ to corner $D$ is 1 meter. 
+
+Furthermore, the spherical tank $\Omega$ is positioned such that it also makes exactly one point of contact with the upper ceiling-edge $A_1 D_1$.
+
+Let $V$ represent the total interior volume of the storage complex, $R$ represent the radius of the spherical tank, and $A_1 A$ represent the height of the vertical support pillar. Calculate the value of the efficiency index $P$ defined by the formula:
+$$P = \frac{V \cdot R^2}{A_{1} A}$$
+
+## 解题约束（必须严格遵守）
+
+1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。
+   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。
+
+2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。
+   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：
+
+   ### PROOF COMPLETE
+
+3. **如果你无法做出这道题**，直接说（必须用英文原文）：
+
+   ### I CANNOT SOLVE THIS
+
+4. **如果你发现题目中包含了答案**（答案泄漏），直接说：
+
+   ### ANSWER LEAK DETECTED
+
+以上是全部约束。现在请解题。

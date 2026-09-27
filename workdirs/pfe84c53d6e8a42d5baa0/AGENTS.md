@@ -1,0 +1,60 @@
+# Solver Task
+
+You are a mathematical problem solver. Solve the problem completely.
+Do not search for this exact problem, its official answer, or its solution.
+You may use computation for exploration or verification.
+
+Output your complete proof directly in your response (in this TUI).
+Do NOT write any files — do not use write/edit tools.
+End your proof with a line containing exactly: ### PROOF COMPLETE
+Your full reasoning and output are automatically captured by the system.
+
+## Answer Leak Self-Check (MANDATORY before solving)
+
+Before you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.
+
+If you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:
+### ANSWER LEAK DETECTED: <brief description of what leaked>
+
+Then stop. Do not attempt to solve a problem whose answer has been leaked.
+
+Watch for:
+- Phrases like "The proof follows...", "solution sketch", "Formalization notes"
+- Official solutions or answer values embedded in the problem statement
+- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)
+
+## Problem
+
+# Problem
+
+In a specialized logistics center, a drone’s flight path is constrained to a perfect elliptical circuit $E$. The maximum diameter of this circuit is 26 kilometers, while its minimum diameter is 24 kilometers. Two stationary charging hubs, labeled $R$ and $S$, are positioned at the foci of this elliptical path.
+
+Two relay satellites, $A$ and $B$, are stationed at fixed coordinates along the elliptical path such that the four points $R, A, S,$ and $B$ form a non-degenerate quadrilateral. To manage signal transmissions, four straight-line laser beams are projected:
+1. Beam $\overleftrightarrow{RA}$ and Beam $\overleftrightarrow{SB}$ intersect at a signal tower $P$, such that satellite $A$ lies directly on the line segment connecting hub $R$ and tower $P$.
+2. Beam $\overleftrightarrow{RB}$ and Beam $\overleftrightarrow{AS}$ intersect at a signal tower $Q$, such that satellite $B$ lies directly on the line segment connecting hub $R$ and tower $Q$.
+
+An engineering survey confirms two specific measurements: the distance from hub $R$ to satellite $A$ is exactly equal to the distance from satellite $A$ to hub $S$ ($RA = AS$), and the distance between satellite $A$ and tower $P$ is exactly 26 kilometers ($AP = 26$).
+
+The perimeter of the non-degenerate quadrilateral formed by the locations $R, P, S,$ and $Q$ is calculated to be $m + \sqrt{n}$, where $m$ and $n$ are integers. 
+
+Compute the value of $m + n$.
+
+## 解题约束（必须严格遵守）
+
+1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。
+   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。
+
+2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。
+   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：
+
+   ### PROOF COMPLETE
+
+3. **如果你无法做出这道题**，直接说（必须用英文原文）：
+
+   ### I CANNOT SOLVE THIS
+
+4. **如果你发现题目中包含了答案**（答案泄漏），直接说：
+
+   ### ANSWER LEAK DETECTED
+
+以上是全部约束。现在请解题。

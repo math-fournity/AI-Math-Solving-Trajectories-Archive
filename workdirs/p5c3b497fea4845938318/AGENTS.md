@@ -1,0 +1,51 @@
+# Solver Task
+
+You are a mathematical problem solver. Solve the problem completely.
+Do not search for this exact problem, its official answer, or its solution.
+You may use computation for exploration or verification.
+
+Output your complete proof directly in your response (in this TUI).
+Do NOT write any files — do not use write/edit tools.
+End your proof with a line containing exactly: ### PROOF COMPLETE
+Your full reasoning and output are automatically captured by the system.
+
+## Answer Leak Self-Check (MANDATORY before solving)
+
+Before you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.
+
+If you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:
+### ANSWER LEAK DETECTED: <brief description of what leaked>
+
+Then stop. Do not attempt to solve a problem whose answer has been leaked.
+
+Watch for:
+- Phrases like "The proof follows...", "solution sketch", "Formalization notes"
+- Official solutions or answer values embedded in the problem statement
+- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)
+
+## Problem
+
+# Problem
+
+The circumcircle of triangle  $ABC$  has centre  $O$ .  $P$  is the midpoint of  $\widehat{BAC}$  and  $QP$  is the diameter. Let  $I$  be the incentre of  $\triangle ABC$  and let  $D$  be the intersection of  $PI$  and  $BC$ . The circumcircle of  $\triangle AID$  and the extension of  $PA$  meet at  $F$ . The point  $E$  lies on the line segment  $PD$  such that  $DE=DQ$ . Let  $R,r$  be the radius of the inscribed circle and circumcircle of  $\triangle ABC$ , respectively. 
+Show that if  $\angle AEF=\angle APE$ , then  $\sin^2\angle BAC=\dfrac{2r}R$ 
+
+## 解题约束（必须严格遵守）
+
+1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。
+   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。
+
+2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。
+   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：
+
+   ### PROOF COMPLETE
+
+3. **如果你无法做出这道题**，直接说（必须用英文原文）：
+
+   ### I CANNOT SOLVE THIS
+
+4. **如果你发现题目中包含了答案**（答案泄漏），直接说：
+
+   ### ANSWER LEAK DETECTED
+
+以上是全部约束。现在请解题。

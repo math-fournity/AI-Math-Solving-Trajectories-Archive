@@ -1,0 +1,55 @@
+# Solver Task
+
+You are a mathematical problem solver. Solve the problem completely.
+Do not search for this exact problem, its official answer, or its solution.
+You may use computation for exploration or verification.
+
+Output your complete proof directly in your response (in this TUI).
+Do NOT write any files — do not use write/edit tools.
+End your proof with a line containing exactly: ### PROOF COMPLETE
+Your full reasoning and output are automatically captured by the system.
+
+## Answer Leak Self-Check (MANDATORY before solving)
+
+Before you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.
+
+If you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:
+### ANSWER LEAK DETECTED: <brief description of what leaked>
+
+Then stop. Do not attempt to solve a problem whose answer has been leaked.
+
+Watch for:
+- Phrases like "The proof follows...", "solution sketch", "Formalization notes"
+- Official solutions or answer values embedded in the problem statement
+- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)
+
+## Problem
+
+# Problem
+
+In a remote industrial facility, engineers are testing the thermal efficiency of a prototype reactor. For any experimental configuration $n$ (where $n$ is a positive integer), the thermal output of the system is measured by a performance metric $I$. This metric is calculated by integrating the product of a baseline power curve, $x^n$, and a variable control function $f(x)$, across a standardized testing interval ranging from a pressure of $-1$ to $1$.
+
+The control function $f(x)$ is restricted to the set of all $n$-th degree polynomials where every coefficient is a whole number (an integer). For a fixed configuration $n$, the engineers are interested in the smallest possible positive value that the performance metric $I$ can yield, which they denote as $\alpha_n$.
+
+As the complexity of the configuration $n$ increases toward infinity, the engineers observe a specific logarithmic decay in this minimum efficiency. Calculate the precise value of the following limit:
+$$\lim_{n\to \infty} \frac{\log \alpha_n}n$$
+
+## 解题约束（必须严格遵守）
+
+1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。
+   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。
+
+2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。
+   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：
+
+   ### PROOF COMPLETE
+
+3. **如果你无法做出这道题**，直接说（必须用英文原文）：
+
+   ### I CANNOT SOLVE THIS
+
+4. **如果你发现题目中包含了答案**（答案泄漏），直接说：
+
+   ### ANSWER LEAK DETECTED
+
+以上是全部约束。现在请解题。

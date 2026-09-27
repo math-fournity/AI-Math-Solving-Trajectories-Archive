@@ -1,0 +1,196 @@
+# Solver Task
+
+You are a mathematical problem solver. Solve the problem completely.
+Do not search for this exact problem, its official answer, or its solution.
+You may use computation for exploration or verification.
+
+Output your complete proof directly in your response (in this TUI).
+Do NOT write any files — do not use write/edit tools.
+End your proof with a line containing exactly: ### PROOF COMPLETE
+Your full reasoning and output are automatically captured by the system.
+
+## Answer Leak Self-Check (MANDATORY before solving)
+
+Before you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.
+
+If you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:
+### ANSWER LEAK DETECTED: <brief description of what leaked>
+
+Then stop. Do not attempt to solve a problem whose answer has been leaked.
+
+Watch for:
+- Phrases like "The proof follows...", "solution sketch", "Formalization notes"
+- Official solutions or answer values embedded in the problem statement
+- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)
+
+## Problem
+
+# Problem
+
+/-
+Copyright 2026 The Formal Conjectures Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-/
+import FormalConjecturesUtil
+
+/-!
+# Factor bounds for Fermat numbers
+
+$a(n)$ is the minimum integer $k$ such that the smallest prime factor of the
+$n$-th Fermat number exceeds $2^{2^n - k}$.
+
+*References:*
+- [A358684](https://oeis.org/A358684)
+- [SA22](https://doi.org/10.26493/2590-9770.1473.ec5) Lorenzo Sauras-Altuzarra, *Some properties of the factors of Fermat numbers*, Art Discrete Appl. Math. (2022).
+-/
+
+
+namespace OeisA358684
+
+open Nat
+
+/--
+A358684: $a(n)$ is the minimum integer $k$ such that the smallest prime factor of the $n$-th Fermat
+number exceeds $2^{2^n - k}$.
+Let $F_n = 2^{2^n} + 1$ be the $n$-th Fermat number, and $P_n$ be its smallest prime factor.
+The definition of $a(n)$ is equivalent to the closed form:
+$$a(n) = 2^n - \lfloor \log_2(P_n) \rfloor$$
+where $P_n = \operatorname{minFac}(\operatorname{fermatNumber} n)$.
+The subtraction is defined in $\mathbb{N}$ and is safe
+ since $P_n \le F_n$, implying $\log_2 P_n < 2^n$.
+-/
+def a (n : ℕ) : ℕ :=
+  letI pn := minFac (fermatNumber n)
+  (2 ^ n) - (log2 pn)
+
+/--
+The "original" definition: $a'(n)$ is the minimum $k$ such that $P_n > 2^{2^n - k}$.
+We use `Nat.find` which returns the smallest natural number satisfying a predicate.
+-/
+noncomputable def a' (n : ℕ) : ℕ :=
+  letI Pn := minFac (fermatNumber n)
+  Nat.find (show ∃ k, Pn > 2 ^ (2 ^ n - k) from by
+    use 2^n
+    simp only [tsub_self, pow_zero]
+    simp [Pn]
+    unfold Nat.fermatNumber
+    exact (Nat.minFac_prime (by norm_num)).one_lt
+  )
+
+
+/--
+The log2 of the smallest prime factor of $F_n$ is at most $2^n$.
+-/
+@[category textbook, AMS 11]
+private lemma log2_minFac_le (n : ℕ) : log2 (fermatNumber n).minFac ≤ 2^n := by
+  rw [log2_eq_log_two]
+  refine (log_mono_right (minFac_le (by rw [fermatNumber]; norm_num))).trans_eq ?_
+  rw [fermatNumber, log_eq_of_pow_le_of_lt_pow (le_add_right _ _)]
+  rw [pow_succ, mul_two]
+  gcongr
+  exact one_lt_pow (by norm_num) (by norm_num)
+
+/--
+The minimization definition is equivalent to the closed form.
+-/
+@[category API, AMS 11]
+theorem a_equiv_a' (n : ℕ) : a n = a' n := by
+  unfold a a'; set Pn := (fermatNumber n).minFac
+  rw [Eq.comm, Nat.find_eq_iff]
+  constructor
+  · rw [tsub_tsub_cancel_of_le (log2_minFac_le n), log2_eq_log_two]
+    refine lt_of_le_of_ne (pow_log_le_self 2 (Nat.Prime.ne_zero (minFac_prime ?_))) fun h => ?_
+    · rw [fermatNumber]
+      norm_num
+    · have hPn : Pn.Prime := minFac_prime (by rw [fermatNumber]; norm_num)
+      have hnz := log2_eq_log_two ▸ (Nat.log_pos one_lt_two hPn.two_le).ne'
+      refine (Nat.not_even_iff_odd.mpr <| (odd_pow_iff hnz).mp ?_) even_two
+      rw [log2_eq_log_two, h]
+      exact Odd.of_dvd_nat (odd_fermatNumber n) (minFac_dvd _)
+  · intro m hm; simp only [not_lt]
+    rw [lt_tsub_iff_left] at hm
+    rw [log2_eq_log_two] at hm
+    refine (lt_pow_succ_log_self (b:=2) (by norm_num) _).le.trans ?_
+    apply Nat.pow_le_pow_right (by norm_num)
+    apply le_tsub_of_add_le_right
+    have := succ_le_of_lt hm
+    omega
+
+@[category test, AMS 11]
+theorem a_0 : a 0 = 0 := by norm_num [a]; simp [log2_def]
+
+@[category test, AMS 11]
+theorem a_1 : a 1 = 0 := by norm_num [a]; simp [log2_def]
+
+@[category test, AMS 11]
+theorem a_2 : a 2 = 0 := by norm_num [a]; simp [log2_def]
+
+@[category test, AMS 11]
+theorem a_3 : a 3 = 0 := by
+  norm_num only [a, Nat.log2_eq_log_two,Nat.fermatNumber]
+
+@[category test, AMS 11]
+theorem a_4 : a 4 = 0 := by
+  norm_num [a, fermatNumber, Nat.log2_eq_log_two]
+
+@[category test, AMS 11]
+theorem a_5 : a 5 = 23 := by
+  norm_num [a, fermatNumber,Nat.log2_eq_log_two]
+
+@[category test, AMS 11]
+theorem a_6 : a 6 = 46 := by
+  decide +native
+
+@[category test, AMS 11]
+theorem a_7 : a 7 = 73 := by
+  sorry
+
+/--
+Conjecture: the dyadic valuation of A93179(n) - 1 does not exceed 2^n - a(n).
+
+A93179(n) is minFac(fermatNumber n), the smallest prime factor of the n-th Fermat number.
+The conjecture states that if $P_n$ is the smallest prime factor of the $n$-th Fermat number,
+then $\nu_2(P_n - 1) \le 2^n - a(n)$.
+Substituting the definition of $a(n)$, this is equivalent to $\nu_2(P_n - 1) \le \lfloor \log_2(P_n) \rfloor$.
+
+This is Conjecture 3.4 in [SA22].
+-/
+@[category research solved, AMS 11]
+theorem oeis_358684_conjecture_0 (n : ℕ) :
+    padicValNat 2 (minFac (fermatNumber n) - 1) ≤ 2 ^ n - a n := by
+  delta fermatNumber and a
+  rw [Nat.sub_sub_self]
+  · rw [Nat.log2_eq_log_two]
+    apply Nat.le_log_of_pow_le (by decide)
+    refine le_trans ?_ <| sub
+
+## 解题约束（必须严格遵守）
+
+1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。
+   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。
+
+2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。
+   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：
+
+   ### PROOF COMPLETE
+
+3. **如果你无法做出这道题**，直接说（必须用英文原文）：
+
+   ### I CANNOT SOLVE THIS
+
+4. **如果你发现题目中包含了答案**（答案泄漏），直接说：
+
+   ### ANSWER LEAK DETECTED
+
+以上是全部约束。现在请解题。

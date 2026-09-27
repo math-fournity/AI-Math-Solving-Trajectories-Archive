@@ -1,0 +1,1048 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "noiseless-fahrenheit",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-20T21:42:57.214857+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-20T21:42:57.215328+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-20T21:42:57.222767+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-20T21:42:57.215656+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p5be4f6fe240b4cc0b0f7 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Thursday, 2026-08-20\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-20T21:42:57.216168+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在AGENTS.md中只记录脚本路径和一行用法示例。AGENTS.md是认知索引和规则，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。放到项目已有的脚本目录（如`xishujuzhen/solver_harness/`）或项目的`scripts/`目录中。\n\n4. **在项目AGENTS.md中做好索引**——新脚本必须在项目AGENTS.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **必须写成文件** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 检查项目内是否已有类似脚本（grep搜索、看AGENTS.md索引）\n3. **已有** → 改进那个脚本（edit工具修改），编译验证\n4. **没有** → 在项目脚本目录中创建新文件（write工具），编译验证\n5. 在项目AGENTS.md中记录脚本索引（如已有相关节则更新，如没有则新增）\n6. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新AGENTS.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是索引不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ✅ 改进`batch_status.py`的`cmd_dead_cleanup`函数\n- ✅ 新建`enqueue_problem.py`并在AGENTS.md硬约束6中记录\n- ✅ AGENTS.md中只写`pipe_control.py status`一行用法，不写完整调用参数和输出示例\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p5be4f6fe240b4cc0b0f7/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nAlice is performing a magic trick. She has a standard deck of 52 cards, which she may order beforehand. She invites a volunteer to pick an integer \\(0\\le n\\le 52\\), and cuts the deck into a pile with the top \\(n\\) cards and a pile with the remaining \\(52-n\\). She then gives both piles to the volunteer, who riffles them together and hands the deck back to her face down. (Thus, in the resulting deck,     the cards that were in the deck of size \\(n\\)     appear in order, as do the cards that were in the deck of size \\(52-n\\).)\n\nAlice then flips the cards over one-by-one from the top. Before flipping over each card, she may choose to guess the color of the card she is about to flip over. She stops if she guesses incorrectly. What is the maximum number of correct guesses she can guarantee?\n\n*Proposed by Espen Slettnes*\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-20T21:42:57.216184+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-20T21:42:57.224563+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-20T21:42:57.225350+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **search-tools**: 网络搜索武器库（Exa/Serper/Jina等） (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-20T21:42:59.638043+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me analyze this problem carefully.\n\nAlice has a deck of 52 cards. A volunteer picks $n$ between 0 and 52, cuts the deck into piles of $n$ and $52-n$. The volunteer riffles them together (so each pile's cards remain in relative order, but interleaved arbitrarily). Alice then flips cards one by one, guessing colors before each flip, stopping on first wrong guess. What's the maximum correct guesses she can guarantee?\n\nThis is a classic problem. Let me think about it.\n\nThe key insight: Alice can choose the deck order beforehand. After the cut and riffle, the deck is a riffle shuffle of two packets. Alice sees cards as they're flipped and can adapt her guesses.\n\nLet me think about what strategy Alice should use and what she can guarantee.\n\nFirst, let me think about the structure. Alice arranges the deck. The volunteer cuts at position $n$ (chosen by volunteer, unknown to Alice). Then riffle shuffles the two piles. The result is an interleaving of the top $n$ cards (in their original order) and the bottom $52-n$ cards (in their original order).\n\nAlice's strategy: she can arrange the deck optimally, and she uses an online guessing strategy based on cards seen so far.\n\nLet me think about the classic answer. I believe this problem is from a competition (USAMO or similar) and the answer is related to a specific number.\n\nLet me think about a simpler version first. \n\nActually, let me think about the structure more carefully. After the riffle, the deck is some interleaving of two sequences $A$ (the first $n$ cards in order) and $B$ (the remaining $52-n$ cards in order). Alice arranged the original deck, so she knows $A$ and $B$ for every possible $n$... but she doesn't know $n$.\n\nWait, Alice knows the deck order she chose. As cards are revealed, she can try to deduce information.\n\nLet me think about a known approach. \n\nConsider the following: Alice arranges the deck so that the colors alternate as much as possible, or in some specific pattern.\n\nActually, let me think about this differently. The key question is about the worst case over $n$ and over the riffle pattern.\n\nLet me think about small cases to build intuition.\n\nCase: deck of 2 cards, 1 red, 1 black. $n$ can be 0, 1, or 2.\n- $n=0$: deck unchanged, Alice knows the order. She guesses correctly for both cards → 2.\n- $n=2$: same, 2.\n- $n=1$: cut into [card1] and [card2], riffle. The result is either [card1, card2] or [card2, card1]. Alice arranged the deck, say RB. Then $n=1$: piles are [R] and [B]. Riffle gives RB or BR. Alice sees first card. If R, she knows it was pile A first, so next is B. If B, next is R. So she gets 2 either way.\n\nHmm, so for 2 cards she guarantees 2.\n\nLet me think about the general structure more carefully.\n\nActually, I recall this type of problem. The answer for a standard deck might be something like 51 or a specific number. Let me think harder.\n\nLet me consider the strategy where Alice always guesses the color that has more remaining cards. This is the greedy/optimal strategy for the \"guess colors\" game.\n\nIn the standard \"guess the color\" game (no cutting, just a shuffled deck), the greedy strategy of always guessing the majority color guarantees... well, the expected number is 26 + something, but the guaranteed minimum is 26 (since there are 26 red and 26 black, and the greedy strategy... actually the minimum guaranteed is not straightforward).\n\nWait, but here the deck isn't fully random—it's a riffle of two ordered piles, and Alice chose the original order.\n\nLet me reconsider. The crucial point is that Alice chooses the deck order. So she can design the deck to make her guessing robust against any cut and riffle.\n\nLet me think about what happens with the greedy strategy (guess the majority remaining color).\n\nAfter the riffle, we have an interleaving of $A$ and $B$. Let's say $A$ has $a$ red and $a'$ black, $B$ has $b$ red and $b'$ black, with $a+a' = n$, $b+b' = 52-n$, $a+b = 26$, $a'+b' = 26$.\n\nAs Alice reveals cards, she can track how many red and black remain. The greedy strategy: guess the color with more remaining. If tied, guess either.\n\nThe number of correct guesses with the greedy strategy: this is a well-studied problem. For a sequence with $r$ red and $b$ black, the greedy strategy (always guess majority) achieves exactly $\\max(r,b) + \\min(r,b) - (\\text{something})$... \n\nActually, let me recall: if there are $r$ red and $b$ black, $r \\geq b$, the greedy strategy guarantees at least $r$ correct guesses. Because: every time you guess red and you're wrong, a black is removed, reducing the \"deficit.\" The number of correct guesses is $r + (\\text{number of times black was majority when guessed})$... \n\nHmm, let me think more carefully. Actually, the greedy strategy for the online guessing game: with $r$ red and $b$ black cards, always guess the majority. The number of correct guesses equals $r + b - (\\text{number of \"lead changes\"})$... no.\n\nLet me think about it directly. Consider the process. At each step, guess the majority color. \n\nClaim: The greedy strategy gets exactly $\\max(r, b) + \\text{(number of times the minority catches up and ties)}$... \n\nActually, I think the correct statement is: the greedy strategy achieves $\\max(r,b) + \\lfloor \\min(r,b) / \\text{something} \\rfloor$... I'm overcomplicating this.\n\nLet me think about it concretely. $r$ red, $b$ black, $r \\geq b$. Greedy: always guess red (since red is majority) until black becomes majority or they tie.\n\nActually the greedy strategy is: at each step, look at remaining red and black, guess the one with more remaining.\n\nLet me trace: start with $r$ red, $b$ black, $r \\geq b$. Guess red. \n- If correct (red revealed): $r \\to r-1$. Still $r-1 \\geq b-1$? We have $r-1$ red, $b$ black. If $r-1 \\geq b$, guess red again. If $r-1 < b$ (i.e., $r = b$), now black is majority, guess black.\n- If wrong (black revealed): $b \\to b-1$. Now $r$ red, $b-1$ black, $r \\geq b > b-1$, guess red.\n\nSo the greedy strategy: the number of correct guesses. Let me think of it as: we always guess the majority. The wrong guesses happen when the minority card is revealed while we're guessing majority. \n\nEach wrong guess reduces the minority count by 1. Each correct guess reduces the majority count by 1 (but might cause a switch).\n\nActually, I recall the result: the greedy strategy achieves exactly $\\max(r, b) + \\lfloor \\min(r,b)/1 \\rfloor$... no. Let me just think about the total.\n\nTotal cards = $r + b$. Wrong guesses = number of times we guess majority but minority comes up. \n\nHmm, let me think about it as a random walk. Let $d = (\\text{red remaining}) - (\\text{black remaining})$. Initially $d = r - b \\geq 0$. We guess red when $d > 0$, black when $d < 0$, and either when $d = 0$.\n\n- If $d > 0$ and we guess red: correct → $d$ decreases by 1 (red removed). Wrong → $d$ increases by 1 (black removed, so red - black increases). Wait: if black is removed, red remaining stays, black remaining decreases by 1, so $d$ increases by 1.\n\nWait, that means when we're wrong, $d$ increases (moves further from 0), and when we're right, $d$ decreases (moves toward 0). That's the opposite of what you'd want!\n\nSo: $d > 0$, guess red. Correct: $d \\to d-1$. Wrong: $d \\to d+1$.\n$d < 0$, guess black. Correct: $d \\to d+1$ (black removed, so $d$ increases). Wrong: $d \\to d-1$ (red removed, $d$ decreases).\n$d = 0$: guess either. Say guess red. Correct: $d \\to -1$. Wrong: $d \\to 1$.\n\nSo $d$ performs a walk. When $d > 0$, correct guesses move $d$ toward 0, wrong guesses move $d$ away. The walk ends at $d = 0$ (all cards used, $r$ red and $b$ black removed, so $d$ goes from $r-b$ to $0$).\n\nTotal change in $d$: from $r - b$ to $0$, so $\\Delta d = -(r-b) = b - r$.\n\nEach correct guess when $d > 0$: $\\Delta d = -1$. Each wrong guess when $d > 0$: $\\Delta d = +1$.\nEach correct guess when $d < 0$: $\\Delta d = +1$. Each wrong guess when $d < 0$: $\\Delta d = -1$.\nAt $d = 0$: correct $\\Delta d = -1$ (if guessed red and right, $d \\to -1$; if guessed black and right, $d \\to +1$). Wrong: opposite.\n\nThis is getting complicated. Let me just count differently.\n\nNumber of correct guesses = total cards - number of wrong guesses. We stop at first wrong guess, so we want to minimize wrong guesses... no wait, the problem says she stops at first wrong guess. So she gets (number of correct guesses before first wrong) correct guesses. She wants to maximize the guaranteed number of consecutive correct guesses from the start.\n\nOh wait, this changes things significantly! She stops at the FIRST wrong guess. So she needs all her guesses to be correct up to some point, and she wants to guarantee as many correct guesses as possible from the beginning.\n\nSo the question is: what's the maximum $k$ such that Alice can guarantee her first $k$ guesses are all correct?\n\nThis is very different from the total correct guesses problem.\n\nSo Alice wants to guarantee $k$ correct guesses in a row from the start. She can choose the deck order and the guessing strategy (adaptive based on revealed cards).\n\nLet me reconsider. Alice arranges the deck. Volunteer picks $n$, cuts, riffles. Alice sees cards one by one, guesses colors, stops at first wrong guess. She wants to maximize the guaranteed number of correct guesses.\n\nSince she stops at first wrong guess, she wants to guarantee that her first $k$ guesses are all correct, for the largest possible $k$.\n\nNow, Alice's strategy: she knows the deck order she chose. As cards are revealed, she gains information about $n$ and the riffle pattern. She uses this to predict future cards.\n\nKey insight: After seeing some cards, Alice can narrow down what $n$ is and what the riffle pattern is, allowing her to predict future cards.\n\nLet me think about this more carefully.\n\nAlice arranges the deck in some order $c_1, c_2, \\ldots, c_{52}$ (she knows the colors). The volunteer cuts at position $n$: pile A = $c_1, \\ldots, c_n$, pile B = $c_{n+1}, \\ldots, c_{52}$. Riffle: interleaving of A and B preserving order within each.\n\nAs Alice sees cards, she can try to figure out which cards belong to pile A and which to pile B, and what $n$ is.\n\nIf Alice could determine $n$ and the exact riffle pattern, she'd know the entire remaining deck and could guess all remaining cards correctly. But she needs enough information to do this.\n\nLet me think about a specific strategy. \n\nStrategy idea: Alice arranges the deck so that the first 26 cards are all red and the last 26 are all black. Then:\n- If $n \\leq 26$: pile A has $n$ red cards, pile B has $26-n$ red and 26 black. The riffle interleaves them. The first card could be red (from either pile) or... wait, pile B starts with red cards too (since cards 27-52 are black, cards $n+1$ to 26 are red). So pile B = [26-n red, 26 black]. Pile A = [n red]. All cards in both piles before the black section are red. So the first $\\min(n, 26-n) + \\ldots$ hmm.\n\nActually with this arrangement, both piles start with red cards (if $n < 26$). The first $26$ cards of the riffled deck are all red (since both piles' red sections come before their black sections, and there are 26 red total). So Alice guesses red 26 times, all correct. Then the remaining 26 are all black, she guesses black, all correct. So she gets 52!\n\nWait, that can't be right. Let me check. If $n = 26$: pile A = 26 red, pile B = 26 black. Riffle: interleaving of 26 red and 26 black. The first card could be red or black! So Alice doesn't know the first card.\n\nHmm, so the all-red-then-all-black arrangement doesn't work for $n = 26$.\n\nIf $n = 26$: the riffle interleaves [R,R,...,R] and [B,B,...,B]. The result could start with either R or B. Alice has to guess, and she might be wrong on the first card. So she can only guarantee 0 correct guesses with this arrangement (for $n = 26$).\n\nSo that arrangement is bad. Let me think differently.\n\nWhat if Alice alternates colors: R, B, R, B, R, B, ...?\n\nThen for any cut at $n$, pile A = first $n$ cards (alternating starting with R), pile B = remaining (alternating, starting with R if $n$ is even, B if $n$ is odd).\n\nThe riffle interleaves these. This seems hard to predict too.\n\nLet me think about what Alice can deduce. \n\nAfter seeing the first card, Alice knows its color. She knows the deck order. The first card of the riffled deck is either $c_1$ (first card of pile A) or $c_{n+1}$ (first card of pile B). She knows $c_1$'s color. If the first card's color matches $c_1$ but not... hmm, she doesn't know $n$.\n\nThis is getting complex. Let me think about the problem from the perspective of what's known in the literature.\n\nI believe this is a USAMO/competition problem. Let me think about the answer.\n\nThe answer to this problem is $\\boxed{51}$... no, let me think more carefully.\n\nActually, I think I recall that this type of problem (with riffle shuffle and color guessing) has an answer related to the structure of the deck. Let me think about it from scratch.\n\nLet me consider a key strategy: Alice arranges the deck so that she can always deduce the next card.\n\nThink about it this way: Alice wants to arrange the deck so that, no matter where it's cut and how it's riffled, she can deduce each card's color from the cards she's already seen (combined with her knowledge of the deck order).\n\nFor Alice to deduce the next card, she needs to know, given the cards revealed so far, what the next card must be. \n\nThe riffle shuffle constraint means the revealed cards form an interleaving of two subsequences of the original deck. Alice knows the original deck order. So she needs to figure out, from the revealed cards, which two subsequences they came from (i.e., determine $n$ and the assignment of each revealed card to pile A or B).\n\nIf at each point, the revealed sequence uniquely determines the next card's color, Alice can guarantee getting all 52 correct (she'd never guess wrong). But that's too strong—she might not be able to uniquely determine the next card, but she might be able to guarantee it's a particular color.\n\nHmm, let me think about this differently. \n\nLet me consider the problem from the answer's perspective. I think the answer to this problem is 51.\n\nHere's a strategy that might achieve 51: \n\nAlice arranges the deck in a specific order. The idea is that after seeing enough cards, she can deduce the structure. But the first card is always a gamble...\n\nWait, no. Alice can choose the deck order. What if she makes the first card's color deterministic regardless of $n$?\n\nThe first card of the riffled deck is either $c_1$ (top of pile A, exists when $n \\geq 1$) or $c_{n+1}$ (top of pile B, exists when $n \\leq 51$). If $n = 0$, the deck is unchanged, first card is $c_1$. If $n = 52$, deck unchanged, first card is $c_1$.\n\nSo the first card is either $c_1$ or $c_{n+1}$ for some $n$. If Alice makes all cards the same color... but there are 26 red and 26 black, so she can't.\n\nWhat if $c_1$ is red, and all other cards that could be $c_{n+1}$ (i.e., $c_2, c_3, \\ldots, c_{52}$) are also red? But there are only 26 red cards, so $c_2, \\ldots, c_{52}$ can't all be red.\n\nOK so the first card could be $c_1$ or any of $c_2, \\ldots, c_{52}$ (depending on $n$). Alice can't guarantee the first card's color unless... well, she can't, since $c_1$ and $c_{n+1}$ could have different colors.\n\nWait, but Alice doesn't need to guarantee the first card. She needs to guarantee $k$ correct guesses. If she can't guarantee the first card, she gets 0. But maybe she can guarantee the first card by clever arrangement?\n\nThe first card is $c_1$ (if $n=0$ or $n=52$) or $c_{n+1}$ (if $0 < n < 52$, it's whichever of $c_1$ or $c_{n+1}$ comes first in the riffle). Actually, the first card of the riffle is either $c_1$ or $c_{n+1}$—whichever the riffle places first. Since the riffle is adversarial (worst case), the volunteer could choose to place either one first.\n\nSo the first card could be $c_1$ or $c_{n+1}$ for any $n$. If Alice wants to guarantee the first guess, she needs $c_1$ and $c_{n+1}$ to be the same color for all $n$. That means all cards are the same color, which is impossible.\n\nSo Alice cannot guarantee even 1 correct guess? That can't be right—the problem asks for the maximum she can guarantee, implying it's at least 1.\n\nWait, I need to re-read the problem. \"She stops if she guesses incorrectly.\" So she makes guesses and stops at the first wrong one. The number of correct guesses is the number of correct guesses before the first wrong one. She wants to maximize the guaranteed number.\n\nIf she can't guarantee the first guess, she guarantees 0. But the problem says \"maximum number of correct guesses she can guarantee,\" so maybe the answer is 0? That seems too trivial for a competition problem.\n\nHmm wait, let me re-read: \"Before flipping over each card, she may choose to guess the color of the card she is about to flip over. She stops if she guesses incorrectly.\"\n\nSo she MAY choose to guess. She doesn't have to guess on every card. She can skip some cards (not guess) and only guess when she's confident. She stops only if she guesses AND is incorrect. Cards she doesn't guess for don't count.\n\nOh! That changes everything. She can choose which cards to guess on. She sees each card before deciding whether to guess the next one. She wants to guarantee as many correct guesses as possible.\n\nWait, let me re-read again: \"Alice then flips the cards over one-by-one from the top. Before flipping over each card, she may choose to guess the color of the card she is about to flip over.\"\n\nSo before flipping card $i$, she may guess its color. If she guesses and is wrong, she stops. If she doesn't guess, she flips the card (sees it) and moves on. If she guesses and is right, she continues.\n\nSo Alice can accumulate information by flipping cards without guessing, and then guess when she's certain. She wants to maximize the total number of correct guesses (guaranteed, in the worst case over $n$ and riffle pattern).\n\nThis is a much more interesting problem!\n\nSo the strategy is: Alice flips some cards without guessing (building information), then when she's certain of a card's color, she guesses it. She wants to guarantee as many correct guesses as possible.\n\nNow, the question is: how many cards can Alice guarantee to guess correctly?\n\nLet me reconsider. Alice knows the deck order. As she sees cards, she learns about $n$ and the riffle pattern. At some point, she may be able to deduce the colors of all remaining cards.\n\nKey insight: Once Alice has seen enough cards to determine $n$ and the riffle pattern, she knows all remaining cards and can guess them all correctly.\n\nBut the riffle pattern is an interleaving, which has $\\binom{52}{n}$ possibilities. Alice needs to narrow this down.\n\nActually, Alice doesn't need to know the exact riffle pattern—she just needs to know the color of the next card. Even if there are multiple possible riffle patterns consistent with what she's seen, if they all agree on the next card's color, she can guess correctly.\n\nLet me think about this more carefully.\n\nAfter seeing $k$ cards, Alice knows:\n1. The deck order (she chose it).\n2. The colors of the first $k$ cards in the riffled deck.\n3. The cards form an interleaving of $A = (c_1, \\ldots, c_n)$ and $B = (c_{n+1}, \\ldots, c_{52})$ for some unknown $n$.\n\nFrom the seen cards, she can determine which cards have been revealed and their positions. She can try to figure out $n$ and the interleaving.\n\nLet me think about a specific strategy. \n\nConsider Alice arranging the deck so that the first 26 cards are red and the last 26 are black: R...R B...B.\n\nFor any cut at $n$:\n- If $n \\leq 26$: pile A = $n$ red cards, pile B = $(26-n)$ red + 26 black. Both piles start with red. The riffle will have all 26 red cards first (in some order), then all 26 black. So Alice sees red, red, ..., red (26 times), then black, black, ..., black. She can guess red for the first 26 (all correct), then black for the last 26 (all correct). Total: 52.\n\nWait, but she doesn't know $n$ ahead of time. However, she doesn't need to—she just sees the colors. The first 26 cards are all red regardless of $n$ (as long as $n \\leq 26$). But what if $n > 26$?\n\n- If $n > 26$: pile A = 26 red + $(n-26)$ black, pile B = $(52-n)$ black. Pile A starts with 26 red then black. Pile B is all black. The riffle interleaves these. The first card could be red (from pile A) or black (from pile B). \n\nSo for $n > 26$, the first card might be black. Alice, seeing the first card, would know it's black. But she was guessing red (if she guessed red for the first card). So she'd be wrong.\n\nBut Alice can choose NOT to guess and just flip. She sees the first card. If it's red, she knows $n \\leq 26$ (or the riffle happened to put pile A's red first). If it's black, she knows... hmm.\n\nActually, let me reconsider. If $n > 26$, pile A = [26 red, $n-26$ black], pile B = [$52-n$ black]. The riffle interleaves these. The red cards are all in pile A, in positions 1-26 of pile A. The black cards are in positions 27-$n$ of pile A and all of pile B.\n\nIn the riffled deck, the 26 red cards appear in order (they're all from pile A), and the 26 black cards appear in order (some from pile A, some from pile B). The interleaving mixes them.\n\nSo for $n > 26$, the riffled deck is an interleaving of [26 red, $n-26$ black] and [$52-n$ black]. The red cards all come from pile A and appear in order. The black cards come from both piles and appear in order within each pile.\n\nThe first card could be red (from pile A) or black (from pile B or pile A's black section, but pile A's black section comes after its red section, so the first black from pile A comes after all 26 red from pile A).\n\nActually, the first card is either $c_1$ (red, from pile A) or $c_{n+1}$ (black, from pile B, since $n > 26$ means $c_{n+1}$ is black). So the first card is either red or black.\n\nIf Alice sees the first card is red, she knows it's from pile A. If black, from pile B (or could it be from pile A? No—pile A's first card is $c_1$ which is red, and pile A's cards are in order, so the first card from pile A is always red. The first card from pile B is $c_{n+1}$ which is black when $n > 26$). \n\nWait, but Alice doesn't know if $n > 26$ or not. If $n \\leq 26$, both piles start with red, so the first card is definitely red. If $n > 26$, the first card could be red (from pile A) or black (from pile B).\n\nSo: if Alice sees the first card is black, she knows $n > 26$ and the first card came from pile B. If she sees red, she's not sure (could be $n \\leq 26$ with either pile, or $n > 26$ with pile A).\n\nThis is getting complicated. Let me think about the problem differently.\n\nI think the key idea is:\n\nAlice arranges the deck as: 26 red followed by 26 black.\n\nClaim: Alice can guarantee 51 correct guesses.\n\nStrategy: Alice doesn't guess until she's seen enough to be certain. \n\nHmm, but actually, let me reconsider. With the R...R B...B arrangement:\n\nCase 1: $n \\leq 26$. Both piles start with red. All 26 red cards come before all 26 black cards in the riffled deck (since both piles have their red cards before their black cards). So the riffled deck is [26 red in some order, 26 black in some order]. Alice can guess all 52 correctly (guess red 26 times, then black 26 times).\n\nCase 2: $n > 26$. Pile A = [26 red, $n-26$ black], pile B = [$52-n$ black]. The riffle interleaves these. Red cards are all from pile A (positions 1-26 of pile A). Black cards are from pile A (positions 27+) and all of pile B.\n\nIn this case, the riffled deck is an interleaving where the 26 red cards appear in order (subsequence of pile A) and the 26 black cards appear in order (interleaving of pile A's black part and pile B). The red and black cards can be mixed.\n\nSo in Case 2, Alice can't simply guess \"all red then all black.\" She needs to figure out the interleaving.\n\nBut Alice can see cards as they're flipped. She can track: how many red and black she's seen. She knows there are 26 of each. \n\nIn Case 2, the red cards are a contiguous block in pile A (positions 1-26). As the riffle proceeds, red cards from pile A can only appear while pile A hasn't exhausted its red section. Once pile A has output all 26 red cards, only black cards remain (from pile A's black section and pile B).\n\nHmm, but Alice doesn't know the riffle pattern. She sees cards one by one. Can she deduce the next card?\n\nLet me think about what Alice knows after seeing some cards in Case 2.\n\nAfter seeing $k$ cards, Alice knows their colors. She knows the deck is [26R, 26B]. She knows the riffle is an interleaving of pile A = [26R, $n-26$B] and pile B = [52-n B] for some $n > 26$ (she can deduce this if she sees a black card early, before 26 red cards have appeared).\n\nActually, let me think about when Alice can be certain of the next card's color.\n\nIn Case 2 ($n > 26$): At any point, the next card is either the next unoutput card of pile A or the next unoutput card of pile B. \n\n- Pile A's next card: if pile A has output fewer than 26 cards, the next is red. If pile A has output $\\geq 26$ cards, the next is black.\n- Pile B's next card: always black (pile B is all black).\n\nSo the next card is red only if it comes from pile A and pile A has output fewer than 26 cards. The next card is black if it comes from pile B, or if it comes from pile A and pile A has output $\\geq 26$ cards.\n\nAlice can track: how many red cards has she seen? If she's seen 26 red cards, then all remaining cards are black (pile A's red section is exhausted, and pile B is all black). So she can guess black for all remaining 26 - (black seen so far) cards.\n\nIf she's seen fewer than 26 red cards, the next card could be red (from pile A) or black (from pile B or pile A if pile A's red is exhausted, but that can't happen if fewer than 26 red seen). Wait—if fewer than 26 red cards have been seen, pile A has output some cards, some of which are red. Pile A's red section is positions 1-26. If pile A has output $j$ cards, and $j \\leq 26$, all $j$ are red. If $j > 26$, then 26 are red and $j - 26$ are black.\n\nAlice sees the colors but doesn't know how many came from pile A vs pile B. Let's say after $k$ cards, she's seen $r$ red and $b$ black ($r + b = k$). The red cards all came from pile A. So pile A has output at least $r$ cards. If pile A has output exactly $r$ cards (all red), then pile A's next card is red (if $r < 26$) or black (if $r = 26$). If pile A has output more than $r$ cards (some black from pile A), then pile A has output $r$ red + some black.\n\nBut Alice doesn't know how many cards pile A has output. She only knows $r$ and $b$.\n\nThe next card is red iff it comes from pile A and pile A has output $< 26$ cards. The next card is black iff it comes from pile B, or it comes from pile A and pile A has output $\\geq 26$.\n\nAlice can be certain the next card is black if: pile A has definitely output $\\geq 26$ cards. Pile A has output $\\geq 26$ cards iff all 26 red cards have been output, i.e., $r = 26$. So if $r = 26$, all remaining are black.\n\nAlice can be certain the next card is red if: pile B is exhausted AND pile A has output $< 26$ cards. Pile B has $52 - n$ cards. Pile B is exhausted when $52 - n$ cards from pile B have been output. But Alice doesn't know $n$.\n\nAlternatively, the next card is red if it must come from pile A (pile B is exhausted) and pile A's next is red. When is pile B definitely exhausted? Pile B has $52 - n$ black cards. The total black cards output from pile B is at most $b$ (since all black from pile B are black, and some black might be from pile A). Pile B is exhausted when $52 - n$ cards from B have been output. But Alice doesn't know $n$.\n\nHmm, this seems hard. Let me think about the worst case for Alice's strategy.\n\nWith the R...R B...B arrangement, in Case 2 ($n > 26$), Alice can:\n- Not guess until she's seen 26 red cards, then guess black for all remaining (26 - $b$ cards where $b$ is black seen so far). But $b = k - 26$ where $k$ is total seen. The remaining cards are $52 - k$, all black. She guesses all correctly. So she gets $52 - k$ correct guesses. But $k \\geq 26$ (she had to see 26 red cards). In the worst case, $k$ could be as large as 51 (if the riffle puts 26 red and 25 black before the last card). Wait, no: she needs to see 26 red cards. The 26 red cards could be spread throughout the deck. In the worst case, the 26th red card is at position 51 (with 25 black cards interspersed before it), and the last card is black. Then $k = 51$, and she gets $52 - 51 = 1$ correct guess.\n\nHmm, that's not great. But wait, can she do better by also guessing red cards?\n\nIn Case 2, before seeing 26 red cards, can Alice ever be certain of a card's color? \n\nThe next card is red iff it comes from pile A and pile A hasn't finished its red section. The next card is black iff it comes from pile B or pile A has finished red.\n\nIf Alice has seen $r < 26$ red and $b$ black cards:\n- Could the next card be red? Yes, if pile A outputs next and pile A has output $< 26$ cards (i.e., $r < 26$, which is true).\n- Could the next card be black? Yes, if pile B outputs next (pile B still has cards, which is possible as long as pile B hasn't output all $52-n$ cards).\n\nSo Alice can't be certain of the next card's color when $r < 26$ (in Case 2). She has to keep flipping without guessing.\n\nUnless... she can deduce that pile B is exhausted. Pile B has $52 - n$ cards. If Alice has seen $b$ black cards and all of them must be from pile B (i.e., pile A hasn't output any black yet), then pile B has output $b$ cards. If $b = 52 - n$, pile B is exhausted. But Alice doesn't know $n$.\n\nCan Alice deduce $n$? In Case 2, $n > 26$. Alice sees the colors. She knows the deck is [26R, 26B]. She can try to figure out $n$ from the pattern.\n\nActually, I don't think Alice can deduce $n$ from just the colors in general. The colors only tell her how many red and black she's seen, not the split point.\n\nHmm, so with the R...R B...B arrangement, in the worst case (Case 2 with $n = 27$, say), Alice might only guarantee 1 correct guess (the last card, which must be black after all 26 red are seen).\n\nWait, actually, let me reconsider. In Case 2 with $n = 27$: pile A = [26R, 1B], pile B = [25B]. Total: 26 red, 26 black. The riffle interleaves [26R, 1B] and [25B]. The worst case for Alice: the riffle puts the 1 black from pile A and all 25 black from pile B interspersed among the 26 red. The 26th red card could be at position 51. Then Alice sees 26 red and 25 black in the first 51 cards, and the last card is black. She guesses black, gets 1 correct.\n\nBut actually, can the riffle put the last red card at position 52? No, because there are 26 red and 26 black, so the last card could be red or black. If the last card is red, Alice has seen 25 red and 26 black in the first 51 cards. She knows 26 red total, so 1 red remains. But she also knows 26 black total, and she's seen 26 black, so 0 black remain. So the last card is red! She can guess red correctly.\n\nWait, so in either case, the last card's color is determined (once she's seen 51 cards, she knows the last card's color). So she always gets at least 1.\n\nBut can she do better? After seeing 51 cards, she knows the last card. After seeing 50 cards, she knows the colors of 50 cards, so she knows how many red and black remain (2 cards). If both remaining are the same color, she can guess. If one red and one black, she can't be sure of the next one.\n\nIn Case 2, after seeing $k$ cards with $r$ red and $b$ black ($r + b = k$), remaining red = $26 - r$, remaining black = $26 - b$. If $26 - r = 0$, all remaining are black. If $26 - b = 0$, all remaining are red. Otherwise, she can't be sure.\n\nSo Alice can only guess when one color is exhausted. In the worst case, one color is exhausted only at the very end.\n\nWith R...R B...B, the worst case seems to give only 1 guaranteed correct guess. That's bad.\n\nLet me think of a better arrangement.\n\nWhat if Alice uses a more clever arrangement where she can deduce information faster?\n\nIdea: Use a deck where the color pattern helps Alice determine $n$ quickly.\n\nConsider the arrangement: $c_1 = R$, and $c_2, c_3, \\ldots, c_{52}$ alternate or have some identifiable pattern.\n\nActually, let me think about this differently. The key is that Alice knows the deck order, and the riffle preserves the order within each pile. So the revealed cards, when she figures out which pile each came from, tell her the position in the original deck.\n\nLet me think about a different approach. What if Alice makes the deck such that she can identify $n$ from the first few cards?\n\nFor example: $c_1 = R, c_2 = R, \\ldots, c_{26} = R, c_{27} = B, \\ldots, c_{52} = B$ (same as before). The issue is that in Case 2, she can't determine $n$ from colors alone.\n\nWhat if the deck has a unique color signature that lets Alice determine $n$?\n\nHmm, but Alice only sees colors, not card identities. With 26 red and 26 black, the color sequence has limited information.\n\nWait, actually—Alice sees the actual cards, not just colors! Let me re-read the problem.\n\n\"Alice then flips the cards over one-by-one from the top. Before flipping over each card, she may choose to guess the color of the card she is about to flip over.\"\n\nShe flips cards over, so she sees the actual cards (rank and suit), not just colors. She knows the deck order, so seeing a card tells her exactly which position in the original deck it came from. This is crucial!\n\nSo when Alice sees a card, she knows its identity (e.g., \"Ace of Spades\"), and since she arranged the deck, she knows it was at position $j$ in the original deck. This tells her whether it came from pile A (position $\\leq n$) or pile B (position $> n$). But she doesn't know $n$...\n\nHowever, she can use the card identities to deduce $n$ and the riffle pattern!\n\nIf Alice sees card at original position $j$, it came from pile A if $j \\leq n$ and pile B if $j > n$. So if she sees a card from position $j$ and another from position $k$ with $j > k$, and the first came from pile B and the second from pile A, then $n$ is between $k$ and $j-1$... \n\nActually, she can deduce $n$ as follows: the cards from pile A have original positions $\\leq n$, and cards from pile B have positions $> n$. If she can figure out which pile each card came from, she can find $n$.\n\nBut how does she figure out which pile each card came from? The riffle preserves order within each pile. So the subsequence of cards from pile A appears in increasing order of original position, and similarly for pile B.\n\nSo Alice sees a sequence of cards (by original position). She needs to partition this sequence into two increasing subsequences (pile A and pile B), where pile A's positions are $\\leq n$ and pile B's are $> n$. The constraint is that pile A's positions are $\\{1, 2, \\ldots, n\\}$ and pile B's are $\\{n+1, \\ldots, 52\\}$.\n\nActually, since pile A = positions $1, \\ldots, n$ in order and pile B = positions $n+1, \\ldots, 52$ in order, the riffled sequence is an interleaving of $(1, 2, \\ldots, n)$ and $(n+1, n+2, \\ldots, 52)$. So the riffled sequence, when mapped to original positions, is an interleaving of two contiguous increasing sequences.\n\nAlice sees the original positions of revealed cards. She needs to figure out $n$ and the interleaving.\n\nKey observation: If Alice sees cards at original positions $p_1, p_2, \\ldots, p_k$ (in the order they appear in the riffled deck), these form an interleaving of $(1, \\ldots, n)$ and $(n+1, \\ldots, 52)$. \n\nThe sequence $p_1, p_2, \\ldots, p_k$ can be decomposed into two increasing subsequences: one from $\\{1, \\ldots, n\\}$ and one from $\\{n+1, \\ldots, 52\\}$. Moreover, the first subsequence is exactly $\\{1, 2, \\ldots, j\\}$ for some $j \\leq n$ (the first $j$ elements of pile A), and the second is exactly $\\{n+1, n+2, \\ldots, n+m\\}$ for some $m$ (the first $m$ elements of pile B).\n\nSo the set of revealed positions is $\\{1, 2, \\ldots, j\\} \\cup \\{n+1, n+2, \\ldots, n+m\\}$ for some $j, m, n$ with $j \\leq n$ and $n + m \\leq 52$.\n\nFrom the revealed positions, Alice can determine $j$ (the largest position in $\\{1, \\ldots, n\\}$ that's been revealed, which is the largest revealed position $\\leq n$) and the set $\\{n+1, \\ldots, n+m\\}$ (revealed positions $> n$).\n\nBut Alice doesn't know $n$. However, she can figure it out: the revealed positions from pile B are $\\{n+1, \\ldots, n+m\\}$, which is a contiguous block starting at $n+1$. The revealed positions from pile A are $\\{1, \\ldots, j\\}$, a contiguous block starting at 1.\n\nSo the set of revealed positions is $\\{1, \\ldots, j\\} \\cup \\{n+1, \\ldots, n+m\\}$ where $j \\leq n < n+1 \\leq$ (next revealed position from B). \n\nAlice can identify: the revealed positions that form a contiguous block starting from 1 are from pile A. The remaining revealed positions should form a contiguous block (from pile B). The gap between the end of pile A's block and the start of pile B's block tells her $n$.\n\nSpecifically: if the revealed positions are $S$, let $j$ = largest element of $S$ that's in $\\{1, 2, 3, \\ldots\\}$ contiguous from 1 (i.e., $j$ is the largest such that $\\{1, \\ldots, j\\} \\subseteq S$). Then positions $\\{1, \\ldots, j\\}$ are from pile A. The remaining positions $S \\setminus \\{1, \\ldots, j\\}$ should be a contiguous block $\\{n+1, \\ldots, n+m\\}$. The smallest of these is $n+1$, so $n = \\min(S \\setminus \\{1, \\ldots, j\\}) - 1$.\n\nBut wait—what if there's ambiguity? What if the revealed positions could be decomposed in multiple ways?\n\nFor example, if $S = \\{1, 2, 3\\}$, this could be:\n- All from pile A: $j = 3$, $n \\geq 3$, no pile B cards revealed.\n- $\\{1, 2\\}$ from pile A, $\\{3\\}$ from pile B: $j = 2$, $n = 2$.\n- $\\{1\\}$ from pile A, $\\{2, 3\\}$ from pile B: $j = 1$, $n = 1$.\n\nSo there's ambiguity! Alice can't determine $n$ from just $\\{1, 2, 3\\}$.\n\nBut Alice also knows the order in which the cards appeared, which constrains the interleaving. The interleaving must be consistent with two increasing subsequences.\n\nHmm, but even with the order, there might be ambiguity. For example, if the positions appear in order $1, 2, 3$, this is consistent with:\n- All from pile A ($n \\geq 3$).\n- $1, 2$ from A, $3$ from B ($n = 2$): interleaving of $(1, 2)$ and $(3)$, which gives $1, 2, 3$ or $1, 3, 2$ or $3, 1, 2$. So $1, 2, 3$ is valid.\n- $1$ from A, $2, 3$ from B ($n = 1$): interleaving of $(1)$ and $(2, 3)$, giving $1, 2, 3$ or $2, 1, 3$ or $2, 3, 1$. So $1, 2, 3$ is valid.\n\nSo even with the order, there's ambiguity.\n\nThis means Alice can't always determine $n$ from the revealed cards. The question is: can she determine the next card's color even without knowing $n$ exactly?\n\nLet me reconsider. Alice knows the deck order (and thus the color of each position). She sees the positions of revealed cards. She wants to determine the color of the next card.\n\nThe next card is either position $j+1$ (next from pile A, if pile A has more cards) or position $n+m+1$ (next from pile B, if pile B has more cards). Alice needs to know the color of whichever comes next, but she doesn't know which one comes next (the riffle is adversarial).\n\nWait, but the riffle has already happened—it's fixed, not adversarial at each step. The volunteer riffled once, and the deck is fixed. Alice just doesn't know the result. The \"worst case\" is over all possible riffle results and all $n$.\n\nSo Alice needs a strategy that works for all $n$ and all riffle results. Her strategy is adaptive: based on cards seen, she decides whether to guess.\n\nFor her to guess correctly, she needs to be certain of the next card's color given what she's seen. This means: for all $(n, \\text{riffle})$ consistent with what she's seen, the next card has the same color.\n\nSo the question becomes: design a deck order and a strategy such that, for every $n$ and riffle, Alice can make at least $k$ correct guesses.\n\nNow I see the full picture. Let me think about what deck order maximizes the guaranteed correct guesses.\n\nLet me think about the problem from the perspective of information. Alice sees card positions. At each point, there's a set of possible $(n, \\text{riffle})$ pairs consistent with her observations. She can guess when all consistent possibilities agree on the next card's color.\n\nLet me think about a specific deck arrangement and strategy.\n\nArrangement: Let's think about what arrangement lets Alice deduce the most.\n\nKey insight: If Alice sees a card from position $p$ and another from position $q$ with $p < q$, and both are from the same pile, they must appear in order $p$ before $q$. If $p > q$ and $p$ appears before $q$, they must be from different piles.\n\nSo when Alice sees a \"descent\" (position decreases), she knows those two cards are from different piles. Specifically, if position $p$ appears before position $q$ with $p > q$, then $p$ is from pile B and $q$ is from pile A, so $n < p$ and $q \\leq n$, meaning $q \\leq n < p$, i.e., $q \\leq n \\leq p - 1$.\n\nThis is very informative! A descent tells Alice that $n$ is between the two positions.\n\nSo if Alice arranges the deck to create many descents (or rather, the riffle creates descents), she can narrow down $n$.\n\nBut the riffle is adversarial. The worst case is when the riffle creates no descents—i.e., the entire riffled deck is in increasing order of position. This happens when the riffle puts all of pile A first, then all of pile B (or vice versa). In that case, the riffled deck is just $1, 2, \\ldots, 52$ (pile A then pile B) or $n+1, \\ldots, 52, 1, \\ldots, n$ (pile B then pile A).\n\nWait, if the riffle puts all of pile A first, the deck is $1, 2, \\ldots, n, n+1, \\ldots, 52$, which is just the original deck. If the riffle puts all of pile B first, the deck is $n+1, \\ldots, 52, 1, \\ldots, n$.\n\nIn the first case (no cut effectively), Alice sees the deck in original order. She knows the deck order, so she knows every card. She can guess all 52 correctly.\n\nIn the second case, the deck is $n+1, \\ldots, 52, 1, \\ldots, n$. Alice sees positions $n+1, n+2, \\ldots$. She sees a descent at the transition from 52 to 1. But before that, she sees $n+1, n+2, \\ldots, 52$ in order—no descents. She can't tell if these are from pile A or pile B.\n\nHmm, so in the worst case (riffle puts pile B entirely before pile A), Alice sees $n+1, n+2, \\ldots, 52, 1, 2, \\ldots, n$. She doesn't know $n$. The first card is at position $n+1$, but she doesn't know $n+1$—wait, she does! She sees the actual card, and she knows the deck order, so she knows the position.\n\nOh right! Alice sees the actual card, so she knows its position in the original deck. If the first card is at position $p$, she knows $p$. If the riffle put pile B first, then $p = n+1$, so $n = p - 1$. If the riffle put pile A first, then $p = 1$.\n\nSo Alice sees the first card at position $p$. If $p = 1$, it's from pile A (could be any $n \\geq 1$, or $n = 0$). If $p > 1$, it must be from pile B (since pile A starts at position 1, and if pile A went first, the first card would be position 1). So if $p > 1$, Alice knows $n = p - 1$.\n\nWait, not quite. If $p > 1$, the first card is from pile B (position $n+1 = p$), so $n = p - 1$. But could it also be from pile A? Pile A starts at position 1. If the first card is from pile A, it's position 1. So if $p > 1$, the first card is definitely from pile B, and $n = p - 1$.\n\nIf $p = 1$, the first card is from pile A. Alice doesn't know $n$ (it could be anything from 1 to 52, or 0).\n\nSo:\n- If the first card is at position 1: Alice knows it's from pile A. She doesn't know $n$. The next card is either position 2 (from pile A) or position $n+1$ (from pile B, if $n \\geq 1$ and pile B has cards). She doesn't know which.\n- If the first card is at position $p > 1$: Alice knows $n = p - 1$. She knows the entire structure! Pile A = positions $1, \\ldots, p-1$, pile B = positions $p, \\ldots, 52$. The riffle interleaves them. She's seen the first card (position $p$, from pile B). The next card is either position 1 (from pile A) or position $p+1$ (from pile B). She doesn't know which, but she knows both colors! So she can guess... wait, she doesn't know which one comes next, so she doesn't know the next card's color unless both have the same color.\n\nHmm, so even knowing $n$, Alice doesn't know the riffle pattern, so she doesn't know which pile the next card comes from. She knows the next card is either position 1 or position $p+1$, and she knows both colors. If they're the same, she can guess. If different, she can't.\n\nSo the problem reduces to: Alice needs to arrange the deck so that, at each step, the two possible next cards (one from each pile) have the same color, OR she has enough information to rule out one of them.\n\nThis is getting complex. Let me think about the structure more carefully.\n\nAfter seeing some cards, Alice has a partial interleaving. The state is: pile A has output positions $1, \\ldots, a$ (for some $a$), and pile B has output positions $n+1, \\ldots, n+b$ (for some $b$). The next card is either position $a+1$ (from pile A, if $a < n$) or position $n+b+1$ (from pile B, if $n+b < 52$).\n\nAlice knows $a$ (she can count how many pile A cards she's identified) and she may or may not know $n$.\n\nWait, Alice can identify which pile each card came from if she knows $n$. If she doesn't know $n$, she might not be able to assign cards to piles.\n\nLet me reconsider. Alice sees a sequence of positions. She needs to determine if this sequence is consistent with an interleaving of $(1, \\ldots, n)$ and $(n+1, \\ldots, 52)$ for some $n$. \n\nThe sequence of positions, when decomposed into two increasing subsequences (one from $1..n$ and one from $n+1..52$), must have the first subsequence being $\\{1, 2, \\ldots, a\\}$ (contiguous from 1) and the second being $\\{n+1, \\ldots, n+b\\}$ (contiguous from $n+1$).\n\nSo the set of revealed positions is $\\{1, \\ldots, a\\} \\cup \\{n+1, \\ldots, n+b\\}$ for some $a, b, n$ with $a \\leq n$ and $n + b \\leq 52$.\n\nGiven the set $S$ of revealed positions and their order, Alice needs to find all valid $(a, b, n)$ and check if the next card's color is determined.\n\nThe set $S = \\{1, \\ldots, a\\} \\cup \\{n+1, \\ldots, n+b\\}$. The positions in $S$ that are $\\leq a$ are from pile A, and those $> n$ are from pile B. Note that $a \\leq n$, so positions $\\leq a$ are $\\leq n$, and positions $> n$ are $> a$ (since $a \\leq n$). So the split is clean: positions $\\leq a$ are from pile A (and they must be $\\{1, \\ldots, a\\}$), and positions $> n$ are from pile B (and they must be $\\{n+1, \\ldots, n+b\\}$). There's a gap between $a$ and $n+1$ (positions $a+1, \\ldots, n$ are not yet revealed, they're in pile A but not yet output).\n\nSo from $S$, Alice can determine $a$ (the largest position in $S$ such that $\\{1, \\ldots, a\\} \\subseteq S$). Then the remaining positions $S \\setminus \\{1, \\ldots, a\\}$ must be a contiguous block $\\{n+1, \\ldots, n+b\\}$. If this block is non-empty, its minimum is $n+1$, so $n = \\min(S \\setminus \\{1, \\ldots, a\\}) - 1$. If the block is empty (all revealed positions are $\\{1, \\ldots, a\\}$), then $n$ is unknown (could be anything $\\geq a$).\n\nBut wait, there's a subtlety. The decomposition into two increasing subsequences must also be consistent with the order. Let me think about whether the order adds constraints.\n\nThe order of revealed positions must be an interleaving of $(1, 2, \\ldots, a)$ and $(n+1, n+2, \\ldots, n+b)$. This means the subsequence of positions $\\leq a$ must be $1, 2, \\ldots, a$ in order, and the subsequence of positions $> n$ must be $n+1, n+2, \\ldots, n+b$ in order.\n\nSo the order does add constraints: the positions from pile A must appear in increasing order, and positions from pile B must appear in increasing order. But since pile A's positions are $1, \\ldots, a$ and pile B's are $n+1, \\ldots, n+b$, and both are increasing, the constraint is just that within each subsequence, the order is preserved. This is automatically satisfied if the assignment is correct.\n\nBut the assignment itself might be ambiguous. Given the sequence of positions, there might be multiple valid $(a, n)$ pairs.\n\nExample: positions revealed in order: $3, 1, 2$. \n- Could $\\{1, 2\\}$ be from pile A and $\\{3\\}$ from pile B? Then $a = 2$, $n = 2$. Interleaving of $(1, 2)$ and $(3)$: possible orders include $3, 1, 2$ (B, A, A). Valid!\n- Could $\\{1\\}$ be from pile A and $\\{2, 3\\}$ from pile B? Then $a = 1$, $n = 1$. Interleaving of $(1)$ and $(2, 3)$: possible orders include $2, 3, 1$ or $2, 1, 3$ or $1, 2, 3$. But $3, 1, 2$ requires 3 before 1, which means 3 is from B and 1 is from A, then 2 is from... if 2 is from B, the B subsequence is $3, 2$, which is not increasing. If 2 is from A, the A subsequence is $1, 2$, which is increasing, but then $a = 2$ and $n = 2$, same as the first case. So this doesn't work as a separate case.\n- Could all be from pile A? Then $a = 3$, but the order is $3, 1, 2$, which is not increasing. Invalid.\n- Could all be from pile B? Then $n = 0$ (empty pile A), and pile B = $1, 2, 3$ in order, but the revealed order is $3, 1, 2$, not increasing. Invalid.\n\nSo the only valid decomposition is $a = 2, n = 2$. Alice can determine $n = 2$.\n\nInteresting. So descents help Alice determine $n$.\n\nLet me think about when Alice can and cannot determine $n$.\n\nIf the revealed positions are in increasing order (no descents), then multiple decompositions are possible. For example, $1, 2, 3$ could be all from A (any $n \\geq 3$), or $\\{1, 2\\}$ from A and $\\{3\\}$ from B ($n = 2$), etc.\n\nIf there's a descent, it constrains the decomposition.\n\nSo the worst case for Alice is when the riffle produces no descents—i.e., the riffled deck is in increasing order of position. This means either:\n1. All of pile A comes before all of pile B: deck is $1, 2, \\ldots, 52$ (original order). Alice knows every card. She can guess all 52.\n2. All of pile B comes before all of pile A: deck is $n+1, \\ldots, 52, 1, \\ldots, n$. The first card is at position $n+1 > 1$ (assuming $n \\geq 1$), so Alice immediately knows $n$. Then she knows the whole deck. She can guess all 52.\n3. $n = 0$ or $n = 52$: deck is unchanged. Alice knows everything. 52 correct.\n\nWait, so in the \"no descents\" case, Alice can always determine $n$ (either $n = 0$, or the first card tells her $n$)? Let me check case 1 more carefully.\n\nCase 1: deck is $1, 2, \\ldots, 52$. First card is position 1. Alice sees position 1. She doesn't know if this is from pile A (any $n \\geq 1$) or... wait, position 1 is always from pile A (since pile A = $1, \\ldots, n$ and $n \\geq 1$). Unless $n = 0$, in which case there's no pile A and the first card is position 1 from pile B (with $n = 0$, pile B = $1, \\ldots, 52$).\n\nSo if the first card is position 1, Alice doesn't know if $n = 0$ (all from pile B) or $n \\geq 1$ (from pile A). But in either case, the next card is position 2 (from pile A if $n \\geq 2$, or from pile B if $n = 0$ or $n = 1$). She doesn't know $n$, so she doesn't know if the next card is from pile A or pile B. But she knows the next card is position 2 (since both piles' next cards would be position 2... wait, no.\n\nIf $n \\geq 2$: pile A has output position 1, next is position 2. Pile B starts at $n+1$, next is $n+1$. So the next card is either position 2 or position $n+1$.\nIf $n = 1$: pile A = $\\{1\\}$, exhausted. Pile B = $\\{2, \\ldots, 52\\}$, next is position 2. So next card is position 2.\nIf $n = 0$: pile B = $\\{1, \\ldots, 52\\}$, next is position 2. Next card is position 2.\n\nSo if $n \\leq 1$, next card is position 2. If $n \\geq 2$, next card is either position 2 or $n+1 \\geq 3$.\n\nIf the riffle is in increasing order (case 1), the next card is position 2 regardless. But Alice doesn't know the riffle is in increasing order. From her perspective, the next card could be position 2 or position $n+1$ for some $n \\geq 2$.\n\nHmm, but Alice sees the next card when it's flipped (if she chooses not to guess). The question is whether she can guess it correctly.\n\nIf she doesn't know whether the next card is position 2 or some other position, she can't be sure of its color (unless all possible next cards have the same color).\n\nSo in case 1 (increasing riffle), Alice sees position 1 first. She can't be sure of the next card's color (it could be position 2 or $n+1$ for various $n$). She flips without guessing. She sees position 2. Now she knows positions 1 and 2 have been revealed. She still can't be sure of the next card (position 3 or $n+1$). She keeps flipping...\n\nEventually, she's seen positions $1, 2, \\ldots, k$ in order. The next card is either position $k+1$ or position $n+1$ for some $n \\geq k+1$ (if $n > k$) or position $k+1$ (if $n \\leq k$, pile A exhausted). \n\nWait, if $n \\leq k$, pile A is exhausted (all $n$ cards output), so the next card is from pile B, which is position $n+1 \\leq k+1$. But positions $1, \\ldots, k$ are already revealed, and pile B's cards are positions $n+1, \\ldots, 52$. If $n \\leq k$, then positions $n+1, \\ldots, k$ are from pile B and already revealed. The next from pile B is position $k+1$. So the next card is position $k+1$.\n\nIf $n > k$, pile A has output $k$ cards (positions $1, \\ldots, k$), next from A is $k+1$. Pile B has output 0 cards, next from B is $n+1 > k+1$. So next card is either $k+1$ or $n+1$.\n\nIn either case, the next card could be position $k+1$ (from pile A if $n > k$, or from pile B if $n \\leq k$) or some position $> k+1$ (from pile B if $n > k$). \n\nBut in the increasing riffle case, the next card IS position $k+1$. Alice doesn't know this though. From her perspective, the next card could be position $k+1$ or some larger position.\n\nThe color of position $k+1$ is known to Alice. The color of position $n+1$ (for $n > k$) depends on $n$, which she doesn't know. So she can't be sure of the next card's color unless all positions $> k$ that could be $n+1$ have the same color as position $k+1$.\n\nThis is where the deck arrangement matters. If Alice arranges the deck so that position $k+1$ has the same color as all positions $> k$... that's impossible in general (since there are both colors).\n\nHmm, so in the increasing riffle case, Alice can never be sure of the next card's color (until she's seen 51 cards and knows the last one). That would give only 1 guaranteed correct guess.\n\nBut wait, that's the worst case over riffle patterns. The problem asks for the maximum she can guarantee over all $n$ and riffle patterns. So the adversary chooses $n$ and the riffle to minimize Alice's correct guesses, and Alice chooses the deck order and strategy to maximize the minimum.\n\nIf the adversary can always choose the increasing riffle (which gives Alice only 1 correct guess), then Alice can only guarantee 1? That seems too low.\n\nWait, but the adversary chooses $n$ and the riffle. The increasing riffle is always available (the volunteer can riffle perfectly, maintaining order). So the adversary can always force the increasing riffle.\n\nBut in the increasing riffle case, as I analyzed, Alice can eventually determine the deck (after seeing 51 cards, she knows the last one). But can she do better?\n\nActually, let me reconsider. In the increasing riffle case, the deck is either:\n- $1, 2, \\ldots, 52$ (pile A then pile B, or $n = 0$ or $n = 52$), or\n- $n+1, \\ldots, 52, 1, \\ldots, n$ (pile B then pile A).\n\nIn the first sub-case, Alice sees $1, 2, 3, \\ldots$. She can't determine $n$ (it could be anything). She can't guess until the end.\n\nIn the second sub-case, Alice sees $n+1, n+2, \\ldots$. The first card is position $n+1 > 1$ (if $n \\geq 1$), so she knows $n$ immediately. Then she knows the whole deck.\n\nBut Alice doesn't know which sub-case she's in! If the first card is position 1, she's in sub-case 1 (or $n = 0$). If the first card is position $p > 1$, she's in sub-case 2 with $n = p - 1$.\n\nSo:\n- If the first card is position $p > 1$: Alice knows $n = p - 1$ and the deck is $p, p+1, \\ldots, 52, 1, \\ldots, p-1$. She knows every card. She can guess all 52 correctly.\n- If the first card is position 1: Alice is in the ambiguous case. She can't determine $n$.\n\nSo the adversary should choose the riffle to start with position 1 (i.e., the increasing riffle with pile A first, or $n = 0$). In this case, Alice sees $1, 2, 3, \\ldots, 52$ and can't determine $n$ until the end.\n\nBut wait, the adversary also chooses $n$. If $n = 0$, the deck is $1, 2, \\ldots, 52$ and Alice sees position 1 first. If $n = 52$, same thing. If $1 \\leq n \\leq 51$ and the riffle is increasing (pile A first), the deck is also $1, 2, \\ldots, 52$.\n\nSo regardless of $n$, the adversary can choose the increasing riffle (pile A first) to make the deck $1, 2, \\ldots, 52$. Alice sees positions in order and can't determine $n$.\n\nIn this case, Alice's only guaranteed correct guess is the last card (position 52, whose color she knows after seeing 51 cards). So she guarantees 1?\n\nThat seems too low for a competition problem. Let me re-examine.\n\nHmm wait, I think I need to reconsider. Even in the increasing riffle case, Alice sees the actual cards and knows their positions. She knows the deck order. So she knows the color of every position. The issue is she doesn't know which position the next card will be.\n\nBut in the increasing riffle case, the next card is always the next position. Alice sees position 1, then 2, then 3, etc. She knows the color of each position. So she can guess each one correctly!\n\nOh wait, I think I was overcomplicating this. Let me reconsider.\n\nAlice sees the cards being flipped. She sees the actual card (not just the color). She knows the deck order. So when she sees a card, she knows its position in the original deck.\n\nIn the increasing riffle case, the deck is $1, 2, \\ldots, 52$. Alice sees position 1, then 2, then 3, etc. She knows the color of each position (she arranged the deck). So she can guess every card correctly!\n\nBut wait—she has to guess BEFORE flipping. So before flipping the first card, she doesn't know what it is. She has to guess its color. Then she flips it and sees it.\n\nSo the question is: before flipping card $i$, can Alice determine its color?\n\nIn the increasing riffle case, before flipping the first card, Alice doesn't know the riffle result. The first card could be position 1 (from pile A) or position $n+1$ (from pile B). She doesn't know which, so she doesn't know the color (unless all possible first cards have the same color).\n\nAfter flipping the first card (without guessing), she sees its position. If it's position 1, she's in the ambiguous case. If it's position $p > 1$, she knows $n = p-1$.\n\nSo the issue is only when the first card is position 1. Then Alice doesn't know $n$, and the next card could be position 2 or $n+1$.\n\nBut here's the thing: Alice can choose NOT to guess and just flip. She flips the first card, sees position 1. She flips the second card, sees position 2. She flips the third, sees position 3. Etc. She keeps flipping without guessing. At some point, can she determine the rest?\n\nIn the increasing riffle case, she sees $1, 2, 3, \\ldots, k$. The next card is either $k+1$ or $n+1$ for some $n > k$. She doesn't know which. She can't guess.\n\nShe keeps flipping until she's seen 51 cards. The last card's color is determined. She guesses it. 1 correct guess.\n\nBut what if the riffle is NOT increasing? Then there are descents, and Alice can determine $n$ and the riffle pattern, and guess many cards correctly.\n\nThe adversary chooses the worst-case riffle, which is the increasing riffle (pile A first). In this case, Alice gets only 1 correct guess.\n\nBut wait, can the adversary always choose the increasing riffle? The riffle is done by the volunteer, who is adversarial. Yes, the volunteer can choose to do a perfect riffle (maintaining order). So the adversary can always force the increasing riffle.\n\nHmm, but actually, the problem says \"the volunteer riffles them together.\" The riffle is not adversarial—the volunteer just riffles. But the problem asks what Alice can \"guarantee,\" which means worst case over all possible riffle outcomes and all $n$.\n\nSo yes, the adversary (worst case) can choose $n$ and the riffle pattern. The increasing riffle (pile A first) is always possible, giving the deck $1, 2, \\ldots, 52$.\n\nIn this case, Alice sees cards in order $1, 2, \\ldots, 52$. She knows the color of each position. But she doesn't know the riffle is increasing—she has to consider the possibility that the next card is from the other pile.\n\nWait, but actually, I realize: Alice can use a strategy where she just guesses based on what she's seen. Let me think about whether she can do better than 1.\n\nAfter seeing positions $1, 2, \\ldots, k$ in order, Alice considers: the next card is either position $k+1$ (from pile A, if $n > k$) or position $n+1$ (from pile B, if $n \\geq k+1$ and pile B hasn't started outputting). But if $n \\leq k$, pile A is exhausted and the next card is from pile B, which is position $n+1 \\leq k+1$. But positions $1, \\ldots, k$ are already seen, and pile B's positions are $n+1, \\ldots, 52$. If $n \\leq k$, then positions $n+1, \\ldots, k$ are from pile B and already seen. The next from pile B is position $k+1$.\n\nSo in all cases, the next card could be position $k+1$. It could also be some position $> k+1$ (from pile B, if $n > k$). \n\nAlice knows the color of position $k+1$. She also knows the colors of all positions $> k+1$. If all positions $> k$ have the same color, she can guess that color. Otherwise, she can't be sure.\n\nSo the question becomes: can Alice arrange the deck so that, at every point $k$, either:\n(a) All positions $> k$ have the same color (so she can guess), or\n(b) She can determine the next card by other means (descents, etc.)?\n\nCondition (a) is very strong. It means the deck has at most one color change. E.g., all red then all black, or all black then all red. But with 26 red and 26 black, the deck would be 26 red then 26 black (or vice versa). At $k = 26$, all positions $> 26$ are black, so she can guess black for the rest. But for $k < 26$, positions $> k$ include both red and black, so she can't guess.\n\nWith the 26R-26B arrangement, in the increasing riffle case, Alice flips 26 red cards (positions 1-26) without guessing, then knows all remaining are black, and guesses 26 black cards correctly. Total: 26.\n\nBut wait, is the increasing riffle the worst case? What about other riffle patterns?\n\nWith 26R-26B arrangement, let me consider $n = 26$: pile A = 26R, pile B = 26B. The riffle interleaves 26R and 26B. The worst case riffle for Alice... \n\nActually, with $n = 26$ and the 26R-26B arrangement, pile A is all red and pile B is all black. The riffle interleaves them. Alice sees a mix of red and black. She can track how many red and black she's seen. Once she's seen 26 red, all remaining are black. Once she's seen 26 black, all remaining are red.\n\nIn the worst case, the riffle alternates R, B, R, B, ..., so Alice sees 26 red and 26 black interleaved. She can never be sure of the next card (until the last one). She gets 1 correct guess.\n\nWait, that's worse than the increasing riffle case (which gave 26)!\n\nSo with the 26R-26B arrangement, the worst case is $n = 26$ with an alternating riffle, giving only 1 correct guess. That's bad.\n\nHmm, so the 26R-26B arrangement is not good. Let me think about what arrangement is optimal.\n\nThe problem is that with $n = 26$ and 26R-26B, the two piles are monochromatic (one all red, one all black), and the riffle can interleave them adversarially, so Alice can never be sure of the next card's color.\n\nWhat if Alice uses a different arrangement? Let me think about what properties the arrangement should have.\n\nKey insight: Alice wants to arrange the deck so that, for every $n$, the two piles have \"overlapping\" color information that lets her deduce cards.\n\nLet me think about the problem differently. \n\nFor a given $n$, the riffle interleaves pile A = $(c_1, \\ldots, c_n)$ and pile B = $(c_{n+1}, \\ldots, c_{52})$. Alice sees the cards and their positions. She can determine $n$ and the riffle pattern if there are enough descents.\n\nThe worst case is when there are no descents (increasing riffle). In this case, the deck is either $1, \\ldots, 52$ or $n+1, \\ldots, 52, 1, \\ldots, n$.\n\nFor the first case ($1, \\ldots, 52$), Alice can't determine $n$ and has to flip without guessing until she can deduce the rest.\n\nFor the second case ($n+1, \\ldots, 52, 1, \\ldots, n$), Alice sees position $n+1 > 1$ first (if $n \\geq 1$), determines $n$, and knows the whole deck.\n\nSo the adversary prefers the first case (pile A first, increasing riffle). But the adversary also chooses $n$. For any $n$, the increasing riffle with pile A first gives deck $1, \\ldots, 52$.\n\nSo the worst case is always the deck $1, 2, \\ldots, 52$ (original order), and Alice doesn't know $n$.\n\nIn this case, Alice sees positions $1, 2, 3, \\ldots$ in order. At each point, she's seen positions $1, \\ldots, k$. The next card is position $k+1$ (she knows its color) or some position $> k+1$ (from pile B, if $n > k$). She can guess if all possible next cards have the same color.\n\nThe possible next cards are: position $k+1$ (always possible) and positions $n+1$ for $n > k$ (i.e., positions $k+2, k+3, \\ldots, 52$). So the possible next cards are all positions $> k$. Alice can guess if all positions $> k$ have the same color.\n\nWith 26R-26B: positions $> k$ all have the same color only when $k \\geq 26$ (all black) or $k \\leq -1$ (impossible). Wait, positions $> 26$ are all black. So for $k \\geq 26$, all positions $> k$ are black, and Alice can guess black. She guesses 26 black cards correctly (positions 27-52). But she had to flip 26 cards first without guessing. Total: 26.\n\nBut wait, I showed earlier that with $n = 26$ and alternating riffle, she gets only 1. So the worst case over all $n$ and riffles is 1, not 26.\n\nThe issue is that the adversary can choose $n = 26$ with an alternating riffle, which is worse than the increasing riffle.\n\nSo I need to find the arrangement that maximizes the minimum over all $n$ and riffles.\n\nLet me reconsider. The adversary chooses $n$ and the riffle. Alice chooses the deck order and strategy. We want to find the deck order and strategy that maximizes the worst-case number of correct guesses.\n\nFor a given deck order, the worst case is over $n \\in \\{0, \\ldots, 52\\}$ and all riffle patterns (interleavings of the two piles).\n\nLet me think about what the adversary can do. For a given $n$, the adversary chooses the interleaving. The adversary wants to minimize Alice's correct guesses.\n\nAlice's strategy: flip cards, track information, guess when certain.\n\nThe adversary's power: choose $n$ and the interleaving to keep Alice uncertain as long as possible.\n\nLet me think about the problem from an information-theoretic perspective.\n\nAfter seeing $k$ cards (with their positions), Alice has some information. She can guess the next card if all consistent $(n, \\text{interleaving})$ agree on the next card's color.\n\nThe consistent $(n, \\text{interleaving})$ are those where the seen positions form a valid prefix of an interleaving of $(1, \\ldots, n)$ and $(n+1, \\ldots, 52)$.\n\nLet me think about when Alice can be certain.\n\nClaim: Alice can be certain of the next card's color if and only if all positions that could be the next card have the same color.\n\nThe possible next cards are: the next position from pile A (which is $a+1$ where $a$ is the number of pile A cards seen) and the next position from pile B (which is $n+b+1$ where $b$ is the number of pile B cards seen). But Alice might not know $a$, $b$, or $n$.\n\nHmm, this is getting complicated. Let me think about specific arrangements.\n\nArrangement 1: Alternating colors. $c_i = R$ if $i$ is odd, $B$ if $i$ is even. (26R, 26B.)\n\nFor any $n$, pile A = $(R, B, R, B, \\ldots)$ and pile B = $(R, B, R, B, \\ldots)$ or $(B, R, B, R, \\ldots)$ depending on parity of $n$.\n\nIn the increasing riffle case (deck = $1, 2, \\ldots, 52$), Alice sees positions $1, 2, 3, \\ldots$. At each point, the possible next cards are all positions $> k$. These include both colors (for $k < 51$). So Alice can only guess the last card. 1 correct guess.\n\nFor $n = 26$ with some riffle: pile A = $(R, B, \\ldots, R, B)$ (13R, 13B), pile B = $(R, B, \\ldots, R, B)$ (13R, 13B). The riffle interleaves them. Alice sees cards and their positions. She can use descents to determine $n$.\n\nBut the adversary can choose the increasing riffle, giving only 1. So the alternating arrangement guarantees only 1.\n\nArrangement 2: 26R then 26B. As analyzed, worst case is $n = 26$ with alternating riffle, giving 1. Or increasing riffle, giving 26. The worst is 1.\n\nHmm, both give 1 in the worst case. Is the answer 1? That seems too low.\n\nWait, I think I'm missing something. Let me reconsider the problem.\n\nActually, I think the key insight I'm missing is that Alice sees the actual cards, not just positions. She knows the exact deck order. So when she sees a card, she knows its exact position. This is more information than just the color.\n\nBut I've been using this. The issue is that in the increasing riffle case, Alice sees positions $1, 2, 3, \\ldots$ and can't determine $n$, so she can't predict the next card (which could be from either pile).\n\nBut wait—does Alice need to know $n$ to predict the next card? In the increasing riffle case, the next card is always position $k+1$. Alice knows the color of position $k+1$. But she doesn't know the riffle is increasing. From her perspective, the next card could be from pile B (some position $> k+1$).\n\nHowever, Alice can reason as follows: \"I've seen positions $1, 2, \\ldots, k$ in increasing order. This is consistent with many $(n, \\text{riffle})$ pairs. In some of them, the next card is position $k+1$ (from pile A). In others, the next card is some position $> k+1$ (from pile B). I can only guess if all these possibilities agree on the color.\"\n\nSo the question is: for the deck arrangement, what is the maximum $k$ such that Alice can always guarantee $k$ correct guesses?\n\nLet me think about this more carefully. I think the answer might be related to a specific number, and I need to find the right arrangement.\n\nLet me consider a different approach. What if Alice uses the following strategy:\n\n1. Arrange the deck in some order.\n2. Flip cards without guessing until she can determine the rest.\n3. Guess all remaining cards.\n\nThe number of correct guesses is $52 - (\\text{cards flipped before being certain})$.\n\nAlice wants to minimize the number of cards she needs to flip before being certain of the rest.\n\nWhen is Alice certain of all remaining cards? When she knows $n$ and the riffle pattern. But knowing the riffle pattern requires knowing the exact interleaving, which she can only determine if she's seen enough cards.\n\nActually, Alice doesn't need to know the exact riffle pattern. She just needs to know the color of each remaining card. If she knows $n$ and which cards have been output from each pile, she knows the remaining cards of each pile and their order. But she doesn't know the interleaving, so she doesn't know which pile the next card comes from.\n\nUnless one pile is exhausted. If pile A is exhausted (all $n$ cards output), the remaining cards are all from pile B, in order. Alice knows their colors. Similarly if pile B is exhausted.\n\nSo Alice can guess all remaining cards when one pile is exhausted. She needs to determine when one pile is exhausted.\n\nPile A is exhausted when all $n$ cards from pile A have been output. Pile B is exhausted when all $52-n$ cards from pile B have been output.\n\nAlice can determine pile A is exhausted if she knows $n$ and has seen $n$ cards from pile A. She can determine pile B is exhausted if she knows $n$ and has seen $52-n$ cards from pile B.\n\nBut she might not know $n$. However, she can sometimes infer that one pile is exhausted without knowing $n$ exactly.\n\nFor example, if Alice has seen all 26 red cards, and the deck has 26 red and 26 black, she knows all remaining are black. She doesn't need to know $n$ or which pile is exhausted.\n\nMore generally, Alice can guess when all remaining cards have the same color. This happens when one color is exhausted.\n\nWith 26 red and 26 black, the worst case is when the last red and last black cards are at the end, so Alice has to see 51 cards before knowing the last one. But this depends on the arrangement and the riffle.\n\nHmm, let me think about this differently. Let me consider the problem as a game.\n\nActually, I wonder if the answer is 51. Let me think about why.\n\nConsider the following arrangement and strategy:\n\nAlice arranges the deck so that $c_1 = R$ and $c_{52} = B$ (or some specific arrangement). \n\nActually, let me think about a clever arrangement. \n\nWhat if Alice arranges the deck as: $c_1 = R, c_2 = R, \\ldots, c_{26} = R, c_{27} = B, \\ldots, c_{52} = B$ (26 red then 26 black)?\n\nFor $n \\leq 26$: both piles start with red. All red cards come before all black cards in the riffle. Alice can guess all 52 correctly (guess red 26 times, then black 26 times). She doesn't even need to see any cards first.\n\nWait, does she know $n \\leq 26$? She doesn't know $n$. But she can guess red for the first card. If $n \\leq 26$, the first card is red (both piles start with red). If $n > 26$, the first card could be red (from pile A) or black (from pile B). So guessing red for the first card is not guaranteed correct if $n > 26$.\n\nHmm. So Alice can't just guess red for the first card without knowing $n$.\n\nBut Alice can flip the first card without guessing. She sees its position. If position $\\leq 26$, it's red. If position $> 26$, it's black. She now knows the color of the first card and its position.\n\nIf the first card is at position $p > 26$: it's from pile B (since pile A starts at position 1, and if pile A went first, the first card would be position 1). So $n = p - 1$. Wait, not necessarily—pile A could have gone first with position 1, but the riffle put pile B's card first. Actually, the first card is either from pile A (position 1) or pile B (position $n+1$). If the first card is at position $p > 1$, it must be from pile B, so $n = p - 1$.\n\nIf $p > 26$: $n = p - 1 > 25$, so $n \\geq 26$. Pile A = positions $1, \\ldots, p-1$ (26 red + $p-1-26$ black if $p > 27$, or 26 red if $p = 27$). Pile B = positions $p, \\ldots, 52$ (all black). Alice knows $n$ and the deck. She knows pile B is all black and pile A has 26 red followed by black. The remaining cards: pile A has output 0, pile B has output 1 (position $p$). Next card is either position 1 (red, from A) or position $p+1$ (black, from B). Alice doesn't know which. She can't guess unless both are the same color.\n\nPosition 1 is red, position $p+1$ is black (since $p > 26$). Different colors. Alice can't guess. She flips the next card.\n\nShe sees position $q$. If $q = 1$, it's from pile A (red). If $q = p+1$, it's from pile B (black). If $q$ is something else... $q$ must be either 1 (next from A) or $p+1$ (next from B). So $q \\in \\{1, p+1\\}$.\n\nIf $q = 1$: pile A has output 1 card. Next from A is position 2 (red). Next from B is position $p+1$ (black). Still can't guess (different colors).\nIf $q = p+1$: pile B has output 2 cards. Next from B is $p+2$ (black). Next from A is position 1 (red). Can't guess.\n\nThis continues. Alice keeps flipping. She can guess only when one pile is exhausted or when the next cards from both piles have the same color.\n\nPile A has $p - 1$ cards (26 red, $p - 27$ black). Pile B has $52 - p + 1$ cards (all black). \n\nThe red cards are all in pile A. Once all 26 red cards are output (from pile A), all remaining cards are black. Alice can then guess black for all remaining.\n\nIn the worst case, the riffle interleaves pile A and pile B such that the 26th red card is output as late as possible. Pile A has 26 red cards in positions 1-26. The riffle can interleave pile B's black cards among pile A's red cards. The latest the 26th red card can appear is position 51 (if 25 black cards from pile B are interleaved before the 26th red card, and the 26th red is at position 51, with the last card being black).\n\nWait, pile A has 26 red + ($p - 27$) black = $p - 1$ cards. Pile B has $52 - p + 1$ black cards. Total black = $p - 27 + 52 - p + 1 = 26$. Total red = 26. Total = 52. ✓.\n\nThe 26 red cards are all in pile A, positions 1-26. In the riffle, these 26 red cards appear in order (subsequence of pile A). The black cards from pile A (positions 27 to $p-1$) come after the red cards in pile A. The black cards from pile B (positions $p$ to 52) can be interleaved anywhere.\n\nThe worst case: the riffle puts as many black cards as possible before the 26th red card. The black cards from pile B can all be placed before the 26th red card (since pile B's cards can be interleaved at any point). There are $52 - p + 1$ black cards in pile B. Plus, pile A's black cards come after all red cards in pile A, so they can't be placed before the 26th red card (they come after in pile A's order).\n\nWait, actually, pile A's order is: positions 1, 2, ..., 26 (red), 27, ..., $p-1$ (black). So in the riffle, pile A's black cards come after all of pile A's red cards. Pile B's black cards can be interleaved anywhere.\n\nSo before the 26th red card, we can have: 25 red cards (from pile A) and up to $52 - p + 1$ black cards (from pile B). But also, pile A's black cards come after the 26th red, so they don't contribute.\n\nTotal cards before the 26th red: 25 red + (some black from pile B). The maximum black from pile B before the 26th red is $52 - p + 1$ (all of pile B). So the 26th red can be at position $25 + (52 - p + 1) + 1 = 78 - p + 1$... wait, that's more than 52. Let me recalculate.\n\nIf $p = 27$ (i.e., $n = 26$): pile A = 26 red + 0 black = 26 cards. Pile B = 26 black. The riffle interleaves 26 red and 26 black. The 26th red can be at position 51 (25 red + 25 black before it, then 26th red at position 51, last card black). Then Alice has seen 51 cards, knows the last is black. 1 correct guess.\n\nIf $p = 28$ (i.e., $n = 27$): pile A = 26 red + 1 black = 27 cards. Pile B = 25 black. The riffle interleaves them. The 26th red can be at position 50 (25 red + 25 black from pile B before it). Then pile A's 1 black card and 0 remaining from pile B. Position 51 = pile A's black, position 52 = ... wait, total is 52. After 26th red at position 50: remaining are 1 black (from pile A) and 0 from pile B (all 25 used). Wait, 25 black from pile B + 25 red = 50 cards before the 26th red. 26th red at position 51. Then 1 black from pile A at position 52. Alice sees 51 cards, knows last is black. 1 correct guess.\n\nHmm, actually in both cases, the worst case gives 1 correct guess. The adversary can always arrange the riffle so that Alice can only guess the last card.\n\nBut wait, this is for the 26R-26B arrangement. What about other arrangements?\n\nLet me think about whether any arrangement can do better.\n\nThe fundamental issue: the adversary can choose $n$ and the riffle. For any arrangement, the adversary wants to maximize the number of cards Alice must flip before being certain.\n\nAlice is certain of the next card when all consistent possibilities agree on its color. The adversary wants to keep multiple consistent possibilities with different next-card colors alive as long as possible.\n\nLet me think about what the adversary can do. The adversary chooses $n$ and the riffle. Alice sees the cards and their positions.\n\nKey observation: The adversary can choose $n$ and the riffle to produce any interleaving of $(1, \\ldots, n)$ and $(n+1, \\ldots, 52)$. The set of possible decks (over all $n$ and riffles) is exactly the set of permutations that are interleavings of two contiguous increasing subsequences. But actually, for $n = 0$ or $n = 52$, the deck is unchanged (just $1, \\ldots, 52$). For other $n$, the deck is an interleaving of $(1, \\ldots, n)$ and $(n+1, \\ldots, 52)$.\n\nActually, any permutation that can be decomposed into two increasing subsequences where one is $\\{1, \\ldots, n\\}$ and the other is $\\{n+1, \\ldots, 52\\}$ for some $n$. This is a subset of all permutations.\n\nBut the key is: the adversary chooses $n$ and the riffle, and Alice doesn't know which. Alice has to consider all possible $(n, \\text{riffle})$ consistent with her observations.\n\nLet me think about the problem from a higher level. I think this is a well-known competition problem, and the answer is 51.\n\nWait, let me reconsider. Maybe I'm wrong about the adversary being able to force only 1 correct guess. Let me think about whether Alice can use a more clever strategy.\n\nThe key insight I might be missing: Alice can use the positions of seen cards to deduce information, even in the worst case.\n\nLet me reconsider the 26R-26B arrangement with $n = 26$ and the worst-case riffle.\n\nPile A = positions 1-26 (all red), pile B = positions 27-52 (all black). Riffle interleaves them.\n\nAlice sees cards and their positions. She sees a red card at position $p \\leq 26$ or a black card at position $q \\geq 27$.\n\nAfter seeing the first card:\n- If it's red (position $p \\leq 26$): it's from pile A. Alice knows pile A has red cards at positions 1-26 and pile B has black cards at positions 27-52. But she doesn't know $n$! The card could be from pile A with $n \\geq p$, or... wait, she sees the position. If position $p \\leq 26$, it could be from pile A (if $n \\geq p$) or from pile B (if $n < p$, i.e., $n \\leq p - 1$, and pile B starts at $n + 1 \\leq p$). But pile B's cards are positions $n+1, \\ldots, 52$. If $n < p$, then position $p$ is in pile B. The color of position $p$ is red (since $p \\leq 26$). So position $p$ is red regardless of which pile it's from.\n\nHmm, so Alice sees a red card at position $p \\leq 26$. She doesn't know if it's from pile A ($n \\geq p$) or pile B ($n < p$). But she knows its color is red. She doesn't need to guess it—she already flipped it.\n\nThe question is about the NEXT card. After seeing position $p$ (red), the next card is:\n- If from pile A: position $p+1$ (if $p < n$) — red if $p+1 \\leq 26$, black if $p+1 > 26$.\n- If from pile B: position $n+1$ (if pile B hasn't started) or the next pile B position.\n\nThis is getting complicated because Alice doesn't know $n$ or which pile the seen card came from.\n\nLet me think about this more carefully with the 26R-26B arrangement.\n\nAfter seeing $k$ cards at positions $p_1, p_2, \\ldots, p_k$, Alice knows these positions and their colors. She needs to determine the set of consistent $(n, \\text{riffle})$ and check if they agree on the next card's color.\n\nThe consistent $(n, \\text{riffle})$ are those where $(p_1, \\ldots, p_k)$ is a prefix of an interleaving of $(1, \\ldots, n)$ and $(n+1, \\ldots, 52)$.\n\nFor the 26R-26B arrangement, the color of position $i$ is R if $i \\leq 26$, B if $i > 26$.\n\nThe adversary wants to choose $n$ and the riffle so that Alice can never be certain of the next card's color (until the very end).\n\nConsider $n = 26$: pile A = positions 1-26 (all R), pile B = positions 27-52 (all B). The riffle interleaves R's and B's. Alice sees a sequence of positions, some $\\leq 26$ (R) and some $> 26$ (B).\n\nBut Alice doesn't know $n = 26$. She considers all possible $n$.\n\nAfter seeing positions $p_1, \\ldots, p_k$, the consistent $n$ values are those where $(p_1, \\ldots, p_k)$ is a prefix of an interleaving of $(1, \\ldots, n)$ and $(n+1, \\ldots, 52)$.\n\nFor this to be consistent, the positions must be decomposable into two increasing subsequences: one from $\\{1, \\ldots, n\\}$ (contiguous from 1) and one from $\\{n+1, \\ldots, 52\\}$ (contiguous from $n+1$).\n\nThe key question: can the adversary choose a riffle (for some $n$) such that, at every step, there exist two consistent $(n', \\text{riffle'})$ with different next-card colors?\n\nThis is a complex game. Let me try to think about the answer differently.\n\nI recall that this problem is from USAMO 2023 or similar, and I think the answer is 51. Let me try to construct a strategy that achieves 51 and prove the adversary can prevent 52.\n\nWhy 52 is impossible: The adversary can choose $n$ and the riffle such that the first card's color is ambiguous. For example, with any deck arrangement, the adversary can choose $n$ so that $c_1$ and $c_{n+1}$ have different colors. Then the first card could be $c_1$ or $c_{n+1}$ (adversary chooses the riffle), and Alice can't guess correctly for sure. So Alice can't guarantee 52.\n\nWait, but Alice can choose not to guess the first card. She flips it, sees it, and then guesses from the second card onward. So the first card doesn't need to be guessed.\n\nCan Alice guarantee 51? She flips the first card (no guess), then guesses the remaining 51 correctly?\n\nAfter flipping the first card, she sees its position $p$. If $p = 1$, she doesn't know $n$ (could be any $n \\geq 1$ or $n = 0$). If $p > 1$, she knows $n = p - 1$.\n\nIf $p > 1$: Alice knows $n$ and the deck. She knows the riffle is an interleaving of $(1, \\ldots, p-1)$ and $(p, \\ldots, 52)$. She's seen position $p$ (from pile B). The next card is either position 1 (from pile A) or position $p+1$ (from pile B). She knows both colors. If they're different, she can't guess. She has to flip again.\n\nSo even knowing $n$, Alice might not be able to guess the next card (if the two piles' next cards have different colors).\n\nHmm, so 51 is not obviously achievable.\n\nLet me think about this more carefully. \n\nI think the key is to find an arrangement where, after seeing enough cards, Alice can always deduce the rest. And the question is how many cards she needs to see (without guessing) in the worst case.\n\nLet me think about the arrangement: $c_1 = R, c_2 = B, c_3 = R, c_4 = B, \\ldots$ (alternating).\n\nWith this arrangement, for any $n$, both piles have alternating colors. The riffle interleaves them. Alice sees positions and can use descents to determine $n$.\n\nBut the adversary can choose the increasing riffle, where Alice sees $1, 2, 3, \\ldots$ and can't determine $n$.\n\nIn the increasing riffle case with alternating colors, Alice sees positions $1, 2, 3, \\ldots$ with colors R, B, R, B, .... At each point, the next card could be position $k+1$ (known color) or some position $> k+1$ (unknown color, could be R or B). So Alice can't guess until the end. 1 correct guess.\n\nSo the alternating arrangement gives 1 in the worst case. Same as 26R-26B.\n\nIs there any arrangement that does better? Let me think...\n\nWhat if Alice uses an arrangement where the colors are \"self-synchronizing\"—i.e., the color pattern itself reveals $n$?\n\nFor example, what if the first 26 cards are red and the last 26 are black, but with a unique marker? Like $c_1 = R, c_2 = R, \\ldots, c_{26} = R, c_{27} = B, \\ldots, c_{52} = B$. The color transition happens at position 26/27. If Alice sees a black card at position $p$, she knows $p > 26$. If she sees a red card at position $p$, she knows $p \\leq 26$.\n\nBut this is the 26R-26B arrangement, which we've already analyzed.\n\nThe problem is that the adversary can choose $n$ and the riffle to keep Alice uncertain. Let me think about what the adversary's optimal strategy is.\n\nThe adversary wants to maximize the number of cards Alice must flip before being certain. The adversary chooses $n$ and the riffle.\n\nFor any arrangement, the adversary can choose the increasing riffle (pile A first), giving deck $1, 2, \\ldots, 52$. In this case, Alice sees positions in order and can't determine $n$.\n\nBut can Alice still guess some cards correctly in this case? She can guess when all positions $> k$ have the same color. With 26R-26B, this happens at $k = 26$ (all remaining are black), giving 26 correct guesses. With alternating, this never happens (until $k = 51$), giving 1.\n\nSo the 26R-26B arrangement gives 26 in the increasing riffle case. But the adversary can also choose $n = 26$ with a non-increasing riffle, which might give fewer.\n\nWith 26R-26B and $n = 26$: pile A = 26R, pile B = 26B. The adversary chooses the riffle to interleave R and B. Alice sees a mix. She can track how many R and B she's seen. She can guess when one color is exhausted.\n\nWorst case: the riffle alternates R, B, R, B, .... Alice sees 26 R and 26 B interleaved. She can never be sure of the next card (both colors always remain) until the last card. 1 correct guess.\n\nBut wait—with $n = 26$ and 26R-26B, Alice sees positions. She sees a red card at some position $\\leq 26$ and a black card at some position $> 26$. Can she use the positions to determine $n$?\n\nAfter seeing",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 20650,
+        "completion_tokens": 25000,
+        "cached_tokens": 12398
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 20650,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12398,
+    "total_steps": 9
+  }
+}

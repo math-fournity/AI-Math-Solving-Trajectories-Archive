@@ -1,0 +1,1048 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "accidental-scraper",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-20T00:37:15.660070+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-20T00:37:15.660540+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-20T00:37:15.667766+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-20T00:37:15.660860+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p5b3c4aa511e44c86ac91 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Wednesday, 2026-08-19\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-20T00:37:15.661332+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在AGENTS.md中只记录脚本路径和一行用法示例。AGENTS.md是认知索引和规则，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。放到项目已有的脚本目录（如`xishujuzhen/solver_harness/`）或项目的`scripts/`目录中。\n\n4. **在项目AGENTS.md中做好索引**——新脚本必须在项目AGENTS.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **必须写成文件** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 检查项目内是否已有类似脚本（grep搜索、看AGENTS.md索引）\n3. **已有** → 改进那个脚本（edit工具修改），编译验证\n4. **没有** → 在项目脚本目录中创建新文件（write工具），编译验证\n5. 在项目AGENTS.md中记录脚本索引（如已有相关节则更新，如没有则新增）\n6. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新AGENTS.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是索引不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ✅ 改进`batch_status.py`的`cmd_dead_cleanup`函数\n- ✅ 新建`enqueue_problem.py`并在AGENTS.md硬约束6中记录\n- ✅ AGENTS.md中只写`pipe_control.py status`一行用法，不写完整调用参数和输出示例\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p5b3c4aa511e44c86ac91/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nFind the integrability conditions for the system of two differential equations in four variables:\n\\[\nA \\, dx + B \\, dy + C \\, dz + D \\, dt = 0\n\\]\n\\[\nE \\, dx + F \\, dy + G \\, dz + H \\, dt = 0\n\\]\nExpress these conditions as explicit relations involving the coefficient functions \\(A, B, \\ldots, H\\) and their partial derivatives.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 索引（跨 session 认知资产）\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。AI 跨 session 需要找回这些内容时从这里查路径。\n\n| 文档 | 日期 | 内容 |\n|---|---|---|\n| `dev-docs/001-codex-cli-custom-api-and-loading-mechanism.md` | 2026-08-18 | Codex CLI 对接自定义 API（OpenRouter）的完整方案 + Codex 配置加载机制（AGENTS/Rules/Skills 三层）+ 本机清爽化记录（MCP 清理） |\n| `dev-docs/002-agents-md-slimdown-plan.md` | 2026-08-19 | 全局 AGENTS.md 冗余瘦身方案（本次瘦身的执行计划） |\n| `dev-docs/003-devin-rules-not-injected-read-config-from-windsurf.md` | 2026-08-19 | Devin 不注入 windsurf global_rules.md 的调查（read_config_from 机制） |\n| `dev-docs/004-skill-redundancy-analysis.md` | 2026-08-19 | 22 个 skill 的冗余分析报告（5 主题组逐行对比 + unique 信息清单 + 整合优先级 P1-P4） |\n| `dev-docs/005-tuple-structure-preservation-lesson.md` | 2026-08-19 | 元组结构保护——冗余整合方法论修正（P2破坏元组的教训+正确流程+15个元组清单+复盘） |\n| `dev-docs/006-cognitive-closure-concept.md` | 2026-08-19 | 认知闭包（Cognitive Closure）——人机协同开发的底层必要条件；read/akash/workflow/make-plan 底层都是闭包形成机制的不同环节；三层体系启动+trace封闭；含自我指涉验证（构建本概念时闭包不完备的复盘+三个实质修正+描述层/事实层一致性核对） |\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-20T00:37:15.661345+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-20T00:37:15.670079+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-20T00:37:15.670892+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **search-tools**: 网络搜索武器库（Exa/Serper/Jina等） (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-20T00:37:18.516883+00:00",
+      "source": "agent",
+      "message": "I'll solve this directly using the Frobenius integrability theorem for Pfaffian systems. No tools needed — this is pure differential-geometric computation.\n\n---\n\n## Integrability Conditions for the System\n$$A\\,dx+B\\,dy+C\\,dz+D\\,dt=0,\\qquad E\\,dx+F\\,dy+G\\,dz+H\\,dt=0.$$\n\n### 1. Setup\n\nIntroduce the two 1-forms on the 4‑manifold with coordinates $(x,y,z,t)$:\n$$\\omega_1=A\\,dx+B\\,dy+C\\,dz+D\\,dt,\\qquad \\omega_2=E\\,dx+F\\,dy+G\\,dz+H\\,dt,$$\nwhere $A,\\dots,H$ are smooth functions of $(x,y,z,t)$. Write the coefficient vectors\n$$a=(A,B,C,D),\\qquad e=(E,F,G,H),\\qquad x=(x,y,z,t)=(x_1,x_2,x_3,x_4).$$\n\n### 2. Frobenius criterion\n\nThe Pfaffian system $\\{\\omega_1=0,\\;\\omega_2=0\\}$ is **completely integrable** (i.e. admits a 2‑parameter family of integral surfaces) if and only if the differential ideal it generates is closed under exterior differentiation:\n$$\\boxed{d\\omega_1\\wedge\\omega_1\\wedge\\omega_2=0,\\qquad d\\omega_2\\wedge\\omega_1\\wedge\\omega_2=0.}$$\nEach left–hand side is a 4‑form on a 4‑manifold, hence a scalar multiple of $dx\\wedge dy\\wedge dz\\wedge dt$; integrability is the vanishing of those two scalars.\n\n### 3. Computing the scalar\n\nLet $\\Omega=\\omega_1\\wedge\\omega_2$ with components $\\Omega_{ij}=a_i e_j-a_j e_i$ ($i<j$):\n$$\\Omega_{xy}=AF-BE,\\;\\Omega_{xz}=AG-CE,\\;\\Omega_{xt}=AH-DE,\\;\\Omega_{yz}=BG-CF,\\;\\Omega_{yt}=BH-DF,\\;\\Omega_{zt}=CH-DG.$$\n\nFor any 1‑form $\\omega=p\\cdot dx$ one has $d\\omega\\wedge\\omega_1\\wedge\\omega_2=\\langle d\\omega,\\,*\\Omega\\rangle\\,dx\\wedge dy\\wedge dz\\wedge dt$, so the relevant scalar is\n$$R(p)=\\sum_{i<j}(\\partial_i p_j-\\partial_j p_i)\\,(*\\Omega)_{ij},$$\ni.e. the Hodge inner product of the curl of $p$ with $\\Omega$. Expanding the six independent pairings of $\\{x,y,z,t\\}$ gives\n$$\n\\begin{aligned}\nR(p)=\\;&(CH-DG)(\\partial_x p_y-\\partial_y p_x)+(AF-BE)(\\partial_z p_t-\\partial_t p_z)\\\\\n&-(BH-DF)(\\partial_x p_z-\\partial_z p_x)-(AG-CE)(\\partial_y p_t-\\partial_t p_y)\\\\\n&+(BG-CF)(\\partial_x p_t-\\partial_t p_x)+(AH-DE)(\\partial_y p_z-\\partial_z p_y).\n\\end{aligned}\n$$\n\n### 4. The two integrability conditions\n\nSetting $p=a$ (for $d\\omega_1$) and $p=e$ (for $d\\omega_2$), and using subscript notation $A_y\\equiv\\partial A/\\partial y$ etc., the integrability conditions $R(a)=0$ and $R(e)=0$ read explicitly:\n\n$$\\boxed{\n\\begin{aligned}\n&\\bigl(A_y-B_x\\bigr)(CH-DG)+\\bigl(C_t-D_z\\bigr)(AF-BE)\\\\\n&-\\bigl(A_z-C_x\\bigr)(BH-DF)-\\bigl(B_t-D_y\\bigr)(AG-CE)\\\\\n&+\\bigl(A_t-D_x\\bigr)(BG-CF)+\\bigl(B_z-C_y\\bigr)(AH-DE)=0,\n\\end{aligned}}\n$$\n\n$$\\boxed{\n\\begin{aligned}\n&\\bigl(E_y-F_x\\bigr)(CH-DG)+\\bigl(G_t-H_z\\bigr)(AF-BE)\\\\\n&-\\bigl(E_z-G_x\\bigr)(BH-DF)-\\bigl(F_t-H_y\\bigr)(AG-CE)\\\\\n&+\\bigl(E_t-H_x\\bigr)(BG-CF)+\\bigl(F_z-G_y\\bigr)(AH-DE)=0.\n\\end{aligned}}\n$$\n\n### 5. Verification of the structure\n\n* **Consistency check (integrable case).** Take $\\omega_1=dx,\\;\\omega_2=dy$, i.e. $A=F=1$ and all other coefficients zero. Every curl vanishes, so both left–hand sides are $0$; the system $dx=0,dy=0$ is indeed integrable (integral surfaces $x=\\text{const},y=\\text{const}$). ✓\n* **Non‑trivial integrable case.** Take $\\omega_1=dx,\\;\\omega_2=x\\,dy$: $d\\omega_1=0$ and $d\\omega_2=dx\\wedge dy$, so $d\\omega_2\\wedge\\omega_1\\wedge\\omega_2=dx\\wedge dy\\wedge dx\\wedge(x\\,dy)=0$. In the formula, $R(a)=0$ (constants) and $R(e)$ has only $E_y-F_x=0-1=-1$ multiplying $CH-DG=0$, while every other factor carries a vanishing $\\Omega$‑coefficient; hence $R(e)=0$. ✓\n* **Symmetry.** The second condition is obtained from the first by the simultaneous replacement $A\\to E,\\;B\\to F,\\;C\\to G,\\;D\\to H$ *in the curl factors only*; the bilinear $\\Omega$‑factors $(CH-DG),(AF-BE),\\dots$ are common to both, exactly as expected since both conditions test closure of the *same* ideal generated by $\\omega_1,\\omega_2$.\n\n### 6. Equivalent compact form\n\nUsing the Levi‑Civita symbol $\\varepsilon_{ijmn}$ (indices in $\\{x,y,z,t\\}$), both conditions unify into the single statement\n$$\\varepsilon_{ijmn}\\,a_m\\,e_n\\,\\partial_i p_j=0,\\qquad p\\in\\{a,e\\},$$\ni.e. $\\langle d\\omega_p,\\,\\*(\\omega_1\\wedge\\omega_2)\\rangle=0$ for $p=1,2$. This is precisely $d\\omega_p\\wedge\\omega_1\\wedge\\omega_2=0$, confirming the two boxed scalar equations above are the explicit Frobenius integrability conditions for the given system.\n\n### PROOF COMPLETE",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "The problem asks for integrability conditions for a system of two differential equations in four variables. This is the Frobenius integrability theorem / Pfaffian system integrability.\n\nLet me think about this carefully. We have two 1-forms:\nω₁ = A dx + B dy + C dz + D dt\nω₂ = E dx + F dy + G dz + H dt\n\nThe system ω₁ = 0, ω₂ = 0 is integrable (in the sense of Frobenius) if and only if dω₁ ∧ ω₁ ∧ ω₂ = 0 and dω₂ ∧ ω₁ ∧ ω₂ = 0, i.e., the ideal generated by ω₁, ω₂ is closed under exterior differentiation.\n\nActually, the Frobenius condition: the Pfaffian system {ω₁, ω₂} is completely integrable iff dωᵢ ∧ ω₁ ∧ ω₂ = 0 for i = 1, 2.\n\nEquivalently, dω₁ ≡ 0 and dω₂ ≡ 0 mod (ω₁, ω₂), meaning dωᵢ ∧ ω₁ ∧ ω₂ = 0.\n\nLet me compute these conditions explicitly.\n\nLet me set up notation. Let x₁=x, x₂=y, x₃=z, x₄=t. Coefficients: for ω₁: (A,B,C,D), for ω₂: (E,F,G,H).\n\ndω₁ = dA∧dx + dB∧dy + dC∧dz + dD∧dt\nwhere dA = A_x dx + A_y dy + A_z dz + A_t dt, etc.\n\ndω₁ ∧ ω₁ ∧ ω₂ is a 4-form in 4 variables, so it's a multiple of dx∧dy∧dz∧dt. The condition is that this multiple = 0.\n\nLet me compute. Actually this is a classic computation. Let me denote the coefficient vectors as a = (A,B,C,D) and e = (E,F,G,H).\n\ndω₁ ∧ ω₁ ∧ ω₂ = (sum over i<j of (∂_i a_j - ∂_j a_i) dx_i ∧ dx_j) ∧ (sum_k a_k dx_k) ∧ (sum_l e_l dx_l).\n\nThe 4-form picks out: for each pair (i,j), the term (∂_i a_j - ∂_j a_i) dx_i∧dx_j ∧ a_k dx_k ∧ e_l dx_l where {i,j,k,l} = {1,2,3,4}.\n\nSo dω₁∧ω₁∧ω₂ = [sum over permutations] ... Let me write it as:\n\nFor the 4-form coefficient = Σ_{i<j} (∂_i a_j - ∂_j a_i) · [coefficient of dx_i∧dx_j in ω₁∧ω₂ expanded to 4-form with remaining two indices].\n\nActually ω₁∧ω₂ = Σ_{k<l} (a_k e_l - a_l e_k) dx_k ∧ dx_l.\n\nSo dω₁ ∧ ω₁ ∧ ω₂ = Σ_{i<j} (∂_i a_j - ∂_j a_i) dx_i∧dx_j ∧ Σ_{k<l}(a_k e_l - a_l e_k) dx_k∧dx_l.\n\nThe 4-form part: dx_i∧dx_j∧dx_k∧dx_l is nonzero only when {i,j,k,l}={1,2,3,4} as a set with i<j, k<l, and {i,j}∩{k,l}=∅.\n\nSo for each partition of {1,2,3,4} into two pairs {i,j} and {k,l} with i<j, k<l, we get a contribution. The pairs: \n- {1,2},{3,4}\n- {1,3},{2,4}\n- {1,4},{2,3}\n\nFor {i,j}={1,2},{k,l}={3,4}: (∂₁a₂-∂₂a₁)(a₃e₄-a₄e₃) dx₁∧dx₂∧dx₃∧dx₄. Sign: dx₁∧dx₂∧dx₃∧dx₄, positive.\n\nFor {i,j}={3,4},{k,l}={1,2}: (∂₃a₄-∂₄a₃)(a₁e₂-a₂e₁) dx₃∧dx₄∧dx₁∧dx₂. Sign: dx₃∧dx₄∧dx₁∧dx₂ → to sort to 1,2,3,4: move 3,4 past 1,2: that's 4 transpositions? dx₃∧dx₄∧dx₁∧dx₂. Swap to dx₁∧dx₂∧dx₃∧dx₄: we need to move dx₁ from position 3 to position 1: 2 swaps (past dx₃, dx₄)... let me just count. The permutation (3,4,1,2)→(1,2,3,4). Inversions: 3>1,3>2,4>1,4>2 = 4 inversions, even, sign +1.\n\nSo contribution: (∂₃a₄-∂₄a₃)(a₁e₂-a₂e₁).\n\nFor {i,j}={1,3},{k,l}={2,4}: (∂₁a₃-∂₃a₁)(a₂e₄-a₄e₂) dx₁∧dx₃∧dx₂∧dx₄. Permutation (1,3,2,4)→(1,2,3,4): 1 inversion (3>2), sign -1. Contribution: -(∂₁a₃-∂₃a₁)(a₂e₄-a₄e₂).\n\nFor {i,j}={2,4},{k,l}={1,3}: (∂₂a₄-∂₄a₂)(a₁e₃-a₃e₁) dx₂∧dx₄∧dx₁∧dx₃. Permutation (2,4,1,3)→(1,2,3,4): inversions: 2>1, 4>1, 4>3 = 3 inversions, sign -1. Contribution: -(∂₂a₄-∂₄a₂)(a₁e₃-a₃e₁).\n\nFor {i,j}={1,4},{k,l}={2,3}: (∂₁a₄-∂₄a₁)(a₂e₃-a₃e₂) dx₁∧dx₄∧dx₂∧dx₃. Permutation (1,4,2,3)→(1,2,3,4): inversions: 4>2,4>3 = 2, sign +1. Contribution: (∂₁a₄-∂₄a₁)(a₂e₃-a₃e₂).\n\nFor {i,j}={2,3},{k,l}={1,4}: (∂₂a₃-∂₃a₂)(a₁e₄-a₄e₁) dx₂∧dx₃∧dx₁∧dx₄. Permutation (2,3,1,4)→(1,2,3,4): inversions: 2>1,3>1 = 2, sign +1. Contribution: (∂₂a₃-∂₃a₂)(a₁e₄-a₄e₁).\n\nSo the full coefficient of dx∧dy∧dz∧dt for dω₁∧ω₁∧ω₂:\n\nR₁ = (∂₁a₂-∂₂a₁)(a₃e₄-a₄e₃) + (∂₃a₄-∂₄a₃)(a₁e₂-a₂e₁)\n    - (∂₁a₃-∂₃a₁)(a₂e₄-a₄e₂) - (∂₂a₄-∂₄a₂)(a₁e₃-a₃e₁)\n    + (∂₁a₄-∂₄a₁)(a₂e₃-a₃e₂) + (∂₂a₃-∂₃a₂)(a₁e₄-a₄e₁) = 0.\n\nSimilarly for dω₂∧ω₁∧ω₂, replace a with e (the curl of e dotted with the same 2-form structure but note ω₁∧ω₂ = -ω₂∧ω₁, so dω₂∧ω₁∧ω₂ = -dω₂∧ω₂∧ω₁... let me be careful).\n\nActually dω₂∧ω₁∧ω₂. Let me just compute with the same formula but swapping roles. Note ω₁∧ω₂ is antisymmetric. Let me define the 2-form Ω = ω₁∧ω₂ with components Ω_{kl} = a_k e_l - a_l e_k.\n\ndω₂∧ω₁∧ω₂ = Σ_{i<j}(∂_i e_j - ∂_j e_i) dx_i∧dx_j ∧ Σ_{k<l} Ω_{kl} dx_k∧dx_l.\n\nSame structure, so:\n\nR₂ = (∂₁e₂-∂₂e₁)(a₃e₄-a₄e₃) + (∂₃e₄-∂₄e₃)(a₁e₂-a₂e₁)\n    - (∂₁e₃-∂₃e₁)(a₂e₄-a₄e₂) - (∂₂e₄-∂₄e₂)(a₁e₃-a₃e₁)\n    + (∂₁e₄-∂₄e₁)(a₂e₃-a₃e₂) + (∂₂e₃-∂₃e₂)(a₁e₄-a₄e₁) = 0.\n\nWait, but I need to double check: in dω₂∧ω₁∧ω₂, the ω₁∧ω₂ part is the same Ω. Yes. So R₂ is the same formula with a→e in the curl part only.\n\nNow translating back to A,B,C,D,E,F,G,H with x₁=x,x₂=y,x₃=z,x₄=t:\na = (A,B,C,D), e = (E,F,G,H).\n\n∂₁a₂ = A_y, ∂₂a₁ = B_x, so ∂₁a₂-∂₂a₁ = A_y - B_x.\n∂₃a₄-∂₄a₃ = C_t - D_z.\na₃e₄-a₄e₃ = C·H - D·G.\na₁e₂-a₂e₁ = A·F - B·E.\n∂₁a₃-∂₃a₁ = A_z - C_x.\na₂e₄-a₄e₂ = B·H - D·F.\n∂₂a₄-∂₄a₂ = B_t - D_y.\na₁e₃-a₃e₁ = A·G - C·E.\n∂₁a₄-∂₄a₁ = A_t - D_x.\na₂e₃-a₃e₂ = B·G - C·F.\n∂₂a₃-∂₃a₂ = B_z - C_y.\na₁e₄-a₄e₁ = A·H - D·E.\n\nSo R₁ = 0:\n(A_y - B_x)(CH - DG) + (C_t - D_z)(AF - BE)\n      - (A_z - C_x)(BH - DF) - (B_t - D_y)(AG - CE)\n      + (A_t - D_x)(BG - CF) + (B_z - C_y)(AH - DE) = 0.\n\nAnd R₂ = 0 (replace curl of a with curl of e):\n(E_y - F_x)(CH - DG) + (G_t - H_z)(AF - BE)\n      - (E_z - G_x)(BH - DF) - (F_t - H_y)(AG - CE)\n      + (E_t - H_x)(BG - CF) + (F_z - G_y)(AH - DE) = 0.\n\nThese are the two integrability conditions (Frobenius).\n\nLet me double-check the sign conventions and the structure. This is the classical problem. The conditions are exactly dω₁∧ω₁∧ω₂ = 0 and dω₂∧ω₁∧ω₂ = 0.\n\nActually, I should double check whether the problem wants Frobenius complete integrability. The problem says \"integrability conditions for the system of two differential equations in four variables.\" This is the classic Frobenius problem. Yes.\n\nLet me verify my sign computation once more with a sanity check. The general formula: for a 1-form ω = Σ a_i dx_i in n dimensions, and a 2-form Ω = ω₁∧ω₂, the condition dω∧Ω = 0 (a 4-form, here n=4 so it's top degree) gives:\n\ndω∧Ω = Σ_{i<j} (∂_i a_j - ∂_j a_i) dx_i∧dx_j ∧ Σ_{k<l} Ω_{kl} dx_k∧dx_l\n\nThe 4-form coefficient = Σ over all ways to partition {1,2,3,4} into pairs. There are 3 pairings, but each pairing contributes two terms (which pair is (i,j) and which is (k,l)). So 6 terms total. I computed all 6. Good.\n\nLet me re-verify the signs via a cleaner method. dx_i∧dx_j∧dx_k∧dx_l with the 4 indices being a permutation of (1,2,3,4). The sign is the sign of that permutation relative to (1,2,3,4).\n\nPairing {{1,2},{3,4}}: \n- (i,j)=(1,2),(k,l)=(3,4): perm (1,2,3,4), sign +. Term: (∂₁a₂-∂₂a₁)Ω₃₄.\n- (i,j)=(3,4),(k,l)=(1,2): perm (3,4,1,2), sign + (4 inversions... wait let me recount). (3,4,1,2): 3>1,3>2,4>1,4>2 → 4 inversions, even, +. Term: (∂₃a₄-∂₄a₃)Ω₁₂.\n\nPairing {{1,3},{2,4}}:\n- (i,j)=(1,3),(k,l)=(2,4): perm (1,3,2,4): 3>2 → 1 inversion, sign -. Term: -(∂₁a₃-∂₃a₁)Ω₂₄.\n- (i,j)=(2,4),(k,l)=(1,3): perm (2,4,1,3): 2>1,4>1,4>3 → 3 inversions, sign -. Term: -(∂₂a₄-∂₄a₂)Ω₁₃.\n\nPairing {{1,4},{2,3}}:\n- (i,j)=(1,4),(k,l)=(2,3): perm (1,4,2,3): 4>2,4>3 → 2 inversions, sign +. Term: (∂₁a₄-∂₄a₁)Ω₂₃.\n- (i,j)=(2,3),(k,l)=(1,4): perm (2,3,1,4): 2>1,3>1 → 2 inversions, sign +. Term: (∂₂a₃-∂₃a₂)Ω₁₄.\n\nGreat, matches what I had. So R₁ is correct.\n\nNow Ω_{kl} = a_k e_l - a_l e_k (from ω₁∧ω₂). \nΩ₃₄ = a₃e₄ - a₄e₃ = CH - DG. ✓\nΩ₁₂ = a₁e₂ - a₂e₁ = AF - BE. ✓\nΩ₂₄ = a₂e₄ - a₄e₂ = BH - DF. ✓\nΩ₁₃ = a₁e₃ - a₃e₁ = AG - CE. ✓\nΩ₂₃ = a₂e₃ - a₃e₂ = BG - CF. ✓\nΩ₁₄ = a₁e₄ - a₄e₁ = AH - DE. ✓\n\nAll good. So the final answer is the two equations R₁=0 and R₂=0.\n\nLet me write up the proof nicely. I should explain the Frobenius theorem setup, define the forms, state the condition, and present the explicit computation.\n\nLet me also note: there's a compact determinantal form. The condition dω∧ω₁∧ω₂=0 can be written as a 4×4 determinant. Specifically, for a 1-form ω with coefficients p = (p₁,p₂,p₃,p₄), the condition dω∧ω₁∧ω₂=0 is:\n\ndet[ p ; a ; e ; (curl row?) ] ... hmm, actually let me think. \n\nThe 4-form coefficient R(p) = Σ_{i<j}(∂_i p_j - ∂_j p_i) Ω_{kl} with appropriate signs over the 3 pairings. This equals a determinant. Consider the 4×4 matrix whose rows are: p (the coefficient vector of ω), a (coeff of ω₁), e (coeff of ω₂), and ... no.\n\nActually, dω∧ω₁∧ω₂ = 0. Note dω∧ω₁∧ω₂ = dω∧ω₁∧ω₂. We have ω₁∧ω₂∧dω (cyclic). The coefficient of the top form is (1/2) times... let me think in terms of determinant.\n\nThe 4-form ω₁∧ω₂∧dω: dω = (1/2)Σ(∂_i p_j-∂_j p_i)dx_i∧dx_j. So ω₁∧ω₂∧dω = (1/2)Σ_{i,j} (∂_i p_j - ∂_j p_i) a... no wait ω₁∧ω₂ = Σ_{k<l}Ω_{kl}dx_k∧dx_l.\n\nHmm, the determinant form: Consider the matrix\nM = [ a_1 a_2 a_3 a_4 ]\n    [ e_1 e_2 e_3 e_4 ]\n    [ p_1 p_2 p_3 p_4 ]\n    [ ?  ?  ?  ? ]\n\nActually the standard result: dω∧ω₁∧ω₂ = 0 is equivalent to the existence of functions α, β such that dω = α ω₁ + β ω₂ (mod forms... no, dω = α∧ω₁ + β∧ω₂ where α,β are 1-forms). Hmm, that's the closure of the ideal.\n\nThe determinant form: The condition is that the 4×4 determinant\n\n| a_1 a_2 a_3 a_4 |\n| e_1 e_2 e_3 e_4 |\n| p_1 p_2 p_3 p_4 |\n| (∂p/∂x_i terms) |\n\nNo, let me just recall the clean form. Actually I recall that for the Frobenius condition with two 1-forms, one common way to write it: define the \"curl\" of p as the vector c_i... it's cleaner to just present the explicit expanded form, which is what the problem asks for (\"explicit relations involving the coefficient functions and their partial derivatives\").\n\nI'll present the explicit R₁=0, R₂=0. I could also mention the determinant form as a compact equivalent. Let me give the determinant form too for elegance.\n\nThe determinant form: dω∧ω₁∧ω₂ = 0 ⟺ \n\ndet = 0 of the matrix:\nRow 1: (A, B, C, D)\nRow 2: (E, F, G, H)  \nRow 3: (p₁, p₂, p₃, p₄)  [coefficients of ω]\nRow 4: (Σ_j ∂_j p_? ...)\n\nHmm, actually the cleanest: The condition dω∧ω₁∧ω₂ = 0 where ω = p·dx. We have dω∧ω₁∧ω₂. Consider expanding along the structure. \n\nLet me verify: The 4-form coefficient R(p) = Σ_{pairings} ±(∂_i p_j - ∂_j p_i) Ω_{kl}. \n\nClaim: R(p) = det M where M is the 4×4 matrix:\nRow 1: a = (A,B,C,D)\nRow 2: e = (E,F,G,H)\nRow 3: p = (p₁,p₂,p₃,p₄)\nRow 4: (∂_? )... \n\nHmm, let me think about it differently. We have ω₁∧ω₂∧ω∧(something). Actually dω∧ω₁∧ω₂ involves derivatives of p. \n\nAlternative: dω∧ω₁∧ω₂ = d(ω∧ω₁∧ω₂) - ω∧dω₁∧ω₂ - ω∧ω₁∧dω₂... no that's not simpler.\n\nLet me just compute the determinant candidate. Consider:\nD = det | A B C D |\n        | E F G H |\n        | p₁ p₂ p₃ p₄ |\n        | q₁ q₂ q₃ q₄ |\nExpanding along row 4: D = Σ_l (-1)^{4+l} q_l M_{4l} where M_{4l} is the 3×3 minor. The cofactor for q_l is (-1)^{4+l} times the minor of rows {1,2,3} cols ≠ l. That minor = (3×3 determinant of a,e,p with column l removed). \n\nHmm, this gives a linear function of q, but R(p) involves derivatives of p (curl), which is antisymmetric in indices. So a single determinant with a 4th row of p-derivatives won't directly give it unless the 4th row is something like a directional derivative.\n\nActually, I recall now: the condition can be written as the vanishing of \n\ndet | A  B  C  D |\n    | E  F  G  H |\n    | p₁ p₂ p₃ p₄ |\n    | (D_p)₁ (D_p)₂ (D_p)₃ (D_p)₄ |\n\nwhere (D_p)_l = Σ_j ... no.\n\nLet me just try: is R(p) = Σ_l (-1)^{4+l} (∂_? p_?) M_{4l}? The cofactor C_l = (-1)^{4+l} M_{4l} where M_{4l} = det of 3×3 matrix from rows {a,e,p} columns ≠ l.\n\nFor l=1: C₁ = (-1)^5 M₄₁ = -det|a₂ a₃ a₄; e₂ e₃ e₄; p₂ p₃ p₄| = -(a₂(e₃p₄-e₄p₃) - a₃(e₂p₄-e₄p₂) + a₄(e₂p₃-e₃p₂)) = -(Ω? no this mixes a,e,p).\n\nHmm, this involves p, not just a,e. But R(p) is linear in curl(p) and the Ω_{kl} = a_k e_l - a_l e_k don't involve p. So R(p) = Σ_{pairings} ±(∂_i p_j - ∂_j p_i) Ω_{kl}, which is linear in derivatives of p with coefficients depending only on a,e. \n\nSo R(p) = Σ_{i<j} (∂_i p_j - ∂_j p_i) · [±Ω_{kl}] where {i,j,k,l} partition and the sign is as computed. Let me collect the coefficient of (∂_i p_j - ∂_j p_i):\n\nFor (∂₁p₂-∂₂p₁): coefficient +Ω₃₄ = +(a₃e₄-a₄e₃) = CH-DG.\nFor (∂₃p₄-∂₄p₃): coefficient +Ω₁₂ = AF-BE.\nFor (∂₁p₃-∂₃p₁): coefficient -Ω₂₄ = -(BH-DF).\nFor (∂₂p₄-∂₄p₂): coefficient -Ω₁₃ = -(AG-CE).\nFor (∂₁p₄-∂₄p₁): coefficient +Ω₂₃ = BG-CF.\nFor (∂₂p₃-∂₃p₂): coefficient +Ω₁₄ = AH-DE.\n\nSo R(p) = (CH-DG)(p_{1,2}-p_{2,1}) + (AF-BE)(p_{3,4}-p_{4,3}) - (BH-DF)(p_{1,3}-p_{3,1}) - (AG-CE)(p_{2,4}-p_{4,2}) + (BG-CF)(p_{1,4}-p_{4,1}) + (AH-DE)(p_{2,3}-p_{3,2}).\n\nwhere p_{i,j} = ∂_j p_i? Let me be careful: ∂_i p_j means ∂p_j/∂x_i. So (∂₁p₂-∂₂p₁) = ∂p₂/∂x₁ - ∂p₁/∂x₂ = p_{2,x} - p_{1,y}... using p_{j,i} = ∂p_j/∂x_i. So (∂_i p_j - ∂_j p_i) = p_{j,i} - p_{i,j}.\n\nOK this is getting notational. The point is R(p) is a single scalar linear in the curl of p. And it can be written as a determinant! Because it's alternating multilinear in (a, e, curl-vector). \n\nIndeed, define the \"curl 2-form\" of p, but as a vector... Actually note R(p) = Σ_{i<j}(∂_i p_j - ∂_j p_i) c_{ij} where c_{ij} = ±Ω_{kl}. The six values c_{ij} for i<j are exactly the cofactors. In fact, R(p) = det of the 4×4 matrix:\n\n| A  B  C  D  |\n| E  F  G  H  |\n| p₁ p₂ p₃ p₄ |\n| r₁ r₂ r₃ r₄ |\n\nwhere r is chosen so that the cofactor expansion along the 4th row gives Σ r_l · C_l = R(p). We need r_l · C_l summed = R(p). But R(p) is expressed in terms of (∂_i p_j - ∂_j p_i), i.e., differences of derivatives, while cofactor expansion gives r_l times minors involving p (not derivatives of p). So that doesn't match unless r involves derivatives AND p is replaced... \n\nHmm wait. Actually there's a neat trick: dω∧ω₁∧ω₂ = d(ω∧ω₁∧ω₂) - ... no. Let me reconsider. Actually ω∧ω₁∧ω₂ is a 3-form; its exterior derivative is a 4-form: d(ω∧ω₁∧ω₂) = dω∧ω₁∧ω₂ - ω∧dω₁∧ω₂ + ω∧ω₁∧dω₂. So dω∧ω₁∧ω₂ = d(ω∧ω₁∧ω₂) + ω∧dω₁∧ω₂ - ω∧ω₁∧dω₂. Not simpler.\n\nBut here's the thing: ω∧ω₁∧ω₂ = det[a;e;p] dx₁∧dx₂∧dx₃∧dx₄ (the 3-form... no, it's a 3-form in 4 variables, so it has 4 components). Hmm, ω∧ω₁∧ω₂ is a 3-form. Its exterior derivative d(ω∧ω₁∧ω₂) is a 4-form = (divergence-like) · dx₁∧...∧dx₄. \n\nSpecifically, if ω∧ω₁∧ω₂ = Σ_m Q_m dx₁∧...∧̂dx_m∧...∧dx₄, then d(ω∧ω₁∧ω₂) = Σ_m (-1)^{m+1} ∂_m Q_m · dx₁∧...∧dx₄. And Q_m = (-1)^{m-1} det M_m where M_m is the 3×3 matrix of [a;e;p] with column m removed (the minor). Actually ω∧ω₁∧ω₂ = det[a;e;p]_m ... let me recall: for three 1-forms with coefficient vectors u,v,w, u∧v∧w = Σ_m (-1)^{m+1} D_m dx₁∧...∧̂dx_m∧...∧dx₄ where D_m = det of 3×3 matrix [u;v;w] with column m removed. Hmm sign: u∧v∧w = Σ_{i<j<k} ... Let me just say Q_m = cofactor.\n\nThen d(ω∧ω₁∧ω₂) = Σ_m ∂_m D_m · dx₁∧...∧dx₄ (with appropriate sign, but the divergence of the cofactor vector). \n\nAnd this relates to R(p) via the identity above but with extra terms. This is getting complicated. The cleanest is: there's a classical identity that \n\ndω∧ω₁∧ω₂ = [Σ_m (-1)^{m+1} ∂_m D_m] dx₁∧...∧dx₄\n\nwhen... no, that's d(ω∧ω₁∧ω₂), not dω∧ω₁∧ω₂.\n\nActually, let me reconsider. There's a well-known formula: if ω = p·dx and we want dω∧ω₁∧ω₂, this equals the determinant\n\ndet | A B C D |\n    | E F G H |  \n    | p₁ p₂ p₃ p₄ |\n    | (∂p) ... |\n\nNo. Let me just verify directly whether R(p) = Σ_m (-1)^{m+1} ∂_m D_m where D_m = minor of [a;e;p] deleting column m. Let me compute for our case with p general.\n\nD_m = det of 3×3 [a;e;p] minus column m.\nD₁ = det|a₂ a₃ a₄; e₂ e₃ e₄; p₂ p₃ p₄| = a₂(e₃p₄-e₄p₃) - a₃(e₂p₄-e₄p₂) + a₄(e₂p₃-e₃p₂).\n∂₁D₁ = a₂(e₃ ∂₁p₄ - e₄ ∂₁p₃) - a₃(e₂ ∂₁p₄ - e₄ ∂₁p₂) + a₄(e₂ ∂₁p₃ - e₃ ∂₁p₂)\n= ∂₁p₂(-a₃e₄ + a₄e₃)·... let me collect:\ncoefficient of ∂₁p₂: from -a₃(-e₄)·... = -a₃·(-e₄)?? Let me redo: -a₃(e₂∂₁p₄ - e₄∂₁p₂) = -a₃e₂∂₁p₄ + a₃e₄∂₁p₂. So coeff of ∂₁p₂: a₃e₄. From +a₄(e₂∂₁p₃ - e₃∂₁p₂): coeff of ∂₁p₂: -a₄e₃. Total ∂₁p₂: a₃e₄ - a₄e₃ = Ω₃₄. \ncoefficient of ∂₁p₃: from a₂(e₃∂₁p₄-e₄∂₁p₃): -a₂e₄. From +a₄(e₂∂₁p₃-...): +a₄e₂. Total: -a₂e₄+a₄e₂ = -(a₂e₄-a₄e₂) = -Ω₂₄.\ncoefficient of ∂₁p₄: from a₂e₃, from -a₃e₂: a₂e₃ - a₃e₂ = Ω₂₃.\n\nSo ∂₁D₁ = Ω₃₄ ∂₁p₂ - Ω₂₄ ∂₁p₃ + Ω₂₃ ∂₁p₄. (no ∂₁p₁ term since p₁ deleted).\n\nSimilarly D₂ = det|a₁ a₃ a₄; e₁ e₃ e₄; p₁ p₃ p₄| = a₁(e₃p₄-e₄p₃) - a₃(e₁p₄-e₄p₁) + a₄(e₁p₃-e₃p₁).\n∂₂D₂: coeff of ∂₂p₁: from -a₃(-e₄)= a₃e₄? wait -a₃(e₁p₄-e₄p₁) → +a₃e₄∂₂p₁. From +a₄(e₁p₃-e₃p₁) → -a₄e₃∂₂p₁. Total ∂₂p₁: a₃e₄ - a₄e₃ = Ω₃₄.\ncoeff of ∂₂p₃: from a₁(-e₄) = -a₁e₄; from +a₄e₁: +a₄e₁. Total: -a₁e₄+a₄e₁ = -(a₁e₄-a₄e₁) = -Ω₁₄.\ncoeff of ∂₂p₄: from a₁e₃; from -a₃e₁: a₁e₃ - a₃e₁ = Ω₁₃.\nSo ∂₂D₂ = Ω₃₄ ∂₂p₁ - Ω₁₄ ∂₂p₃ + Ω₁₃ ∂₂p₄.\n\nNow Σ_m (-1)^{m+1}∂_m D_m: signs (-1)^{m+1}: m=1:+, m=2:-, m=3:+, m=4:-.\nSo = ∂₁D₁ - ∂₂D₂ + ∂₃D₃ - ∂₄D₄.\n\n∂₁D₁ - ∂₂D₂ = Ω₃₄(∂₁p₂ - ∂₂p₁) - Ω₂₄∂₁p₃ + Ω₂₃∂₁p₄ + Ω₁₄∂₂p₃ - Ω₁₃∂₂p₄.\n\nWe need also ∂₃D₃ and ∂₄D₄. By symmetry (cyclic), \n∂₃D₃ = Ω₂₄ ∂₃p₁ - Ω₁₄ ∂₃p₂ + Ω₁₂ ∂₃p₄? Let me compute. D₃ = det|a₁a₂a₄; e₁e₂e₄; p₁p₂p₄| = a₁(e₂p₄-e₄p₂)-a₂(e₁p₄-e₄p₁)+a₄(e₁p₂-e₂p₁).\n∂₃D₃: coeff ∂₃p₁: from -a₂(-e₄)=a₂e₄; from +a₄(-e₂)=-a₄e₂. Total: a₂e₄-a₄e₂ = Ω₂₄.\ncoeff ∂₃p₂: from a₁(-e₄)=-a₁e₄; from +a₄e₁: +a₄e₁. Total: -a₁e₄+a₄e₁ = -Ω₁₄.\ncoeff ∂₃p₄: from a₁e₂; from -a₂e₁: a₁e₂-a₂e₁ = Ω₁₂.\nSo ∂₃D₃ = Ω₂₄∂₃p₁ - Ω₁₄∂₃p₂ + Ω₁₂∂₃p₄.\n\nD₄ = det|a₁a₂a₃;e₁e₂e₃;p₁p₂p₃| = a₁(e₂p₃-e₃p₂)-a₂(e₁p₃-e₃p₁)+a₃(e₁p₂-e₂p₁).\n∂₄D₄: coeff ∂₄p₁: from -a₂(-e₃)=a₂e₃; from +a₃(-e₂)=-a₃e₂. Total: a₂e₃-a₃e₂ = Ω₂₃.\ncoeff ∂₄p₂: from a₁(-e₃)=-a₁e₃; from +a₃e₁: +a₃e₁. Total: -a₁e₃+a₃e₁ = -Ω₁₃.\ncoeff ∂₄p₃: from a₁e₂; from -a₂e₁: a₁e₂-a₂e₁ = Ω₁₂.\nSo ∂₄D₄ = Ω₂₃∂₄p₁ - Ω₁₃∂₄p₂ + Ω₁₂∂₄p₃.\n\nNow ∂₁D₁ - ∂₂D₂ + ∂₃D₃ - ∂₄D₄:\n= Ω₃₄(∂₁p₂-∂₂p₁) \n+ [−Ω₂₄∂₁p₃ + Ω₂₄∂₃p₁]   (= Ω₂₄(∂₃p₁-∂₁p₃) = -Ω₂₄(∂₁p₃-∂₃p₁))\n+ [Ω₂₃∂₁p₄ − Ω₂₃∂₄p₁]    (= Ω₂₃(∂₁p₄-∂₄p₁))\n+ [Ω₁₄∂₂p₃ − Ω₁₄∂₃p₂]    (= Ω₁₄(∂₂p₃-∂₃p₂))\n+ [−Ω₁₃∂₂p₄ + Ω₁₃∂₄p₂]   (= -Ω₁₃(∂₂p₄-∂₄p₂))\n+ [Ω₁₂∂₃p₄ − Ω₁₂∂₄p₃]    (= Ω₁₂(∂₃p₄-∂₄p₃))\n\nSo = Ω₃₄(∂₁p₂-∂₂p₁) - Ω₂₄(∂₁p₃-∂₃p₁) + Ω₂₃(∂₁p₄-∂₄p₁) + Ω₁₄(∂₂p₃-∂₃p₂) - Ω₁₃(∂₂p₄-∂₄p₂) + Ω₁₂(∂₃p₄-∂₄p₃).\n\nCompare to R(p):\nR(p) = Ω₃₄(∂₁p₂-∂₂p₁) + Ω₁₂(∂₃p₄-∂₄p₃) - Ω₂₄(∂₁p₃-∂₃p₁) - Ω₁₃(∂₂p₄-∂₄p₂) + Ω₂₃(∂₁p₄-∂₄p₁) + Ω₁₄(∂₂p₃-∂₃p₂).\n\nThese are identical! Great. So R(p) = Σ_m (-1)^{m+1} ∂_m D_m = d(ω∧ω₁∧ω₂) coefficient.\n\nWait, that means dω∧ω₁∧ω₂ = d(ω∧ω₁∧ω₂)? That can't be right in general because d(ω∧ω₁∧ω₂) = dω∧ω₁∧ω₂ - ω∧dω₁∧ω₂ + ω∧ω₁∧dω₂. So they're equal only if the extra terms vanish. But here we're computing for a SPECIFIC ω and comparing... \n\nHold on. I computed R(p) = dω∧ω₁∧ω₂ coefficient, and also = Σ(-1)^{m+1}∂_m D_m = d(ω∧ω₁∧ω₂) coefficient. So this would imply dω∧ω₁∧ω₂ = d(ω∧ω₁∧ω₂) for all p? That's false in general.\n\nLet me recheck. d(ω∧ω₁∧ω₂) = dω∧ω₁∧ω₂ + (-1)^1 ω∧d(ω₁∧ω₂) = dω∧ω₁∧ω₂ - ω∧dω₁∧ω₂ + ω∧ω₁∧dω₂... wait d(ω₁∧ω₂) = dω₁∧ω₂ - ω₁∧dω₂. So d(ω∧ω₁∧ω₂) = dω∧ω₁∧ω₂ - ω∧(dω₁∧ω₂ - ω₁∧dω₂) = dω∧ω₁∧ω₂ - ω∧dω₁∧ω₂ + ω∧ω₁∧dω₂.\n\nSo dω∧ω₁∧ω₂ = d(ω∧ω₁∧ω₂) + ω∧dω₁∧ω₂ - ω∧ω₁∧dω₂.\n\nFor these to be equal, need ω∧dω₁∧ω₂ - ω∧ω₁∧dω₂ = 0, i.e., ω∧(dω₁∧ω₂ - ω₁∧dω₂) = 0. Not generally true.\n\nSo I must have made an error. Let me recheck the computation of R(p) vs the divergence.\n\nHmm, actually wait. Let me recompute R(p) carefully from the 6-term formula and compare. Actually I already verified the 6-term R(p) matches the divergence Σ(-1)^{m+1}∂_m D_m term by term. Both gave:\nΩ₃₄(∂₁p₂-∂₂p₁) + Ω₁₂(∂₃p₄-∂₄p₃) - Ω₂₄(∂₁p₃-∂₃p₁) - Ω₁₃(∂₂p₄-∂₄p₂) + Ω₂₃(∂₁p₄-∂₄p₁) + Ω₁₄(∂₂p₃-∂₃p₂).\n\nSo algebraically they're equal as expressions in p and a,e. But that means dω∧ω₁∧ω₂ = d(ω∧ω₁∧ω₂)?? \n\nLet me test with a concrete tiny example to see if the identity dω∧ω₁∧ω₂ = d(ω∧ω₁∧ω₂) holds. Take 4D, ω₁ = dx, ω₂ = dy, ω = z dt. Then dω = dz∧dt. dω∧ω₁∧ω₂ = dz∧dt∧dx∧dy = sign? dz∧dt∧dx∧dy: perm (3,4,1,2) → sign + (4 inversions). So = +dx∧dy∧dz∧dt. \nd(ω∧ω₁∧ω₂) = d(z dt ∧ dx ∧ dy) = d(z dx∧dy∧dt) [dt∧dx∧dy = ? dt∧dx∧dy: perm(4,1,2) sign: 4>1,4>2 = 2 inversions +, so dt∧dx∧dy = +dx∧dy∧dt? wait (4,1,2,3)→(1,2,3,4): inversions 4>1,4>2,4>3=3, sign -. So dt∧dx∧dy = -dx∧dy∧dz... hmm I dropped a dimension. Let me redo: ω∧ω₁∧ω₂ = z dt ∧ dx ∧ dy. This is a 3-form. In 4D, dt∧dx∧dy = ? The 3-forms basis: dx∧dy∧dz, dx∧dy∧dt, dx∧dz∧dt, dy∧dz∧dt. dt∧dx∧dy: reorder to dx∧dy∧dt: dt is at front, move to back past dx,dy: 2 swaps, sign +. So dt∧dx∧dy = +dx∧dy∧dt. So ω∧ω₁∧ω₂ = z dx∧dy∧dt. d = dz∧(dx∧dy∧dt) = dx∧dy∧dz∧dt (dz at front, already sorted-ish: dz∧dx∧dy∧dt, perm(3,1,2,4)→(1,2,3,4): 3>1,3>2=2 inversions +). So d(ω∧ω₁∧ω₂) = +dx∧dy∧dz∧dt. \n\nAnd dω∧ω₁∧ω₂ = dz∧dt∧dx∧dy. Reorder to dx∧dy∧dz∧dt: (3,4,1,2)→(1,2,3,4): 4 inversions, +. So = +dx∧dy∧dz∧dt. They match in this case!\n\nBut the extra terms: ω∧dω₁∧ω₂ - ω∧ω₁∧dω₂. dω₁ = d(dx) = 0, dω₂ = d(dy) = 0. So extra terms = 0. So this example doesn't distinguish. Let me pick ω₁ with nonzero d.\n\nTake ω₁ = x dy (so dω₁ = dx∧dy), ω₂ = dz, ω = dt. \ndω = 0, so dω∧ω₁∧ω₂ = 0.\nd(ω∧ω₁∧ω₂) = d(dt ∧ x dy ∧ dz) = d(x dy∧dz∧dt) [dt∧dy∧dz: reorder to dy∧dz∧dt: dt from front to back past dy,dz: 2 swaps +. So = dy∧dz∧dt, times x... wait dt∧(xdy)∧dz = x dt∧dy∧dz = x dy∧dz∧dt]. d(x dy∧dz∧dt) = dx∧dy∧dz∧dt. So d(ω∧ω₁∧ω₂) = dx∧dy∧dz∧dt ≠ 0.\nBut dω∧ω₁∧ω₂ = 0. So they differ! Good, so the identity is false in general.\n\nSo my term-by-term verification must have an error. Let me recheck. The issue: I need to recompute R(p) for this test case. ω = dt, so p = (0,0,0,1), p₄=1, others 0, all derivatives 0. So R(p) = 0 (all curls zero). Good, dω∧ω₁∧ω₂ = 0. ✓.\n\nNow the divergence Σ(-1)^{m+1}∂_m D_m: D_m = minor of [a;e;p] delete col m. a = (0,1,0,0) [ω₁=x dy → A=0,B=1,C=0,D=0... wait ω₁ = x dy means coefficient of dy is x, so a=(0,x,0,0)]. e = (0,0,1,0) [ω₂=dz]. p = (0,0,0,1).\nD₁ = det|a₂ a₃ a₄; e₂ e₃ e₄; p₂ p₃ p₄| = det|x 0 0; 0 1 0; 0 0 1| = x.\nD₂ = det|a₁ a₃ a₄; e₁ e₃ e₄; p₁ p₃ p₄| = det|0 0 0; 0 1 0; 0 0 1| = 0.\nD₃ = det|a₁a₂a₄; e₁e₂e₄; p₁p₂p₄| = det|0 x 0; 0 0 0; 0 0 1| = 0.\nD₄ = det|a₁a₂a₃; e₁e₂e₃; p₁p₂p₃| = det|0 x 0; 0 0 1; 0 0 0| = 0.\nΣ(-1)^{m+1}∂_m D_m = (+1)∂₁D₁ - ∂₂D₂ + ∂₃D₃ - ∂₄D₄ = ∂₁(x) = 1. So divergence = 1 = d(ω∧ω₁∧ω₂) coeff. ✓ (matches d(ω∧ω₁∧ω₂)=dx∧dy∧dz∧dt).\n\nBut R(p)=0. So R(p) ≠ divergence in general! So my term-by-term \"verification\" had an error. Let me find it.\n\nThe error: in computing R(p) I claimed the 6-term expression equals the divergence. But the test shows R(p)=0 and divergence=1. So they differ. Where did I go wrong?\n\nLet me recompute the divergence expression symbolically and compare to R(p) again, carefully. Actually the discrepancy: the divergence involves ∂_m D_m where D_m depends on p (and a,e). When I expanded ∂₁D₁, I treated a,e as constants (no derivatives on a,e). But ∂₁D₁ also has terms from ∂₁a and ∂₁e! I only collected the ∂₁p terms. So the divergence = (terms with ∂p) + (terms with ∂a) + (terms with ∂e). The (∂p) part equals R(p), and the (∂a),(∂e) parts are the extra terms ω∧dω₁∧ω₂ - ω∧ω₁∧dω₂.\n\nSo R(p) = [the ∂p-part of the divergence]. Good, that's consistent. So R(p) is NOT the full divergence; it's only the part with derivatives of p.\n\nOK so no simple determinant = divergence. But R(p) itself, being alternating multilinear in (a, e, curl(p)-vector)... is R(p) a determinant? R(p) = Σ_{i<j}(∂_i p_j - ∂_j p_i)(±Ω_{kl}). The quantities (∂_i p_j - ∂_j p_i) for i<j are 6 numbers but only 3 independent pairings matter... actually all 6 appear but they're the 6 components of curl(p) (a 2-form, 6 components in 4D). And Ω_{kl} are 6 components of ω₁∧ω₂. \n\nHmm, R(p) = Σ_{pairings {ij},{kl}} ±(∂_i p_j - ∂_j p_i) Ω_{kl} where the sum is over the 3 pairings, each contributing... wait no. Let me recount. R(p) has 6 terms, one for each (i,j) with i<j. Each term pairs (i,j) with the complementary (k,l). So it's a sum over 3 pairings, but each pairing gives 2 terms? No: for pairing {{1,2},{3,4}}, we have term (∂₁p₂-∂₂p₁)Ω₃₄ AND term (∂₃p₄-∂₄p₃)Ω₁₂. So each pairing contributes 2 terms, total 6. \n\nSo R(p) = Σ_{3 pairings} [ (∂_i p_j - ∂_j p_i) Ω_{kl} + (∂_k p_l - ∂_l p_k) Ω_{ij} ] with signs. This is like a \"dot product\" of the curl 2-form of p with the 2-form Ω, but with a specific pairing structure. Actually it's exactly: R(p) = (curl p) ⋅ Ω where ⋅ contracts the 2-form indices in a paired fashion. Specifically if we view curl p as antisymmetric matrix C_{ij} = ∂_i p_j - ∂_j p_i and Ω_{ij} = a_i e_j - a_j e_i, then... \n\nR(p) = Σ_{i<j} C_{ij} Ω_{σ(i,j)} where σ(i,j) = complementary pair, with sign. Let me check: for (i,j)=(1,2), complementary (3,4), sign +: C₁₂Ω₃₄. For (3,4), comp (1,2), sign +: C₃₄Ω₁₂. For (1,3), comp(2,4), sign -: -C₁₃Ω₂₄. For (2,4), comp(1,3), sign -: -C₂₄Ω₁₃. For (1,4),comp(2,3),sign+: C₁₄Ω₂₃. For (2,3),comp(1,4),sign+: C₂₃Ω₁₄.\n\nSo R(p) = C₁₂Ω₃₄ + C₃₄Ω₁₂ - C₁₃Ω₂₄ - C₂₄Ω₁₃ + C₁₄Ω₂₃ + C₂₃Ω₁₄.\n\nThis is the Pfaffian-like / Hodge dual contraction. In fact, this is *(curl p ∧ *Ω) or related to the inner product of 2-forms via Hodge star. Actually the Hodge inner product of two 2-forms in 4D: ⟨α,β⟩ vol = α ∧ *β. And *Ω for a 2-form Ω: *Ω₁₂ = Ω₃₄ (up to sign), etc. So α ∧ *β = (α₁₂β₃₄ - α₁₃β₂₄ + α₁₄β₂₃ + α₂₃β₁₄ - α₂₄β₁₃ + α₃₄β₁₂) vol. \n\nCompare R(p) = C₁₂Ω₃₄ + C₃₄Ω₁₂ - C₁₃Ω₂₄ - C₂₄Ω₁₃ + C₁₄Ω₂₃ + C₂₃Ω₁₄. And α∧*β with α=C, β=Ω: = C₁₂Ω₃₄ - C₁₃Ω₂₄ + C₁₄Ω₂₃ + C₂₃Ω₁₄ - C₂₄Ω₁₃ + C₃₄Ω₁₂. Yes! Exactly R(p). So R(p) = (curl p) ∧ *Ω / vol = ⟨curl p, Ω⟩·vol coefficient. \n\nSo R(p) = ⟨dω, Ω⟩ (Hodge inner product of the 2-forms dω and Ω=ω₁∧ω₂). And the condition dω∧ω₁∧ω₂=0... wait, dω∧ω₁∧ω₂ is a 4-form. Is dω∧ω₁∧ω₂ = ⟨dω, *Ω⟩? Hmm. Let me reconsider. dω∧ω₁∧ω₂ = dω ∧ Ω. For 2-forms α, β in 4D, α∧β = ⟨α, *β⟩ vol = ⟨*α, β⟩ vol. So dω∧Ω = ⟨dω, *Ω⟩ vol. And *Ω has components (*Ω)₁₂ = Ω₃₄, (*Ω)₁₃ = -Ω₂₄, (*Ω)₁₄ = Ω₂₃, (*Ω)₂₃ = Ω₁₄, (*Ω)₂₄ = -Ω₁₃, (*Ω)₃₄ = Ω₁₂. So ⟨dω, *Ω⟩ = Σ_{i<j} (dω)_{ij} (*Ω)_{ij} = C₁₂Ω₃₄ - C₁₃Ω₂₄ + C₁₄Ω₂₃ + C₂₃Ω₁₄ - C₂₄Ω₁₃ + C₃₄Ω₁₂ = R(p). ✓✓.\n\nGreat, so R(p) = coefficient of dω∧ω₁∧ω₂, consistent. Good, everything checks out. The determinant idea: R(p) = ⟨dω, *Ω⟩, and *Ω is the Hodge dual. There's a determinant expression: \n\nR(p) = det | a_1 a_2 a_3 a_4 |\n          | e_1 e_2 e_3 e_4 |\n          | ... |\n\nHmm, actually ⟨dω, *Ω⟩ where *Ω_{ij} = ±Ω_{kl}. Note Ω = a∧e (wedge of vectors). *Ω is the Hodge dual. There's an identity: for vectors a, e in 4D, *Ω = the \"complementary\" bivector. And ⟨dω, *Ω⟩ = det[a; e; (rows involving dω)]... \n\nActually, here's a clean determinant: Consider the 4×4 matrix with rows a, e, and two rows from dω? No, dω is a 2-form (6 components), not a vector.\n\nAlternatively: The condition dω∧ω₁∧ω₂ = 0 with ω = p·dx. We have dω∧ω₁∧ω₂ = dω∧Ω. And we showed = ⟨dω, *Ω⟩ vol. Now *Ω = *(a∧e). There's a formula: *(a∧e) as a bivector has components that are 2×2 minors complementary. And ⟨dω, *(a∧e)⟩ = ... \n\nI think the cleanest determinant: det of the 4×4 matrix\n[ a_1 a_2 a_3 a_4 ]\n[ e_1 e_2 e_3 e_4 ]\n[ p_1 p_2 p_3 p_4 ]\n[ q_1 q_2 q_3 q_4 ]\ngives Σ q_l cofactor_l, and cofactor_l involves p (not derivatives). So that's the divergence-type, not R(p).\n\nFor R(p) which involves derivatives of p, there's no single 4×4 determinant with p as a row. BUT, there's the form: R(p) = Σ_{i<j}(∂_i p_j - ∂_j p_i)(*(a∧e))_{ij}. And *(a∧e)_{ij} = ±(a_k e_l - a_l e_k). This is itself a sum of 2×2 minors of [a;e]. \n\nActually, I realize the cleanest compact form is just: the two conditions are\n\ndω₁ ∧ ω₁ ∧ ω₂ = 0,   dω₂ ∧ ω₁ ∧ ω₂ = 0,\n\nand then expand. The problem asks for \"explicit relations involving the coefficient functions and their partial derivatives,\" so the expanded R₁=0, R₂=0 is exactly what's wanted. I'll present those.\n\nLet me also double check by considering the determinant form that IS valid. Actually, I recall the integrability conditions are often written as: there exist functions α, β such that dω₁ = α∧ω₁ + β∧ω₂... no. The Frobenius condition is dωᵢ ∧ ω₁ ∧ ω₂ = 0 for the ideal generated by ω₁, ω₂. Equivalently dωᵢ ∈ span{ω₁, ω₂} as 2-forms... no, dωᵢ is a 2-form and the condition is dωᵢ ∧ ω₁ ∧ ω₂ = 0, meaning dωᵢ is in the algebraic ideal generated by ω₁, ω₂ (i.e., dωᵢ = η₁∧ω₁ + η₂∧ω₂ for some 1-forms η₁, η₂).\n\nSo the answer: two scalar equations R₁ = 0 and R₂ = 0 as I derived.\n\nLet me write the final answer. I'll present:\n1. Setup: define ω₁, ω₂ as 1-forms.\n2. Frobenius theorem: system integrable iff dω₁∧ω₁∧ω₂ = 0 and dω₂∧ω₁∧ω₂ = 0.\n3. Compute explicitly, get R₁=0, R₂=0.\n4. Optionally present compact determinant/Hodge form.\n\nLet me write the two conditions clearly with the substitution. Let me re-list with proper notation using subscripts for partial derivatives.\n\nR₁ = 0:\n(A_y − B_x)(CH − DG) + (C_t − D_z)(AF − BE)\n− (A_z − C_x)(BH − DF) − (B_t − D_y)(AG − CE)\n+ (A_t − D_x)(BG − CF) + (B_z − C_y)(AH − DE) = 0.\n\nR₂ = 0:\n(E_y − F_x)(CH − DG) + (G_t − H_z)(AF − BE)\n− (E_z − G_x)(BH − DF) − (F_t − H_y)(AG − CE)\n+ (E_t − H_x)(BG − CF) + (F_z − G_y)(AH − DE) = 0.\n\nThese are the integrability conditions.\n\nI can also note a compact form: Let Ω = ω₁∧ω₂ with components Ω_{xy}=AF−BE, Ω_{xz}=AG−CE, Ω_{xt}=AH−DE, Ω_{yz}=BG−CF, Ω_{yt}=BH−DF, Ω_{zt}=CH−DG. Then the conditions are ⟨dω₁, *Ω⟩=0 and ⟨dω₂, *Ω⟩=0, where * is Hodge star. Equivalently dωᵢ∧ω₁∧ω₂=0.\n\nOr in determinant form: Actually, let me find the determinant form. We have R(p) = Σ_{i<j}(∂_i p_j - ∂_j p_i)(*(a∧e))_{ij}. And *(a∧e)_{ij} = ε_{ijkl}(a_k e_l - a_l e_k)/... with Levi-Civita. Actually *(a∧e)_{ij} = (1/2)ε_{ijmn}(a_m e_n - a_n e_m) = ε_{ijmn} a_m e_n (using antisymmetry). So R(p) = Σ_{i<j}(∂_i p_j-∂_j p_i) ε_{ijmn} a_m e_n = (1/2)Σ_{ij}(∂_i p_j-∂_j p_i)ε_{ijmn}a_m e_n = Σ_{ij} ∂_i p_j ε_{ijmn} a_m e_n (using antisymmetry of ε and the difference). = ε_{ijmn} a_m e_n ∂_i p_j.\n\nSo R(p) = ε_{ijmn} a_m e_n ∂_i p_j (sum over all). This is a determinant! det of 4×4 matrix with rows a, e, p, and... no. ε_{ijmn} a_m e_n ∂_i p_j. Rearrange: = ε_{ijmn} (∂_i p_j) a_m e_n. This is the determinant of the matrix whose rows are (in order giving ε_{ijmn}): row1 = (∂_? p_?)... \n\ndet M = ε_{αβγδ} M_{1α} M_{2β} M_{3γ} M_{4δ}. We want ε_{ijmn} (∂_i p_j) a_m e_n. So set M_{1,i} = ∂_i p_? no, the index structure: ε_{ijmn} X_i Y_j Z_m W_n = det with rows X,Y,Z,W. Here X_i = ∂_i p_? we have ∂_i p_j with free j... hmm, ∂_i p_j has two indices. ε_{ijmn}(∂_i p_j)a_m e_n: here i is the derivative index and j is the component index of p. So X_i = ∂_i p_j?? but j is also summed. Let me write: ε_{ijmn} a_m e_n ∂_i p_j. Sum over i,j,m,n. Think of it as: for the determinant ε_{αβγδ} R1_α R2_β R3_γ R4_δ, set R3_γ = a_γ (m→γ), R4_δ = e_δ (n→δ), and we need R1_α R2_β such that ε_{αβγδ}R1_α R2_β = ε_{ijmn}(∂_i p_j)... with α=i, β=j, γ=m, δ=n, R1_i = ∂_i p_j? No, R1_α must be a single index. \n\nThe issue: ∂_i p_j has j as a free index that's contracted with ε's second index. So R1_α R2_β = (∂_α p_β). That's a product where R1 depends on α and R2 depends on β but R1_α = ∂_α p_β still has β. Doesn't factor as product of a row-vector depending only on α times one depending only on β. So it's NOT a simple determinant of a 4×4 matrix with vector rows. \n\nUnless we interpret it as: R1 = (∂_1 p_?, ∂_2 p_?, ...) no. So no clean 4×4 determinant. The Hodge inner product / Levi-Civita form is the compact version. Fine.\n\nActually, wait — there's a classical determinant form for this exact problem that I've seen. Let me recall. The condition dω∧ω₁∧ω₂=0. Hmm, alternatively one can write it as: the 4×4 determinant\n\n| A  B  C  D  |\n| E  F  G  H  |\n| p₁ p₂ p₃ p₄ |\n| ∂p₁/∂? ... |\n\nNo. Let me think about whether R(p) = det of matrix with rows a, e, and two rows being gradient-like. \n\nWe have R(p) = ε_{ijmn} a_m e_n ∂_i p_j. Consider the 4×4 matrix:\nRow 1: a = (A,B,C,D)\nRow 2: e = (E,F,G,H)\nRow 3: (∂_? p) \nRow 4: ...\n\ndet = ε_{αβγδ} M_{1α}M_{2β}M_{3γ}M_{4δ} = ε_{αβγδ} a_α e_β M_{3γ} M_{4δ}. We want this = ε_{ijmn} a_m e_n ∂_i p_j. Rename: in det, a is row1 (index α), e is row2 (index β). In R(p), a is index m, e is index n, and ∂_i p_j with i,j the other two. So set α=m, β=n, γ=i, δ=j: det = ε_{mnij} a_m e_n M_{3i} M_{4j}. We want = ε_{ijmn} a_m e_n ∂_i p_j. Now ε_{mnij} = ε_{ijmn} (cyclic shift by 2, even) = +ε_{ijmn}. So det = ε_{ijmn} a_m e_n M_{3i} M_{4j}. We want this = ε_{ijmn} a_m e_n ∂_i p_j. So need M_{3i} M_{4j} = ∂_i p_j for all i,j. That requires M_{3i} M_{4j} = ∂_i p_j, i.e., ∂_i p_j factors as product of a function of i times function of j — not generally true. So no.\n\nBUT if we allow M_{3}, M_{4} to be such that their \"outer product\" gives the Jacobian... that's not a determinant. So indeed no simple determinant. The Levi-Civita / Hodge form is the compact one. \n\nOK, I'm confident. Let me also sanity-check R₁ with a known integrable case. Take ω₁ = dx, ω₂ = dy (so A=1,B=C=D=0, E=0,F=1,G=H=0). This is integrable (solutions x=const, y=const). \nR₁: A=1,rest of a=0; F=1, rest of e=0. All curls of a = 0 (constants). So R₁ = 0. ✓.\nR₂: curls of e = 0. R₂=0. ✓.\n\nAnother: ω₁ = dx, ω₂ = x dy (a=(1,0,0,0), e=(0,x,0,0)). Is this integrable? dω₂ = dx∧dy. dω₂∧ω₁∧ω₂ = dx∧dy∧dx∧(x dy) = 0 (dx∧dx=0). dω₁=0. So integrable. \nR₁: a=(1,0,0,0) constant, curl=0, R₁=0. ✓.\nR₂: e=(0,x,0,0). curl of e: ∂_i e_j - ∂_j e_i. e₂=x, ∂₁e₂=1, ∂₂e₁=0. So C₁₂(e)=1, others 0. R₂ = (E_y-F_x)(CH-DG)+... here E=0,F=x,G=H=0. E_y=0, F_x=1. So (E_y-F_x) = -1. (CH-DG)=0 (C=D=G=H=0). Next (G_t-H_z)=0, (AF-BE)=1·0-0·0=0... wait A=1,B=0,E=0,F=x. AF-BE = 1·x - 0·0 = x. So second term (G_t-H_z)(AF-BE)=0·x=0. Third: -(E_z-G_x)(BH-DF): E_z=0,G_x=0,BH-DF=0. Fourth: -(F_t-H_y)(AG-CE): F_t=0,H_y=0, AG-CE=1·0-0·0=0. Fifth: +(E_t-H_x)(BG-CF): 0. Sixth: +(F_z-G_y)(AH-DE): F_z=0,G_y=0. So R₂=0. ✓. \n\nNow a non-integrable example: ω₁ = dz, ω₂ = x dy + z dt? Let me not belabor; trust the math.\n\nLet me also verify R₂ formula structure matches R₁ (just swap a↔e in curl). R₁ has curls of a; R₂ has curls of e; both multiply the same Ω-type factors (which involve both a and e). Yes. Good.\n\nNow write up the solution. I'll present it cleanly.\n\nActually, let me reconsider whether the problem might want the conditions in a different but equivalent form. The problem says \"Find the integrability conditions... Express these conditions as explicit relations involving the coefficient functions A,B,...,H and their partial derivatives.\" So the explicit R₁=0, R₂=0 is exactly right.\n\nI'll write the proof in English as required. Let me draft.\n\nI should present:\n- Define 1-forms.\n- State Frobenius.\n- Compute.\n- Give final boxed conditions.\n\nI won't use tools. Just output text.\n\nLet me make sure about notation: I'll use subscripts like A_y = ∂A/∂y etc. And state that.\n\nLet me also present the compact Levi-Civita form as an equivalent, for completeness, then the expanded forms.\n\nFinal answer structure:\n\n**Setup.** Let ω₁ = A dx + B dy + C dz + D dt, ω₂ = E dx + F dy + G dz + H dt, with coefficients smooth functions of (x,y,z,t).\n\n**Frobenius criterion.** The Pfaffian system ω₁=0, ω₂=0 is completely integrable iff the differential ideal generated by ω₁, ω₂ is closed, i.e., dω₁∧ω₁∧ω₂ = 0 and dω₂∧ω₁∧ω₂ = 0. (These are 4-forms on a 4-manifold, hence each is a scalar multiple of dx∧dy∧dz∧dt; the conditions are that these scalars vanish.)\n\n**Computation.** Write a=(A,B,C,D), e=(E,F,G,H), x=(x,y,z,t). Let Ω=ω₁∧ω₂ with components Ω_{ij}=a_i e_j - a_j e_i. Then dω∧ω₁∧ω₂ = ⟨dω, *Ω⟩ dx∧dy∧dz∧dt, and the scalar is\n\nR(p) = Σ_{i<j}(∂_i p_j - ∂_j p_i)(*(a∧e))_{ij}\n\n= (CH-DG)(∂_x p_y - ∂_y p_x) + (AF-BE)(∂_z p_t - ∂_t p_z)\n - (BH-DF)(∂_x p_z - ∂_z p_x) - (AG-CE)(∂_y p_t - ∂_t p_y)\n + (BG-CF)(∂_x p_t - ∂_t p_x) + (AH-DE)(∂_y p_z - ∂_z p_y).\n\nWait, let me map the pairings to (x,y,z,t) = (1,2,3,4):\nΩ₃₄ = Ω_{zt} = CH - DG. (∂₁p₂-∂₂p₁) = ∂_x p_y - ∂_y p_x. ✓ term1.\nΩ₁₂ = Ω_{xy} = AF - BE. (∂₃p₄-∂₄p₃) = ∂_z p_t - ∂_t p_z. ✓ term2.\nΩ₂₄ = Ω_{yt} = BH - DF. -(∂₁p₃-∂₃p₁) = -(∂_x p_z - ∂_z p_x). ✓ term3.\nΩ₁₃ = Ω_{xz} = AG - CE. -(∂₂p₄-∂₄p₂) = -(∂_y p_t - ∂_t p_y). ✓ term4.\nΩ₂₃ = Ω_{yz} = BG - CF. (∂₁p₄-∂₄p₁) = (∂_x p_t - ∂_t p_x). ✓ term5.\nΩ₁₄ = Ω_{xt} = AH - DE. (∂₂p₃-∂₃p₂) = (∂_y p_z - ∂_z p_y). ✓ term6.\n\nGood. So with p=a for R₁ and p=e for R₂:\n\nR₁ = (CH-DG)(A_y - B_x) + (AF-BE)(C_t - D_z) - (BH-DF)(A_z - C_x) - (AG-CE)(B_t - D_y) + (BG-CF)(A_t - D_x) + (AH-DE)(B_z - C_y) = 0.\n\nR₂ = (CH-DG)(E_y - F_x) + (AF-BE)(G_t - H_z) - (BH-DF)(E_z - G_x) - (AG-CE)(F_t - H_y) + (BG-CF)(E_t - H_x) + (AH-DE)(F_z - G_y) = 0.\n\nThese are the two integrability conditions.\n\nI'll present this. Let me write it up nicely now.",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 20957,
+        "completion_tokens": 18679,
+        "cached_tokens": 12183
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 20957,
+    "total_completion_tokens": 18679,
+    "total_cached_tokens": 12183,
+    "total_steps": 9
+  }
+}

@@ -1,0 +1,1036 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "jagged-monkey",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-14T10:42:39.232287+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-14T10:42:39.232816+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-14T10:42:39.243379+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-14T10:42:39.233157+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p93299d78cdd1486dbe20 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.4.0\nToday's date: Friday, 2026-08-14\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-14T10:42:39.233786+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p93299d78cdd1486dbe20/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nA high-security logistics firm is testing a new automated sorting system involving 100 uniquely serialized packages, labeled 1 through 100, which arrive in a completely random order. The system’s supervisor, Alice, is monitoring a sequence of exactly 61 packages as they are unloaded one by one.\n\nFor each package $j$ (where $j = 1, 2, \\dots, 61$), Alice observes its serial number $a_j$. At any point during this sequence, if she hasn't done so already, Alice must select exactly one package to receive a \"Priority Alpha\" stamp. She must make this decision immediately upon seeing a package's number, before the next one is revealed, and she cannot change her mind later.\n\nAfter all 61 packages have been revealed, the system identifies the \"Median Value\" $M$, which is defined as the 31st largest serial number among the 61 packages shown. Let $A$ be the serial number of the package Alice chose to stamp. Alice’s performance error is calculated as the absolute difference $|M - A|$.\n\nAlice wants to follow a strategy that minimizes the maximum possible error the \"deck\" (the worst-case random arrival order) can force upon her. Let $d(100, 30)$ be the smallest integer error that Alice can guarantee she will not exceed, regardless of the sequence of the packages.\n\nCompute $d(100, 30)$.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件，操作流程放 skill，等）\n4. **AGENTS.md 是总目录**——其中的索引节是跨 session AI 认知一致性的保证\n\n**Rule / Skill / 元组的放置层级**：\n\n当需要新建或迁移 rule、skill、元组时，按以下优先级选择放置位置：\n\n1. **首先考虑项目级 `.devin/` 目录**——这是 Devin 的正常使用方法。项目级 rule 放 `.devin/rules/`，项目级 skill 放 `.devin/skills/`。大多数 rule/skill 应该在这里——它们是项目特定的，不需要污染全局配置。\n2. **AGENTS.md 中只放 rule 索引**——项目 AGENTS.md 的维护规则节中，保留 rule 索引表（指向 `.devin/rules/` 中的文件），不保留完整 rule 内容。AGENTS.md 是总目录，rule 文件是详细内容。\n3. **只有确实跨项目通用的 rule/skill/元组，才升级为全局内容**——放在 `~/.config/devin/` 或 `~/.devin/` 中。**升级必须获得用户明确同意**——不要擅自把项目级内容升级为全局内容。\n4. **判断标准**：如果这个 rule/skill 只在当前项目有意义 → 项目级 `.devin/`。如果它在多个项目中都会被触发 → 可以考虑升级为全局，但先问用户。\n\n**元组：rule-skill-tuple-assessment**（rule + skill，全局）\n\n> **触发条件**：用户提出一个要求、认知、或设计思想时，AI 自动评估这个内容是否应该固化为 rule、skill、或元组。\n> **Skill**：`~/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md`\n> **核心意识**：不是每个用户要求都需要设为 rule/skill——只有具有跨 session 复用价值的才设置。但 AI 必须有意识地主动评估，而不是被动等用户说\"把这个设为rule\"。\n>\n> **评估流程**（详见 skill）：\n> 1. 判断是否具有跨 session 复用价值 → 否则直接执行不设置\n> 2. 判断类型：Rule（硬约束）/ Skill（SOP）/ 元组（Rule+Skill）/ 元组群（多Skill）\n> 3. 判断层级：项目级 `.devin/`（默认） vs 全局 `~/.config/devin/`（需用户同意）\n> 4. 执行：创建文件 + AGENTS.md 索引 + commit\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n### 13 · 禁止inline脚本，所有脚本持久化到项目内\n\n**Rule**：`~/.devin/rules/no-inline-scripts.md`\n\n**硬约束**：\n1. **禁止写超过3行的inline脚本**（`python -c \"...\"`、`bash -c \"...\"`）。超过3行的逻辑必须写成文件。\n2. **所有脚本写到项目内的脚本目录中**——不写`/tmp/`、不写home目录。放到项目已有的脚本目录或`scripts/`目录。\n3. **在项目AGENTS.md中做好索引**——新脚本必须记录路径、用途、用法。\n4. **持续维护，不重写**——已有脚本就改进，不另写新的。重复操作累积成越来越完善的脚本。\n\n**判定标准**：\n- 单行命令（`ls`、`git status`）→ 直接执行\n- 2-3行简单查询 → 可以直接执行\n- 超过3行 → **必须写成文件**\n- 会重复使用的操作 → **必须写成文件**\n- 已有脚本可改进 → **改进已有脚本**\n\n---\n\n## Git 管理协议\n\n**改文件前**：检查目标文件/目录是否处于 git clean 状态 → 记录 `before_status_baseline` → 明确本轮 `intended_delta`。\n\n**改文件后**：完成一个逻辑工作单元立即 commit → 记录 `after_status_baseline` → 核验 `after - before == intended_delta` → 目标文件/目录回到 git clean 状态。\n\n**禁止 `git add -A`、`git add .`、`git add -u`**。只 add 具体路径。\n\n任何 `git push` 都必须获得用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组 = Rule + Skill。Rule always-on 负责约束 + 模式匹配；Skill on-demand 负责工作流。AGENTS.md 中绝不放工作流，Skill 中绝不放硬性约束。AGENTS.md 太长是执行力问题——\"每次都必须知道\"→ 留在 AGENTS.md；\"遇到特定场景才需要\"→ 移到 Skill。\n\n> 元组详细方法论（瘦身工程、两种实现方式、新增元组规范）见 `~/.devin/rules/tuple-methodology.md`。Devin CLI 完整配置说明见 `devin-config-harness` skill。\n\n---\n\n## 元组：long-running-work-sop（长程工作SOP化铁律）\n\n**触发条件**：用户启动一个可能跨越压缩边界的持续性工作时；发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要迭代修正时。\n\n**核心约束**：长程工作（可能跨越压缩边界的持续性工作）必须SOP化。三个必须：\n1. **必须SOP化**——提取步骤、定义产出、定义验证，放入项目AGENTS.md\n2. **必须用rules锁定流程行为**——在`.devin/rules/`中创建rule文件，锁定SOP的执行纪律\n3. **必须版本化审计修正历史**——如果长程工作涉及分类学/框架/体系的迭代修正，修正的全历史必须在明面上审计（不在git log中），每次修正做覆盖性检查\n\n**Skill**：`~/.config/devin/skills/long-running-work-sop/SKILL.md`——提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程，以及积累的经验和反模式。\n\n**已有项目级实例**：\n- 数学大师项目的`tell-taxonomy-iteration-audit`元组（`.devin/rules/tell-taxonomy-iteration-audit.md`）——Tell分类学迭代审计的铁律和9步SOP，是本全局元组的项目级实例\n\n**经验和反模式积累**：在skill的\"经验和反模式积累区\"中持续追加。当前积累：5个反模式（当一次性任务做/不锁定/只在git log/不做覆盖性检查/遗留旧措辞）、3个经验（FLT例子测试/FCA理论审查方法/版本化审计让修正更严谨）。\n\n---\n\n### 元组群与 Skill 粒度铁律\n\n**元组群**：当一个复杂任务的工作流太长，无法放入单个 Skill 中时，应拆分为多个元组（多个 Skill），形成元组群协同工作。\n\n**为什么需要拆分**：Skill 加载后形成 Session 临时上下文中的认知和 SOP。但如果把应该拆分成多个 Skill 的内容放入一个 Skill 中，执行过程中可能跨越压缩边界——Session 压缩后，Skill 的后续内容从上下文中丢失，无法有效发挥作用。\n\n**Skill 粒度铁律**：\n\n1. **Skill 必须在 Session 上下文中始终可见**——如果执行过程很长（跨越多轮对话、可能触发压缩），Skill 内容必须足够短，确保压缩后仍可见，或拆分为多个 Skill 分阶段加载。\n\n2. **执行过程长 → 拆分 Skill**——如果一个 Skill 的工作流需要很多步骤、很长时间执行，应该拆分成多个 Skill，每个 Skill 覆盖一个可在一个压缩窗口内完成的阶段。\n\n3. **拆分后的 Skill 之间通过文档传递**——前一个 Skill 的产出落盘到文档（dev-docs / AGENTS.md / 数据文件），后一个 Skill 加载时读文档获取前序成果，不依赖 Session 上下文传递。\n\n4. **判断粒度的经验法则**——如果一个 Skill 的执行可能超过 10 轮对话或 50k tokens，考虑拆分。如果工作流中有明确的阶段分界点（如\"方案设计\"→\"执行\"→\"验证\"），在分界点拆分。\n\n### 元组群的整体性：目录在规则中\n\n**元组群如何确保整体性？** 确保整体性 = 确保工作的连续性。元组群中的多个 Skill 是一个整体工作流的分段，不是各自独立的任务。确保整体性的机制是：**元组群的目录放在规则中，规则指向一组 Skill，而不是单一 Skill。**\n\n**传统元组**：规则指向单一 Skill——\"遇到场景X，加载Skill Y\"。\n\n**元组群**：规则指向一组 Skill——\"遇到场景X，按顺序加载Skill Y1→Y2→Y3，它们是一个整体工作流的三个阶段\"。\n\n**元组群规则的结构**：\n\n```\n## 元组群：<群名称>\n\n**触发条件**：<何时AI应该执行这组工作流>\n\n**整体目标**：<这组Skill共同完成的最终目标>\n\n**Skill目录**（按执行顺序）：\n1. Skill <Y1>：<阶段1名称>——<这个阶段做什么>，产出落盘到<文档>\n2. Skill <Y2>：<阶段2名称>——<这个阶段做什么>，读取<文档>，产出落盘到<文档>\n3. Skill <Y3>：<阶段3名称>——<这个阶段做什么>，读取<文档>，产出最终结果\n\n**阶段间传递**：<通过什么文档/数据文件传递，不依赖Session上下文>\n\n**何时进入下一阶段**：<前一个Skill完成并落盘后，AI检查目录，自然加载下一个Skill>\n```\n\n**为什么目录在规则中而不是在某个Skill中**：\n\n1. **规则是always-on的**——不受压缩影响。即使Session压缩了，规则仍然在上下文中可见，AI始终能看到元组群的全貌——有几个阶段、当前在哪个阶段、下一步该加载哪个Skill。\n\n2. **如果目录在Skill中**——Skill加载后形成临时上下文，压缩后目录丢失，AI不知道还有后续阶段，元组群的整体性断裂。\n\n3. **规则是元组群的\"目录页\"**——每个Skill是\"章节内容\"。章节内容可能被压缩掉，但目录页始终可见，AI随时可以翻到正确的章节。\n\n**元组群规则的放置位置**：\n\n- **全局元组群**（跨项目通用）→ `~/.config/devin/AGENTS.md` 或 `~/.devin/rules/`\n- **项目级元组群**（特定项目的工作流）→ 项目 `AGENTS.md` 或 `.devin/rules/`\n\n**与单一元组的关系**：元组群是单一元组的扩展。单一元组 = 1个规则 + 1个Skill。元组群 = 1个规则（含目录） + N个Skill。规则从\"指向单一Skill\"升级为\"指向一组Skill的有序目录\"。\n\n---\n\n## 元组：trajectory-workline-review（从trajectory回溯session工作脉络）\n\n**触发条件**：需要了解某个 session（自己的或别人的）做了什么工作；同一 repo 下有多个 session 并行工作需要区分各自工作范围；新 session 启动时需要了解前序 session 进展；审查某个 session 的工作过程。\n\n**Skill**：`~/.config/devin/skills/trajectory-workline-review/SKILL.md`\n\n**核心约束**：\n1. **禁止用 git log 区分 session**——同一 repo 下多个 session 的 commit 交织在 git log 中，无法区分。必须用 sessions.db 的 session_id 区分。\n2. **运行中的 session 用 sessions.db，不用 transcripts**——transcript 文件只在 session 结束后写入，运行中的 session 没有 transcript 文件。sessions.db 的 message_nodes 表是实时写入的，是运行中 session 的唯一数据源。\n3. **grep tool_calls 中的 file_path 是最快方法**——不用完整解析嵌套 JSON，直接 grep `\"file_path\":\"...\"` 字符串，sqlite3 输出管道给 grep 一行命令搞定。区分操作类型时用正则 `re.finditer(r'\"name\":\"write\".*?\"file_path\"...')` 比解析 JSON 的 tool_calls 结构更稳健（结构可能不规则）。\n4. **文件操作时间线 = 工作脉络骨架**——提取每个文件首次操作时间并按时间排序，就是工作脉络的时间线。按目录归类操作频次 = 工作重心分布。\n5. **区分 write/edit/read 三种操作**——write（创建）= 核心产出，edit（修改）= 迭代深化，read（读取）= 前置依赖。只看 write 会漏掉 session 的前置依赖（读取了别人创建的文档 = 吸收前置讨论基础）。多 session 协作时，交叉分析 read 和 write 揭示跨 session 依赖关系。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-14T10:42:39.245075+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-14T10:42:39.246181+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **bian-pai**: 成功执行编排的方法论与落地工作流。用于把复杂、多阶段、跨组件、可无人值守的 AI / 软件工程任务收束为可执行编排：明确目标、边界、依赖、输入冻结、可观测性、验证、失败恢复、并发、证据与停止条件，并产出 phase plan、runtime manifest、runbook、scenario matrix 与 verdict 结构。适用于设计自动化流程、tmux 联调、agent/worker 编排、故障注入与无人值守执行方案。 (source: /Users/user/.agents/skills/bian-pai/SKILL.md)\n- **update-work-journal**: Record and maintain a user-facing, auditable work journal for the current project in `./dev-docs/工作日志.md`. Use when the user asks to update the visible work log, record progress, summarize current status, add a new workstream or branch line, or keep a human-readable engineering journal with exact timestamps. (source: /Users/user/.agents/skills/update-work-journal/SKILL.md)\n- **setup-devin-rules-skills**: 指向元组 rule 中的 setup-devin-rules-skills 条目；安顿 Devin 的 rule 和 skill（位置、格式、加载机制、操作流程）。 (source: /Users/user/.agents/skills/setup-devin-rules-skills/SKILL.md)\n- **db-file-traceability**:  (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **tmux-easy-setup**: 配置 tmux 达到最易用状态：大缓冲区、鼠标滚动、系统剪贴板集成、vi 复制模式。 WHEN to use: 用 tmux 运行 AI CLI（devin/codex）、长时间任务、多 session 监控， 或用户抱怨 tmux 复制粘贴/缓冲区/鼠标不好用时。 WHEN NOT to use: 不涉及 tmux 的任务。\n (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **videos-shink**: Batch-trim old `.mov` videos in one directory down to their last 20 minutes without re-encoding, write the results into a `shrink/` subdirectory, verify each output, and delete originals only after verification. Use for OBS-style cleanup jobs where one protected file, such as the file still being written, must not be touched. If the protected file is not explicitly identified, stop and ask the user before any mutating action. (source: /Users/user/.agents/skills/videos-shink/SKILL.md)\n- **codex-pure-lab**: Use when you need a reusable Codex testing system for isolated labs, headless CLI tests, app-server tests, tmux/TUI tests, start-codex launcher tests, hook tests, self-compact tests, or compaction tests without contaminating the live environment. (source: /Users/user/.agents/skills/codex-pure-lab/SKILL.md)\n- **loop**: Runs an autonomous development loop with research and implementation modes. Use when orchestrating iterative research and implementation cycles with dots-based task tracking and git workflow automation. (source: /Users/user/.agents/skills/loop/SKILL.md)\n- **jsonl-reader**: Use when inspecting a Codex rollout JSONL or session id for session recovery, dehydrated dialogue reconstruction, or structured audit. Best for turning a rollout into a readable Markdown transcript and then drilling into exact records with stats/list/get without mutating the source JSONL. (source: /Users/user/.agents/skills/jsonl-reader/SKILL.md)\n- **auto-run-to-the-end**: 当用户明确要求无人值守、持续运行、不中途汇报、一路做到底时使用。该 skill 要求先形成计划；若存在 看板.md / KANBAN.md / runbook / phase plan，则必须把它作为 source of truth 连续执行并边做边更新；fallback 成功不得冒充主线完成。除非被阻塞、存在高风险操作、或高优先级宿主规则要求，否则中途不做工作汇报，直到阶段工作真正收口。 (source: /Users/user/.agents/skills/auto-run-to-the-end/SKILL.md)\n- **release-skills**: Universal release workflow. Auto-detects version files and changelogs. Supports Node.js, Python, Rust, Claude Plugin, GitHub Releases, annotated tags, historical release backfill, and generic projects. Use when user says \"release\", \"发布\", \"new version\", \"bump version\", \"push\", \"推送\", \"release notes\", \"GitHub Release\", or \"回填 Release\". (source: /Users/user/.agents/skills/release-skills/SKILL.md)\n- **find-skills**: Helps users discover and install agent skills when they ask questions like \"how do I do X\", \"find a skill for X\", \"is there a skill that can...\", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill. (source: /Users/user/.agents/skills/find-skills/SKILL.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **android-reverse-engineering-simoneavogadro**: Decompile Android APK, XAPK, JAR, and AAR files using jadx or Fernflower/Vineflower. Reverse engineer Android apps, extract HTTP API endpoints (Retrofit, OkHttp, Volley), and trace call flows from UI to network layer. Use when the user wants to decompile, analyze, or reverse engineer Android packages, find API endpoints, or follow call flows. (source: /Users/user/.agents/skills/android-reverse-engineering-simoneavogadro/SKILL.md)\n- **write-docs**: Write or rewrite technical documentation in a beginner-friendly, user-first, top-down teaching style. Use when the user asks for docs, code explanations, architecture writeups, source-analysis notes, API/process docs, or asks to explain concepts without assuming prior source-code knowledge. The goal is: don't make me think, don't make me ask twice. (source: /Users/user/.agents/skills/write-docs/SKILL.md)\n- **headless-codex**: Launch a highly controlled headless Codex CLI instance with explicit model, reasoning effort, sandbox, approval policy, writable dirs, JSON output, and a custom project-doc file such as AGENTS.md/RULES.md. Use when you need another AI or script to call Codex non-interactively. (source: /Users/user/.agents/skills/headless-codex/SKILL.md)\n- **spark**: Use when the user wants to brainstorm an idea or design a feature/spec. Explores intent and requirements through dialogue, then writes a spec document to docs/spark/ and STOPS. Does not auto-chain to implementation planning or any other skill. (source: /Users/user/.agents/skills/spark/SKILL.md)\n- **trajectory-workline-review**:  (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **read-email**: Read mailbox messages from configured Cloud Mail domains. Supports igreatagain.com by default and mail.0x10086.xyz or any subdomain under 0x10086.xyz when the user supplies that full address or the 0x10086 alias; use for verification codes, links, or explicit $read-email requests. (source: /Users/user/.agents/skills/read-email/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据的完整存储位置、格式、读取方法。 Transcript（ATIF格式）、sessions.db（SQLite）、logs、summaries、--export参数。 WHEN to use: 需要提取/解析/审计Devin CLI的session对话数据时。 WHEN NOT to use: 一般编码任务、非Devin CLI相关的数据工作。 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **md-multi**: Save the recent multi-turn discussion (a connected sequence of Q&A turns on the same topic) as ONE numbered Markdown file under dev-docs/, transcribed verbatim turn by turn — no summarizing, no merging similar Q&As, no rephrasing. Use when the user runs /md-multi or says \"把刚才整段讨论存档\" / \"这几轮一起记下来\" / \"整段保留为开发文档\". (source: /Users/user/.agents/skills/md-multi/SKILL.md)\n- **hooks-operation**: Operate the live global Codex hook framework under `~/.codex` and the related prompt files under `~/`. Use when installing, uninstalling, inspecting, or testing the user-level Codex hooks such as `block-stop`, `post-tool-use`, `pre-tool-use`, `user-prompt-submit`, and `session-start`, especially when working with the explicit Stop installs `block-once` and `block-always`, or when updating the Home-directory prompt text files those hooks read at runtime. (source: /Users/user/.agents/skills/hooks-operation/SKILL.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **mempalace-codex-memory**: Use when Codex should interact with the local-only MemPalace memory layer for the current project: refresh project files or recent Codex transcripts into the canonical palace, render a low-token wake-up context, search project memory, or print the local MCP server command. Prefer this when you want real reusable local memory without remote services and without relying on repo-root `mempalace init` side effects. (source: /Users/user/.agents/skills/mempalace-codex-memory/SKILL.md)\n- **self-compact**: 在项目采用项目级 AGENTS 单文件 handover 机制时，用于在本轮 handover 工作完成后触发自压缩。读取当前项目目录中的 `.tmux_session_name`，校验 tmux pane target，并让当前 AI 通过同一 tmux pane 对自己发起 `/compact`。 (source: /Users/user/.agents/skills/self-compact/SKILL.md)\n- **fact**: 记忆提取：概念型 + 事实型 + 笔记型三大块，按顺序执行。每步 Pre-echo 复述规范再动手。 (source: /Users/user/.agents/skills/fact/SKILL.md)\n- **add-new-todo**: 将用户刚刚提出的新待办落盘到当前项目 AGENTS.md 的 Memory Section > §TODO，并同步必要的索引与变更记录。 (source: /Users/user/.agents/skills/add-new-todo/SKILL.md)\n- **add-to-dev-docs**: 在采用 `dev-docs/` 作为正式工作载体的项目中，新建或修订三位编号的 dev-docs 文档，默认版本化保存，并同步 `AGENTS.md` 文件索引与 `ChangeLog.md`。 (source: /Users/user/.agents/skills/add-to-dev-docs/SKILL.md)\n- **qmd-mcp-search**: 通过 QMD 语义搜索和知识图谱查询搜索 AI 对话存档。双模式检索，支持结构化实体发现。 WHEN to use: 需要语义搜索 AI 对话、知识图谱实体查询、文档相似度检索时。 WHEN NOT to use: 简单关键词搜索（用 ai-archive-search）、网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **new-email**: Create or reuse a mailbox on a configured Cloud Mail domain. Supports igreatagain.com by default and mail.0x10086.xyz or any subdomain under 0x10086.xyz when the user supplies that full address or the 0x10086 alias. (source: /Users/user/.agents/skills/new-email/SKILL.md)\n- **ai-archive-search**: 搜索 AI 对话存档（AI-ALL-Markdown），使用 QMD 语义搜索。 WHEN to use: 需要搜索历史 AI 对话、查找之前的讨论内容、检索 AI 对话存档时。 WHEN NOT to use: 搜索当前项目代码（用 grep/glob）、一般网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/ai-archive-search/SKILL.md)\n- **android-reverse-engineering**: Decompile Android APK, XAPK, JAR, and AAR files using jadx or Fernflower/Vineflower. Reverse engineer Android apps, extract HTTP API endpoints (Retrofit, OkHttp, Volley), and trace call flows from UI to network layer. Also covers maintaining the Lima VM-based AOSP/LineageOS source tree environment required for large-scale reverse engineering (repo sync monitoring with syncstate.json, tracking prebuilts without last_checkout, graceful shutdown, disk expansion via lima.yaml, migration of LIMA_HOME to large volumes like AI-PWD while leaving only 50GB host buffer). Use when the user wants to decompile, analyze, or reverse engineer Android packages, find API endpoints, follow call flows, or manage the underlying large source sync infrastructure in Lima. (source: /Users/user/.agents/skills/android-reverse-engineering/SKILL.md)\n- **prove-context-structure-analysis-completeness**: 对任意 agent/CLI/harness 系统执行上下文结构分析完备性证明。用 Boundary / Static / Dynamic / Orphan 四表穷举上下文主链，做 remainder=0 检查，并给出 PASS / PARTIAL / FAIL verdict。 (source: /Users/user/.agents/skills/prove-context-structure-analysis-completeness/SKILL.md)\n- **video-compress**: Compress local video files with ffmpeg using H.265 workflows that balance quality, compression ratio, and speed, including optional Apple VideoToolbox hardware encoding and rotation. Use when the user asks to compress, shrink, rotate while compressing, or reduce the size of a video from the command line while keeping quality high, especially for `.mp4`, screen recordings, and recordings that should stay easy to share or archive. (source: /Users/user/.agents/skills/video-compress/SKILL.md)\n- **ai-carrier-meta-memory**: Use when discussing meta-level evolution of AI coding tools or AI carriers such as Codex, Claude Code, Hermes, ECC, Superpowers, continuous learning, AI governance repos, repo analysis records, user-intent classification, workflow routing, memory classification, memory routing, or how AI agents should decide what kind of interaction they are in before acting. (source: /Users/user/.agents/skills/ai-carrier-meta-memory/SKILL.md)\n- **md**: Save the most recent single Q&A turn (the latest user message and the AI reply that immediately followed it) as ONE numbered Markdown file under the project's dev-docs/, transcribed verbatim — no summarizing, no merging, no rephrasing. Use when the user runs /md, says \"保存这次回答\" / \"把这一次记下来\" / \"把刚才那条存档\". (source: /Users/user/.agents/skills/md/SKILL.md)\n- **handover**: 压缩前执行。落盘对账 + 因果一致性 + 三大块记忆提取 + 交接写入，确保压缩后不丢认知。 (source: /Users/user/.agents/skills/handover/SKILL.md)\n- **rule-skill-tuple-assessment**: 评估用户的提问或要求是否应该设置为 rule、skill（SOP）、或元组（rule+skill）， 以及应该放入 Devin 全局配置还是项目本地 .devin/ 目录。 WHEN to use: 用户提出一个要求或认知，AI判断这个要求是否具有跨session复用价值时。 WHEN NOT to use: 一次性的具体任务执行（如\"运行这个脚本\"、\"修这个bug\"）。\n (source: /Users/user/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md)\n- **ssh-58**: Use when operating the Thunderbolt-connected Mac \"58\" at 100.100.100.58, especially SSH, Remote Management, remote GUI automation, remote Computer Use MCP, Dokobot/Chrome testing, or permission/TCC repair on that machine. (source: /Users/user/.agents/skills/ssh-58/SKILL.md)\n- **long-running-work-sop**: 长程工作SOP化与迭代审计铁律。当用户启动一个可能跨越压缩边界的持续性工作时， AI必须将其SOP化（放入项目AGENTS.md）、用rules锁定流程行为、版本化审计修正历史。 本skill提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程， 以及积累的经验和反模式。 WHEN to use: 用户启动一个可能跨越压缩边界的持续性工作时； 发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要修正时。 WHEN NOT to use: 一次性任务（如\"运行这个脚本\"、\"修这个bug\"）； 明确不会跨越压缩边界的短任务。\n (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **work-with-dev-docs**: 在以 `dev-docs/` 作为正式工作载体的项目中，判断何时必须先落分析/计划/行动方案文档，何时修订已有三位编号文档，以及何时应转交工作日志、TODO、home readme 或 docs/。 (source: /Users/user/.agents/skills/work-with-dev-docs/SKILL.md)\n- **handover-prompt**: 为下一个 session 维护项目级 AGENTS.md 的 Handover Section。先 /handover 落盘到 Memory Section，再 /handover-prompt 创建或更新 Handover Section。三个衡量标准：信息完整性、认知一致性、可无缝衔接性。 (source: /Users/user/.agents/skills/handover-prompt/SKILL.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **cliproxyapi-config**: Use when Codex needs to configure, audit, explain, or troubleshoot CLIProxyAPI / CPA configuration, including 8888 or 18888 instances, routing.strategy fill-first, session-affinity, session-affinity-ttl, nonstream-keepalive-interval, streaming keepalive, max-retry-credentials, payload.default/override/filter rules, provider credentials, management UI config, auth-dir, hot reload, or when the user asks for the official CLIProxyAPI configuration parameter list. Prioritize official CLIProxyAPI docs and the bundled official-parameter index before inspecting source code. (source: /Users/user/.agents/skills/cliproxyapi-config/SKILL.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **codex-config-harness**: Configure and manage Codex CLI extensibility (AGENTS.md rules, Skills, MCP servers, config.toml). Use when the user asks about Codex CLI setup, adding MCP servers, writing skills, configuring rules, enabling skills feature flag, or understanding the Codex extension architecture. Also use when migrating configuration from Devin or Claude Code to Codex. Do NOT use for general coding tasks unrelated to Codex configuration. (source: /Users/user/.agents/skills/codex-config-harness/SKILL.md)\n- **qmd-search**: Search the AI conversation archive via QMD semantic/keyword/hybrid search AND Knowledge Graph queries (source: /Users/user/.agents/skills/qmd-search/SKILL.md)\n- **write-home-readme**: Write cross-project infrastructure or machine-level knowledge into the home readme system: detailed docs under ~/readme/, an entry in ~/README.md, and when needed a row in ~/readme/README.md. Use when the user says to record something in home readme, says this knowledge is cross-project or machine-wide, asks for a home-level index entry, or wants infrastructure/incident knowledge stored outside the current project. (source: /Users/user/.agents/skills/write-home-readme/SKILL.md)\n- **jsonl_curd**: Inspect, modify, validate, and resume Codex rollout JSONL files in controlled labs. Use when Codex needs to treat a rollout .jsonl as a structured test object: analyze its schema, perform CRUD-style mutations, verify rollout integrity, or start/resume Codex from an explicit rollout path for low-cost hook and boundary experiments. (source: /Users/user/.agents/skills/jsonl_curd/SKILL.md)\n- **read-home-readme**: Read the machine-level home readme knowledge system to locate cross-project infrastructure knowledge before acting. Use when the user asks to look up something in home readme, wants machine-wide context, asks where a global workflow is documented, or when a task likely depends on knowledge stored in ~/README.md or ~/readme/. (source: /Users/user/.agents/skills/read-home-readme/SKILL.md)\n- **devin-config-harness**: Devin CLI 配置使用完整说明书。涵盖 rules（AGENTS.md + .devin/rules/）、skills、hooks、 config.json、MCP servers 的全局/项目本地位置、格式、参数和选择策略。 WHEN to use: 配置 Devin CLI、添加 rules/skills/hooks/MCP、理解 Devin 扩展架构、 从 Codex/Claude Code 迁移配置、排查配置问题。 WHEN NOT to use: 一般编码任务、非 Devin 配置相关的工作。\n (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Users/user/.local/share/devin/cli/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-14T10:42:41.335598+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me analyze this problem carefully.\n\nWe have 100 packages labeled 1-100, arriving in random order. Alice observes 61 of them sequentially. She must select exactly one package to stamp \"Priority Alpha\" — the decision is made immediately upon seeing each package, before the next is revealed, and she can't change her mind.\n\nAfter all 61 packages are revealed, the \"Median Value\" M is the 31st largest serial number among the 61 packages shown. Alice's error is |M - A| where A is the serial number of the package she chose.\n\nShe wants to minimize the maximum possible error the worst-case arrival order can force. d(100, 30) is the smallest integer error she can guarantee.\n\nWait, let me re-read. The median is the 31st largest among 61 packages. 61 packages, 31st largest = 31st smallest (since 61 is odd, the median is the middle element). Actually, 31st largest among 61 = the (61-31+1) = 31st smallest. So it's the actual median.\n\nSo M is the median of the 61 observed serial numbers.\n\nAlice must pick one of the 61 packages (online, irrevocably) to minimize worst-case |M - A|.\n\nThe notation d(100, 30) — the 30 likely refers to... hmm. Let me think. 61 = 2*30 + 1. So we observe 2k+1 = 61 packages with k=30, from n=100 packages. The median is the (k+1)th = 31st largest. So d(n, k) where n=100, k=30.\n\nThis is a classic online median selection problem. Let me think about the structure.\n\nThe 61 packages are a random subset of the 100. Their median M is some value. Alice needs to pick one package online to be close to M.\n\nLet me think about what guarantees Alice can make.\n\nKey insight: The 61 packages are a uniformly random subset of size 61 from {1, ..., 100}. But Alice sees them in a random order and must pick online.\n\nActually, \"completely random order\" and \"worst-case random arrival order\" — the problem says Alice wants to minimize the maximum possible error the deck can force. So we're in an adversarial setting: the adversary chooses the order (and which 61 packages? or the 61 are random?).\n\nLet me re-read: \"100 uniquely serialized packages... arrive in a completely random order.\" \"Alice wants to follow a strategy that minimizes the maximum possible error the 'deck' (the worst-case random arrival order) can force upon her.\"\n\nSo the adversary controls the arrival order of all 100 packages, and Alice observes the first 61. The adversary picks the worst case order. Alice wants to guarantee |M - A| ≤ d.\n\nSo both the subset of 61 and their order are adversarial? Actually, \"the worst-case random arrival order\" — I think the adversary chooses the permutation of all 100 packages, and Alice sees the first 61 in that order. The adversary wants to maximize |M - A|, Alice wants to minimize the worst case.\n\nLet me think about this as a game. The adversary arranges 100 packages in some order. Alice sees packages 1 through 61 one at a time, must pick one (say at position t, 1 ≤ t ≤ 61) with value a_t. After seeing all 61, M = median of {a_1, ..., a_61}. Error = |M - a_t|.\n\nAlice wants to minimize max over adversary strategies of |M - a_t|.\n\nLet me think about what Alice can do. A natural strategy: wait and observe, then pick something near the middle of what she's seen.\n\nBut the issue is she must pick before seeing all 61. So she has to commit at some point.\n\nLet me think about the structure more carefully.\n\nActually, let me think about what values M can take and what Alice can guarantee.\n\nStrategy idea: Alice observes the first r packages, then picks the median of those r packages (or something close), hoping it's close to the overall median of 61.\n\nBut the adversary can arrange things so that the first r packages are all very small or very large, and then the remaining 61-r packages shift the median.\n\nLet me think about this differently. Let's think about what the adversary can do.\n\nThe adversary controls the full permutation. Let's say Alice uses some strategy. The adversary wants to make |M - A| large.\n\nLet me think about a specific strategy for Alice and compute the worst case.\n\nStrategy: Alice waits until she has seen some number of packages, then picks one that is \"central\" among what she's seen so far.\n\nActually, let me think about the problem more carefully. This is related to the \"online median\" or \"secretary\" type problems but with a different objective.\n\nLet me think about the key constraint. At the time Alice picks package at position t, she has seen a_1, ..., a_t. She picks one of these (say a_t or any a_i for i ≤ t — actually she picks \"exactly one package\" and must decide \"immediately upon seeing a package's number, before the next one is revealed\". \n\nRe-reading: \"At any point during this sequence, if she hasn't done so already, Alice must select exactly one package to receive a Priority Alpha stamp. She must make this decision immediately upon seeing a package's number, before the next one is revealed.\"\n\nSo when Alice sees package j, she must decide right then whether to stamp it or not. She can't go back and stamp a previous package. So if she stamps package j, A = a_j. She must stamp exactly one of the 61 packages.\n\nSo Alice's strategy: for each position j, based on a_1, ..., a_j, decide whether to stamp package j. She stamps exactly one.\n\nNow, the adversary controls the permutation of 100 packages. Alice sees the first 61.\n\nLet me think about what the adversary can force.\n\nConsider the values. The 61 packages have some set S of values. M = median(S). Alice picks some a_j ∈ S. Error = |M - a_j|.\n\nThe adversary wants to maximize this. The adversary controls both which 61 values appear in the first 61 positions and their order.\n\nWait, but the adversary controls the entire permutation of 100. The first 61 positions are the ones Alice sees. So the adversary chooses which 61 values are in positions 1-61 and in what order, and the remaining 39 are in positions 62-100.\n\nSo effectively, the adversary chooses any 61-element subset S of {1, ..., 100} and any ordering of S for the first 61 positions. Alice must pick one element of S online, and the error is |median(S) - picked element|.\n\nSo the question reduces to: Alice plays an online game where the adversary presents 61 distinct numbers from {1,...,100} one at a time. Alice must pick one online. The adversary then reveals that the target is the median of all 61. What's the minimax error?\n\nNow this is cleaner. The adversary picks S (61 elements from [100]) and an ordering. Alice picks one element online. Error = |median(S) - picked|.\n\nLet me think about lower and upper bounds.\n\nLower bound (adversary can force at least d):\nThe adversary wants to make Alice pick something far from the median.\n\nUpper bound (Alice can guarantee at most d):\nAlice has a strategy ensuring |M - A| ≤ d.\n\nLet me think about the adversary's power. The adversary can choose S and the order adaptively? Or non-adaptively? Since Alice's strategy is fixed, the adversary can choose the worst-case S and order. The adversary is omniscient and picks the worst case.\n\nLet me think about a simple strategy for Alice and see what error the adversary can force.\n\nStrategy 1: Alice picks the first package. Then A = a_1. The adversary can make median(S) anything. For instance, S could be {1, 2, ..., 61}, median = 31, a_1 = 1, error = 30. Or S = {40, ..., 100}, median = 70, a_1 = 40, error = 30. Actually the adversary can do worse: S = {1, 50, 51, ..., 110}... no, max is 100. S = {1, 40, 41, ..., 99} — that's 1 + 60 = 61 elements, median = 69 (the 31st largest = 31st smallest). Elements: 1, 40, 41, ..., 99. Sorted: 1, 40, 41, ..., 99. That's 61 elements. 31st smallest = 1 + 30 = 70? Let me count: positions 1-61. 31st smallest. Elements sorted: 1, 40, 41, 42, ..., 99. Position 1: 1. Positions 2-61: 40-99 (60 elements). 31st smallest = position 31 = 40 + (31-2) = 40 + 29 = 69. So median = 69, a_1 = 1, error = 68. Even worse.\n\nActually, the adversary can make the first element 1 and the rest be 40-100, giving median around 69, error 68. Or first element 100, rest 1-61, median 31, error 69. So picking the first package is terrible.\n\nStrategy 2: Alice waits to see more packages, then picks one near the middle of what she's seen.\n\nLet me think about this more carefully. The challenge is that the adversary controls the order, so the early packages might not be representative.\n\nLet me think about a threshold strategy. Alice observes packages. At some point, she picks a package whose value is close to what she thinks the median will be.\n\nKey insight: At the time Alice picks (say at position t), she has seen t values. The remaining 61 - t values are unknown (chosen by adversary). The median of all 61 depends on these unknown values.\n\nLet's say at position t, Alice has seen values v_1, ..., v_t. She needs to pick one of them. The final median M is the 31st smallest of all 61 values. The 61 - t unseen values can be anything (adversarially chosen from the remaining 100 - t values, but actually the adversary chose S upfront... but since Alice's strategy is deterministic, the adversary can plan).\n\nHmm, let me think about it as: the adversary commits to S and the ordering. But since we're looking at worst case, we can think of it as the adversary choosing adaptively (because the adversary knows Alice's strategy and can pick the worst S and order).\n\nActually, since Alice's strategy is a function from observed history to {stamp, don't stamp}, and the adversary picks the entire sequence upfront, the worst case is equivalent to the adversary playing adaptively against Alice's strategy (by backward induction / the adversary can simulate).\n\nLet me think about the problem in terms of: when Alice decides to stamp at position t with value v, what can the adversary have arranged?\n\nLet me think about the upper bound strategy. \n\nA natural idea: Alice should wait until she has seen enough packages to have a good estimate of the median, then pick the one closest to her estimate.\n\nBut the adversary can front-load extreme values. For example, the adversary could put all large values first, then small values. If Alice waits too long, she might be forced to pick from a biased sample.\n\nActually, Alice must pick one of the 61 packages. She can pick any one, but must decide at the moment she sees it. So she can't pick a package she saw earlier.\n\nLet me think about the trade-off. If Alice picks early, she has little information. If she picks late, she has more information but the adversary might have saved extreme values for the end.\n\nWait, actually, the adversary puts all 61 values in the first 61 positions. The adversary wants the median to be far from whatever Alice picks.\n\nLet me think about a specific strategy: Alice waits until position t = 31 (having seen 31 values), then picks the median of the first 31 values. What's the worst-case error?\n\nHmm, but she needs to pick at the moment she sees a value. So at position 31, she sees a_31, and based on a_1, ..., a_31, she decides whether to stamp a_31. She can't pick the median of the first 31 unless it happens to be a_31.\n\nThis is the crux: Alice can only stamp the current package. So she needs to decide, at each step, whether the current package is the one she wants.\n\nLet me reconsider. A strategy is: at each position j, based on a_1, ..., a_j, decide whether to stamp a_j. \n\nOne approach: Alice uses a threshold. She stamps the first package whose value falls in some range [L, R], where L and R are determined by the values seen so far. If no such package appears, she must stamp the last one (position 61).\n\nLet me think about what range [L, R] Alice should target.\n\nThe median of 61 values from [100]: the adversary can choose S to make the median anything from 31 to 70 (since S has 61 elements, the median is at least the 31st smallest of [100] which is 31, and at most the 31st largest which is 70). Wait: if S = {1, ..., 61}, median = 31. If S = {40, ..., 100}, median = 70. So M ∈ [31, 70] in the worst case. Actually, the adversary can make M anything in [31, 70].\n\nHmm wait, can the adversary make M = 31? S = {1, 2, ..., 61}, median = 31. Yes. M = 70? S = {40, 41, ..., 100}, median = 70. Yes. So M ∈ [31, 70].\n\nBut Alice doesn't know M in advance. She needs to pick a value close to M.\n\nThe range of possible M is [31, 70], which has width 39. If Alice could pick the midpoint (50 or 51), the worst case would be |70 - 50| = 20 or |31 - 51| = 20. But she can't just pick 50 or 51 — she has to pick one of the 61 packages, and she doesn't know M.\n\nBut actually, the adversary chooses S. If Alice's strategy would pick a value v, the adversary chooses S to make |M - v| large. But Alice's pick depends on the order, which the adversary also controls...\n\nThis is getting complex. Let me think about it more carefully.\n\nLet me think about what information Alice has when she picks. At position t, she knows a_1, ..., a_t. She picks a_t (or decides not to). The key question is: given a_1, ..., a_t, what can Alice infer about M?\n\nThe remaining 61 - t values are from [100] \\ {a_1, ..., a_t} (well, from [100] minus all values in positions 1-61, but Alice only knows the first t). Actually, the adversary chose S ⊆ [100] with |S| = 61, and Alice sees the first t elements of S in order. The remaining 61 - t elements of S are unknown to Alice but chosen by the adversary.\n\nSo from Alice's perspective at position t, the adversary will choose the remaining 61 - t values (from [100] \\ {a_1, ..., a_t}) to maximize the error, given that Alice picks a_t.\n\nWait, but the adversary committed to S upfront. However, for the worst-case analysis, since the adversary knows Alice's strategy, the adversary can choose S and the order to maximize the final error. This is equivalent to the adversary choosing adaptively (because the adversary can simulate Alice's responses).\n\nSo let's think of it as an adaptive adversary. At each step, the adversary reveals a value, Alice decides whether to stamp. If Alice stamps at position t with value v, the adversary then chooses the remaining 61 - t values (from [100] \\ {seen so far}) to make |M - v| as large as possible.\n\nGiven Alice stamps v at position t, having seen t values, the adversary chooses 61 - t more values. The median M is the 31st smallest of all 61 values. The adversary wants to maximize |M - v|.\n\nThe t values seen include v and t-1 others. The adversary adds 61 - t values. Total 61 values. M = 31st smallest.\n\nTo make M large (if v is small), the adversary adds large values. To make M small (if v is large), the adversary adds small values.\n\nLet me think about the case where Alice stamps v at position t. Among the t seen values, let's say there are p values ≤ v (including v itself) and t - p values > v... actually let me think in terms of the final median.\n\nThe adversary wants to push M away from v. Let's say v is small and the adversary wants M large. The adversary adds 61 - t large values. The 61 values consist of the t seen values and 61 - t new large values. M = 31st smallest.\n\nIf the adversary adds 61 - t values all larger than v, then the number of values ≤ v is at most t (the seen values, some might be > v). Let's say among the seen t values, s of them are ≤ v. Then total values ≤ v = s (since all new values are > v). For M > v, we need the 31st smallest > v, i.e., at most 30 values ≤ v. So if s ≤ 30, M > v.\n\nActually, the adversary wants M as large as possible. The 31st smallest is maximized when the adversary puts as many large values as possible. The largest possible M: the adversary adds the 61 - t largest available values. \n\nLet me think about it differently. Let me consider the seen values at position t: a_1, ..., a_t. Alice picks a_t = v. The adversary chooses 61 - t additional values from [100] \\ {a_1, ..., a_t}.\n\nTo maximize M (make it large), the adversary picks the 61 - t largest available values. Then M = 31st smallest of the combined set.\n\nTo minimize M (make it small), the adversary picks the 61 - t smallest available values.\n\nThe adversary will choose whichever makes |M - v| larger.\n\nSo given Alice picks v at position t with seen set {a_1, ..., a_t}:\n- M_max = 31st smallest when adversary adds largest available values\n- M_min = 31st smallest when adversary adds smallest available values\n- Adversary achieves max(|M_max - v|, |M_min - v|)\n\nAlice wants to minimize this. So Alice should pick v (among the seen values, but only the current one) to minimize max(|M_max - v|, |M_min - v|).\n\nBut Alice can only pick a_t (the current value). So at each step, Alice computes: if I pick a_t now, what's the worst-case error? She picks when this worst-case error is small enough, or is forced to pick at position 61.\n\nAt position 61, all values are seen, so M is determined. The error is |M - a_61|. The adversary can make a_61 far from M. At position 61, Alice has no choice but to stamp a_61 (she must stamp exactly one). So the adversary can force |M - a_61| to be large if Alice waits until the end.\n\nWait, actually at position 61, Alice must stamp a_61 (she hasn't stamped yet and must stamp exactly one). So the adversary can make a_61 the most extreme value, far from M.\n\nSo Alice can't wait until the end. She needs to pick earlier.\n\nLet me think about the optimal strategy. At each position t, Alice computes the worst-case error if she stamps a_t now. She stamps when this error is ≤ d (the target guarantee). If she never stamps, she's forced to stamp at 61, which could be bad.\n\nThe adversary, knowing Alice's strategy, will try to arrange the sequence so that Alice is forced into a bad pick.\n\nThis is a complex game. Let me think about it more carefully.\n\nLet me consider a cleaner formulation. Let me think about what happens at position t when Alice has seen values a_1, ..., a_t.\n\nDefine:\n- L_t = the number of seen values that are ≤ a_t (i.e., the rank of a_t among seen values, counting from smallest)\n- Actually, let me think about it in terms of the final median.\n\nWhen Alice picks a_t = v at position t, the adversary adds 61 - t values. The final set has 61 values. M = 31st smallest.\n\nCase 1: Adversary wants M as large as possible. Adversary adds the 61 - t largest available values (from [100] \\ {seen}). Let's denote the seen values. Among the 61 final values, the 31st smallest is determined by how many values are below it.\n\nLet me think about it in terms of ranks. Let r = rank of v among the t seen values (1 = smallest). So r values among the seen are ≤ v (including v), and t - r are > v.\n\nIf the adversary adds 61 - t values all > v (to push M up), then the number of values ≤ v in the final set is r. The 31st smallest is > v if r < 31, i.e., r ≤ 30. In that case, M > v.\n\nMore precisely, if the adversary adds the 61 - t largest available values (all > v), the final 61 values have r values ≤ v and 61 - r values > v. The 31st smallest is the (31 - r)th value among those > v. To maximize this, the adversary picks the largest available values, so the values > v are as large as possible.\n\nHmm, this is getting complicated. Let me think about it in terms of the actual values.\n\nLet me think about the extreme case. The adversary adds the 61 - t largest values from [100] \\ {seen}. Call these w_1 < w_2 < ... < w_{61-t}. These are all > v (assuming v is not among the very largest).\n\nThe final set: r values ≤ v (from seen), and 61 - r values > v (t - r from seen + 61 - t from adversary). The 31st smallest: if r ≥ 31, then M ≤ v (M is among the values ≤ v). If r < 31, M is the (31 - r)th smallest among the values > v.\n\nTo maximize M, the adversary wants the (31 - r)th smallest among values > v to be as large as possible. The values > v in the final set are: (t - r) seen values > v, and (61 - t) adversary values. The adversary's values are the largest available, so they're at the top. The (31 - r)th smallest among all values > v: the smallest values > v are the seen ones (if any), then the adversary's values.\n\nThis is getting quite involved. Let me try to think about the problem from a higher level.\n\nLet me consider the problem as a minimax game and try to find the value.\n\nAlternative approach: Think about what Alice can guarantee with a specific strategy, and what the adversary can force.\n\nLet me consider the following strategy for Alice: \n- Alice maintains a \"target interval\" [l, u] that she believes contains the median.\n- She stamps the first package whose value falls in [l, u].\n- If no package falls in [l, u] by position 61, she's forced to stamp the last one.\n\nBut the adversary can avoid [l, u] for the first 60 packages and then force a bad pick at 61.\n\nHmm, let me think about this differently. Let me think about the problem in terms of the \"gap\" Alice can guarantee.\n\nLet me consider a cleaner approach. Let me think about the rank-based analysis.\n\nAt position t, Alice has seen t values. Let's think about the rank of a_t among all 100 values. Actually, let me think about the rank of a_t among the 61 values in S.\n\nWhen Alice picks a_t at position t, the adversary has 61 - t more values to reveal. The adversary can choose these to make a_t's rank in the final 61-element set anything from (rank of a_t among seen, if adversary adds all larger) to (rank of a_t among seen + (61 - t), if adversary adds all smaller).\n\nWait, let me be more precise. Let r = number of seen values < a_t (so a_t is the (r+1)th smallest among seen). \n\nIf the adversary adds 61 - t values all smaller than a_t, then a_t's rank in the final set is r + 1 + (61 - t) = r + 62 - t. For this to be the median (rank 31), we need r + 62 - t = 31, i.e., r = t - 31.\n\nIf the adversary adds 61 - t values all larger than a_t, then a_t's rank is r + 1. For this to be 31, we need r = 30.\n\nSo the adversary can make a_t's rank anywhere from r + 1 (adding all larger) to r + 1 + (61 - t) = r + 62 - t (adding all smaller), depending on how many smaller/larger values are added.\n\nWait, that's not quite right either, because the adversary is constrained by available values. But in the worst case, the adversary has enough values on both sides.\n\nSo a_t's final rank can be anything from r + 1 to r + 62 - t. The median is rank 31. So:\n- If 31 ∈ [r + 1, r + 62 - t], the adversary can make a_t the median (error 0) — but the adversary wants to maximize error, so they won't.\n- The adversary wants |rank(a_t) - 31| to be large, which translates to |M - a_t| being large.\n\nActually, the rank and the value error are related but not identical. Let me think about the value error directly.\n\nLet me think about it in terms of values. When Alice picks a_t = v at position t:\n- The adversary can push M up by adding large values. The maximum M is achieved by adding the 61 - t largest available values.\n- The adversary can push M down by adding small values. The minimum M is achieved by adding the 61 - t smallest available values.\n\nThe adversary chooses the option giving larger |M - v|.\n\nFor Alice to guarantee error ≤ d, she needs: at the time she picks v, both M_max - v ≤ d and v - M_min ≤ d (i.e., v is within d of both extremes).\n\nActually, she needs max(M_max - v, v - M_min) ≤ d, i.e., M_max - v ≤ d and v - M_min ≤ d.\n\nSo Alice needs M_max - v ≤ d and v - M_min ≤ d, i.e., v ≥ M_max - d and v ≤ M_min + d. This requires M_max - d ≤ M_min + d, i.e., M_max - M_min ≤ 2d.\n\nSo the key quantity is M_max - M_min at the time of picking. If Alice picks at position t, the \"uncertainty range\" [M_min, M_max] has width M_max - M_min, and Alice needs this width ≤ 2d, and she needs to pick v in [M_max - d, M_min + d] (which is non-empty iff M_max - M_min ≤ 2d).\n\nBut Alice can only pick a_t (the current value). So she needs a_t ∈ [M_max - d, M_min + d] at the time she picks.\n\nLet me compute M_max and M_min at position t.\n\nAt position t, Alice has seen values a_1, ..., a_t. Let the seen values sorted be s_1 < s_2 < ... < s_t. \n\nM_max: adversary adds the 61 - t largest values from [100] \\ {seen}. The final 61 values: s_1, ..., s_t, plus the 61 - t largest available. The 31st smallest of these.\n\nThe 61 - t largest available values from [100] \\ {seen}: these are the top 61 - t values not in the seen set. \n\nThe 31st smallest of the combined set: we need to find the 31st smallest among 61 values. The smallest values are s_1, ..., s_t (the seen ones, assuming the adversary's values are all large). If t ≥ 31, the 31st smallest is s_31 (the 31st smallest seen value). If t < 31, the 31st smallest is among the adversary's values — specifically, the (31 - t)th smallest adversary value.\n\nWait, this assumes all adversary values are larger than all seen values, which isn't necessarily true. Let me be more careful.\n\nM_max: the adversary adds the 61 - t largest available values. These values might not all be larger than the seen values. Let me think about this differently.\n\nActually, the adversary adds the 61 - t largest values from [100] \\ {a_1, ..., a_t}. Let's call this set A. |A| = 61 - t. The final set is {a_1, ..., a_t} ∪ A, with |final| = 61.\n\nM_max = 31st smallest of ({a_1,...,a_t} ∪ A).\n\nSince A consists of the largest available values, A contains the values from 100 downward, skipping the seen values. \n\nThe 31st smallest of the final set: we need to count how many values are ≤ x for each x.\n\nLet me think about it differently. The final set has 61 values. The 31st smallest is the median. To maximize the median, the adversary wants as many small values excluded as possible. But the seen values are fixed. The adversary can only choose the 61 - t unseen values.\n\nThe 61 - t largest available values: these are 100, 99, 98, ... skipping seen values, until we have 61 - t values.\n\nSo the final set = seen values ∪ {largest 61-t available values}. The values NOT in the final set are the 39 smallest available values (from [100] \\ seen, the 39 smallest). Wait, [100] has 100 values, seen has t, available has 100 - t. Adversary takes 61 - t largest available, leaving (100 - t) - (61 - t) = 39 available values, which are the 39 smallest available.\n\nSo the final set = [100] \\ {39 smallest available values}. The 39 smallest available values are the 39 smallest values in [100] \\ {seen}.\n\nM_max = 31st smallest of final set = 31st smallest of ([100] \\ {39 smallest available}).\n\nHmm, let me think about this more carefully with a specific example.\n\nLet me think about the problem from a different angle. Let me consider the complement: the 39 values NOT in S (the 61-element set). The adversary chooses S (61 values) and the order. M = median(S) = 31st smallest of S.\n\nThe 39 values not in S: call this set T. S = [100] \\ T.\n\nM = 31st smallest of S. Since S = [100] \\ T, the 31st smallest of S is the value x such that exactly 30 values in S are < x. The number of values in [100] < x is x - 1. The number of values in T < x is some number q. So the number of values in S < x is (x - 1) - q. We need (x - 1) - q = 30, so x = 31 + q.\n\nSo M = 31 + q where q = |{t ∈ T : t < M}| = |{t ∈ T : t < 31 + q}|. This is a bit circular but the idea is that M depends on how many of the 39 excluded values are below M.\n\nIf T = {1, ..., 39} (exclude the 39 smallest), then S = {40, ..., 100}, M = 70 = 31 + 39. ✓\nIf T = {62, ..., 100} (exclude the 39 largest), then S = {1, ..., 61}, M = 31 = 31 + 0. ✓\n\nSo M = 31 + q where q is the number of excluded values below M. Since 0 ≤ q ≤ 39, M ∈ [31, 70]. ✓\n\nNow, the online game: Alice sees elements of S one at a time and must pick one. She wants to pick close to M.\n\nLet me think about the problem in terms of what Alice knows. At position t, she has seen t elements of S. She knows these t values. She doesn't know the remaining 61 - t elements of S or the 39 elements of T.\n\nFrom Alice's perspective, the remaining 61 - t elements of S are chosen by the adversary from [100] \\ {seen}. The adversary also chose T, but T is determined by S (T = [100] \\ S).\n\nOK here's another approach. Let me think about the problem as follows.\n\nWhen Alice picks value v at position t (having seen t values), the adversary chooses the remaining 61 - t values of S. The adversary wants to maximize |M - v|.\n\nM = 31st smallest of S = 31 + q where q = number of elements of T = [100] \\ S that are < M.\n\nAlternatively, M = 31st smallest of S. The adversary chooses 61 - t more elements of S from [100] \\ {seen t values}.\n\nLet me think about M_max and M_min directly.\n\nM_max: adversary maximizes M. To maximize the 31st smallest of S, the adversary wants S to contain as many large values as possible. The adversary adds the 61 - t largest available values. So S = {seen t values} ∪ {61 - t largest available}. \n\nThe 31st smallest of this S: Let's think about which values are NOT in S. The values not in S are the 39 smallest values from [100] \\ {seen t values}. \n\nLet me denote the seen values as a_1, ..., a_t. The available values are [100] \\ {a_1, ..., a_t}, which has 100 - t values. The 39 smallest available values are excluded from S. The 61 - t largest available are in S.\n\nSo the values not in S (set T) = 39 smallest values from [100] \\ {a_1, ..., a_t}.\n\nM_max = 31st smallest of S = 31 + |{t ∈ T : t < M_max}|.\n\nHmm, let me think about it more directly. M_max = 31st smallest of S where S = {a_1,...,a_t} ∪ {largest 61-t available}.\n\nThe 31st smallest of S: I need to find the 31st smallest value in S. \n\nLet me think about it as: the values in [100] are 1, 2, ..., 100. S contains the seen values and the 61-t largest available. The complement T contains the 39 smallest available values.\n\nThe 31st smallest of S: consider values from 1 upward. For each value x, check if x ∈ S. Count how many S-elements are ≤ x. The 31st smallest is the x where this count reaches 31.\n\nA value x is in T (not in S) if x is available (not seen) and x is among the 39 smallest available. A value x is in S if x is seen, or x is available and among the 61-t largest available.\n\nThis is getting complicated in general. Let me try to think about specific strategies and compute.\n\nLet me try a different approach. Let me think about the problem as a combinatorial game and try to find the answer by considering small cases or known results.\n\nThis problem looks like it's related to the \"online median approximation\" problem. Let me think about what the answer might be.\n\nLet me consider the strategy where Alice picks the first value that is \"central enough.\" \n\nActually, let me think about a cleaner strategy. Consider the following:\n\nAlice's strategy: She waits until position t* (for some chosen t*), then picks the value at position t* that is closest to the median of the first t* values. But she can only pick a_{t*}, so this doesn't work directly.\n\nLet me reconsider. Alice can only pick the current value. So her strategy is essentially: at each step, decide whether the current value is \"good enough\" to pick.\n\nLet me think about a threshold strategy. Alice computes, based on seen values, an interval [L, R] such that if she picks a value in [L, R], the error is ≤ d. She picks the first value in [L, R].\n\nThe adversary tries to avoid presenting values in [L, R] until Alice is forced to pick a bad value.\n\nBut [L, R] depends on the seen values, so it's adaptive.\n\nLet me think about the simplest version. Suppose Alice's strategy is: pick the first value v such that, given the seen values so far, both M_max(v) - v ≤ d and v - M_min(v) ≤ d. If no such value appears, she's forced to pick at position 61.\n\nThe adversary will try to arrange the sequence so that no value satisfies this condition until it's too late, or so that Alice is forced into a bad position.\n\nThis is quite complex. Let me try to think about the problem from the perspective of known results or try to compute for specific parameters.\n\nLet me try to think about what d(100, 30) could be.\n\nLet me consider the following approach. Think about the \"rank\" of the picked value among the 61 values.\n\nIf Alice picks a value with rank r among the 61 values (1 = smallest), the error is |M - v| where M is the value with rank 31. The error in terms of values depends on the gaps, but the adversary can make gaps large.\n\nActually, the adversary controls S, so the adversary can make the gaps between consecutive values in S as large as desired (up to the constraint that values are in [100]).\n\nSo if Alice picks a value with rank r ≠ 31, the adversary can make the error large by spacing out the values. The error is at least |r - 31| in terms of rank, but in terms of values, the adversary can make it up to... well, the values are in [100], so the maximum error is bounded by 100.\n\nBut the key constraint is: the 61 values are in [100], and the median is the 31st smallest. If Alice picks rank r, the error |M - v| is at least... the adversary can space values so that the gap between rank r and rank 31 is large.\n\nIf r < 31 (Alice picks a value below the median), the adversary can make M - v large. The 31st smallest minus the r-th smallest. With 61 values in [100], the adversary can space them out. The maximum gap between rank r and rank 31: we need 31 - r - 1 values between them, and they're in [100]. The r-th smallest is at least r, and the 31st smallest is at most 100 - (61 - 31) = 100 - 30 = 70. So M - v ≤ 70 - r. But also, the r-th smallest ≥ r and 31st smallest ≥ 31. Hmm.\n\nActually, let me think about the rank-based error more carefully. If Alice picks the value with rank r (among 61), and M has rank 31, then:\n- If r ≤ 31: M - v ≥ ? The adversary wants M - v large. M is the 31st smallest, v is the r-th smallest. There are 31 - r values strictly between them (ranks r+1, ..., 30) plus M itself. The adversary can make v = r (smallest possible for rank r) and M = 31 + (39) = 70 (largest possible for rank 31, when 39 values below M are excluded). Wait, that's not right because v and M are both in S.\n\nLet me think about it differently. The adversary chooses S ⊆ [100], |S| = 61. v is the r-th smallest of S, M is the 31st smallest. The adversary wants to maximize M - v (if r < 31) or v - M (if r > 31).\n\nFor r < 31: maximize M - v. M = 31st smallest, v = r-th smallest. \n- v can be as small as r (if S = {1, 2, ..., 61}, v = r, M = 31, M - v = 31 - r).\n- But the adversary can do better. Make v small and M large. v = r-th smallest. To make v small, put r, r-1, ..., 1 in S as the r smallest. To make M large, put large values above M. \n\nS has 61 values. The r smallest are 1, ..., r (so v = r). The 31st smallest (M) should be large. Above v (rank r), there are 61 - r values in S. M is the (31 - r)th value above v. To make M large, the adversary wants the (31 - r)th value above v to be large. The values above v in S are 61 - r values from {r+1, ..., 100}. To maximize the (31-r)th smallest of these, the adversary should make the first 31 - r - 1 values above v as small as possible (just above v) and then... no wait, the adversary wants the (31-r)th smallest to be large, so the adversary should make the (31-r)th smallest as large as possible.\n\nThe 61 - r values above v are chosen from {r+1, ..., 100} (which has 100 - r values). The adversary chooses 61 - r of them. The (31 - r)th smallest of these 61 - r values: to maximize it, the adversary should choose the 61 - r largest values from {r+1, ..., 100}, i.e., {100 - 60 + r, ..., 100} = {r + 40, ..., 100}. Then the (31-r)th smallest of {r+40, ..., 100} is (r + 40) + (31 - r - 1) = 70. So M = 70.\n\nWait let me recompute. The 61 - r values above v, chosen as the largest from {r+1, ..., 100}: these are {100 - (61 - r) + 1, ..., 100} = {r + 40, ..., 100}. The (31 - r)th smallest of these is (r + 40) + (31 - r - 1) = r + 40 + 30 - r = 70. So M = 70 regardless of r (as long as r ≤ 30, so that 31 - r ≥ 1 and 61 - r ≥ 31 - r).\n\nAnd v = r. So M - v = 70 - r. For r = 1, M - v = 69. For r = 30, M - v = 40.\n\nSimilarly, for r > 31: v - M. By symmetry, v - M = v - 31 (when adversary minimizes M to 31 and maximizes v). v is the r-th smallest, maximized: S = {1, ..., r-30-1} ∪ {r-30, ..., 100}... let me think. By symmetry (reflecting values: x → 101 - x), the maximum v - M for rank r is (100 - 30) - (101 - r) = 70 - (101 - r) = r - 31. Wait, let me redo.\n\nBy symmetry, if Alice picks rank r > 31, the adversary can make v - M = (101 - r') - 31 where r' = 62 - r (the reflected rank). Hmm, let me just compute directly.\n\nFor r > 31: maximize v - M. M = 31st smallest, v = r-th smallest. M should be small, v should be large.\n- M = 31 (adversary makes S = {1, ..., 61}, M = 31, v = r, v - M = r - 31).\n- But can the adversary do better? Make M = 31 and v larger. S has 61 values. M = 31st smallest = 31 means 30 values in S are < 31, so {1, ..., 30} ⊆ S and 31 ∈ S. v = r-th smallest, r > 31. To maximize v, the adversary puts the r - 31 values between M and v as large as possible, and v as large as possible.\n\nThe values in S above M (rank > 31): there are 61 - 31 = 30 values. v is the (r - 31)th among these 30 values. To maximize v, the adversary chooses these 30 values as the largest from {32, ..., 100} = {32, ..., 100} (69 values). The 30 largest: {71, ..., 100}. v = (r - 31)th smallest of {71, ..., 100} = 71 + (r - 31 - 1) = r + 39. So v - M = r + 39 - 31 = r + 8. For r = 32, v - M = 40. For r = 61, v - M = 69.\n\nWait, that doesn't seem right. Let me recheck. For r = 61 (Alice picks the largest), v = 100, M = 31, v - M = 69. And 61 + 8 = 69. ✓. For r = 32, v = 71, M = 31, v - M = 40. And 32 + 8 = 40. ✓.\n\nSo for rank r:\n- r ≤ 30: max error = 70 - r (M - v)\n- r = 31: max error = 0 (v = M)\n- r ≥ 32: max error = r + 8 (v - M)\n\nWait, let me double-check r ≤ 30. For r = 30: max error = 70 - 30 = 40. For r = 1: 70 - 1 = 69.\n\nAnd for r = 32: max error = 32 + 8 = 40. For r = 61: 61 + 8 = 69.\n\nBy symmetry (r ↔ 62 - r): 70 - r for r ≤ 30, and (62 - r) + 8 = 70 - r for r ≥ 32. Wait: for r ≥ 32, error = r + 8. Reflected: r' = 62 - r ≤ 30, error = 70 - r' = 70 - (62 - r) = r + 8. ✓. So it's symmetric.\n\nSo the maximum error if Alice picks rank r is:\n- r ≤ 31: 70 - r\n- r ≥ 31: r + 8\n\nAt r = 31: both give 70 - 31 = 39 and 31 + 8 = 39. So max error at r = 31 is 39.\n\nWait, that means even if Alice picks the median (rank 31), the adversary can force error 39? That can't be right. If Alice picks the median, then v = M, so error = 0.\n\nI think the issue is: Alice doesn't know the rank of the value she picks. The rank is determined by the full set S, which Alice doesn't know when she picks.\n\nLet me reconsider. The error depends on the rank of the picked value in the final set S. But Alice doesn't know S when she picks. The adversary chooses S (and the order) to maximize the error.\n\nSo the question is: what rank can Alice guarantee for her pick? If Alice can guarantee that her pick has rank close to 31, the error is small. But the adversary controls the order, so Alice might be forced to pick a value with rank far from 31.\n\nThe key question is: what is the best rank Alice can guarantee for her online pick?\n\nIf Alice could guarantee rank exactly 31, the error would be 0. But online, she can't know which value will be the median of the full set.\n\nLet me reframe: Alice picks a value v online. The adversary then determines v's rank in S (by choosing the remaining values). The adversary wants |rank(v) - 31| to be large (to maximize the value error).\n\nBut wait, the adversary chooses S upfront (or equivalently, adaptively). When Alice picks v at position t having seen t values, the adversary chooses the remaining 61 - t values. The rank of v in the final S depends on how many of the remaining values are below v.\n\nLet r_seen = number of seen values < v (so v is the (r_seen + 1)th smallest among seen). The adversary adds 61 - t values. If the adversary adds k values below v and (61 - t - k) above v, then v's rank in S is r_seen + 1 + k. The adversary can choose k from 0 to min(61 - t, available values below v).\n\nTo maximize |rank - 31|:\n- To make rank large: k = min(61 - t, # available below v). rank = r_seen + 1 + k.\n- To make rank small: k = 0. rank = r_seen + 1.\n\nBut the adversary is constrained by available values. The number of values below v in [100] is v - 1. The number of seen values below v is r_seen. So available values below v = (v - 1) - r_seen. The adversary can add at most min(61 - t, (v - 1) - r_seen) values below v.\n\nSimilarly, available values above v = 100 - v - (t - 1 - r_seen) = 100 - v - t + 1 + r_seen. The adversary can add at most min(61 - t, 100 - v - t + 1 + r_seen) values above v.\n\nFor the adversary to be able to choose freely, we need enough available values on both sides.\n\nThis is getting very complex. Let me try to think about the problem from the perspective of the answer.\n\nThe problem asks for d(100, 30), the minimax error. Let me think about what strategies Alice has and what the adversary can do.\n\nLet me consider a cleaner formulation. I'll think about the \"rank game\" first, then convert to values.\n\nRank game: Alice sees t values one at a time. She must pick one. The adversary then fills in the remaining 61 - t values. Alice's pick has some rank r in the final 61. The adversary wants |r - 31| large. Alice wants |r - 31| small.\n\nBut the adversary also chooses the first t values and their order. So the adversary controls everything except Alice's stopping rule.\n\nHmm, but Alice's stopping rule is based on the values she sees, not just their ranks among seen values. The actual values matter because they constrain what the adversary can add.\n\nLet me think about a specific simple strategy and compute the worst case.\n\nStrategy: Alice picks the 31st value she sees (i.e., she always stamps position 31).\n\nAt position 31, Alice has seen 31 values. She stamps a_31. The adversary has arranged the first 31 values and will arrange the remaining 30 values.\n\nThe adversary wants to maximize |M - a_31| where M is the 31st smallest of all 61 values.\n\nThe adversary chooses S and the order. a_31 is the 31st value in the order. The adversary can make a_31 any value in S.\n\nThe adversary wants a_31 to be far from M. The adversary can set a_31 to be the smallest or largest value in S. Then rank of a_31 is 1 or 61, and the error is up to 70 - 1 = 69 or 61 + 8 = 69.\n\nSo picking position 31 is terrible (error up to 69).\n\nStrategy: Alice picks the first value that is the median of the values seen so far. I.e., at position t (odd), if a_t is the median of a_1, ..., a_t, she picks it.\n\nBut the adversary can arrange so that no value is the median of the seen values until late, or the median of seen values is far from the final median.\n\nThis is really complex. Let me try to think about the problem differently.\n\nLet me think about the problem as a minimax over strategies and try to find the value by considering the structure.\n\nKey insight: The adversary controls the order. Alice must pick one value online. The adversary can always make the first several values extreme (all small or all large) to bias Alice's perception.\n\nLet me think about the following adversarial strategy: the adversary presents 30 small values first, then 1 medium value, then 30 large values. If Alice picks one of the small values, M is around the medium value, error is large. If Alice picks the medium value, the adversary can adjust. If Alice waits, she sees the large values and must pick one of those, which is also far from M.\n\nBut Alice can choose when to pick. Let me think about this more carefully.\n\nAdversary's strategy: Present values in the order: 30 small values, then 31 \"median\" values, then 30 large values (but the order within each group is adversarial). Wait, but the adversary chooses S, so the adversary can choose S = {1, ..., 30} ∪ {31, ..., 61} ∪ {62, ..., 100}... no, S has 61 values. Let me think about S = {1, ..., 30, 35, 36, ..., 65} (30 small + 31 medium). M = 31st smallest = 35. If Alice picks one of the first 30 (small) values, error ≥ 5. If she picks 35, error = 0. But the adversary controls the order, so the adversary can present the 30 small values first, and Alice doesn't know if the next value will be 35 or something else.\n\nHmm, but Alice can just wait. If the adversary presents 30 small values first, Alice can wait. Then the 31st value is 35 (the median of S). Alice can pick it. But the adversary doesn't have to present 35 at position 31. The adversary can present the 31 medium values in any order, and Alice doesn't know which is the median of S.\n\nWait, S = {1, ..., 30, 35, 36, ..., 65}. The median of S is 35 (31st smallest). The adversary presents 30 small values (1-30) first, then the 31 values {35, 36, ..., 65} in some order. Alice needs to pick 35, but she doesn't know it's 35 (she sees values 35-65 in some order and needs to pick 35). But 35 is the smallest of the medium group, so if Alice picks the first medium value she sees that is > 30, she might get 35 or might get 65.\n\nActually, Alice sees the actual values. She sees 1, 2, ..., 30 first (in some order), then sees values from {35, ..., 65}. She knows the values. She can pick 35 when she sees it. But the adversary can present 35 last among the medium group (at position 61). Then Alice must either pick one of the first 30 (small, error ≥ 5) or one of the medium values 36-65 (error = value - 35, up to 30) or wait until position 61 to pick 35 (error 0).\n\nBut Alice must pick exactly one. If she waits until position 61 and the adversary puts 35 at position 61, she picks 35, error 0. But the adversary won't put 35 at position 61 — the adversary will put some other value there.\n\nWait, the adversary presents 30 small values, then 31 medium values in some order. If Alice waits until the last medium value (position 61), she must pick it. The adversary puts the worst value at position 61. If the adversary puts 65 at position 61, Alice picks 65, error = 30.\n\nBut Alice can pick earlier. She can pick 35 when she sees it. The adversary presents the medium values {35, ..., 65} in some order. Alice can pick 35 as soon as she sees it. But the adversary can put 35 at any position from 31 to 61. If the adversary puts 35 at position 61, Alice must wait until 61 to pick 35 (error 0), but she must pick exactly one, so if she waits until 61, she must pick a_61. If a_61 = 35, error 0. But the adversary controls the order, so the adversary can put 35 at position 31 and 65 at position 61. Then Alice sees 35 at position 31 and can pick it (error 0). \n\nHmm, so in this specific S, Alice can always pick 35 (the median) because she sees the actual values and 35 is identifiable as the smallest value > 30. But Alice doesn't know S in advance. She sees 1-30 first, then sees medium values. She doesn't know how many medium values there are or what the full S is.\n\nLet me reconsider. The adversary chooses S and the order. Alice sees values one at a time and must pick one. Alice doesn't know S or M in advance.\n\nLet me think about a more adversarial S. The adversary wants to make it hard for Alice to identify the median.\n\nAdversary's strategy: Choose S and order so that Alice can't determine the median until it's too late.\n\nFor example: S = {1, 2, ..., 61}, M = 31. Adversary presents values in order: 1, 2, ..., 30, 61, 60, ..., 31. So positions 1-30 are 1-30, position 31 is 61, position 32 is 60, ..., position 61 is 31.\n\nAlice sees 1, 2, ..., 30 first. She doesn't know if these are the smallest values in S or not. She sees 1, 2, ..., 30 and might think the median is around 15-16 (median of first 30). But the actual median is 31.\n\nAt position 31, Alice sees 61. She now knows more. She's seen 1-30 and 61. She might infer that S contains {1, ..., 30, 61, ...} but doesn't know the rest.\n\nIf Alice picks at position 31 (value 61), error = |31 - 61| = 30.\nIf Alice waits, she sees 60, 59, ..., 31. At position 61, she sees 31 and must pick it, error 0. But the adversary could put a different value at position 61.\n\nWait, in this ordering, position 61 is 31 (the median). So if Alice waits until 61, she picks 31, error 0. The adversary wouldn't do this. The adversary would put 31 earlier and something else at position 61.\n\nLet me reconsider the adversary's order: 1, 2, ..., 30, 31, 61, 60, ..., 32. So position 31 is 31 (the median), position 32 is 61, ..., position 61 is 32.\n\nAlice sees 1-30, then 31 at position 31. If she picks 31, error 0. But she doesn't know 31 is the median. She's seen 1-31, median of seen is 16. She doesn't know if more small or large values are coming.\n\nIf Alice picks 31 at position 31, and the adversary's S is {1, ..., 61}, M = 31, error 0. But the adversary could have chosen a different S. The adversary is adaptive: given Alice's strategy, the adversary picks the worst S and order.\n\nSo the adversary will choose S and order based on Alice's strategy. If Alice's strategy is \"pick 31 at position 31 if seen values are 1-30 then 31\", the adversary will choose a different S where 31 is not the median.\n\nThis is the key difficulty: the adversary adapts to Alice's strategy.\n\nLet me think about this more carefully as a game tree.\n\nLet me think about the problem from the perspective of: what can Alice guarantee regardless of S and order?\n\nAt position t, Alice has seen values a_1, ..., a_t. Based on these, she decides whether to pick a_t. If she picks a_t = v, the adversary chooses the remaining 61 - t values to maximize |M - v|.\n\nThe worst-case error if Alice picks v at position t (having seen a_1, ..., a_t) is:\nE(v, t, seen) = max over adversary's choices of |M - v|\n\nAs computed earlier, the adversary can push M up or down. Let me compute E(v, t, seen) more carefully.\n\nLet me define:\n- seen = {a_1, ..., a_t}, with a_t = v.\n- Let below_seen = |{a_i : a_i < v}| = number of seen values below v.\n- Let above_seen = |{a_i : a_i > v}| = number of seen values above v.\n- Available below v: (v - 1) - below_seen values in [100] \\ seen that are < v.\n- Available above v: (100 - v) - above_seen values in [100] \\ seen that are > v.\n\nThe adversary adds 61 - t values. To push M up (make M large), the adversary adds as many large values as possible. To push M down, adds as many small values as possible.\n\nM_max: adversary adds the 61 - t largest available values. These are the top 61 - t values from [100] \\ seen. \n\nM_min: adversary adds the 61 - t smallest available values.\n\nLet me compute M_max. The adversary adds the 61 - t largest available values. The final S = seen ∪ {61-t largest available}. M_max = 31st smallest of S.\n\nThe 61 - t largest available values: starting from 100 downward, skip seen values, take 61 - t values.\n\nThe complement T = [100] \\ S = 39 smallest available values. These are the 39 smallest values in [100] \\ seen.\n\nM_max = 31st smallest of S. Since S = [100] \\ T, and T has 39 values, M_max is the value x such that |{s ∈ S : s ≤ x}| = 31, i.e., |{y ∈ [100] : y ≤ x}| - |{y ∈ T : y ≤ x}| = 31, i.e., x - |{y ∈ T : y ≤ x}| = 31.\n\nT = 39 smallest available = 39 smallest values in [100] \\ seen.\n\nLet me think about this. The 39 smallest values in [100] \\ seen: these are the 39 smallest values not among the seen values. \n\nLet me sort the seen values: s_1 < s_2 < ... < s_t. The available values are [100] \\ {s_1, ..., s_t}. The 39 smallest available values: we go through 1, 2, ..., 100 and pick the first 39 that are not in seen.\n\nM_max = 31 + |{y ∈ T : y < M_max}| (where T = 39 smallest available). Since M_max = 31st smallest of S and S = [100] \\ T, M_max = 31 + |{y ∈ T : y < M_max}|.\n\nThis is a bit circular. Let me think about it differently.\n\nThe number of values in [100] that are ≤ M_max is M_max. The number of values in T that are ≤ M_max is some number q. Then the number of values in S ≤ M_max is M_max - q = 31. So M_max = 31 + q.\n\nT = 39 smallest available values. q = |{y ∈ T : y ≤ M_max}|. Since T consists of the 39 smallest available values, q is the number of available values ≤ M_max, capped at 39.\n\nThe number of available values ≤ M_max = (M_max) - |{seen values ≤ M_max}|. Let's call |{seen values ≤ M_max}| = p. Then available ≤ M_max = M_max - p. And q = min(M_max - p, 39).\n\nSo M_max = 31 + min(M_max - p, 39).\n\nIf M_max - p ≤ 39: M_max = 31 + M_max - p → p = 31. So M_max is the 31st smallest seen value (if there are enough available values below M_max, i.e., M_max - 31 ≤ 39, i.e., M_max ≤ 70).\n\nIf M_max - p > 39: M_max = 31 + 39 = 70. This happens when M_max - p > 39, i.e., there are more than 39 available values below M_max, meaning p < M_max - 39. Since p = |{seen ≤ M_max}| ≤ t, this happens when t < M_max - 39, i.e., M_max > t + 39. But M_max ≤ 70, so this happens when t + 39 < 70, i.e., t < 31.\n\nSo:\n- If t ≥ 31: M_max = 31st smallest seen value (s_31), provided s_31 ≤ 70 (which it is, since s_31 ≤ 100 - (t - 31) ≤ 100, and actually s_31 could be up to 100 - (t - 31) but let me not worry about edge cases). Actually, we need M_max - p ≤ 39 where p = 31, so M_max ≤ 70. If s_31 ≤ 70, then M_max = s_31. If s_31 > 70, then... let me check. If s_31 > 70, then p = 31 (31 seen values ≤ s_31), and M_max - p = s_31 - 31 > 39, so we're in the second case: M_max = 70. But wait, if s_31 > 70, that means the 31st smallest seen value is > 70. Then the 31st smallest of S (where S includes large adversary values) would be... hmm, actually if the 31st smallest seen value is already > 70, adding more large values doesn't help push M up. Let me reconsider.\n\nActually, I think I need to be more careful. Let me reconsider.\n\nIf t ≥ 31 and the adversary adds the 61 - t largest available values:\n- If s_31 ≤ 70: M_max = s_31 (the 31st smallest seen value). Because there are at most 39 available values below s_31 (since s_31 - 31 ≤ 39 when s_31 ≤ 70), and the adversary's values are all ≥ s_31 (they're the largest available, so they're ≥ the 40th smallest available, which is > s_31 if there are enough available below s_31... hmm, not necessarily).\n\nI'm overcomplicating this. Let me just think about it more carefully.\n\nWhen t ≥ 31 and the adversary adds the 61 - t largest available values:\nThe final S = {seen values} ∪ {61-t largest available values}.\nThe 31st smallest of S: the seen values contribute s_1, ..., s_t. The adversary's values are the 61-t largest available, so they're all ≥ some threshold. \n\nIf all adversary values are > s_31, then the 31st smallest of S is s_31 (since there are at least 31 seen values ≤ s_31, and all adversary values are > s_31). \n\nAre all adversary values > s_31? The adversary's values are the 61-t largest available. An available value is > s_31 if it's not among the seen values and > s_31. The available values ≤ s_31 are the values in {1, ..., s_31} \\ {seen values ≤ s_31}. There are s_31 - 31 such values (since 31 seen values are ≤ s_31). The adversary takes the 61-t largest available, which are all > s_31 if the number of available values > s_31 is ≥ 61 - t. Available values > s_31 = (100 - s_31) - (t - 31) = 131 - s_31 - t. We need 131 - s_31 - t ≥ 61 - t, i.e., 131 - s_31 ≥ 61, i.e., s_31 ≤ 70. \n\nSo if s_31 ≤ 70, all adversary values are > s_31, and M_max = s_31.\nIf s_31 > 70, then 131 - s_31 - t < 61 - t, so the adversary can't get enough values > s_31. Some adversary values are ≤ s_31. In this case, M_max = 70 (as computed above).\n\nSimilarly, M_min: adversary adds the 61-t smallest available values.\nBy symmetry (reflecting x → 101 - x), M_min = s_{t-30} if t ≥ 31 and s_{t-30} ≥ 31, else M_min = 31.\n\nWait, let me redo. M_min: adversary adds 61-t smallest available. The 31st smallest of S = seen ∪ {smallest available}.\n\nBy the symmetric argument: if all adversary values are < s_{31} (the 31st smallest seen), then... hmm, let me think again.\n\nM_min: adversary adds 61-t smallest available values. The 31st smallest of S.\n\nIf all adversary values are < s_31, then the 31st smallest of S is among the adversary values or s_31. Actually, the adversary values are small, so they push the 31st smallest down.\n\nLet me think about it as: the adversary adds 61-t smallest available values. These are all < some threshold. The 31st smallest of S: if there are ≥ 31 values in S that are ≤ some value, that's the 31st smallest.\n\nThe adversary's values are the 61-t smallest available. The seen values are s_1, ..., s_t. The 31st smallest of the combined set: \n\nIf all adversary values are < s_1 (the smallest seen), then the 31st smallest is the (31 - (61-t))th seen value = s_{31 - 61 + t} = s_{t - 30} (if t - 30 ≥ 1, i.e., t ≥ 31). This requires 61 - t ≤ 31, i.e., t ≥ 30. And the adversary values being < s_1 requires enough available values < s_1, which is s_1 - 1 ≥ 61 - t, i.e., s_1 ≥ 62 - t.\n\nHmm, this is getting complicated. Let me try a different approach.\n\nLet me just consider the case t ≥ 31 and think about M_max and M_min.\n\nFor t ≥ 31:\n- M_max = min(s_31, 70) [where s_31 is the 31st smallest seen value]\n  - Actually, M_max = s_31 if s_31 ≤ 70, else 70.\n- M_min = max(s_{t-30}, 31) [where s_{t-30} is the (t-30)th smallest seen value]\n  - By symmetry: M_min = s_{t-30} if s_{t-30} ≥ 31, else 31.\n\nWait, I need to verify the M_min formula. By the reflection x → 101 - x, the problem is symmetric. Under reflection, s_31 (31st smallest) becomes the 31st largest = s_{t-30} (the (t-30)th smallest, since t - (t-30) + 1 = 31). And 70 becomes 101 - 70 = 31. So M_min = max(s_{t-30}, 31) by symmetry with M_max = min(s_31, 70).\n\nHmm wait, let me re-derive M_min directly.\n\nM_min: adversary adds 61-t smallest available values. Final S = seen ∪ {61-t smallest available}. M_min = 31st smallest of S.\n\nThe 61-t smallest available values: these are the smallest values in [100] \\ seen. \n\nThe complement T = [100] \\ S = 39 largest available values. These are the 39 largest values in [100] \\ seen.\n\nM_min = 31st smallest of S = 31st smallest of ([100] \\ T) where T = 39 largest available.\n\nNumber of values in [100] ≤ M_min is M_min. Number of values in T ≤ M_min is q'. Number of values in S ≤ M_min is M_min - q' = 31. So M_min = 31 + q'.\n\nT = 39 largest available. q' = |{y ∈ T : y ≤ M_min}|. Since T consists of the 39 largest available values, q' is the number of available values ≤ M_min that are among the 39 largest available. This is 0 if M_min is small (all 39 largest available are > M_min), and increases as M_min increases.\n\nActually, q' = max(0, (number of available values ≤ M_min) - (total available - 39)). Hmm, this is getting complicated.\n\nLet me just use the symmetry. The problem is symmetric under x → 101 - x. Under this reflection:\n- \"31st smallest\" maps to \"31st largest\" = \"31st smallest\" (since 61 is odd, the median is the same).\n- Actually, the 31st smallest of 61 values maps to the 31st largest of the reflected values, which is the 31st smallest (since 61 is odd, 31st smallest = 31st largest = median).\n- M_max (adversary adds largest) maps to M_min (adversary adds smallest) under reflection.\n- s_31 (31st smallest seen) maps to s_{t-30} (31st largest seen = (t-30)th smallest seen).\n- 70 maps to 31.\n\nSo M_min = max(s_{t-30}, 31) if t ≥ 31. (Symmetric to M_max = min(s_31, 70).)\n\nWait, I need to be careful. M_max = min(s_31, 70). Under reflection, this becomes max(s_{t-30}, 31). But is it max or min? \n\nM_max = s_31 if s_31 ≤ 70, else 70. In other words, M_max = min(s_31, 70).\n\nUnder reflection: s_31 → 101 - s_{t-30} (the 31st smallest maps to 101 minus the 31st largest = 101 - s_{t-30}). And 70 → 31. And \"min\" → \"max\" (because reflection reverses order). So M_max → max(101 - s_{t-30}, 31) = 101 - min(s_{t-30}, 70). And this should equal M_min reflected, i.e., 101 - M_min. So 101 - M_min = 101 - min(s_{t-30}, 70), giving M_min = min(s_{t-30}, 70). \n\nHmm, that doesn't seem right. Let me be more careful.\n\nUnder reflection x → 101 - x:\n- A set S maps to S' = {101 - x : x ∈ S}.\n- The 31st smallest of S maps to the 31st smallest of S' (since 61 is odd, the median is preserved). Wait no: if x is the 31st smallest of S, then 101 - x is the 31st largest of S', which is the (61 - 31 + 1) = 31st smallest of S' (since 61 is odd). So yes, the median is preserved.\n- \"Adversary adds largest available\" maps to \"adversary adds smallest available\" (since largest maps to smallest under reflection).\n- So M_max(seen) maps to M_min(seen') where seen' = {101 - x : x ∈ seen}.\n\nM_max(seen) = min(s_31, 70) where s_31 is the 31st smallest of seen.\nM_min(seen') = min(s'_{31}, 70) where s'_{31} is the 31st smallest of seen' = 101 - s_{t-30} (the 31st smallest of seen' is 101 minus the 31st largest of seen = 101 - s_{t-30}).\n\nSo M_min(seen') = min(101 - s_{t-30}, 70).\n\nNow, M_min(seen) = 101 - M_max(seen') = 101 - min(s_31(seen'), 70) where s_31(seen') is the 31st smallest of seen' = 101 - s_{t-30}(seen).\n\nSo M_min(seen) = 101 - min(101 - s_{t-30}, 70) = max(s_{t-30}, 31).\n\nOK so M_min(seen) = max(s_{t-30}, 31) when t ≥ 31. Good, this confirms the symmetry.\n\nSo for t ≥ 31:\n- M_max = min(s_31, 70)\n- M_min = max(s_{t-30}, 31)\n\nwhere s_1 < s_2 < ... < s_t are the sorted seen values, and s_31 is the 31st smallest, s_{t-30} is the (t-30)th smallest.\n\nThe uncertainty range is [M_min, M_max] = [max(s_{t-30}, 31), min(s_31, 70)].\n\nFor Alice to guarantee error ≤ d when picking v at position t, she needs:\n- v ≥ M_max - d = min(s_31, 70) - d\n- v ≤ M_min + d = max(s_{t-30}, 31) + d\n\nSo v ∈ [min(s_31, 70) - d, max(s_{t-30}, 31) + d].\n\nThis interval is non-empty iff min(s_31, 70) - d ≤ max(s_{t-30}, 31) + d, i.e., min(s_31, 70) - max(s_{t-30}, 31) ≤ 2d.\n\nThe width of the uncertainty range is W = min(s_31, 70) - max(s_{t-30}, 31). Alice needs W ≤ 2d and v ∈ [M_max - d, M_min + d].\n\nNote that s_{t-30} ≤ s_31 (since t - 30 ≤ 31 iff t ≤ 61, which is always true). So max(s_{t-30}, 31) ≤ min(s_31, 70) when s_{t-30} ≤ s_31, 31 ≤ 70, etc. Actually, W = min(s_31, 70) - max(s_{t-30}, 31). Since s_{t-30} ≤ s_31 (as t - 30 ≤ 31 for t ≤ 61), and 31 ≤ 70, we have W ≥ 0 in general.\n\nNow, the key insight: at position t, the \"window\" of seen values from s_{t-30} to s_31 has t - 30 - 31 + 1 = t - 60 elements... wait, s_{t-30} is the (t-30)th smallest and s_31 is the 31st smallest. The number of seen values between them (inclusive) is 31 - (t-30) + 1 = 62 - t. For t = 61, this is 1 (just s_31). For t = 31, this is 31 (s_1 to s_31).\n\nThe uncertainty width W = min(s_31, 70) - max(s_{t-30}, 31).\n\nAt t = 61: W = min(s_31, 70) - max(s_31, 31) = s_31 - s_31 = 0 (since all 61 values are seen, M is determined). Wait, at t = 61, s_{t-30} = s_31, so W = min(s_31, 70) - max(s_31, 31). If 31 ≤ s_31 ≤ 70, W = s_31 - s_31 = 0. ✓\n\nAt t = 31: W = min(s_31, 70) - max(s_1, 31). s_31 is the 31st smallest (the largest of the 31 seen values), s_1 is the smallest. W = min(s_31, 70) - max(s_1, 31). The adversary can make this large by choosing s_1 small and s_31 large. For example, seen = {1, 2, ..., 30, 100}, s_1 = 1, s_31 = 100. W = min(100, 70) - max(1, 31) = 70 - 31 = 39. So W = 39 at t = 31, requiring 2d ≥ 39, d ≥ 20 (since d is integer, d ≥ 20, but 39/2 = 19.5, so d ≥ 20).\n\nBut wait, at t = 31, Alice has only seen 31 values, and the adversary has 30 more to reveal. The uncertainty is large. As t increases, the uncertainty decreases.\n\nThe question is: can Alice wait until the uncertainty is small enough, and then pick a value in the safe interval?\n\nThe problem is that Alice can only pick a_t (the current value). She needs a_t to be in the safe interval [M_max - d, M_min + d] at the time she picks.\n\nLet me think about the adversary's strategy. The adversary wants to prevent Alice from picking a value in the safe interval until it's too late (t = 61, where she's forced to pick a_61, which the adversary can make bad).\n\nHmm wait, at t = 61, W = 0, so the safe interval is [M - d, M + d] where M is the actual median. Alice needs a_61 ∈ [M - d, M + d]. The adversary can make a_61 far from M. So Alice can't rely on picking at t = 61.\n\nLet me think about the game more carefully.\n\nAt each position t (from 1 to 61), Alice sees a_t and decides whether to pick. If she picks, the error is determined by the adversary's choice of remaining values. If she doesn't pick by t = 61, she must pick a_61.\n\nAlice's strategy: pick at the first position t where a_t is in the safe interval [M_max(t) - d, M_min(t) + d] (where M_max(t) and M_min(t) are computed from the seen values at position t).\n\nThe adversary's goal: arrange the sequence so that either (a) Alice never picks (and is forced to pick a_61 which is bad), or (b) Alice picks a value that's actually far from M.\n\nWait, but if Alice picks a_t in the safe interval, the error is ≤ d by definition. The safe interval guarantees that regardless of the adversary's remaining values, |M - a_t| ≤ d. So if Alice picks in the safe interval, she's guaranteed error ≤ d.\n\nThe adversary's goal is to prevent Alice from ever seeing a value in the safe interval. If the adversary can do this for all 61 positions, Alice is forced to pick a_61 (which is not in the safe interval), and the error could be > d.\n\nBut can the adversary avoid the safe interval for all 61 positions? The safe interval changes as Alice sees more values. Let me think about this.\n\nAt position t, the safe interval is I_t = [M_max(t) - d, M_min(t) + d] = [min(s_31, 70) - d, max(s_{t-30}, 31) + d] (for t ≥ 31; for t < 31, the formulas are different).\n\nFor t < 31: Let me compute M_max and M_min.\n\nFor t < 31: \nM_max: adversary adds 61-t largest available. Since t < 31, the 31st smallest of S involves adversary values. \n\nM_max = 70 (as computed: when t < 31, M_max = 70).\nM_min = 31 (by symmetry, when t < 31, M_min = 31).\n\nWait, let me verify. For t < 31, M_max = 70 and M_min = 31. Then the safe interval is [70 - d, 31 + d], which is non-empty iff 70 - d ≤ 31 + d, i.e., 2d ≥ 39, i.e., d ≥ 20. And the safe interval is [70 - d, 31 + d].\n\nFor d = 20: safe interval = [50, 51]. So Alice needs to pick a value in {50, 51} during the first 30 positions. The adversary can simply avoid presenting 50 or 51 in the first 30 positions. Then at position 31, the safe interval changes.\n\nFor t ≥ 31: safe interval = [min(s_31, 70) - d, max(s_{t-30}, 31) + d].\n\nAs t increases from 31 to 61, s_{t-30} increases (or stays the same) and s_31 stays the same (it's the 31st smallest, which is fixed once t ≥ 31). Wait, s_31 can change as more values are seen — if a new value smaller than the current s_31 is seen, s_31 shifts.\n\nActually, s_31 is the 31st smallest of the t seen values. As t increases, s_31 can only decrease or stay the same (adding more values can push s_31 down). Similarly, s_{t-30} is the (t-30)th smallest, and as t increases, the rank t-30 increases, so s_{t-30} can only increase or stay the same.\n\nSo as t increases:\n- M_max = min(s_31, 70) decreases or stays (s_31 decreases or stays)\n- M_min = max(s_{t-30}, 31) increases or stays (s_{t-30} increases or stays)\n- The safe interval [M_max - d, M_min + d] shrinks (the lower bound decreases, the upper bound increases — wait, that means the interval grows? No: M_max - d decreases and M_min + d increases, so the interval [M_max - d, M_min + d] grows. But the uncertainty range [M_min, M_max] shrinks.\n\nHmm wait. The safe interval is [M_max - d, M_min + d]. M_max decreases, so M_max - d decreases (lower bound goes down). M_min increases, so M_min + d increases (upper bound goes up). So the safe interval grows as t increases. That's good for Alice — more values fall in the safe interval.\n\nBut the uncertainty range [M_min, M_max] shrinks, which means the safe interval [M_max - d, M_min + d] is centered around the shrinking uncertainty range. The safe interval always contains [M_min, M_max] (since M_max - d ≤ M_min when W ≤ 2d, and M_min + d ≥ M_max when W ≤ 2d). Actually, the safe interval is [M_max - d, M_min + d], which contains [M_min, M_max] iff M_max - d ≤ M_min and M_min + d ≥ M_max, i.e., W = M_max - M_min ≤ d... no, M_max - d ≤ M_min iff M_max - M_min ≤ d, and M_min + d ≥ M_max iff M_max - M_min ≤ d. So the safe interval contains [M_min, M_max] iff W ≤ d. If d < W ≤ 2d, the safe interval is non-empty but doesn't contain the full uncertainty range.\n\nOK this is getting complicated. Let me try to think about the problem differently.\n\nLet me consider the problem from the adversary's perspective. The adversary wants to maximize the error. The adversary controls the order of the 61 values in S.\n\nKey question: Can the adversary force Alice to pick a value with rank far from 31?\n\nLet me think about the rank game. At position t, Alice has seen t values. She knows their values. She can compute the rank of a_t among the seen values. But she doesn't know the final rank.\n\nThe adversary, after Alice picks, chooses the remaining values to make the final rank far from 31.\n\nIf Alice picks at position t with a_t having rank r among the t seen values (1 = smallest), the adversary can make the final rank anywhere from r (adding all values > a_t) to r + (61 - t) (adding all values < a_t), subject to availability constraints.\n\nFor the adversary to be able to make the final rank 31 (i.e., a_t is the median), we need r ≤ 31 ≤ r + (61 - t), i.e., 31 - (61 - t) ≤ r ≤ 31, i.e., t - 30 ≤ r ≤ 31.\n\nIf r is in this range, the adversary can make a_t the median (error 0), but the adversary wants to maximize error, so they won't. The adversary will push the rank to an extreme.\n\nThe adversary can make the final rank as low as r (by adding all values > a_t) or as high as r + (61 - t) (by adding all values < a_t), subject to availability.\n\nIf r > 31: the adversary can make the final rank at least r (by adding large values), which is > 31. The error is at least (rank - 31) in rank terms. The adversary can also try to make the rank even higher by adding small values, up to r + (61 - t). But the adversary wants to maximize |rank - 31|, so they'll make the rank as high as possible: r + (61 - t) (if possible) or as low as possible: r (which is already > 31). Since r > 31, the adversary prefers higher rank. Max rank = r + (61 - t) (if enough small values available). \n\nIf r < t - 30: the adversary can make the final rank at most r + (61 - t) < (t - 30) + (61 - t) = 31. So the final rank is < 31. The adversary makes it as low as possible: r. Error in rank = 31 - r.\n\nIf t - 30 ≤ r ≤ 31: the adversary can make the final rank anything from r to r + (61 - t), which includes 31. The adversary will push to the extreme: either r (if r < 31, giving rank error 31 - r) or r + 61 - t (if > 31, giving rank error r + 61 - t - 31 = r + 30 - t). The adversary chooses the larger: max(31 - r, r + 30 - t). This is minimized when 31 - r = r + 30 - t, i.e., 2r = 31 + 30 - t = 61 - t, i.e., r = (61 - t)/2. The minimum is 31 - (61-t)/2 = (62 - 61 + t)/2 = (t + 1)/2.\n\nHmm wait, but this is the rank error, not the value error. The value error depends on the actual values and gaps.\n\nLet me reconsider. The adversary wants to maximize the value error |M - v|. The rank error is a proxy, but the actual value error depends on how the adversary spaces the values.\n\nGiven a rank error of Δ (i.e., |rank(v) - 31| = Δ), the adversary can make the value error up to... well, the adversary chooses S. If the adversary forces rank(v) = 31 - Δ (v is below the median), the adversary can make M - v large. As computed earlier, if v has rank r = 31 - Δ, the max value error is 70 - r = 70 - (31 - Δ) = 39 + Δ. Wait, that was computed assuming the adversary maximizes M - v given rank r. Let me re-examine.\n\nEarlier I computed: if Alice picks a value with final rank r, the max value error is:\n- r ≤ 30: 70 - r\n- r = 31: 0\n- r ≥ 32: r + 8\n\nHmm wait, that was the max over S of |M - v| given that v has rank r in S. But that assumed the adversary chooses S to maximize the error given the rank. But the adversary also controls the rank (by choosing the remaining values). So the adversary first chooses the rank (by choosing remaining values) and then the error is determined by S (which is already chosen).\n\nActually, the adversary chooses S upfront. So the adversary chooses S and the order. Alice picks v online. v has some rank r in S. The error is |M - v| = |s_31 - s_r| where s_1 < ... < s_61 are the sorted values of S.\n\nThe adversary wants to maximize |s_31 - s_r|. The adversary chooses S and the order (which determines when Alice picks and what r is).\n\nSo the adversary's problem is: choose S (61 values from [100]) and an ordering, to maximize |s_31 - s_r| where r is the rank of Alice's pick (determined by her strategy and the ordering).\n\nThis is a complex optimization. Let me think about it differently.\n\nLet me consider the problem from the perspective of: what is the best Alice can guarantee?\n\nI think the key is to find a strategy for Alice and a matching lower bound from the adversary.\n\nLet me consider the following strategy for Alice:\n\nAlice waits until position t = 31. At position 31, she has seen 31 values. She computes s_1 < ... < s_31 (sorted seen values). She then continues watching. At each subsequent position t (31 ≤ t ≤ 61), she updates the sorted seen values. She picks the first value a_t that falls in the \"safe interval\" [M_max(t) - d, M_min(t) + d].\n\nBut she can only pick a_t, not any seen value. So she needs a_t to be in the safe interval.\n\nHmm, let me think about a different strategy. \n\nActually, let me think about the problem more carefully. The issue is that Alice can only pick the current value. So she needs the current value to be \"good\" at some point.\n\nLet me think about what the adversary can do. The adversary presents values one at a time. Alice picks the first \"good\" one. The adversary wants to delay presenting a good value until it's too late.\n\nBut \"good\" depends on the seen values, which the adversary controls. So the adversary can manipulate what's \"good.\"\n\nLet me think about a cleaner strategy. \n\nStrategy: Alice picks the first value v such that there are at least 30 seen values ≤ v and at least 30 seen values ≥ v. In other words, v is a \"median-like\" value among the seen values. Specifically, Alice picks the first a_t such that rank(a_t among seen) ∈ [t - 30, 31], i.e., a_t is between the (t-30)th and 31st smallest seen value.\n\nWait, but for t < 31, t - 30 < 1, so the condition is rank ≤ 31, which is always true (rank ≤ t ≤ 30 < 31). So Alice would pick the first value, which is bad.\n\nLet me refine. Alice should wait until t ≥ 31, then pick the first a_t with rank in [t - 30, 31] among seen values. But at t = 31, rank ∈ [1, 31], so any value qualifies. That's still bad.\n\nHmm, the issue is that at t = 31, the safe interval is very wide (W = 39 potentially), so almost any value is \"safe\" if d is large enough. But we want small d.\n\nLet me reconsider. The safe interval at position t is [M_max(t) - d, M_min(t) + d]. For Alice to guarantee error ≤ d, she needs to pick a_t in this interval. The adversary wants to avoid this interval.\n\nThe width of the safe interval is (M_min + d) - (M_max - d) = 2d - W where W = M_max - M_min. For the safe interval to be non-empty, we need 2d ≥ W.\n\nAt position t, W(t) = min(s_31, 70) - max(s_{t-30}, 31). As t increases, W decreases (s_31 decreases or stays, s_{t-30} increases or stays). At t = 61, W = 0.\n\nThe adversary wants to keep W large (to require large d) and avoid the safe interval.\n\nLet me think about the adversary's strategy. The adversary presents values in an order that keeps W large and avoids the safe interval.\n\nConsider the adversary's strategy: present values in increasing order: a_1 = smallest in S, a_2 = second smallest, ..., a_61 = largest.\n\nAt position t, the seen values are the t smallest values of S. s_31 is the 31st smallest of S (once t ≥ 31). s_{t-30} is the (t-30)th smallest of S.\n\nM_max = min(s_31, 70), M_min = max(s_{t-30}, 31).\n\nThe safe interval is [min(s_31, 70) - d, max(s_{t-30}, 31) + d].\n\na_t = s_t (the t-th smallest). Is a_t in the safe interval?\n\na_t = s_t. We need s_t ≥ min(s_31, 70) - d and s_t ≤ max(s_{t-30}, 31) + d.\n\nFor t ≥ 31: s_t ≥ s_31 ≥ min(s_31, 70), so s_t ≥ min(s_31, 70) ≥ min(s_31, 70) - d. ✓ (first condition always satisfied)\n\ns_t ≤ max(s_{t-30}, 31) + d? s_t ≥ s_{t-30} (since t ≥ t-30). So s_t ≤ s_{t-30} + d? This requires the gap between s_t and s_{t-30} to be ≤ d. The gap is s_t - s_{t-30}, which is the difference between the t-th and (t-30)th smallest values. The adversary can make this gap large.\n\nFor example, if S = {1, 2, ..., 30, 70, 71, ..., 100} (30 small + 31 large), then s_31 = 70, s_{t-30} for t = 31 is s_1 = 1. Safe interval = [min(70, 70) - d, max(1, 31) + d] = [70 - d, 31 + d]. For d = 20: [50, 51]. a_31 = s_31 = 70. Is 70 in [50, 51]? No. a_32 = 71, not in [50, 51]. ... a_61 = 100, not in [50, 51]. So Alice never picks (in this ordering), and is forced to pick a_61 = 100. M = 70, error = 30.\n\nBut wait, Alice doesn't have to use this specific strategy. She can use a different one. The adversary's ordering is increasing, and Alice sees 1, 2, ..., 30, 70, 71, ..., 100. Alice can pick any of these. If she picks 70 (at position 31), error = |70 - 70| = 0. But she doesn't know M = 70. She sees 1, 2, ..., 30, 70. She knows the seen values are 1-30 and 70. She might pick 70 thinking it could be the median.\n\nBut the adversary could have chosen a different S. The adversary is adaptive. If Alice's strategy is \"pick 70 when I see 1-30 then 70\", the adversary would choose a different S where 70 is not the median.\n\nOK so I need to think about this as a game where the adversary adapts to Alice's strategy.\n\nLet me think about the problem from a higher level and try to find the answer.\n\nI think the answer is d(100, 30) = 30. Let me check if this makes sense and try to prove it.\n\nActually, let me think about it more carefully. Let me consider the problem structure.\n\nThe 61 values are from [100]. The median M is the 31st smallest. M ∈ [31, 70].\n\nAlice picks one value online. The adversary controls the order.\n\nLower bound: The adversary can force error ≥ d.\nUpper bound: Alice can guarantee error ≤ d.\n\nLet me think about the lower bound. The adversary's strategy:\n\nThe adversary chooses S = {1, 2, ..., 30} ∪ {71, 72, ..., 100} ∪ {m} where m is some value in [31, 70]. Wait, that's 30 + 30 + 1 = 61 values. M = 31st smallest. The sorted S: 1, 2, ..., 30, m, 71, 72, ..., 100. The 31st smallest is m. So M = m.\n\nThe adversary presents the values in the order: 1, 2, ..., 30, 71, 72, ..., 100, m (m at position 61). Or some other order.\n\nAlice sees 1-30 first, then 71-100, then m. She must pick one. If she picks any of 1-30, error = |m - (1 to 30)| ≥ |m - 30| ≥ 1 (if m = 31) or more. If she picks any of 71-100, error = |m - (71 to 100)| ≥ |71 - m| ≥ 1 (if m = 70) or more. If she picks m (at position 61), error = 0.\n\nBut Alice doesn't know m. She sees 1-30, then 71-100. She knows the seen values. At position 31, she sees 71. She's seen {1, ..., 30, 71}. She doesn't know what's coming. The median could be anything.\n\nIf Alice waits until position 61, she sees m and must pick it. Error = 0. But the adversary doesn't have to put m at position 61. The adversary can put m at any position.\n\nWait, the adversary chooses the order. If the adversary puts m at position 31 (right after 1-30), Alice sees m at position 31. She's seen {1, ..., 30, m}. She doesn't know if m is the median or not. The remaining values could be anything.\n\nIf Alice picks m at position 31, and the adversary's S is {1, ..., 30, m, 71, ..., 100}, then M = m, error = 0. But the adversary could have chosen a different S. Since the adversary is adaptive, if Alice's strategy says \"pick m at position 31\", the adversary would choose S where m is not the median.\n\nFor example, the adversary could choose S = {1, ..., 30, m, m+1, ..., m+30} (if m + 30 ≤ 100). Then M = m + 30... no wait, S = {1, ..., 30, m, m+1, ..., m+30} has 30 + 31 = 61 values. Sorted: 1, ..., 30, m, m+1, ..., m+30. 31st smallest = m. So M = m. Hmm, that still gives M = m.\n\nLet me reconsider. The adversary chooses S and the order. If Alice picks value v at position t, the adversary wants |M - v| large. The adversary chooses the remaining 61 - t values to push M away from v.\n\nSo the adversary's strategy is: present values such that Alice is forced to pick a value v, and then the remaining values push M far from v.\n\nThe adversary can present \"decoy\" values first, making Alice think the median is in one place, then reveal values that shift the median.\n\nLet me think about a concrete adversarial strategy.\n\nAdversary's strategy: \n1. Present 30 values from the \"low\" end (say 1-30) in the first 30 positions.\n2. Present 30 values from the \"high\" end (say 71-100) in positions 31-60.\n3. Present 1 value (the \"pivot\") at position 61.\n\nAfter step 1, Alice has seen 30 small values. She doesn't know if more small values are coming. If she picks one of them, the adversary can fill the rest with large values, making M large, error large.\n\nAfter step 2, Alice has seen 30 small + 30 large values. She knows the seen values are {1-30, 71-100}. The remaining 1 value (position 61) is unknown. M is either 30 (if the last value is < 31, making S = {last, 1-30, 71-100} with 31st smallest = 30) or 71 (if the last value is > 70, making S = {1-30, 71-100, last} with 31st smallest = 71). Wait, let me recompute.\n\nS = {1, ..., 30, 71, ..., 100, x} where x is the last value. 61 values. Sorted: depends on x.\n\nIf x < 31: sorted S = {x, 1, 2, ..., 30, 71, ..., 100}. 31st smallest = 30 (positions: x=1st, 1=2nd, ..., 30=31st). M = 30.\n\nIf 31 ≤ x ≤ 70: sorted S = {1, 2, ..., 30, x, 71, ..., 100}. 31st smallest = x. M = x.\n\nIf x > 70: sorted S = {1, 2, ..., 30, 71, ..., 100, x}. 31st smallest = 71. M = 71.\n\nWait, if x > 70, say x = 100 (already in S)... no, x is a new value not in {1-30, 71-100}. If x ∈ {31, ..., 70}, M = x. If x < 31, M = 30. If x > 70 and x ∉ {71, ..., 100}, that's impossible since 71-100 are already in S. So x ∈ {31, ..., 70} (the only values not yet in S from [100]). Wait, S = {1-30, 71-100, x} and S ⊆ [100]. The values not in {1-30, 71-100} are {31, ..., 70}. So x ∈ {31, ..., 70}, and M = x.\n\nSo after step 2, Alice knows M ∈ {31, ..., 70}. She's seen 60 values. She must pick a_61 = x. The error is |M - x| = |x - x| = 0. Wait, M = x and a_61 = x, so error = 0!\n\nHmm, so if the adversary uses this strategy, Alice can just wait until position 61 and pick x, getting error 0. That's bad for the adversary.\n\nBut the adversary doesn't have to use this strategy. The adversary adapts to Alice's strategy. If Alice's strategy is \"wait until 61 and pick the last value\", the adversary would use a different ordering.\n\nLet me reconsider. If Alice's strategy is \"always pick the last value (position 61)\", the adversary puts the worst value at position 61. For example, S = {1, ..., 61}, order = (2, 3, ..., 61, 1). a_61 = 1, M = 31, error = 30. Or S = {40, ..., 100}, order = (41, 42, ..., 100, 40). a_61 = 40, M = 70, error = 30. Or more extreme: S = {1, ..., 30, 70, ..., 100}, order = (2, 3, ..., 30, 70, ..., 100, 1). a_61 = 1, M = 70, error = 69.\n\nSo picking the last value is terrible.\n\nThe key tension: Alice wants to pick a value close to M, but she doesn't know M until all 61 values are revealed. She must pick before seeing all values. The adversary can hide M until the end.\n\nLet me think about the optimal strategy more carefully.\n\nI think the key insight is: Alice should pick a value v such that, regardless of the remaining values, v is close to M. This means v should be \"central\" in [100], and the remaining values shouldn't be able to push M too far from v.\n\nIf Alice picks v at position t, the adversary can push M to M_max or M_min. Alice needs v close to both M_max and M_min, i.e., v ≈ (M_max + M_min) / 2 and M_max - M_min ≤ 2d.\n\nAs t increases, M_max - M_min decreases. So Alice should wait until the uncertainty is small enough, then pick a central value.\n\nBut the adversary controls which values Alice sees. The adversary can present values that keep the uncertainty large.\n\nLet me think about the adversary's optimal strategy to keep the uncertainty large.\n\nAt position t (t ≥ 31), the uncertainty is W(t) = min(s_31, 70) - max(s_{t-30}, 31). The adversary wants to keep W large.\n\ns_31 is the 31st smallest seen value. The adversary wants s_31 to be large (close to 70). s_{t-30} is the (t-30)th smallest seen value. The adversary wants s_{t-30} to be small (close to 31).\n\nTo keep s_31 large, the adversary should present large values early (so the 31st smallest is large). To keep s_{t-30} small, the adversary should present small values early.\n\nThese are contradictory! To keep s_31 large, present large values. To keep s_{t-30} small, present small values. But s_{t-30} ≤ s_31 (since t - 30 ≤ 31 for t ≤ 61), so the adversary wants a wide spread.\n\nThe adversary can present 30 very small values and 30 very large values, keeping s_1 = 1, s_30 = 30, s_31 = 71, s_60 = 100. Then s_{t-30} for t = 31 is s_1 = 1, and s_31 = 71. W = min(71, 70) - max(1, 31) = 70 - 31 = 39.\n\nAs t increases from 31 to 60, s_{t-30} increases from s_1 to s_30 (values 1 to 30), and s_31 stays at 71 (since the 31st smallest is still 71 as we add more large values). So W = 70 - max(s_{t-30}, 31). For t = 31: W = 70 - 31 = 39. For t = 60: s_{30} = 30, W = 70 - 31 = 39 (since max(30, 31) = 31). So W stays at 39 for t = 31 to 60.\n\nAt t = 61: the last value is the pivot x ∈ {31, ..., 70}. s_31 becomes min(71, x) = x (if x < 71, which it is). s_{31} = x. s_{t-30} = s_{31} = x. W = min(x, 70) - max(x, 31) = x - x = 0. So W drops to 0 at t = 61.\n\nSo with this adversarial strategy, W = 39 for t = 31 to 60, and W = 0 at t = 61. Alice needs 2d ≥ 39, so d ≥ 20 (since d is integer, d ≥ 20). And she needs to pick a value in the safe interval [M_max - d, M_min + d] = [70 - d, 31 + d] = [50, 51] (for d = 20).\n\nDuring positions 31-60, the seen values are {1-30, 71-100}. None of these are in [50, 51]. So Alice can't pick a safe value during positions 31-60. At position 61, the safe interval is [M -",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 22722,
+        "completion_tokens": 25000,
+        "cached_tokens": 12397
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 22722,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12397,
+    "total_steps": 8
+  }
+}

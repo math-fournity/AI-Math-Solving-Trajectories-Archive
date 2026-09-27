@@ -1,0 +1,1036 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "aeolian-saver",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-15T01:08:53.581160+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-15T01:08:53.581701+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-15T01:08:53.589187+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-15T01:08:53.582023+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p933cb383a0b646caab52 (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.4.0\nToday's date: Friday, 2026-08-14\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-15T01:08:53.582503+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p933cb383a0b646caab52/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nIn a remote archipelago consisting of $n$ distinct islands ($n \\geq 3$), a telecommunications company is designing a network of fiber-optic cables. Each cable connects exactly two islands, and the company ensures that the entire network is connected, meaning it is possible to send a signal between any two islands in the archipelago.\n\nThe network is built with a specific structural constraint called \"Cycle-Dependent Connectivity.\" This means that if the engineers identify any closed loop (cycle) of cables within the network and temporarily disable every single cable that forms that specific loop, the network must immediately break into at least two isolated groups of islands with no remaining path between them.\n\nThe company wants to maximize the redundancy of their infrastructure while adhering to this strict security protocol. Based on the number of islands $n$, determine the maximum possible number of fiber-optic cables that can be installed in this network.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件，操作流程放 skill，等）\n4. **AGENTS.md 是总目录**——其中的索引节是跨 session AI 认知一致性的保证\n\n**Rule / Skill / 元组的放置层级**：\n\n当需要新建或迁移 rule、skill、元组时，按以下优先级选择放置位置：\n\n1. **首先考虑项目级 `.devin/` 目录**——这是 Devin 的正常使用方法。项目级 rule 放 `.devin/rules/`，项目级 skill 放 `.devin/skills/`。大多数 rule/skill 应该在这里——它们是项目特定的，不需要污染全局配置。\n2. **AGENTS.md 中只放 rule 索引**——项目 AGENTS.md 的维护规则节中，保留 rule 索引表（指向 `.devin/rules/` 中的文件），不保留完整 rule 内容。AGENTS.md 是总目录，rule 文件是详细内容。\n3. **只有确实跨项目通用的 rule/skill/元组，才升级为全局内容**——放在 `~/.config/devin/` 或 `~/.devin/` 中。**升级必须获得用户明确同意**——不要擅自把项目级内容升级为全局内容。\n4. **判断标准**：如果这个 rule/skill 只在当前项目有意义 → 项目级 `.devin/`。如果它在多个项目中都会被触发 → 可以考虑升级为全局，但先问用户。\n\n**元组：rule-skill-tuple-assessment**（rule + skill，全局）\n\n> **触发条件**：用户提出一个要求、认知、或设计思想时，AI 自动评估这个内容是否应该固化为 rule、skill、或元组。\n> **Skill**：`~/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md`\n> **核心意识**：不是每个用户要求都需要设为 rule/skill——只有具有跨 session 复用价值的才设置。但 AI 必须有意识地主动评估，而不是被动等用户说\"把这个设为rule\"。\n>\n> **评估流程**（详见 skill）：\n> 1. 判断是否具有跨 session 复用价值 → 否则直接执行不设置\n> 2. 判断类型：Rule（硬约束）/ Skill（SOP）/ 元组（Rule+Skill）/ 元组群（多Skill）\n> 3. 判断层级：项目级 `.devin/`（默认） vs 全局 `~/.config/devin/`（需用户同意）\n> 4. 执行：创建文件 + AGENTS.md 索引 + commit\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n### 13 · 禁止inline脚本，所有脚本持久化到项目内\n\n**Rule**：`~/.devin/rules/no-inline-scripts.md`\n\n**硬约束**：\n1. **禁止写超过3行的inline脚本**（`python -c \"...\"`、`bash -c \"...\"`）。超过3行的逻辑必须写成文件。\n2. **所有脚本写到项目内的脚本目录中**——不写`/tmp/`、不写home目录。放到项目已有的脚本目录或`scripts/`目录。\n3. **在项目AGENTS.md中做好索引**——新脚本必须记录路径、用途、用法。\n4. **持续维护，不重写**——已有脚本就改进，不另写新的。重复操作累积成越来越完善的脚本。\n\n**判定标准**：\n- 单行命令（`ls`、`git status`）→ 直接执行\n- 2-3行简单查询 → 可以直接执行\n- 超过3行 → **必须写成文件**\n- 会重复使用的操作 → **必须写成文件**\n- 已有脚本可改进 → **改进已有脚本**\n\n---\n\n## Git 管理协议\n\n**改文件前**：检查目标文件/目录是否处于 git clean 状态 → 记录 `before_status_baseline` → 明确本轮 `intended_delta`。\n\n**改文件后**：完成一个逻辑工作单元立即 commit → 记录 `after_status_baseline` → 核验 `after - before == intended_delta` → 目标文件/目录回到 git clean 状态。\n\n**禁止 `git add -A`、`git add .`、`git add -u`**。只 add 具体路径。\n\n任何 `git push` 都必须获得用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组 = Rule + Skill。Rule always-on 负责约束 + 模式匹配；Skill on-demand 负责工作流。AGENTS.md 中绝不放工作流，Skill 中绝不放硬性约束。AGENTS.md 太长是执行力问题——\"每次都必须知道\"→ 留在 AGENTS.md；\"遇到特定场景才需要\"→ 移到 Skill。\n\n> 元组详细方法论（瘦身工程、两种实现方式、新增元组规范）见 `~/.devin/rules/tuple-methodology.md`。Devin CLI 完整配置说明见 `devin-config-harness` skill。\n\n---\n\n## 元组：long-running-work-sop（长程工作SOP化铁律）\n\n**触发条件**：用户启动一个可能跨越压缩边界的持续性工作时；发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要迭代修正时。\n\n**核心约束**：长程工作（可能跨越压缩边界的持续性工作）必须SOP化。三个必须：\n1. **必须SOP化**——提取步骤、定义产出、定义验证，放入项目AGENTS.md\n2. **必须用rules锁定流程行为**——在`.devin/rules/`中创建rule文件，锁定SOP的执行纪律\n3. **必须版本化审计修正历史**——如果长程工作涉及分类学/框架/体系的迭代修正，修正的全历史必须在明面上审计（不在git log中），每次修正做覆盖性检查\n\n**Skill**：`~/.config/devin/skills/long-running-work-sop/SKILL.md`——提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程，以及积累的经验和反模式。\n\n**已有项目级实例**：\n- 数学大师项目的`tell-taxonomy-iteration-audit`元组（`.devin/rules/tell-taxonomy-iteration-audit.md`）——Tell分类学迭代审计的铁律和9步SOP，是本全局元组的项目级实例\n\n**经验和反模式积累**：在skill的\"经验和反模式积累区\"中持续追加。当前积累：5个反模式（当一次性任务做/不锁定/只在git log/不做覆盖性检查/遗留旧措辞）、3个经验（FLT例子测试/FCA理论审查方法/版本化审计让修正更严谨）。\n\n---\n\n### 元组群与 Skill 粒度铁律\n\n**元组群**：当一个复杂任务的工作流太长，无法放入单个 Skill 中时，应拆分为多个元组（多个 Skill），形成元组群协同工作。\n\n**为什么需要拆分**：Skill 加载后形成 Session 临时上下文中的认知和 SOP。但如果把应该拆分成多个 Skill 的内容放入一个 Skill 中，执行过程中可能跨越压缩边界——Session 压缩后，Skill 的后续内容从上下文中丢失，无法有效发挥作用。\n\n**Skill 粒度铁律**：\n\n1. **Skill 必须在 Session 上下文中始终可见**——如果执行过程很长（跨越多轮对话、可能触发压缩），Skill 内容必须足够短，确保压缩后仍可见，或拆分为多个 Skill 分阶段加载。\n\n2. **执行过程长 → 拆分 Skill**——如果一个 Skill 的工作流需要很多步骤、很长时间执行，应该拆分成多个 Skill，每个 Skill 覆盖一个可在一个压缩窗口内完成的阶段。\n\n3. **拆分后的 Skill 之间通过文档传递**——前一个 Skill 的产出落盘到文档（dev-docs / AGENTS.md / 数据文件），后一个 Skill 加载时读文档获取前序成果，不依赖 Session 上下文传递。\n\n4. **判断粒度的经验法则**——如果一个 Skill 的执行可能超过 10 轮对话或 50k tokens，考虑拆分。如果工作流中有明确的阶段分界点（如\"方案设计\"→\"执行\"→\"验证\"），在分界点拆分。\n\n### 元组群的整体性：目录在规则中\n\n**元组群如何确保整体性？** 确保整体性 = 确保工作的连续性。元组群中的多个 Skill 是一个整体工作流的分段，不是各自独立的任务。确保整体性的机制是：**元组群的目录放在规则中，规则指向一组 Skill，而不是单一 Skill。**\n\n**传统元组**：规则指向单一 Skill——\"遇到场景X，加载Skill Y\"。\n\n**元组群**：规则指向一组 Skill——\"遇到场景X，按顺序加载Skill Y1→Y2→Y3，它们是一个整体工作流的三个阶段\"。\n\n**元组群规则的结构**：\n\n```\n## 元组群：<群名称>\n\n**触发条件**：<何时AI应该执行这组工作流>\n\n**整体目标**：<这组Skill共同完成的最终目标>\n\n**Skill目录**（按执行顺序）：\n1. Skill <Y1>：<阶段1名称>——<这个阶段做什么>，产出落盘到<文档>\n2. Skill <Y2>：<阶段2名称>——<这个阶段做什么>，读取<文档>，产出落盘到<文档>\n3. Skill <Y3>：<阶段3名称>——<这个阶段做什么>，读取<文档>，产出最终结果\n\n**阶段间传递**：<通过什么文档/数据文件传递，不依赖Session上下文>\n\n**何时进入下一阶段**：<前一个Skill完成并落盘后，AI检查目录，自然加载下一个Skill>\n```\n\n**为什么目录在规则中而不是在某个Skill中**：\n\n1. **规则是always-on的**——不受压缩影响。即使Session压缩了，规则仍然在上下文中可见，AI始终能看到元组群的全貌——有几个阶段、当前在哪个阶段、下一步该加载哪个Skill。\n\n2. **如果目录在Skill中**——Skill加载后形成临时上下文，压缩后目录丢失，AI不知道还有后续阶段，元组群的整体性断裂。\n\n3. **规则是元组群的\"目录页\"**——每个Skill是\"章节内容\"。章节内容可能被压缩掉，但目录页始终可见，AI随时可以翻到正确的章节。\n\n**元组群规则的放置位置**：\n\n- **全局元组群**（跨项目通用）→ `~/.config/devin/AGENTS.md` 或 `~/.devin/rules/`\n- **项目级元组群**（特定项目的工作流）→ 项目 `AGENTS.md` 或 `.devin/rules/`\n\n**与单一元组的关系**：元组群是单一元组的扩展。单一元组 = 1个规则 + 1个Skill。元组群 = 1个规则（含目录） + N个Skill。规则从\"指向单一Skill\"升级为\"指向一组Skill的有序目录\"。\n\n---\n\n## 元组：trajectory-workline-review（从trajectory回溯session工作脉络）\n\n**触发条件**：需要了解某个 session（自己的或别人的）做了什么工作；同一 repo 下有多个 session 并行工作需要区分各自工作范围；新 session 启动时需要了解前序 session 进展；审查某个 session 的工作过程。\n\n**Skill**：`~/.config/devin/skills/trajectory-workline-review/SKILL.md`\n\n**核心约束**：\n1. **禁止用 git log 区分 session**——同一 repo 下多个 session 的 commit 交织在 git log 中，无法区分。必须用 sessions.db 的 session_id 区分。\n2. **运行中的 session 用 sessions.db，不用 transcripts**——transcript 文件只在 session 结束后写入，运行中的 session 没有 transcript 文件。sessions.db 的 message_nodes 表是实时写入的，是运行中 session 的唯一数据源。\n3. **grep tool_calls 中的 file_path 是最快方法**——不用完整解析嵌套 JSON，直接 grep `\"file_path\":\"...\"` 字符串，sqlite3 输出管道给 grep 一行命令搞定。区分操作类型时用正则 `re.finditer(r'\"name\":\"write\".*?\"file_path\"...')` 比解析 JSON 的 tool_calls 结构更稳健（结构可能不规则）。\n4. **文件操作时间线 = 工作脉络骨架**——提取每个文件首次操作时间并按时间排序，就是工作脉络的时间线。按目录归类操作频次 = 工作重心分布。\n5. **区分 write/edit/read 三种操作**——write（创建）= 核心产出，edit（修改）= 迭代深化，read（读取）= 前置依赖。只看 write 会漏掉 session 的前置依赖（读取了别人创建的文档 = 吸收前置讨论基础）。多 session 协作时，交叉分析 read 和 write 揭示跨 session 依赖关系。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-15T01:08:53.590940+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-15T01:08:53.591691+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **qmd-mcp-search**: 通过 QMD 语义搜索和知识图谱查询搜索 AI 对话存档。双模式检索，支持结构化实体发现。 WHEN to use: 需要语义搜索 AI 对话、知识图谱实体查询、文档相似度检索时。 WHEN NOT to use: 简单关键词搜索（用 ai-archive-search）、网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据的完整存储位置、格式、读取方法。 Transcript（ATIF格式）、sessions.db（SQLite）、logs、summaries、--export参数。 WHEN to use: 需要提取/解析/审计Devin CLI的session对话数据时。 WHEN NOT to use: 一般编码任务、非Devin CLI相关的数据工作。 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **trajectory-workline-review**:  (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **long-running-work-sop**: 长程工作SOP化与迭代审计铁律。当用户启动一个可能跨越压缩边界的持续性工作时， AI必须将其SOP化（放入项目AGENTS.md）、用rules锁定流程行为、版本化审计修正历史。 本skill提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程， 以及积累的经验和反模式。 WHEN to use: 用户启动一个可能跨越压缩边界的持续性工作时； 发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要修正时。 WHEN NOT to use: 一次性任务（如\"运行这个脚本\"、\"修这个bug\"）； 明确不会跨越压缩边界的短任务。\n (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **devin-config-harness**: Devin CLI 配置使用完整说明书。涵盖 rules（AGENTS.md + .devin/rules/）、skills、hooks、 config.json、MCP servers 的全局/项目本地位置、格式、参数和选择策略。 WHEN to use: 配置 Devin CLI、添加 rules/skills/hooks/MCP、理解 Devin 扩展架构、 从 Codex/Claude Code 迁移配置、排查配置问题。 WHEN NOT to use: 一般编码任务、非 Devin 配置相关的工作。\n (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **db-file-traceability**:  (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **rule-skill-tuple-assessment**: 评估用户的提问或要求是否应该设置为 rule、skill（SOP）、或元组（rule+skill）， 以及应该放入 Devin 全局配置还是项目本地 .devin/ 目录。 WHEN to use: 用户提出一个要求或认知，AI判断这个要求是否具有跨session复用价值时。 WHEN NOT to use: 一次性的具体任务执行（如\"运行这个脚本\"、\"修这个bug\"）。\n (source: /Users/user/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md)\n- **ai-archive-search**: 搜索 AI 对话存档（AI-ALL-Markdown），使用 QMD 语义搜索。 WHEN to use: 需要搜索历史 AI 对话、查找之前的讨论内容、检索 AI 对话存档时。 WHEN NOT to use: 搜索当前项目代码（用 grep/glob）、一般网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/ai-archive-search/SKILL.md)\n- **tmux-easy-setup**: 配置 tmux 达到最易用状态：大缓冲区、鼠标滚动、系统剪贴板集成、vi 复制模式。 WHEN to use: 用 tmux 运行 AI CLI（devin/codex）、长时间任务、多 session 监控， 或用户抱怨 tmux 复制粘贴/缓冲区/鼠标不好用时。 WHEN NOT to use: 不涉及 tmux 的任务。\n (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Users/user/.local/share/devin/cli/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-15T01:08:55.424319+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me analyze this problem carefully.\n\nWe have a graph on $n$ vertices (islands), connected. The constraint is \"Cycle-Dependent Connectivity\": if we identify ANY cycle and remove ALL edges of that specific cycle, the network must break into at least two isolated groups.\n\nLet me formalize. Let $G$ be a connected graph on $n$ vertices. The condition: for every cycle $C$ in $G$, removing all edges of $C$ disconnects the graph.\n\nWe want to maximize the number of edges.\n\nLet me think about what this condition means. If $C$ is a cycle, removing all edges of $C$ must disconnect $G$. \n\nFirst, note that if $G$ is a tree, there are no cycles, so the condition is vacuously true. A tree has $n-1$ edges. But we can do better.\n\nLet me think about small cases.\n\nFor a cycle graph $C_n$ itself: removing all edges of the (only) cycle leaves no edges, so the graph is totally disconnected. That satisfies the condition. $C_n$ has $n$ edges.\n\nCan we do better than $n$ edges?\n\nLet me think about what graphs satisfy this. Consider two cycles sharing a vertex (figure-eight). The graph has two cycles $C_1$ and $C_2$. If we remove all edges of $C_1$, we're left with $C_2$ (which is connected). So the condition fails — removing $C_1$'s edges doesn't disconnect.\n\nWait, let me reconsider. If two cycles share exactly one vertex, removing all edges of $C_1$ leaves $C_2$ intact, which is connected. So the graph remains connected. Condition fails.\n\nWhat about two cycles sharing an edge? Like two triangles sharing an edge (a diamond graph). Vertices: a, b, c, d. Edges: ab, bc, ca (triangle 1), ab, bd, da (triangle 2). So edges: ab, bc, ca, bd, da. That's 5 edges on 4 vertices.\n\nCycles: triangle abc, triangle abd, and the 4-cycle c-b-d-a-c (edges bc, bd, da, ac).\n\nRemove triangle abc's edges (ab, bc, ca): remaining edges are bd, da. That's a path b-d-a, connected. So condition fails.\n\nHmm. So sharing doesn't work well.\n\nLet me think more carefully about the structure. The condition says: for every cycle $C$, $G - E(C)$ is disconnected.\n\nThis is a strong condition. Let me think about which graphs satisfy it.\n\nClaim: A graph satisfies this condition if and only if every edge belongs to at most one cycle. Wait, that's not quite right either. Let me think again.\n\nActually, let me think about it differently. \n\nIf an edge $e$ belongs to two different cycles $C_1$ and $C_2$, then... hmm, that doesn't directly tell us about the condition.\n\nLet me think about the condition more carefully. The condition is about removing ALL edges of a cycle, not just one edge.\n\nLet me consider the \"theta graph\": two vertices connected by three internally disjoint paths. This has multiple cycles. Take two of the three paths forming a cycle; removing that cycle's edges leaves the third path, which is still connected. So condition fails.\n\nWhat about a graph where every two cycles are edge-disjoint? If cycles are edge-disjoint, then removing one cycle's edges leaves all other cycles' edges intact, plus tree edges. \n\nHmm, let me think about the \"cactus graph\" (also called a cactus). A cactus graph is a connected graph where every edge belongs to at most one cycle. Equivalently, any two cycles share at most one vertex.\n\nIn a cactus graph, cycles are edge-disjoint (they can share at most one vertex). So if we remove all edges of one cycle $C$, the rest of the graph... let me think. The cycle $C$ is attached to the rest of the graph at possibly one vertex (if it shares a vertex with another cycle or tree part). Removing all edges of $C$ removes the cycle entirely, leaving the shared vertex but disconnecting the other vertices of $C$ from the rest. \n\nWait, if $C$ is a cycle that shares a vertex $v$ with the rest of the graph, removing all edges of $C$ leaves $v$ connected to the rest, but the other vertices of $C$ are now isolated (they were only connected through $C$'s edges). So the graph becomes disconnected. Good.\n\nIf $C$ doesn't share any vertex with the rest (i.e., $C$ is the entire graph), removing all edges leaves nothing, which is disconnected (for $n \\geq 3$). Good.\n\nIf $C$ shares a vertex with the rest but the rest is just tree edges, same argument works.\n\nSo cactus graphs satisfy the condition. But do they achieve the maximum?\n\nLet me count edges in a cactus graph. A cactus with $n$ vertices: each cycle of length $k$ uses $k$ vertices and $k$ edges, but a tree on $n$ vertices has $n-1$ edges. Each cycle of length $k$ adds $k$ edges but only $k-1$ \"tree-equivalent\" edges would connect $k$ vertices, so each cycle adds 1 extra edge over a tree. So a cactus with $c$ cycles has $n - 1 + c$ edges.\n\nTo maximize edges, we want to maximize the number of cycles. Each cycle must have length at least 3. To maximize the number of cycles, we want all cycles to be triangles (length 3). \n\nIf we have $c$ triangles, each triangle uses 3 vertices but shares vertices with the tree structure. In a cactus, each new triangle shares exactly one vertex with the existing graph and adds 2 new vertices and 3 edges. So starting from 1 vertex, each triangle adds 2 vertices. With $n$ vertices, we can have $\\lfloor (n-1)/2 \\rfloor$ triangles... wait let me recount.\n\nActually, in a cactus, we have a tree structure where some edges are replaced by cycles. Let me think of it as: start with a tree on $n$ vertices ($n-1$ edges). Each cycle of length $k$ replaces a \"path\" structure. Actually, let me think differently.\n\nA cactus graph: take a tree, and replace some edges with cycles. More precisely, a cactus is formed by taking a tree and for some edges, replacing that edge with a cycle that includes the two endpoints. But that's not quite the general structure.\n\nLet me think about it as: a cactus graph on $n$ vertices with $c$ cycles has exactly $n - 1 + c$ edges. To maximize $c$ with all cycles being triangles:\n\nEach triangle uses 3 vertices. In a cactus, two triangles can share at most 1 vertex. So we need to pack triangles sharing at most 1 vertex each. \n\nThink of it as a tree of triangles. Start with one triangle (3 vertices, 1 cycle). Each additional triangle shares 1 vertex and adds 2 new vertices. So with $c$ triangles, we use $3 + 2(c-1) = 2c + 1$ vertices. To fit in $n$ vertices: $2c + 1 \\leq n$, so $c \\leq (n-1)/2$.\n\nIf $n$ is odd: $c = (n-1)/2$, edges $= n - 1 + (n-1)/2 = (3(n-1))/2 = (3n-3)/2$.\nIf $n$ is even: $c = (n-2)/2$, edges $= n - 1 + (n-2)/2 = (3n - 4)/2 = (3n-4)/2$.\n\nWait, for even $n$: $2c + 1 \\leq n$ gives $c \\leq (n-1)/2$, so $c = (n-2)/2$ (since $c$ is integer and $n$ is even). Then we have $2c+1 = n-1$ vertices used, with 1 vertex left over. That leftover vertex can be attached as a tree leaf (adding 1 edge, 0 cycles). So edges $= n - 1 + c = n - 1 + (n-2)/2 = (2n - 2 + n - 2)/2 = (3n - 4)/2$.\n\nFor odd $n$: $c = (n-1)/2$, all vertices used. Edges $= n - 1 + (n-1)/2 = (2n - 2 + n - 1)/2 = (3n - 3)/2$.\n\nSo the answer would be $\\lfloor (3(n-1))/2 \\rfloor$ for odd $n$ and $(3n-4)/2$ for even $n$.\n\nLet me unify: for odd $n$, $(3n-3)/2$; for even $n$, $(3n-4)/2$. This is $\\lfloor (3n-3)/2 \\rfloor$ for odd and $\\lfloor (3n-3)/2 \\rfloor = (3n-4)/2$ for even (since $3n-3$ is odd when $n$ is even). So the answer is $\\lfloor \\frac{3(n-1)}{2} \\rfloor$.\n\nWait, let me double check: $\\frac{3(n-1)}{2}$. For $n$ odd, $n-1$ is even, so this is an integer $(3(n-1))/2$. For $n$ even, $n-1$ is odd, so $\\lfloor 3(n-1)/2 \\rfloor = (3(n-1)-1)/2 = (3n-4)/2$. Yes.\n\nSo the answer is $\\lfloor \\frac{3(n-1)}{2} \\rfloor$.\n\nBut wait, I need to verify that:\n1. Cactus graphs indeed satisfy the condition (I argued this above).\n2. No graph with more edges satisfies the condition.\n\nFor (2), I need to show that if $G$ satisfies the condition, then $G$ must be a cactus (every edge in at most one cycle), or at least that $G$ has at most as many edges as the optimal cactus.\n\nActually, let me reconsider. Is it true that the condition implies cactus? Let me think about whether a non-cactus graph could satisfy the condition.\n\nSuppose $G$ has an edge $e$ that belongs to two cycles $C_1$ and $C_2$. Does the condition fail?\n\nNot necessarily directly. The condition is about removing ALL edges of a single cycle. Let me think of a counterexample.\n\nConsider a graph that's not a cactus but satisfies the condition. Hmm.\n\nActually, let me reconsider. Take two triangles sharing an edge: vertices a,b,c,d, edges ab, bc, ca, ad, db (wait, that's sharing edge ab). Edges: ab, bc, ca, ad, db. Wait, that's a, b, c, d with edges ab, ac, bc, ad, bd. Triangle abc and triangle abd share edge ab.\n\nCycles: abc (edges ab, bc, ca), abd (edges ab, bd, da), and the 4-cycle acdb (edges ac, cd? no...). Wait, is there an edge cd? No. So the cycles are just the two triangles and... is there a 4-cycle? a-c-b-d-a: edges ac, cb, bd, da. Yes! That's a cycle of length 4.\n\nNow check the condition:\n- Remove triangle abc (edges ab, bc, ca): remaining edges are ad, bd. Path a-d-b, connected. Condition FAILS.\n\nSo this doesn't satisfy the condition. Good.\n\nLet me think about whether the condition is equivalent to being a cactus.\n\nClaim: $G$ satisfies the condition if and only if $G$ is a cactus graph.\n\nProof of \"cactus implies condition\": As argued above. In a cactus, every cycle $C$ is edge-disjoint from all other cycles. The vertices of $C$ that are not articulation points (or not shared with the rest of the graph) are only connected through $C$'s edges. Removing all edges of $C$ disconnects these vertices.\n\nMore carefully: In a cactus, consider any cycle $C$. The edges of $C$ are not in any other cycle. The graph $G - E(C)$: the vertices of $C$ lose all their cycle edges. Each vertex of $C$ might still have tree edges connecting it to other parts. But the cycle $C$ as a whole: since $C$ is a cycle in a cactus, the vertices of $C$ are connected to the rest of the graph only through at most one vertex (the \"attachment\" vertex), or $C$ is the whole graph. \n\nHmm, actually in a cactus, a cycle can share multiple vertices with the tree part? No. In a cactus, every edge is in at most one cycle. The tree edges (not in any cycle) connect the cycles and single vertices. A cycle $C$ can have multiple tree edges attached to different vertices of $C$. \n\nFor example: a triangle abc with tree edges c-d and a-e. Then removing the triangle's edges (ab, bc, ca) leaves edges cd and ae. The graph becomes: d-c (isolated component), a-e (isolated component), and b isolated. So it's disconnected. Good.\n\nBut what if the tree edges connect all vertices of the cycle? Like triangle abc with tree edges a-d, b-d, c-d? Then d connects to all of a, b, c. Removing triangle edges (ab, bc, ca) leaves edges ad, bd, cd — a star centered at d, which is connected! So the condition FAILS.\n\nBut wait — is this graph a cactus? Edges ab, bc, ca (in the triangle cycle), and ad, bd, cd (tree edges, not in any cycle). Every edge is in at most one cycle. So yes, it's a cactus! But the condition fails!\n\nSo my claim is wrong. Not all cactus graphs satisfy the condition.\n\nLet me re-examine. The graph: triangle abc plus vertex d connected to a, b, c. This is $K_4$ minus one edge (missing... no). Edges: ab, bc, ca, ad, bd, cd. That's 6 edges on 4 vertices. That's actually $K_4$! Wait, $K_4$ has edges ab, ac, ad, bc, bd, cd — yes, that's all 6 edges. So this is $K_4$, which is definitely not a cactus (every edge is in multiple cycles).\n\nI made an error. If we have triangle abc and add edges ad, bd, cd, then edge ad is in cycle a-d-b-a (edges ad, db, ba) and cycle a-d-c-a (edges ad, dc, ca). So ad is in two cycles. This is NOT a cactus.\n\nOK so let me reconsider. In a cactus, can a cycle have tree edges attached to multiple vertices? Yes. Triangle abc with tree edge a-d and tree edge b-e. This is a cactus (edges ab, bc, ca in one cycle; ad, be are tree edges). Removing triangle edges: leaves ad, be. Components: {a, d}, {b, e}, {c}. Disconnected. Good.\n\nWhat about triangle abc with tree edges a-d, b-d (d connected to both a and b)? Then edges: ab, bc, ca, ad, bd. Is this a cactus? Edge ad: is it in a cycle? Cycle a-d-b-a uses edges ad, db, ba. So ad is in this cycle. And ab is in both triangle abc and cycle adb. So ab is in two cycles. NOT a cactus.\n\nSo in a cactus, if you have a cycle $C$ and tree edges attached to it, the tree edges can't create new cycles. A tree edge from vertex $v$ of $C$ to a new vertex $d$ is fine. But two tree edges from different vertices of $C$ to the same new vertex would create a new cycle, violating the cactus property.\n\nSo in a cactus, the tree structure attached to a cycle $C$ attaches to at most one vertex of $C$ per \"branch\" of the tree, and these branches don't reconnect. Actually, the tree part is a tree, so it can't reconnect. The tree can attach to multiple vertices of $C$, but since the tree itself has no cycles, and the only cycle is $C$...\n\nWait, let me reconsider. A cactus graph: take the cycle $C$ (say triangle abc). Attach a tree $T_1$ at vertex $a$, and a tree $T_2$ at vertex $b$. The trees are separate. Now removing $C$'s edges: $T_1$ is attached at $a$ (now isolated from $b$ and $c$), $T_2$ at $b$ (isolated from $a$ and $c$), and $c$ is isolated. So we get at least 3 components. Disconnected. Good.\n\nBut what if we attach a tree at $a$ that reaches $b$ through tree edges? Like a-d-b (tree edges ad, db). But then a-d-b-a is a cycle (edges ad, db, ba), so edge ab is in two cycles. Not a cactus. So this can't happen.\n\nTherefore, in a cactus, the tree parts attached to different vertices of a cycle $C$ are in different \"branches\" that never reconnect (except through $C$ itself). So removing $C$'s edges disconnects them. \n\nSo cactus graphs DO satisfy the condition. My earlier \"counterexample\" was wrong because it wasn't actually a cactus.\n\nNow, the converse: does the condition imply cactus?\n\nSuppose $G$ is not a cactus. Then some edge $e$ is in two cycles $C_1, C_2$. I need to show the condition fails, i.e., there exists a cycle whose removal doesn't disconnect.\n\nHmm, this is the tricky part. Let me think about it.\n\nIf $e = uv$ is in two cycles $C_1$ and $C_2$, then $C_1$ and $C_2$ share edge $e$ but otherwise... they might share other edges too.\n\nConsider $C_1 \\cup C_2$. This is a subgraph where $u$ and $v$ are connected by two paths (the rest of $C_1$ and the rest of $C_2$). \n\nIf we remove all edges of $C_1$, does the graph stay connected? Not necessarily, because $C_1$'s edges might be critical elsewhere.\n\nLet me think of a specific example. Take two triangles sharing an edge: ab, ac, bc, ad, bd (triangles abc and abd sharing edge ab). We showed removing triangle abc leaves ad, bd (connected). So condition fails. Good.\n\nBut what about a more complex example? Consider a graph where two cycles share an edge, but there are other edges that maintain connectivity.\n\nExample: triangle abc (edges ab, bc, ca) and triangle abd (edges ab, bd, da), plus edge cd. So edges: ab, bc, ca, bd, da, cd. This is $K_4$ (6 edges on 4 vertices).\n\nCycles include: abc, abd, acd (edges ac, cd, da), bcd (edges bc, cd, db).\n\nRemove cycle abc (edges ab, bc, ca): remaining edges bd, da, cd. This is triangle bdc — connected. Condition fails.\n\nRemove cycle abd (edges ab, bd, da): remaining edges bc, ca, cd. Triangle bca... wait, that's bc, ca, and cd. Path a-c-b and c-d. Connected. Condition fails.\n\nSo $K_4$ doesn't satisfy the condition.\n\nLet me try to prove the converse more carefully.\n\nClaim: If $G$ satisfies the condition (every cycle's edge removal disconnects), then $G$ is a cactus.\n\nProof: Suppose $G$ is not a cactus. Then there exist two cycles $C_1, C_2$ sharing at least one edge. Let $e$ be a shared edge. \n\nConsider the symmetric difference $C_1 \\oplus C_2$ (edges in exactly one of the two cycles). This forms a cycle or a union of cycles (since every vertex has even degree in the symmetric difference). Actually, $C_1 \\oplus C_2$ is an Eulerian subgraph, so it's a union of edge-disjoint cycles.\n\nHmm, this is getting complicated. Let me try a different approach.\n\nAlternative approach: Let me think about what the condition means in terms of the \"cycle space\" and connectivity.\n\nActually, let me think about it more directly. \n\nLemma: If $G$ satisfies the condition, then every edge of $G$ belongs to at most one cycle.\n\nProof: Suppose edge $e = uv$ belongs to two distinct cycles $C_1$ and $C_2$. \n\nCase 1: $C_1$ and $C_2$ share only edge $e$ (and its endpoints $u, v$). Then $C_1 \\setminus \\{e\\}$ is a path $P_1$ from $u$ to $v$, and $C_2 \\setminus \\{e\\}$ is a path $P_2$ from $u$ to $v$, and $P_1, P_2$ are internally vertex-disjoint (since $C_1, C_2$ share only $e$). Now $P_1 \\cup P_2$ forms a cycle $C_3$ (going from $u$ to $v$ via $P_1$ and back via $P_2$). \n\nNow consider removing all edges of $C_1$. The edges of $C_1$ are $e$ and the edges of $P_1$. After removal, $P_2$ and $e$... wait, $e$ is removed too. So we have $P_2$ (from $u$ to $v$) remaining, plus whatever else is in $G$ outside $C_1$.\n\nThe vertices of $P_1$ (internal vertices) — are they connected to the rest after removing $C_1$'s edges? The internal vertices of $P_1$ were only on $C_1$, so they might be disconnected. But the condition requires the WHOLE graph to be disconnected, not just some vertices.\n\nHmm, actually the condition says \"break into at least two isolated groups.\" So we need at least 2 components. If $P_1$ has internal vertices, they'd be isolated (assuming no other edges), giving us at least 2 components. So the condition might still hold for $C_1$.\n\nBut we need to find SOME cycle whose removal doesn't disconnect. Let me think about $C_3 = P_1 \\cup P_2$.\n\nRemove all edges of $C_3$ (edges of $P_1$ and $P_2$). What remains? Edge $e = uv$ is still there (it's not in $C_3$). So $u$ and $v$ are still connected via $e$. But the internal vertices of $P_1$ and $P_2$ are now isolated (if they have no other edges). So the graph is disconnected (assuming $P_1$ or $P_2$ has internal vertices, which they do since $C_1 \\neq C_2$ and they share only $e$, so both paths have length $\\geq 2$).\n\nHmm, so removing $C_3$ also disconnects. This approach isn't working directly.\n\nLet me reconsider. Maybe the condition doesn't imply cactus. Let me think of a non-cactus graph that might satisfy the condition.\n\nConsider the \"theta graph\": vertices $u, v$ with three internally disjoint paths $P_1, P_2, P_3$ between them. Say each path has length 2: $u-a-v$, $u-b-v$, $u-c-v$. So edges: ua, av, ub, bv, uc, cv. 6 edges, 5 vertices.\n\nCycles: $C_{12} = P_1 \\cup P_2$ (u-a-v-b-u), $C_{13} = P_1 \\cup P_3$, $C_{23} = P_2 \\cup P_3$.\n\nRemove $C_{12}$'s edges (ua, av, ub, bv): remaining edges uc, cv. Path u-c-v, connected. Condition FAILS.\n\nSo theta graph fails. Good.\n\nWhat about a graph where two cycles share an edge but there's enough structure? Let me think...\n\nActually, let me try to prove the converse more carefully.\n\nClaim: If $G$ satisfies the condition, then $G$ is a cactus.\n\nProof: Suppose not. Then there exist two cycles $C_1, C_2$ sharing at least one edge. Let $e$ be a shared edge. Consider the subgraph $H = C_1 \\cup C_2$. \n\n$C_1$ and $C_2$ share edge $e = uv$. Let $P_1 = C_1 \\setminus \\{e\\}$ (path from $u$ to $v$) and $P_2 = C_2 \\setminus \\{e\\}$ (path from $u$ to $v$). \n\nIf $P_1$ and $P_2$ are internally vertex-disjoint, then $C_3 = P_1 \\cup P_2$ is a cycle not containing $e$.\n\nNow, consider removing $C_3$'s edges. Edge $e$ remains. The internal vertices of $P_1$ and $P_2$ lose all their edges in $H$ (since their edges are in $C_1$ or $C_2$, and $C_3 = P_1 \\cup P_2$ contains all edges of $P_1$ and $P_2$). But these internal vertices might have edges outside $H$.\n\nThis is where it gets tricky. The condition is about the whole graph $G$, not just $H$.\n\nLet me think about this differently. Maybe I should consider the block structure or use a cleaner argument.\n\nAlternative approach: Let me think about the condition in terms of \"every cycle is a cut set.\"\n\nActually, let me think about it as: the set of edges of every cycle is a \"bond\" or at least contains a cut. Removing the edges of any cycle disconnects the graph.\n\nLet me try to prove: if $G$ satisfies the condition, then $G$ is a cactus, by contrapositive. If $G$ is not a cactus, there exists a cycle $C$ such that $G - E(C)$ is connected.\n\nIf $G$ is not a cactus, there exist two cycles sharing an edge. Let $C_1, C_2$ be two cycles sharing edge $e = uv$, with $P_1 = C_1 \\setminus \\{e\\}$, $P_2 = C_2 \\setminus \\{e\\}$ internally vertex-disjoint (WLOG we can find such a pair).\n\n$C_3 = P_1 \\cup P_2$ is a cycle. $e \\notin C_3$. \n\nNow I want to show that $G - E(C_3)$ is connected. Well, $e$ is still in $G - E(C_3)$, connecting $u$ and $v$. The internal vertices of $P_1$ and $P_2$ have lost their edges in $C_1$ and $C_2$... but they might have other edges.\n\nHmm, this doesn't immediately work. The internal vertices might become isolated.\n\nLet me think about this more carefully with a potential counterexample.\n\nGraph: $u, v$ connected by edge $e$. Path $P_1$: $u - a - v$ (edges ua, av). Path $P_2$: $u - b - v$ (edges ub, bv). Plus, vertex $a$ has an additional edge to some vertex $w$, and $w$ is connected to $b$. So edges: e=uv, ua, av, ub, bv, aw, wb.\n\nCycles: $C_1 = e \\cup P_1$ (u-v-a-u, edges uv, va, au), $C_2 = e \\cup P_2$ (u-v-b-u, edges uv, vb, bu), $C_3 = P_1 \\cup P_2$ (u-a-v-b-u, edges ua, av, vb, bu), $C_4 = a-w-b-u-a$ (edges aw, wb, bu, ua), $C_5 = a-w-b-v-a$ (edges aw, wb, bv, va).\n\nThis is getting complex. Let me check if this graph satisfies the condition.\n\nRemove $C_3$'s edges (ua, av, vb, bu): remaining edges uv, aw, wb. Graph: u-v (edge uv), a-w-b (path aw, wb). So components: {u, v}, {a, w, b}. Disconnected. Condition holds for $C_3$.\n\nRemove $C_1$'s edges (uv, va, au): remaining edges ub, bv, aw, wb. Graph: u-b-v (path), a-w-b (path). So u-b-v and a-w-b share vertex b. Connected! Condition FAILS.\n\nSo this graph doesn't satisfy the condition. The cycle $C_1$'s removal leaves the graph connected because $P_2$ and the aw-wb edges maintain connectivity.\n\nInteresting. So the presence of edge $e$ and path $P_2$ means removing $C_1 = e \\cup P_1$ leaves $P_2$ intact, maintaining $u$-$v$ connectivity, and other edges can maintain the rest.\n\nThis suggests that whenever two cycles share an edge, removing one of them leaves the other cycle's \"alternative path\" intact, potentially maintaining connectivity.\n\nLet me try to formalize this.\n\nClaim: If $G$ is not a cactus, then $G$ doesn't satisfy the condition.\n\nProof: Since $G$ is not a cactus, there exist two cycles $C_1, C_2$ sharing at least one edge. Among all such pairs, choose $C_1, C_2$ sharing edge $e = uv$ such that $P_1 = C_1 \\setminus \\{e\\}$ and $P_2 = C_2 \\setminus \\{e\\}$ are internally vertex-disjoint. (We can find such a pair: take any two cycles sharing an edge $e$; if their remaining paths aren't internally vertex-disjoint, they share another vertex $w$, and we can find shorter cycles sharing an edge.)\n\nNow I want to show that removing $C_1$'s edges doesn't disconnect $G$. \n\nAfter removing $C_1$'s edges ($e$ and $P_1$'s edges), what remains? $P_2$ is intact, connecting $u$ and $v$. So $u$ and $v$ are still connected. The internal vertices of $P_1$ have lost their $C_1$-edges, but they might have other edges in $G$.\n\nThe issue is: are the internal vertices of $P_1$ still connected to the rest of $G$?\n\nIf some internal vertex of $P_1$ has no other edges, it becomes isolated, and the graph is disconnected. So the condition would hold for $C_1$, and I'd need to find a different cycle.\n\nHmm, so the approach of \"removing $C_1$ leaves things connected\" doesn't always work.\n\nLet me think about this differently. Maybe I should consider the cycle $C_3 = P_1 \\cup P_2$ (which doesn't contain $e$).\n\nAfter removing $C_3$'s edges (all edges of $P_1$ and $P_2$), edge $e$ remains, connecting $u$ and $v$. Internal vertices of $P_1$ and $P_2$ lose their path edges. If they have no other edges, they're isolated.\n\nAgain, the same issue.\n\nSo maybe the condition doesn't imply cactus after all? Let me try to construct a non-cactus graph satisfying the condition.\n\nConsider: two triangles sharing an edge, but with each non-shared vertex having a pendant edge.\n\nVertices: u, v, a, b, c, d. Edges: uv, ua, av (triangle uva), ub, bv (triangle uvb), ac, bd.\n\nSo triangle uva (edges uv, ua, av) and triangle uvb (edges uv, ub, bv) share edge uv. Plus pendant edges ac, bd.\n\nCycles: C1 = uva (uv, ua, av), C2 = uvb (uv, ub, bv), C3 = u-a-v-b-u (ua, av, vb, bu).\n\nRemove C1 (uv, ua, av): remaining edges ub, bv, ac, bd. Graph: u-b-v (path), a-c (pendant), b-d (pendant). Components: {u, b, v, d}, {a, c}. Disconnected. ✓\n\nRemove C2 (uv, ub, bv): remaining edges ua, av, ac, bd. Graph: u-a-v (path), a-c, b-d. Components: {u, a, v, c}, {b, d}. Disconnected. ✓\n\nRemove C3 (ua, av, vb, bu): remaining edges uv, ac, bd. Graph: u-v (edge), a-c, b-d. Components: {u, v}, {a, c}, {b, d}. Disconnected. ✓\n\nSo this graph satisfies the condition! But it's NOT a cactus (edge uv is in two cycles).\n\nSo the condition does NOT imply cactus. My earlier reasoning was wrong.\n\nThis changes things. The maximum number of edges might be higher than what cactus graphs achieve.\n\nLet me recount. The graph above has 7 edges on 6 vertices. A cactus on 6 vertices: $c \\leq (6-2)/2 = 2$ cycles (even $n$), edges $= 6 - 1 + 2 = 7$. So same count! Interesting.\n\nWait, but this non-cactus graph also has 7 edges. So maybe the bound is the same?\n\nHmm, let me think about this more carefully. Let me try to get more edges.\n\nCan I add more edges to the above graph? Let me try adding edge ab.\n\nVertices: u, v, a, b, c, d. Edges: uv, ua, av, ub, bv, ac, bd, ab. 8 edges.\n\nNew cycles: u-a-b-u (ua, ab, bu), a-v-b-a (av, vb, ba), u-a-b-v-u (ua, ab, bv, vu), etc.\n\nRemove C1 = uva (uv, ua, av): remaining ub, bv, ac, bd, ab. Graph: u-b-v, a-b, a-c, b-d. All connected through a-b. Connected! Condition FAILS.\n\nSo adding ab breaks the condition. \n\nWhat about adding edge cd instead?\n\nVertices: u, v, a, b, c, d. Edges: uv, ua, av, ub, bv, ac, bd, cd. 8 edges.\n\nNew cycles: c-a-u-v-b-d-c (ca, au, uv, vb, bd, dc) — a 6-cycle. And c-a-v-b-d-c (ca, av, vb, bd, dc) — a 5-cycle.\n\nRemove C1 = uva (uv, ua, av): remaining ub, bv, ac, bd, cd. Graph: u-b-v, a-c-d-b (ac, cd, db). Connected through b. Connected! FAILS.\n\nHmm. What about a different structure?\n\nLet me think about this problem more generally. \n\nThe condition: for every cycle $C$, $G - E(C)$ is disconnected.\n\nThis means every cycle is an \"edge cut\" (its edge set contains a cut). \n\nActually, let me think about it in terms of the cycle matroid or in terms of bonds.\n\nA set of edges $S$ is a \"cut\" (or bond) if removing $S$ increases the number of components. The condition says: for every cycle $C$, $E(C)$ is a cut (i.e., $G - E(C)$ has more components than $G$).\n\nSince $G$ is connected, $G - E(C)$ must be disconnected for every cycle $C$.\n\nNow, a cycle $C$ has the property that every vertex in $C$ has degree $\\geq 2$ in $C$. When we remove $E(C)$, each vertex of $C$ loses at least 2 edges.\n\nLet me think about the problem in terms of 2-edge-connected components.\n\nActually, let me think about it differently. Let me consider the \"block tree\" or \"bridge tree\" decomposition.\n\nHmm, let me think about what structure allows the maximum number of edges.\n\nKey insight: The condition requires that every cycle, when removed, disconnects the graph. This means every cycle must be \"essential\" for connectivity — there's no alternative path connecting the cycle's vertices that avoids all the cycle's edges.\n\nWait, that's exactly saying: for every cycle $C$, the vertices of $C$ cannot all be connected in $G - E(C)$. In other words, $G - E(C)$ must be disconnected.\n\nLet me think about the structure of graphs satisfying this condition. \n\nLet me consider the \"2-edge-connected\" components (blocks). Actually, let me think about bridges. A bridge is an edge whose removal disconnects the graph. Bridges are not in any cycle. So the graph can be decomposed into 2-edge-connected components connected by bridges.\n\nWithin each 2-edge-connected component, every edge is in some cycle. The condition applies to cycles within these components.\n\nLet me focus on a single 2-edge-connected component $H$. In $H$, every edge is in a cycle. The condition requires that for every cycle $C$ in $H$, $H - E(C)$ is disconnected (or more precisely, $G - E(C)$ is disconnected, but since $H$ is a 2-edge-connected component, the rest of $G$ is attached via bridges, so if $H - E(C)$ is connected, then $G - E(C)$ might still be disconnected if the cycle includes bridge edges... but cycles don't include bridges).\n\nWait, cycles are within 2-edge-connected components. So if $C$ is a cycle in component $H$, then $G - E(C)$: the bridges and other components are unaffected. $H - E(C)$ determines whether $G - E(C)$ is connected (assuming $H$ was the only connection point, but actually $H$ is connected to the rest via bridges, and those bridges are still there).\n\nHmm, actually $G - E(C)$ is disconnected if and only if $H - E(C)$ is disconnected OR the removal of $C$'s edges disconnects the bridge structure. But since $C$'s edges are all within $H$, the bridge structure is unaffected. So $G - E(C)$ is disconnected iff $H - E(C)$ is disconnected (since $H$ is connected to the rest via bridges at specific vertices, and if $H - E(C)$ is connected, then $G - E(C)$ is connected).\n\nWait, not exactly. $H$ is a 2-edge-connected component. $G - E(C)$: the bridges are still there. If $H - E(C)$ is connected, then all of $H$'s vertices are still connected, and the bridges to other components are intact, so $G - E(C)$ is connected. If $H - E(C)$ is disconnected, then $G - E(C)$ is disconnected.\n\nSo the condition reduces to: for every 2-edge-connected component $H$ and every cycle $C$ in $H$, $H - E(C)$ is disconnected.\n\nNow, within a 2-edge-connected component $H$, every edge is in a cycle. The condition is that every cycle's edge removal disconnects $H$.\n\nWhat 2-edge-connected graphs have the property that removing any cycle's edges disconnects?\n\nA cycle graph $C_k$: removing all edges leaves isolated vertices. Disconnected. ✓\n\nTwo cycles sharing a vertex (figure-eight): $H$ is 2-edge-connected. Cycle $C_1$'s removal leaves $C_2$ intact, which is connected. So $H - E(C_1)$ is connected. ✗\n\nWait, is a figure-eight 2-edge-connected? Two triangles sharing a vertex: vertices a, b, c, d, e with edges ab, bc, ca, ad, de, ea. Edge ab: is it a bridge? No, because a-b-c-a is a cycle. Every edge is in a cycle. So yes, 2-edge-connected. And removing triangle abc's edges (ab, bc, ca) leaves triangle ade (edges ad, de, ea), connected. So condition fails.\n\nSo within a 2-edge-connected component, the condition requires that the component is just a single cycle. Because if there are two cycles, they either share an edge or share only a vertex (or are connected by a path, but in a 2-edge-connected component, there are no bridges, so they must share at least a vertex).\n\nWait, in a 2-edge-connected component, can we have two edge-disjoint cycles sharing a vertex? Yes (figure-eight). And we showed that fails.\n\nCan we have two edge-disjoint cycles connected by a path of length $\\geq 1$? In a 2-edge-connected component, the path's edges must be in cycles. If the path is just a single edge, that edge must be in a cycle, creating a larger structure. \n\nActually, in a 2-edge-connected graph, if there are two edge-disjoint cycles, the graph has at least 2 cycles. I claim that any 2-edge-connected graph with $\\geq 2$ cycles fails the condition.\n\nHmm, let me think about whether a 2-edge-connected graph with exactly one cycle (i.e., the graph is itself a cycle) is the only one that works.\n\nA 2-edge-connected graph that is a single cycle: $C_k$. Removing all edges disconnects. ✓\n\nA 2-edge-connected graph with more than one cycle: I need to show it fails.\n\nIf $H$ is 2-edge-connected and has more edges than vertices (i.e., more than one cycle in the cycle space sense), then... \n\nActually, a 2-edge-connected graph where every edge is in exactly one cycle: that's a cactus where every edge is in a cycle, i.e., a graph where cycles share at most one vertex and there are no tree edges. But we showed the figure-eight (two cycles sharing a vertex) fails.\n\nWhat if cycles share a vertex but the condition still holds? We showed it doesn't (figure-eight fails).\n\nSo within a 2-edge-connected component, the only graphs satisfying the condition are single cycles.\n\nWait, but what about the example I constructed earlier? Two triangles sharing an edge, with pendant vertices. That graph is NOT 2-edge-connected (it has bridges: ac and bd are bridges). The 2-edge-connected component is the subgraph on {u, v, a, b} with edges uv, ua, av, ub, bv. This is a theta graph (two vertices u, v connected by three paths: direct edge, u-a-v, u-b-v). And we showed the theta graph fails the condition for the component... but the overall graph satisfied the condition because of the pendant edges!\n\nWait, let me recheck. In my example: vertices u, v, a, b, c, d. Edges: uv, ua, av, ub, bv, ac, bd.\n\n2-edge-connected component: {u, v, a, b} with edges uv, ua, av, ub, bv. (ac and bd are bridges.)\n\nCycle C1 = uva (uv, ua, av). Remove these edges from G: remaining ub, bv, ac, bd. In the 2EC component, remaining edges are ub, bv, which form a path u-b-v (connected). But in G, we also have ac and bd. Vertex a has edge ac, vertex b has edge bd. So G - E(C1) has: u-b-v (path), a-c, b-d. Components: {u, b, v, d}, {a, c}. Disconnected! ✓\n\nSo even though the 2EC component stays connected, the overall graph is disconnected because vertex a (which was in the cycle) has a pendant edge ac, and after removing the cycle edges, a is only connected to c, forming a separate component.\n\nSo my earlier reduction was wrong! The condition on $G$ is NOT equivalent to the condition on each 2EC component separately. The pendant edges (bridges) can cause disconnection even when the 2EC component stays connected.\n\nThis makes the problem more nuanced. Let me reconsider.\n\nThe key insight from the example: when we remove a cycle's edges, the vertices of the cycle that have bridge edges attached might form separate components. Specifically, if a vertex $v$ of cycle $C$ has a bridge edge to a subtree, and $v$'s only remaining edges after removing $C$ are to that subtree, then $v$ and its subtree form a separate component.\n\nSo the condition can be satisfied even with non-cactus 2EC components, as long as the cycle vertices have appropriate bridge attachments.\n\nThis means the maximum number of edges could be higher than the cactus bound. Let me reconsider.\n\nLet me think about the problem more carefully.\n\nLet me reconsider the structure. We have a connected graph $G$ on $n$ vertices. Condition: for every cycle $C$, $G - E(C)$ is disconnected.\n\nLet me think about what happens when we remove a cycle $C$'s edges. The vertices of $C$ lose their cycle edges. Each vertex $v$ of $C$ might still have non-cycle edges (edges not in $C$). The graph $G - E(C)$ is disconnected iff the vertices of $C$ (and the rest of the graph) are split into $\\geq 2$ components.\n\nFor $G - E(C)$ to be connected, every vertex of $C$ must be connected to every other vertex of $C$ through non-$C$ edges, and the rest of the graph must also be connected.\n\nSo the condition fails for cycle $C$ iff $G - E(C)$ is connected, i.e., the vertices of $C$ are still connected through alternative paths.\n\nThis is related to the concept of \"cyclomatic number\" or \"cycle rank.\"\n\nLet me think about it from the perspective of: what's the maximum number of edges such that every cycle is \"essential\" (its removal disconnects)?\n\nLet me consider the problem from a different angle. \n\nObservation: If $G$ has a cycle $C$ and $G - E(C)$ is connected, the condition fails. So we need: for every cycle $C$, $G - E(C)$ is disconnected.\n\n$G - E(C)$ is disconnected means $E(C)$ contains a cut (bond) of $G$.\n\nSo the condition is: every cycle contains a bond.\n\nA bond is a minimal cut. A cycle contains a bond means some subset of the cycle's edges forms a cut.\n\nActually, $G - E(C)$ disconnected means $E(C)$ is a cut (not necessarily minimal). So the condition is: $E(C)$ is a cut for every cycle $C$.\n\nIn matroid terms, a cycle is a circuit of the graphic matroid, and a cut is a cocircuit. The condition says: every circuit contains a cocircuit. \n\nIn a graphic matroid, a circuit (cycle) contains a cocircuit (cut) iff... hmm, this is a specific matroid property.\n\nActually, let me think about it more concretely.\n\n$E(C)$ is a cut means there exists a partition $V = S \\cup \\bar{S}$ such that $E(C) = \\delta(S)$ (the set of edges crossing the cut). Wait, not exactly — $E(C)$ being a cut means $G - E(C)$ is disconnected, which means there exists $S$ such that all edges between $S$ and $\\bar{S}$ are in $E(C)$. But $E(C)$ might contain additional edges not crossing this particular cut.\n\nSo the condition is: for every cycle $C$, there exists a cut $\\delta(S) \\subseteq E(C)$.\n\nThis means: for every cycle $C$, there's a partition of vertices such that all edges crossing the partition are edges of $C$.\n\nEquivalently: for every cycle $C$, there exist two vertices $u, v$ such that every path between $u$ and $v$ in $G$ uses at least one edge of $C$ (i.e., $E(C)$ separates $u$ and $v$).\n\nHmm, let me think about this differently. Let me consider the concept of \"minimally 2-edge-connected\" or related concepts.\n\nActually, I recall a concept: a graph where every cycle is a \"bond\" (minimal cut) is related to \"series-parallel graphs\" or \"outerplanar graphs.\" But our condition is weaker — the cycle's edges need to contain a cut, not be exactly a cut.\n\nLet me try a different approach: let me try to find the maximum for small $n$ and look for a pattern.\n\n$n = 3$: The only connected graphs on 3 vertices are: path (2 edges, no cycles, vacuously true) and triangle (3 edges, one cycle, removing it disconnects). Max = 3.\n\nFormula $\\lfloor 3(n-1)/2 \\rfloor = \\lfloor 3 \\rfloor = 3$. ✓\n\n$n = 4$: Connected graphs on 4 vertices. \n- Tree: 3 edges. Vacuously true.\n- 4-cycle: 4 edges. One cycle, removing it disconnects. ✓\n- Triangle + pendant: 4 edges. Triangle is the only cycle, removing it leaves the pendant edge, disconnecting. ✓\n- Complete graph $K_4$: 6 edges. Many cycles. Removing triangle abc leaves edges ad, bd, cd (triangle bdc), connected. Fails.\n- Diamond (two triangles sharing edge): 5 edges. As shown, fails.\n- 4-cycle + diagonal: 5 edges. Cycles: the 4-cycle and two triangles. Remove 4-cycle: leaves the diagonal, which is a single edge connecting 2 vertices, other 2 isolated. Disconnected. ✓. Remove a triangle (say abc where edges are ab, bc, ca): remaining edges are ad, cd, and the diagonal ac... wait, let me be specific.\n\n4-cycle a-b-c-d-a with diagonal ac. Edges: ab, bc, cd, da, ac. 5 edges.\n\nCycles: abc (ab, bc, ca), acd (ac, cd, da), abcd (ab, bc, cd, da).\n\nRemove abc (ab, bc, ca): remaining cd, da. Path c-d-a. Vertices a, c, d connected, b isolated. Disconnected. ✓\n\nRemove acd (ac, cd, da): remaining ab, bc. Path a-b-c. d isolated. Disconnected. ✓\n\nRemove abcd (ab, bc, cd, da): remaining ac. a-c connected, b, d isolated. Disconnected. ✓\n\nSo 4-cycle + diagonal works! 5 edges on 4 vertices.\n\nFormula $\\lfloor 3(4-1)/2 \\rfloor = \\lfloor 9/2 \\rfloor = 4$. But we found 5! So the formula is wrong.\n\nWait, let me double-check. 4-cycle + diagonal: 5 edges on 4 vertices. And it satisfies the condition. So the maximum for $n=4$ is at least 5.\n\nCan we do 6 (i.e., $K_4$)? No, as shown. So max for $n=4$ is 5.\n\nHmm, so my cactus-based formula was wrong. The answer is higher.\n\nLet me reconsider. For $n = 4$, max = 5. For $n = 3$, max = 3.\n\nLet me check $n = 5$.\n\nWhat's the maximum for $n = 5$?\n\nLet me think about what structures work. The 4-cycle + diagonal (5 edges on 4 vertices) works. Can I extend this to 5 vertices?\n\nAdd a pendant vertex to the 4-cycle+diagonal: vertex e connected to, say, a. Edges: ab, bc, cd, da, ac, ae. 6 edges.\n\nCycles: same as before (abc, acd, abcd). The pendant ae is a bridge, not in any cycle.\n\nRemoving any cycle's edges: same as before, plus e is attached to a. If a is in the remaining component, e is too. If a is isolated, e is with a.\n\nRemove abc (ab, bc, ca): remaining cd, da, ae. Path c-d-a-e. b isolated. Disconnected. ✓\nRemove acd (ac, cd, da): remaining ab, bc, ae. Path e-a-b-c. d isolated. Disconnected. ✓\nRemove abcd (ab, bc, cd, da): remaining ac, ae. Path c-a-e. b, d isolated. Disconnected. ✓\n\nSo 6 edges on 5 vertices works. Can we do better?\n\nWhat about 4-cycle + diagonal + another edge? Let me try adding edge be instead of ae.\n\nEdges: ab, bc, cd, da, ac, be. 6 edges. Vertex e connected to b.\n\nRemove abc (ab, bc, ca): remaining cd, da, be. Components: c-d-a (path), b-e. Disconnected. ✓\nRemove acd (ac, cd, da): remaining ab, bc, be. Path a-b-c and b-e. Connected through b! a-b-c and b-e: all connected. Connected! FAILS.\n\nSo be doesn't work. What about ce?\n\nEdges: ab, bc, cd, da, ac, ce. 6 edges.\n\nRemove abc (ab, bc, ca): remaining cd, da, ce. Path a-d-c-e. b isolated. Disconnected. ✓\nRemove acd (ac, cd, da): remaining ab, bc, ce. Path a-b-c-e. d isolated. Disconnected. ✓\nRemove abcd (ab, bc, cd, da): remaining ac, ce. Path a-c-e. b, d isolated. Disconnected. ✓\n\nSo ce works! 6 edges on 5 vertices.\n\nCan we get 7 edges on 5 vertices? Let me try adding another edge to the 6-edge graph.\n\nTake edges: ab, bc, cd, da, ac, ce. Add edge... de?\n\nEdges: ab, bc, cd, da, ac, ce, de. 7 edges.\n\nNew cycles: cde (cd, de, ec), acde (ac, cd, de, ea? no, no ea edge). Let me list cycles.\n\nActually, let me list all edges: ab, bc, cd, da, ac, ce, de.\n\nCycles: abc (ab, bc, ca), acd (ac, cd, da), abcd (ab, bc, cd, da), cde (cd, de, ec), and acde (ac, cd, de, ea? no ea). Hmm, is there a cycle a-c-d-e-? We need to get back to a. a-c-d-e-? No edge from e to a. So no.\n\nWhat about a-c-e-d-a? Edges ac, ce, ed, da. Yes! Cycle aced (ac, ce, ed, da).\n\nAnd a-b-c-e-d-a? Edges ab, bc, ce, ed, da. Yes! Cycle abceda.\n\nAnd a-b-c-d-e-c-a? That repeats c. Not a simple cycle.\n\nSo cycles: abc, acd, abcd, cde, aced, abceda.\n\nRemove cde (cd, de, ec): remaining ab, bc, da, ac. That's the 4-cycle+diagonal on {a,b,c,d} minus cd. Edges: ab, bc, da, ac. Graph: a-b-c and a-d and a-c. Connected! FAILS.\n\nSo adding de fails. Let me try adding ae instead.\n\nEdges: ab, bc, cd, da, ac, ce, ae. 7 edges.\n\nNew cycles: ace (ac, ce, ea), and others.\n\nCycles: abc, acd, abcd, ace (ac, ce, ea), abce (ab, bc, ce, ea), acde (ac, cd, da? no, need to include e). Hmm, a-c-d-?-e-a? a-c-d-a is a cycle but doesn't include e. \n\nLet me think: with edges ab, bc, cd, da, ac, ce, ae.\n\nCycles:\n- abc: ab, bc, ca\n- acd: ac, cd, da\n- abcd: ab, bc, cd, da\n- ace: ac, ce, ea\n- abce: ab, bc, ce, ea\n- acda... that's acd.\n- abcea: ab, bc, ce, ea — that's abce.\n- acde: ac, cd, de? No de edge. \n- What about a-c-e and a-d-c-e? Need edge de or similar. No.\n\nWait, I have edges: ab, bc, cd, da, ac, ce, ae.\n\nRemove ace (ac, ce, ea): remaining ab, bc, cd, da. That's the 4-cycle abcd. Connected! FAILS.\n\nSo adding ae fails too.\n\nLet me try a completely different structure for $n = 5$.\n\nWhat about $K_{2,3}$ (complete bipartite graph)? Vertices {a, b} and {c, d, e}. Edges: ac, ad, ae, bc, bd, be. 6 edges.\n\nCycles: all 4-cycles. acbd (ac, cb, bd, da), acbe (ac, cb, be, ea), adbe (ad, db, be, ea), adbc... wait, let me be careful.\n\n$K_{2,3}$: edges ac, ad, ae, bc, bd, be.\n\n4-cycles: a-c-b-d-a (ac, cb, bd, da), a-c-b-e-a (ac, cb, be, ea), a-d-b-e-a (ad, db, be, ea), a-d-b-c-a (ad, db, bc, ca), a-e-b-c-a (ae, eb, bc, ca), a-e-b-d-a (ae, eb, bd, da).\n\nThat's 6 4-cycles (choosing 2 of 3 vertices from {c,d,e}: $\\binom{3}{2} = 3$, times 2 orderings... actually $\\binom{3}{2} = 3$ pairs, each giving one 4-cycle: {c,d}, {c,e}, {d,e}. So 3 4-cycles.\n\nWait, a-c-b-d-a uses {c,d}, a-c-b-e-a uses {c,e}, a-d-b-e-a uses {d,e}. So 3 4-cycles.\n\nRemove cycle a-c-b-d-a (ac, cb, bd, da): remaining ae, be. Path a-e-b. c, d isolated. Disconnected. ✓\n\nRemove cycle a-c-b-e-a (ac, cb, be, ea): remaining ad, bd. Path a-d-b. c, e isolated. Disconnected. ✓\n\nRemove cycle a-d-b-e-a (ad, db, be, ea): remaining ac, bc. Path a-c-b. d, e isolated. Disconnected. ✓\n\nSo $K_{2,3}$ satisfies the condition! 6 edges on 5 vertices.\n\nCan we add a 7th edge to $K_{2,3}$? The only edges not in $K_{2,3}$ are within {a,b} (edge ab) and within {c,d,e} (edges cd, ce, de).\n\nAdd ab: edges ac, ad, ae, bc, bd, be, ab. 7 edges.\n\nNew cycles: abc (ab, bc, ca), abd (ab, bd, da), abe (ab, be, ea).\n\nRemove abc (ab, bc, ca): remaining ad, ae, bd, be. Graph: a-d, a-e, b-d, b-e. This is $K_{2,2}$ on {a,b} and {d,e}, which is a 4-cycle, connected. FAILS.\n\nAdd cd instead: edges ac, ad, ae, bc, bd, be, cd. 7 edges.\n\nNew cycles: a-c-d-a (ac, cd, da), b-c-d-b (bc, cd, db), a-c-d-b-a? (ac, cd, db, ba? no ba). \n\nCycles: acd (ac, cd, da), bcd (bc, cd, db), and the original 4-cycles minus... let me check.\n\nRemove acd (ac, cd, da): remaining ae, bc, bd, be. Graph: a-e, b-c, b-d, b-e. Connected through e (a-e-b) and b (b-c, b-d). Path a-e-b-c and a-e-b-d. Connected! FAILS.\n\nSo $K_{2,3}$ can't be extended to 7 edges. Max for $n=5$ is at least 6, and seems to be 6.\n\nWait, but earlier I found a 6-edge graph on 5 vertices (4-cycle+diagonal+ce). And $K_{2,3}$ also gives 6. Can we do 7?\n\nLet me try other structures. What about the \"house\" graph (square + triangle on top)?\n\nVertices: a, b, c, d, e. Edges: ab, bc, cd, da (square), ae, be (roof). 6 edges.\n\nCycles: abcd (4-cycle), abe (triangle), abcd... and a-e-b-c-d-a (5-cycle: ae, eb, bc, cd, da).\n\nRemove abe (ab, be, ea): remaining bc, cd, da. Path b-c-d-a. e isolated. Disconnected. ✓\nRemove abcd (ab, bc, cd, da): remaining ae, be. Path a-e-b. c, d isolated. Disconnected. ✓\nRemove 5-cycle aebcd (ae, eb, bc, cd, da): remaining ab. a-b connected, c, d, e isolated. Disconnected. ✓\n\nSo the house graph works! 6 edges. Same as before.\n\nCan we add a 7th edge to the house? Add edge ce:\n\nEdges: ab, bc, cd, da, ae, be, ce. 7 edges.\n\nNew cycles: bce (bc, ce, eb), aecd (ae, ec, cd, da), abce (ab, bc, ce, ea), abcd (still), abe (still), aebcd (still), and a-e-c-d-a (ae, ec, cd, da).\n\nRemove bce (bc, ce, eb): remaining ab, cd, da, ae. Graph: a-b, c-d, d-a, a-e. Path b-a-d-c and a-e. Connected! FAILS.\n\nAdd edge de instead:\n\nEdges: ab, bc, cd, da, ae, be, de. 7 edges.\n\nNew cycles: ade (ad, de, ea), bcd... b-c-d-e-b (bc, cd, de, eb), abcd (still), abe (still), aebcd (ae, eb, bc, cd, da), abed (ab, be, ed, da).\n\nRemove ade (ad, de, ea): remaining ab, bc, cd, be. Graph: a-b-c-d and b-e. Connected through b. Connected! FAILS.\n\nAdd edge ac:\n\nEdges: ab, bc, cd, da, ae, be, ac. 7 edges.\n\nNew cycles: abc (ab, bc, ca), acd (ac, cd, da), abe (ab, be, ea), abcd (ab, bc, cd, da), aebcd (ae, eb, bc, cd, da), abce (ab, bc, ce? no ce), acda... \n\nCycles: abc, acd, abe, abcd, aebcd, aecd (ae, ec? no ec), aebc (ae, eb, bc, ca), aebcd (ae, eb, bc, cd, da).\n\nRemove abc (ab, bc, ca): remaining cd, da, ae, be. Graph: c-d-a-e-b. Path! Connected. FAILS.\n\nHmm, all attempts to get 7 edges on 5 vertices fail. Let me try yet another structure.\n\nWhat about two 4-cycles sharing an edge? Vertices: a, b, c, d, e. Edges: ab, bc, cd, da (cycle 1), ab, be, ea... wait, that's a triangle. Let me do two 4-cycles sharing edge ab: a-b-c-d-a and a-b-e-f-a, but that's 6 vertices.\n\nFor 5 vertices: a-b-c-d-a (4-cycle) and a-b-e-?-a, but we need a 4th vertex for the second cycle. With 5 vertices, two 4-cycles sharing an edge: a-b-c-d-a and a-b-e-d-a (sharing edges ab and da? No, sharing edge ab only). \n\nEdges: ab, bc, cd, da, ae, ed, db. Wait, that doesn't work. Let me think.\n\nTwo 4-cycles sharing edge ab: cycle 1 = a-b-c-d-a (edges ab, bc, cd, da), cycle 2 = a-b-e-?-a. For cycle 2 to be a 4-cycle on vertex e and one more, but we only have 5 vertices. So cycle 2 = a-b-e-d-a? That uses edges ab, be, ed, da. But then da is shared too.\n\nEdges: ab, bc, cd, da, be, ed. 6 edges. Cycles: abcd (ab, bc, cd, da), abed (ab, be, ed, da), and abced? a-b-c-d-e-b... no, that's not simple. \n\nActually, cycles: abcd, abed, and b-c-d-e-b (bc, cd, de, eb).\n\nRemove abcd (ab, bc, cd, da): remaining be, ed. Path b-e-d. a, c isolated. Disconnected. ✓\nRemove abed (ab, be, ed, da): remaining bc, cd. Path b-c-d. a, e isolated. Disconnected. ✓\nRemove bcde (bc, cd, de, eb): remaining ab, da. Path b-a-d. c, e isolated. Disconnected. ✓\n\nSo this works! 6 edges on 5 vertices.\n\nAdd edge ac: edges ab, bc, cd, da, be, ed, ac. 7 edges.\n\nNew cycles: abc (ab, bc, ca), acd (ac, cd, da), abced (ab, bc, cd, de, ea? no ea), acde (ac, cd, de, ea? no ea), abcd (still), abed (still), bcde (still), abcea? no.\n\nCycles: abc, acd, abcd, abed, bcde, and possibly abcd... and a-c-d-e-b-a (ac, cd, de, eb, ba). Yes! 5-cycle acdeba.\n\nRemove abc (ab, bc, ca): remaining cd, da, be, ed. Graph: c-d-a, b-e-d. Connected through d. Connected! FAILS.\n\nAdd edge ce instead: edges ab, bc, cd, da, be, ed, ce. 7 edges.\n\nNew cycles: bce (bc, ce, eb), cde (cd, de, ec), bcde (bc, cd, de, eb), abcd (still), abed (still), and a-b-c-e-d-a (ab, bc, ce, ed, da). 5-cycle.\n\nRemove bce (bc, ce, eb): remaining ab, cd, da, ed. Graph: a-b, c-d, d-a, e-d. Path a-b and a-d-c and d-e. Connected! FAILS.\n\nIt really seems like 7 edges on 5 vertices is impossible. Let me try to see if there's a pattern.\n\n$n = 3$: max = 3\n$n = 4$: max = 5\n$n = 5$: max = 6\n\nDifferences: 3, 5, 6. The increments are 2, 1. Hmm.\n\nLet me compute $n = 6$.\n\nFrom my earlier example: two triangles sharing an edge with pendant vertices. 7 edges on 6 vertices.\n\nCan we do better? Let me try $K_{2,4}$: vertices {a,b} and {c,d,e,f}. But that's 6 vertices with 8 edges.\n\nWait, $n = 6$. $K_{2,4}$ has 8 edges.\n\nCycles in $K_{2,4}$: all 4-cycles. Each 4-cycle uses 2 vertices from {c,d,e,f}. There are $\\binom{4}{2} = 6$ such 4-cycles.\n\nRemove cycle a-c-b-d-a (ac, cb, bd, da): remaining ae, af, be, bf. That's $K_{2,2}$ on {a,b} and {e,f}, which is a 4-cycle. Connected! FAILS.\n\nSo $K_{2,4}$ fails. What about $K_{2,3}$ plus a pendant? 6 + 1 = 7 edges on 6 vertices.\n\n$K_{2,3}$ on {a,b,c,d,e} plus pendant f attached to, say, a. Edges: ac, ad, ae, bc, bd, be, af. 7 edges.\n\nCycles: same as $K_{2,3}$ (3 four-cycles). Pendant af is a bridge.\n\nRemove cycle a-c-b-d-a (ac, cb, bd, da): remaining ae, be, af. Graph: a-e-b, a-f. Connected through a. Connected! FAILS.\n\nHmm, because a is still connected to e (via ae) and to f (via af), and e is connected to b (via be). So a-e-b is a path, and a-f is pendant. All connected. Fails.\n\nWhat if the pendant is attached to c instead? Edges: ac, ad, ae, bc, bd, be, cf. 7 edges.\n\nRemove cycle a-c-b-d-a (ac, cb, bd, da): remaining ae, be, cf. Graph: a-e-b, c-f. Components: {a, e, b}, {c, f}. Disconnected. ✓\nRemove cycle a-c-b-e-a (ac, cb, be, ea): remaining ad, bd, cf. Graph: a-d-b, c-f. Disconnected. ✓\nRemove cycle a-d-b-e-a (ad, db, be, ea): remaining ac, bc, cf. Graph: a-c-b, c-f. Connected through c. Connected! FAILS.\n\nSo c pendant fails for the third cycle. What about attaching to d?\n\nBy symmetry (d and e are symmetric in $K_{2,3}$... actually c, d, e are all symmetric), same issue.\n\nWhat if we attach the pendant to a vertex that's in every cycle? In $K_{2,3}$, vertices a and b are in every cycle. If we attach pendant to a, we saw it fails. If to b, same by symmetry.\n\nHmm. So $K_{2,3}$ + pendant doesn't work for $n=6$.\n\nLet me try the 4-cycle + diagonal + extension. For $n=4$, we had 4-cycle abcd + diagonal ac = 5 edges. For $n=5$, we had 4-cycle abcd + diagonal ac + edge ce = 6 edges. For $n=6$, can we add another edge?\n\nEdges for $n=5$: ab, bc, cd, da, ac, ce. Add vertex f and some edge.\n\nAdd edge ef: edges ab, bc, cd, da, ac, ce, ef. 7 edges on 6 vertices.\n\nCycles: abc, acd, abcd, and new ones involving e and f. Edge ef is a bridge (not in any cycle, since e is only connected via ce and ef, and f is only connected via ef). So no new cycles.\n\nThe condition is still satisfied (same cycles as before, and f is just a pendant of e). ✓\n\nBut can we add more? Add edge df: edges ab, bc, cd, da, ac, ce, ef, df. 8 edges.\n\nNew cycles: cdf (cd, df, fc? no fc), cdef (cd, de? no de), c-e-f-d-c (ce, ef, fd, dc). Yes! 4-cycle cefd.\n\nAlso d-f-e-c-d (df, fe, ec, cd) — same cycle.\n\nRemove cefd (ce, ef, fd, dc): remaining ab, bc, da, ac. That's 4-cycle abcd + diagonal... wait, edges ab, bc, da, ac. That's the 4-cycle abcd minus cd, plus diagonal ac. Graph: a-b-c and a-d. Connected! FAILS.\n\nSo adding df fails. What about adding bf?\n\nEdges: ab, bc, cd, da, ac, ce, ef, bf. 8 edges.\n\nNew cycles: bcef (bc, ce, ef, fb), abf (ab, bf, fa? no fa), abcef (ab, bc, ce, ef, fa? no fa).\n\nCycles involving bf: bcef (bc, ce, ef, fb). Any others? b-f-e-c-b (bf, fe, ec, cb) — same. b-f-e-c-a-b (bf, fe, ec, ca, ab) — 5-cycle bfe cab.\n\nRemove bcef (bc, ce, ef, fb): remaining ab, cd, da, ac. Graph: a-b, c-d, d-a, a-c. Connected! FAILS.\n\nWhat about adding af?\n\nEdges: ab, bc, cd, da, ac, ce, ef, af. 8 edges.\n\nNew cycles: aef (ae? no ae), a-ce-f-a (ac, ce, ef, fa). 4-cycle acef. Also a-f-e-c-a (af, fe, ec, ca) — same.\n\nRemove acef (ac, ce, ef, fa): remaining ab, bc, cd, da. 4-cycle abcd. Connected! FAILS.\n\nSo we can't extend beyond 7 edges for $n=6$ with this structure. But maybe a different structure gives more?\n\nLet me try the \"two 4-cycles sharing an edge\" structure for $n=6$.\n\nFor $n=5$: two 4-cycles sharing edge ab, with vertices a,b,c,d,e. Edges: ab, bc, cd, da, be, ed. 6 edges. This worked.\n\nFor $n=6$: add vertex f. Add edge cf: edges ab, bc, cd, da, be, ed, cf. 7 edges.\n\ncf is a bridge (c is in cycle abcd, f is pendant). No new cycles. Condition still satisfied. ✓\n\nCan we add more? Add edge df: edges ab, bc, cd, da, be, ed, cf, df. 8 edges.\n\nNew cycles: cdf (cd, df, fc). Triangle!\n\nRemove cdf (cd, df, fc): remaining ab, bc, da, be, ed. Graph: a-b-c, b-e-d, d-a. Connected! FAILS.\n\nAdd edge ef: edges ab, bc, cd, da, be, ed, cf, ef. 8 edges.\n\nNew cycles: cef (ce? no ce), c-f-e-d-c (cf, fe, ed, dc). 4-cycle cfed. Also e-f-c-b-e (ef, fc, cb, be). 4-cycle efcb.\n\nRemove cfed (cf, fe, ed, dc): remaining ab, bc, da, be. Graph: a-b-c, b-e, d-a. Connected through a and b. Connected! FAILS.\n\nHmm. Let me try a different approach for $n=6$.\n\nWhat about the \"wheel graph\" $W_5$ (5-cycle + center)? That's 6 vertices, 10 edges. Too many, likely fails.\n\nWhat about $K_{3,3}$? 6 vertices, 9 edges. Likely fails.\n\nLet me think about this more systematically. \n\nLet me consider the structure of graphs satisfying the condition. \n\nKey observation: For every cycle $C$, $G - E(C)$ is disconnected. This means $E(C)$ contains a cut.\n\nLet me think about the \"cycle space\" of $G$. The cycle space has dimension $m - n + 1$ (where $m$ is the number of edges, and $G$ is connected). Each cycle is a vector in this space.\n\nThe condition says: every cycle (as an edge set) contains a cut. \n\nHmm, let me think about this differently. Let me consider the \"ear decomposition\" or think about building the graph incrementally.\n\nActually, let me think about the problem in terms of the following: what if we think of the graph as having a \"tree-like\" structure of 2-edge-connected components, where each 2-edge-connected component is a single cycle or a more complex structure?\n\nWait, I showed earlier that the condition doesn't reduce to each 2EC component separately. The bridges and pendant subtrees matter.\n\nLet me reconsider. The condition is: for every cycle $C$ in $G$, $G - E(C)$ is disconnected.\n\nLet me think about what graphs maximize edges under this condition.\n\nLet me consider the concept of a \"minimally 2-edge-connected graph.\" A graph is minimally 2-edge-connected if it's 2-edge-connected and removing any edge destroys 2-edge-connectivity. But that's a different condition.\n\nActually, let me think about the problem differently. Let me consider the \"block-cut tree\" of $G$.\n\nThe blocks of $G$ are the maximal 2-vertex-connected subgraphs and the bridges. The block-cut tree is a tree where blocks and cut vertices alternate.\n\nHmm, but our condition is about edge cuts, not vertex cuts. Let me use the \"bridge tree\" (2-edge-connected components connected by bridges).\n\nIn the bridge tree, each node is a 2EC component, and edges are bridges. The 2EC components are connected by bridges in a tree structure.\n\nNow, a cycle $C$ is entirely within one 2EC component $H$. When we remove $E(C)$, the rest of $G$ (other 2EC components and bridges) is unaffected. So $G - E(C)$ is disconnected iff $H - E(C)$ is disconnected OR the removal isolates some bridge-attached subtree.\n\nWait, more precisely: $G - E(C)$ is disconnected iff there exist two vertices that are separated. The bridges and other 2EC components are still connected (bridges aren't removed). So $G - E(C)$ is disconnected iff within $H$, $H - E(C)$ disconnects some vertices, considering that vertices of $H$ might have bridge-attached subtrees.\n\nSpecifically, if $H - E(C)$ is connected, then all vertices of $H$ are still connected, and the bridge-attached subtrees are still connected to $H$ via bridges. So $G - E(C)$ is connected. \n\nIf $H - E(C)$ is disconnected, then $G - E(C)$ is disconnected.\n\nWait, is this right? If $H - E(C)$ is connected, then every vertex of $H$ can reach every other vertex of $H$ without using $C$'s edges. The bridges to other 2EC components are intact. So yes, $G - E(C)$ is connected.\n\nIf $H - E(C)$ is disconnected, say into components $H_1, H_2, \\ldots$, then the bridge-attached subtrees are attached to specific vertices of $H$, which are in specific components. So $G - E(C)$ is also disconnected.\n\nSo the condition IS equivalent to: for every 2EC component $H$ and every cycle $C$ in $H$, $H - E(C)$ is disconnected.\n\nWait, but this contradicts my earlier example! Let me recheck.\n\nEarlier example: vertices u, v, a, b, c, d. Edges: uv, ua, av, ub, bv, ac, bd.\n\n2EC component: {u, v, a, b} with edges uv, ua, av, ub, bv. (This is a theta graph: u and v connected by edge uv, path u-a-v, path u-b-v.)\n\nBridges: ac (connecting a to subtree {c}), bd (connecting b to subtree {d}).\n\nCycle C1 = uva (uv, ua, av). $H - E(C1)$: remaining edges ub, bv. This is path u-b-v, which is connected. So $H - E(C1)$ is connected.\n\nBut $G - E(C1)$: remaining edges ub, bv, ac, bd. Components: {u, b, v, d}, {a, c}. Disconnected!\n\nSo $H - E(C1)$ is connected but $G - E(C1)$ is disconnected. This contradicts my claim above!\n\nWhere's the error? Ah, I see: when $H - E(C1)$ is connected, the vertices of $H$ are connected. But the bridge-attached subtrees: vertex $a$ has bridge $ac$ to subtree $\\{c\\}$. In $H - E(C1)$, vertex $a$ is... wait, is $a$ in $H - E(C1)$?\n\n$H$ has vertices {u, v, a, b} and edges uv, ua, av, ub, bv. $H - E(C1)$ removes edges uv, ua, av. Remaining edges: ub, bv. So $H - E(C1)$ has vertices {u, v, a, b} and edges {ub, bv}. Vertex $a$ is isolated in $H - E(C1)$!\n\nSo $H - E(C1)$ is NOT connected — vertex $a$ is isolated. I made an error earlier. $H - E(C1)$ has edges ub, bv, and vertex $a$ is isolated (no edges). So $H - E(C1)$ is disconnected: {u, b, v} and {a}.\n\nSo the condition on $G$ IS equivalent to the condition on each 2EC component. Let me re-examine.\n\nOK so the condition is: for every 2EC component $H$ and every cycle $C$ in $H$, $H - E(C)$ is disconnected.\n\nNow, within a 2EC component $H$, what graphs satisfy \"every cycle's edge removal disconnects $H$\"?\n\nA single cycle $C_k$: removing all edges leaves $k$ isolated vertices. Disconnected. ✓\n\nTheta graph (two vertices, three internally disjoint paths): we showed removing one cycle (two of the three paths) leaves the third path, which is connected. ✗\n\nFigure-eight (two cycles sharing a vertex): removing one cycle leaves the other, connected. ✗\n\nTwo cycles sharing an edge: removing one cycle leaves the other cycle minus the shared edge, which is a path, plus possibly the shared edge... wait, the shared edge is part of the removed cycle. So removing cycle $C_1$ (which includes the shared edge $e$) leaves $C_2$ minus $e$, which is a path. Connected. ✗\n\nSo it seems like within a 2EC component, only single cycles work. Let me verify this more carefully.\n\nClaim: A 2-edge-connected graph $H$ satisfies \"every cycle's edge removal disconnects $H$\" if and only if $H$ is a single cycle.\n\nProof: If $H$ is a single cycle, clearly the condition holds.\n\nIf $H$ is 2-edge-connected and not a single cycle, then $H$ has at least $n+1$ edges (where $n$ is the number of vertices, since a 2EC graph has $\\geq n$ edges, with equality iff it's a single cycle). So $H$ has at least 2 independent cycles.\n\nI need to show there exists a cycle $C$ in $H$ such that $H - E(C)$ is connected.\n\nSince $H$ is 2-edge-connected and not a single cycle, $H$ has a cycle $C$ and an edge $e$ not in $C$ such that $e$ connects two vertices of $C$ (or $e$ is part of a path connecting to $C$... hmm, not necessarily).\n\nActually, let me think about this more carefully. $H$ is 2-edge-connected, so every edge is in a cycle. If $H$ is not a single cycle, there exists an edge $e$ not in some cycle $C$ (since $H$ has more edges than any single cycle). Edge $e$ is in some other cycle $C'$.\n\nCase 1: $C$ and $C'$ share an edge. Then as argued, removing $C$ leaves $C' - E(C) \\cap E(C')$ which includes a path, and... hmm, this isn't rigorous.\n\nLet me try a different approach. \n\nLemma: If $H$ is 2-edge-connected and has more than one cycle (i.e., $|E(H)| > |V(H)|$), then there exists a cycle $C$ in $H$ such that $H - E(C)$ is connected.\n\nProof: Since $H$ is 2-edge-connected, by the ear decomposition theorem, $H$ can be built from a cycle by adding \"ears\" (paths whose internal vertices are new and whose endpoints are on the existing graph). \n\nLet $C_0$ be the initial cycle, and let $P$ be the first ear added. $P$ is a path from vertex $u$ to vertex $v$ on $C_0$, with internal vertices not on $C_0$. \n\n$C_0$ has two paths from $u$ to $v$: call them $Q_1$ and $Q_2$. Then $Q_1 \\cup P$ and $Q_2 \\cup P$ are both cycles.\n\nConsider the cycle $C = Q_1 \\cup P$. Removing $E(C)$ from $H$: we remove $E(Q_1)$ and $E(P)$. What remains in $H$? $Q_2$ is intact, connecting $u$ and $v$. The internal vertices of $P$ have lost their edges (they were only on $P$). So those internal vertices are isolated.\n\nHmm, so $H - E(C)$ is disconnected (internal vertices of $P$ are isolated). So this cycle doesn't work.\n\nWhat about the cycle $C_0 = Q_1 \\cup Q_2$? Removing $E(C_0)$: we remove $E(Q_1)$ and $E(Q_2)$. What remains is $P$ and any subsequent ears. $P$ connects $u$ and $v$. If there are no other ears, $H - E(C_0) = P$, which is connected (a path). So $H - E(C_0)$ is connected! The condition fails.\n\nBut wait, what if there are more ears? The subsequent ears might attach to $C_0$'s vertices, and those vertices are now only connected through $P$. If an ear $P'$ attaches to two vertices of $C_0$ that are both connected through $P$, then $H - E(C_0)$ is still connected. If $P'$ attaches to a vertex not on $P$... but all vertices of $C_0$ are endpoints of $Q_1$ or $Q_2$, and $P$ connects $u$ and $v$, so the only vertices of $C_0$ in $H - E(C_0)$ are $u$ and $v$ (connected by $P$) plus any vertices that are only on $Q_1$ or $Q_2$ (which are now isolated).\n\nHmm wait. $C_0 = Q_1 \\cup Q_2$ is a cycle. $Q_1$ and $Q_2$ are paths from $u$ to $v$. The internal vertices of $Q_1$ and $Q_2$ are on $C_0$ but not endpoints. After removing $E(C_0)$, these internal vertices lose all their $C_0$-edges. If they have no other edges (no ears attached), they're isolated.\n\nSo $H - E(C_0)$: $P$ is intact (connecting $u, v$ and its internal vertices). Internal vertices of $Q_1, Q_2$ are isolated (unless ears are attached to them). Subsequent ears are intact (their edges aren't in $C_0$).\n\nIf the first ear $P$ is the only ear, then $H - E(C_0) = P$, connected. Condition fails.\n\nIf there are more ears, some might attach to internal vertices of $Q_1$ or $Q_2$, keeping them connected. But some might not.\n\nThis is getting complicated. Let me try a specific example.\n\n$H$ = theta graph: $u, v$ with three paths $P_1$ (length 1, edge $uv$), $P_2$ ($u-a-v$), $P_3$ ($u-b-v$). 5 vertices, 5 edges. Wait, 4 vertices (u, v, a, b) and 5 edges.\n\n$C_0 = P_1 \\cup P_2$ (cycle $u-v-a-u$). Ear $P_3 = u-b-v$.\n\nRemove $E(C_0)$ (edges $uv, va, au$): remaining edge $ub, bv$. Path $u-b-v$. Connected. Condition fails. ✓ (This confirms theta graph fails.)\n\nNow, $H$ = cycle $C_0$ (say $u-v-a-u$, triangle) + ear $P$ ($u-b-v$, path). This is the theta graph. We've confirmed it fails.\n\nWhat if $H$ = cycle $C_0$ ($u-v-w-x-u$, 4-cycle) + ear $P$ ($u-a-x$, path)? Vertices: u, v, w, x, a. Edges: uv, vw, wx, xu, ua, ax. 6 edges, 5 vertices.\n\n$C_0 = u-v-w-x-u$. Remove $E(C_0)$ (uv, vw, wx, xu): remaining ua, ax. Path u-a-x. Connected. Fails.\n\nWhat if the ear has more internal vertices? $H$ = 4-cycle $u-v-w-x-u$ + ear $u-a-b-x$. Edges: uv, vw, wx, xu, ua, ab, bx. 7 edges, 6 vertices.\n\nRemove $E(C_0)$ (uv, vw, wx, xu): remaining ua, ab, bx. Path u-a-b-x. Connected. Fails.\n\nSo in general, if $H$ is built from a cycle $C_0$ plus an ear $P$, removing $E(C_0)$ leaves $P$ (connected). Fails.\n\nWhat if $H$ has two ears? $H$ = cycle $C_0$ + ear $P_1$ + ear $P_2$.\n\nIf both ears connect the same two vertices of $C_0$, removing $E(C_0)$ leaves $P_1 \\cup P_2$, which forms a cycle (connected). Fails.\n\nIf the ears connect different pairs of vertices, removing $E(C_0)$ leaves $P_1 \\cup P_2$ plus possibly isolated vertices. $P_1$ and $P_2$ might not be connected to each other.\n\nExample: $C_0 = u-v-w-x-u$ (4-cycle). Ear $P_1 = u-a-v$ (connecting $u, v$). Ear $P_2 = w-b-x$ (connecting $w, x$).\n\nRemove $E(C_0)$ (uv, vw, wx, xu): remaining ua, av, wb, bx. Components: {u, a, v}, {w, b, x}. Disconnected. ✓\n\nBut we need to check ALL cycles, not just $C_0$.\n\nOther cycles: $u-a-v-w-x-u$ (ua, av, vw, wx, xu), $u-v-a-u$... wait, $u-a-v-u$? Edges ua, av, vu. Yes! Triangle $uav$. And $w-b-x-w$? Edges wb, bx, xw. Yes! Triangle $wbx$.\n\nAlso: $u-a-v-w-b-x-u$ (ua, av, vw, wb, bx, xu). 6-cycle.\n\nRemove triangle $uav$ (ua, av, vu): remaining vw, wx, xu, wb, bx. Graph: v-w-x-u, w-b-x. Connected! FAILS.\n\nSo this graph fails because of the triangle $uav$.\n\nHmm. So adding ears creates new cycles (combining the ear with part of $C_0$), and those new cycles might not disconnect.\n\nThis suggests that the only 2EC graphs satisfying the condition are single cycles. Let me try to prove this.\n\nTheorem: A 2-edge-connected graph $H$ satisfies \"for every cycle $C$, $H - E(C)$ is disconnected\" if and only if $H$ is a single cycle.\n\nProof: The \"if\" direction is clear. For the \"only if\" direction:\n\nSuppose $H$ is 2-edge-connected and not a single cycle. Then $|E(H)| \\geq |V(H)| + 1$ (since a 2EC graph has $|E| \\geq |V|$, with equality iff it's a single cycle).\n\nBy the ear decomposition, $H$ can be constructed from an initial cycle $C_0$ by adding ears. Since $H$ is not a single cycle, at least one ear $P$ is added.\n\nLet $P$ be the first ear, connecting vertices $u, v$ on $C_0$. $C_0$ consists of two $u$-$v$ paths: $Q_1$ and $Q_2$.\n\nConsider the cycle $C' = Q_2 \\cup P$ (going from $u$ to $v$ via $Q_2$ and back via $P$). \n\n$H - E(C')$: we remove $E(Q_2)$ and $E(P)$. What remains? $Q_1$ is intact, connecting $u$ and $v$. The internal vertices of $P$ are isolated (their only edges are in $P$). The internal vertices of $Q_2$ are isolated (their only edges in $H$ so far are in $Q_2$, since $P$ is the first ear).\n\nWait, but $H$ might have more ears added after $P$. Those ears might attach to internal vertices of $Q_2$ or $P$, keeping them connected.\n\nHmm, so this approach doesn't immediately work for the general case. Let me think more carefully.\n\nActually, let me consider the LAST ear in the ear decomposition. Let $P$ be the last ear added, connecting vertices $u, v$ on the graph $H'$ (the graph before adding $P$).\n\n$H' $ is 2-edge-connected (it's a subgraph built by ear decomposition up to the second-to-last ear). $P$ is a path from $u$ to $v$ with internal vertices not in $H'$.\n\nIn $H'$, there's a path from $u$ to $v$ (since $H'$ is connected, indeed 2EC). Let $Q$ be a path from $u$ to $v$ in $H'$. Then $C = Q \\cup P$ is a cycle in $H$.\n\n$H - E(C)$: removes $E(Q)$ and $E(P)$. The internal vertices of $P$ are isolated (they have no edges outside $P$). So $H - E(C)$ is disconnected (internal vertices of $P$ are isolated). \n\nHmm, so this cycle does disconnect. That doesn't help.\n\nBut wait, I need to find a cycle that DOESN'T disconnect. Let me think about the cycle $C_0$ (the initial cycle in the ear decomposition).\n\n$H - E(C_0)$: removes all edges of $C_0$. What remains? All the ears. The ears form a connected subgraph? Not necessarily.\n\nActually, the ears form a subgraph that connects the vertices of $C_0$ through alternative paths. If there's only one ear $P$ connecting $u, v$, then $H - E(C_0) = P$ (plus any subsequent ears). If $P$ is the only ear, $H - E(C_0) = P$, connected. Fails.\n\nIf there are multiple ears, $H - E(C_0)$ is the union of all ears. This might or might not be connected.\n\nLet me think about when $H - E(C_0)$ is connected. The ears connect pairs of vertices on $C_0$. After removing $C_0$'s edges, the vertices of $C_0$ are connected only through the ears. The ears form a graph on the vertices of $C_0$ (plus internal vertices of ears). If the ears connect all vertices of $C_0$, then $H - E(C_0)$ is connected.\n\nBut if some vertex of $C_0$ is not an endpoint of any ear, it's isolated in $H - E(C_0)$.\n\nSo the condition might hold if every vertex of $C_0$ is an endpoint of at most one ear, and the ears don't connect all vertices.\n\nThis is getting complicated. Let me try a different approach entirely.\n\nLet me go back to computing small cases and find the pattern.\n\n$n = 3$: max = 3 (triangle)\n$n = 4$: max = 5 (4-cycle + diagonal)\n$n = 5$: max = 6 (need to verify this is optimal)\n$n = 6$: max = 7 (need to verify)\n\nWait, for $n = 4$, the 4-cycle + diagonal has 5 edges. Let me verify this is optimal. $K_4$ has 6 edges and fails. So max = 5 for $n = 4$.\n\nFor $n = 5$, I found several graphs with 6 edges that work, but couldn't find any with 7. Let me try harder.\n\nActually, let me think about upper bounds.\n\nUpper bound approach: Consider the condition. For every cycle $C$, $G - E(C)$ is disconnected. \n\nLet me think about the \"cyclomatic number\" $\\mu = m - n + 1$ (the dimension of the cycle space). Each independent cycle must satisfy the condition.\n\nHmm, let me think about a different approach. Let me consider the \"co-tree\" or \"complementary tree\" concept.\n\nIn a connected graph, a spanning tree $T$ has $n - 1$ edges, and the remaining $m - n + 1$ edges are \"co-tree\" edges. Each co-tree edge $e$ creates a fundamental cycle with $T$.\n\nThe condition requires that for every cycle $C$, $E(C)$ contains a cut. \n\nLet me think about the problem in terms of the graphic matroid. The condition is: every circuit contains a cocircuit. In matroid theory, a matroid where every circuit contains a cocircuit is called... hmm, I'm not sure of the exact term.\n\nActually, let me think about it differently. \n\nLet me consider the dual condition. $E(C)$ contains a cut means there's a partition $S, \\bar{S}$ of $V$ such that all edges between $S$ and $\\bar{S}$ are in $E(C)$. \n\nThis means: in $G - E(C)$, there's no edge between $S$ and $\\bar{S}$. So $G - E(C)$ is disconnected.\n\nOK let me try yet another approach. Let me think about the maximum degree or some structural property.\n\nLet me consider the \"friendship graph\" or \"windmill graph\": $k$ triangles sharing a common vertex. This has $2k + 1$ vertices and $3k$ edges. For $n = 2k+1$ (odd), edges $= 3(n-1)/2$.\n\nDoes the friendship graph satisfy the condition? Let's check for $k = 2$ (5 vertices, 6 edges): triangles $abc$ and $ade$ sharing vertex $a$. Edges: ab, bc, ca, ad, de, ea.\n\nCycles: abc (ab, bc, ca), ade (ad, de, ea).\n\nRemove abc (ab, bc, ca): remaining ad, de, ea. Triangle ade, connected. FAILS.\n\nSo the friendship graph doesn't satisfy the condition. \n\nWhat about the \"book graph\": $k$ triangles sharing a common edge? For $k = 2$: vertices a, b, c, d. Edges: ab, ac, bc, ad, bd. (Two triangles sharing edge ab.) 5 edges on 4 vertices. We showed this fails.\n\nHmm. Let me reconsider the $n = 4$ case. The 4-cycle + diagonal works with 5 edges. Is there anything else with 5 edges that works?\n\n4-cycle + diagonal: edges ab, bc, cd, da, ac. We verified this works.\n\nWhat about $K_4$ minus one edge? That's 5 edges on 4 vertices. $K_4$ minus edge cd: edges ab, ac, ad, bc, bd. This is the same as two triangles sharing edge ab (diamond). We showed this fails.\n\nSo for $n = 4$, the unique (up to isomorphism) optimal graph is the 4-cycle + diagonal.\n\nInteresting. The 4-cycle + diagonal is a \"maximal outerplanar graph\" on 4 vertices. Maximal outerplanar graphs on $n$ vertices have $2n - 3$ edges.\n\nFor $n = 4$: $2(4) - 3 = 5$. ✓\nFor $n = 3$: $2(3) - 3 = 3$. ✓ (triangle is maximal outerplanar)\nFor $n = 5$: $2(5) - 3 = 7$. But I couldn't find a 7-edge graph that works!\n\nLet me check if a maximal outerplanar graph on 5 vertices satisfies the condition.\n\nMaximal outerplanar graph on 5 vertices: a 5-cycle with two non-crossing diagonals. E.g., 5-cycle a-b-c-d-e-a with diagonals ac and ad. Edges: ab, bc, cd, de, ea, ac, ad. 7 edges.\n\nCycles: abc (ab, bc, ca), acd (ac, cd, da), ade (ad, de, ea), abcd (ab, bc, cd, da), acde (ac, cd, de, ea), abcdea (ab, bc, cd, de, ea), abcd... and ab-ca-de-a? Let me list more carefully.\n\nActually, the maximal outerplanar graph on 5 vertices is a triangulation of a convex pentagon. With diagonals ac and ad, the triangles are: abc, acd, ade.\n\nCycles:\n- abc: ab, bc, ca\n- acd: ac, cd, da\n- ade: ad, de, ea\n- abcd: ab, bc, cd, da (4-cycle)\n- acde: ac, cd, de, ea (4-cycle)\n- abcd... wait, is there a 5-cycle? a-b-c-d-e-a: ab, bc, cd, de, ea. Yes.\n- a-b-c-a-d-e-a? Not simple (a repeated).\n\nLet me also check: a-b-c-d-a: ab, bc, cd, da. Yes, 4-cycle (already listed).\na-c-d-e-a: ac, cd, de, ea. Yes, 4-cycle (already listed).\na-b-c-a-d-a? Not simple.\n\nSo cycles: abc, acd, ade, abcd, acde, abcdea.\n\nRemove abc (ab, bc, ca): remaining cd, de, ea, ad. Graph: c-d-e-a-d. Wait, edges cd, de, ea, ad. This is: c-d, d-e, e-a, a-d. Path c-d-e-a and d-a. Connected! FAILS.\n\nSo the maximal outerplanar graph on 5 vertices does NOT satisfy the condition. The triangle abc's removal leaves the rest connected.\n\nHmm. So the pattern isn't maximal outerplanar.\n\nLet me reconsider. For $n = 4$, the 4-cycle + diagonal works. For $n = 5$, I found 6-edge graphs that work but not 7.\n\nLet me try to prove an upper bound.\n\nClaim: The maximum number of edges is $2n - 3$ for $n = 3, 4$ but less for $n \\geq 5$.\n\nActually, $n = 3$: $2(3)-3 = 3$ ✓. $n = 4$: $2(4)-3 = 5$ ✓. $n = 5$: $2(5)-3 = 7$, but max seems to be 6. So the formula $2n-3$ doesn't hold for $n \\geq 5$.\n\nLet me reconsider. Maybe the answer is $\\lfloor 3(n-1)/2 \\rfloor$ after all, and I need to re-examine $n = 4$.\n\n$\\lfloor 3(4-1)/2 \\rfloor = \\lfloor 9/2 \\rfloor = 4$. But we found 5 edges for $n = 4$! So this formula is wrong.\n\nHmm, let me re-examine the $n = 4$ case more carefully.\n\n4-cycle + diagonal: vertices a, b, c, d. Edges: ab, bc, cd, da, ac.\n\nLet me re-verify all cycles:\n- abc: ab, bc, ca ✓\n- acd: ac, cd, da ✓\n- abcd: ab, bc, cd, da ✓\n\nRemove abc (ab, bc, ca): remaining cd, da. Path c-d-a. b isolated. Disconnected. ✓\nRemove acd (ac, cd, da): remaining ab, bc. Path a-b-c. d isolated. Disconnected. ✓\nRemove abcd (ab, bc, cd, da): remaining ac. Edge a-c. b, d isolated. Disconnected. ✓\n\nYes, 5 edges works for $n = 4$. So the formula $\\lfloor 3(n-1)/2 \\rfloor$ is wrong.\n\nLet me re-examine. The 4-cycle + diagonal is a graph where the 2EC component is the whole graph (it's 2EC: every edge is in a cycle). And it's not a single cycle. But it satisfies the condition!\n\nWait, this contradicts my earlier claim that only single cycles work as 2EC components. Let me recheck.\n\n$H$ = 4-cycle + diagonal on {a, b, c, d}. Edges: ab, bc, cd, da, ac. This is 2-edge-connected (every edge is in a cycle: ab is in abc and abcd, bc is in abc and abcd, cd is in acd and abcd, da is in acd and abcd, ac is in abc and acd).\n\n$H - E(abc) = H - \\{ab, bc, ac\\}$: remaining edges cd, da. Path c-d-a, b isolated. Disconnected. ✓\n\n$H - E(acd) = H - \\{ac, cd, da\\}$: remaining edges ab, bc. Path a-b-c, d isolated. Disconnected. ✓\n\n$H - E(abcd) = H - \\{ab, bc, cd, da\\}$: remaining edge ac. a-c, b and d isolated. Disconnected. ✓\n\nSo this 2EC graph (not a single cycle) satisfies the condition! My earlier claim was wrong.\n\nSo the structure is more nuanced. Let me reconsider what 2EC graphs satisfy the condition.\n\nThe 4-cycle + diagonal: it's a \"minimally 2-edge-connected\" graph? Let me check: is it 2-edge-connected? Yes. Is removing any edge still 2-edge-connected? Remove ab: remaining bc, cd, da, ac. Is this 2EC? Edge bc: is it in a cycle? bc-da-ac-b? Edges bc, cd, da, ac. Yes, 4-cycle. Edge da: in cycle da-ac-cd-d? da, ac, cd. Yes. So yes, still 2EC. So it's NOT minimally 2EC.\n\nHmm. Let me think about what property the 4-cycle + diagonal has.\n\nThe 4-cycle + diagonal is a \"series-parallel graph.\" It's also an \"outerplanar graph.\" \n\nActually, let me think about the condition differently. The condition is: every cycle $C$ has $E(C)$ containing a cut of $G$.\n\nFor the 4-cycle + diagonal:\n- Cycle abc: $E(abc) = \\{ab, bc, ac\\}$. Cut: $\\{ab, bc, ac\\}$ separates $\\{b\\}$ from $\\{a, c, d\\}$. Indeed, the only edges from $b$ are $ab$ and $bc$, both in the cycle. So $\\{ab, bc\\} \\subseteq E(abc)$ is a cut. ✓\n- Cycle acd: $E(acd) = \\{ac, cd, da\\}$. Cut: $\\{cd, da\\}$ separates $\\{d\\}$ from $\\{a, b, c\\}$. ✓\n- Cycle abcd: $E(abcd) = \\{ab, bc, cd, da\\}$. Cut: $\\{ab, bc, cd, da\\}$ separates... well, removing all 4 edges leaves only $ac$, so $\\{a, c\\}$ and $\\{b\\}, \\{d\\}$. The cut $\\{ab, bc\\}$ separates $\\{b\\}$, and $\\{cd, da\\}$ separates $\\{d\\}$. Both are subsets of $E(abcd)$. ✓\n\nSo the key property is: for every cycle, some vertex has all its incident edges in the cycle. (Then that vertex is isolated when the cycle is removed.)\n\nIn the 4-cycle + diagonal:\n- Cycle abc: vertex $b$ has edges $ab, bc$, both in the cycle. ✓\n- Cycle acd: vertex $d$ has edges $cd, da$, both in the cycle. ✓\n- Cycle abcd: vertex $b$ has edges $ab, bc$ (both in cycle), vertex $d$ has edges $cd, da$ (both in cycle). ✓\n\nSo the condition is satisfied if for every cycle, there's a vertex whose entire edge set is contained in the cycle. But this is a sufficient condition, not necessary (the cut might separate groups of vertices, not just isolate one).\n\nHmm, but for the condition to hold, we need $E(C)$ to contain a cut, which means there's some $S$ such that $\\delta(S) \\subseteq E(C)$. This doesn't require a single vertex to have all edges in $C$; it could be a group of vertices.\n\nBut the \"single vertex\" condition is a useful sufficient condition. Let me think about when it holds.\n\nA vertex $v$ has all its edges in cycle $C$ means $v$ is in $C$ and every edge incident to $v$ is an edge of $C$. Since $v$ is in $C$, it has exactly 2 edges in $C$. So $v$ has degree 2 in $G$, and both edges are in $C$.\n\nSo the sufficient condition is: every cycle contains a degree-2 vertex (and both edges of that vertex are in the cycle, which is automatic if the vertex has degree 2 and is in the cycle).\n\nWait, not quite. A degree-2 vertex $v$ in cycle $C$: $v$ has exactly 2 edges, both in $C$ (since $v$ is in $C$ and has degree 2). So removing $C$'s edges isolates $v$. ✓\n\nSo the condition is satisfied if every cycle contains a degree-2 vertex.\n\nThis is exactly the condition for a \"minimally 2-connected\" graph or a \"series-parallel graph\"!\n\nActually, a graph where every cycle has a degree-2 vertex is known as a \"minimally 2-edge-connected graph\" or more precisely, it's related to \"minimally 2-vertex-connected\" graphs.\n\nWait, let me be more precise. A graph where every cycle contains a vertex of degree 2 is called a \"minimally 2-connected graph\" if it's 2-vertex-connected. But our graph doesn't need to be 2-vertex-connected.\n\nActually, the property \"every cycle contains a degree-2 vertex\" is the defining property of \"minimally 2-edge-connected graphs\" — wait, no. Let me look this up in my memory.\n\nA graph is \"minimally 2-edge-connected\" if it's 2-edge-connected and removing any edge makes it not 2-edge-connected. This is equivalent to every edge being in at most one cycle... no, that's a cactus.\n\nHmm, I'm confusing concepts. Let me think from scratch.\n\nThe property \"every cycle contains a degree-2 vertex\" — what graphs have this?\n\nA graph where every cycle has a degree-2 vertex: this means you can't have a cycle where every vertex has degree $\\geq ",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 18887,
+        "completion_tokens": 25000,
+        "cached_tokens": 11777
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 18887,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 11777,
+    "total_steps": 8
+  }
+}

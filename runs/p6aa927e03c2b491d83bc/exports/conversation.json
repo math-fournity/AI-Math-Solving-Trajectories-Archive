@@ -1,0 +1,1036 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "jasper-heliotrope",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-14T06:15:34.069339+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-14T06:15:34.069921+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-14T06:15:34.079595+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-14T06:15:34.070281+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p6aa927e03c2b491d83bc (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.4.0\nToday's date: Friday, 2026-08-14\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-14T06:15:34.071080+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p6aa927e03c2b491d83bc/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nIn a specialized logistics network, a central warehouse is assigned a base inventory value of $330$ units. A group of regional distribution centers is considered \"Stable\" if there exists a standardized resource allocation function $P(x)$—defined as a polynomial with integer coefficients—where the input $x$ represents a center's identification code (a non-zero integer). \n\nFor a group of centers to be classified as Stable, the allocation function must satisfy two conditions:\n1. The baseline value $P(0)$ must exactly equal the warehouse's inventory of $330$.\n2. For every distribution center in the group, the function's output $P(v)$ must be exactly equal to twice the absolute value of that center's identification code ($2|v|$).\n\nA \"Stable Group\" is defined as any non-empty set of identification codes that satisfies these criteria simultaneously for a single polynomial $P(x)$. Find the total number of distinct Stable Groups that can possibly exist.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件，操作流程放 skill，等）\n4. **AGENTS.md 是总目录**——其中的索引节是跨 session AI 认知一致性的保证\n\n**Rule / Skill / 元组的放置层级**：\n\n当需要新建或迁移 rule、skill、元组时，按以下优先级选择放置位置：\n\n1. **首先考虑项目级 `.devin/` 目录**——这是 Devin 的正常使用方法。项目级 rule 放 `.devin/rules/`，项目级 skill 放 `.devin/skills/`。大多数 rule/skill 应该在这里——它们是项目特定的，不需要污染全局配置。\n2. **AGENTS.md 中只放 rule 索引**——项目 AGENTS.md 的维护规则节中，保留 rule 索引表（指向 `.devin/rules/` 中的文件），不保留完整 rule 内容。AGENTS.md 是总目录，rule 文件是详细内容。\n3. **只有确实跨项目通用的 rule/skill/元组，才升级为全局内容**——放在 `~/.config/devin/` 或 `~/.devin/` 中。**升级必须获得用户明确同意**——不要擅自把项目级内容升级为全局内容。\n4. **判断标准**：如果这个 rule/skill 只在当前项目有意义 → 项目级 `.devin/`。如果它在多个项目中都会被触发 → 可以考虑升级为全局，但先问用户。\n\n**元组：rule-skill-tuple-assessment**（rule + skill，全局）\n\n> **触发条件**：用户提出一个要求、认知、或设计思想时，AI 自动评估这个内容是否应该固化为 rule、skill、或元组。\n> **Skill**：`~/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md`\n> **核心意识**：不是每个用户要求都需要设为 rule/skill——只有具有跨 session 复用价值的才设置。但 AI 必须有意识地主动评估，而不是被动等用户说\"把这个设为rule\"。\n>\n> **评估流程**（详见 skill）：\n> 1. 判断是否具有跨 session 复用价值 → 否则直接执行不设置\n> 2. 判断类型：Rule（硬约束）/ Skill（SOP）/ 元组（Rule+Skill）/ 元组群（多Skill）\n> 3. 判断层级：项目级 `.devin/`（默认） vs 全局 `~/.config/devin/`（需用户同意）\n> 4. 执行：创建文件 + AGENTS.md 索引 + commit\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n### 13 · 禁止inline脚本，所有脚本持久化到项目内\n\n**Rule**：`~/.devin/rules/no-inline-scripts.md`\n\n**硬约束**：\n1. **禁止写超过3行的inline脚本**（`python -c \"...\"`、`bash -c \"...\"`）。超过3行的逻辑必须写成文件。\n2. **所有脚本写到项目内的脚本目录中**——不写`/tmp/`、不写home目录。放到项目已有的脚本目录或`scripts/`目录。\n3. **在项目AGENTS.md中做好索引**——新脚本必须记录路径、用途、用法。\n4. **持续维护，不重写**——已有脚本就改进，不另写新的。重复操作累积成越来越完善的脚本。\n\n**判定标准**：\n- 单行命令（`ls`、`git status`）→ 直接执行\n- 2-3行简单查询 → 可以直接执行\n- 超过3行 → **必须写成文件**\n- 会重复使用的操作 → **必须写成文件**\n- 已有脚本可改进 → **改进已有脚本**\n\n---\n\n## Git 管理协议\n\n**改文件前**：检查目标文件/目录是否处于 git clean 状态 → 记录 `before_status_baseline` → 明确本轮 `intended_delta`。\n\n**改文件后**：完成一个逻辑工作单元立即 commit → 记录 `after_status_baseline` → 核验 `after - before == intended_delta` → 目标文件/目录回到 git clean 状态。\n\n**禁止 `git add -A`、`git add .`、`git add -u`**。只 add 具体路径。\n\n任何 `git push` 都必须获得用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组 = Rule + Skill。Rule always-on 负责约束 + 模式匹配；Skill on-demand 负责工作流。AGENTS.md 中绝不放工作流，Skill 中绝不放硬性约束。AGENTS.md 太长是执行力问题——\"每次都必须知道\"→ 留在 AGENTS.md；\"遇到特定场景才需要\"→ 移到 Skill。\n\n> 元组详细方法论（瘦身工程、两种实现方式、新增元组规范）见 `~/.devin/rules/tuple-methodology.md`。Devin CLI 完整配置说明见 `devin-config-harness` skill。\n\n---\n\n## 元组：long-running-work-sop（长程工作SOP化铁律）\n\n**触发条件**：用户启动一个可能跨越压缩边界的持续性工作时；发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要迭代修正时。\n\n**核心约束**：长程工作（可能跨越压缩边界的持续性工作）必须SOP化。三个必须：\n1. **必须SOP化**——提取步骤、定义产出、定义验证，放入项目AGENTS.md\n2. **必须用rules锁定流程行为**——在`.devin/rules/`中创建rule文件，锁定SOP的执行纪律\n3. **必须版本化审计修正历史**——如果长程工作涉及分类学/框架/体系的迭代修正，修正的全历史必须在明面上审计（不在git log中），每次修正做覆盖性检查\n\n**Skill**：`~/.config/devin/skills/long-running-work-sop/SKILL.md`——提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程，以及积累的经验和反模式。\n\n**已有项目级实例**：\n- 数学大师项目的`tell-taxonomy-iteration-audit`元组（`.devin/rules/tell-taxonomy-iteration-audit.md`）——Tell分类学迭代审计的铁律和9步SOP，是本全局元组的项目级实例\n\n**经验和反模式积累**：在skill的\"经验和反模式积累区\"中持续追加。当前积累：5个反模式（当一次性任务做/不锁定/只在git log/不做覆盖性检查/遗留旧措辞）、3个经验（FLT例子测试/FCA理论审查方法/版本化审计让修正更严谨）。\n\n---\n\n### 元组群与 Skill 粒度铁律\n\n**元组群**：当一个复杂任务的工作流太长，无法放入单个 Skill 中时，应拆分为多个元组（多个 Skill），形成元组群协同工作。\n\n**为什么需要拆分**：Skill 加载后形成 Session 临时上下文中的认知和 SOP。但如果把应该拆分成多个 Skill 的内容放入一个 Skill 中，执行过程中可能跨越压缩边界——Session 压缩后，Skill 的后续内容从上下文中丢失，无法有效发挥作用。\n\n**Skill 粒度铁律**：\n\n1. **Skill 必须在 Session 上下文中始终可见**——如果执行过程很长（跨越多轮对话、可能触发压缩），Skill 内容必须足够短，确保压缩后仍可见，或拆分为多个 Skill 分阶段加载。\n\n2. **执行过程长 → 拆分 Skill**——如果一个 Skill 的工作流需要很多步骤、很长时间执行，应该拆分成多个 Skill，每个 Skill 覆盖一个可在一个压缩窗口内完成的阶段。\n\n3. **拆分后的 Skill 之间通过文档传递**——前一个 Skill 的产出落盘到文档（dev-docs / AGENTS.md / 数据文件），后一个 Skill 加载时读文档获取前序成果，不依赖 Session 上下文传递。\n\n4. **判断粒度的经验法则**——如果一个 Skill 的执行可能超过 10 轮对话或 50k tokens，考虑拆分。如果工作流中有明确的阶段分界点（如\"方案设计\"→\"执行\"→\"验证\"），在分界点拆分。\n\n### 元组群的整体性：目录在规则中\n\n**元组群如何确保整体性？** 确保整体性 = 确保工作的连续性。元组群中的多个 Skill 是一个整体工作流的分段，不是各自独立的任务。确保整体性的机制是：**元组群的目录放在规则中，规则指向一组 Skill，而不是单一 Skill。**\n\n**传统元组**：规则指向单一 Skill——\"遇到场景X，加载Skill Y\"。\n\n**元组群**：规则指向一组 Skill——\"遇到场景X，按顺序加载Skill Y1→Y2→Y3，它们是一个整体工作流的三个阶段\"。\n\n**元组群规则的结构**：\n\n```\n## 元组群：<群名称>\n\n**触发条件**：<何时AI应该执行这组工作流>\n\n**整体目标**：<这组Skill共同完成的最终目标>\n\n**Skill目录**（按执行顺序）：\n1. Skill <Y1>：<阶段1名称>——<这个阶段做什么>，产出落盘到<文档>\n2. Skill <Y2>：<阶段2名称>——<这个阶段做什么>，读取<文档>，产出落盘到<文档>\n3. Skill <Y3>：<阶段3名称>——<这个阶段做什么>，读取<文档>，产出最终结果\n\n**阶段间传递**：<通过什么文档/数据文件传递，不依赖Session上下文>\n\n**何时进入下一阶段**：<前一个Skill完成并落盘后，AI检查目录，自然加载下一个Skill>\n```\n\n**为什么目录在规则中而不是在某个Skill中**：\n\n1. **规则是always-on的**——不受压缩影响。即使Session压缩了，规则仍然在上下文中可见，AI始终能看到元组群的全貌——有几个阶段、当前在哪个阶段、下一步该加载哪个Skill。\n\n2. **如果目录在Skill中**——Skill加载后形成临时上下文，压缩后目录丢失，AI不知道还有后续阶段，元组群的整体性断裂。\n\n3. **规则是元组群的\"目录页\"**——每个Skill是\"章节内容\"。章节内容可能被压缩掉，但目录页始终可见，AI随时可以翻到正确的章节。\n\n**元组群规则的放置位置**：\n\n- **全局元组群**（跨项目通用）→ `~/.config/devin/AGENTS.md` 或 `~/.devin/rules/`\n- **项目级元组群**（特定项目的工作流）→ 项目 `AGENTS.md` 或 `.devin/rules/`\n\n**与单一元组的关系**：元组群是单一元组的扩展。单一元组 = 1个规则 + 1个Skill。元组群 = 1个规则（含目录） + N个Skill。规则从\"指向单一Skill\"升级为\"指向一组Skill的有序目录\"。\n\n---\n\n## 元组：trajectory-workline-review（从trajectory回溯session工作脉络）\n\n**触发条件**：需要了解某个 session（自己的或别人的）做了什么工作；同一 repo 下有多个 session 并行工作需要区分各自工作范围；新 session 启动时需要了解前序 session 进展；审查某个 session 的工作过程。\n\n**Skill**：`~/.config/devin/skills/trajectory-workline-review/SKILL.md`\n\n**核心约束**：\n1. **禁止用 git log 区分 session**——同一 repo 下多个 session 的 commit 交织在 git log 中，无法区分。必须用 sessions.db 的 session_id 区分。\n2. **运行中的 session 用 sessions.db，不用 transcripts**——transcript 文件只在 session 结束后写入，运行中的 session 没有 transcript 文件。sessions.db 的 message_nodes 表是实时写入的，是运行中 session 的唯一数据源。\n3. **grep tool_calls 中的 file_path 是最快方法**——不用完整解析嵌套 JSON，直接 grep `\"file_path\":\"...\"` 字符串，sqlite3 输出管道给 grep 一行命令搞定。区分操作类型时用正则 `re.finditer(r'\"name\":\"write\".*?\"file_path\"...')` 比解析 JSON 的 tool_calls 结构更稳健（结构可能不规则）。\n4. **文件操作时间线 = 工作脉络骨架**——提取每个文件首次操作时间并按时间排序，就是工作脉络的时间线。按目录归类操作频次 = 工作重心分布。\n5. **区分 write/edit/read 三种操作**——write（创建）= 核心产出，edit（修改）= 迭代深化，read（读取）= 前置依赖。只看 write 会漏掉 session 的前置依赖（读取了别人创建的文档 = 吸收前置讨论基础）。多 session 协作时，交叉分析 read 和 write 揭示跨 session 依赖关系。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-14T06:15:34.081094+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-14T06:15:34.082097+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **write-home-readme**: Write cross-project infrastructure or machine-level knowledge into the home readme system: detailed docs under ~/readme/, an entry in ~/README.md, and when needed a row in ~/readme/README.md. Use when the user says to record something in home readme, says this knowledge is cross-project or machine-wide, asks for a home-level index entry, or wants infrastructure/incident knowledge stored outside the current project. (source: /Users/user/.agents/skills/write-home-readme/SKILL.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **update-work-journal**: Record and maintain a user-facing, auditable work journal for the current project in `./dev-docs/工作日志.md`. Use when the user asks to update the visible work log, record progress, summarize current status, add a new workstream or branch line, or keep a human-readable engineering journal with exact timestamps. (source: /Users/user/.agents/skills/update-work-journal/SKILL.md)\n- **hooks-operation**: Operate the live global Codex hook framework under `~/.codex` and the related prompt files under `~/`. Use when installing, uninstalling, inspecting, or testing the user-level Codex hooks such as `block-stop`, `post-tool-use`, `pre-tool-use`, `user-prompt-submit`, and `session-start`, especially when working with the explicit Stop installs `block-once` and `block-always`, or when updating the Home-directory prompt text files those hooks read at runtime. (source: /Users/user/.agents/skills/hooks-operation/SKILL.md)\n- **add-to-dev-docs**: 在采用 `dev-docs/` 作为正式工作载体的项目中，新建或修订三位编号的 dev-docs 文档，默认版本化保存，并同步 `AGENTS.md` 文件索引与 `ChangeLog.md`。 (source: /Users/user/.agents/skills/add-to-dev-docs/SKILL.md)\n- **rule-skill-tuple-assessment**: 评估用户的提问或要求是否应该设置为 rule、skill（SOP）、或元组（rule+skill）， 以及应该放入 Devin 全局配置还是项目本地 .devin/ 目录。 WHEN to use: 用户提出一个要求或认知，AI判断这个要求是否具有跨session复用价值时。 WHEN NOT to use: 一次性的具体任务执行（如\"运行这个脚本\"、\"修这个bug\"）。\n (source: /Users/user/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md)\n- **spark**: Use when the user wants to brainstorm an idea or design a feature/spec. Explores intent and requirements through dialogue, then writes a spec document to docs/spark/ and STOPS. Does not auto-chain to implementation planning or any other skill. (source: /Users/user/.agents/skills/spark/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据的完整存储位置、格式、读取方法。 Transcript（ATIF格式）、sessions.db（SQLite）、logs、summaries、--export参数。 WHEN to use: 需要提取/解析/审计Devin CLI的session对话数据时。 WHEN NOT to use: 一般编码任务、非Devin CLI相关的数据工作。 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **bian-pai**: 成功执行编排的方法论与落地工作流。用于把复杂、多阶段、跨组件、可无人值守的 AI / 软件工程任务收束为可执行编排：明确目标、边界、依赖、输入冻结、可观测性、验证、失败恢复、并发、证据与停止条件，并产出 phase plan、runtime manifest、runbook、scenario matrix 与 verdict 结构。适用于设计自动化流程、tmux 联调、agent/worker 编排、故障注入与无人值守执行方案。 (source: /Users/user/.agents/skills/bian-pai/SKILL.md)\n- **ssh-58**: Use when operating the Thunderbolt-connected Mac \"58\" at 100.100.100.58, especially SSH, Remote Management, remote GUI automation, remote Computer Use MCP, Dokobot/Chrome testing, or permission/TCC repair on that machine. (source: /Users/user/.agents/skills/ssh-58/SKILL.md)\n- **qmd-search**: Search the AI conversation archive via QMD semantic/keyword/hybrid search AND Knowledge Graph queries (source: /Users/user/.agents/skills/qmd-search/SKILL.md)\n- **mempalace-codex-memory**: Use when Codex should interact with the local-only MemPalace memory layer for the current project: refresh project files or recent Codex transcripts into the canonical palace, render a low-token wake-up context, search project memory, or print the local MCP server command. Prefer this when you want real reusable local memory without remote services and without relying on repo-root `mempalace init` side effects. (source: /Users/user/.agents/skills/mempalace-codex-memory/SKILL.md)\n- **handover**: 压缩前执行。落盘对账 + 因果一致性 + 三大块记忆提取 + 交接写入，确保压缩后不丢认知。 (source: /Users/user/.agents/skills/handover/SKILL.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **md-multi**: Save the recent multi-turn discussion (a connected sequence of Q&A turns on the same topic) as ONE numbered Markdown file under dev-docs/, transcribed verbatim turn by turn — no summarizing, no merging similar Q&As, no rephrasing. Use when the user runs /md-multi or says \"把刚才整段讨论存档\" / \"这几轮一起记下来\" / \"整段保留为开发文档\". (source: /Users/user/.agents/skills/md-multi/SKILL.md)\n- **qmd-mcp-search**: 通过 QMD 语义搜索和知识图谱查询搜索 AI 对话存档。双模式检索，支持结构化实体发现。 WHEN to use: 需要语义搜索 AI 对话、知识图谱实体查询、文档相似度检索时。 WHEN NOT to use: 简单关键词搜索（用 ai-archive-search）、网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **read-email**: Read mailbox messages from configured Cloud Mail domains. Supports igreatagain.com by default and mail.0x10086.xyz or any subdomain under 0x10086.xyz when the user supplies that full address or the 0x10086 alias; use for verification codes, links, or explicit $read-email requests. (source: /Users/user/.agents/skills/read-email/SKILL.md)\n- **auto-run-to-the-end**: 当用户明确要求无人值守、持续运行、不中途汇报、一路做到底时使用。该 skill 要求先形成计划；若存在 看板.md / KANBAN.md / runbook / phase plan，则必须把它作为 source of truth 连续执行并边做边更新；fallback 成功不得冒充主线完成。除非被阻塞、存在高风险操作、或高优先级宿主规则要求，否则中途不做工作汇报，直到阶段工作真正收口。 (source: /Users/user/.agents/skills/auto-run-to-the-end/SKILL.md)\n- **tmux-easy-setup**: 配置 tmux 达到最易用状态：大缓冲区、鼠标滚动、系统剪贴板集成、vi 复制模式。 WHEN to use: 用 tmux 运行 AI CLI（devin/codex）、长时间任务、多 session 监控， 或用户抱怨 tmux 复制粘贴/缓冲区/鼠标不好用时。 WHEN NOT to use: 不涉及 tmux 的任务。\n (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **ai-carrier-meta-memory**: Use when discussing meta-level evolution of AI coding tools or AI carriers such as Codex, Claude Code, Hermes, ECC, Superpowers, continuous learning, AI governance repos, repo analysis records, user-intent classification, workflow routing, memory classification, memory routing, or how AI agents should decide what kind of interaction they are in before acting. (source: /Users/user/.agents/skills/ai-carrier-meta-memory/SKILL.md)\n- **codex-pure-lab**: Use when you need a reusable Codex testing system for isolated labs, headless CLI tests, app-server tests, tmux/TUI tests, start-codex launcher tests, hook tests, self-compact tests, or compaction tests without contaminating the live environment. (source: /Users/user/.agents/skills/codex-pure-lab/SKILL.md)\n- **cliproxyapi-config**: Use when Codex needs to configure, audit, explain, or troubleshoot CLIProxyAPI / CPA configuration, including 8888 or 18888 instances, routing.strategy fill-first, session-affinity, session-affinity-ttl, nonstream-keepalive-interval, streaming keepalive, max-retry-credentials, payload.default/override/filter rules, provider credentials, management UI config, auth-dir, hot reload, or when the user asks for the official CLIProxyAPI configuration parameter list. Prioritize official CLIProxyAPI docs and the bundled official-parameter index before inspecting source code. (source: /Users/user/.agents/skills/cliproxyapi-config/SKILL.md)\n- **new-email**: Create or reuse a mailbox on a configured Cloud Mail domain. Supports igreatagain.com by default and mail.0x10086.xyz or any subdomain under 0x10086.xyz when the user supplies that full address or the 0x10086 alias. (source: /Users/user/.agents/skills/new-email/SKILL.md)\n- **android-reverse-engineering**: Decompile Android APK, XAPK, JAR, and AAR files using jadx or Fernflower/Vineflower. Reverse engineer Android apps, extract HTTP API endpoints (Retrofit, OkHttp, Volley), and trace call flows from UI to network layer. Also covers maintaining the Lima VM-based AOSP/LineageOS source tree environment required for large-scale reverse engineering (repo sync monitoring with syncstate.json, tracking prebuilts without last_checkout, graceful shutdown, disk expansion via lima.yaml, migration of LIMA_HOME to large volumes like AI-PWD while leaving only 50GB host buffer). Use when the user wants to decompile, analyze, or reverse engineer Android packages, find API endpoints, follow call flows, or manage the underlying large source sync infrastructure in Lima. (source: /Users/user/.agents/skills/android-reverse-engineering/SKILL.md)\n- **work-with-dev-docs**: 在以 `dev-docs/` 作为正式工作载体的项目中，判断何时必须先落分析/计划/行动方案文档，何时修订已有三位编号文档，以及何时应转交工作日志、TODO、home readme 或 docs/。 (source: /Users/user/.agents/skills/work-with-dev-docs/SKILL.md)\n- **prove-context-structure-analysis-completeness**: 对任意 agent/CLI/harness 系统执行上下文结构分析完备性证明。用 Boundary / Static / Dynamic / Orphan 四表穷举上下文主链，做 remainder=0 检查，并给出 PASS / PARTIAL / FAIL verdict。 (source: /Users/user/.agents/skills/prove-context-structure-analysis-completeness/SKILL.md)\n- **db-file-traceability**:  (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **jsonl_curd**: Inspect, modify, validate, and resume Codex rollout JSONL files in controlled labs. Use when Codex needs to treat a rollout .jsonl as a structured test object: analyze its schema, perform CRUD-style mutations, verify rollout integrity, or start/resume Codex from an explicit rollout path for low-cost hook and boundary experiments. (source: /Users/user/.agents/skills/jsonl_curd/SKILL.md)\n- **ai-archive-search**: 搜索 AI 对话存档（AI-ALL-Markdown），使用 QMD 语义搜索。 WHEN to use: 需要搜索历史 AI 对话、查找之前的讨论内容、检索 AI 对话存档时。 WHEN NOT to use: 搜索当前项目代码（用 grep/glob）、一般网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/ai-archive-search/SKILL.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **handover-prompt**: 为下一个 session 维护项目级 AGENTS.md 的 Handover Section。先 /handover 落盘到 Memory Section，再 /handover-prompt 创建或更新 Handover Section。三个衡量标准：信息完整性、认知一致性、可无缝衔接性。 (source: /Users/user/.agents/skills/handover-prompt/SKILL.md)\n- **md**: Save the most recent single Q&A turn (the latest user message and the AI reply that immediately followed it) as ONE numbered Markdown file under the project's dev-docs/, transcribed verbatim — no summarizing, no merging, no rephrasing. Use when the user runs /md, says \"保存这次回答\" / \"把这一次记下来\" / \"把刚才那条存档\". (source: /Users/user/.agents/skills/md/SKILL.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **jsonl-reader**: Use when inspecting a Codex rollout JSONL or session id for session recovery, dehydrated dialogue reconstruction, or structured audit. Best for turning a rollout into a readable Markdown transcript and then drilling into exact records with stats/list/get without mutating the source JSONL. (source: /Users/user/.agents/skills/jsonl-reader/SKILL.md)\n- **android-reverse-engineering-simoneavogadro**: Decompile Android APK, XAPK, JAR, and AAR files using jadx or Fernflower/Vineflower. Reverse engineer Android apps, extract HTTP API endpoints (Retrofit, OkHttp, Volley), and trace call flows from UI to network layer. Use when the user wants to decompile, analyze, or reverse engineer Android packages, find API endpoints, or follow call flows. (source: /Users/user/.agents/skills/android-reverse-engineering-simoneavogadro/SKILL.md)\n- **fact**: 记忆提取：概念型 + 事实型 + 笔记型三大块，按顺序执行。每步 Pre-echo 复述规范再动手。 (source: /Users/user/.agents/skills/fact/SKILL.md)\n- **setup-devin-rules-skills**: 指向元组 rule 中的 setup-devin-rules-skills 条目；安顿 Devin 的 rule 和 skill（位置、格式、加载机制、操作流程）。 (source: /Users/user/.agents/skills/setup-devin-rules-skills/SKILL.md)\n- **self-compact**: 在项目采用项目级 AGENTS 单文件 handover 机制时，用于在本轮 handover 工作完成后触发自压缩。读取当前项目目录中的 `.tmux_session_name`，校验 tmux pane target，并让当前 AI 通过同一 tmux pane 对自己发起 `/compact`。 (source: /Users/user/.agents/skills/self-compact/SKILL.md)\n- **video-compress**: Compress local video files with ffmpeg using H.265 workflows that balance quality, compression ratio, and speed, including optional Apple VideoToolbox hardware encoding and rotation. Use when the user asks to compress, shrink, rotate while compressing, or reduce the size of a video from the command line while keeping quality high, especially for `.mp4`, screen recordings, and recordings that should stay easy to share or archive. (source: /Users/user/.agents/skills/video-compress/SKILL.md)\n- **add-new-todo**: 将用户刚刚提出的新待办落盘到当前项目 AGENTS.md 的 Memory Section > §TODO，并同步必要的索引与变更记录。 (source: /Users/user/.agents/skills/add-new-todo/SKILL.md)\n- **write-docs**: Write or rewrite technical documentation in a beginner-friendly, user-first, top-down teaching style. Use when the user asks for docs, code explanations, architecture writeups, source-analysis notes, API/process docs, or asks to explain concepts without assuming prior source-code knowledge. The goal is: don't make me think, don't make me ask twice. (source: /Users/user/.agents/skills/write-docs/SKILL.md)\n- **devin-config-harness**: Devin CLI 配置使用完整说明书。涵盖 rules（AGENTS.md + .devin/rules/）、skills、hooks、 config.json、MCP servers 的全局/项目本地位置、格式、参数和选择策略。 WHEN to use: 配置 Devin CLI、添加 rules/skills/hooks/MCP、理解 Devin 扩展架构、 从 Codex/Claude Code 迁移配置、排查配置问题。 WHEN NOT to use: 一般编码任务、非 Devin 配置相关的工作。\n (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **headless-codex**: Launch a highly controlled headless Codex CLI instance with explicit model, reasoning effort, sandbox, approval policy, writable dirs, JSON output, and a custom project-doc file such as AGENTS.md/RULES.md. Use when you need another AI or script to call Codex non-interactively. (source: /Users/user/.agents/skills/headless-codex/SKILL.md)\n- **videos-shink**: Batch-trim old `.mov` videos in one directory down to their last 20 minutes without re-encoding, write the results into a `shrink/` subdirectory, verify each output, and delete originals only after verification. Use for OBS-style cleanup jobs where one protected file, such as the file still being written, must not be touched. If the protected file is not explicitly identified, stop and ask the user before any mutating action. (source: /Users/user/.agents/skills/videos-shink/SKILL.md)\n- **release-skills**: Universal release workflow. Auto-detects version files and changelogs. Supports Node.js, Python, Rust, Claude Plugin, GitHub Releases, annotated tags, historical release backfill, and generic projects. Use when user says \"release\", \"发布\", \"new version\", \"bump version\", \"push\", \"推送\", \"release notes\", \"GitHub Release\", or \"回填 Release\". (source: /Users/user/.agents/skills/release-skills/SKILL.md)\n- **read-home-readme**: Read the machine-level home readme knowledge system to locate cross-project infrastructure knowledge before acting. Use when the user asks to look up something in home readme, wants machine-wide context, asks where a global workflow is documented, or when a task likely depends on knowledge stored in ~/README.md or ~/readme/. (source: /Users/user/.agents/skills/read-home-readme/SKILL.md)\n- **long-running-work-sop**: 长程工作SOP化与迭代审计铁律。当用户启动一个可能跨越压缩边界的持续性工作时， AI必须将其SOP化（放入项目AGENTS.md）、用rules锁定流程行为、版本化审计修正历史。 本skill提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程， 以及积累的经验和反模式。 WHEN to use: 用户启动一个可能跨越压缩边界的持续性工作时； 发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要修正时。 WHEN NOT to use: 一次性任务（如\"运行这个脚本\"、\"修这个bug\"）； 明确不会跨越压缩边界的短任务。\n (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **find-skills**: Helps users discover and install agent skills when they ask questions like \"how do I do X\", \"find a skill for X\", \"is there a skill that can...\", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill. (source: /Users/user/.agents/skills/find-skills/SKILL.md)\n- **loop**: Runs an autonomous development loop with research and implementation modes. Use when orchestrating iterative research and implementation cycles with dots-based task tracking and git workflow automation. (source: /Users/user/.agents/skills/loop/SKILL.md)\n- **codex-config-harness**: Configure and manage Codex CLI extensibility (AGENTS.md rules, Skills, MCP servers, config.toml). Use when the user asks about Codex CLI setup, adding MCP servers, writing skills, configuring rules, enabling skills feature flag, or understanding the Codex extension architecture. Also use when migrating configuration from Devin or Claude Code to Codex. Do NOT use for general coding tasks unrelated to Codex configuration. (source: /Users/user/.agents/skills/codex-config-harness/SKILL.md)\n- **trajectory-workline-review**:  (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Users/user/.local/share/devin/cli/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-14T06:15:36.720466+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me analyze this problem carefully.\n\nWe need to find polynomials P(x) with integer coefficients such that:\n1. P(0) = 330\n2. For every center's identification code v in the group, P(v) = 2|v|\n\nA \"Stable Group\" is a non-empty set of non-zero integers such that there exists a polynomial P(x) with integer coefficients satisfying both conditions.\n\nWe need to count the total number of distinct Stable Groups.\n\nLet me think about this. A Stable Group is a non-empty set S of non-zero integers such that there exists a polynomial P(x) ∈ Z[x] with P(0) = 330 and P(v) = 2|v| for all v ∈ S.\n\nSo for each v ∈ S, we need P(v) = 2|v|. Note that 2|v| depends on the sign of v: if v > 0, P(v) = 2v; if v < 0, P(v) = -2v = 2|v|.\n\nSo the question is: which non-empty sets S of non-zero integers can be \"interpolated\" by an integer-coefficient polynomial that also passes through (0, 330)?\n\nLet me think about what constraints exist.\n\nFirst, let's think about which individual values v can be in a stable group. For a single value v, we need a polynomial P(x) ∈ Z[x] with P(0) = 330 and P(v) = 2|v|.\n\nFor a single value v, we can always find such a polynomial. For example, P(x) = 330 + (2|v| - 330)/v * x... but wait, we need integer coefficients. So (2|v| - 330) must be divisible by v for this linear polynomial to work. But we can use higher degree polynomials.\n\nActually, for integer-coefficient polynomials, P(v) - P(0) is always divisible by v (since P(v) - P(0) = v * Q(v) for some polynomial Q with integer coefficients). So we need v | (P(v) - P(0)) = (2|v| - 330).\n\nSo the necessary condition for v to be in any stable group is: v | (2|v| - 330).\n\nLet me compute this. If v > 0: v | (2v - 330), which means v | 330. So v must be a positive divisor of 330.\n\nIf v < 0: let v = -w where w > 0. Then v | (2w - 330), i.e., -w | (2w - 330), i.e., w | (2w - 330), i.e., w | 330.\n\nSo the condition is: |v| divides 330, i.e., v is a non-zero integer whose absolute value divides 330.\n\nWait, but that's just the necessary condition for a single element. For a group (set) of elements, we need a single polynomial that works for all of them simultaneously.\n\nLet me reconsider. The necessary condition for v to be in a stable group is v | (2|v| - 330).\n\nIf v > 0: v | (2v - 330) ⟺ v | 330.\nIf v < 0: v = -w, w > 0. v | (2w - 330) ⟺ w | (2w - 330) ⟺ w | 330.\n\nSo the candidate values are: v such that |v| | 330.\n\n330 = 2 × 3 × 5 × 11.\n\nDivisors of 330: 1, 2, 3, 5, 6, 10, 11, 15, 22, 30, 33, 55, 66, 110, 165, 330. That's 16 divisors.\n\nSo the candidate values are ±d for each divisor d of 330, giving 32 candidate values.\n\nBut not every subset of these 32 values forms a stable group. We need a single polynomial P(x) ∈ Z[x] with P(0) = 330 and P(v) = 2|v| for all v in the subset.\n\nThe question is: which subsets of these 32 values are simultaneously realizable?\n\nLet me think more carefully. For a set S = {v_1, ..., v_k}, we need P(x) ∈ Z[x] with P(0) = 330 and P(v_i) = 2|v_i| for all i.\n\nThis is an integer polynomial interpolation problem with a constraint at 0.\n\nLet me think about this differently. Let's define the target values:\n- For v > 0: target is 2v\n- For v < 0: target is -2v\n- For v = 0: target is 330\n\nSo we're looking for P ∈ Z[x] with:\n- P(0) = 330\n- P(v) = 2v for v > 0 in S\n- P(v) = -2v for v < 0 in S\n\nLet me think about the positive and negative values separately.\n\nFor positive values: P(v) = 2v. So P(v) - 2v = 0 for v > 0 in S.\nFor negative values: P(v) = -2v. So P(v) + 2v = 0 for v < 0 in S.\n\nHmm, let me think about this problem differently. Consider the polynomial Q(x) = P(x) - 2x. Then:\n- Q(0) = P(0) - 0 = 330\n- For v > 0 in S: Q(v) = P(v) - 2v = 0\n- For v < 0 in S: Q(v) = P(v) - 2v = -2v - 2v = -4v = 4|v|\n\nAnd consider R(x) = P(x) + 2x. Then:\n- R(0) = P(0) + 0 = 330\n- For v < 0 in S: R(v) = P(v) + 2v = -2v + 2v = 0\n- For v > 0 in S: R(v) = P(v) + 2v = 2v + 2v = 4v\n\nHmm, this is getting complicated. Let me think about it more carefully.\n\nLet's separate the problem into positive and negative parts.\n\nLet S+ = {positive values in S} and S- = {negative values in S} (as absolute values, so S- = {|v| : v ∈ S, v < 0}).\n\nFor v ∈ S+ (v > 0): P(v) = 2v\nFor w ∈ S- (meaning -w ∈ S, w > 0): P(-w) = 2w\n\nSo we need:\n- P(0) = 330\n- P(v) = 2v for v ∈ S+\n- P(-w) = 2w for w ∈ S- (where -w ∈ S)\n\nNow, the key constraint is that P has integer coefficients.\n\nLet me think about necessary conditions. For any two points where we've specified P, the integer polynomial constraint imposes divisibility conditions.\n\nThe general theory: Given points (a_i, b_i), there exists P ∈ Z[x] with P(a_i) = b_i for all i if and only if for every subset of points, certain divisibility conditions hold. This is related to the Chinese Remainder Theorem for polynomials and Newton interpolation.\n\nActually, the key fact is: For P ∈ Z[x], and integers a, b, we have (a - b) | (P(a) - P(b)).\n\nMore generally, for P ∈ Z[x], P(a) ≡ P(b) (mod a - b) for any integers a, b.\n\nSo the necessary conditions are:\n1. For all v in S: v | (P(v) - P(0)) = (2|v| - 330), which gives |v| | 330 as we computed.\n2. For all v, w in S: (v - w) | (P(v) - P(w)) = (2|v| - 2|w|).\n\nAnd there are higher-order conditions related to divided differences being integers.\n\nActually, the necessary and sufficient condition for integer polynomial interpolation is more subtle. Let me think about this.\n\nThe condition for existence of P ∈ Z[x] with P(a_i) = b_i is that the Newton divided differences are all integers. But that's for the case without a fixed P(0). With P(0) = 330 fixed, we include (0, 330) as one of the points.\n\nSo we have points: (0, 330), and (v, 2|v|) for v ∈ S. We need P ∈ Z[x] interpolating all these points.\n\nThe necessary and sufficient condition is that all the divided differences (in the Newton interpolation sense) are integers.\n\nThis is complex. Let me think about it differently.\n\nActually, let me reconsider. The condition that there exists P ∈ Z[x] with specified values at specified integer points is equivalent to: the values are consistent modulo the appropriate ideals. Specifically, for P ∈ Z[x], P(a) ≡ P(b) (mod gcd-related conditions).\n\nThe precise condition: Given distinct integers a_1, ..., a_n and target values b_1, ..., b_n, there exists P ∈ Z[x] with P(a_i) = b_i if and only if for all i, j: (a_i - a_j) | (b_i - b_j), AND higher-order conditions hold.\n\nActually, the full condition is more nuanced. Let me think about small cases.\n\nFor two points (a, b_1) and (c, b_2): need (a - c) | (b_1 - b_2). This is necessary and sufficient (P(x) = b_1 + (b_2 - b_1)/(c - a) * (x - a)).\n\nFor three points (a, b_1), (c, b_2), (d, b_3): need (a-c) | (b_1 - b_2), (a-d) | (b_1 - b_3), (c-d) | (b_2 - b_3), AND the second divided difference [a, c, d] must be an integer. The second divided difference is (b_1/((a-c)(a-d)) + b_2/((c-a)(c-d)) + b_3/((d-a)(d-c))), or equivalently ((b_2 - b_1)/(c - a) - (b_3 - b_1)/(d - a)) / (c - d).\n\nThis gets complicated. Let me think about the structure of this problem more carefully.\n\nLet me reconsider. We have 32 candidate values: ±d for d | 330. The divisors of 330 are: 1, 2, 3, 5, 6, 10, 11, 15, 22, 30, 33, 55, 66, 110, 165, 330.\n\nFor each candidate value v, the target is 2|v|.\n\nLet me think about what happens with pairs of values.\n\nFor v, w both positive: P(v) = 2v, P(w) = 2w. So P(v) - P(w) = 2(v - w), and (v - w) | 2(v - w), which is always true. So any pair of positive values is fine (at least for the first-order condition).\n\nFor v, w both negative (v = -a, w = -b, a, b > 0): P(v) = 2a, P(w) = 2b. P(v) - P(w) = 2(a - b) = -2(v - w). So (v - w) | -2(v - w), always true.\n\nFor v > 0, w < 0 (w = -b, b > 0): P(v) = 2v, P(w) = 2b. P(v) - P(w) = 2v - 2b = 2(v - b) = 2(v + w). And v - w = v + b. So we need (v + b) | 2(v - b). Since v - b = (v + b) - 2b, we need (v + b) | 2(v - b) = 2(v + b) - 4b, so (v + b) | 4b.\n\nSo for a positive value v and a negative value -b (b > 0), the first-order condition is: (v + b) | 4b.\n\nAlso, we need the condition with 0: v | (2v - 330) i.e. v | 330, and b | (2b - 330) i.e. b | 330. These are already assumed.\n\nAnd the condition between 0 and the pair: For v > 0 and -b, we need (0 - v) | (330 - 2v) i.e. v | (330 - 2v) i.e. v | 330 (already assumed), and (0 - (-b)) | (330 - 2b) i.e. b | (330 - 2b) i.e. b | 330 (already assumed).\n\nNow, the cross condition (v + b) | 4b is the key constraint for mixing positive and negative values.\n\nLet me also think about higher-order conditions. But first, let me understand the structure better.\n\nIf S consists only of positive values, then we need P(v) = 2v for all v ∈ S, and P(0) = 330. The polynomial P(x) - 2x has integer coefficients, equals 0 at all v ∈ S, and equals 330 at x = 0. So P(x) - 2x = 330 + x * Q(x) where Q(x) ∈ Z[x] and Q(v) = -330/v for all v ∈ S... wait, no.\n\nP(x) - 2x vanishes at all v ∈ S (positive). So P(x) - 2x = (x - v_1)(x - v_2)...(x - v_k) * R(x) for some R(x) ∈ Z[x] (since the v_i are integers and P(x) - 2x ∈ Z[x], by the factor theorem, each integer root gives an integer factor). Wait, actually that's not quite right - we need P(x) - 2x to be divisible by (x - v_i) in Z[x], which is true since v_i is an integer root.\n\nSo P(x) - 2x = ∏(x - v_i) * R(x) where R(x) ∈ Z[x].\n\nThen P(0) - 0 = 330 = ∏(-v_i) * R(0) = (-1)^k ∏v_i * R(0).\n\nSo we need (-1)^k ∏v_i | 330, i.e., ∏v_i | 330.\n\nSo for a set of positive values S+ = {v_1, ..., v_k}, the condition is that the product v_1 * v_2 * ... * v_k divides 330.\n\nSimilarly, for a set of negative values S- = {-w_1, ..., -w_m} (w_i > 0), P(-w_i) = 2w_i, so P(x) - (-2x) = P(x) + 2x vanishes at x = -w_i. So P(x) + 2x = ∏(x + w_i) * T(x) where T(x) ∈ Z[x].\n\nP(0) + 0 = 330 = ∏w_i * T(0).\n\nSo we need ∏w_i | 330.\n\nNow, for a mixed set with both positive and negative values, it's more complex.\n\nLet me think about the mixed case. We have S+ = {v_1, ..., v_k} (positive) and S- = {-w_1, ..., -w_m} (negative, w_j > 0).\n\nP(v_i) = 2v_i for all i, and P(-w_j) = 2w_j for all j, and P(0) = 330.\n\nP(x) - 2x vanishes at x = v_i (positive values).\nP(x) + 2x vanishes at x = -w_j (negative values).\n\nLet Q(x) = P(x) - 2x. Then Q(v_i) = 0 and Q(-w_j) = P(-w_j) - 2(-w_j) = 2w_j + 2w_j = 4w_j.\n\nSo Q(x) = ∏(x - v_i) * R(x) for some R(x) ∈ Z[x].\nThen Q(-w_j) = ∏(-w_j - v_i) * R(-w_j) = 4w_j.\n\nSo ∏(-(w_j + v_i)) * R(-w_j) = 4w_j, i.e., (-1)^k ∏(w_j + v_i) * R(-w_j) = 4w_j.\n\nThis means ∏(w_j + v_i) | 4w_j for each j.\n\nSimilarly, let T(x) = P(x) + 2x. Then T(-w_j) = 0 and T(v_i) = P(v_i) + 2v_i = 4v_i.\n\nT(x) = ∏(x + w_j) * S(x) for some S(x) ∈ Z[x].\nT(v_i) = ∏(v_i + w_j) * S(v_i) = 4v_i.\n\nSo ∏(v_i + w_j) | 4v_i for each i.\n\nAlso, Q(0) = P(0) = 330, and Q(x) = ∏(x - v_i) * R(x), so Q(0) = ∏(-v_i) * R(0) = (-1)^k ∏v_i * R(0) = 330. So ∏v_i | 330.\n\nAnd T(0) = P(0) = 330, and T(x) = ∏(x + w_j) * S(x), so T(0) = ∏w_j * S(0) = 330. So ∏w_j | 330.\n\nSo the conditions are:\n1. ∏v_i | 330 (product of positive values divides 330)\n2. ∏w_j | 330 (product of absolute values of negative values divides 330)\n3. For each j: ∏_i (w_j + v_i) | 4w_j\n4. For each i: ∏_j (v_i + w_j) | 4v_i\n\nWait, but conditions 3 and 4 are related. ∏_i (w_j + v_i) | 4w_j for each j, and ∏_j (v_i + w_j) | 4v_i for each i.\n\nNote that ∏_i (w_j + v_i) is the same as ∏_i (v_i + w_j), and ∏_j (v_i + w_j) is the same product but over j instead of i.\n\nLet me denote the positive values as v_1, ..., v_k and the negative absolute values as w_1, ..., w_m.\n\nCondition 3: For each j, ∏_{i=1}^{k} (v_i + w_j) | 4w_j.\nCondition 4: For each i, ∏_{j=1}^{m} (v_i + w_j) | 4v_i.\n\nBut wait, I need to be more careful. The conditions I derived are necessary. Are they sufficient?\n\nLet me reconsider. We have:\n- Q(x) = ∏(x - v_i) * R(x) with R(x) ∈ Z[x], Q(0) = 330, Q(-w_j) = 4w_j.\n- T(x) = ∏(x + w_j) * S(x) with S(x) ∈ Z[x], T(0) = 330, T(v_i) = 4v_i.\n\nBut Q(x) = P(x) - 2x and T(x) = P(x) + 2x, so T(x) = Q(x) + 4x. This means we can't choose Q and T independently; they're related by T = Q + 4x.\n\nSo the conditions I derived are necessary but might not be sufficient. Let me think about this more carefully.\n\nActually, let me reconsider the approach. We need P ∈ Z[x] with:\n- P(0) = 330\n- P(v_i) = 2v_i for positive v_i\n- P(-w_j) = 2w_j for negative -w_j\n\nThis is an integer polynomial interpolation problem. The necessary and sufficient condition is that the divided differences are all integers (when we include (0, 330) as a point).\n\nBut this is hard to check in general. Let me think about the structure more.\n\nActually, let me think about this problem differently. Let me consider what the answer might be and work backwards.\n\nThe divisors of 330 are: 1, 2, 3, 5, 6, 10, 11, 15, 22, 30, 33, 55, 66, 110, 165, 330. That's 16 divisors.\n\nFor a set of only positive values, the condition is that the product divides 330. Since 330 = 2 × 3 × 5 × 11, and the divisors are products of subsets of {2, 3, 5, 11} (with multiplicity 1 each), the product of a set of divisors divides 330 if and only if... hmm, this is not straightforward because the divisors themselves can share prime factors.\n\nWait, actually, the product of a set of positive divisors of 330 divides 330 if and only if the product divides 330. Since 330 = 2 × 3 × 5 × 11, the product must be of the form 2^a × 3^b × 5^c × 11^d where a, b, c, d ∈ {0, 1}. But the product of several divisors could have higher powers.\n\nFor example, {2, 3}: product = 6, which divides 330. ✓\n{2, 6}: product = 12, which does not divide 330 (since 12 = 4 × 3 and 330 = 2 × 3 × 5 × 11, 4 doesn't divide 330). ✗\n{2, 2}: but we can't have duplicate values in a set.\n\nSo the condition for a set of positive divisors is that their product divides 330 = 2 × 3 × 5 × 11.\n\nSince each divisor is a product of a subset of {2, 3, 5, 11}, the product of several divisors divides 330 if and only if no prime appears with exponent > 1 in the product. This means: for each prime p ∈ {2, 3, 5, 11}, at most one divisor in the set can be divisible by p.\n\nWait, that's not quite right either. A divisor like 6 = 2 × 3 is divisible by both 2 and 3. So if we include 6, we've \"used up\" both the prime 2 and the prime 3. Then we can't include any other divisor divisible by 2 or 3.\n\nSo the condition is: the set of divisors, when we look at which primes each divisor uses, must have the property that no prime is used by more than one divisor.\n\nEach divisor d of 330 corresponds to a subset of {2, 3, 5, 11} (the primes dividing d). The condition is that these subsets are pairwise disjoint.\n\nSo we need to count the number of non-empty sets of pairwise disjoint non-empty subsets of {2, 3, 5, 11}, where each subset corresponds to a divisor.\n\nWait, but the divisor 1 corresponds to the empty subset. Can we include 1 in our set? If v = 1, then 1 | 330, so 1 is a valid candidate. And if we include 1, it uses no primes, so it can be combined with any other set.\n\nHmm wait, let me reconsider. The divisors of 330 and their prime factorizations:\n- 1 = {} (empty set of primes)\n- 2 = {2}\n- 3 = {3}\n- 5 = {5}\n- 6 = {2,3}\n- 10 = {2,5}\n- 11 = {11}\n- 15 = {3,5}\n- 22 = {2,11}\n- 30 = {2,3,5}\n- 33 = {3,11}\n- 55 = {5,11}\n- 66 = {2,3,11}\n- 110 = {2,5,11}\n- 165 = {3,5,11}\n- 330 = {2,3,5,11}\n\nSo each divisor corresponds to a subset of {2, 3, 5, 11}. The condition for a set of positive divisors to form a stable group is that the corresponding subsets are pairwise disjoint (and the product divides 330).\n\nWait, I need to be more careful. The condition is that the product divides 330. The product of divisors d_1, ..., d_k divides 330 = 2 × 3 × 5 × 11 if and only if for each prime p, the total exponent of p in the product is at most 1. Since each d_i is squarefree (as 330 is squarefree), the exponent of p in the product is the number of d_i divisible by p. So the condition is: for each prime p, at most one d_i is divisible by p. This is exactly the pairwise disjoint condition on the subsets.\n\nBut we also need to include the divisor 1, which corresponds to the empty set. Including 1 doesn't affect the product (multiplying by 1 doesn't change anything), so 1 can always be included or not, independently.\n\nSo for positive values only:\n- We can always choose to include or exclude 1 (the value v=1).\n- For the remaining divisors (those > 1), we need to choose a set of pairwise disjoint non-empty subsets of {2, 3, 5, 11}.\n\nThe number of ways to choose a set of pairwise disjoint non-empty subsets of a 4-element set is the number of \"set partitions into non-empty parts where we choose some parts\" — actually, it's the number of ways to partition a subset of {2,3,5,11} into non-empty parts.\n\nWait, let me think again. We're choosing a collection of pairwise disjoint non-empty subsets of {2, 3, 5, 11}. This is equivalent to choosing a partition of some subset T ⊆ {2, 3, 5, 11} into non-empty parts. The number of such collections is:\n\nFor each subset T of {2, 3, 5, 11}, the number of partitions of T into non-empty parts is the Bell number B(|T|). But we also allow the empty collection (T = empty).\n\nActually, the number of ways to choose a collection of pairwise disjoint non-empty subsets of {2,3,5,11} is:\n\n$$\\sum_{T \\subseteq \\{2,3,5,11\\}} B(|T|)$$\n\nwhere B(n) is the Bell number (number of partitions of an n-element set into non-empty parts). But wait, this counts the number of ways to partition some subset T into non-empty parts, summed over all T. But each collection of pairwise disjoint non-empty subsets determines a unique T (the union), and a unique partition of T. So the total count is:\n\n$$\\sum_{k=0}^{4} \\binom{4}{k} B(k)$$\n\nwhere B(0) = 1, B(1) = 1, B(2) = 2, B(3) = 5, B(4) = 15.\n\n= C(4,0)*1 + C(4,1)*1 + C(4,2)*2 + C(4,3)*5 + C(4,4)*15\n= 1 + 4 + 12 + 20 + 15\n= 52\n\nBut this includes the empty collection (k=0, which gives the empty set of divisors > 1). Since we need non-empty stable groups, and we can include 1 or not:\n\nIf we include 1: the collection of divisors > 1 can be anything (including empty), giving 52 options. But we need the overall set to be non-empty, and since 1 is included, it's always non-empty. So 52 options.\n\nIf we don't include 1: the collection of divisors > 1 must be non-empty, giving 52 - 1 = 51 options.\n\nTotal for positive values only: 52 + 51 = 103.\n\nHmm wait, but I need to double-check this. Let me reconsider.\n\nA stable group with only positive values is a non-empty subset S of {positive divisors of 330} such that the product of elements of S divides 330.\n\nThe positive divisors of 330 are: 1, 2, 3, 5, 6, 10, 11, 15, 22, 30, 33, 55, 66, 110, 165, 330.\n\nThe condition is: product of elements divides 330.\n\nSince 330 = 2 × 3 × 5 × 11 is squarefree, and each divisor is squarefree, the product divides 330 iff no prime appears more than once, i.e., the subsets of {2,3,5,11} corresponding to the divisors are pairwise disjoint.\n\nAs I said, 1 corresponds to the empty set and can always be included.\n\nFor divisors > 1, we need pairwise disjoint non-empty subsets of {2,3,5,11}.\n\nThe number of collections of pairwise disjoint non-empty subsets of a 4-element set is:\n\nLet me count directly. Each element of {2,3,5,11} can either:\n- Not be in any chosen subset, or\n- Be in exactly one chosen subset.\n\nSo we're partitioning some subset of {2,3,5,11} into non-empty parts. The number of ways to do this is the number of \"partial partitions\" of a 4-element set.\n\nThe number of partial partitions of an n-element set is $\\sum_{k=0}^{n} \\binom{n}{k} B_k$ where $B_k$ is the Bell number.\n\nFor n=4: $\\sum_{k=0}^{4} \\binom{4}{k} B_k = 1 \\cdot 1 + 4 \\cdot 1 + 6 \\cdot 2 + 4 \\cdot 5 + 1 \\cdot 15 = 1 + 4 + 12 + 20 + 15 = 52$.\n\nSo there are 52 collections of pairwise disjoint non-empty subsets of {2,3,5,11} (including the empty collection).\n\nNow, for positive-only stable groups:\n- Include 1, and any of the 52 collections: 52 groups (all non-empty since 1 is included)\n- Don't include 1, and any of the 52 collections except empty: 51 groups\n\nTotal positive-only: 103.\n\nBy symmetry, the same analysis applies to negative-only stable groups (with values -d for d | 330). The condition is the same: product of |v| values divides 330. So there are also 103 negative-only stable groups.\n\nNow for mixed groups (both positive and negative values), we need to analyze the cross-conditions.\n\nLet me reconsider. For a mixed group with positive values {v_1, ..., v_k} and negative values {-w_1, ..., -w_m}:\n\nConditions:\n1. ∏v_i | 330\n2. ∏w_j | 330\n3. For each j: ∏_i (v_i + w_j) | 4w_j\n4. For each i: ∏_j (v_i + w_j) | 4v_i\n\nBut as I noted, conditions 3 and 4 might not be sufficient because Q and T are related. Let me think about whether these conditions are actually sufficient.\n\nActually, I realize I need to think about this more carefully. Let me reconsider.\n\nWe need P ∈ Z[x] with P(0) = 330, P(v_i) = 2v_i, P(-w_j) = 2w_j.\n\nThis is equivalent to finding P ∈ Z[x] that interpolates the points (0, 330), (v_1, 2v_1), ..., (v_k, 2v_k), (-w_1, 2w_1), ..., (-w_m, 2w_m).\n\nThe necessary and sufficient condition for integer polynomial interpolation is that all divided differences are integers. This is a well-known but complex condition.\n\nLet me think about this differently. Let me use the Chinese Remainder Theorem approach.\n\nP ∈ Z[x] is determined modulo the ideal generated by {x, x - v_1, ..., x - v_k, x + w_1, ..., x + w_m} in Z[x]. But these are not coprime in general (since the ideals (x - a) and (x - b) in Z[x] are coprime iff a - b is a unit, i.e., a - b = ±1).\n\nHmm, this is getting complicated. Let me think about the problem from a higher level.\n\nActually, I think the key insight is that the conditions I derived (1-4) are necessary but might not be sufficient. However, let me check whether they might actually be sufficient by considering the structure more carefully.\n\nLet me reconsider. We have Q(x) = P(x) - 2x, which satisfies:\n- Q(0) = 330\n- Q(v_i) = 0 for all i\n- Q(-w_j) = 4w_j for all j\n\nQ(x) = ∏(x - v_i) * R(x) where R(x) ∈ Z[x].\n\nThen:\n- R(0) = 330 / ∏(-v_i) = 330 / ((-1)^k ∏v_i), so we need ∏v_i | 330 (condition 1).\n- R(-w_j) = 4w_j / ∏(-w_j - v_i) = 4w_j / ((-1)^k ∏(w_j + v_i)), so we need ∏(w_j + v_i) | 4w_j (condition 3).\n\nNow, R(x) ∈ Z[x] must satisfy:\n- R(0) = 330 / ((-1)^k ∏v_i) (an integer by condition 1)\n- R(-w_j) = 4w_j / ((-1)^k ∏(w_j + v_i)) (integers by condition 3)\n\nSo we need R ∈ Z[x] interpolating the points (0, r_0), (-w_1, r_1), ..., (-w_m, r_m) where r_0 = 330/((-1)^k ∏v_i) and r_j = 4w_j/((-1)^k ∏(w_j + v_i)).\n\nThis is another integer polynomial interpolation problem! So the conditions 1 and 3 are necessary but not sufficient in general; we also need the interpolation problem for R to be solvable.\n\nThis recursive structure makes the problem quite complex. Let me think about whether there's a simpler characterization.\n\nActually, let me reconsider the problem. Maybe I should think about it in terms of the original polynomial P directly.\n\nThe condition for P ∈ Z[x] to interpolate points (a_0, b_0), (a_1, b_1), ..., (a_n, b_n) with distinct a_i is:\n\nFor all subsets {i_0, ..., i_k}, the k-th divided difference [a_{i_0}, ..., a_{i_k}] is an integer.\n\nThe divided differences are defined recursively:\n[a_i] = b_i\n[a_i, a_j] = (b_i - b_j) / (a_i - a_j)\n[a_i, a_j, a_k] = ([a_i, a_j] - [a_j, a_k]) / (a_i - a_k)\n\netc.\n\nThis is hard to check in general for large sets. Let me think about whether there's a pattern or simplification.\n\nActually, let me step back and think about this problem from a different angle. Maybe the answer is simpler than I think.\n\nLet me consider the problem for small cases and see if I can find a pattern.\n\nCase 1: Single element. For a single value v (with |v| | 330), we need P(0) = 330 and P(v) = 2|v|. The condition is v | (2|v| - 330), which is |v| | 330. So any single value with |v| | 330 works. There are 32 such values.\n\nCase 2: Two elements. For two values v, w (both with |v|, |w| dividing 330), we need P(0) = 330, P(v) = 2|v|, P(w) = 2|w|. The conditions are:\n- v | (2|v| - 330) (already assumed)\n- w | (2|w| - 330) (already assumed)\n- (v - w) | (2|v| - 2|w|)\n- The second divided difference [0, v, w] must be an integer.\n\nThe second divided difference is:\n[0, v] = (330 - 2|v|) / (0 - v) = (330 - 2|v|) / (-v) = (2|v| - 330) / v\n[0, w] = (2|w| - 330) / w\n[v, w] = (2|v| - 2|w|) / (v - w)\n[0, v, w] = ([0, v] - [v, w]) / (0 - w) = ([0, v] - [v, w]) / (-w)\n\nHmm, this is getting complicated. Let me try a different approach.\n\nLet me think about what the problem is really asking. We need to count the number of non-empty subsets S of non-zero integers such that there exists P ∈ Z[x] with P(0) = 330 and P(v) = 2|v| for all v ∈ S.\n\nLet me think about this in terms of the polynomial P(x) - 2|x|... but |x| is not a polynomial. However, for specific values, we can think of it as:\n- P(v) = 2v for v > 0\n- P(v) = -2v for v < 0\n\nSo P(x) - 2x = 0 for positive v in S, and P(x) + 2x = 0 for negative v in S.\n\nLet me define f(x) = P(x) - 2x and g(x) = P(x) + 2x. Then g(x) = f(x) + 4x.\n\nf(0) = 330, f(v) = 0 for positive v in S.\ng(0) = 330, g(-w) = 0 for negative -w in S (w > 0).\n\nf(x) = ∏_{v ∈ S+} (x - v) * h(x) for some h ∈ Z[x].\ng(x) = ∏_{w ∈ S-} (x + w) * k(x) for some k ∈ Z[x].\n\nAnd g(x) = f(x) + 4x, so:\n∏_{w ∈ S-} (x + w) * k(x) = ∏_{v ∈ S+} (x - v) * h(x) + 4x\n\nThis is a single equation relating h and k. The existence of h, k ∈ Z[x] satisfying this is the key question.\n\nThis is still complex. Let me try to think about the problem computationally for small cases and see if a pattern emerges.\n\nActually, let me reconsider. Maybe I should think about which subsets are feasible by considering the constraints more carefully.\n\nLet me think about the cross-condition for a single positive value v and a single negative value -w.\n\nWe need P(0) = 330, P(v) = 2v, P(-w) = 2w.\n\nThe three points are (0, 330), (v, 2v), (-w, 2w).\n\nFirst-order conditions:\n- v | (330 - 2v) → v | 330 ✓ (assumed)\n- w | (330 - 2w) → w | 330 ✓ (assumed)\n- (v + w) | (2v - 2w) → (v + w) | 2(v - w)\n\nSince v - w = (v + w) - 2w, we need (v + w) | 2(v - w) = 2(v + w) - 4w, so (v + w) | 4w.\n\nSecond-order condition: The second divided difference must be an integer.\n\n[0, v] = (330 - 2v) / (0 - v) = (2v - 330) / v = 2 - 330/v\n[0, -w] = (330 - 2w) / (0 - (-w)) = (330 - 2w) / w = 330/w - 2\n[v, -w] = (2v - 2w) / (v - (-w)) = (2v - 2w) / (v + w) = 2(v - w) / (v + w)\n\n[0, v, -w] = ([0, v] - [v, -w]) / (0 - (-w)) = ([0, v] - [v, -w]) / w\n\n= ((2 - 330/v) - 2(v - w)/(v + w)) / w\n\n= (2 - 330/v - 2(v - w)/(v + w)) / w\n\nLet me compute this:\n= (2(v+w) - 330(v+w)/v - 2(v-w)) / (w(v+w))\n= (2v + 2w - 2v + 2w - 330(v+w)/v) / (w(v+w))\n= (4w - 330(v+w)/v) / (w(v+w))\n= (4wv - 330(v+w)) / (vw(v+w))\n= (4vw - 330v - 330w) / (vw(v+w))\n\nFor this to be an integer, we need vw(v+w) | (4vw - 330v - 330w).\n\nHmm, this is a strong condition. Let me check with specific values.\n\nLet v = 1, w = 1: vw(v+w) = 1*1*2 = 2, and 4*1*1 - 330*1 - 330*1 = 4 - 660 = -656. 2 | -656? 656/2 = 328. Yes! So {1, -1} is a valid stable group.\n\nLet v = 1, w = 2: vw(v+w) = 1*2*3 = 6, and 4*1*2 - 330*1 - 330*2 = 8 - 330 - 660 = -982. 6 | -982? 982/6 = 163.67. No! So {1, -2} is NOT a valid stable group.\n\nHmm wait, let me double-check. Let me verify the first-order condition: (v + w) | 4w. v = 1, w = 2: (1 + 2) | 4*2 = 8. 3 | 8? No. So the first-order condition already fails. Good, consistent.\n\nLet v = 1, w = 3: (1 + 3) | 4*3 = 12. 4 | 12? Yes. Second-order: vw(v+w) = 1*3*4 = 12, and 4*1*3 - 330*1 - 330*3 = 12 - 330 - 990 = -1308. 12 | -1308? 1308/12 = 109. Yes! So {1, -3} is valid.\n\nLet v = 2, w = 3: (2 + 3) | 4*3 = 12. 5 | 12? No. So {2, -3} is not valid.\n\nLet v = 1, w = 5: (1 + 5) | 4*5 = 20. 6 | 20? No. Not valid.\n\nLet v = 1, w = 11: (1 + 11) | 4*11 = 44. 12 | 44? No. Not valid.\n\nLet v = 1, w = 15: (1 + 15) | 4*15 = 60. 16 | 60? No. Not valid.\n\nLet v = 1, w = 30: (1 + 30) | 4*30 = 120. 31 | 120? No. Not valid.\n\nSo for v = 1, the valid w values (from divisors of 330) are those where (1 + w) | 4w.\n\n(1 + w) | 4w ⟺ (1 + w) | (4w - 4(1 + w)) = -4, so (1 + w) | 4.\n\nSo 1 + w ∈ {1, 2, 4} (positive divisors of 4), giving w ∈ {0, 1, 3}. Since w > 0 and w | 330, w ∈ {1, 3}.\n\nSo for v = 1, the only valid negative partners are w = 1 and w = 3.\n\nLet me check v = 2, w = 1: (2 + 1) | 4*1 = 4. 3 | 4? No. Not valid.\n\nv = 3, w = 1: (3 + 1) | 4*1 = 4. 4 | 4? Yes. Second-order: vw(v+w) = 3*1*4 = 12, and 4*3*1 - 330*3 - 330*1 = 12 - 990 - 330 = -1308. 12 | -1308? 1308/12 = 109. Yes! So {3, -1} is valid.\n\nv = 5, w = 1: (5 + 1) | 4*1 = 4. 6 | 4? No. Not valid.\n\nSo for w = 1, the valid positive partners v are those where (v + 1) | 4, giving v + 1 ∈ {1, 2, 4}, so v ∈ {0, 1, 3}. Since v > 0 and v | 330, v ∈ {1, 3}.\n\nFor w = 3, the valid positive partners v are those where (v + 3) | 4*3 = 12. So v + 3 | 12, giving v + 3 ∈ {1, 2, 3, 4, 6, 12}, so v ∈ {-2, -1, 0, 1, 3, 9}. Since v > 0 and v | 330, v ∈ {1, 3}.\n\nBut we also need the second-order condition. Let me check v = 3, w = 3:\nvw(v+w) = 3*3*6 = 54, and 4*3*3 - 330*3 - 330*3 = 36 - 990 - 990 = -1944. 54 | -1944? 1944/54 = 36. Yes! So {3, -3} is valid.\n\nSo the valid pairs (v, w) with v, w | 330, v, w > 0, and both first and second order conditions satisfied:\n- (1, 1): valid ✓\n- (1, 3): valid ✓\n- (3, 1): valid ✓\n- (3, 3): valid ✓\n\nLet me check more. For v = 2: (v + w) | 4w. (2 + w) | 4w. (2 + w) | (4w - 4(2 + w)) = -8. So (2 + w) | 8. 2 + w ∈ {1, 2, 4, 8}, w ∈ {-1, 0, 2, 6}. Since w > 0 and w | 330, w ∈ {2, 6}.\n\nCheck (2, 2): vw(v+w) = 2*2*4 = 16, and 4*2*2 - 330*2 - 330*2 = 16 - 660 - 660 = -1304. 16 | -1304? 1304/16 = 81.5. No! So {2, -2} is NOT valid.\n\nCheck (2, 6): vw(v+w) = 2*6*8 = 96, and 4*2*6 - 330*2 - 330*6 = 48 - 660 - 1980 = -2592. 96 | -2592? 2592/96 = 27. Yes! So {2, -6} is valid.\n\nHmm interesting. So the second-order condition eliminates some pairs.\n\nLet me also check (6, 2): (6 + 2) | 4*2 = 8. 8 | 8? Yes. Second-order: 6*2*8 = 96, and 4*6*2 - 330*6 - 330*2 = 48 - 1980 - 660 = -2592. 96 | -2592? 2592/96 = 27. Yes! So {6, -2} is valid.\n\nAnd (6, 6): (6 + 6) | 4*6 = 24. 12 | 24? Yes. Second-order: 6*6*12 = 432, and 4*6*6 - 330*6 - 330*6 = 144 - 1980 - 1980 = -3816. 432 | -3816? 3816/432 = 8.833... No! So {6, -6} is NOT valid.\n\nHmm, this is getting quite complex. Let me think about this more systematically.\n\nFor a pair (v, w) with v, w > 0, v, w | 330:\n- First-order: (v + w) | 4w and (v + w) | 4v (the latter from the symmetric condition). Actually, (v + w) | 4w is the condition from the pair, and we also need (v + w) | 4v from the symmetric condition. But (v + w) | 4w and (v + w) | 4v implies (v + w) | gcd(4v, 4w) = 4 gcd(v, w). And (v + w) | 4w is equivalent to (v + w) | 4v since (v + w) | 4w ⟺ (v + w) | (4w + 4v) - 4v = 4(v+w) - 4v, so (v + w) | 4v. So the two conditions are equivalent.\n\nSo first-order: (v + w) | 4 gcd(v, w). Actually, (v + w) | 4w and (v + w) | 4v, so (v + w) | 4 gcd(v, w).\n\nLet d = gcd(v, w), v = da, w = db, gcd(a, b) = 1. Then v + w = d(a + b), and the condition is d(a + b) | 4d * ... wait, (v + w) | 4 gcd(v, w) = 4d. So d(a + b) | 4d, i.e., (a + b) | 4.\n\nSince gcd(a, b) = 1 and a, b ≥ 1, we have a + b ≥ 2. So a + b ∈ {2, 4} (divisors of 4 that are ≥ 2).\n\na + b = 2: a = b = 1, so v = w = d.\na + b = 4: (a, b) ∈ {(1, 3), (3, 1)}, so (v, w) ∈ {(d, 3d), (3d, d)}.\n\nSo the first-order condition for a pair (v, w) is:\n- v = w, or\n- v = 3w, or\n- w = 3v.\n\nNow, for the second-order condition, let me compute more carefully.\n\nThe second divided difference is:\n[0, v, -w] = (4vw - 330v - 330w) / (vw(v + w))\n\nLet me simplify. Let's factor out:\n= (4vw - 330(v + w)) / (vw(v + w))\n\nFor v = w = d:\n= (4d² - 330(2d)) / (d² * 2d) = (4d² - 660d) / (2d³) = (4d - 660) / (2d²) = (2d - 330) / d²\n\nFor this to be an integer, d² | (2d - 330). Since d | 330 (condition for d to be a valid value), let 330 = de. Then d² | (2d - de) = d(2 - e), so d | (2 - e) = (2 - 330/d).\n\nSo d | (2 - 330/d), i.e., d | 2 and d | 330/d. Wait, that's not right. d | (2 - 330/d) means d | 2 - 330/d. Since d | 330, 330/d is an integer. So we need d | (2 - 330/d).\n\nLet me compute for each divisor d of 330:\n- d = 1: 2 - 330 = -328. 1 | -328? Yes. ✓\n- d = 2: 2 - 165 = -163. 2 | -163? No. ✗\n- d = 3: 2 - 110 = -108. 3 | -108? Yes. ✓\n- d = 5: 2 - 66 = -64. 5 | -64? No. ✗\n- d = 6: 2 - 55 = -53. 6 | -53? No. ✗\n- d = 10: 2 - 33 = -31. 10 | -31? No. ✗\n- d = 11: 2 - 30 = -28. 11 | -28? No. ✗\n- d = 15: 2 - 22 = -20. 15 | -20? No. ✗\n- d = 22: 2 - 15 = -13. 22 | -13? No. ✗\n- d = 30: 2 - 11 = -9. 30 | -9? No. ✗\n- d = 33: 2 - 10 = -8. 33 | -8? No. ✗\n- d = 55: 2 - 6 = -4. 55 | -4? No. ✗\n- d = 66: 2 - 5 = -3. 66 | -3? No. ✗\n- d = 110: 2 - 3 = -1. 110 | -1? No. ✗\n- d = 165: 2 - 2 = 0. 165 | 0? Yes. ✓\n- d = 330: 2 - 1 = 1. 330 | 1? No. ✗\n\nSo for v = w = d, the valid d values are: 1, 3, 165.\n\nSo {d, -d} is a valid stable group for d ∈ {1, 3, 165}.\n\nFor v = 3w (or w = 3v by symmetry):\nLet v = 3d, w = d. Then:\n[0, v, -w] = (4 * 3d * d - 330 * 3d - 330 * d) / (3d * d * 4d)\n= (12d² - 990d - 330d) / (12d³)\n= (12d² - 1320d) / (12d³)\n= (12d - 1320) / (12d²)\n= (d - 110) / d²\n\nFor this to be an integer, d² | (d - 110). Since d | 330, let's check:\n- d = 1: 1 - 110 = -109. 1 | -109? Yes. ✓ (v = 3, w = 1)\n- d = 2: 2 - 110 = -108. 4 | -108? 108/4 = 27. Yes. ✓ (v = 6, w = 2)\n- d = 3: 3 - 110 = -107. 9 | -107? No. ✗\n- d = 5: 5 - 110 = -105. 25 | -105? No. ✗\n- d = 6: 6 - 110 = -104. 36 | -104? No. ✗\n- d = 10: 10 - 110 = -100. 100 | -100? Yes. ✓ (v = 30, w = 10)\n- d = 11: 11 - 110 = -99. 121 | -99? No. ✗\n- d = 15: 15 - 110 = -95. 225 | -95? No. ✗\n- d = 22: 22 - 110 = -88. 484 | -88? No. ✗\n- d = 30: 30 - 110 = -80. 900 | -80? No. ✗\n- d = 33: 33 - 110 = -77. 1089 | -77? No. ✗\n- d = 55: 55 - 110 = -55. 3025 | -55? No. ✗\n- d = 66: 66 - 110 = -44. 4356 | -44? No. ✗\n- d = 110: 110 - 110 = 0. 12100 | 0? Yes. ✓ (v = 330, w = 110)\n- d = 165: 165 - 110 = 55. 27225 | 55? No. ✗\n- d = 330: 330 - 110 = 220. 108900 | 220? No. ✗\n\nSo for v = 3w, valid d values: 1, 2, 10, 110. This gives pairs (v, w) = (3, 1), (6, 2), (30, 10), (330, 110).\n\nBy symmetry, for w = 3v, valid d values: 1, 2, 10, 110. This gives pairs (v, w) = (1, 3), (2, 6), (10, 30), (110, 330).\n\nSo the valid mixed pairs (v, -w) with v, w > 0, v | 330, w | 330 are:\n- v = w: (1, 1), (3, 3), (165, 165) → {1, -1}, {3, -3}, {165, -165}\n- v = 3w: (3, 1), (6, 2), (30, 10), (330, 110) → {3, -1}, {6, -2}, {30, -10}, {330, -110}\n- w = 3v: (1, 3), (2, 6), (10, 30), (110, 330) → {1, -3}, {2, -6}, {10, -30}, {110, -330}\n\nThat's 3 + 4 + 4 = 11 valid mixed pairs.\n\nNow, the question is about larger sets. This is getting very complex. Let me think about whether there's a pattern or a simpler way to count.\n\nActually, I wonder if the problem is designed to have a clean answer. Let me reconsider the structure.\n\nLet me think about what values can coexist. The key observation is:\n\nFor positive values only: the product must divide 330. This means the values, when viewed as subsets of {2, 3, 5, 11}, must be pairwise disjoint.\n\nFor negative values only: same condition.\n\nFor mixed values: the cross-condition (v + w) | 4 gcd(v, w) limits which positive-negative pairs can coexist. And we showed this means v = w, v = 3w, or w = 3v. But then higher-order conditions further restrict.\n\nThis is a very complex combinatorial problem. Let me think about whether there's a cleaner approach.\n\nActually, let me reconsider. Maybe I should think about this problem in terms of the polynomial more directly.\n\nP(x) ∈ Z[x], P(0) = 330.\n\nFor v > 0: P(v) = 2v, so P(v) - 2v = 0, meaning (x - v) | (P(x) - 2x) in Z[x].\nFor v < 0 (v = -w, w > 0): P(-w) = 2w, so P(-w) + 2w = 0, meaning (x + w) | (P(x) + 2x) in Z[x].\n\nLet F(x) = P(x) - 2x and G(x) = P(x) + 2x = F(x) + 4x.\n\nF(0) = 330, G(0) = 330.\nF(v) = 0 for v ∈ S+.\nG(-w) = 0 for w ∈ S- (i.e., -w ∈ S).\n\nF(x) = A(x) * ∏_{v ∈ S+} (x - v) where A(x) ∈ Z[x].\nG(x) = B(x) * ∏_{w ∈ S-} (x + w) where B(x) ∈ Z[x].\n\nAnd G(x) = F(x) + 4x, so:\nB(x) * ∏_{w ∈ S-} (x + w) = A(x) * ∏_{v ∈ S+} (x - v) + 4x\n\nLet V(x) = ∏_{v ∈ S+} (x - v) and W(x) = ∏_{w ∈ S-} (x + w).\n\nThen B(x) * W(x) = A(x) * V(x) + 4x.\n\nAlso, F(0) = A(0) * V(0) = A(0) * ∏(-v) = (-1)^|S+| A(0) ∏v = 330.\nG(0) = B(0) * W(0) = B(0) * ∏w = 330.\n\nSo A(0) = 330 / ((-1)^|S+| ∏v) and B(0) = 330 / ∏w, both must be integers.\n\nNow, the equation B(x) * W(x) - A(x) * V(x) = 4x must have solutions A, B ∈ Z[x].\n\nThis is a Bézout-like equation. The key question is: when does this have integer polynomial solutions?\n\nLet me think about this modulo various things.\n\nAt x = v (for v ∈ S+): B(v) * W(v) = 0 + 4v = 4v. So B(v) = 4v / W(v) = 4v / ∏_{w ∈ S-} (v + w). This must be an integer.\n\nAt x = -w (for w ∈ S-): 0 - A(-w) * V(-w) = -4w. So A(-w) = 4w / V(-w) = 4w / ∏_{v ∈ S+} (-w - v) = 4w / ((-1)^|S+| ∏(w + v)). This must be an integer.\n\nSo the necessary conditions are:\n- For each v ∈ S+: ∏_{w ∈ S-} (v + w) | 4v\n- For each w ∈ S-: ∏_{v ∈ S+} (w + v) | 4w\n- ∏_{v ∈ S+} v | 330\n- ∏_{w ∈ S-} w | 330\n\nBut these are just the conditions I derived before. The question is whether they're sufficient.\n\nThe equation B(x) * W(x) - A(x) * V(x) = 4x is a polynomial Diophantine equation. By the theory of such equations, this has a solution in Z[x] if and only if gcd(V(x), W(x)) divides 4x in Z[x].\n\nNow, V(x) = ∏(x - v) and W(x) = ∏(x + w). The gcd of V and W in Z[x] (or Q[x]) is the product of common factors. Since V has roots at the positive values and W has roots at the negative values, they share a common root only if some v = -w, i.e., v + w = 0, which can't happen since v, w > 0. So V and W are coprime in Q[x]!\n\nWait, that means gcd(V, W) = 1 in Q[x], so the equation always has a solution in Q[x]. But we need solutions in Z[x].\n\nThe issue is that even though V and W are coprime in Q[x], the Bézout identity in Z[x] might not give us integer coefficients.\n\nLet me think about this more carefully. In Z[x], the ideal (V, W) might not be all of Z[x]. The equation B*W - A*V = 4x has a solution in Z[x] iff 4x ∈ (V, W) in Z[x].\n\nSince V and W are coprime in Q[x], there exist U, T ∈ Q[x] with U*V + T*W = 1. Then 4x*U*V + 4x*T*W = 4x, so A = -4x*U, B = 4x*T is a solution in Q[x]. But we need A, B ∈ Z[x].\n\nThe condition for 4x ∈ (V, W) in Z[x] is related to the resultant or the ideal structure.\n\nActually, let me think about this differently. The condition is that for every prime p, the equation B*W ≡ A*V (mod p) has a solution with B*W - A*V ≡ 4x (mod p). But this is always possible since V and W are coprime mod p (as long as p doesn't divide the resultant of V and W).\n\nHmm, actually, the resultant of V and W is ∏_{v, w} (v + w) (up to sign). If a prime p divides this resultant, then V and W have a common root mod p, and the equation might not be solvable mod p.\n\nBut we also need the solution to satisfy the conditions at x = 0 (i.e., A(0) and B(0) must be the right values). This adds more constraints.\n\nThis is getting very involved. Let me try a different approach: let me try to enumerate all valid stable groups computationally (in my head or on paper).\n\nActually, let me reconsider the problem. Maybe there's a cleaner way to think about it.\n\nLet me reconsider the conditions. We need P ∈ Z[x] with P(0) = 330, P(v) = 2v for v ∈ S+, P(-w) = 2w for w ∈ S-.\n\nThe key insight might be that the conditions are quite restrictive, and the number of valid groups is manageable.\n\nLet me think about what sets of positive values can coexist with what sets of negative values.\n\nFrom the pair analysis, the valid (v, w) pairs (v positive, w = |negative|) are:\n- (1, 1), (3, 3), (165, 165) [v = w]\n- (3, 1), (6, 2), (30, 10), (330, 110) [v = 3w]\n- (1, 3), (2, 6), (10, 30), (110, 330) [w = 3v]\n\nFor a set with multiple positive and multiple negative values, every positive-negative pair must be compatible. So the bipartite graph between S+ and S- must be a complete bipartite graph where all edges are from the valid pairs.\n\nLet me organize the valid pairs:\nv=1: compatible with w ∈ {1, 3}\nv=2: compatible with w ∈ {6}\nv=3: compatible with w ∈ {1, 3}\nv=6: compatible with w ∈ {2}\nv=10: compatible with w ∈ {30}\nv=30: compatible with w ∈ {10}\nv=110: compatible with w ∈ {330}\nv=165: compatible with w ∈ {165}\nv=330: compatible with w ∈ {110}\n\nAnd the remaining divisors of 330 (5, 11, 15, 22, 33, 55, 66) have no compatible negative partners.\n\nWait, but this is only for pairs. For larger sets, we need all pairs to be compatible AND higher-order conditions to be satisfied. But let me first figure out the pairwise compatibility structure.\n\nSo the compatibility graph (bipartite, between positive values and negative values) has edges:\n(1, 1), (1, 3), (2, 6), (3, 1), (3, 3), (6, 2), (10, 30), (30, 10), (110, 330), (165, 165), (330, 110)\n\nFor a mixed stable group, we need S+ × S- ⊆ edges (every positive-negative pair must be compatible). This means S+ and S- form a biclique in this graph.\n\nLet me find all bicliques. The bipartite graph has:\n- Positive side: 1, 2, 3, 6, 10, 30, 110, 165, 330 (9 values that have at least one compatible negative partner)\n- Negative side: 1, 2, 3, 6, 10, 30, 110, 165, 330 (same, by symmetry of the structure)\n\nEdges:\n1 - {1, 3}\n2 - {6}\n3 - {1, 3}\n6 - {2}\n10 - {30}\n30 - {10}\n110 - {330}\n165 - {165}\n330 - {110}\n\nFor a biclique (S+, S-), every v in S+ must be connected to every w in S-.\n\nLet me find all bicliques:\n- S+ = {1}, S- ⊆ {1, 3}: S- ∈ {{1}, {3}, {1,3}}\n- S+ = {3}, S- ⊆ {1, 3}: S- ∈ {{1}, {3}, {1,3}}\n- S+ = {1, 3}, S- ⊆ {1, 3} (intersection of neighborhoods): S- ∈ {{1}, {3}, {1,3}}\n- S+ = {2}, S- ⊆ {6}: S- ∈ {{6}}\n- S+ = {6}, S- ⊆ {2}: S- ∈ {{2}}\n- S+ = {2, 6}: neighborhoods are {6} and {2}, intersection = {}. So no biclique with both.\n- S+ = {10}, S- ⊆ {30}: S- ∈ {{30}}\n- S+ = {30}, S- ⊆ {10}: S- ∈ {{10}}\n- S+ = {110}, S- ⊆ {330}: S- ∈ {{330}}\n- S+ = {330}, S- ⊆ {110}: S- ∈ {{110}}\n- S+ = {165}, S- ⊆ {165}: S- ∈ {{165}}\n\nNow, can we combine different \"components\"? For example, S+ = {1, 10}, S- = ? We need S- ⊆ N(1) ∩ N(10) = {1,3} ∩ {30} = {}. So no.\n\nSo the bicliques are:\nFrom the {1,3} component:\n- ({1}, {1}), ({1}, {3}), ({1}, {1,3})\n- ({3}, {1}), ({3}, {3}), ({3}, {1,3})\n- ({1,3}, {1}), ({1,3}, {3}), ({1,3}, {1,3})\n\nFrom the {2,6} component:\n- ({2}, {6}), ({6}, {2})\n\nFrom the {10,30} component:\n- ({10}, {30}), ({30}, {10})\n\nFrom the {110,330} component:\n- ({110}, {330}), ({330}, {110})\n\nFrom the {165} component:\n- ({165}, {165})\n\nTotal bicliques: 9 + 2 + 2 + 2 + 1 = 16.\n\nBut wait, I also need to check whether these bicliques satisfy the higher-order conditions (not just pairwise). And I need to consider that within S+ and S-, the product conditions must also hold.\n\nLet me also note that the positive-only and negative-only parts of the set must satisfy the product condition independently. So for a mixed group with S+ and S-, we need:\n1. ∏_{v ∈ S+} v | 330\n2. ∏_{w ∈ S-} w | 330\n3. All pairwise conditions (captured by the biclique structure)\n4. Higher-order conditions\n\nLet me check the product conditions for the bicliques:\n\n{1,3} component:\n- S+ = {1}: product = 1 | 330 ✓\n- S+ = {3}: product = 3 | 330 ✓\n- S+ = {1,3}: product = 3 | 330 ✓\n- S- = {1}: product = 1 | 330 ✓\n- S- = {3}: product = 3 | 330 ✓\n- S- = {1,3}: product = 3 | 330 ✓\n\nAll good.\n\n{2,6} component:\n- S+ = {2}: product = 2 | 330 ✓\n- S+ = {6}: product = 6 | 330 ✓\n- S- = {6}: product = 6 | 330 ✓\n- S- = {2}: product = 2 | 330 ✓\n\nAll good.\n\n{10,30} component:\n- S+ = {10}: product = 10 | 330 ✓\n- S+ = {30}: product = 30 | 330 ✓\n- S- = {30}: product = 30 | 330 ✓\n- S- = {10}: product = 10 | 330 ✓\n\nAll good.\n\n{110,330} component:\n- S+ = {110}: product = 110 | 330 ✓\n- S+ = {330}: product = 330 | 330 ✓\n- S- = {330}: product = 330 | 330 ✓\n- S- = {110}: product = 110 | 330 ✓\n\nAll good.\n\n{165} component:\n- S+ = {165}: product = 165 | 330 ✓\n- S- = {165}: product = 165 | 330 ✓\n\nAll good.\n\nNow I need to check the higher-order conditions for each biclique. The bicliques with |S+| = 1 and |S-| = 1 are just pairs, which I've already verified. The bicliques with larger sets need additional checking.\n\nLet me check the bicliques with |S+| + |S-| > 2 (i.e., more than 2 elements total):\n\nFrom the {1,3} component:\n1. ({1}, {1,3}): S = {1, -1, -3}. Need to check third-order condition.\n2. ({3}, {1,3}): S = {3, -1, -3}. Need to check.\n3. ({1,3}, {1}): S = {1, 3, -1}. Need to check.\n4. ({1,3}, {3}): S = {1, 3, -3}. Need to check.\n5. ({1,3}, {1,3}): S = {1, 3, -1, -3}. Need to check.\n\nLet me check these. For a set of 3 points (plus the point at 0), we need the third divided difference to be an integer.\n\nActually, let me use a more systematic approach. For the set S = {1, -1, -3} (i.e., S+ = {1}, S- = {1, 3}):\n\nPoints: (0, 330), (1, 2), (-1, 2), (-3, 6).\n\nLet me compute the divided differences.\n\nOrder 0: f(0) = 330, f(1) = 2, f(-1) = 2, f(-3) = 6.\n\nOrder 1:\n[0, 1] = (330 - 2) / (0 - 1) = 328 / (-1) = -328\n[0, -1] = (330 - 2) / (0 - (-1)) = 328 / 1 = 328\n[0, -3] = (330 - 6) / (0 - (-3)) = 324 / 3 = 108\n[1, -1] = (2 - 2) / (1 - (-1)) = 0 / 2 = 0\n[1, -3] = (2 - 6) / (1 - (-3)) = -4 / 4 = -1\n[-1, -3] = (2 - 6) / (-1 - (-3)) = -4 / 2 = -2\n\nOrder 2:\n[0, 1, -1] = ([0,1] - [1,-1]) / (0 - (-1)) = (-328 - 0) / 1 = -328\n[0, 1, -3] = ([0,1] - [1,-3]) / (0 - (-3)) = (-328 - (-1)) / 3 = -327 / 3 = -109\n[0, -1, -3] = ([0,-1] - [-1,-3]) / (0 - (-3)) = (328 - (-2)) / 3 = 330 / 3 = 110\n[1, -1, -3] = ([1,-1] - [-1,-3]) / (1 - (-3)) = (0 - (-2)) / 4 = 2 / 4 = 1/2\n\nOh! [1, -1, -3] = 1/2, which is not an integer. So the set {1, -1, -3} is NOT a valid stable group.\n\nHmm, so the higher-order conditions do eliminate some bicliques. Let me check the others.\n\nFor S = {3, -1, -3} (S+ = {3}, S- = {1, 3}):\n\nPoints: (0, 330), (3, 6), (-1, 2), (-3, 6).\n\nOrder 1:\n[0, 3] = (330 - 6) / (0 - 3) = 324 / (-3) = -108\n[0, -1] = (330 - 2) / (0 - (-1)) = 328\n[0, -3] = (330 - 6) / (0 - (-3)) = 324 / 3 = 108\n[3, -1] = (6 - 2) / (3 - (-1)) = 4 / 4 = 1\n[3, -3] = (6 - 6) / (3 - (-3)) = 0 / 6 = 0\n[-1, -3] = (2 - 6) / (-1 - (-3)) = -4 / 2 = -2\n\nOrder 2:\n[0, 3, -1] = ([0,3] - [3,-1]) / (0 - (-1)) = (-108 - 1) / 1 = -109\n[0, 3, -3] = ([0,3] - [3,-3]) / (0 - (-3)) = (-108 - 0) / 3 = -36\n[0, -1, -3] = ([0,-1] - [-1,-3]) / (0 - (-3)) = (328 - (-2)) / 3 = 330 / 3 = 110\n[3, -1, -3] = ([3,-1] - [-1,-3]) / (3 - (-3)) = (1 - (-2)) / 6 = 3 / 6 = 1/2\n\nAgain, [3, -1, -3] = 1/2, not an integer. So {3, -1, -3} is NOT valid.\n\nFor S = {1, 3, -1} (S+ = {1, 3}, S- = {1}):\n\nPoints: (0, 330), (1, 2), (3, 6), (-1, 2).\n\nOrder 1:\n[0, 1] = (330 - 2) / (0 - 1) = -328\n[0, 3] = (330 - 6) / (0 - 3) = -108\n[0, -1] = (330 - 2) / (0 - (-1)) = 328\n[1, 3] = (2 - 6) / (1 - 3) = -4 / (-2) = 2\n[1, -1] = (2 - 2) / (1 - (-1)) = 0\n[3, -1] = (6 - 2) / (3 - (-1)) = 4 / 4 = 1\n\nOrder 2:\n[0, 1, 3] = ([0,1] - [1,3]) / (0 - 3) = (-328 - 2) / (-3) = -330 / (-3) = 110\n[0, 1, -1] = ([0,1] - [1,-1]) / (0 - (-1)) = (-328 - 0) / 1 = -328\n[0, 3, -1] = ([0,3] - [3,-1]) / (0 - (-1)) = (-108 - 1) / 1 = -109\n[1, 3, -1] = ([1,3] - [3,-1]) / (1 - (-1)) = (2 - 1) / 2 = 1/2\n\nAgain, [1, 3, -1] = 1/2. Not an integer. So {1, 3, -1} is NOT valid.\n\nFor S = {1, 3, -3} (S+ = {1, 3}, S- = {3}):\n\nPoints: (0, 330), (1, 2), (3, 6), (-3, 6).\n\nOrder 1:\n[0, 1] = -328\n[0, 3] = -108\n[0, -3] = 108\n[1, 3] = 2\n[1, -3] = (2 - 6) / (1 - (-3)) = -4/4 = -1\n[3, -3] = (6 - 6) / (3 - (-3)) = 0\n\nOrder 2:\n[0, 1, 3] = 110\n[0, 1, -3] = ([0,1] - [1,-3]) / (0 - (-3)) = (-328 - (-1)) / 3 = -327/3 = -109\n[0, 3, -3] = ([0,3] - [3,-3]) / (0 - (-3)) = (-108 - 0) / 3 = -36\n[1, 3, -3] = ([1,3] - [3,-3]) / (1 - (-3)) = (2 - 0) / 4 = 1/2\n\nAgain, [1, 3, -3] = 1/2. Not valid.\n\nFor S = {1, 3, -1, -3} (S+ = {1, 3}, S- = {1, 3}):\n\nWe already know that the third-order divided differences involving {1, 3, -1} and {1, 3, -3} and {3, -1, -3} and {1, -1, -3} are not all integers. So this is not valid either.\n\nSo ALL bicliques from the {1,3} component with more than 2 elements are invalid! The only valid ones are the pairs:\n({1}, {1}), ({1}, {3}), ({3}, {1}), ({3}, {3})\n\nThat's 4 valid mixed groups from the {1,3} component.\n\nWait, but I should also check the bicliques from other components with more than 2 elements. But looking at the other components, they only have bicliques of size 2 (one positive, one negative). So no higher-order conditions to check.\n\nSo the valid mixed groups (with both positive and negative values) are exactly the 11 pairs I found earlier:\n{1, -1}, {3, -3}, {165, -165}, {3, -1}, {6, -2}, {30, -10}, {330, -110}, {1, -3}, {2, -6}, {10, -30}, {110, -330}\n\nWait, but I need to also check: can we have a mixed group where S+ has multiple elements and S- is empty, or vice versa? No, that's just a positive-only or negative-only group.\n\nAnd can we have a mixed group with more than 2 elements where the higher-order conditions are satisfied? From the analysis above, the {1,3} component's larger bicliques all fail. The other components don't have larger bicliques. So no mixed group with more than 2 elements is valid.\n\nActually wait, I need to reconsider. Can we combine elements from different components? For example, S+ = {1, 2} and S- = ? The neighborhoods are N(1) = {1, 3} and N(2) = {6}. The intersection is empty, so no S- works. So we can't combine across components for mixed groups.\n\nBut what about S+ = {1} and S- = {1, 6}? We need (1, 1) and (1, 6) to both be valid pairs. (1, 6): (1 + 6) | 4*6 = 24. 7 | 24? No. So (1, 6) is not a valid pair. So this doesn't work.\n\nOK so the mixed groups are exactly the 11 pairs. But wait, I should double-check that these 11 pairs all satisfy the second-order condition (which I already did above). Let me list them:\n\n1. {1, -1}: d=1, v=w=1. Second-order: d² | (2d - 330) → 1 | -328. ✓\n2. {3, -3}: d=3. 9 | (6 - 330) = -324. 324/9 = 36. ✓\n3. {165, -165}: d=165. 165² | (330 - 330) = 0. ✓\n4. {3, -1}: v=3, w=1. (v=3w, d=1). d² | (d - 110) → 1 | -109. ✓\n5. {6, -2}: v=6, w=2. (v=3w, d=2). 4 | (2 - 110) = -108. 108/4 = 27. ✓\n6. {30, -10}: v=30, w=10. (v=3w, d=10). 100 | (10 - 110) = -100. ✓\n7. {330, -110}: v=330, w=110. (v=3w, d=110). 110² | (110 - 110) = 0. ✓\n8. {1, -3}: v=1, w=3. (w=3v, d=1). d² | (d - 110) → 1 | -109. ✓\n9. {2, -6}: v=2, w=6. (w=3v, d=2). 4 | (2 - 110) = -108. ✓\n10. {10, -30}: v=10, w=30. (w=3v, d=10). 100 | (10 - 110) = -100. ✓\n11. {110, -330}: v=110, w=330. (w=3v, d=110). 110² | (110 - 110) = 0. ✓\n\nAll 11 check out.\n\nNow, let me also think about whether we can have mixed groups with more than 2 elements that I might have missed. The key constraint is that every positive-negative pair must be compatible, and then higher-order conditions must hold.\n\nFrom the compatibility analysis, the only bicliques with more than 2 elements are from the {1,3} component, and they all fail the third-order condition. So no mixed group with more than 2 elements exists.\n\nWait, but I should also consider mixed groups where S+ or S- has more than one element but the other has just one, and the biclique has more than 2 elements total. I already checked these:\n- ({1}, {1,3}): fails\n- ({3}, {1,3}): fails\n- ({1,3}, {1}): fails\n- ({1,3}, {3}): fails\n- ({1,3}, {1,3}): fails\n\nAnd no other component has bicliques with more than 2 elements. So indeed, no mixed group with more than 2 elements is valid.\n\nNow let me also reconsider: can we have a mixed group where S+ has elements that are not all from the same \"component\"? For example, S+ = {1, 10} and S- = {} — but that's a positive-only group, not mixed. For a mixed group, we need both S+ and S- non-empty, and every pair (v, w) with v ∈ S+, w ∈ S- must be compatible.\n\nIf S+ = {1, 10} and S- = {w}, then w must be compatible with both 1 and 10. N(1) ∩ N(10) = {1,3} ∩ {30} = {}. So no such w exists. Similarly for any cross-component combination.\n\nSo the total count is:\n- Positive-only groups: 103\n- Negative-only groups: 103\n- Mixed groups (pairs): 11\n\nTotal: 103 + 103 + 11 = 217.\n\nHmm, but let me double-check the positive-only count.\n\nFor positive-only groups, we need non-empty subsets S of {1, 2, 3, 5, 6, 10, 11, 15, 22, 30, 33, 55, 66, 110, 165, 330} such that the product of elements divides 330.\n\nAs I analyzed, this is equivalent to choosing a collection of pairwise disjoint non-empty subsets of {2, 3, 5, 11} (for divisors > 1), and independently choosing whether to include 1.\n\nThe number of collections of pairwise disjoint non-empty subsets of {2, 3, 5, 11} (a 4-element set) is the number of partial partitions, which is $\\sum_{k=0}^{4} \\binom{4}{k} B_k = 52$.\n\nWith the option of including 1 or not:\n- Include 1: 52 options (all non-empty since 1 is included)\n- Don't include 1: 51 options (52 - 1 for the empty collection)\n\nTotal: 103. ✓\n\nAnd by symmetry, negative-only groups also number 103.\n\nSo the total is 103 + 103 + 11 = 217.\n\nWait, but I need to be more careful. Let me re-examine whether the conditions I've been checking are truly sufficient, not just necessary.\n\nFor positive-only groups: We need P ∈ Z[x] with P(0) = 330 and P(v) = 2v for all v ∈ S+.\n\nP(x) - 2x vanishes at all v ∈ S+, so P(x) - 2x = ∏(x - v) * Q(x) for Q ∈ Z[x].\nP(0) = 330 = ∏(-v) * Q(0) = (-1)^k (∏v) * Q(0).\nSo Q(0) = 330 / ((-1)^k ∏v), which must be an integer, i.e., ∏v | 330.\n\nIs this sufficient? Yes! We can choose Q(x) to be the constant Q(0) = 330 / ((-1)^k ∏v), which is an integer. Then P(x) = 2x + ∏(x - v) * Q(0) is a polynomial with integer coefficients, P(0) = 0 + ∏(-v) * Q(0) = (-1)^k ∏v * 330/((-1)^k ∏v) = 330, and P(v) = 2v + 0 = 2v. ✓\n\nSo the condition ∏v | 330 is both necessary and sufficient for positive-only groups. Great.\n\nSimilarly for negative-only groups.\n\nFor mixed groups (pairs): I've checked the second-order divided difference is an integer, which is the necessary and sufficient condition for 3-point integer polynomial interpolation (points (0, 330), (v, 2v), (-w, 2w)).\n\nActually, let me verify this. For 3 points, the necessary and sufficient condition for integer polynomial interpolation is that all divided differences are integers. The divided differences are:\n- [a_i] = b_i (always integers)\n- [a_i, a_j] = (b_i - b_j)/(a_i - a_j) (need to be integers)\n- [a_i, a_j, a_k] = ([a_i, a_j] - [a_j, a_k])/(a_i - a_k) (need to be integer)\n\nI've checked all of these for the 11 pairs. So they are indeed valid.\n\nBut wait, I need to make sure I haven't missed any valid pairs. Let me re-examine the first-order condition more carefully.\n\nFor a pair (v, w) with v, w > 0, v | 330, w | 330:\n- First-order: (v + w) | 4w (equivalently (v + w) | 4v, equivalently (v + w) | 4gcd(v,w))\n- This gives v = w, v = 3w, or w = 3v (as I derived)\n\nThen the second-order condition further restricts:\n- v = w = d: d ∈ {1, 3, 165} (3 pairs)\n- v = 3w, w = d: d ∈ {1, 2, 10, 110} (4 pairs)\n- w = 3v, v = d: d ∈ {1, 2, 10, 110} (4 pairs)\n\nTotal: 11 pairs. ✓\n\nNow, let me also verify that I haven't missed any larger mixed groups. The key argument is:\n1. Every positive-negative pair must satisfy the first-order condition (v + w) | 4gcd(v,w), which gives v = w, v = 3w, or w = 3v.\n2. This restricts the bipartite compatibility graph, and the only bicliques with more than 2 elements are in the {1,3} component.\n3. All such bicliques fail the third-order divided difference condition.\n\nSo the answer is 103 + 103 + 11 = 217.\n\nHmm, but let me reconsider whether I've correctly identified all bicliques. Let me re-examine the compatibility graph.\n\nThe valid first-order pairs (v, w) with v, w | 330, v, w > 0:\n\nv = w: d ∈ {1, 3, 165} → (1,1), (3,3), (165,165)\nv = 3w: (3,1), (6,2), (30,10), (330,110)\nw = 3v: (1,3), (2,6), (10,30), (110,330)\n\nBut wait, I need to also check the second-order condition for these to be valid pairs. I did that above and all 11 passed.\n\nNow, for bicliques with more than 2 elements, I need every pair to be a valid pair (passing both first and second order). Let me re-examine.\n\nThe valid pairs form this bipartite graph:\nPositive 1: connects to Negative 1, 3\nPositive 3: connects to Negative 1, 3\nPositive 6: connects to Negative 2\nPositive 2: connects to Negative 6\nPositive 30: connects to Negative 10\nPositive 10: connects to Negative 30\nPositive 330: connects to Negative 110\nPositive 110: connects to Negative 330\nPositive 165: connects to Negative 165\n\nBicliques with |S+| ≥ 2 or |S-| ≥ 2:\n- S+ = {1, 3}, S- ⊆ N(1) ∩ N(3) = {1, 3}: S- ∈ {{1}, {3}, {1,3}}\n  - ({1,3}, {1}): 3 elements total\n  - ({1,3}, {3}): 3 elements total\n  - ({1,3}, {1,3}): 4 elements total\n- S+ = {1}, S- = {1, 3}: 3 elements total (N(1) = {1,3}, so S- = {1,3} works)\n- S+ = {3}, S- = {1, 3}: 3 elements total\n\nNo other combinations work because the other components have disjoint neighborhoods.\n\nI checked all 5 of these and they all fail the third-order condition. Specifically, the divided difference [1, 3, -1] = 1/2 (and similarly for others), which is not an integer.\n\nSo the answer is 217.\n\nActually, wait. Let me reconsider. I want to make sure that the third-order condition is truly the bottleneck and that I computed it correctly.\n\nFor S = {1, 3, -1} (S+ = {1, 3}, S- = {1}):\n\nPoints: (0, 330), (1, 2), (3, 6), (-1, 2).\n\nI computed [1, 3, -1] = 1/2. Let me recheck.\n\n[1, 3] = (2 - 6)/(1 - 3) = (-4)/(-2) = 2\n[3, -1] = (6 - 2)/(3 - (-1)) = 4/4 = 1\n[1, 3, -1] = ([1,3] - [3,-1])/(1 - (-1)) = (2 - 1)/2 = 1/2\n\nYes, 1/2. Not an integer. ✓\n\nFor S = {1, -1, -3} (S+ = {1}, S- = {1, 3}):\n\n[1, -1] = (2 - 2)/(1 - (-1)) = 0\n[-1, -3] = (2 - 6)/(-1 - (-3)) = -4/2 = -2\n[1, -1, -3] = ([1,-1] - [-1,-3])/(1 - (-3)) = (0 - (-2))/4 = 2/4 = 1/2\n\nYes, 1/2. ✓\n\nSo all the 3+ element mixed groups from the {1,3} component fail. Good.\n\nNow, let me also think about whether there could be mixed groups with elements from different components that I might have missed. For example, could there be a group like {1, 165, -1}? Let me check the pair (1, 165) on the positive side: this is a positive-only pair, and the condition is that the product 1 * 165 = 165 divides 330. Yes, 165 | 330. ✓\n\nAnd the pair (1, -1): valid (d=1). ✓\nAnd the pair (165, -1): (165 + 1) | 4*1 = 4. 166 | 4? No. ✗\n\nSo {1, 165, -1} is not valid because (165, -1) is not a compatible pair.\n\nWhat about {1, -1, -165}? Pair (1, -1): valid. Pair (1, -165): (1 + 165) | 4*165 = 660. 166 | 660? 660/166 = 3.98... No. ✗\n\nSo no, we can't combine across components.\n\nWhat about {3, 165, -3}? Pair (3, 165) positive: 3 * 165 = 495. 495 | 330? No. ✗\n\nSo the positive-only condition already prevents this.\n\nWhat about {1, 3, -1, -3}? I already checked this fails.\n\nWhat about {1, -1, 3}? This is the same as {1, 3, -1}, which fails.\n\nOK, I'm now confident the answer is 217.\n\nBut wait, let me reconsider one more time. I want to make sure I haven't missed any valid pairs.\n\nThe first-order condition for a pair (v, w) is (v + w) | 4gcd(v, w). Let d = gcd(v, w), v = da, w = db, gcd(a,b) = 1. Then (a + b) | 4.\n\nSince a, b ≥ 1 and gcd(a, b) = 1:\n- a + b = 2: a = b = 1 → v = w = d\n- a + b = 3: (a, b) = (1, 2) or (2, 1) → v = d, w = 2d or v = 2d, w = d\n- a + b = 4: (a, b) = (1, 3) or (3, 1) → v = d, w = 3d or v = 3d, w = d\n\nWait, I missed a + b = 3! Let me check.\n\na + b = 3, (a, b) = (1, 2): v = d, w = 2d. Then (v + w) | 4w → 3d | 8d → 3 | 8? No! \n\nHmm wait, let me recompute. (v + w) | 4gcd(v, w) = 4d. v + w = d(a + b) = 3d. 3d | 4d → 3 | 4? No.\n\nSo a + b = 3 doesn't work because 3 doesn't divide 4. Let me recheck my derivation.\n\n(v + w) | 4gcd(v, w). v + w = d(a + b), gcd(v, w) = d. So d(a + b) | 4d, i.e., (a + b) | 4.\n\nDivisors of 4 that are ≥ 2 (since a + b ≥ 2): 2, 4.\n\na + b = 2: a = b = 1 (since gcd(a,b) = 1 and a, b ≥ 1). → v = w.\na + b = 4: (a, b) ∈ {(1,3), (3,1)} (since gcd(a,b) = 1). → v = 3w or w = 3v.\n\nSo I was right: only v = w, v = 3w, or w = 3v. I didn't miss a + b = 3.\n\nOK so the answer is 217.\n\nHmm, actually wait. Let me reconsider the problem statement. It says \"A 'Stable Group' is defined as any non-empty set of identification codes.\" So a Stable Group is a set of identification codes (non-zero integers). The question asks for the total number of distinct Stable Groups.\n\nI've been counting:\n- Positive-only groups: non-empty subsets of positive divisors of 330 with product dividing 330. Count: 103.\n- Negative-only groups: non-empty subsets of negative divisors of 330 (i.e., {-d : d | 330}) with product of absolute values dividing 330. Count: 103.\n- Mixed groups: sets with both positive and negative elements. Count: 11.\n\nTotal: 217.\n\nBut wait, I should double-check that the positive-only and negative-only conditions are truly sufficient (not just necessary). I showed above that for positive-only groups, the condition ∏v | 330 is sufficient because we can take Q(x) to be a constant. Let me verify this with an example.\n\nExample: S = {2, 3, 5}. Product = 30. 30 | 330? Yes. So this should be a valid group.\nP(x) = 2x + (x-2)(x-3)(x-5) * (330 / ((-1)^3 * 30)) = 2x + (x-2)(x-3)(x-5) * (330 / (-30)) = 2x + (x-2)(x-3)(x-5) * (-11)\n= 2x - 11(x-2)(x-3)(x-5)\n\nP(0) = 0 - 11*(-2)*(-3)*(-5) = -11 * (-30) = 330. ✓\nP(2) = 4 - 0 = 4 = 2*2. ✓\nP(3) = 6 - 0 = 6 = 2*3. ✓\nP(5) = 10 - 0 = 10 = 2*5. ✓\n\nGreat, it works!\n\nNow let me also verify a mixed pair. S = {3, -1}:\nP(0) = 330, P(3) = 6, P(-1) = 2.\n\nUsing Lagrange interpolation (over Q):\nP(x) = 330 * (x-3)(x+1) / ((0-3)(0+1)) + 6 * x(x+1) / (3*(3+1)) + 2 * x(x-3) / ((-1)*(-1-3))\n= 330 * (x-3)(x+1) / (-3) + 6 * x(x+1) / 12 + 2 * x(x-3) / 4\n= -110(x-3)(x+1) + (1/2)x(x+1) + (1/2)x(x-3)\n\nHmm, this has fractions. Let me compute more carefully.\n\nP(x) = -110(x² - 2x - 3) + (1/2)(x² + x) + (1/2)(x² - 3x)\n= -110x² + 220x + 330 + (1/2)x² + (1/2)x + (1/2)x² - (3/2)x\n= (-110 + 1)x² + (220 + 1/2 - 3/2)x + 330\n= -109x² + 219x + 330\n\nLet me check: P(0) = 330 ✓, P(3) = -109*9 + 219*3 + 330 = -981 + 657 + 330 = 6 ✓, P(-1) = -109 + (-219) + 330 = -109 - 219 + 330 = 2 ✓.\n\nAnd -109x² + 219x + 330 has integer coefficients. ✓\n\nGreat, so the pair {3, -1} is indeed valid.\n\nNow, let me reconsider whether my count of 103 for positive-only groups is correct.\n\nThe positive divisors of 330 are: 1, 2, 3, 5, 6, 10, 11, 15, 22, 30, 33, 55, 66, 110, 165, 330.\n\nEach divisor d > 1 corresponds to a non-empty subset of {2, 3, 5, 11} (the prime factors of d). The divisor 1 corresponds to the empty set.\n\nA set S of positive divisors has product dividing 330 iff the corresponding subsets are pairwise disjoint.\n\nThe number of collections of pairwise disjoint non-empty subsets of {2, 3, 5, 11} is the number of partial partitions of a 4-element set.\n\nFor a set of size n, the number of partial partitions is $\\sum_{k=0}^{n} \\binom{n}{k} B_k$ where $B_k$ is the k-th Bell number.\n\nFor n = 4:\n- B_0 = 1\n- B_1 = 1\n- B_2 = 2\n- B_3 = 5\n- B_4 = 15\n\n$\\sum_{k=0}^{4} \\binom{4}{k} B_k = 1 \\cdot 1 + 4 \\cdot 1 + 6 \\cdot 2 + 4 \\cdot 5 + 1 \\cdot 15 = 1 + 4 + 12 + 20 + 15 = 52$\n\nThis counts all collections of pairwise disjoint non-empty subsets, including the empty collection.\n\nNow, for positive-only groups:\n- If we include 1 (the divisor corresponding to the empty set): the collection of non-empty subsets can be anything (52 options), and the group is {1} ∪ {divisors corresponding to the chosen subsets}. All 52 are non-empty. ✓\n- If we don't include 1: the collection must be non-empty (51 options), and the group is {divisors corresponding to the chosen subsets}. All 51 are non-empty. ✓\n\nTotal: 52 + 51 = 103. ✓\n\nBy the same argument, negative-only groups: 103.\n\nMixed groups: 11 (as computed).\n\nTotal: 103 + 103 + 11 = 217.\n\nHmm, but wait. I want to make absolutely sure about the mixed groups. Let me reconsider whether there might be mixed groups with more than 2 elements that I haven't considered.\n\nThe key constraint is that for a mixed group with S+ and S-, every pair (v, w) with v ∈ S+, w ∈ S- must be a valid pair. I've shown that the valid pairs form a specific bipartite graph, and the only bicliques with more than 2 elements are in the {1, 3} component. All of these fail the third-order condition.\n\nBut I should also consider: could there be a mixed group where S+ has elements that don't all need to be paired with all elements of S-? No, that's not how it works. Every element in S+ must be compatible with every element in S-, because the polynomial P must satisfy P(v) = 2v for all v ∈ S+ and P(-w) = ",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 22633,
+        "completion_tokens": 25000,
+        "cached_tokens": 1786
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 22633,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 1786,
+    "total_steps": 8
+  }
+}

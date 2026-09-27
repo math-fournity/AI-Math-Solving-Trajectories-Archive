@@ -1,0 +1,1089 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "silicon-station",
+  "agent": {
+    "name": "devin",
+    "version": "3000.5.20",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression using Rust regex syntax (like `rg` defaults): look-ahead/look-behind (e.g. `(?!...)`, `(?<=...)`) and backreferences are NOT supported. Rewrite without them, e.g. use `foo\\([^)]` instead of `foo\\((?!\\))`.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for a finite command to finish, set a long timeout and do not repeatedly poll. For a process that is expected to keep running (dev servers, watchers, daemons), a long timeout always waits the full duration — use a short timeout (10-30s) to read its startup output, repeating until the ready signal appears, or verify readiness directly (e.g. curl the port).\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_plan",
+          "description": "Write the session's plan file. Replaces the whole plan, so pass the complete plan every time; call it again with updated content as your understanding evolves. The title, summary, and plan are rendered into a Markdown document at the session's plan-file path automatically.",
+          "parameters": {
+            "required": [
+              "title",
+              "summary",
+              "plan"
+            ],
+            "properties": {
+              "title": {
+                "description": "Short title of the plan, rendered as the top-level `# ` heading.",
+                "type": "string"
+              },
+              "summary": {
+                "description": "One-sentence summary of the plan, rendered as the first paragraph.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The full plan in Markdown, rendered after the summary. Use `## `\nheadings for sections; do not repeat the title or summary.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-22T13:12:38.568815+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-22T13:12:38.569329+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-22T13:12:38.577932+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-22T13:12:38.569645+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/pcfc48a1ca69046ef9c7e (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Saturday, 2026-08-22\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-22T13:12:38.570289+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在README.md中只记录脚本路径和一行用法示例。AGENTS.md是铁律和每次必须知道的认知，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。脚本分两类，存放位置不同（见下方\"脚本分类\"）。\n\n4. **在项目README.md中做好索引**——持久化脚本必须在项目README.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n6. **临时脚本必须在相关文档中建立索引**——如果某项任务有对应的方案文档或调查报告（如`dev-docs/`下的文档），临时脚本必须在文档中记录：脚本路径、用途、用法。这是为了让未来的审计AI可以追溯——如果后来审计发现异常，可以知道是哪个脚本产生的结果，检查脚本是否有问题。\n\n## 脚本分类\n\n脚本分两类，存放位置和索引方式不同：\n\n### 持久化脚本（可复用的操作工具）\n\n- **定义**：会重复使用的操作（如清理僵尸session、批量落盘、进度查询、队列准备）\n- **存放位置**：项目已有的脚本目录或项目的`scripts/`目录\n- **索引位置**：项目README.md\n- **维护方式**：持续改进，不重写\n\n### 临时脚本（一次性任务专用）\n\n- **定义**：为某个具体任务写的一次性脚本（如数据迁移、一次性查询、调查验证脚本）\n- **存放位置**：项目的`tmp-scripts/`子目录\n- **索引位置**：如果该任务有相关文档（方案文档、调查报告等），在文档中记录脚本路径+用途+用法；如果没有相关文档，在README.md中记录\n- **审计目的**：临时脚本的文档索引是为了审计可追溯——如果后来审计发现数据异常或结果异常，审计AI可以定位是哪个脚本产生的，检查脚本逻辑是否有bug\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n- **临时脚本的文档索引保证审计可追溯**——如果审计发现异常结果，可以回溯到产生该结果的脚本，检查脚本逻辑是否有bug\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **写成持久化脚本，放scripts/，索引到README.md** |\n| 一次性任务专用脚本（数据迁移、调查验证） | **写成临时脚本，放tmp-scripts/，索引到相关文档** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 判断脚本类型：持久化（可复用）还是临时（一次性任务）\n3. 检查项目内是否已有类似脚本（grep搜索、看README.md索引）\n4. **已有** → 改进那个脚本（edit工具修改），编译验证\n5. **没有** → 创建新文件：\n   - 持久化脚本 → 放项目脚本目录（如`scripts/`）\n   - 临时脚本 → 放`tmp-scripts/`子目录\n6. 建立索引：\n   - 持久化脚本 → 在项目README.md中记录\n   - 临时脚本 → 在相关文档中记录（如方案文档、调查报告）；无相关文档则在README.md中记录\n7. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新README.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是铁律不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ❌ **临时脚本不建立文档索引**——审计AI无法追溯异常结果的来源脚本\n- ❌ **临时脚本放到`/tmp/`或home目录**——不在项目内，无法git追踪，无法审计\n- ✅ 改进已有脚本的某个函数（而非另写新的）\n- ✅ 新建脚本并在README.md代码索引中记录\n- ✅ README.md中只写一行用法示例，不写完整调用参数和输出\n- ✅ 临时调查脚本放`tmp-scripts/`，在调查报告文档中记录脚本路径和用途\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"search-default-internal\" path=\"/Users/user/.devin/rules/search-default-internal.md\">\n# 搜索默认走内置工具\n\n## 硬约束\n\n**默认情况下，使用 devin 内置的 `web_search` 和 `webfetch` 工具。** 不要一遇到搜索就加载 `search-tools` skill。\n\n`search-tools` skill 是重型武器库（6 个工具、38 个端点、完整参数表），只在以下场景才加载：\n\n## 何时加载 search-tools skill\n\n只有同时满足以下条件时才加载：\n\n1. **完备搜索**——内置 `web_search` 结果不够、需要多引擎交叉验证、需要语义搜索、需要学术论文搜索\n2. **大量抓取**——需要抓取多个 URL 转 Markdown、需要 PDF 转 Markdown、需要省 token 的批量取页\n\n## 何时只用内置工具\n\n以下场景**不需要**加载 `search-tools` skill，直接用 `web_search` + `webfetch`：\n\n- 查一个 API 怎么用——`web_search` 搜文档，`webfetch` 取页\n- 查一个概念/术语——`web_search` 一下就够\n- 查一个库的最新版本——`web_search`\n- 取一个 URL 的内容——`webfetch`\n- 简单的事实核查——`web_search`\n\n## 判断流程\n\n```\n需要网络搜索或抓取？\n├─ 查一两个东西就够了 → web_search + webfetch（内置）\n└─ 需要完备搜索或大量抓取\n   ├─ 多引擎交叉验证 → 加载 search-tools skill\n   ├─ 语义搜索 → 加载 search-tools skill\n   ├─ 学术论文搜索 → 加载 search-tools skill\n   ├─ PDF 转 Markdown → 加载 search-tools skill\n   ├─ 批量 URL 抓取 → 加载 search-tools skill\n   └─ 其他简单场景 → web_search + webfetch（内置）\n```\n\n## 理由\n\n`search-tools` skill 内容很长（500+ 行），加载它会占用大量上下文。日常搜索用内置工具完全够用，只有真正需要重型武器时才值得加载。\n</rule>\n\n<rule name=\"global-vs-project-local\" path=\"/Users/user/.devin/rules/global-vs-project-local.md\">\n# 全局vs项目本地判断铁律\n\n## 硬约束\n\n**用户说\"更新AGENTS.md\"或\"添加元组/rule/skill\"时，AI必须先判断这是全局还是项目本地内容，不能直接动手。**\n\n## 判断流程\n\n```\n用户说\"更新AGENTS.md\"或\"添加元组/rule/skill\"\n  ↓\n第一步：判断作用范围\n  ├─ 只在当前项目有意义 → 项目本地\n  └─ 在多个项目中都适用 → 全局\n  ↓\n第二步：判断用户意图\n  ├─ 用户明确说\"全局\" → 全局\n  ├─ 用户明确说\"项目本地\" → 项目本地\n  └─ 用户没说 → 必须问用户\n  ↓\n第三步：放到正确位置\n  ├─ 全局rule → ~/.devin/rules/<name>.md\n  ├─ 全局skill → ~/.config/devin/skills/<name>/SKILL.md\n  ├─ 全局AGENTS.md → ~/.config/devin/AGENTS.md\n  ├─ 项目本地rule → ./.devin/rules/<name>.md\n  ├─ 项目本地skill → ./.devin/skills/<name>/SKILL.md\n  └─ 项目本地AGENTS.md → ./AGENTS.md\n```\n\n## 判断标准\n\n| 信号 | 倾向 |\n|---|---|\n| 内容引用了具体项目的路径、脚本名、目录结构 | 项目本地 |\n| 内容是某个项目特有的操作流程、运维认知 | 项目本地 |\n| 内容是跨项目通用的约束、规范、工作流 | 全局 |\n| 内容修改会影响所有项目的AI行为 | 全局 |\n| 用户说\"以后所有项目都要...\" | 全局 |\n| 用户说\"这个项目要...\" | 项目本地 |\n\n## 禁止\n\n- ❌ 不判断就改全局配置（`~/.devin/`或`~/.config/devin/`）\n- ❌ 不判断就改项目本地配置（`./.devin/`或`./AGENTS.md`）\n- ❌ 把项目本地内容放到全局规则中（污染全局配置）\n- ❌ 把全局通用内容放到项目本地（其他项目无法复用）\n- ❌ 用户没说全局还是本地时自作主张决定\n\n## 必须\n\n- ✅ 先判断作用范围（全局还是项目本地）\n- ✅ 用户没明确说时，先问用户\n- ✅ 判断后告诉用户放在哪里，再动手\n- ✅ 改全局配置时遵循`global-config-git-commit`规则（三个独立repo分别commit）\n\n## 详见\n\n- `tuple-methodology.md`——元组的设计原则、全局vs项目本地的选择策略\n- `global-config-git-commit.md`——全局配置的git提交规则\n- `readme-structure-index.md`——AGENTS.md与README.md的职责分工\n</rule>\n\n<rule name=\"db-delete-backup-first\" path=\"/Users/user/.devin/rules/db-delete-backup-first.md\">\n# 删除数据库数据前必须先备份\n\n**硬约束**：删除数据库的任何数据之前，必须先备份相关的数据，确保删除错误的情况下可以恢复数据。\n\n## 为什么\n\nDB 删除操作不可逆。一旦执行 DELETE/DROP/TRUNCATE/批量删除，数据就没了。如果删除条件写错（比如 WHERE 条件不精确、dry-run 和实际执行结果不一致、脚本有 bug），会丢失不该删的数据，且无法恢复。\n\n历史教训（2026-08-21）：`cleanup_continuation_runs.py` 删除了 p27_continuation_runs 中 224 条 prepared 记录，删除后才发现实际删除数（224）与 dry-run 预期数（223）不一致——因为 collector 在 dry-run 和实际执行之间又创建了 1 条记录。虽然这次差异无害，但如果差异方向反过来（多删了不该删的），就无法恢复了。\n\n## 必做动作\n\n### 步骤1：备份\n\n删除前必须把要删除的数据导出到文件。备份文件路径记录在操作审计文档中。\n\n```bash\n# ArangoDB：用 AQL 导出要删除的记录到 JSON 文件\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\n# 用与删除相同的查询条件查出要删除的完整记录\nrecords = list(db.aql.execute('FOR r IN collection FILTER <删除条件> RETURN r', ttl=120))\nwith open('backup_<collection>_<date>.json', 'w') as f:\n    json.dump(records, f, ensure_ascii=False, indent=2)\nprint(f'备份 {len(records)} 条记录到 backup_<collection>_<date>.json')\n\"\n```\n\n### 步骤2：验证备份\n\n确认备份文件非空、记录数与预期一致、每条记录有完整的字段（特别是 `_key`/`_id`，恢复时需要）。\n\n### 步骤3：执行删除\n\n备份完成且验证通过后，才能执行删除。\n\n### 步骤4：记录审计\n\n在 dev-docs 中记录：备份文件路径、删除条件、删除数量、备份记录数。\n\n## 恢复方法\n\n如果删除后发现错误，用备份文件恢复：\n\n```bash\n# ArangoDB：从 JSON 文件恢复\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\nwith open('backup_<collection>_<date>.json') as f:\n    records = json.load(f)\ncol = db.collection('collection')\nfor r in records:\n    r.pop('_rev', None)  # _rev 不能手动设置\n    col.insert(r)\nprint(f'恢复 {len(records)} 条记录')\n\"\n```\n\n## 禁止\n\n- 禁止不备份就直接执行批量删除\n- 禁止只 dry-run 不备份就执行删除——dry-run 和实际执行之间可能有状态变化\n- 禁止备份后不验证备份文件就执行删除\n- 禁止删除后不记录备份文件路径——找不到备份=没备份\n\n## 例外\n\n| 情况 | 是否需要备份 |\n|---|---|\n| 批量删除（DELETE/FOR...REMOVE） | ✅ 必须 |\n| DROP collection | ✅ 必须（先导出全集合） |\n| TRUNCATE | ✅ 必须（先导出全集合） |\n| 覆盖写入（insert overwrite） | ✅ 必须（先导出被覆盖的数据） |\n| 单条记录删除 | 可不备份（影响小，可通过日志追溯） |\n| 单条记录状态更新（非删除） | 不需要 |\n| 只读查询 | 不需要 |\n\n## 与其他 rule 的关系\n\n| rule | 关系 |\n|---|---|\n| `closure-checklist-impact-analysis` | commit 前分析影响——本 rule 在删除操作前就触发，更早 |\n| `verify-with-logs` | 删除后验证——本 rule 是删除前预防 |\n| 全局 AGENTS.md §可审计性纪律 | \"重大分析、调查、审查必须留下 file:line 定位\"——本 rule 是其具体化到 DB 删除场景 |\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/pcfc48a1ca69046ef9c7e/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nLet \\(\\mathcal{C}\\) be a family of subsets of \\(A = \\{1, 2, \\ldots, 100\\}\\) such that the following two conditions are simultaneously satisfied:\n1. Every 99-element subset of \\(A\\) is contained in \\(\\mathcal{C}\\).\n2. Every non-empty set \\(C \\in \\mathcal{C}\\) contains an element \\(c \\in C\\) such that \\(C \\setminus \\{c\\} \\in \\mathcal{C}\\).\n\nFind the smallest possible value of \\(|\\mathcal{C}|\\).\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"global_rules\" path=\"/Users/user/.codeium/windsurf/memories/global_rules.md\">\n\n</rule>\n\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"database-schema-doc\" path=\"/Users/user/.devin/rules/database-schema-doc.md\">\n# 数据库表结构强制文档化\n\n## 硬约束\n\n**所有项目的数据库表结构集中存放在 `/Users/user/database/` 目录**，每个项目一个文件，文件名与项目名对应。文件开头必须写明该项目的repo全路径。\n\n## 文件命名和位置\n\n- **存放目录**：`/Users/user/database/`\n- **文件名**：`<项目名>.md`（与repo目录名一致，如`AI-Math-Normal-Solver.md`）\n- **文件开头**：必须写明repo全路径，格式：\n  ```\n  > **Repo全路径**：`/Users/user/<repo目录名>/`\n  ```\n\n## 何时必须更新\n\n- 新建表/集合时\n- 修改表/集合的字段时（增删改字段、改字段类型、改字段含义）\n- 新增索引时\n- 修改字段语义时（如字段值从一种含义变为另一种含义）\n\n## 何时必须先读\n\n- **写查数据库的脚本前**——必须先读 `/Users/user/database/<项目名>.md` 了解表结构，不能凭猜测写AQL/SQL\n- **查数据库前**——必须先读对应文档确认字段名、字段类型、字段含义\n- **设计涉及数据库的功能前**——必须先读对应文档了解现有表结构\n\n## 内容要求\n\n每个表/集合必须记录：\n\n1. **表名/集合名** + 用途（一句话）\n2. **字段表**：字段名、类型、含义、是否必填、默认值\n3. **索引**：索引字段、索引类型\n4. **关键JOIN关系**：和其他表/集合的关联字段\n5. **字段值枚举**：如果字段是枚举值（如status），列出所有取值和含义\n6. **已知问题/注意事项**：字段不一致、缺失字段、历史遗留等\n\n## 多数据库情况\n\n- 如果一个repo涉及多个数据库，文档中分节记录每个数据库\n- 如果表结构由其他repo管理（如本repo只读另一个repo的数据库），文档中注明\"由XXX repo管理\"，并记录本repo依赖的字段\n\n## 反模式\n\n- ❌ 在代码中散落数据库字段名，没有集中文档\n- ❌ 写查数据库脚本前不读文档，凭猜测写AQL\n- ❌ 改了表结构但不更新 `/Users/user/database/` 中的文档\n- ❌ 文档只记表名不记字段\n- ❌ 文档记了字段但不记枚举值\n- ❌ 文档开头不写repo全路径\n- ❌ 把数据库文档放在repo内部而不是集中目录\n- ✅ 每次改表结构同时更新 `/Users/user/database/<项目名>.md` 并commit\n- ✅ 写查数据库脚本前先读 `/Users/user/database/<项目名>.md` 确认字段名和类型\n- ✅ 文档记录已知问题（如字段不一致、历史遗留）\n- ✅ 文档开头写明repo全路径\n</rule>\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-22T13:12:38.570297+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\nThese rules were triggered but could not be injected due to token limits. Read them when relevant using the read_file tool:\n\n<rule name=\"readme-structure-index\" path=\"/Users/user/.devin/rules/readme-structure-index.md\" />\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "overflow"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-22T13:12:38.570311+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **opencode-openrouter-config**: opencode 对接 OpenRouter API 的配置格式和密钥复用规则。在项目根目录创建 opencode.json， 用 provider.openrouter.options.apiKey 字段写入密钥。密钥复用——不问用户要新密钥， 从已有项目的 opencode.json 读取现有密钥。 WHEN to use: 为某个项目配置 opencode+OpenRouter 时；用户要求创建/修改 opencode.json 时； AI 需要找 OpenRouter 密钥时。 WHEN NOT to use: 配置 opencode 的其他 provider（非 OpenRouter）；配置 Devin CLI（用 devin-config-harness skill）。\n (path: /Users/user/.devin/rules/opencode-openrouter-config.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **search-tools**: 搜索武器库——按需求组织：网页搜索完备性 + Markdown 网页抓取。所有方案免费可用。 WHEN to use: 需要网络搜索、网页抓取读取、学术论文搜索、PDF 转 Markdown、语义嵌入、结果重排时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **explicit-model-and-effort**: 使用 devin cli 时（无论 -p 模式还是 acp 模式）必须显式指明模型；推理强度当前 devin CLI 无独立开关（2026-08-21 核查），由模型默认行为控制——若未来版本提供 强度/思考参数，必须同样显式设置。opencode 侧的对应 rule 见 ~/.config/opencode/rules/explicit-model-and-effort.md（其 ACP 有 effort 接口， 且实测不显式选模型会落到内建默认）。 WHEN to use: 写 devin -p 命令时；写/改 devin acp 客户端启动参数时； 排查\"AI 表现与预期不符\"时。 WHEN NOT to use: 用户明确指定其他模型的对话。\n (path: /Users/user/.devin/rules/explicit-model-and-effort.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-22T13:12:38.580605+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-22T13:12:38.581479+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **openrouter-key-query**:  (source: /Users/user/.config/devin/skills/openrouter-key-query/SKILL.md)\n- **openrouter-key-gen**:  (source: /Users/user/.config/devin/skills/openrouter-key-gen/SKILL.md)\n- **opencode-acp-protocol**: OpenCode ACP(Agent Client Protocol)模式完整指南——opencode acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call)、thinking实时流式推送、权限自动批准、 session管理(close/fork/list/resume)、v1协议细节、与Devin CLI ACP的关键区别。 WHEN to use: 用opencode acp启动为ACP server时；写ACP客户端对接opencode时； 需要实时检测AI工作状态(thinking/tool执行/卡住)时；从session/update通知组装trajectory时； 对比opencode ACP和devin ACP选方案时；将现有管线改造为ACP模式时。 WHEN NOT to use: 只需要opencode的最终结果(用opencode run)；非ACP的opencode使用； 只需要devin ACP(用devin-acp-protocol skill)。 (source: /Users/user/.config/devin/skills/opencode-acp-protocol/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **search-tools**: 搜索武器库技术说明书——按需求组织：网页搜索完备性 + Markdown 网页抓取。 所有方案均为免费可用，基于 2026-08-21 实测数据编写。 (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **devin-acp-protocol**: Devin CLI ACP(Agent Client Protocol)模式使用指南——devin acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call/permission)、thinking实时流式推送、 权限处理、session管理、v1协议细节、实测验证的信号清单和检测逻辑。 WHEN to use: 需要用ACP模式启动devin cli(替代-p模式)时；需要实时检测AI工作状态(thinking spin/卡住)时； 需要从session/update通知组装conversation.json时；需要处理ACP权限请求时； 设计/实现/调试ACP客户端时；将现有-p模式管线改造为ACP模式时。 WHEN NOT to use: 只需要-p模式的简单非交互运行(用noninteractive-solver-run skill)； 只需要session最终产出(看文件即可)；只需要git历史(用git log)。 (source: /Users/user/.config/devin/skills/devin-acp-protocol/SKILL.md)\n- **iga-email-create**:  (source: /Users/user/.config/devin/skills/iga-email-create/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **zcode-trajectory**: ZCode (z.ai 桌面客户端) model-io session trajectory 数据的 JSONL schema 与读取方法。 (source: /Users/user/.config/devin/skills/zcode-trajectory/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.5.20/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n- **upload-secrets**: Securely upload local secrets (dotenv files, env vars, API keys) to the Devin Cloud secrets manager — values never enter the conversation (source: builtin:upload-secrets)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-22T13:12:41.764450+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me solve this problem. Let me think carefully.\n\nWe have $A = \\{1, 2, \\ldots, 100\\}$. $\\mathcal{C}$ is a family of subsets satisfying:\n1. Every 99-element subset of $A$ is in $\\mathcal{C}$.\n2. Every non-empty $C \\in \\mathcal{C}$ contains an element $c \\in C$ such that $C \\setminus \\{c\\} \\in \\mathcal{C}$.\n\nFind the smallest $|\\mathcal{C}|$.\n\nCondition 2 says: every non-empty set in $\\mathcal{C}$ has a \"removable\" element — removing it gives another set in $\\mathcal{C}$. This means from any non-empty set in $\\mathcal{C}$, we can repeatedly remove elements and stay in $\\mathcal{C}$, eventually reaching $\\emptyset$ (if $\\emptyset \\in \\mathcal{C}$) or some minimal non-empty set... wait, actually we can keep removing until we reach a set in $\\mathcal{C}$ that is empty. Wait, condition 2 applies to every non-empty set in $\\mathcal{C}$. So if $C \\in \\mathcal{C}$ is non-empty, there's $c$ with $C \\setminus \\{c\\} \\in \\mathcal{C}$. We continue. This chain must terminate at $\\emptyset \\in \\mathcal{C}$ (since we keep removing elements, sizes decrease, and the only set with no removable element is $\\emptyset$, which is exempt from condition 2). So $\\emptyset \\in \\mathcal{C}$ necessarily, and every set in $\\mathcal{C}$ connects to $\\emptyset$ via a chain of single-element removals, all staying in $\\mathcal{C}$.\n\nSo $\\mathcal{C}$ is \"downward connected to $\\emptyset$\": for every $C \\in \\mathcal{C}$, there's a chain $C = C_0 \\supsetneq C_1 \\supsetneq \\cdots \\supsetneq C_k = \\emptyset$ with each $C_i \\in \\mathcal{C}$ and $|C_i| = |C_{i-1}| - 1$.\n\nWe need all 99-element subsets in $\\mathcal{C}$. There are $\\binom{100}{99} = 100$ such subsets (each is $A \\setminus \\{i\\}$).\n\nFor each 99-element subset $S = A \\setminus \\{i\\}$, we need a chain from $S$ down to $\\emptyset$ in $\\mathcal{C}$. The chain has sizes 99, 98, ..., 1, 0. So each chain uses one set of each size from 0 to 99.\n\nTo minimize $|\\mathcal{C}|$, we want to share sets across chains as much as possible.\n\nLet me think of this as a DAG/poset problem. We have sets in $\\mathcal{C}$. Each set of size $k$ (for $k \\geq 1$) needs at least one \"child\" of size $k-1$ contained in it. And each 99-set needs to be in $\\mathcal{C}$.\n\nThink of it as: we need to select a collection $\\mathcal{C}$ containing all 100 sets of size 99, plus $\\emptyset$, such that every non-empty set in $\\mathcal{C}$ has a subset of size one less also in $\\mathcal{C}$.\n\nThis is like building a \"tree\" or \"forest\" rooted at $\\emptyset$, where each node (set) of size $k$ has a parent of size $k-1$ (a subset obtained by removing one element). The 100 sets of size 99 are all required leaves... no, they're required nodes.\n\nActually, let's think of it as a directed graph where edges go from a set to a subset of size one less. Each non-empty set has out-degree $\\geq 1$ (toward a child in $\\mathcal{C}$). We need all paths to reach $\\emptyset$.\n\nTo minimize total nodes, we want maximum sharing. This is like finding a \"Steiner-like\" structure.\n\nLet me think about it differently. Consider levels by size. Level $k$ = sets in $\\mathcal{C}$ of size $k$. We need $|L_{99}| = 100$ (all 99-subsets). $L_0 = \\{\\emptyset\\}$. For each set in $L_k$ ($k \\geq 1$), it needs at least one $(k-1)$-subset in $L_{k-1}$.\n\nWe want to minimize $\\sum_k |L_k|$.\n\nThis is a covering/sharing problem. Let me think about lower bounds and constructions.\n\nConstruction idea: Take a single chain. A chain from a 99-set down to $\\emptyset$ uses 100 sets (one per size). But we have 100 different 99-sets, and they can't all be in one chain (a chain has only one 99-set). \n\nBut chains can merge. Two 99-sets $A \\setminus \\{i\\}$ and $A \\setminus \\{j\\}$ can both reduce to $A \\setminus \\{i, j\\}$ (size 98). So at level 98, we could have $A \\setminus \\{i, j\\}$ serving both. \n\nGreedy merging: At each level, we want to cover all sets from the level above. A set $T$ of size $k-1$ can \"serve\" any set $S$ of size $k$ with $T \\subset S$ (i.e., $S = T \\cup \\{x\\}$ for some $x$). \n\nSo the problem: we have required sets at level 99 (all 100 of them). Each set at level $k$ must be \"covered\" by at least one set at level $k-1$ that it contains. We choose sets at each level to minimize total, with the constraint that every chosen set at level $k \\geq 1$ is covered by some chosen set at level $k-1$.\n\nWait, but sets at intermediate levels are also \"required\" to be covered (they're in $\\mathcal{C}$ so they need a child too). So it propagates down.\n\nLet me reconsider. Let $L_{99}$ = all 100 99-subsets (forced). For each $S \\in L_{99}$, pick one 98-subset $T \\subset S$ to be in $L_{98}$. Then $L_{98}$ is the collection of chosen 98-subsets. For each $T \\in L_{98}$, pick one 97-subset $U \\subset T$ to be in $L_{97}$. Etc. Down to $L_0 = \\{\\emptyset\\}$.\n\nWe want to minimize $\\sum_{k=0}^{99} |L_k|$ where $|L_{99}| = 100$, $|L_0| = 1$, and $L_{k-1}$ is a set of $(k-1)$-subsets such that every $S \\in L_k$ contains at least one member of $L_{k-1}$.\n\nAt each step, we're choosing $L_{k-1}$ to \"cover\" $L_k$ (each member of $L_k$ contains a member of $L_{k-1}$), minimizing $|L_{k-1}|$.\n\nGiven $L_k$, what's the minimum $|L_{k-1}|$? A member $T$ of $L_{k-1}$ (a $(k-1)$-subset) can cover all $S \\in L_k$ with $T \\subset S$. Each $S \\in L_k$ has $k$ subsets of size $k-1$. So $T$ covers those $S \\in L_k$ that contain $T$, i.e., $S = T \\cup \\{x\\}$ for $x \\notin T$. There are $100 - (k-1) = 101 - k$ possible $x$, so $T$ covers at most $101 - k$ sets (those in $L_k$ that contain $T$).\n\nSo minimum $|L_{k-1}| \\geq \\lceil |L_k| / (101 - k) \\rceil$.\n\nBut this is just a counting bound; the actual minimum depends on structure.\n\nLet me think about the structure more carefully. \n\nKey insight: Let's think about what sets appear. Consider the complement. A set $S \\subseteq A$ of size $k$ has complement $\\bar{S} = A \\setminus S$ of size $100 - k$. The 99-subsets have complements of size 1 (singletons). \n\n$S \\supset T$ (with $|S| = k, |T| = k-1$) iff $\\bar{S} \\subset \\bar{T}$ (with $|\\bar{S}| = 100-k, |\\bar{T}| = 101-k$). So the \"child\" relation (removing an element from $S$ to get $T$) corresponds to adding an element to $\\bar{S}$ to get $\\bar{T}$.\n\nSo in complement space: we have all singletons (complements of 99-sets) at level 1 (size 1). Each set $\\bar{S}$ of size $m$ needs a \"parent\" $\\bar{T}$ of size $m+1$ with $\\bar{S} \\subset \\bar{T}$. We go up from size 1 to size 100 (complement of $\\emptyset$ is $A$).\n\nSo: we need all 100 singletons. Each singleton $\\{i\\}$ needs a 2-element superset containing it. Each 2-element set needs a 3-element superset containing it. ... Up to $A$ itself (size 100).\n\nMinimize total number of sets across all levels (1 to 100), with all 100 singletons included, and each set of size $m < 100$ has a superset of size $m+1$ in the collection.\n\nThis is like building a \"tree\" (or DAG) from singletons up to $A$, where each node has a parent one level up. We want to minimize total nodes.\n\nA set of size $m+1$ can be a parent of up to $m+1$ sets of size $m$ (its $m+1$ subsets of size $m$). So at each level, a node can have up to $m+1$ children.\n\nTo minimize, we want each parent to cover as many children as possible. \n\nLevel 1: 100 singletons. Each 2-set covers 2 singletons. Min 2-sets = 50 (a perfect matching). \nLevel 2: 50 2-sets. Each 3-set covers 3 2-sets. Min 3-sets = $\\lceil 50/3 \\rceil = 17$. But can we achieve 17? A 3-set covers 3 specific 2-sets (its edges). We need to cover 50 specific 2-sets (from the matching) with 3-sets. Each 3-set $\\{a,b,c\\}$ covers edges $\\{a,b\\}, \\{a,c\\}, \\{b,c\\}$. So we need the 50 matching edges to be covered by triangles. A triangle covers at most... it covers 3 edges but only if those edges are in our collection. If our 50 edges form a perfect matching, a triangle $\\{a,b,c\\}$ can cover at most 1 matching edge (since matching edges are disjoint, a triangle has 3 edges but at most 1 is a matching edge). \n\nSo the structure matters a lot. With a perfect matching at level 2, we can't efficiently cover with 3-sets.\n\nHmm, so the greedy \"minimize at each level independently\" doesn't work because of structural constraints. We need to think globally.\n\nLet me reconsider. The problem is to choose, for the complement family $\\mathcal{F}$ (containing all singletons and $A$), such that every set of size $< 100$ in $\\mathcal{F}$ has a superset of size one more in $\\mathcal{F}$. Minimize $|\\mathcal{F}|$.\n\nEquivalently: $\\mathcal{F}$ is a family containing all singletons and $A$, such that from every set in $\\mathcal{F}$ (except $A$), you can go up by one element to another set in $\\mathcal{F}$. This means every set in $\\mathcal{F}$ is connected to $A$ by a chain of single-element additions.\n\nSo $\\mathcal{F}$ is \"upward connected to $A$\": every set in $\\mathcal{F}$ has a path to $A$.\n\nWe want to minimize $|\\mathcal{F}|$ subject to: all 100 singletons in $\\mathcal{F}$, $A \\in \\mathcal{F}$, and upward connectivity.\n\nThis is like a Steiner tree problem on the Boolean lattice. We need to connect 100 singletons to the top $A$, where edges connect sets differing by one element. Minimize total vertices.\n\nA tree connecting 100 leaves to a root, where each internal node at \"height\" $h$ (size $m$) can have children at height $h-1$ (size $m-1$), and a node of size $m$ can have at most $m$ children (its $m$ subsets of size $m-1$), but those children must be subsets of it.\n\nActually, it's not exactly a tree because we could have a DAG (sharing). But for minimization, a tree (no sharing beyond what's needed) is optimal... actually sharing reduces count, so a DAG could be better. But let me think about trees first.\n\nIn a tree: root $A$ (size 100) has some children of size 99. Each child of size 99 has children of size 98. Etc. The leaves are the 100 singletons. \n\nA node of size $m$ can have at most $m$ children (each child is a subset of size $m-1$, obtained by removing one of the $m$ elements). But the children must be distinct subsets, and they're all subsets of this node.\n\nWait, but the children of a node of size $m$ are $m$ subsets of size $m-1$, each missing one element. These are all the $(m-1)$-subsets of this node. So a node of size $m$ can have at most $m$ children.\n\nFor a tree with 100 leaves (singletons), rooted at $A$ (size 100):\n- Level 100 (root): 1 node, can have up to 100 children.\n- Level 99: up to 100 nodes, each can have up to 99 children.\n- ...\n- Level $m$: each node can have up to $m$ children.\n- Level 1: 100 leaves.\n\nTo minimize total nodes, we want a tree where each internal node has as many children as possible. But the constraint is that a node of size $m$ has children that are its $(m-1)$-subsets, and those children are shared...no, in a tree they're not shared.\n\nHmm, but actually the children of a node of size $m$ are specific: they're obtained by removing one element. If a node is $\\{a_1, \\ldots, a_m\\}$, its potential children are $\\{a_1, \\ldots, a_m\\} \\setminus \\{a_i\\}$ for each $i$. \n\nFor the tree to have 100 singleton leaves, and each singleton $\\{i\\}$ appears exactly once as a leaf, we need the tree to \"account for\" all 100 elements.\n\nLet me think of it as: the root $A$ has 100 elements. It chooses some children (99-subsets), each missing one element. Say it has $c_{100}$ children. Those children collectively... each child is missing one element. The leaves under each child must cover the elements of that child.\n\nActually, let me think recursively. Let $f(m)$ = minimum number of nodes in a subtree rooted at a set of size $m$ that has exactly $m$ singleton leaves (one for each element). Then $f(1) = 1$. For $m > 1$: the root has some children, each a subset of size $m-1$. The children partition... no, they don't partition. \n\nHmm, let me think again. If the root is $\\{1, \\ldots, m\\}$ and it has children that are $(m-1)$-subsets, each child misses one element. Say the root has $k$ children, missing elements $e_1, \\ldots, e_k$. Each child $C_j = \\{1,\\ldots,m\\} \\setminus \\{e_j\\}$ must have a subtree whose leaves are the singletons $\\{i\\}$ for $i \\in C_j$, i.e., all elements except $e_j$. But wait, the leaves must be exactly the singletons for elements in the child set. And element $e_j$ is not in child $C_j$, so $e_j$'s singleton must be a leaf under a different child or... \n\nActually, every element's singleton must be a leaf somewhere. If the root has children missing $e_1, \\ldots, e_k$, then element $e_j$ is not in child $j$ but is in all other children $j' \\neq j$. So $\\{e_j\\}$ could be a leaf under any child $j' \\neq j$.\n\nThis is getting complicated. Let me think about it as: we need a tree where the root is $A$, leaves are all 100 singletons, and each internal node of size $m$ has children that are $(m-1)$-subsets of it. Minimize total nodes.\n\nA node of size $m$ can have at most $m$ children. To minimize nodes, maximize branching. \n\nIf every internal node of size $m$ has exactly $m$ children (full branching), then:\n- Level 100: 1 node\n- Level 99: 100 nodes\n- Level 98: $100 \\times 99$ nodes\n- ...\nThis explodes. That's way too many. We want 100 leaves, not $100!$ leaves.\n\nSo we don't want full branching. We want minimal branching to get exactly 100 leaves.\n\nA node of size $m$ with $c$ children contributes $c$ subtrees. To get exactly 100 leaves total, we need the tree to have 100 leaves.\n\nMinimum nodes for a tree with $L$ leaves where each internal node has $\\geq 2$ children: $2L - 1$ (binary tree). But here, the constraint is that a node of size $m$ has children that are specific $(m-1)$-subsets, and the leaves must be specific singletons.\n\nLet me think about whether a binary tree works. Root $A$ (size 100) has 2 children, each a 99-subset. Each 99-subset has 2 children (98-subsets). Etc. A binary tree with 100 leaves has 199 nodes. But can we realize this with the subset constraint?\n\nRoot $A = \\{1, \\ldots, 100\\}$. Child 1: $A \\setminus \\{100\\}$, Child 2: $A \\setminus \\{99\\}$. \nChild 1 ($A \\setminus \\{100\\}$, size 99): children $A \\setminus \\{100, 99\\}$ and $A \\setminus \\{100, 98\\}$.\nChild 2 ($A \\setminus \\{99\\}$, size 99): children $A \\setminus \\{99, 100\\}$ and $A \\setminus \\{99, 98\\}$.\n\nHmm, $A \\setminus \\{100, 99\\}$ appears as a child of both. In a tree, we'd duplicate it. But in a DAG (our actual problem), we could share it. So the DAG could be smaller.\n\nBut wait—in our problem, $\\mathcal{F}$ is a set (family), so sharing is allowed and beneficial. So we should think of it as a DAG, not a tree.\n\nLet me reconsider the problem as a DAG. We need a family $\\mathcal{F}$ containing all singletons and $A$, such that every non-top set has a parent (superset of size one more) in $\\mathcal{F}$. Minimize $|\\mathcal{F}|$.\n\nThis is a \"Steiner arborescence\" on the Boolean lattice.\n\nLet me think about lower bounds. \n\nClaim: the answer is related to a specific construction. Let me think about what optimal looks like.\n\nConsider the following construction: pick a \"spine\" — a chain $\\{1\\} \\subset \\{1,2\\} \\subset \\{1,2,3\\} \\subset \\cdots \\subset \\{1,2,\\ldots,100\\} = A$. This chain has 100 sets. Now, for each other singleton $\\{j\\}$ ($j = 2, \\ldots, 100$), we need to connect it to the chain. $\\{j\\}$ needs a parent of size 2 containing $j$. We can use $\\{1, j\\}$... but $\\{1, j\\}$ needs a parent of size 3, etc.\n\nHmm, let me think differently. \n\nAlternative construction: For each $j \\in \\{2, \\ldots, 100\\}$, connect $\\{j\\}$ to the spine via the chain $\\{j\\} \\subset \\{1, j\\} \\subset \\{1, 2, j\\} \\subset \\{1, 2, 3, j\\} \\subset \\cdots \\subset \\{1, 2, \\ldots, 99, j\\} = A \\setminus \\{100\\}$ if $j \\neq 100$... wait, this doesn't quite work because we need to connect to $A$.\n\nLet me reconsider. The spine is $\\{1\\} \\subset \\{1,2\\} \\subset \\cdots \\subset A$. For element $j$ ($j \\geq 2$), we need $\\{j\\}$ in $\\mathcal{F}$, and it needs a chain up to $A$. The chain $\\{j\\} \\subset \\{1,j\\} \\subset \\{1,2,j\\} \\subset \\cdots \\subset \\{1,2,\\ldots,j-1,j\\} = \\{1,\\ldots,j\\}$ joins the spine at $\\{1,\\ldots,j\\}$. This chain for element $j$ adds sets $\\{j\\}, \\{1,j\\}, \\{1,2,j\\}, \\ldots, \\{1,\\ldots,j-2,j\\}$ — that's $j-1$ new sets (the set $\\{1,\\ldots,j\\}$ is already on the spine). \n\nWait let me recount. The chain from $\\{j\\}$ to $\\{1,\\ldots,j\\}$: $\\{j\\} \\subset \\{1,j\\} \\subset \\{1,2,j\\} \\subset \\cdots \\subset \\{1,2,\\ldots,j-1,j\\}$. The sets are $\\{j\\}, \\{1,j\\}, \\{1,2,j\\}, \\ldots, \\{1,2,\\ldots,j-1,j\\}$. That's $j$ sets. Of these, $\\{1,2,\\ldots,j\\}$ is on the spine. So $j-1$ new sets per element $j$.\n\nTotal: spine has 100 sets. For $j = 2, \\ldots, 100$: $j-1$ new sets each. Total new = $\\sum_{j=2}^{100} (j-1) = \\sum_{i=1}^{99} i = 99 \\cdot 100 / 2 = 4950$. Grand total = $100 + 4950 = 5050$.\n\nBut wait, we might double-count. The set $\\{1, j\\}$ for different $j$ are different. $\\{1, 2, j\\}$ for different $j$ are different. So no overlap. Total = 5050.\n\nBut can we do better? 5050 = $\\binom{101}{2} - 50$... actually $5050 = 100 \\cdot 101 / 2 = \\binom{101}{2}$. Hmm, $\\binom{100}{2} = 4950$, $\\binom{101}{2} = 5050$. \n\nCan we do better than this \"star from spine\" construction?\n\nLet me think about a lower bound. \n\nAlternative: think of each set in $\\mathcal{F}$ (other than singletons and $A$) as an \"internal node.\" We need to connect 100 singletons to $A$. \n\nLet me think about the problem differently using the complement/original formulation.\n\nActually, let me think about it as follows. In the original formulation, $\\mathcal{C}$ contains all 99-subsets and $\\emptyset$, and is downward-connected. In complement, $\\mathcal{F}$ contains all singletons and $A$, upward-connected.\n\nLet me think about a lower bound. Consider the \"weight\" or some invariant.\n\nAlternative approach: Think of each set $S \\in \\mathcal{F}$ of size $m$ ($1 \\leq m \\leq 99$) as needing a parent. Define a \"parent function\" $p: \\mathcal{F} \\setminus \\{A\\} \\to \\mathcal{F}$ where $p(S) \\supset S$ and $|p(S)| = |S| + 1$. This gives a functional graph; since sizes strictly increase, it's a DAG, and everything reaches $A$.\n\nFor each set $S$ of size $m$, $p(S) = S \\cup \\{x_S\\}$ for some $x_S \\notin S$. \n\nNow, consider the sets at each level. Let $a_m = |L_m|$ = number of sets of size $m$ in $\\mathcal{F}$. We have $a_1 = 100$, $a_{100} = 1$.\n\nA set $T$ of size $m+1$ can be the parent of at most $m+1$ sets of size $m$ (its subsets of size $m$). So $a_m \\leq (m+1) \\cdot a_{m+1}$, i.e., $a_{m+1} \\geq a_m / (m+1)$.\n\nFrom $a_1 = 100$: $a_2 \\geq 100/2 = 50$, $a_3 \\geq 50/3 = 16.67$, so $a_3 \\geq 17$, etc. But these are just counting bounds and may not be tight.\n\nAlso, $a_m \\geq 1$ for all $m$ (since we need a chain from some singleton to $A$, passing through all sizes). Actually, we need at least one set of each size from 1 to 100.\n\nLower bound from counting: $a_m \\geq \\lceil a_{m-1} / m \\rceil$. Starting from $a_1 = 100$:\n- $a_2 \\geq 50$\n- $a_3 \\geq \\lceil 50/3 \\rceil = 17$\n- $a_4 \\geq \\lceil 17/4 \\rceil = 5$\n- $a_5 \\geq \\lceil 5/5 \\rceil = 1$\n- $a_6 \\geq 1, \\ldots, a_{100} \\geq 1$.\n\nSo the counting lower bound gives: $a_1 = 100, a_2 \\geq 50, a_3 \\geq 17, a_4 \\geq 5, a_5 \\geq 1, a_6 = \\ldots = a_{100} = 1$. Total $\\geq 100 + 50 + 17 + 5 + 1 + 96 = 269$.\n\nBut this counting bound assumes we can always achieve the ceiling, which requires structural feasibility. And the construction I gave has 5050, way more than 269. So either the counting bound is very loose, or there's a much better construction.\n\nLet me think about whether we can achieve something close to the counting bound.\n\nThe counting bound says: at level 2, we need at least 50 sets. Can we achieve 50? We need 50 2-sets such that every singleton is contained in at least one. That's a covering of 100 elements by 2-sets, minimum 50 (a perfect matching). Yes, achievable.\n\nAt level 3, we need at least 17 3-sets such that every 2-set (from our 50 matching edges) is contained in at least one 3-set. A 3-set contains 3 2-sets (edges). But our 50 2-sets are a matching (disjoint edges). A 3-set $\\{a,b,c\\}$ contains edges $\\{a,b\\}, \\{a,c\\}, \\{b,c\\}$. At most one of these can be a matching edge (since matching edges are disjoint). So each 3-set covers at most 1 of our 2-sets. Thus we need 50 3-sets, not 17!\n\nSo the structure of the matching prevents efficient covering. The counting bound is very loose here.\n\nSo the choice of level 2 matters. If instead of a matching, we chose 2-sets that share elements, we might cover more efficiently at level 3.\n\nFor example, if all 2-sets share a common element: $\\{1, 2\\}, \\{1, 3\\}, \\ldots, \\{1, 100\\}$. That's 99 2-sets (not 50). But then at level 3, a 3-set $\\{1, a, b\\}$ covers 2-sets $\\{1,a\\}, \\{1,b\\}, \\{a,b\\}$. Two of our 2-sets ($\\{1,a\\}$ and $\\{1,b\\}$) are covered. So each 3-set covers 2 of our 2-sets. We'd need $\\lceil 99/2 \\rceil = 50$ 3-sets. Total so far: 100 + 99 + 50 = 249, plus higher levels. Hmm, that's already less than the matching approach's level 3 (which needed 50 at level 3 too, but with 50 at level 2: 100 + 50 + 50 = 200).\n\nWait, with the matching: level 2 = 50, level 3 = 50 (since each 3-set covers at most 1 matching edge). Then level 4: each 4-set covers at most... a 4-set $\\{a,b,c,d\\}$ has 4 3-subsets. Our 3-sets: each 3-set was chosen to cover one matching edge. A 4-set contains 4 3-subsets. How many of our 3-sets can it contain? Our 3-sets each contain one matching edge. A 4-set has 3 matching edges at most (if it contains 3 of our matching edges)... but matching edges are disjoint, so a 4-set (4 elements) contains at most 2 matching edges. So a 4-set contains at most 2 of our 3-sets. Need $\\lceil 50/2 \\rceil = 25$ 4-sets. Then level 5: 5-set contains 5 4-subsets. Our 4-sets each contain 2 matching edges. A 5-set has 5 elements, contains at most 2 matching edges (disjoint), so contains at most 2 of our 4-sets. Need $\\lceil 25/2 \\rceil = 13$. Hmm, this is getting complicated and the reduction is slow.\n\nLet me reconsider. With the matching approach:\n- $a_1 = 100$\n- $a_2 = 50$ (matching)\n- $a_3 = 50$ (each 3-set covers 1 matching edge, but we need to cover 50 2-sets, each by a 3-set containing it; since each 3-set covers at most 1, need 50)\n\nWait, I need to be more careful. At level 3, we need every 2-set in $L_2$ to be contained in some 3-set in $L_3$. Each 3-set contains 3 2-subsets. Our 2-sets are matching edges. A 3-set contains at most 1 matching edge. So each 3-set covers at most 1 of our 2-sets. Need 50 3-sets. But also, each 3-set must itself be covered at level 4, etc.\n\nActually wait, I realize the matching approach is bad. Let me think about the \"star\" approach (all 2-sets share element 1):\n- $a_1 = 100$\n- $a_2 = 99$: $\\{1,j\\}$ for $j = 2, \\ldots, 100$.\n- $a_3$: need to cover 99 2-sets. A 3-set $\\{1, a, b\\}$ covers $\\{1,a\\}$ and $\\{1,b\\}$ (2 of our 2-sets). So need $\\lceil 99/2 \\rceil = 50$ 3-sets. The 3-sets are $\\{1, 2, 3\\}, \\{1, 4, 5\\}, \\ldots$ (pairing up). Actually 99 is odd, so 49 pairs + 1 singleton: $\\{1, 2, 3\\}, \\{1, 4, 5\\}, \\ldots, \\{1, 98, 99\\}, \\{1, 100\\}$... wait $\\{1, 100\\}$ is a 2-set not a 3-set. Let me redo: we have 99 2-sets $\\{1,2\\}, \\{1,3\\}, \\ldots, \\{1,100\\}$. We pair them: $\\{1,2,3\\}$ covers $\\{1,2\\}$ and $\\{1,3\\}$. $\\{1,4,5\\}$ covers $\\{1,4\\}$ and $\\{1,5\\}$. ... $\\{1,98,99\\}$ covers $\\{1,98\\}$ and $\\{1,99\\}$. $\\{1,100, x\\}$ covers $\\{1,100\\}$ and $\\{1,x\\}$... but $\\{1,x\\}$ is already covered. So we can use $\\{1, 100, 2\\}$ to cover $\\{1,100\\}$ (and $\\{1,2\\}$ again, $\\{2,100\\}$ which we don't need). So 50 3-sets: $\\{1,2,3\\}, \\{1,4,5\\}, \\ldots, \\{1,98,99\\}, \\{1,100,2\\}$. That's 50.\n\n- $a_4$: need to cover 50 3-sets. Our 3-sets all contain element 1. A 4-set $\\{1, a, b, c\\}$ contains 3 3-subsets containing 1: $\\{1,a,b\\}, \\{1,a,c\\}, \\{1,b,c\\}$. So it covers at most 3 of our 3-sets (if all three 3-subsets are in our collection). Our 3-sets: $\\{1,2,3\\}, \\{1,4,5\\}, \\ldots$. A 4-set $\\{1,2,3,4\\}$ contains $\\{1,2,3\\}$ (yes), $\\{1,2,4\\}$ (no), $\\{1,3,4\\}$ (no). So covers 1. A 4-set $\\{1,2,3,4,5\\}$... that's size 5. \n\nHmm, to cover 2 of our 3-sets with a 4-set: $\\{1,2,3,4\\}$ contains $\\{1,2,3\\}$ and $\\{1,2,4\\}, \\{1,3,4\\}$. Only $\\{1,2,3\\}$ is in our collection. What about $\\{1,2,3,5\\}$? Contains $\\{1,2,3\\}$ (yes), $\\{1,2,5\\}$ (no, we have $\\{1,4,5\\}$ not $\\{1,2,5\\}$), $\\{1,3,5\\}$ (no). So covers 1.\n\nTo cover 2: need a 4-set containing two of our 3-sets. Our 3-sets are $\\{1,2,3\\}, \\{1,4,5\\}, \\{1,6,7\\}, \\ldots$. A 4-set containing both $\\{1,2,3\\}$ and $\\{1,4,5\\}$ would need to be $\\{1,2,3,4,5\\}$ (size 5). Impossible with size 4. So a 4-set can cover at most 1 of our 3-sets (since our 3-sets use disjoint pairs $\\{2,3\\}, \\{4,5\\}, \\ldots$ and a 4-set has only 3 non-1 elements, which can overlap with at most one pair). \n\nWait: $\\{1,2,3,4\\}$ has non-1 elements $\\{2,3,4\\}$. Our 3-sets use pairs $\\{2,3\\}, \\{4,5\\}, \\{6,7\\}, \\ldots$. $\\{2,3,4\\}$ overlaps with pair $\\{2,3\\}$ (both 2 and 3) and pair $\\{4,5\\}$ (only 4). To contain the 3-set $\\{1,2,3\\}$, need both 2 and 3. To contain $\\{1,4,5\\}$, need both 4 and 5. A 4-set has 3 non-1 elements, can contain at most one full pair. So covers at most 1. Need 50 4-sets.\n\nThis is the same problem recurring. The \"pairing\" structure at each level means we can only cover 1 per set at the next level. So:\n- $a_1 = 100, a_2 = 99, a_3 = 50, a_4 = 50, a_5 = 25, a_6 = 25, \\ldots$\n\nHmm wait, let me recompute. After level 3 with 50 3-sets using pairs, at level 4 each 4-set covers at most 1, so $a_4 = 50$. Then at level 5, our 4-sets are $\\{1,2,3,x_4\\}, \\{1,4,5,x_6\\}, \\ldots$ hmm, this is getting complicated. Let me think more carefully.\n\nActually, I think the issue is that the structure at each level determines efficiency at the next. Let me think about what structure is optimal.\n\nLet me reconsider. The key question: what's the minimum $|\\mathcal{F}|$?\n\nLet me think about it from the perspective of information. Each set of size $m$ \"represents\" or \"covers\" certain singletons (the elements it contains). A set of size $m$ covers $m$ singletons. But we need all 100 singletons covered at level 1 (they're all there). The question is about the intermediate levels.\n\nLet me think about a different construction: a single chain plus branches.\n\nConstruction 2: \"Binary tree\" style. \nRoot: $A$ (size 100). \nChildren of root: $A \\setminus \\{100\\}$ and $A \\setminus \\{1\\}$ (two 99-sets). \nBut wait, we need all 100 singletons as leaves, and the tree must respect the subset structure.\n\nHmm, let me think about this more carefully with a cleaner model.\n\nModel: We need a family $\\mathcal{F}$ in the Boolean lattice $2^{[100]}$ containing all singletons and $[100]$, such that every set $S \\in \\mathcal{F}$ with $|S| < 100$ has some $S' \\in \\mathcal{F}$ with $S \\subset S'$ and $|S'| = |S| + 1$. Minimize $|\\mathcal{F}|$.\n\nEquivalently, $\\mathcal{F}$ is a connected subgraph of the Hasse diagram of $2^{[100]}$ (covering relations) that contains all singletons and the top element, and is \"upward connected\" (every element has a path up to the top).\n\nSince it's connected and contains all singletons and the top, and edges only go between consecutive levels, it's actually a connected subgraph containing level 1 (all 100 singletons) and level 100 (the top). Minimize the number of vertices.\n\nThis is the \"Steiner tree\" problem on the Boolean lattice Hasse diagram, connecting 100 singletons to the top.\n\nFor a Steiner tree connecting $n$ terminals in a graph, the minimum is at most $(2n - 1)$ if the graph allows binary trees. But here the graph is the Hasse diagram, which has specific structure.\n\nLet me think about small cases to get intuition.\n\nCase $n = 2$ (A = {1, 2}): singletons $\\{1\\}, \\{2\\}$, top $\\{1,2\\}$. $\\mathcal{F} = \\{\\{1\\}, \\{2\\}, \\{1,2\\}\\}$. $|\\mathcal{F}| = 3$. Both singletons connect directly to top. \n\nCase $n = 3$: singletons $\\{1\\}, \\{2\\}, \\{3\\}$, top $\\{1,2,3\\}$. Options:\n- All connect to top: need 2-sets containing each singleton. $\\{1,2\\}$ covers $\\{1\\}$ and $\\{2\\}$, $\\{1,2,3\\}$ covers $\\{3\\}$... no, $\\{3\\}$ needs a 2-set parent. $\\{1,3\\}$ or $\\{2,3\\}$. So $\\mathcal{F} = \\{\\{1\\}, \\{2\\}, \\{3\\}, \\{1,2\\}, \\{2,3\\}, \\{1,2,3\\}\\}$, $|\\mathcal{F}| = 6$. Or $\\{\\{1\\}, \\{2\\}, \\{3\\}, \\{1,2\\}, \\{1,3\\}, \\{1,2,3\\}\\}$, also 6. Or use $\\{1,2\\}$ and $\\{1,3\\}$: $\\{1\\} \\to \\{1,2\\} \\to \\{1,2,3\\}$, $\\{2\\} \\to \\{1,2\\}$, $\\{3\\} \\to \\{1,3\\} \\to \\{1,2,3\\}$. That's $\\{\\{1\\}, \\{2\\}, \\{3\\}, \\{1,2\\}, \\{1,3\\}, \\{1,2,3\\}\\}$, 6 sets. \n\nCan we do 5? We need 3 singletons + top = 4, plus at least one 2-set (since singletons can't connect directly to 3-set). One 2-set covers 2 singletons. The third singleton needs another 2-set. So at least 2 2-sets. Total $\\geq 3 + 2 + 1 = 6$. So 6 is optimal for $n = 3$.\n\nCase $n = 4$: singletons $\\{1\\}, \\{2\\}, \\{3\\}, \\{4\\}$, top $\\{1,2,3,4\\}$. Need 2-sets to cover singletons, 3-sets to cover 2-sets. \n- 2-sets: $\\{1,2\\}, \\{3,4\\}$ (matching, 2 sets). \n- 3-sets: need to cover $\\{1,2\\}$ and $\\{3,4\\}$. $\\{1,2,3\\}$ covers $\\{1,2\\}$, $\\{1,2,3\\}$ also contains $\\{1,3\\}, \\{2,3\\}$ (not in our 2-sets). $\\{1,2,3\\}$ covers $\\{1,2\\}$. $\\{1,3,4\\}$ covers $\\{3,4\\}$. So 2 3-sets. But $\\{1,2,3\\}$ and $\\{1,3,4\\}$ both need to connect to top. Top covers both. Total: 4 + 2 + 2 + 1 = 9.\n\nAlternative: 2-sets $\\{1,2\\}, \\{2,3\\}, \\{3,4\\}$ (path, 3 sets). 3-sets: $\\{1,2,3\\}$ covers $\\{1,2\\}$ and $\\{2,3\\}$. $\\{2,3,4\\}$ covers $\\{2,3\\}$ and $\\{3,4\\}$. So 2 3-sets. Total: 4 + 3 + 2 + 1 = 10. Worse.\n\nAlternative: 2-sets $\\{1,2\\}, \\{1,3\\}, \\{1,4\\}$ (star, 3 sets). 3-sets: $\\{1,2,3\\}$ covers $\\{1,2\\}, \\{1,3\\}$. $\\{1,3,4\\}$ covers $\\{1,3\\}, \\{1,4\\}$. 2 3-sets. Total: 4 + 3 + 2 + 1 = 10. Worse.\n\nAlternative: 2-sets $\\{1,2\\}, \\{3,4\\}$ (2 sets). 3-sets: $\\{1,2,3\\}$ covers $\\{1,2\\}$, $\\{2,3,4\\}$ covers $\\{3,4\\}$. 2 3-sets. Total: 4 + 2 + 2 + 1 = 9.\n\nCan we do 8? Need 4 singletons + 1 top = 5, plus at least 2 2-sets (each covers 2 singletons, need to cover 4, but could one 2-set + direct... no, singletons need 2-set parents). Actually, can a singleton connect directly to a 3-set? No, parent must be size + 1. So singletons need 2-set parents. Min 2-sets = 2 (matching). Then 2-sets need 3-set parents. Can one 3-set cover both 2-sets? $\\{1,2,3,4\\}$ is size 4. A 3-set containing both $\\{1,2\\}$ and $\\{3,4\\}$? Need a 3-set containing $\\{1,2\\}$ and $\\{3,4\\}$, i.e., containing $1,2,3,4$ — that's 4 elements, impossible for a 3-set. So need 2 3-sets. Total $\\geq 4 + 2 + 2 + 1 = 9$. \n\nBut wait, can we use fewer 2-sets and more 3-sets? Like 1 2-set? $\\{1,2\\}$ covers $\\{1\\}$ and $\\{2\\}$. $\\{3\\}$ and $\\{4\\}$ need 2-set parents too. So need at least 2 2-sets. Unless... $\\{3\\}$'s parent could be $\\{3, x\\}$ for any $x$. So yes, need at least $\\lceil 4/2 \\rceil = 2$ 2-sets. And then 2 3-sets as shown. So 9 is optimal for $n = 4$.\n\nLet me see the pattern: $n=2: 3$, $n=3: 6$, $n=4: 9$.\n\nFor $n=2$: $3 = 2 + 1$. For $n=3$: $6 = 3 + 2 + 1$. For $n=4$: $9 = 4 + 2 + 2 + 1$. Hmm, $9 = 4 + 2 + 2 + 1$.\n\nLet me compute $n=5$. Singletons: 5. Top: 1. \n2-sets: min $\\lceil 5/2 \\rceil = 3$. E.g., $\\{1,2\\}, \\{3,4\\}, \\{5,1\\}$ (covers all). Actually $\\{1,2\\}, \\{3,4\\}, \\{1,5\\}$: covers 1,2,3,4,5. 3 2-sets.\n3-sets: need to cover 3 2-sets. $\\{1,2,3\\}$ covers $\\{1,2\\}$. $\\{1,3,4\\}$... covers $\\{3,4\\}$? No, $\\{1,3,4\\}$ contains $\\{3,4\\}$ yes. And $\\{1,5\\}$? Need a 3-set containing $\\{1,5\\}$: $\\{1,5,x\\}$. $\\{1,2,5\\}$ covers $\\{1,2\\}$ and $\\{1,5\\}$. So 3-sets: $\\{1,2,5\\}$ (covers $\\{1,2\\}, \\{1,5\\}$), $\\{3,4,x\\}$ (covers $\\{3,4\\}$). $\\{1,3,4\\}$ covers $\\{3,4\\}$. So 2 3-sets: $\\{1,2,5\\}, \\{1,3,4\\}$. \n4-sets: need to cover 2 3-sets. $\\{1,2,3,4\\}$ contains $\\{1,2,5\\}$? No (no 5). $\\{1,2,3,5\\}$ contains $\\{1,2,5\\}$ yes. $\\{1,3,4,5\\}$ contains $\\{1,3,4\\}$ yes. Can one 4-set contain both? Need $\\{1,2,5\\} \\cup \\{1,3,4\\} = \\{1,2,3,4,5\\}$, size 5. No. So 2 4-sets. Total: 5 + 3 + 2 + 2 + 1 = 13.\n\nAlternatively, can we do better? Let me try 2-sets: $\\{1,2\\}, \\{2,3\\}, \\{3,4\\}, \\{4,5\\}$ (path, 4 sets). 3-sets: $\\{1,2,3\\}$ covers $\\{1,2\\}, \\{2,3\\}$. $\\{3,4,5\\}$ covers $\\{3,4\\}, \\{4,5\\}$. 2 3-sets. 4-sets: $\\{1,2,3,4\\}$ covers $\\{1,2,3\\}$. $\\{2,3,4,5\\}$ covers $\\{3,4,5\\}$. 2 4-sets. Total: 5 + 4 + 2 + 2 + 1 = 14. Worse.\n\nBack to 13 for $n=5$. Pattern: $3, 6, 9, 13$... differences: $3, 3, 4$. Hmm not obvious.\n\nLet me try to think about this more carefully. Let me reconsider.\n\nActually, let me reconsider the problem. Maybe there's a cleaner way to think about it.\n\nLet me define the problem in terms of the original $\\mathcal{C}$. We need all 99-subsets and $\\emptyset$, downward connected. \n\nIn complement: all singletons and $[n]$, upward connected. Minimize size.\n\nLet me think about it as a \"tree\" (DAG) where we want to minimize total vertices. \n\nKey insight: Consider the \"parent\" assignment. Each non-top set $S$ has a parent $p(S) = S \\cup \\{x\\}$. Think of $x$ as the \"color\" or \"label\" of the edge. \n\nFor a set $S$ of size $m$, the parent adds one element. The element added must not be in $S$.\n\nNow, consider the following: assign to each singleton $\\{i\\}$ a \"path\" to the top: $\\{i\\} = S_0 \\subset S_1 \\subset \\cdots \\subset S_{99} = [n]$, where $|S_k| = k+1$. The path adds elements one at a time. The path is determined by the order in which elements are added: $i, a_1, a_2, \\ldots, a_{99}$ (a permutation of $[n]$ starting with $i$).\n\nThe family $\\mathcal{F}$ is the union of all sets on all paths. We want to minimize the total number of distinct sets.\n\nSo the problem is: choose 100 paths (one from each singleton to the top), each path being a maximal chain in the Boolean lattice, to minimize the total number of distinct sets used.\n\nWait, but the paths don't have to be maximal chains — the parent assignment doesn't have to follow a single chain for each singleton. The parent of $\\{i\\}$ is some 2-set, whose parent is some 3-set, etc. But the parent assignment defines, for each set, a unique parent. So following parents from $\\{i\\}$ gives a path to the top. Different singletons' paths can share sets (and from a shared set onward, they share the rest of the path, since each set has a unique parent).\n\nSo the structure is a tree rooted at the top, with singletons as leaves, and internal nodes are sets of intermediate sizes. Each internal node of size $m$ has children that are $(m-1)$-subsets of it. The total number of nodes is what we minimize.\n\nWait, it's a tree because each non-top node has exactly one parent (we chose one parent for each). And the top has no parent. The leaves are... not necessarily singletons. A leaf is a node with no children. But all singletons must be in the tree, and they have no children (size 1, can't have size-0 children since we don't include $\\emptyset$ in $\\mathcal{F}$... wait, do we?).\n\nHmm, in the complement formulation, $\\mathcal{F}$ contains all singletons and $[n]$, and every non-top set has a parent. $\\emptyset$ is not required. So the tree has the top as root, and leaves are sets with no children. All singletons are in the tree; they must be leaves (since no set of size 0 is in $\\mathcal{F}$, singletons can't have children). But there could be other leaves (sets of size $\\geq 2$ with no children). However, having extra leaves wastes nodes, so in an optimal solution, all leaves are singletons.\n\nSo: optimal $\\mathcal{F}$ corresponds to a tree rooted at $[n]$, with all 100 singletons as leaves, where each internal node of size $m$ has children that are distinct $(m-1)$-subsets of it. Minimize total nodes.\n\nA tree with $L$ leaves has $L - 1$ internal nodes (if every internal node has $\\geq 2$ children), so total $2L - 1$. With $L = 100$: $199$. But the constraint is that an internal node of size $m$ can have at most $m$ children, and the children must be $(m-1)$-subsets.\n\nIf every internal node has exactly 2 children (binary tree), total = $2 \\cdot 100 - 1 = 199$. Can we realize a binary tree?\n\nA binary tree: root $[100]$ (size 100) has 2 children, each a 99-subset. Each 99-subset has 2 children (98-subsets). Etc. The leaves are 100 singletons.\n\nFor this to work, we need: at each internal node of size $m$, its 2 children are 2 distinct $(m-1)$-subsets. And the tree has exactly 100 leaves, all singletons.\n\nThe number of internal nodes is 99, total 199. But we need the sizes to work out: the root is size 100, its children size 99, their children size 98, etc., down to size 1 (singletons). The tree has depth 99 (from size 100 to size 1). But a binary tree of depth 99 can have up to $2^{99}$ leaves. We only need 100 leaves. So most internal nodes have only 1 child... but then they're not really branching.\n\nWait, I conflated two things. The tree depth is 99 (levels from size 100 to size 1), but the tree doesn't have to be balanced. A node of size $m$ can have 1 or 2 children (or more). If it has 1 child, it's just part of a chain (no branching). If 2, it branches.\n\nFor 100 leaves, we need 99 branching points (internal nodes with 2 children, in a binary tree). The rest are chain nodes (1 child). \n\nTotal nodes = 100 (leaves) + 99 (branching) + (chain nodes). Chain nodes are internal nodes with 1 child. \n\nHmm, but every level from 2 to 99 must have at least one node (since we need paths from size 1 to size 100). Actually, the tree spans sizes 1 to 100, and every size level has at least one node.\n\nIn a tree with 100 leaves and binary branching, the number of internal nodes with 2 children is 99, and the number with 1 child is... let me think. Total internal nodes = total nodes - 100 (leaves). In a tree where every internal node has 1 or 2 children: if $n_1$ nodes have 1 child and $n_2$ have 2 children, then $n_1 + n_2 = $ internal nodes, and $n_1 + 2n_2 = $ total nodes - 1 (root) ... no. \n\nEdges = total nodes - 1. Also edges = $n_1 \\cdot 1 + n_2 \\cdot 2$. Total nodes = $100 + n_1 + n_2$. So $n_1 + 2n_2 = 99 + n_1 + n_2$, giving $n_2 = 99$. So 99 branching nodes, and $n_1$ can be anything $\\geq 0$. Total = $100 + 99 + n_1 = 199 + n_1$.\n\nTo minimize, set $n_1 = 0$: total 199. But can we achieve $n_1 = 0$? That means every internal node has exactly 2 children. The tree has 100 leaves, 99 internal nodes, all internal nodes branching. Depth is 99 (size 100 to size 1). \n\nA full binary tree with 100 leaves has 99 internal nodes and depth $\\geq \\lceil \\log_2 100 \\rceil = 7$. But we need depth exactly 99 (since sizes go from 100 down to 1, one step at a time). A full binary tree of depth 99 has at least... well, a full binary tree where every root-to-leaf path has length 99 would have exactly 100 leaves only if it's very specific. Actually, a full binary tree of depth 99 (all paths length 99) has $2^{99}$ leaves if perfectly balanced. To have only 100 leaves with all paths length 99, most internal nodes would have only 1 child — contradicting $n_1 = 0$.\n\nWait, I think the issue is: the depth (number of edges from root to leaf) must be exactly 99 for every leaf (since every path goes from size 100 to size 1, 99 steps). In a full binary tree (all internal nodes 2 children) with all root-to-leaf paths of length 99, the number of leaves is $2^{99}$. We need only 100 leaves. So we can't have all internal nodes branching if depth is 99 and leaves is 100.\n\nSo $n_1 > 0$ is forced. Specifically, the tree has 100 leaves, all at depth 99. The number of internal nodes at each depth... Let me think about it level by level.\n\nAt depth $d$ (root at depth 0, size $100 - d$), let $v_d$ = number of nodes. $v_0 = 1$ (root), $v_{99} = 100$ (leaves). Each node at depth $d$ has 1 or 2 children at depth $d+1$. So $v_{d+1} = v_d + n_2^{(d)}$ where $n_2^{(d)}$ is the number of branching nodes at depth $d$. \n\n$v_{99} = v_0 + \\sum_{d=0}^{98} n_2^{(d)} = 1 + \\sum n_2^{(d)} = 100$. So $\\sum n_2^{(d)} = 99$. Total internal nodes = $\\sum_{d=0}^{98} v_d$. Total nodes = $\\sum_{d=0}^{99} v_d$.\n\n$v_{d+1} = v_d + n_2^{(d)} \\geq v_d$ (since $n_2^{(d)} \\geq 0$). And $v_{d+1} \\leq 2 v_d$ (each node has at most 2 children). \n\nTo minimize $\\sum v_d$, we want $v_d$ to grow as slowly as possible from 1 to 100 over 99 steps. The slowest growth: $v_d$ increases by 1 at each step (one branching per level). Then $v_d = 1 + d$ for $d = 0, \\ldots, 99$, giving $v_{99} = 100$. Total = $\\sum_{d=0}^{99} (1+d) = 100 + \\sum_{d=0}^{99} d = 100 + 99 \\cdot 100/2 = 100 + 4950 = 5050$.\n\nBut wait, can we grow faster initially and then stay flat? E.g., $v_0 = 1, v_1 = 2, v_2 = 4, \\ldots$ (doubling) until we reach 100, then stay at 100. Doubling: $v_d = 2^d$ until $2^d \\geq 100$, i.e., $d = 7$ ($2^7 = 128 > 100$). So $v_0 = 1, v_1 = 2, v_2 = 4, v_3 = 8, v_4 = 16, v_5 = 32, v_6 = 64, v_7 = 100$ (need 100, have 64, add 36 branchings: $v_7 = 64 + 36 = 100$). Then $v_8 = v_9 = \\ldots = v_{99} = 100$ (no more branching, each node has 1 child). \n\nTotal = $\\sum_{d=0}^{99} v_d = (1 + 2 + 4 + 8 + 16 + 32 + 64 + 100) + 92 \\cdot 100 = 227 + 9200 = 9427$. That's worse!\n\nHmm, so faster growth early means more total. The slowest growth (1 per level) gives 5050. But can we grow even slower? We need $v_{99} = 100$ and $v_0 = 1$, with $v_{d+1} \\geq v_d$ (non-decreasing, since we can have 0 branchings) and $v_{d+1} \\leq 2 v_d$. \n\nTo minimize $\\sum v_d$, we want $v_d$ as small as possible. Since $v_d$ is non-decreasing and $v_{99} = 100$, the minimum sum is when $v_d$ stays at 1 as long as possible, then jumps to 100. But $v_{d+1} \\leq 2v_d$, so from $v_d = 1$, $v_{d+1} \\leq 2$. We can't jump. The maximum jump is doubling. So to reach 100 from 1, we need at least $\\lceil \\log_2 100 \\rceil = 7$ steps of doubling. \n\nBut we want to minimize the sum, so we want $v_d$ small. The constraint is $v_{99} = 100$ and $v_{d+1} \\leq 2v_d$ (so $v_d \\geq v_{99} / 2^{99-d} = 100 / 2^{99-d}$). For $d$ near 99, $v_d \\geq 100 / 2^{99-d}$. For $d = 99$: $v_{99} = 100$. $d = 98$: $v_{98} \\geq 50$. $d = 97$: $v_{97} \\geq 25$. $d = 96$: $v_{96} \\geq 13$ (ceil(25/2)). $d = 95$: $\\geq 7$. $d = 94$: $\\geq 4$. $d = 93$: $\\geq 2$. $d = 92$: $\\geq 1$. For $d \\leq 92$: $v_d \\geq 1$.\n\nSo the minimum $v_d$ is: $v_d = \\max(1, \\lceil 100 / 2^{99-d} \\rceil)$.\n- $d = 0, \\ldots, 92$: $v_d = 1$.\n- $d = 93$: $v_{93} = 2$.\n- $d = 94$: $v_{94} = 4$.\n- $d = 95$: $v_{95} = 7$ (need $v_{96} \\leq 2 \\cdot 7 = 14 \\geq 13$, ok; but also $v_{95} \\geq \\lceil 13/2 \\rceil = 7$).\n- $d = 96$: $v_{96} = 13$ (need $v_{97} \\leq 26 \\geq 25$, ok; $v_{96} \\geq \\lceil 25/2 \\rceil = 13$).\n- $d = 97$: $v_{97} = 25$ ($v_{98} \\leq 50 \\geq 50$, ok; $v_{97} \\geq 50/2 = 25$).\n- $d = 98$: $v_{98} = 50$ ($v_{99} \\leq 100$, ok; $v_{98} \\geq 100/2 = 50$).\n- $d = 99$: $v_{99} = 100$.\n\nTotal = $93 \\cdot 1 + 2 + 4 + 7 + 13 + 25 + 50 + 100 = 93 + 201 = 294$.\n\nWait, let me recompute: $93 \\cdot 1 = 93$ (for $d = 0$ to $92$, that's 93 terms). Then $d=93: 2, d=94: 4, d=95: 7, d=96: 13, d=97: 25, d=98: 50, d=99: 100$. Sum of those: $2+4+7+13+25+50+100 = 201$. Total = $93 + 201 = 294$.\n\nBut this is just the counting bound for a binary tree. The question is whether this is achievable given the subset structure constraints.\n\nThe issue: a node of size $m$ can have at most $m$ children (not just 2). But also, the children must be $(m-1)$-subsets, and different nodes' children must be compatible.\n\nBut wait, I was assuming binary (max 2 children). A node of size $m$ can have up to $m$ children. So the constraint $v_{d+1} \\leq 2 v_d$ is wrong; it should be $v_{d+1} \\leq m \\cdot v_d$ where $m = 100 - d$ (the size at depth $d$). \n\nOh, this changes things significantly! A node of size $m$ can have up to $m$ children. So at depth $d$ (size $100-d$), each node can have up to $100-d$ children. So $v_{d+1} \\leq (100-d) \\cdot v_d$.\n\nThis means we can branch much faster. Let me redo the lower bound.\n\n$v_d \\geq v_{99} / \\prod_{j=d}^{98} (100 - j) = 100 / \\prod_{j=d}^{98} (100-j)$.\n\n$\\prod_{j=d}^{98} (100-j) = (100-d)(99-d)\\cdots(2) = (100-d)!/1! = (100-d)!$.\n\nSo $v_d \\geq 100 / (100-d)!$.\n\nFor $d \\leq 95$: $(100-d)! \\geq 5! = 120 > 100$, so $v_d \\geq 1$.\n- $d = 96$: $v_{96} \\geq 100 / 4! = 100/24 = 4.17$, so $v_{96} \\geq 5$.\n- $d = 97$: $v_{97} \\geq 100 / 3! = 100/6 = 16.67$, so $v_{97} \\geq 17$.\n- $d = 98$: $v_{98} \\geq 100 / 2! = 50$.\n- $d = 99$: $v_{99} = 100$.\n\nAnd for $d \\leq 95$: $v_d \\geq 1$.\n\nSo the minimum $v_d$:\n- $d = 0, \\ldots, 95$: $v_d = 1$ (96 terms).\n- $d = 96$: $v_{96} = 5$.\n- $d = 97$: $v_{97} = 17$.\n- $d = 98$: $v_{98} = 50$.\n- $d = 99$: $v_{99} = 100$.\n\nTotal = $96 \\cdot 1 + 5 + 17 + 50 + 100 = 96 + 172 = 268$.\n\nBut again, this is a counting bound. Is it achievable? The constraint is not just about counts but about the actual subset structure.\n\nLet me think about whether this is achievable. We need:\n- 1 set of each size from 100 down to 5 (a chain), then branch.\n- At size 4 (depth 96): 5 sets.\n- At size 3 (depth 97): 17 sets.\n- At size 2 (depth 98): 50 sets.\n- At size 1 (depth 99): 100 sets (all singletons).\n\nThe chain from size 100 to size 5: $[100] \\supset S_{99} \\supset S_{98} \\supset \\cdots \\supset S_5$ where $|S_k| = k$. This is one set per size. $S_5$ is some 5-element set, say $\\{1,2,3,4,5\\}$.\n\nFrom $S_5 = \\{1,2,3,4,5\\}$ (size 5), we need 5 children of size 4: the 4-subsets of $\\{1,2,3,4,5\\}$, which are $\\{1,2,3,4\\}, \\{1,2,3,5\\}, \\{1,2,4,5\\}, \\{1,3,4,5\\}, \\{2,3,4,5\\}$. That's exactly 5. Good.\n\nFrom each 4-set, we need children (3-subsets) that total 17. Each 4-set has 4 3-subsets. 5 4-sets have at most $5 \\times 4 = 20$ 3-subsets, but many overlap. The 3-subsets of $\\{1,2,3,4,5\\}$: there are $\\binom{5}{3} = 10$ distinct 3-subsets. So at most 10 distinct 3-sets, not 17!\n\nSo we can't have 17 3-sets if they're all subsets of a 5-element set. The counting bound is not achievable because of the subset structure.\n\nThis is the crux. The branching is limited not just by $m$ (number of children) but by the total number of distinct subsets available.\n\nLet me reconsider. If we have a chain down to size $k$, and then branch, the number of distinct $j$-subsets ($j < k$) is at most $\\binom{k}{j}$. We need 100 singletons, so we need $\\binom{k}{1} = k \\geq 100$, meaning $k \\geq 100$. But $k \\leq 100$ (the top), so $k = 100$ and we can't have a chain before branching — we need to branch from the top.\n\nHmm, so the chain approach doesn't work if we branch too late. We need to branch early enough that the branching sets cover all 100 elements.\n\nLet me reconsider. The issue is: the sets at each level must be subsets of the sets at the level above. If we have a single chain down to size $k$, all lower sets are subsets of a $k$-element set, giving at most $\\binom{k}{j}$ sets of size $j$. For 100 singletons, need $k \\geq 100$.\n\nSo we can't use a single chain. We need to branch from near the top.\n\nLet me reconsider the problem. At the top level (size 100), we have $[100]$. Its children are 99-subsets. If we have $c$ children (99-subsets), each missing one element. To cover all 100 elements at the singleton level, we need the union of all sets in the tree to be $[100]$. If a 99-subset misses element $i$, then element $i$ is not in that subtree. So element $i$ must be in some other subtree. If we have $c$ children missing elements $e_1, \\ldots, e_c$, then element $e_j$ is missing from child $j$ but present in all other children. So all elements are covered as long as $c \\geq 2$ (each element is missing from at most one child).\n\nWait, actually if $c = 1$, the single child misses one element, say 100. Then element 100 is not in the subtree, so $\\{100\\}$ can't be a leaf. So $c \\geq 2$.\n\nWith $c = 2$: children miss elements $a$ and $b$. Subtree 1 (missing $a$) covers all elements except $a$. Subtree 2 (missing $b$) covers all except $b$. Element $a$ is only in subtree 2, element $b$ only in subtree 1. All 100 elements are covered.\n\nBut the subtrees are independent. Subtree 1 is rooted at a 99-set (missing $a$) and must have 99 singleton leaves (all singletons except $\\{a\\}$). Subtree 2 is rooted at a 99-set (missing $b$) and must have 99 singleton leaves (all except $\\{b\\}$). Wait, but $\\{a\\}$ is a leaf in subtree 2 and $\\{b\\}$ is a leaf in subtree 1. So subtree 1 has 99 leaves (all singletons except $\\{a\\}$) and subtree 2 has 99 leaves (all except $\\{b\\}$). Total leaves = 99 + 99 = 198, but we only need 100. There's overlap: singletons $\\{c\\}$ for $c \\neq a, b$ appear in both subtrees.\n\nBut in a tree, each leaf appears once. So we can't have the same singleton in both subtrees. We need to assign each singleton to exactly one subtree. $\\{a\\}$ goes to subtree 2, $\\{b\\}$ goes to subtree 1, and for $c \\neq a, b$, $\\{c\\}$ goes to either subtree 1 or 2. \n\nSay subtree 1 gets $k$ singletons and subtree 2 gets $100 - k$ singletons. Subtree 1 is rooted at a 99-set and has $k$ singleton leaves. Subtree 2 is rooted at a 99-set and has $100-k$ singleton leaves.\n\nBut subtree 1's root is a 99-set missing $a$, so it contains all elements except $a$. The singletons in subtree 1 must be subsets, so they're from $\\{1,\\ldots,100\\} \\setminus \\{a\\}$. Similarly subtree 2's singletons are from $\\{1,\\ldots,100\\} \\setminus \\{b\\}$.\n\nSo subtree 1 gets singletons from $[100] \\setminus \\{a\\}$ (99 options), subtree 2 from $[100] \\setminus \\{b\\}$ (99 options). $\\{a\\}$ must go to subtree 2, $\\{b\\}$ to subtree 1. The other 98 singletons are split.\n\nNow, let $f(n)$ = minimum size of a tree rooted at an $n$-element set with all $n$ singletons as leaves. Then:\n\n$f(n) = 1 + \\min_{c, \\text{partition}} \\sum_{i=1}^{c} f(n_i')$\n\nwhere the root has $c$ children (subsets of size $n-1$), and the $i$-th child is an $(n-1)$-set whose subtree has $n_i'$ singleton leaves, with $\\sum n_i' = n$ and each $n_i' \\leq n-1$ (child has $n-1$ elements) and the singletons assigned to child $i$ must be elements of that child.\n\nHmm, this is complex because the children's element sets overlap. Let me simplify.\n\nActually, the key constraint is: child $i$ is an $(n-1)$-subset of the root, missing element $e_i$. The singletons assigned to child $i$ must not include $\\{e_i\\}$ (since $e_i \\notin$ child $i$). Other than that, any singleton can go to any child that contains it.\n\nIf the root has $c$ children missing elements $e_1, \\ldots, e_c$, then singleton $\\{e_j\\}$ can only go to children $i \\neq j$ (those containing $e_j$). For $c \\geq 2$, every singleton can go to at least $c - 1$ children (those not missing it). If $c \\geq 3$, every singleton can go to at least 2 children.\n\nTo minimize, we want to split the $n$ singletons among $c$ children, with the constraint that $\\{e_j\\}$ goes to a child $\\neq j$. The optimal split is as even as possible.\n\nBut also, each child $i$ is an $(n-1)$-set, so $n_i' \\leq n - 1$. And the child's subtree is itself a problem of size $n_i'$ but rooted at an $(n-1)$-set (which has $n-1$ elements, and $n_i' \\leq n-1$ of them are used as leaves).\n\nWait, but the child's subtree problem is: root is an $(n-1)$-set, with $n_i'$ singleton leaves (which are elements of the $(n-1)$-set). The minimum tree size for this is... it depends on $n_i'$ and $n-1$ (the root size). \n\nHmm, but actually the root size is $n-1$ and the leaves are $n_i'$ singletons, all of which are elements of the root. The tree goes from size $n-1$ down to size 1. The minimum number of nodes depends on $n_i'$ (number of leaves) and the root size $n-1$.\n\nLet me define $g(n, L)$ = minimum tree size rooted at an $n$-element set with $L$ singleton leaves ($L \\leq n$). Then $f(n) = g(n, n)$.\n\n$g(n, L)$: root (1 node) + children's subtrees. Root has $c$ children ($1 \\leq c \\leq n$, but $c \\geq 2$ if $L > n-1$... actually $c \\geq 1$). Each child is an $(n-1)$-subset. The $L$ singletons are split into $L_1, \\ldots, L_c$ with $\\sum L_i = L$, $L_i \\leq n-1$ (child has $n-1$ elements), and the constraint that singleton $\\{e_j\\}$ (the element missing from child $j$) is not assigned to child $j$.\n\n$g(n, L) = 1 + \\min_{c, \\text{split}} \\sum_{i=1}^{c} g(n-1, L_i)$.\n\nBase case: $g(1, 1) = 1$ (just the singleton). $g(n, 0) = ?$ — if $L = 0$, no leaves needed, but we still need the root? Actually if $L = 0$, we don't need any tree. $g(n, 0) = 0$.\n\nAlso $g(n, 1) = n$ (a chain from the $n$-set down to the singleton: $n$ nodes). Wait, is that right? Root is $n$-set, one leaf is a singleton. Chain: $n$-set $\\supset (n-1)$-set $\\supset \\cdots \\supset$ singleton. That's $n$ nodes. Can we do better? No, because we need one node per size from 1 to $n$. So $g(n, 1) = n$.\n\n$g(n, L)$ for general $L$: \n\n$g(n, L) = 1 + \\min_{c \\geq 1} \\min_{\\substack{L_1 + \\cdots + L_c = L \\\\ 0 \\leq L_i \\leq n-1}} \\sum_{i=1}^{c} g(n-1, L_i)$\n\nsubject to the constraint that the missing elements allow the split. But if $c \\leq n$ and we choose which elements are missing, we can always arrange the split as long as $L_i \\leq n-1$ for all $i$ and the singletons assigned to child $i$ don't include the missing element $e_i$.\n\nIf $c \\geq 2$, and $L_i \\leq n-1$ (which is automatic since $L_i \\leq L \\leq n$ and if $L_i = n$ then $c = 1$), the constraint is: for each $i$, $L_i \\leq n-1$ (child has $n-1$ elements, can have at most $n-1$ leaves). And the missing element of child $i$ is not assigned to child $i$. Since we can choose which element is missing for each child, we just need: for each child $i$ with $L_i > 0$, there exists an element not among its $L_i$ assigned singletons, to be the missing one. Since $L_i \\leq n - 1$ and the child has $n - 1$ elements, we need the $L_i$ singletons to be a subset of some $(n-1)$-subset of the $n$-set. This is always possible as long as $L_i \\leq n-1$ (just pick any $n-1$ elements containing the $L_i$ singletons). The missing element is the one not in the $(n-1)$-subset.\n\nWait, but the children must be distinct $(n-1)$-subsets? In a tree, children of the same parent are distinct nodes, so yes, they must be distinct $(n-1)$-subsets. Two $(n-1)$-subsets of an $n$-set differ by the missing element. So the children miss distinct elements. So $c \\leq n$ and the missing elements are distinct.\n\nFor the split: child $i$ misses element $e_i$, and its $L_i$ singletons must not include $e_i$. So we need to assign singletons to children such that child $i$ doesn't get $\\{e_i\\}$.\n\nIf $c = 2$: children miss $e_1, e_2$. $\\{e_1\\}$ goes to child 2, $\\{e_2\\}$ goes to child 1. Other singletons go to either. So $L_1 \\geq 1$ (must include $\\{e_2\\}$ if $e_2$ is a needed singleton) and $L_2 \\geq 1$. Actually, if $L = n$, all singletons are needed. $\\{e_1\\}$ must go to child 2, $\\{e_2\\}$ to child 1. The rest ($n - 2$ singletons) split freely. So $L_1 = 1 + a$, $L_2 = 1 + (n - 2 - a)$ for $0 \\leq a \\leq n-2$. $L_1 + L_2 = n$. To minimize $g(n-1, L_1) + g(n-1, L_2)$, we want $L_1 \\approx L_2 \\approx n/2$.\n\nThis is getting recursive and complex. Let me try to compute $g(n, L)$ for small cases and see if there's a pattern.\n\n$g(1, 1) = 1$.\n$g(2, 1) = 2$, $g(2, 2) = 3$ (root + 2 singletons).\n$g(3, 1) = 3$, $g(3, 2) = ?$, $g(3, 3) = 6$ (computed earlier).\n\n$g(3, 2)$: root is 3-set, 2 singleton leaves. Options:\n- $c = 1$: one child (2-set), $L_1 = 2$. $g(2, 2) = 3$. Total = 1 + 3 = 4. But wait, can $c = 1$ with $L = 2$? Child is a 2-set, $L_1 = 2 \\leq 2 = n-1$. Yes. Total = 4.\n- $c = 2$: two children (2-sets), $L_1 + L_2 = 2$, $L_i \\leq 2$. Options: $(1,1), (2,0), (0,2)$. \n  - $(1,1)$: $g(2,1) + g(2,1) = 2 + 2 = 4$. Total = 5.\n  - $(2,0)$: $g(2,2) + g(2,0) = 3 + 0 = 3$. Total = 4. But wait, can we have $L_2 = 0$? That means child 2 has no leaves, so it's not needed. But we said $c = 2$ children. If child 2 has no leaves, it's a wasted node. Actually, if $L_2 = 0$, we shouldn't include child 2. So effectively $c = 1$.\n  \n  Hmm, I think allowing $L_i = 0$ is equivalent to having fewer children. So the minimum is $\\min$ over effective numbers of children.\n\nSo $g(3, 2) = 4$ (via $c = 1$, child is a 2-set with both singletons).\n\n$g(3, 3) = 6$: $c = 2$, split $(2, 1)$: $g(2,2) + g(2,1) = 3 + 2 = 5$. Total = 6. Or split $(1,2)$: same. Can we do $c = 1$? $L_1 = 3 > 2 = n-1$. No. So $g(3,3) = 6$. ✓.\n\n$g(4, L)$:\n$g(4, 1) = 4$.\n$g(4, 2)$: $c = 1$, $L_1 = 2 \\leq 3$. $g(3, 2) = 4$. Total = 5. Or $c = 2$, split $(1,1)$: $g(3,1) + g(3,1) = 3 + 3 = 6$. Total = 7. So $g(4,2) = 5$.\n$g(4, 3)$: $c = 1$, $L_1 = 3 \\leq 3$. $g(3, 3) = 6$. Total = 7. $c = 2$, split $(2,1)$: $g(3,2) + g(3,1) = 4 + 3 = 7$. Total = 8. So $g(4, 3) = 7$.\n$g(4, 4)$: $c = 1$, $L_1 = 4 > 3$. No. $c = 2$, split $(2,2)$: $g(3,2) + g(3,2) = 4 + 4 = 8$. Total = 9. Split $(3,1)$: $g(3,3) + g(3,1) = 6 + 3 = 9$. Total = 10. So $g(4,4) = 9$. ✓ (matches earlier).\n\n$g(5, L)$:\n$g(5,1) = 5$.\n$g(5,2) = 1 + g(4,2) = 6$.\n$g(5,3) = 1 + g(4,3) = 8$. Or $c=2$, $(2,1)$: $g(4,2)+g(4,1) = 5+4=9$, total 10. So $g(5,3) = 8$.\n$g(5,4)$: $c=1$, $L_1=4 \\leq 4$: $g(4,4) = 9$. Total = 10. $c=2$, $(2,2)$: $g(4,2)+g(4,2) = 5+5=10$, total 11. $(3,1)$: $g(4,3)+g(4,1) = 7+4=11$, total 12. So $g(5,4) = 10$.\n$g(5,5)$: $c=1$, $L_1=5 > 4$. No. $c=2$, split $(3,2)$: $g(4,3)+g(4,2) = 7+5=12$, total 13. $(4,1)$: $g(4,4)+g(4,1) = 9+4=13$, total 14. So $g(5,5) = 13$. ✓ (matches earlier).\n\nSo the pattern for $f(n) = g(n, n)$: $f(1)=1, f(2)=3, f(3)=6, f(4)=9, f(5)=13$.\n\nDifferences: $2, 3, 3, 4$. Second differences: $1, 0, 1$. Hmm.\n\nLet me compute more. $g(5, L)$: $g(5,1)=5, g(5,2)=6, g(5,3)=8, g(5,4)=10, g(5,5)=13$.\n\n$g(6, L)$:\n$g(6,1) = 6$.\n$g(6,2) = 1 + g(5,2) = 7$.\n$g(6,3) = 1 + g(5,3) = 9$. Or $c=2, (2,1)$: $g(5,2)+g(5,1)=6+5=11$, total 12. So 9.\n$g(6,4) = 1 + g(5,4) = 11$. Or $c=2, (2,2)$: $g(5,2)+g(5,2)=12$, total 13. $(3,1)$: $g(5,3)+g(5,1)=8+5=13$, total 14. So 11.\n$g(6,5) = 1 + g(5,5) = 14$. Or $c=2, (3,2)$: $g(5,3)+g(5,2)=8+6=14$, total 15. $(4,1)$: $g(5,4)+g(5,1)=10+5=15$, total 16. So 14.\n$g(6,6)$: $c=1$, $L_1=6 > 5$. No. $c=2$, $(3,3)$: $g(5,3)+g(5,3)=8+8=16$, total 17. $(4,2)$: $g(5,4)+g(5,2)=10+6=16$, total 17. $(5,1)$: $g(5,5)+g(5,1)=13+5=18$, total 19. So $g(6,6) = 17$.\n\n$f(6) = 17$. Differences: $2, 3, 3, 4, 4$. Second differences: $1, 0, 1, 0$. \n\nPattern of differences: $2, 3, 3, 4, 4, 5, 5, \\ldots$? Let me check: $f(1)=1, f(2)=3, f(3)=6, f(4)=9, f(5)=13, f(6)=17$. \n\nDifferences: $f(2)-f(1)=2, f(3)-f(2)=3, f(4)-f(3)=3, f(5)-f(4)=4, f(6)-f(5)=4$.\n\nSo the pattern seems to be: differences are $2, 3, 3, 4, 4, 5, 5, 6, 6, \\ldots$, i.e., $\\lceil (k+1)/2 \\rceil + 1$... let me check. $k=1$: diff = 2. $k=2$: diff = 3. $k=3$: diff = 3. $k=4$: diff = 4. $k=5$: diff = 4. So diff at step $k$ (from $f(k)$ to $f(k+1)$) is $\\lfloor k/2 \\rfloor + 2$.\n\n$k=1$: $\\lfloor 1/2 \\rfloor + 2 = 0 + 2 = 2$. ✓\n$k=2$: $\\lfloor 2/2 \\rfloor + 2 = 1 + 2 = 3$. ✓\n$k=3$: $\\lfloor 3/2 \\rfloor + 2 = 1 + 2 = 3$. ✓\n$k=4$: $\\lfloor 4/2 \\rfloor + 2 = 2 + 2 = 4$. ✓\n$k=5$: $\\lfloor 5/2 \\rfloor + 2 = 2 + 2 = 4$. ✓\n\nSo $f(n) = 1 + \\sum_{k=1}^{n-1} (\\lfloor k/2 \\rfloor + 2) = 1 + 2(n-1) + \\sum_{k=1}^{n-1} \\lfloor k/2 \\rfloor$.\n\n$\\sum_{k=1}^{n-1} \\lfloor k/2 \\rfloor$: for $k = 1, 2, 3, 4, 5, 6, \\ldots$, $\\lfloor k/2 \\rfloor = 0, 1, 1, 2, 2, 3, 3, \\ldots$\n\n$\\sum_{k=1}^{m} \\lfloor k/2 \\rfloor = \\sum_{j=1}^{\\lfloor m/2 \\rfloor} j \\cdot [j \\text{ appears} ]$... let me just compute. For $m = n-1$:\n\n$\\sum_{k=1}^{m} \\lfloor k/2 \\rfloor = 0 + 1 + 1 + 2 + 2 + 3 + 3 + \\cdots$\n\nIf $m = 2t$: sum $= 2(1 + 2 + \\cdots + (t-1)) + t = 2 \\cdot \\frac{(t-1)t}{2} + t = t(t-1) + t = t^2$.\nIf $m = 2t+1$: sum $= t^2 + t = t(t+1)$.\n\nSo for $m = n - 1$:\n- If $n - 1 = 2t$ (n odd): sum $= t^2 = ((n-1)/2)^2$.\n- If $n - 1 = 2t + 1$ (n even): sum $= t(t+1) = \\frac{n-2}{2} \\cdot \\frac{n}{2} = \\frac{n(n-2)}{4}$.\n\n$f(n) = 1 + 2(n-1) + \\sum_{k=1}^{n-1} \\lfloor k/2 \\rfloor$.\n\nFor $n = 100$ (even): $m = 99 = 2 \\cdot 49 + 1$, so $t = 49$. Sum $= 49 \\cdot 50 = 2450$.\n$f(100) = 1 + 2 \\cdot 99 + 2450 = 1 + 198 + 2450 = 2649$.\n\nWait, but I should verify this pattern holds. Let me check $f(7)$.\n\n$g(7, L)$:\n$g(7,1) = 7$.\n$g(7,2) = 1 + g(6,2) = 8$.\n$g(7,3) = 1 + g(6,3) = 10$.\n$g(7,4) = 1 + g(6,4) = 12$.\n$g(7,5) = 1 + g(6,5) = 15$.\n$g(7,6) = 1 + g(6,6) = 18$. Or $c=2, (3,3)$: $g(6,3)+g(6,3) = 9+9=18$, total 19. So 18.\n$g(7,7)$: $c=1$, $L_1=7 > 6$. No. $c=2$, $(4,3)$: $g(6,4)+g(6,3) = 11+9=20$, total 21. $(5,2)$: $g(6,5)+g(6,2) = 14+7=21$, total 22. $(6,1)$: $g(6,6)+g(6,1) = 17+6=23$, total 24. So $g(7,7) = 21$.\n\n$f(7) = 21$. Diff from $f(6) = 17$: $21 - 17 = 4$. But the pattern predicts $\\lfloor 6/2 \\rfloor + 2 = 3 + 2 = 5$. ✗!\n\nSo the pattern breaks. Let me recheck $g(7,7)$.\n\n$g(7,7)$: root is 7-set, 7 leaves. $c = 2$, split into $(L_1, L_2)$ with $L_1 + L_2 = 7$, $L_i \\leq 6$.\n- $(4, 3)$: $g(6,4) + g(6,3) = 11 + 9 = 20$. Total = 21.\n- $(5, 2)$: $g(6,5) + g(6,2) = 14 + 7 = 21$. Total = 22.\n- $(6, 1)$: $g(6,6) + g(6,1) = 17 + 6 = 23$. Total = 24.\n- $(3, 4)$: same as $(4,3)$.\n\nWhat about $c = 3$? Three children (6-sets), split $(3, 2, 2)$: $g(6,3) + g(6,2) + g(6,2) = 9 + 7 + 7 = 23$. Total = 24. Worse.\n$(3, 3, 1)$: $9 + 9 + 6 = 24$. Total = 25. Worse.\n\nSo $g(7, 7) = 21$. $f(7) = 21$. Diff = 4. Pattern predicted 5. So the pattern $\\lfloor k/2 \\rfloor + 2$ doesn't hold.\n\nLet me recheck my earlier values. $f: 1, 3, 6, 9, 13, 17, 21$. Diffs: $2, 3, 3, 4, 4, 4$. Hmm, the last diff is 4 not 5.\n\nLet me compute $f(8)$.\n\n$g(8, L)$:\n$g(8,1) = 8$.\n$g(8,2) = 1 + g(7,2) = 9$.\n$g(8,3) = 1 + g(7,3) = 11$.\n$g(8,4) = 1 + g(7,4) = 13$.\n$g(8,5) = 1 + g(7,5) = 16$.\n$g(8,6) = 1 + g(7,6) = 19$. Or $c=2, (3,3)$: $g(7,3)+g(7,3) = 10+10=20$, total 21. So 19.\n$g(8,7) = 1 + g(7,7) = 22$. Or $c=2, (4,3)$: $g(7,4)+g(7,3) = 12+10=22$, total 23. So 22.\n$g(8,8)$: $c=2$, $(4,4)$: $g(7,4)+g(7,4) = 12+12=24$, total 25. $(5,3)$: $g(7,5)+g(7,3) = 15+10=25$, total 26. $(6,2)$: $g(7,6)+g(7,2) = 18+8=26$, total 27. So $g(8,8) = 25$.\n\n$f(8) = 25$. Diff = $25 - 21 = 4$.\n\n$f: 1, 3, 6, 9, 13, 17, 21, 25$. Diffs: $2, 3, 3, 4, 4, 4, 4$.\n\nHmm, so the differences are $2, 3, 3, 4, 4, 4, 4, \\ldots$? Let me compute $f(9)$.\n\n$g(9, L)$:\n$g(9,1) = 9$.\n$g(9,2) = 1 + g(8,2) = 10$.\n$g(9,3) = 1 + g(8,3) = 12$.\n$g(9,4) = 1 + g(8,4) = 14$.\n$g(9,5) = 1 + g(8,5) = 17$.\n$g(9,6) = 1 + g(8,6) = 20$.\n$g(9,7) = 1 + g(8,7) = 23$.\n$g(9,8) = 1 + g(8,8) = 26$. Or $c=2, (4,4)$: $g(8,4)+g(8,4) = 13+13=26$, total 27. So 26.\n$g(9,9)$: $c=2$, $(5,4)$: $g(8,5)+g(8,4) = 16+13=29$, total 30. $(6,3)$: $g(8,6)+g(8,3) = 19+11=30$, total 31. $(7,2)$: $g(8,7)+g(8,2) = 22+9=31$, total 32. So $g(9,9) = 30$.\n\n$f(9) = 30$. Diff = $30 - 25 = 5$.\n\n$f: 1, 3, 6, 9, 13, 17, 21, 25, 30$. Diffs: $2, 3, 3, 4, 4, 4, 4, 5$.\n\nSo the pattern of differences: $2, 3, 3, 4, 4, 4, 4, 5, \\ldots$? It seems like the value $k$ appears $k - 1$ times (after the first $2$). Let me check:\n- $2$ appears 1 time. ($k=2$, $k-1=1$. ✓)\n- $3$ appears 2 times. ($k=3$, $k-1=2$. ✓)\n- $4$ appears 4 times?? That's $k=4$, but $k-1=3$, not 4. ✗.\n\nHmm, let me recount. Diffs: $2, 3, 3, 4, 4, 4, 4, 5$. So $2$ appears 1 time, $3$ appears 2 times, $4$ appears 4 times, $5$ appears 1 time (so far). \n\nThat doesn't match a simple pattern. Let me compute more carefully. Maybe I made errors. Let me recompute $g(7,7)$ more carefully.\n\nActually, wait. I need to be more careful about the $c=1$ case. When $c = 1$, the single child is an $(n-1)$-subset, and all $L$ singletons go to it. This requires $L \\leq n-1$. The child's subtree has $g(n-1, L)$ nodes. Total = $1 + g(n-1, L)$.\n\nWhen $c = 2$, the two children miss elements $e_1, e_2$. $\\{e_1\\}$ goes to child 2, $\\{e_2\\}$ goes to child 1. The remaining $L - 2$ singletons (if $L = n$, this is $n - 2$) are split: $a$ to child 1, $L - 2 - a$ to child 2. So $L_1 = 1 + a$ (including $\\{e_2\\}$), $L_2 = 1 + (L - 2 - a)$ (including $\\{e_1\\}$). We need $L_1 \\leq n-1$ and $L_2 \\leq n-1$.\n\nBut wait, if $L < n$, not all singletons are needed. Then the constraint is different. Let me reconsider.\n\nActually, when $L < n$, we only need $L$ of the $n$ singletons. The missing element of child 1 just needs to not be one of the $L_1$ singletons assigned to child 1. Since we're free to choose which singletons to assign and which elements to miss, the constraint is just $L_i \\leq n - 1$ for each child.\n\nHmm, but actually, the root is an $n$-set, and its children are $(n-1)$-subsets. The singletons assigned to child $i$ must be elements of child $i$ (which has $n-1$ elements). So $L_i \\leq n - 1$. And the missing element of child $i$ is not among its assigned singletons. Since we can choose the missing element freely (as long as children are distinct, i.e., miss distinct elements), the constraint is: for $c$ children, $L_i \\leq n - 1$ for all $i$, $\\sum L_i = L$, and we can find distinct missing elements $e_1, \\ldots, e_c$ such that $e_i$ is not among child $i$'s singletons.\n\nFor $c = 2$: need $e_1 \\neq e_2$, $e_1$ not in child 1's singletons, $e_2$ not in child 2's. If $L_1 \\leq n - 1$ and $L_2 \\leq n - 1$, we can always find such $e_1, e_2$ as long as $L_1 < n$ and $L_2 < n$ (so there's at least one element not in child $i$'s singletons to be the missing one). Since $L_i \\leq n - 1 < n$, this is fine. And $e_1 \\neq e_2$: if $L_1 = n - 1$ and $L_2 = n - 1$, then $e_1$ is the one element not in child 1's set, and $e_2$ is the one not in child 2's. If child 1 and child 2 have the same singletons... but they can't, since $L_1 + L_2 = L \\leq n$ and $L_1 = L_2 = n-1$ gives $L = 2(n-",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 25093,
+        "completion_tokens": 25000,
+        "cached_tokens": 1355
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 25093,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 1355,
+    "total_steps": 10
+  }
+}

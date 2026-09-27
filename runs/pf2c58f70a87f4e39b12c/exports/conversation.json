@@ -1,0 +1,1036 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "poised-random",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-15T01:13:03.315659+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-15T01:13:03.316267+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-15T01:13:03.323932+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-15T01:13:03.316600+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/pf2c58f70a87f4e39b12c (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.4.0\nToday's date: Friday, 2026-08-14\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-15T01:13:03.317038+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/pf2c58f70a87f4e39b12c/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nA shipping logistics manager is tasked with decommissioning a warehouse containing 100 identical storage containers, each holding 400 specialized engine parts. To clear the facility, the manager must execute a series of shipments. In each shipment, he must select exactly two containers and remove one engine part from each.\n\nFor every shipment made, the manager receives a performance bonus equal to the absolute difference between the current number of parts remaining in the two selected containers. The decommissioning process continues until every part has been removed from all 100 containers.\n\nWhat is the maximum total performance bonus the manager can earn by the time the warehouse is empty?\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件，操作流程放 skill，等）\n4. **AGENTS.md 是总目录**——其中的索引节是跨 session AI 认知一致性的保证\n\n**Rule / Skill / 元组的放置层级**：\n\n当需要新建或迁移 rule、skill、元组时，按以下优先级选择放置位置：\n\n1. **首先考虑项目级 `.devin/` 目录**——这是 Devin 的正常使用方法。项目级 rule 放 `.devin/rules/`，项目级 skill 放 `.devin/skills/`。大多数 rule/skill 应该在这里——它们是项目特定的，不需要污染全局配置。\n2. **AGENTS.md 中只放 rule 索引**——项目 AGENTS.md 的维护规则节中，保留 rule 索引表（指向 `.devin/rules/` 中的文件），不保留完整 rule 内容。AGENTS.md 是总目录，rule 文件是详细内容。\n3. **只有确实跨项目通用的 rule/skill/元组，才升级为全局内容**——放在 `~/.config/devin/` 或 `~/.devin/` 中。**升级必须获得用户明确同意**——不要擅自把项目级内容升级为全局内容。\n4. **判断标准**：如果这个 rule/skill 只在当前项目有意义 → 项目级 `.devin/`。如果它在多个项目中都会被触发 → 可以考虑升级为全局，但先问用户。\n\n**元组：rule-skill-tuple-assessment**（rule + skill，全局）\n\n> **触发条件**：用户提出一个要求、认知、或设计思想时，AI 自动评估这个内容是否应该固化为 rule、skill、或元组。\n> **Skill**：`~/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md`\n> **核心意识**：不是每个用户要求都需要设为 rule/skill——只有具有跨 session 复用价值的才设置。但 AI 必须有意识地主动评估，而不是被动等用户说\"把这个设为rule\"。\n>\n> **评估流程**（详见 skill）：\n> 1. 判断是否具有跨 session 复用价值 → 否则直接执行不设置\n> 2. 判断类型：Rule（硬约束）/ Skill（SOP）/ 元组（Rule+Skill）/ 元组群（多Skill）\n> 3. 判断层级：项目级 `.devin/`（默认） vs 全局 `~/.config/devin/`（需用户同意）\n> 4. 执行：创建文件 + AGENTS.md 索引 + commit\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n### 13 · 禁止inline脚本，所有脚本持久化到项目内\n\n**Rule**：`~/.devin/rules/no-inline-scripts.md`\n\n**硬约束**：\n1. **禁止写超过3行的inline脚本**（`python -c \"...\"`、`bash -c \"...\"`）。超过3行的逻辑必须写成文件。\n2. **所有脚本写到项目内的脚本目录中**——不写`/tmp/`、不写home目录。放到项目已有的脚本目录或`scripts/`目录。\n3. **在项目AGENTS.md中做好索引**——新脚本必须记录路径、用途、用法。\n4. **持续维护，不重写**——已有脚本就改进，不另写新的。重复操作累积成越来越完善的脚本。\n\n**判定标准**：\n- 单行命令（`ls`、`git status`）→ 直接执行\n- 2-3行简单查询 → 可以直接执行\n- 超过3行 → **必须写成文件**\n- 会重复使用的操作 → **必须写成文件**\n- 已有脚本可改进 → **改进已有脚本**\n\n---\n\n## Git 管理协议\n\n**改文件前**：检查目标文件/目录是否处于 git clean 状态 → 记录 `before_status_baseline` → 明确本轮 `intended_delta`。\n\n**改文件后**：完成一个逻辑工作单元立即 commit → 记录 `after_status_baseline` → 核验 `after - before == intended_delta` → 目标文件/目录回到 git clean 状态。\n\n**禁止 `git add -A`、`git add .`、`git add -u`**。只 add 具体路径。\n\n任何 `git push` 都必须获得用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组 = Rule + Skill。Rule always-on 负责约束 + 模式匹配；Skill on-demand 负责工作流。AGENTS.md 中绝不放工作流，Skill 中绝不放硬性约束。AGENTS.md 太长是执行力问题——\"每次都必须知道\"→ 留在 AGENTS.md；\"遇到特定场景才需要\"→ 移到 Skill。\n\n> 元组详细方法论（瘦身工程、两种实现方式、新增元组规范）见 `~/.devin/rules/tuple-methodology.md`。Devin CLI 完整配置说明见 `devin-config-harness` skill。\n\n---\n\n## 元组：long-running-work-sop（长程工作SOP化铁律）\n\n**触发条件**：用户启动一个可能跨越压缩边界的持续性工作时；发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要迭代修正时。\n\n**核心约束**：长程工作（可能跨越压缩边界的持续性工作）必须SOP化。三个必须：\n1. **必须SOP化**——提取步骤、定义产出、定义验证，放入项目AGENTS.md\n2. **必须用rules锁定流程行为**——在`.devin/rules/`中创建rule文件，锁定SOP的执行纪律\n3. **必须版本化审计修正历史**——如果长程工作涉及分类学/框架/体系的迭代修正，修正的全历史必须在明面上审计（不在git log中），每次修正做覆盖性检查\n\n**Skill**：`~/.config/devin/skills/long-running-work-sop/SKILL.md`——提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程，以及积累的经验和反模式。\n\n**已有项目级实例**：\n- 数学大师项目的`tell-taxonomy-iteration-audit`元组（`.devin/rules/tell-taxonomy-iteration-audit.md`）——Tell分类学迭代审计的铁律和9步SOP，是本全局元组的项目级实例\n\n**经验和反模式积累**：在skill的\"经验和反模式积累区\"中持续追加。当前积累：5个反模式（当一次性任务做/不锁定/只在git log/不做覆盖性检查/遗留旧措辞）、3个经验（FLT例子测试/FCA理论审查方法/版本化审计让修正更严谨）。\n\n---\n\n### 元组群与 Skill 粒度铁律\n\n**元组群**：当一个复杂任务的工作流太长，无法放入单个 Skill 中时，应拆分为多个元组（多个 Skill），形成元组群协同工作。\n\n**为什么需要拆分**：Skill 加载后形成 Session 临时上下文中的认知和 SOP。但如果把应该拆分成多个 Skill 的内容放入一个 Skill 中，执行过程中可能跨越压缩边界——Session 压缩后，Skill 的后续内容从上下文中丢失，无法有效发挥作用。\n\n**Skill 粒度铁律**：\n\n1. **Skill 必须在 Session 上下文中始终可见**——如果执行过程很长（跨越多轮对话、可能触发压缩），Skill 内容必须足够短，确保压缩后仍可见，或拆分为多个 Skill 分阶段加载。\n\n2. **执行过程长 → 拆分 Skill**——如果一个 Skill 的工作流需要很多步骤、很长时间执行，应该拆分成多个 Skill，每个 Skill 覆盖一个可在一个压缩窗口内完成的阶段。\n\n3. **拆分后的 Skill 之间通过文档传递**——前一个 Skill 的产出落盘到文档（dev-docs / AGENTS.md / 数据文件），后一个 Skill 加载时读文档获取前序成果，不依赖 Session 上下文传递。\n\n4. **判断粒度的经验法则**——如果一个 Skill 的执行可能超过 10 轮对话或 50k tokens，考虑拆分。如果工作流中有明确的阶段分界点（如\"方案设计\"→\"执行\"→\"验证\"），在分界点拆分。\n\n### 元组群的整体性：目录在规则中\n\n**元组群如何确保整体性？** 确保整体性 = 确保工作的连续性。元组群中的多个 Skill 是一个整体工作流的分段，不是各自独立的任务。确保整体性的机制是：**元组群的目录放在规则中，规则指向一组 Skill，而不是单一 Skill。**\n\n**传统元组**：规则指向单一 Skill——\"遇到场景X，加载Skill Y\"。\n\n**元组群**：规则指向一组 Skill——\"遇到场景X，按顺序加载Skill Y1→Y2→Y3，它们是一个整体工作流的三个阶段\"。\n\n**元组群规则的结构**：\n\n```\n## 元组群：<群名称>\n\n**触发条件**：<何时AI应该执行这组工作流>\n\n**整体目标**：<这组Skill共同完成的最终目标>\n\n**Skill目录**（按执行顺序）：\n1. Skill <Y1>：<阶段1名称>——<这个阶段做什么>，产出落盘到<文档>\n2. Skill <Y2>：<阶段2名称>——<这个阶段做什么>，读取<文档>，产出落盘到<文档>\n3. Skill <Y3>：<阶段3名称>——<这个阶段做什么>，读取<文档>，产出最终结果\n\n**阶段间传递**：<通过什么文档/数据文件传递，不依赖Session上下文>\n\n**何时进入下一阶段**：<前一个Skill完成并落盘后，AI检查目录，自然加载下一个Skill>\n```\n\n**为什么目录在规则中而不是在某个Skill中**：\n\n1. **规则是always-on的**——不受压缩影响。即使Session压缩了，规则仍然在上下文中可见，AI始终能看到元组群的全貌——有几个阶段、当前在哪个阶段、下一步该加载哪个Skill。\n\n2. **如果目录在Skill中**——Skill加载后形成临时上下文，压缩后目录丢失，AI不知道还有后续阶段，元组群的整体性断裂。\n\n3. **规则是元组群的\"目录页\"**——每个Skill是\"章节内容\"。章节内容可能被压缩掉，但目录页始终可见，AI随时可以翻到正确的章节。\n\n**元组群规则的放置位置**：\n\n- **全局元组群**（跨项目通用）→ `~/.config/devin/AGENTS.md` 或 `~/.devin/rules/`\n- **项目级元组群**（特定项目的工作流）→ 项目 `AGENTS.md` 或 `.devin/rules/`\n\n**与单一元组的关系**：元组群是单一元组的扩展。单一元组 = 1个规则 + 1个Skill。元组群 = 1个规则（含目录） + N个Skill。规则从\"指向单一Skill\"升级为\"指向一组Skill的有序目录\"。\n\n---\n\n## 元组：trajectory-workline-review（从trajectory回溯session工作脉络）\n\n**触发条件**：需要了解某个 session（自己的或别人的）做了什么工作；同一 repo 下有多个 session 并行工作需要区分各自工作范围；新 session 启动时需要了解前序 session 进展；审查某个 session 的工作过程。\n\n**Skill**：`~/.config/devin/skills/trajectory-workline-review/SKILL.md`\n\n**核心约束**：\n1. **禁止用 git log 区分 session**——同一 repo 下多个 session 的 commit 交织在 git log 中，无法区分。必须用 sessions.db 的 session_id 区分。\n2. **运行中的 session 用 sessions.db，不用 transcripts**——transcript 文件只在 session 结束后写入，运行中的 session 没有 transcript 文件。sessions.db 的 message_nodes 表是实时写入的，是运行中 session 的唯一数据源。\n3. **grep tool_calls 中的 file_path 是最快方法**——不用完整解析嵌套 JSON，直接 grep `\"file_path\":\"...\"` 字符串，sqlite3 输出管道给 grep 一行命令搞定。区分操作类型时用正则 `re.finditer(r'\"name\":\"write\".*?\"file_path\"...')` 比解析 JSON 的 tool_calls 结构更稳健（结构可能不规则）。\n4. **文件操作时间线 = 工作脉络骨架**——提取每个文件首次操作时间并按时间排序，就是工作脉络的时间线。按目录归类操作频次 = 工作重心分布。\n5. **区分 write/edit/read 三种操作**——write（创建）= 核心产出，edit（修改）= 迭代深化，read（读取）= 前置依赖。只看 write 会漏掉 session 的前置依赖（读取了别人创建的文档 = 吸收前置讨论基础）。多 session 协作时，交叉分析 read 和 write 揭示跨 session 依赖关系。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-15T01:13:03.325644+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-15T01:13:03.326456+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **devin-config-harness**: Devin CLI 配置使用完整说明书。涵盖 rules（AGENTS.md + .devin/rules/）、skills、hooks、 config.json、MCP servers 的全局/项目本地位置、格式、参数和选择策略。 WHEN to use: 配置 Devin CLI、添加 rules/skills/hooks/MCP、理解 Devin 扩展架构、 从 Codex/Claude Code 迁移配置、排查配置问题。 WHEN NOT to use: 一般编码任务、非 Devin 配置相关的工作。\n (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **db-file-traceability**:  (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **rule-skill-tuple-assessment**: 评估用户的提问或要求是否应该设置为 rule、skill（SOP）、或元组（rule+skill）， 以及应该放入 Devin 全局配置还是项目本地 .devin/ 目录。 WHEN to use: 用户提出一个要求或认知，AI判断这个要求是否具有跨session复用价值时。 WHEN NOT to use: 一次性的具体任务执行（如\"运行这个脚本\"、\"修这个bug\"）。\n (source: /Users/user/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md)\n- **ai-archive-search**: 搜索 AI 对话存档（AI-ALL-Markdown），使用 QMD 语义搜索。 WHEN to use: 需要搜索历史 AI 对话、查找之前的讨论内容、检索 AI 对话存档时。 WHEN NOT to use: 搜索当前项目代码（用 grep/glob）、一般网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/ai-archive-search/SKILL.md)\n- **tmux-easy-setup**: 配置 tmux 达到最易用状态：大缓冲区、鼠标滚动、系统剪贴板集成、vi 复制模式。 WHEN to use: 用 tmux 运行 AI CLI（devin/codex）、长时间任务、多 session 监控， 或用户抱怨 tmux 复制粘贴/缓冲区/鼠标不好用时。 WHEN NOT to use: 不涉及 tmux 的任务。\n (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **trajectory-workline-review**:  (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **qmd-mcp-search**: 通过 QMD 语义搜索和知识图谱查询搜索 AI 对话存档。双模式检索，支持结构化实体发现。 WHEN to use: 需要语义搜索 AI 对话、知识图谱实体查询、文档相似度检索时。 WHEN NOT to use: 简单关键词搜索（用 ai-archive-search）、网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **long-running-work-sop**: 长程工作SOP化与迭代审计铁律。当用户启动一个可能跨越压缩边界的持续性工作时， AI必须将其SOP化（放入项目AGENTS.md）、用rules锁定流程行为、版本化审计修正历史。 本skill提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程， 以及积累的经验和反模式。 WHEN to use: 用户启动一个可能跨越压缩边界的持续性工作时； 发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要修正时。 WHEN NOT to use: 一次性任务（如\"运行这个脚本\"、\"修这个bug\"）； 明确不会跨越压缩边界的短任务。\n (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据的完整存储位置、格式、读取方法。 Transcript（ATIF格式）、sessions.db（SQLite）、logs、summaries、--export参数。 WHEN to use: 需要提取/解析/审计Devin CLI的session对话数据时。 WHEN NOT to use: 一般编码任务、非Devin CLI相关的数据工作。 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Users/user/.local/share/devin/cli/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-15T01:13:05.173357+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me solve this problem. We have 100 containers, each with 400 parts. Each shipment: pick 2 containers, remove 1 part from each, get bonus = |a-b| where a,b are current counts. Total shipments = 100*400/2 = 20000 shipments. Maximize total bonus.\n\nLet me think about this carefully.\n\nLet me think about the structure. We have 100 containers each starting at 400. Each operation picks two containers and decrements both by 1, earning |a-b|.\n\nTotal parts removed = 40000, each shipment removes 2, so 20000 shipments.\n\nWe want to maximize sum of |a_i - b_i| over all shipments.\n\nKey insight: to maximize the difference, we want to keep containers as unequal as possible. The strategy: keep some containers full while draining others.\n\nLet me think about an optimal strategy. Suppose we pair a \"high\" container with a \"low\" container repeatedly.\n\nConsider a strategy where we divide containers into two groups. Actually, let me think about what's achievable.\n\nLet me think about it as: we want to create a large spread. \n\nConsider this: take 2 containers. One stays at 400, the other we drain to 0. But we can only remove from 2 at a time. To drain one container from 400 to 0, we need 400 shipments, each pairing it with another container (which also loses 400 parts). \n\nHmm, let me think about a cleaner approach.\n\nStrategy: Use one container as a \"sacrifice\" that gets drained to 0 while paired with high containers.\n\nActually, let's think about the total. Let's think about the contribution.\n\nAlternative approach: Think of it as we want to maximize. At each step we pick two and the bonus is the difference. \n\nLet me think about a greedy/extreme strategy. Suppose we have containers. We want to maintain a situation where some are at 400 and some at 0, and we pair a 400 with a 0... but we can't, because if a container is at 0 it's empty and we can't remove from it.\n\nSo we need both selected containers to have ≥1 part.\n\nLet me think about the end game. The last shipments: when most containers are empty, we have a few containers with parts. \n\nLet me think about a specific construction. \n\nConstruction idea: Divide 100 containers into 50 pairs. For each pair, we want to create asymmetry. Hmm.\n\nActually, let me think about the upper bound and a matching construction.\n\nLet me think about small cases first. 2 containers, each 400. Each shipment picks both (only choice), removes 1 from each. Difference is always 0 (they stay equal). Total bonus = 0. So with 2 containers, answer is 0.\n\n3 containers, each with n parts. Total shipments = 3n/2... wait, 3n parts total, each shipment removes 2, so 3n/2 shipments. Need 3n even, so n even. Let n=2: 3 containers each 2, total 6 parts, 3 shipments.\n\nContainers A,B,C each = 2.\nShipment 1: pick A,B. Now A=1,B=1,C=2. Bonus = |2-2|=0.\nHmm we want to create asymmetry first.\n\nShipment 1: pick A,B → A=1,B=1,C=2. Bonus 0.\nShipment 2: pick A,C → A=0,B=1,C=1. Bonus |1-2|=1.\nShipment 3: pick B,C → A=0,B=0,C=0. Bonus |1-1|=0.\nTotal = 1.\n\nAlternative:\nShipment 1: pick A,C → A=1,B=2,C=1. Bonus 0.\nShipment 2: pick B,A → A=0,B=1,C=1. Bonus |2-1|=1.\nShipment 3: pick B,C → 0,0,0. Bonus 0.\nTotal 1.\n\nCan we do better? \nShipment 1: pick A,B → 1,1,2 bonus 0.\nShipment 2: pick C,A → 0,1,1 bonus |2-1|=1.\nShipment 3: pick B,C → 0,0,0 bonus 0.\nTotal 1.\n\nHmm seems like 1 is max for n=2, 3 containers. Let me try to get 2.\nTo get bonus 2 we need difference 2, but max difference is 2 (between 2 and 0). But to have a 0 we need to have removed from it... \n\nShipment 1: pick A,B → 1,1,2. \nNow to get a 0 we remove from A: pick A,C → 0,1,1, bonus 1.\nThen pick B,C → 0,0,0 bonus 0. Total 1.\n\nWhat if: Shipment 1: A,B → 1,1,2 bonus 0. Shipment 2: A,B → 0,0,2 bonus 0. Shipment 3: need to remove from C twice but only 1 shipment left and must pick 2 containers both with parts. Only C has parts (2). Can't. Dead end - we have C=2 but no partner. So invalid, we can't finish.\n\nSo we need C to be drained with partners. So total = 1 for this case.\n\nLet me think about the general structure more carefully.\n\nLet me think about it differently. Consider the \"potential\" or think about contributions.\n\nUpper bound idea: The total bonus is sum over shipments of |a-b|. \n\nLet me think about a known result. This is reminiscent of a problem where the answer relates to creating a \"staircase\" of values.\n\nLet me think about the strategy of maintaining a sorted order and always pairing the max with the min.\n\nGreedy: always pair the container with most parts with the container with fewest parts (but ≥1). This maximizes each step's difference.\n\nLet me simulate conceptually. Start: all 100 containers at 400.\n\nIf we always pair max and min: initially all equal at 400, so first shipment gives 0, making two containers 399. Then we have 98 at 400, 2 at 399. Pair a 400 with a 399: bonus 1, making 399 and 398... \n\nThis is like a process. Let me think about whether greedy is optimal and what it yields.\n\nActually, let me think about the problem as a whole. Total bonus = sum of differences. \n\nLet me think about an arrangement strategy that's cleaner.\n\nAlternative strategy: Make the containers have a \"ramp\" of values. \n\nConsider this: we want final state all 0. Think backwards? Or think about the multiset of values over time.\n\nLet me think about the total bonus as follows. Each shipment removes 1 from two containers i and j. The bonus is |v_i - v_j| at that moment.\n\nLet me think about a different framing. Consider container k. It starts at 400 and is decremented 400 times (across 400 shipments it participates in). Each time it's decremented from value v to v-1. The values it passes through are 400, 399, ..., 1, 0. So container k is involved in 400 shipments, and in those shipments its value ranges over 400 down to 1.\n\nThe bonus in a shipment involving containers i and j is |v_i - v_j|. \n\nHmm, this is complex. Let me think about the total differently.\n\nLet me consider the sum S = sum of all container values at any time. Initially S = 100*400 = 40000. Each shipment reduces S by 2. \n\nThe bonus is |v_i - v_j|. Note v_i + v_j is the sum of the two selected. And |v_i - v_j| = (v_i + v_j) - 2*min(v_i, v_j). \n\nTotal bonus = sum over shipments [(v_i + v_j) - 2 min(v_i,v_j)].\n\nSum over shipments of (v_i + v_j): Each container k contributes its value at each of the 400 shipments it's in. When container k is decremented from 400→399→...→1→0, the values it has when selected are 400, 399, ..., 1 (the value before decrement). So container k contributes 400+399+...+1 = 400*401/2 = 80200. Over 100 containers: 100 * 80200 = 8,020,000.\n\nWait, that's fixed regardless of strategy! Because each container is decremented exactly 400 times, passing through values 400..1, and contributes its current value each time. So sum over all shipments of (v_i + v_j) = 100 * (400·401/2) = 8,020,000. This is constant.\n\nSo Total bonus = 8,020,000 - 2 * (sum over shipments of min(v_i, v_j)).\n\nTo maximize bonus, we minimize sum of min(v_i, v_j) over shipments.\n\nSo the problem reduces to: minimize T = sum over shipments of min(value of the two selected containers at that time).\n\nNow, min(v_i, v_j) ≥ 1 always (since both ≥ 1 to be selected). The minimum possible per shipment is 1. Can we achieve min = 1 for every shipment? That would require that in every shipment, at least one of the two selected containers has value exactly 1.\n\nTotal shipments = 20000. If every shipment has min = 1, then T = 20000, and bonus = 8,020,000 - 40,000 = 7,980,000.\n\nBut can we achieve min=1 in every shipment? That seems too good. Let's check: we need in every shipment, one container has value 1. But a container at value 1, after the shipment, becomes 0 (empty). So we'd need a constant supply of containers at value 1.\n\nHmm, that's not feasible for all shipments. Let me reconsider.\n\nActually wait. Let me reconsider whether we can always have one of the two at value 1. We have 100 containers. To always pair something with a value-1 container... once a container hits 0 it's done. We have 100 containers each going 400→0. \n\nLet me think about lower bound on T more carefully.\n\nLet me think about it per-container. Actually, let me think about the minimum of T.\n\nReframe: We have 100 containers, each decremented 400 times. In each shipment, two containers are decremented together, and we pay min(their current values). We want to minimize total payment.\n\nCurrent value of a container when it's decremented the t-th time (t=1..400) is 401-t (starts at 400, first decrement value 400, ... 400th decrement value 1).\n\nSo each container, over its 400 decrements, has values 400, 399, ..., 1. The order in which these values appear for a given container is fixed: 400 first, then 399, etc. (decreasing). But across containers, the interleaving (which shipment pairs which container's t-th decrement with which other container's s-th decrement) is what we control.\n\nIn a shipment pairing container A's a-th decrement (value 401-a) with container B's b-th decrement (value 401-b), the cost is min(401-a, 401-b) = 401 - max(a,b).\n\nWe want to minimize sum of 401 - max(a,b) = sum of [401 - max(a,b)] over all 20000 shipments.\n\n= 20000*401 - sum of max(a,b) = 8,020,000 - sum of max(a,b).\n\nWait that gives bonus = 8,020,000 - 2T and T = 8,020,000 - sum max(a,b)... let me recompute.\n\nT = sum min(v_i,v_j) = sum [401 - max(a,b)] = 20000*401 - sum max(a,b) = 8,020,000 - M where M = sum max(a,b).\n\nBonus = 8,020,000 - 2T = 8,020,000 - 2(8,020,000 - M) = 2M - 8,020,000.\n\nSo maximizing bonus = maximizing M = sum over shipments of max(a,b) where a,b are the decrement indices (1..400) of the two containers paired.\n\nSo we want to maximize the sum of the larger decrement-index in each pair. The decrement index ranges 1..400. We have 100 containers, each with indices 1..400 (each used once). Total 40000 decrement-events, paired into 20000 shipments.\n\nWe want to pair them to maximize sum of max of each pair.\n\nTo maximize sum of max, we want each pair's max to be as large as possible. The maximum possible max in a pair is 400. \n\nWe have 100 containers each contributing one \"400\" index (their 400th decrement, value 1). So there are 100 events with index 400. \n\nTo maximize sum of max: we want to pair high indices together so that the max is high, but actually pairing two high indices \"wastes\" one high index (since max only counts one). Better: pair each high index with a low index, so the high index is the max and the low index is \"free.\"\n\nWait, to maximize sum of max over pairs: Given a multiset of 40000 values (100 copies each of 1..400), pair them into 20000 pairs to maximize sum of max of each pair.\n\nThe optimal: sort and pair smallest with largest? Let's think. We want to maximize sum of maxes. The sum of maxes is maximized when we pair the largest values with the smallest values, so that the large values become the max and aren't \"wasted\" pairing with each other.\n\nActually, classic result: to maximize sum of max of pairs, pair smallest with largest. To maximize sum of min, pair largest with largest (and smallest with smallest). Let me verify.\n\nWe have values. Pairing to maximize sum of max: We want as many pairs as possible to have a large max. The largest value must be a max in its pair (it's the global max). Pair it with the smallest (to not waste another large value). Then recurse.\n\nSo: pair the 100 copies of 400 with the 100 copies of 1? But we have 100 copies of 400 and 100 copies of 1. Pair them: 100 pairs with max 400. Then pair 100 copies of 399 with 100 copies of 2: 100 pairs max 399. ... Continue: pair value k with value 401-k. For k=1..200, pair 100 copies of (401-k) with 100 copies of k. That gives 200 pairs-types, 100 each = 20000 pairs. Sum of max = 100 * (400 + 399 + ... + 201) = 100 * sum from 201 to 400.\n\nSum from 201 to 400 = (201+400)*200/2 = 601*100 = 60100. Times 100 = 6,010,000.\n\nSo M = 6,010,000. Bonus = 2M - 8,020,000 = 12,020,000 - 8,020,000 = 4,000,000.\n\nBut wait — is this pairing achievable given the constraints? The constraint is that for each container, its decrements must happen in order: index 1 (value 400) first, then index 2 (value 399), etc. So the \"index a\" event for a container happens before \"index a+1\". \n\nIn our pairing, we pair index-1 events (value 400, decrement #1) with index-400 events (value 1, decrement #400). But index-1 of a container happens at the very start, while index-400 happens at the very end. So we can't pair a container's first decrement with another container's 400th decrement, because the 400th decrement happens last!\n\nThis is the crucial constraint. The pairing must be realizable in time: if container X's a-th decrement is paired with container Y's b-th decrement in shipment at time t, then all of X's decrements 1..a-1 happen before t, and all of X's decrements a+1..400 happen after t. Similarly for Y.\n\nSo the pairing must be consistent with a global timeline. This is like a scheduling/matching problem with precedence constraints.\n\nSo the simple \"pair 1 with 400\" isn't directly feasible. Let me reconsider.\n\nLet me reconsider the problem with the time-ordering constraint.\n\nLet me re-examine. Let me think about what pairings are achievable.\n\nLet me think about it as: at each time step, we pick two containers that both still have ≥1 part, and decrement both. The \"decrement index\" of a container increases over time. \n\nLet me think about the state as a vector of remaining counts. We want to maximize sum of max(decrement index) per shipment = maximize M.\n\nHmm, equivalently, recall bonus = 2M - 8,020,000 where M = sum of max(a,b). And also bonus = 8,020,000 - 2T where T = sum of min(values). Let me work with T = sum of min(v_i, v_j), minimize T. min value is the smaller current value.\n\nActually let me reconsider using the value formulation which is more intuitive. T = sum over shipments of min(current value of the two containers). We minimize T. Current values range 1..400.\n\nmin is at least 1. We want min to be small, ideally 1, as often as possible.\n\nTo have min = 1 in a shipment, one container must be at value 1 (about to be emptied). \n\nStrategy: Keep one container draining while others stay full. Let me think.\n\nConsider this strategy: \n- Phase: Drain container 1 from 400 to 0, pairing it each time with a \"fresh\" container. But fresh containers are at 400, and container 1 goes 400→0. When we pair container 1 (value v) with a fresh container (value 400), min = min(v, 400) = v. So as container 1 drains 400→1, the min values are 400, 399, ..., 1. Sum = 80200. And the fresh container loses 1 each time... but we pair container 1 with a DIFFERENT fresh container each time? No, we need to pick 2 containers per shipment. If container 1 is in all 400 shipments of this phase, it's paired with 400 different partners (each losing 1 part, going 400→399). \n\nHmm, that uses 400 partner-containers but we only have 99 others. So container 1 can be paired with at most 99 distinct containers, each multiple times.\n\nLet me reconsider. Let me think about a cleaner strategy.\n\nStrategy A (concentrated draining): \n- Use 1 container as the \"drainer.\" Pair it with another container repeatedly until the drainer is empty, then the partner becomes the new drainer.\n\nLet me think. Containers C1, C2, ..., C100.\n- Pair C1 and C2 for 400 shipments: C1 goes 400→0, C2 goes 400→0. Both empty. The min values: both go 400→1 together, so min = 400, 399, ..., 1. Sum = 80200. Bonus per shipment = |v1 - v2| = 0 always (they stay equal). So this gives bonus 0, T = 80200. Bad for bonus.\n\nThat's the worst. We want them unequal.\n\nStrategy B: \n- Pair C1 (drainer) with C2 until C1 empty. C1: 400→0, C2: 400→0 as well (since both lose 400). Same problem—both drain equally.\n\nThe issue: if two containers are paired together for all 400 shipments, they drain equally and bonus is 0.\n\nTo get inequality, pair containers unevenly. E.g., C1 paired 400 times total but spread across many partners, so C1 drains while partners barely drain.\n\nLet me think about the extreme: \n- C1 paired once with each of C2..C100? That's 99 shipments, C1 loses 99 (→301), each of C2..C100 loses 1 (→399). Then C1 still has 301 left. \n\nHmm, let me think about the optimal more carefully via the T minimization.\n\nWe want to minimize T = sum of min values. The min in a shipment is the smaller of the two current values. To make min small, we want one of the two to be small. \n\nIdea: Always pair the currently-smallest non-empty container with the currently-largest container. This is the greedy \"pair min with max.\" The min value would be the smallest available, which decreases over time.\n\nLet me think about this greedy. Initially all 400. Pair any two (both 400, min 400). After one shipment, two at 399. Now smallest is 399, largest 400. Pair a 399 with a 400: min 399. Now we have one 399 (the one that was 400→399), one 398, and 98 at 400. Smallest 398, largest 400. Pair 398 with 400: min 398. Continue...\n\nThis greedy keeps creating a new minimum each time and pairing it with a 400. Let me trace:\n\nStart: 100 containers at 400.\nShipment 1: pair two 400s → two at 399. min=400. (T += 400)\nShipment 2: pair 399 with 400 → 398 and 399. min=399. (T+=399)\nShipment 3: pair 398 with 400 → 397 and 399. min=398. \n...\n\nSo we have one \"draining\" container going down by 1 each shipment, paired with a fresh 400 each time. The draining container: 399, 398, 397, ... Each shipment it drops by 1 and the partner (a 400) drops to 399.\n\nAfter shipment 1: containers: one at 399 (call it D, the drainer), one at 399 (partner P1), 98 at 400.\nWait, shipment 1 paired two 400s, both → 399. Let me redo.\n\nLet me re-trace carefully. Let D be the drainer, and we pair D with fresh containers.\n\nShipment 1: pair D(400) with P1(400). D→399, P1→399. min=400. Now: D=399, P1=399, P2..P99 = 400 (98 containers at 400, plus P1 at 399). Actually we have 100 containers: D, P1, P2, ..., P99.\n\nShipment 2: pair D(399) with P2(400). D→398, P2→399. min=399. Now D=398, P1=399, P2=399, P3..P99=400.\n\nShipment 3: pair D(398) with P3(400). D→397, P3→399. min=398.\n\n...\n\nShipment k (for k=2..99): pair D(401-k) with P_{k}(400). D→400-k, P_k→399. min = 401-k.\n\nAfter shipment 99: D = 400-99 = 301. P1..P99 all at 399. \n\nWait let me recount. After shipment 1: D=399, P1=399. After shipment 2: D=398, P2=399. ... After shipment k: D = 400-k, and P1..Pk at 399, P_{k+1}..P99 at 400.\n\nAfter shipment 99: D = 301, P1..P99 all at 399. \n\nT so far: shipment 1: 400. Shipments 2..99: min = 399, 398, ..., 302. So T = 400 + (399+398+...+302). Sum from 302 to 399 = (302+399)*98/2 = 701*49 = 34349. Plus 400 = 34749.\n\nNow all 99 partners are at 399, D at 301. Now what? Continue the greedy: smallest is D=301, largest is 399. Pair D(301) with a 399. D→300, that partner→398. min=301.\n\nNow D=300, one at 398, 98 at 399. Smallest D=300, largest 399. Pair D with 399: D→299, partner→398. min=300.\n\nContinue: D keeps draining, paired with 399s (turning them to 398). After 98 more shipments: D = 301-98 = 203. All 99 partners now at 398 (one became 398 each shipment... wait we had 99 at 399, and each shipment turns one 399 into 398). After 98 shipments, 98 of them are 398, one still 399? Let me recount: we have 99 partners at 399. Each shipment pairs D with one of them (399→398). After 99 such shipments, all 99 at 398, D = 301-99 = 202.\n\nHold on, can we do 99 shipments here? D goes from 301 to 301-99=202. Yes D has 301≥99. \n\nT for these 99 shipments: min = 301, 300, ..., 203. Sum = (301+203)*99/2 = 504*99/2 = 24948.\n\nThis is getting complicated. Let me think about the structure differently.\n\nThe greedy \"pair min with max\" creates a process where D drains from 400 down, and the \"pool\" of other containers slowly decreases. Let me think about the overall pattern.\n\nActually, let me reconsider. The greedy pairs the global min with global max. Let me think about what the multiset of values looks like over time.\n\nInitially: {400^100}.\nThe min is always D (the drainer). The max is always the largest in the pool. As D drains, the pool slowly decreases.\n\nHmm, but actually the pool doesn't stay uniform. Let me reconsider—maybe a cleaner strategy exists.\n\nLet me reconsider the problem. Let me think about the theoretical max of M = sum of max(a,b) with the time-ordering constraint, or equivalently min of T.\n\nLet me think about a cleaner construction. \n\nConstruction: \"Waterfall\" / \"staircase.\" \n\nIdea: Arrange containers so that at any time, the values form a staircase, and we always pair the top with the bottom.\n\nActually, let me think about the following clean strategy. Consider dividing the 100 containers into 2 groups of 50: Group H (high) and Group L (low). \n\nHmm, let me think about the upper bound on M (or lower bound on T) considering time constraints.\n\nLet me think about T = sum of min values. Lower bound on T.\n\nClaim: T ≥ ? Let me think about a lower bound.\n\nConsider the total \"min\" contributions. In each shipment min ≥ 1, so T ≥ 20000. But that's weak and likely unachievable.\n\nLet me think about per-container lower bounds. Consider a single container that ends up being the \"last to drain\" or consider the structure.\n\nAlternative: think about sum of min over all shipments. Let me think about it as: each shipment, the min is the value of the container that is \"lower.\" \n\nLet me think about the dual / a cleaner bound.\n\nLet me reconsider. Let me think about the problem as maximizing bonus = sum |v_i - v_j|.\n\n|v_i - v_j| = max(v_i,v_j) - min(v_i,v_j). Sum of max - sum of min over shipments.\n\nSum of (max + min) = sum of (v_i + v_j) = 8,020,000 (constant, computed earlier).\nSum of (max - min) = sum |v_i - v_j| = bonus.\nSo sum of max = (8,020,000 + bonus)/2, sum of min = (8,020,000 - bonus)/2.\n\nMaximize bonus ↔ maximize sum of max ↔ minimize sum of min. Consistent.\n\nNow, sum of max over shipments: each shipment's max is the larger current value. \n\nLet me get an upper bound on sum of max. The max in a shipment is at most 400. There are 20000 shipments. So sum of max ≤ 20000*400 = 8,000,000. But also, the value 400 can only be the max when a container at 400 is selected. A container is at 400 only before its first decrement. Once decremented once, it's ≤399.\n\nHmm. Let me think about how many shipments can have max = 400, max = 399, etc.\n\nA shipment has max = m iff the larger of the two selected values is m, i.e., at least one selected container has value m and the other has value ≤ m.\n\nLet c_m = number of shipments with max = m. Then sum of max = sum m * c_m. We want to maximize this, i.e., make c_m large for large m.\n\nConstraints on c_m: \n\nThe number of \"value-m events\": a container has value m exactly during the interval between its (400-m)-th and (401-m)-th decrement... actually a container has value m right before its (401-m)-th decrement (since value goes 400,399,...,1 corresponding to decrements 1,2,...,400; value before k-th decrement is 401-k). So value m corresponds to the (401-m)-th decrement. Each container has exactly one \"value m\" moment (the moment just before its (401-m)-th decrement, i.e., it's selected with value m exactly once). So there are exactly 100 events with value m, for each m=1..400.\n\nIn a shipment with max = m, at least one container has value m (and it's the max, so the other has value ≤ m). The container with value m is \"used\" in that shipment. Since there are 100 value-m events total, c_m ≤ 100 (each value-m event can be the max in at most one shipment). Actually c_m ≤ 100 because each of the 100 value-m events is in exactly one shipment, and for that shipment to have max=m, that value-m container must be the max (other ≤ m). \n\nBut also, a shipment with max = m uses one value-m event AND one value-≤m event. The value-≤m event is some value-m' with m' ≤ m.\n\nSo c_m ≤ 100 for each m. And sum of c_m = 20000 (total shipments). Since there are 400 values, 400*100 = 40000 ≥ 20000. \n\nTo maximize sum m*c_m subject to c_m ≤ 100 and sum c_m = 20000: set c_m = 100 for the largest 200 values (m = 201..400), and c_m = 0 for m=1..200. Then sum of max = 100*(201+202+...+400) = 100 * 60100 = 6,010,000. Bonus = 2*6,010,000 - 8,020,000 = 4,000,000.\n\nBut is this achievable with time constraints? This is the question. The bound c_m ≤ 100 gives sum of max ≤ 6,010,000, hence bonus ≤ 4,000,000. But achievability needs the time-ordering to work.\n\nWait, but actually I need to double check the bound c_m ≤ 100 and also that the \"other\" container (value ≤ m) is available. Let me reconsider: if c_m = 100 for m=201..400, that's 200*100 = 20000 shipments. Each such shipment uses one value-m event (m in 201..400) and one value-≤m event. The value-≤m events used: for shipment with max=m, the other has value ≤ m. \n\nTotal value-events used = 40000 (all of them). The 20000 \"max\" events are values 201..400 (100 each). The 20000 \"min\" events are values 1..200 (100 each). So we'd pair each value-m (m=201..400) with a value-m' (m'=1..200), specifically pairing value (201+k) with value (200-k) for k=0..199, i.e., value m with value 401-m. This is the \"pair 1 with 400, 2 with 399, ...\" from before.\n\nBut the time constraint: value m of a container is its (401-m)-th decrement. Value 400 = 1st decrement (early), value 1 = 400th decrement (late). Pairing value 400 (early) with value 1 (late) requires the shipment to be both early (for the value-400 container) and late (for the value-1 container). Contradiction! The value-400 container's value-400 moment is at its very first decrement, while the value-1 container's value-1 moment is at its very last decrement. They can't be in the same shipment unless... the value-400 container waits (but it can't, its first decrement is when it's at 400, and it must be selected to leave 400).\n\nWait, actually a container at 400 stays at 400 until it's selected. So container X can stay at 400 for a long time if not selected. Its \"value 400\" event happens whenever it's first selected. So we CAN delay it. So the value-400 event of container X can happen late, paired with a value-1 event of container Y (which happens late). \n\nSo the time constraint is: for a shipment pairing container X's p-th decrement (value 401-p) with container Y's q-th decrement (value 401-q), we need X to have done p-1 decrements before and Y to have done q-1 before, and this is consistent globally.\n\nSo actually we have freedom in WHEN each container's decrements happen, as long as each container does them in order 1,2,...,400.\n\nSo the question is: can we schedule so that value-m events (m=201..400) are each paired with value-(401-m) events (m'=1..200)?\n\nLet me think about whether this is feasible. We need to pair, for each m from 201 to 400, the 100 value-m events with the 100 value-(401-m) events. Note 401-m ranges from 200 down to 1.\n\nSo pair value 400 with value 1, value 399 with value 2, ..., value 201 with value 200.\n\nFor a container, its value-m event is decrement #(401-m). So pairing value m with value (401-m) means pairing decrement #(401-m) of one container with decrement #(401-(401-m)) = decrement #m of another container.\n\nSo we pair decrement #(401-m) [which is early when m large] with decrement #m [which is late when m large]. E.g., m=400: pair decrement #1 of container A with decrement #400 of container B. m=399: pair decrement #2 of A' with decrement #399 of B'. Etc.\n\nNow, is there a consistent global schedule? This is like a bipartite matching with precedence. Let me think about constructing it explicitly.\n\nConstruction attempt: \nLet's label containers 1..100. Consider container i. We want to arrange its 400 decrements. \n\nIdea: Make a \"symmetric\" schedule. Pair container i's decrement #k with container j's decrement #(401-k), for appropriate i,j.\n\nHmm, let me think about a specific clean construction with the containers.\n\nLet me think of it as a round-robin / tournament-like structure. Actually, let me think about a simpler version: 2 containers, each 400. We computed bonus = 0. With our formula: pair value m with 401-m. But with 2 containers, c_m ≤ 2. Values 201..400: c_m=2 for 100 values, sum max = 2*(201+...+400)=2*60100=120200. Bonus = 2*120200 - 2*80200 = 240400 - 160400 = 80000. But we know the actual answer for 2 containers is 0! So the bound is NOT achievable for 2 containers. The time constraint kills it.\n\nSo the upper bound 4,000,000 may not be tight. Let me reconsider.\n\nFor 2 containers: both must be selected every shipment (only 2 containers). So they're always paired together, decrement #k of A with decrement #k of B. So we pair value (401-k) with value (401-k), max = 401-k, min = 401-k, bonus 0. The pairing is forced: decrement #k with decrement #k. So we can't pair decrement #1 with #400.\n\nSo the constraint is real and significant. Let me think about what pairings ARE achievable.\n\nThe key constraint: if container A's decrement #p is paired with container B's decrement #q at time t, then by time t, A has done p-1 decrements and B has done q-1 decrements. Also, A's decrements #p+1..400 and B's #q+1..400 happen after t. \n\nFor the pairing \"decrement #1 of A with decrement #400 of B\": at that time, A has done 0 decrements (so A is fresh, value 400) and B has done 399 decrements (B is at value 1). This is fine as a single pairing. The issue is doing this for ALL pairings consistently.\n\nLet me think about the full construction. We want to pair decrement #(401-m) with decrement #m for m=1..400 (i.e., pair decrement #k with decrement #(401-k) for k=1..400). Wait let me restate: we pair value m with value 401-m. Value m = decrement #(401-m). Value 401-m = decrement #(401-(401-m)) = decrement #m. So pair decrement #(401-m) with decrement #m. Let k = 401-m, so m = 401-k, and we pair decrement #k with decrement #(401-k). For k=1: pair dec #1 with dec #400. For k=200: pair dec #200 with dec #201. For k=201: pair dec #201 with dec #200 (same as k=200). So k=1..200 covers all 200 pair-types, each appearing... wait each k from 1 to 200 gives a distinct pair-type, and we need 100 copies of each. Total 200*100 = 20000 pairs. Good.\n\nSo we want: for each k=1..200, pair 100 copies of \"decrement #k\" with 100 copies of \"decrement #(401-k).\"\n\nNow, decrement #k of a container happens after decrements #1..#(k-1) of that container. Decrement #(401-k) happens after decrements #1..#(400-k) of that container.\n\nFor k=1: dec #1 (no prerequisites) paired with dec #400 (requires 399 prior decrements of that container). \nFor k=200: dec #200 (requires 199 prior) paired with dec #201 (requires 200 prior).\n\nSo in general, dec #k requires k-1 prior decrements, dec #(401-k) requires 400-k prior decrements.\n\nNow, here's the thing: a single container has decrements #1, #2, ..., #400, all in order. Its decrement #k is paired (in some shipment) with some other container's decrement #(401-k). And its decrement #(401-k) is paired with some other container's decrement #k.\n\nSo each container participates in: its dec #k paired with other's dec #(401-k), AND its dec #(401-k) paired with other's dec #k. For k and 401-k both in 1..400. Note when k=401-k, i.e., k=200.5, not integer, so k ≠ 401-k always. So each container's dec #k (k=1..200) is paired with another's dec #(401-k), and its dec #(401-k) (k=1..200, i.e., dec #201..400) is paired with another's dec #k.\n\nSo each container has 400 decrements, paired as: dec #1 ↔ (other's dec #400), dec #2 ↔ (other's dec #399), ..., dec #200 ↔ (other's dec #201), dec #201 ↔ (other's dec #200), ..., dec #400 ↔ (other's dec #1).\n\nNow let's think about scheduling. This is essentially: we have 100 containers, each with a sequence of 400 ordered tasks. We pair task #k of container i with task #(401-k) of container j (for some pairing of containers). We need a global timeline.\n\nLet me think of a concrete assignment. Suppose we pair containers in a cycle. Let me try: container i's dec #k is paired with container (i+k mod 100)'s dec #(401-k)? Hmm, need to make sure it's consistent (each event paired exactly once).\n\nActually, let me think about it as a graph/matching. We have 40000 events (container i, decrement #k). We want to pair them: (i, k) with (j, 401-k). Each event in exactly one pair. So we need a perfect matching where each pair is of the form {(i,k), (j, 401-k)}.\n\nFor this to be a valid perfect matching: the events with k=1..200 (call them \"low-index\") must be matched with events with index 401-k (which is 201..400, \"high-index\"). There are 100*200 = 20000 low-index events and 20000 high-index events. Each low-index event (i,k) matches a high-index event (j, 401-k). \n\nNow scheduling: We need to order the 20000 shipments in time such that for each container, its decrements happen in order.\n\nContainer i's decrements: #1, #2, ..., #400 in order. dec #k is in the shipment matching (i,k) with (j,401-k). dec #(401-k) is in the shipment matching (i,401-k) with (j',k). \n\nFor container i, the shipment containing dec #1 must be first (among i's shipments), then dec #2, etc. \n\nSo we need a linear order of the 20000 shipments such that for each container i, the shipments involving i are ordered by the decrement index.\n\nThis is asking: is the partial order (defined by these precedence constraints) acyclic / has a linear extension?\n\nThe precedence: shipment S1 (containing (i,k)~(j,401-k)) must come before shipment S2 (containing (i,k')~(j',401-k')) iff k < k'. I.e., for container i, shipments ordered by the i-decrement index.\n\nEach shipment involves two containers, say container i (with index k) and container j (with index 401-k). So the shipment has a \"position\" in i's order (position k) and a \"position\" in j's order (position 401-k).\n\nWe need a global linear order consistent with all containers' orders. This is like scheduling jobs on... it's the problem of finding a linear extension of a poset. The poset is acyclic iff there's no cycle of constraints.\n\nA cycle would be: shipment A before shipment B (because they share container i with A's index < B's index), B before C (share container j), ..., back to A. \n\nLet me think about whether we can choose the container-pairing to avoid cycles, or whether cycles are inevitable.\n\nLet me think about a clean construction. Consider the \"anti-diagonal\" pairing. \n\nLet me try a specific construction and check feasibility. \n\nConstruction: For each k=1..200, pair container i's dec #k with container i's... no, can't pair a container with itself.\n\nLet me think of containers arranged in a circle 0..99. For decrement #k (k=1..200) of container i, pair it with decrement #(401-k) of container (i + k) mod 100. Wait, but then decrement #(401-k) of container j is paired with decrement #k of container (j - (401-k))... let me check consistency. If (i, k) pairs with (j, 401-k) where j = (i+k) mod 100, then (j, 401-k) is paired with (i, k). Good, symmetric. But also (j, 401-k) should be paired via the rule for index 401-k: (j, 401-k) pairs with (j + (401-k), k) = (j + 401 - k, k). For consistency we need j + 401 - k ≡ i, i.e., (i+k) + 401 - k ≡ i, i.e., i + 401 ≡ i, i.e., 401 ≡ 0 mod 100. 401 mod 100 = 1 ≠ 0. So inconsistent. \n\nThe issue: the pairing rule must be an involution. Let me define it as: (i, k) pairs with (σ_k(i), 401-k) where σ_k is a permutation, and we need σ_{401-k}(σ_k(i)) = i (involution consistency: pairing (i,k)→(σ_k(i),401-k), and that element pairs back via σ_{401-k}: (σ_k(i), 401-k) → (σ_{401-k}(σ_k(i)), k) = (i,k). So σ_{401-k} ∘ σ_k = id, i.e., σ_{401-k} = σ_k^{-1}.\n\nSo we need permutations σ_1,...,σ_200 with σ_{401-k} = σ_k^{-1} (for k=1..200, 401-k ranges 201..400, but we only defined σ for k=1..200; for high indices the pairing is determined by the low index). Actually since each pair has one low (k≤200) and one high (401-k≥201), we only need σ_k for k=1..200, and the high-index side is determined. The condition σ_{401-k}=σ_k^{-1} is automatically satisfied because the pairing is symmetric (we pair (i,k) with (σ_k(i), 401-k), and that's the same pair). So actually we just need σ_k to be any permutation for each k=1..200. No involution condition needed because each pair is counted once (from the low-index side).\n\nWait, but we need each event used exactly once. Low-index events (i,k) for k=1..200: each paired with (σ_k(i), 401-k). As i ranges over all 100, σ_k(i) ranges over all 100, so the high-index events (j, 401-k) for j=1..100 are each used exactly once (since σ_k is a bijection). \n\nSo any choice of permutations σ_1,...,σ_200 gives a valid perfect matching. Now we need to find a linear extension (schedule).\n\nNow the scheduling: shipment for (i,k)~(σ_k(i),401-k) must be ordered. For container i, its shipments are: for k=1..200, the shipment S(i,k) = pairing (i,k) with (σ_k(i),401-k) [here i is the low-index container], and for k=1..200, the shipment S'(i,401-k) = pairing (σ_{401-k}^{-1}... \n\nhmm let me restate. Container i participates in:\n- As low-index: shipment L(i,k) for k=1..200, where L(i,k) pairs (i,k) with (σ_k(i), 401-k).\n- As high-index: shipment H(i, 401-k) for k=1..200, where some container i' has σ_k(i')=i, i.e., i'=σ_k^{-1}(i), and H pairs (i', k) with (i, 401-k). So H(i,401-k) = L(σ_k^{-1}(i), k).\n\nSo container i's 400 shipments are: {L(i,k) : k=1..200} ∪ {L(σ_k^{-1}(i), k) : k=1..200}.\n\nThe order constraint for container i: the shipment where i has decrement #d must come before the shipment where i has decrement #(d+1), for d=1..399.\n\ni's decrement #d:\n- If d ≤ 200: it's L(i, d) [i is low-index with index d].\n- If d ≥ 201: it's L(σ_{401-d}^{-1}(i), 401-d) [i is high-index with index d=401-k', k'=401-d≤200]. So decrement #d (d≥201) is in shipment L(σ_{401-d}^{-1}(i), 401-d).\n\nSo the constraint: for container i, decrement #d before decrement #(d+1):\n- d=1..199: L(i,d) before L(i,d+1). [Both low-index for i.]\n- d=200: L(i,200) before [decrement #201 = L(σ_{200}^{-1}(i), 200)]. So L(i,200) before L(σ_{200}^{-1}(i), 200).\n- d=201..399: decrement #d = L(σ_{401-d}^{-1}(i), 401-d), decrement #(d+1) = L(σ_{400-d}^{-1}(i), 400-d). Let k=401-d (so d=401-k, d from 201..399 means k from 200..2). Constraint: L(σ_k^{-1}(i), k) before L(σ_{k-1}^{-1}(i), k-1). \n\nSo for k=2..200: L(σ_k^{-1}(i), k) before L(σ_{k-1}^{-1}(i), k-1).\n\nLet me substitute j = σ_k^{-1}(i), so i = σ_k(j). Then constraint becomes: L(j, k) before L(σ_{k-1}^{-1}(σ_k(j)), k-1) = L(σ_{k-1}^{-1}σ_k(j), k-1).\n\nDefine τ_k = σ_{k-1}^{-1} σ_k (for k=2..200). Constraint: L(j,k) before L(τ_k(j), k-1) for all j, k=2..200.\n\nAlso from d=200: L(i,200) before L(σ_{200}^{-1}(i), 200). Let j=i: L(j,200) before L(σ_{200}^{-1}(j), 200). Hmm wait that's decrement #200 before decrement #201. Decrement #201 = L(σ_{200}^{-1}(i), 200). So L(i,200) before L(σ_{200}^{-1}(i),200). With j=i: L(j,200) before L(σ_{200}^{-1}(j), 200). \n\nHmm, this is a constraint within the same k=200 level: L(j,200) before L(σ_{200}^{-1}(j), 200). This creates a cycle if we're not careful! Because applying it repeatedly: L(j,200) before L(σ_{200}^{-1}(j),200) before L(σ_{200}^{-2}(j),200) before ... before L(σ_{200}^{-ord}(j),200)=L(j,200). Cycle! \n\nSo the constraint d=200 (decrement #200 before #201) creates a cycle among the k=200 shipments: L(j,200) before L(σ_{200}^{-1}(j),200) for all j. This is a cycle of length = order of σ_{200}. \n\nSo this means the \"ideal\" pairing (pairing value m with 401-m for all m) is INFEASIBLE due to this cycle! Because decrement #200 and #201 are \"adjacent\" and both correspond to k=200 (since 401-200=201, and dec #201 is the high-index side of k=200). The constraint dec #200 before #201 forces L(j,200) before L(σ_{200}^{-1}(j),200), cycling.\n\nSo the upper bound 4,000,000 is NOT achievable. We lose something at the \"middle\" (k=200, values 200 and 201).\n\nHmm interesting. So the time-ordering constraint specifically causes a problem at the symmetric middle. Let me reconsider.\n\nSo the issue is only at k=200 (the middle pair, values 200 & 201)? Let me double-check the other constraints don't cycle.\n\nThe constraints are:\n1. L(i,d) before L(i,d+1) for d=1..199: these are L(i,1)<L(i,2)<...<L(i,200) for each i. (Chain, no cycle.)\n2. L(i,200) before L(σ_{200}^{-1}(i),200): cycle issue (within level 200).\n3. For k=2..200: L(j,k) before L(τ_k(j), k-1) where τ_k = σ_{k-1}^{-1}σ_k.\n\nConstraint 3 goes from level k to level k-1 (decreasing level). Constraint 1 goes within same i increasing level. These could combine to form cycles: e.g., level k → level k-1 (via 3), then level k-1 → level k-1 (via 1, but 1 only increases within same i)... \n\nLet me think. A cycle would alternate between \"go down a level via constraint 3\" and \"go up via constraint 1.\" Constraint 3: L(j,k) → L(τ_k(j), k-1) (level decreases). Constraint 1: L(i,k-1) → L(i,k) (level increases, same i). \n\nCycle: L(j,k) →[3] L(τ_k(j),k-1) →[1] L(τ_k(j), k) →[3] L(τ_k(τ_k(j)), k-1) →[1] L(τ_k^2(j), k) → ... This cycles with period = order of τ_k. So we get a cycle L(j,k) → ... → L(j,k) iff τ_k has finite order (which it does, being a permutation). So this is ALSO a cycle!\n\nWait, that means constraint 3 combined with constraint 1 always creates cycles?! Let me re-examine.\n\nConstraint 3: L(j,k) before L(τ_k(j), k-1).\nConstraint 1 (applied to container τ_k(j) at level k-1): L(τ_k(j), k-1) before L(τ_k(j), k).\nConstraint 3 again: L(τ_k(j), k) before L(τ_k(τ_k(j)), k-1) = L(τ_k^2(j), k-1).\nConstraint 1: L(τ_k^2(j), k-1) before L(τ_k^2(j), k).\n...\nAfter ord(τ_k) steps: L(τ_k^{ord}(j), k) = L(j,k) before L(τ_k(j), k-1) before ... before L(j,k). Cycle!\n\nSo for EVERY k=2..200, we get a cycle, regardless of σ! That means the ideal pairing is completely infeasible for all k≥2. \n\nWait, that can't be right—let me recheck constraint 3. Let me recompute the constraint for d=201..399.\n\nContainer i, decrement #d before #(d+1), d≥201. Decrement #d (d≥201): i is the high-index container. The shipment is L(i', k') where k'=401-d (low index) and i'=σ_{k'}^{-1}(i) (the low-index container), and i=σ_{k'}(i'). So decrement #d of container i is in shipment L(σ_{401-d}^{-1}(i), 401-d).\n\nDecrement #(d+1): similarly, L(σ_{400-d}^{-1}(i), 400-d).\n\nConstraint: L(σ_{401-d}^{-1}(i), 401-d) before L(σ_{400-d}^{-1}(i), 400-d).\n\nLet k = 401-d (so d=401-k, and 400-d = 401-k-1 = k-1... wait 400-d = 400-(401-k)=k-1). And d≥201 → k≤200; d≤399 → k≥2. So k=2..200.\n\nConstraint: L(σ_k^{-1}(i), k) before L(σ_{k-1}^{-1}(i), k-1). Let j=σ_k^{-1}(i), i=σ_k(j). Then: L(j,k) before L(σ_{k-1}^{-1}(σ_k(j)), k-1) = L(σ_{k-1}^{-1}σ_k(j), k-1) = L(τ_k(j), k-1). Yes, constraint 3 confirmed.\n\nAnd combined with constraint 1 (L(τ_k(j),k-1) before L(τ_k(j),k)), we cycle. So indeed the ideal pairing is infeasible. \n\nSo my upper bound 4,000,000 is not achievable. I need to find the true maximum.\n\nOK so this is more subtle. Let me reconsider the problem from scratch, accounting for time constraints properly.\n\nLet me reconsider. The bonus = sum |v_i - v_j|. Let me think about the actual achievable maximum.\n\nLet me reconsider small cases to find the pattern.\n\nCase: 2 containers, n=400. Answer = 0 (forced equal pairing).\n\nCase: 3 containers, n=2 (computed earlier): answer = 1. Let me verify with formula. Total shipments = 3. Sum of (v_i+v_j) = 3 * (2·3/2) = 3*3=9. Bonus = 9 - 2T. We found bonus=1, so T=4. Sum of max = (9+1)/2=5. With c_m ≤ 3 (3 containers, value m appears 3 times). Values 1,2. c_2 ≤ 3, c_1 ≤3. To max sum max: c_2=3 (all shipments max 2), sum max=6, bonus=2*6-9=3. But actual is 1. So not achievable.\n\nLet me compute the 3-container case more carefully to find the pattern. 3 containers A,B,C, n=2 each. 3 shipments. Let me enumerate to find true max.\n\nAll containers start at 2. 3 shipments, each picks 2 of 3 containers. Each container is in exactly 2 shipments (since 3*2/2=3 shipments, each container in 2). Wait: total decrements = 6, each container 2, each shipment 2 containers, 3 shipments. Each container in 2 shipments.\n\nSo each container is selected twice, drained 2→0. Values when selected: 2 then 1.\n\nPairings: 3 shipments pair up the 6 decrement-events. Container A's dec#1 (val2), dec#2 (val1); similarly B, C. Each shipment pairs two events from different containers.\n\nWe need each container's dec#1 before dec#2.\n\nLet me list possible pairings. We pair 6 events into 3 pairs, each pair from different containers, with the order constraint.\n\nEvents: A1(v2), A2(v1), B1(v2), B2(v1), C1(v2), C2(v1).\nConstraint: A1 before A2, B1 before B2, C1 before C2.\n\nPossible pairings (perfect matchings of 6 events, no same-container pair):\n\nLet me just enumerate matchings. The number of perfect matchings of 6 items = 15. Exclude those pairing same-container (A1-A2, B1-B2, C1-C2). \n\nMatchings containing A1-A2: then match B1,B2,C1,C2 avoiding B1-B2,C1-C2: matchings of {B1,B2,C1,C2} = 3, minus (B1-B2,C1-C2) = 2 valid. So 2 matchings with A1-A2. Similarly 2 with B1-B2, 2 with C1-C2. No matching has two same-container pairs (would need 4 events in 2 containers, leaving 2 in third, forced third pair). Actually A1-A2 and B1-B2 leaves C1-C2: that's a matching with all three same-container. So inclusion-exclusion: matchings with ≥1 same-container pair = 2+2+2 - (1+1+1) + 1 = 6-3+1=4. So valid matchings = 15-4 = 11.\n\nFor each, check acyclicity and compute bonus.\n\nThis is tedious but let me find the max. Let me think about which gives max bonus.\n\nBonus = sum |v_i - v_j|. Values are 2 or 1. |v_i-v_j| is 1 if one is 2 and other is 1, else 0. So bonus = number of \"mixed\" pairs (one val-2, one val-1). Max mixed pairs: we have 3 val-2 events (A1,B1,C1) and 3 val-1 events (A2,B2,C2). Max mixed pairs = 3 (pair each val-2 with a val-1). But constraint: A1 before A2 means A1's shipment before A2's shipment. If A1 paired with B2 and A2 paired with B1: A1-B2 before A2-B1, but B1 before B2 required, i.e., B1's shipment before B2's. B1 is in shipment A2-B1, B2 in A1-B2. So A1-B2 before A2-B1 (from A) and A2-B1 before A1-B2 (from B). Contradiction. \n\nSo pairing A1-B2 and A2-B1 creates a cycle. Let me check all-3-mixed pairings. A mixed pairing pairs {A1,B1,C1} with {A2,B2,C2} via a bijection. 6 bijections (3! = 6). For each, check acyclicity.\n\nBijection f: val-2 event → val-1 event it's paired with.\n1. A1-A2, B1-B2, C1-C2: same-container, excluded (and bonus 0).\n2. A1-A2, B1-C2, C1-B2: A1-A2 same container, excluded.\n   Wait, I need bijections where no pair is same-container. Let me list bijections f from {A1,B1,C1} to {A2,B2,C2}:\n   - f(A1)=A2, f(B1)=B2, f(C1)=C2: same-container pairs, excluded.\n   - f(A1)=A2, f(B1)=C2, f(C1)=B2: A1-A2 same, excluded.\n   - f(A1)=B2, f(B1)=A2, f(C1)=C2: C1-C2 same, excluded.\n   - f(A1)=B2, f(B1)=C2, f(C1)=A2: all mixed! Pairs: A1-B2, B1-C2, C1-A2.\n   - f(A1)=C2, f(B1)=A2, f(C1)=B2: all mixed! Pairs: A1-C2, B1-A2, C1-B2.\n   - f(A1)=C2, f(B1)=B2, f(C1)=A2: B1-B2 same, excluded.\n\nSo two all-mixed candidate pairings:\nP1: A1-B2, B1-C2, C1-A2. Bonus = 3 if feasible.\nP2: A1-C2, B1-A2, C1-B2. Bonus = 3 if feasible.\n\nCheck P1: constraints A1 before A2, B1 before B2, C1 before C2.\n- A1 in ship(A1-B2), A2 in ship(C1-A2). So ship(A1-B2) before ship(C1-A2).\n- B1 in ship(B1-C2), B2 in ship(A1-B2). So ship(B1-C2) before ship(A1-B2).\n- C1 in ship(C1-A2), C2 in ship(B1-C2). So ship(C1-A2) before ship(B1-C2).\nChain: ship(B1-C2) < ship(A1-B2) < ship(C1-A2) < ship(B1-C2). Cycle! Infeasible.\n\nCheck P2: A1-C2, B1-A2, C1-B2.\n- A1 in ship(A1-C2), A2 in ship(B1-A2): ship(A1-C2) < ship(B1-A2).\n- B1 in ship(B1-A2), B2 in ship(C1-B2): ship(B1-A2) < ship(C1-B2).\n- C1 in ship(C1-B2), C2 in ship(A1-C2): ship(C1-B2) < ship(A1-C2).\nChain: ship(A1-C2)<ship(B1-A2)<ship(C1-B2)<ship(A1-C2). Cycle! Infeasible.\n\nSo bonus 3 is infeasible. Max mixed = 3 infeasible. Try bonus 2 (2 mixed pairs, 1 same-value pair).\n\n2 mixed + 1 same-value. Same-value pair is either both val-2 or both val-1.\n- Both val-2: pair two of {A1,B1,C1}, say A1-B1. Then remaining: C1 (val2), A2,B2,C2 (val1). Pair C1 with one val-1, and the other two val-1 together (same-value val1 pair). \n  - A1-B1, C1-A2, B2-C2: B2-C2 same container? No, B2 and C2 different containers, both val1. OK. Check: but wait we need a perfect matching of all 6. A1-B1, C1-A2, B2-C2. Mixed pairs: C1-A2 (mixed). A1-B1 (both val2, not mixed). B2-C2 (both val1, not mixed). So only 1 mixed. Bonus 1. Hmm I wanted 2 mixed.\n  \n  Let me reconsider. For 2 mixed pairs: we have 3 val-2 and 3 val-1. 2 mixed pairs use 2 val-2 and 2 val-1. Remaining: 1 val-2 and 1 val-1, which form 1 more mixed pair. So actually if 2 are mixed, the 3rd is also mixed! Because remaining is 1 val-2 + 1 val-1. So we can't have exactly 2 mixed. Either 3 mixed (infeasible) or 1 mixed or 0.\n\nWait: 3 val-2, 3 val-1. If k pairs are mixed (one val2, one val1), they use k val-2 and k val-1. Remaining: 3-k val-2 and 3-k val-1, forming (3-k) pairs each... no, remaining events = 6-2k, forming 3-k pairs. Each remaining pair is same-value (both val2 or both val1). For same-value pairs: need even count of each. Remaining val-2 = 3-k, remaining val-1 = 3-k. For these to pair among themselves: 3-k must be even. k=3: 0 remaining, ok (3 mixed). k=1: 2 remaining each, 2 same-value pairs (1 val2-val2, 1 val1-val1), ok (1 mixed). k=0: 3 remaining each, but 3 is odd, can't pair same-value... actually 3 val-2 can't pair among themselves (odd). So k=0 infeasible structurally? No wait, k=0 means no mixed, all same-value: 3 val-2 form pairs but 3 is odd. So k=0 impossible. So k∈{1,3}. k=3 infeasible (shown). k=1: bonus 1.\n\nSo max bonus for 3 containers n=2 is 1. Matches our earlier finding. Good.\n\nSo the time constraint reduces bonus from 3 (ideal) to 1.\n\nHmm. Let me now think about the general structure. This is getting complex. Let me think about the problem differently.\n\nLet me reconsider. Let me think about the bonus in terms of a \"potential\" or find a direct formula.\n\nLet me think about the problem as a scheduling problem and try to find the optimal strategy and its value.\n\nLet me reconsider the greedy strategy (always pair min with max) and compute its bonus, then argue it's optimal.\n\nActually, let me think about an upper bound that accounts for time.\n\nAlternative upper bound approach: Think about the bonus contributed and find a tight bound.\n\nLet me think about the following. Consider the values sorted at each step. \n\nHmm, let me think about a cleaner reformulation. \n\nLet me think about the total bonus = sum |v_i - v_j| over shipments. \n\nConsider the \"sorted\" view. At each step, sort container values descending: x_1 ≥ x_2 ≥ ... ≥ x_100. \n\nHmm. Let me think about a known technique: the bonus sum relates to how \"spread\" we can keep the distribution.\n\nLet me think about the greedy \"pair max with min\" and compute.\n\nGreedy: at each step, pair the container with the most parts (max) with the container with the fewest parts (min, but ≥1).\n\nLet me simulate this for general n=400, 100 containers. This is complex but let me think about the structure.\n\nActually, let me think about a cleaner strategy that I can analyze: the \"two-group\" strategy.\n\nTwo-group strategy: Split 100 containers into group A (50 containers) and group B (50 containers). \n\nPhase 1: Drain group A completely while keeping group B full. To drain group A (50 containers, 400 each = 20000 parts), we need 10000 shipments (each removes 2). But each shipment removes 1 from an A-container and 1 from a B-container (to keep... no, that drains B too).\n\nHmm. To drain A without draining B: impossible, since each shipment removes from 2 containers. If both are in A, then A drains but B stays. So pair within A: 50 containers, pair them up, 25 pairs, each pair drained 400 times → 25*400=10000 shipments, draining A fully (20000 parts), B untouched at 400. But within-A pairing: each pair drains equally, bonus 0. Bad.\n\nAlternatively, to create spread within A: pair A-containers unevenly.\n\nThis is getting complicated. Let me think about the greedy more carefully and just compute its value, suspecting it's optimal.\n\nLet me reconsider. Let me think about the greedy \"pair global max with global min\" and track the multiset.\n\nLet me think about it as a process on the sorted values. Initially all 400. \n\nStep: pair max and min. max decreases by 1, min decreases by 1. \n\nInitially: [400, 400, ..., 400] (100 times). Pair two 400s (max=min=400). Both → 399. Now [399,399,400×98]. \n\nNext: max=400, min=399. Pair them → 399 and 398. Now [398, 399×2, 400×97]... \n\nwait: we had [399,399,400×98]. Pair one 400 (max) with one 399 (min). 400→399, 399→398. Now: [398, 399, 399, 400×97] = [398, 399×2, 400×97]. \n\nNext: max=400, min=398. Pair → 399, 397. Now [397, 398, 399×3, 400×96].\n\nPattern: after each step, the min drops by 1 (398→397→396...), and a new 399 is created, and one 400 consumed. Let me track more carefully.\n\nLet me denote the state as we keep pairing the current min (a single \"drainer\" D) with a 400.\n\nAfter step 1: D=399, one 399 (former 400 partner), 98 at 400. Actually both became 399. Let me re-examine: step 1 paired two 400s, both → 399. So state: 399×2, 400×98. The min is 399 (two of them).\n\nStep 2: pair min(399) with max(400). → 398, 399. State: 398×1, 399×2, 400×97. (One 399 became 398, one 400 became 399.) Min=398.\n\nStep 3: pair 398 with 400 → 397, 399. State: 397, 398, 399×3, 400×96. Min=397.\n\nStep 4: pair 397 with 400 → 396, 399. State: 396,397,398,399×4,400×95. Min=396.\n\nPattern: after step t (t≥2), the drainer D = 401-t (started 399 at t=2... let me see: t=2, D=398; t=3, D=397; so D=400-t). And we have a \"staircase\" 396,397,398,... and a bunch of 399s and 400s.\n\nHmm, actually the state after step t: one container at 401-t (the drainer, decreasing), and the rest... let me see. At step 2: 398, 399×2, 400×97. At step 3: 397, 398, 399×3, 400×96. At step 4: 396,397,398,399×4,400×95.\n\nSo after step t (t≥1): drainer at 401-t, and a staircase of values 401-t, 402-t, ..., 399, with the count of 399 being t, and 400 count being 98-(t-2)=100-t for t≥2.\n\nWait let me recompute. After step t, the number of 400s: started 100, step 1 used 2 (both 400→399), steps 2..t each use one 400. So 400s remaining = 100 - 2 - (t-1) = 99 - t. For t=2: 97. ✓. t=3: 96 ✓. t=4: 95 ✓.\n\nNumber of 399s: step 1 created 2, steps 2..t each create one 399 (from a 400) but also one 399 might be consumed... no. Let me recount. At step 2, we paired 399 (min) with 400. The 399→398, 400→399. So 399 count: was 2, one became 398, one 400 became 399 → still 2? But I said 399×2 at step 2. Then step 3: pair 398 with 400. 398→397, 400→399. 399 count: was 2, now +1 = 3. ✓ (399×3 at step 3). Step 4: pair 397 with 400. 397→396, 400→399. 399 count: 3+1=4 ✓.\n\nSo 399 count = t (at step t, for t≥2: t=2→2, t=3→3, t=4→4). And the drainer and staircase: values 401-t, 402-t, ..., 398 (these are the \"used\" mins). At step t, the staircase is 401-t, 402-t, ..., 398 (each appearing once), plus 399×t, plus 400×(99-t).\n\nLet me verify total count: staircase length = 398 - (401-t) + 1 = t - 2 (for t≥2). Plus t (399s) plus (99-t) (400s) = (t-2)+t+(99-t) = t+97. For t=2: 99. But should be 100! Off by one. Let me recount.\n\nHmm, at step 2: 398×1, 399×2, 400×97. Total = 1+2+97=100 ✓. Staircase (values <399): just 398, length 1 = t-1 (t=2→1). Let me redo: staircase values 401-t to 398. t=2: 399 to 398? No. 401-2=399. That's wrong, drainer at step 2 is 398.\n\nLet me recompute drainer value. Step 1: two 400→399. Drainer = 399 (one of them). Step 2: pair drainer 399 with 400 → 398, 399. Drainer now 398. Step 3: 398→397. Step t: drainer = 400 - t + 1 = 401 - t. t=1: 400? But after step 1 drainer is 399. Hmm, step 1 is special (paired two 400s). Let me say drainer after step t = 401 - t for t≥1: t=1→400? No, 399. \n\nOK let me just say: after step t (t≥1), drainer = 400 - t. t=1: 399 ✓. t=2: 398 ✓. t=3: 397 ✓. Good.\n\nStaircase (values from drainer up to 398, i.e., 400-t to 398): for t≥2, values 400-t, 401-t, ..., 398. Count = 398 - (400-t) + 1 = t - 1. t=2: 1 (just 398) ✓. t=3: 2 (397,398) ✓. t=4: 3 (396,397,398) ✓.\n\n399 count: t. t=2: 2 ✓, t=3: 3 ✓.\n400 count: 100 - 2 - (t-1) = 99 - t. t=2: 97 ✓. t=3: 96 ✓.\n\nTotal: (t-1) + t + (99-t) = t + 98. t=2: 100 ✓. t=3: 101?? That's wrong.\n\nHmm t=3: staircase 2 + 399×3 + 400×96 = 2+3+96=101. But should be 100. Error.\n\nLet me recheck step 3. After step 2: 398×1, 399×2, 400×97. Step 3: pair min(398) with max(400). 398→397, 400→399. New state: 397×1, 398×0, 399×3, 400×96. So 398 is gone! The drainer moved from 398 to 397. So staircase is just 397 (the drainer), not 397,398.\n\nI see my error: the drainer is a SINGLE container that keeps decreasing. It's not a staircase; it's one container going down. The 399s accumulate but the drainer is alone.\n\nLet me redo. After step t: drainer at 400-t (single container), 399×t, 400×(99-t). Wait but at step 1, 399×2 (two containers at 399, one is drainer). Hmm, the drainer is at 399 and there's another at 399.\n\nLet me re-examine. Step 1: pair two 400s → both 399. Now two containers at 399, 98 at 400. Which is the drainer? Both are at 399. Step 2: pair one 399 (drainer) with 400. Drainer→398, 400→399. Now: 398×1, 399×2, 400×97. The drainer is the 398. The two 399s: one original (from step 1, the non-drainer) and one new (from step 2's 400). Step 3: pair 398 (drainer) with 400. →397, 399. Now: 397×1, 399×3, 400×96. The 398 is gone (became 397). \n\nSo after step t (t≥2): drainer at 400-t (×1), 399×t, 400×(98-(t-1))=400×(99-t). Total: 1 + t + (99-t) = 100 ✓. \n\nt=2: 1+2+97=100 ✓. t=3: 1+3+96=100 ✓. \n\nSo state after step t: {400-t (×1), 399 (×t), 400 (×99-t)} for t=1..99 (until 400s run out at t=99: 400×0, 399×99, 301×1).\n\nWait at t=99: 400×0, 399×99, 400-99=301 ×1. Total 99+1=100 ✓.\n\nThis phase (Phase 1) runs t=1 to 99, using up all the 400s. After step 99: one container at 301, 99 containers at 399.\n\nBonus in phase 1: step 1: |400-400|=0. Steps 2..99: |400 - (400-(t-1))| = |400 - (401-t)| = t-1. So step t bonus = t-1 for t=2..99. Sum = 0 + (1+2+...+98) = 98*99/2 = 4851.\n\nNow after phase 1: {301, 399×99}. \n\nPhase 2: Now max=399, min=301. Pair drainer(301) with a 399. →300, 398. State: {300, 398×1, 399×98}. Bonus = 399-301 = 98.\n\nNext: pair 300 with 399 → 299, 398. State: {299, 398×2, 399×97}. Bonus = 399-300=99.\n\nPattern: drainer goes 301→300→299→..., paired with 399s (turning them to 398). After s steps in phase 2 (s=1..98): drainer = 301-s, 398×s, 399×(98-s)... wait let me check. After 1 step: 398×1, 399×98. After 2 steps: 398×2, 399×97. After s steps: 398×s, 399×(99-s), drainer 301-s. For 399 to remain ≥0: s≤99. But drainer 301-s ≥1 needs s≤300. And we have 99 containers at 399 to consume. So s goes 1..99 (consuming all 99 399s). After 99 steps: drainer=301-99=202, 398×99, 399×0. \n\nWait, but after 99 steps we'd have used 99 of the 399s. But we also need the 398s etc. Let me just continue the pattern.\n\nPhase 2 (s=1..99): drainer 301→202, 399s all become 398. After: {202, 398×99}.\n\nBonus phase 2: step s bonus = 399 - (301-(s-1)) = 399 - 302 + s = 97 + s. s=1: 98 ✓. s=99: 97+99=196. Sum = sum_{s=1}^{99}(97+s) = 99*97 + (1+...+99) = 9603 + 4950 = 14553.\n\nHmm wait, let me recompute. At step s of phase 2, drainer is at 301-(s-1) = 302-s before the shipment, paired with 399. Bonus = 399 - (302-s) = 97+s. s=1: 98. s=2: 99. ... s=99: 196. Sum = 98+99+...+196 = (98+196)*99/2 = 294*99/2 = 294*49.5 = 14553. ✓.\n\nAfter phase 2: {202, 398×99}.\n\nPhase 3: max=398, min=202. Pair drainer(202) with 398 → 201, 397. Then 201 with 398 → 200, 397. Etc. Drainer 202→201→...→, 398s become 397s. After 99 steps: drainer = 202-99=103, 397×99.\n\nBonus phase 3: step s bonus = 398 - (202-(s-1)) = 398 - 203 + s = 195 + s. s=1: 196. s=99: 294. Sum = 196+...+294 = (196+294)*99/2 = 490*49.5 = 24255.\n\nAfter phase 3: {103, 397×99}.\n\nI see the pattern. Each phase p (p=1,2,3,...): \n- Phase 1: drainer 399→301 (decreased by 98 over 99 steps... actually 400→301, 99 steps), pool 400→399.\n- Phase 2: drainer 301→202 (99 steps), pool 399→398.\n- Phase 3: drainer 202→103 (99 steps), pool 398→397.\n- Phase p (p≥2): drainer goes from X to X-99, pool from (400-(p-1)) to (400-p).\n\nLet me generalize. After phase p (p≥1):\n- Pool value = 400 - p (all 99 non-drainer containers).\n- Drainer value = ?\n\nPhase 1: drainer 400→301 (decreased 99 over 99 steps: 400-99=301). Pool 400→399.\nPhase 2: drainer 301→202 (decreased 99). Pool 399→398.\nPhase p: drainer decreased by 99, pool decreased by 1.\n\nDrainer after phase p: 400 - 99p. Phase 1: 400-99=301 ✓. Phase 2: 400-198=202 ✓. Phase 3: 400-297=103 ✓.\n\nPool after phase p: 400-p. Phase 1: 399 ✓. Phase 2: 398 ✓.\n\nThis continues while drainer ≥1 and pool ≥1. Drainer = 400-99p ≥1 → p ≤ 399/99 ≈ 4.03 → p ≤ 4. Pool = 400-p ≥1 → p≤399.\n\nPhase 4: drainer 103→103-99=4. Pool 397→396. After phase 4: {4, 396×99}.\n\nPhase 4 bonus: step s bonus = 397 - (103-(s-1)) = 397-104+s = 293+s. s=1:294. s=99: 392. Sum = 294+...+392 = (294+392)*99/2 = 686*49.5 = 33957.\n\nAfter phase 4: {4, 396×99}.\n\nPhase 5: drainer 4, pool 396. Pair 4 with 396 → 3, 395. Then 3 with 396 → 2, 395. Then 2 with 396 → 1, 395. Then 1 with 396 → 0, 395. Drainer hits 0 after 4 steps! So phase 5 only has 4 steps (drainer 4→0).\n\nAfter 4 steps: drainer=0 (empty, removed), 395×4, 396×95. State: {395×4, 396×95}.\n\nBonus phase 5: step s (s=1..4): bonus = 396 - (4-(s-1)) = 396 - 5 + s = 391 + s. s=1: 392. s=4: 395. Sum = 392+393+394+395 = 1574.\n\nNow drainer is gone. State: {395×4, 396×95}. 99 containers remain (one emptied). \n\nNow we restart the greedy with a new drainer. The min is 395, max 396. Pair 395 with 396 → 394, 395. Hmm, now we have a new drainer at 394, and the pool...\n\nActually wait, after the drainer empties, we have 99 containers: 395×4, 396×95. The greedy pairs min(395) with max(396). This starts a new cycle similar to before but with 99 containers and values around 395-396.\n\nThis is getting very complex. The greedy creates a fractal-like structure. Let me reconsider—maybe there's a cleaner way to compute the total, or maybe the greedy isn't optimal and there's a cleaner optimal strategy.\n\nLet me step back and think about the problem structure more cleverly.\n\nLet me reconsider the upper bound. We have bonus = sum |v_i - v_j|. Let me think about an upper bound via a different method.\n\nConsider the following: at any time, let the values be v_1 ≥ v_2 ≥ ... ≥ v_100. The bonus of a shipment pairing containers with values a ≥ b is a - b. \n\nUpper bound idea: The total bonus is bounded by considering how much \"spread\" can be generated and consumed.\n\nAlternative: Let me think about the problem as follows. Define the \"imbalance\" or use a clever potential.\n\nHmm, let me think about the dual pairing problem with time constraints more carefully, and find the true optimum.\n\nLet me reconsider. We established: bonus = 2M - 8,020,000 where M = sum of max(a,b) over shipments, a,b = decrement indices. And we want to maximize M subject to: each container's decrements in order 1..400, and each shipment pairs two containers' decrements.\n\nEquivalently (the matching + linear extension formulation). We found the \"ideal\" M = 6,010,000 is infeasible due to cycles.\n\nLet me think about the maximum feasible M.\n\nReformulate: We have 100 containers, each a chain of 400 events (decrement #1 < #2 < ... < #400). We pair events from different containers (each event in one pair) and need a linear extension. M = sum of max(index) per pair. Maximize.\n\nSince pairing index p with index q gives max(p,q), and we want max large, we want to pair low indices with high indices. But the chain constraint limits this.\n\nLet me think about what's the best achievable. \n\nKey insight: Consider the \"time\" as a global ordering. At any point in time, each container has done some number of decrements (its \"progress\"). The shipment at time t pairs two containers; their current decrement indices are (progress+1) for each. \n\nLet me think about it as: we have a path in the 100-dimensional grid from (0,0,...,0) to (400,400,...,400), where each step increments two coordinates by 1. The bonus of a step incrementing coordinates i,j (from state where they're at a,b to a+1,b+1) is max(a+1,b+1) [the decrement index = a+1, b+1; max is max(a+1,b+1)]... \n\nwait, decrement index = a+1 where a = progress before this step. So M = sum over steps of max(a_i+1, a_j+1) where a_i, a_j are progress before step. = sum of (1 + max(a_i, a_j)) = 20000 + sum of max(a_i, a_j).\n\nHmm, let me just think of M = sum of max(decrement index). \n\nTo maximize M, at each step we want max(progress_i, progress_j) to be large, i.e., pair a container with high progress with one with low progress. But progress increases over time, so early on all progress is low.\n\nThis is like: we want to create containers with high progress early (drain them fast) and keep others at low progress, then pair the high-progress ones with low-progress ones.\n\nThe extreme: drain one container to 400 (progress 400) while keeping others at 0. But to drain one container, it must be paired each time with another (which gains progress). So draining container A to progress 400 requires 400 shipments, each pairing A with someone. If we always pair A with a fresh container, A's progress goes 1,2,...,400, partners each gain 1 progress. With 99 partners, we can pair A with up to 99 distinct partners, but A needs 400 pairings. So A must be paired with some partners multiple times.\n\nTo keep partners' progress low, spread A's 400 pairings over many partners. With 99 partners, A paired with each partner ~4 times (400/99 ≈ 4.04). So partners reach progress ~4, A reaches 400. Then A is done (progress 400 = empty). \n\nThen we have A done, 99 containers at progress ~4. Now drain another container B to 400, pairing with the other 98 (at progress ~4) plus... B needs 400 pairings with 98 partners, each ~4 times, partners reach ~8, B reaches 400. Etc.\n\nThis is the \"drainer\" strategy! And it matches the greedy I was computing. Let me formalize and compute.\n\nStrategy: Drain containers one at a time. When draining container D, pair it repeatedly with the other (not-yet-fully-drained) containers, spreading to keep others low.\n\nBut actually the greedy I computed drains one container while the pool stays nearly uniform. Let me reconsider whether the greedy is optimal and compute its total cleanly.\n\nActually, let me reconsider. The greedy \"pair global max progress with global min progress\" — but progress = 400 - value, so max progress = min value, min progress = max value. So \"pair max value with min value\" = \"pair min progress with max progress.\" Yes, that's the greedy I computed.\n\nLet me now compute the total bonus of the greedy strategy cleanly.\n\nIn the greedy, we drain one container at a time. Let me re-examine. After phase 1-4 + phase 5 (partial), the first drainer emptied. Let me reconsider the whole process as: we drain containers one by one, each drainer going from the pool value down to 0.\n\nHmm, but the pool value also decreases. Let me reconsider the structure.\n\nLet me re-examine. The greedy maintains: 1 drainer (low) + 99 pool containers (high, nearly equal). The drainer decreases fast, pool decreases slowly. When drainer hits 0, a new drainer is chosen from the pool.\n\nBut actually, when the drainer hits 0, the pool has been decreasing too. Let me re-examine after the first drainer empties.\n\nAfter phase 5: drainer emptied, state {395×4, 396×95}. So the pool is now 99 containers at ~395-396. The new drainer will be a 395 (the min). \n\nNew phase: pair 395 (new drainer) with 396 (max). → 394, 395. Then 394 with 396 → 393, 395. ... The new drainer goes down, 396s become 395s. After 95 steps: new drainer = 395-95 = 300, 395×(4+95)=395×99. Wait, the 4 containers already at 395 plus 95 converted from 396 = 99 at 395, and drainer at 300.\n\nHmm, this is the same pattern: drainer goes from 395 down by 95 (number of 396s), reaching 300, pool all at 395.\n\nWait, that doesn't match. Let me recompute. After first drainer empties: {395×4, 396×95}. New drainer = 395 (one of the 4). Pair with 396. → 394, 395. Now {394×1, 395×5, 396×94} (the drainer 394, plus 4+1=5 at 395, 94 at 396). Next pair 394 with 396 → 393, 395. {393, 395×6, 396×93}. After s steps: drainer = 395-s, 395×(4+s), 396×(95-s). After 95 steps: drainer=300, 395×99, 396×0. \n\nSo now {300, 395×99}. Same as after phase 1 but shifted! (Phase 1 ended at {301, 399×99}, this is {300, 395×99}.) \n\nSo the pattern repeats: drainer 300, pool 395. Drainer decreases by 99 per phase (pool decreases by 1). Phases: 300→201→102→3, pool 395→394→393→392. Then drainer 3: 3→2→1→0 in 3 steps, pool 392→391. \n\nLet me just compute the total bonus by figuring out the structure.\n\nLet me define the process more carefully. It seems like the process has a hierarchical structure. Let me think about it as: we drain containers one at a time, and each \"drainer\" goes from some high value H down to 0, while the pool decreases slightly.\n\nActually, let me reconsider. The first drainer went from 400 to 0. During this, the pool (99 containers) went from 400 to 395 (decreased by 5? Let me check: after first drainer empties, pool at 395-396, roughly 395). Hmm, the pool decreased by about 5 (from 400 to 395) while the drainer went 400→0. \n\nWait, that doesn't seem right. The drainer did 400 decrements, and each shipment the pool partner did 1 decrement. 400 shipments, but the pool has 99 containers sharing those 400 decrements... no. Each shipment pairs drainer with ONE pool container. So 400 shipments, 400 pool-decrements spread over 99 containers. 400/99 ≈ 4.04. So pool containers each decrease by ~4, from 400 to ~396. Plus the drainer's 400. Total decrements = 400 (drainer) + 400 (pool) = 800 = 400*2. ✓ (400 shipments * 2).\n\nBut I computed pool ended at 395-396. Let me recheck. After phase 1 (99 steps): pool 399, drainer 301. Phase 2 (99 steps): pool 398, drainer 202. Phase 3: pool 397, drainer 103. Phase 4: pool 396, drainer 4. Phase 5 (4 steps): drainer 4→0, pool 396→395 (4 of them). So total steps = 99*4 + 4 = 400. ✓. Pool went 400→395 (decreased 5). Drainer 400→0. \n\nSo the first drainer: 400 shipments, pool decreases by 5 (from 400 to 395), drainer 400→0. \n\nHmm, pool decreased by 5 not 4. Because 400/99 = 4.04, and the drainer does 400 steps but the pool decrease is 400/99 rounded... actually the pool decrease = 400 - 395 = 5. And 400 shipments / 99 pool containers... the pool containers each decreased by either 4 or 5. 400 = 99*4 + 4, so 4 containers decreased by 5, 95 decreased by 4. So pool: 4 at 395, 95 at 396. ✓ matches {395×4, 396×95}.\n\nOK so this is the structure. Now the second drainer starts at 395 (the min of the pool). It will drain 395→0, and the pool (98 containers + the 3 remaining 395s... wait, after the first drainer empties, we have 99 containers: 395×4, 396×95. The new drainer is one of the 395s. It drains 395→0 over 395 shipments, pool decreases by ceil(395/98)≈5? Let me see: 395 shipments, pool has 98 containers, 395 pool-decrements. 395 = 98*4 + 3, so 3 containers decrease by 5, 95 decrease by 4. Pool goes from {395×3, 396×95} to {390×3, 391×95} (the 3 at 395 decrease by 5→390, the 95 at 396 decrease by 4→392... wait that doesn't work out).\n\nThis is getting complicated. The pool isn't uniform (it's 395×3, 396×95 after removing the drainer), and the greedy will pair the drainer with the MAX each time, which is 396, turning 396s into 395s, then when all 396s are gone, pair with 395s...\n\nLet me reconsider. Maybe instead of tracking the exact greedy, I should find the optimal value via a cleaner argument.\n\nLet me reconsider the upper bound. Let me think about a cleaner upper bound that matches the greedy.\n\nUpper bound via \"drainer\" argument: \n\nConsider any strategy. Focus on the container that is drained last (or first). Hmm.\n\nLet me think about an upper bound on M = sum of max(decrement index).\n\nAlternative approach: Let me think about the bonus directly with a clever bound.\n\nLet me reconsider. Let me think about the total bonus = sum |v_i - v_j|.\n\nClaim: bonus ≤ sum over all pairs of containers of (something). Hmm.\n\nLet me think about it via the drainer structure and conjecture the answer, then verify with small cases.\n\nLet me compute the greedy total for the 3-container, n=2 case and check it gives 1.\n\n3 containers, n=2. Greedy: pair max with min. Start {2,2,2}. Pair two 2s → {1,1,2}, bonus 0. Pair 1 with 2 → {0,1,1}, bonus 1. Pair 1 with 1 → {0,0,0}, bonus 0. Total 1. ✓ Matches.\n\nLet me try 3 containers, n=4 to get more data. Total shipments = 3*4/2 = 6. \n\nGreedy: {4,4,4}. \nStep1: pair 4,4 → {3,3,4}, b=0.\nStep2: pair 3,4 → {2,3,3}, b=1.\nStep3: pair 2,3 → {1,2,3}, b=1... wait min is 2, max is 3. Pair 2 with 3 → {1,2,3}? {2,3,3} pair min 2 with max 3 → {1,2,3}? The 2→1, 3→2. So {1,2,3} (was {2,3,3}, one 3→2, the 2→1). Now {1,2,3}. b=1.\nStep4: pair 1,3 → {0,2,2}, b=2.\nStep5: pair 0? No, 0 is empty. Pool {2,2}. pair 2,2 → {0,1,1}, b=0. \n\nwait {0,2,2}: pair the two 2s → {0,1,1}, b=0.\nStep6: pair 1,1 → {0,0,0}, b=0.\nTotal = 0+1+1+2+0+0 = 4.\n\nLet me see if we can do better. Let me try a different strategy.\n{4,4,4}. \nStep1: 4,4→{3,3,4} b0.\nStep2: 3,4→{2,3,3} b1.\nStep3: 3,4? No 4 gone. {2,3,3}: pair 2,3→{1,2,3} b1. \nHmm same. Let me try:\nStep1: 4,4→{3,3,4} b0.\nStep2: 3,4→{2,3,3} b1.\nStep3: 3,3→{2,2,2} b0. \nStep4: 2,2→{1,1,2} b0.\nStep5: 1,2→{0,1,1} b1.\nStep6: 1,1→{0,0,0} b0.\nTotal = 2. Worse.\n\nTry:\nStep1: 4,4→{3,3,4} b0.\nStep2: 3,4→{2,3,3} b1.\nStep3: 2,3→{1,2,3} b1.\nStep4: 1,3→{0,2,2} b2.\nStep5: 2,2→{0,1,1} b0.\nStep6: 1,1→0 b0.\nTotal 4.\n\nTry to get more:\nStep1: 4,4→{3,3,4} b0.\nStep2: 3,4→{2,3,3} b1.\nStep3: 2,3→{1,2,3} b1.\nStep4: 1,2→{0,1,3} b1. (pair 1 with 2, not 3)\nStep5: 1,3→{0,0,2} b2.\nStep6: need to remove 2 from one container but only 1 left with parts (the 2). Can't pair. Dead end! Invalid.\n\nSo step 4 must pair 1 with 3 (to keep things drainable). {1,2,3}: if we pair 1,3→{0,2,2}, then 2,2→{0,1,1}→1,1→0. Total 0+1+1+2+0+0=4. If pair 1,2→{0,1,3}, then need to drain 1 and 3 (total 4 parts, 2 shipments). 1,3→{0,0,2} b2, then stuck with 2. Invalid. Or {0,1,3}: pair 3,1→{0,0,2} stuck. So must pair 1,3 first. So total 4.\n\nWhat about step 3: {2,3,3}. Instead of 2,3, pair 3,3→{2,2,2} b0, then as before total 2. Or pair 2,3→{1,2,3} b1. So greedy gives 4.\n\nCan we beat 4? Let me think about upper bound. With 3 containers n=4: ideal M (ignoring time) = pair value m with 5-m. Values 1..4, 3 copies each. c_m≤3. Max sum max: c_4=3,c_3=3, c_2=c_1=0. Sum max = 3*(4+3)=21. Bonus = 2*21 - 3*(4*5/2) = 42 - 30 = 12. But infeasible. Actual = 4.\n\nLet me see if 4 is optimal. Let me think about the upper bound for 3 containers.\n\nFor 3 containers, each shipment picks 2 of 3, so one container \"sits out\" each shipment. Over 6 shipments, each container sits out 2 times (since each container is in 4 shipments: 4 decrements, sits out 2). \n\nHmm. Let me think about the 3-container case generally to find the formula, then generalize to 100.\n\n3 containers, n parts each. 3n/2 shipments (n even). Let me compute greedy for n=2 (got 1), n=4 (got 4). Let me guess n=6.\n\nActually, let me think about the 3-container greedy pattern. \n\n3 containers, n each. Greedy: drain one container while the other two stay high.\n\n{ n, n, n}. \nPhase: pair drainer with max. \nStep1: n,n → {n-1,n-1,n} b0.\nStep2: n-1, n → {n-2, n-1, n-1} b1.\nStep3: n-2, n-1 → {n-3, n-2, n-1} b1.\nStep4: n-3, n-1 → {n-4, n-2, n-2} b2.\nStep5: n-4, n-2 → {n-5, n-3, n-2} b1... \n\nhmm this is getting messy. Let me just compute n=6 with greedy carefully.\n\n{6,6,6}. Denote (a,b,c) sorted a≤b≤c.\nS1: (6,6,6)→pair 6,6→(5,5,6) b0. sorted (5,5,6).\nS2: pair 5,6→(4,5,5) b1. \nS3: pair 4,5→(3",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 18832,
+        "completion_tokens": 25000,
+        "cached_tokens": 12398
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 18832,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12398,
+    "total_steps": 8
+  }
+}

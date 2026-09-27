@@ -1,0 +1,1036 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "universal-wanderer",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-14T13:02:51.748235+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-14T13:02:51.748857+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-14T13:02:51.759270+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-14T13:02:51.749206+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p35d639d404cc4c0792ab (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.4.0\nToday's date: Friday, 2026-08-14\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-14T13:02:51.749981+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件，操作流程放 skill，等）\n4. **AGENTS.md 是总目录**——其中的索引节是跨 session AI 认知一致性的保证\n\n**Rule / Skill / 元组的放置层级**：\n\n当需要新建或迁移 rule、skill、元组时，按以下优先级选择放置位置：\n\n1. **首先考虑项目级 `.devin/` 目录**——这是 Devin 的正常使用方法。项目级 rule 放 `.devin/rules/`，项目级 skill 放 `.devin/skills/`。大多数 rule/skill 应该在这里——它们是项目特定的，不需要污染全局配置。\n2. **AGENTS.md 中只放 rule 索引**——项目 AGENTS.md 的维护规则节中，保留 rule 索引表（指向 `.devin/rules/` 中的文件），不保留完整 rule 内容。AGENTS.md 是总目录，rule 文件是详细内容。\n3. **只有确实跨项目通用的 rule/skill/元组，才升级为全局内容**——放在 `~/.config/devin/` 或 `~/.devin/` 中。**升级必须获得用户明确同意**——不要擅自把项目级内容升级为全局内容。\n4. **判断标准**：如果这个 rule/skill 只在当前项目有意义 → 项目级 `.devin/`。如果它在多个项目中都会被触发 → 可以考虑升级为全局，但先问用户。\n\n**元组：rule-skill-tuple-assessment**（rule + skill，全局）\n\n> **触发条件**：用户提出一个要求、认知、或设计思想时，AI 自动评估这个内容是否应该固化为 rule、skill、或元组。\n> **Skill**：`~/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md`\n> **核心意识**：不是每个用户要求都需要设为 rule/skill——只有具有跨 session 复用价值的才设置。但 AI 必须有意识地主动评估，而不是被动等用户说\"把这个设为rule\"。\n>\n> **评估流程**（详见 skill）：\n> 1. 判断是否具有跨 session 复用价值 → 否则直接执行不设置\n> 2. 判断类型：Rule（硬约束）/ Skill（SOP）/ 元组（Rule+Skill）/ 元组群（多Skill）\n> 3. 判断层级：项目级 `.devin/`（默认） vs 全局 `~/.config/devin/`（需用户同意）\n> 4. 执行：创建文件 + AGENTS.md 索引 + commit\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n### 13 · 禁止inline脚本，所有脚本持久化到项目内\n\n**Rule**：`~/.devin/rules/no-inline-scripts.md`\n\n**硬约束**：\n1. **禁止写超过3行的inline脚本**（`python -c \"...\"`、`bash -c \"...\"`）。超过3行的逻辑必须写成文件。\n2. **所有脚本写到项目内的脚本目录中**——不写`/tmp/`、不写home目录。放到项目已有的脚本目录或`scripts/`目录。\n3. **在项目AGENTS.md中做好索引**——新脚本必须记录路径、用途、用法。\n4. **持续维护，不重写**——已有脚本就改进，不另写新的。重复操作累积成越来越完善的脚本。\n\n**判定标准**：\n- 单行命令（`ls`、`git status`）→ 直接执行\n- 2-3行简单查询 → 可以直接执行\n- 超过3行 → **必须写成文件**\n- 会重复使用的操作 → **必须写成文件**\n- 已有脚本可改进 → **改进已有脚本**\n\n---\n\n## Git 管理协议\n\n**改文件前**：检查目标文件/目录是否处于 git clean 状态 → 记录 `before_status_baseline` → 明确本轮 `intended_delta`。\n\n**改文件后**：完成一个逻辑工作单元立即 commit → 记录 `after_status_baseline` → 核验 `after - before == intended_delta` → 目标文件/目录回到 git clean 状态。\n\n**禁止 `git add -A`、`git add .`、`git add -u`**。只 add 具体路径。\n\n任何 `git push` 都必须获得用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组 = Rule + Skill。Rule always-on 负责约束 + 模式匹配；Skill on-demand 负责工作流。AGENTS.md 中绝不放工作流，Skill 中绝不放硬性约束。AGENTS.md 太长是执行力问题——\"每次都必须知道\"→ 留在 AGENTS.md；\"遇到特定场景才需要\"→ 移到 Skill。\n\n> 元组详细方法论（瘦身工程、两种实现方式、新增元组规范）见 `~/.devin/rules/tuple-methodology.md`。Devin CLI 完整配置说明见 `devin-config-harness` skill。\n\n---\n\n## 元组：long-running-work-sop（长程工作SOP化铁律）\n\n**触发条件**：用户启动一个可能跨越压缩边界的持续性工作时；发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要迭代修正时。\n\n**核心约束**：长程工作（可能跨越压缩边界的持续性工作）必须SOP化。三个必须：\n1. **必须SOP化**——提取步骤、定义产出、定义验证，放入项目AGENTS.md\n2. **必须用rules锁定流程行为**——在`.devin/rules/`中创建rule文件，锁定SOP的执行纪律\n3. **必须版本化审计修正历史**——如果长程工作涉及分类学/框架/体系的迭代修正，修正的全历史必须在明面上审计（不在git log中），每次修正做覆盖性检查\n\n**Skill**：`~/.config/devin/skills/long-running-work-sop/SKILL.md`——提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程，以及积累的经验和反模式。\n\n**已有项目级实例**：\n- 数学大师项目的`tell-taxonomy-iteration-audit`元组（`.devin/rules/tell-taxonomy-iteration-audit.md`）——Tell分类学迭代审计的铁律和9步SOP，是本全局元组的项目级实例\n\n**经验和反模式积累**：在skill的\"经验和反模式积累区\"中持续追加。当前积累：5个反模式（当一次性任务做/不锁定/只在git log/不做覆盖性检查/遗留旧措辞）、3个经验（FLT例子测试/FCA理论审查方法/版本化审计让修正更严谨）。\n\n---\n\n### 元组群与 Skill 粒度铁律\n\n**元组群**：当一个复杂任务的工作流太长，无法放入单个 Skill 中时，应拆分为多个元组（多个 Skill），形成元组群协同工作。\n\n**为什么需要拆分**：Skill 加载后形成 Session 临时上下文中的认知和 SOP。但如果把应该拆分成多个 Skill 的内容放入一个 Skill 中，执行过程中可能跨越压缩边界——Session 压缩后，Skill 的后续内容从上下文中丢失，无法有效发挥作用。\n\n**Skill 粒度铁律**：\n\n1. **Skill 必须在 Session 上下文中始终可见**——如果执行过程很长（跨越多轮对话、可能触发压缩），Skill 内容必须足够短，确保压缩后仍可见，或拆分为多个 Skill 分阶段加载。\n\n2. **执行过程长 → 拆分 Skill**——如果一个 Skill 的工作流需要很多步骤、很长时间执行，应该拆分成多个 Skill，每个 Skill 覆盖一个可在一个压缩窗口内完成的阶段。\n\n3. **拆分后的 Skill 之间通过文档传递**——前一个 Skill 的产出落盘到文档（dev-docs / AGENTS.md / 数据文件），后一个 Skill 加载时读文档获取前序成果，不依赖 Session 上下文传递。\n\n4. **判断粒度的经验法则**——如果一个 Skill 的执行可能超过 10 轮对话或 50k tokens，考虑拆分。如果工作流中有明确的阶段分界点（如\"方案设计\"→\"执行\"→\"验证\"），在分界点拆分。\n\n### 元组群的整体性：目录在规则中\n\n**元组群如何确保整体性？** 确保整体性 = 确保工作的连续性。元组群中的多个 Skill 是一个整体工作流的分段，不是各自独立的任务。确保整体性的机制是：**元组群的目录放在规则中，规则指向一组 Skill，而不是单一 Skill。**\n\n**传统元组**：规则指向单一 Skill——\"遇到场景X，加载Skill Y\"。\n\n**元组群**：规则指向一组 Skill——\"遇到场景X，按顺序加载Skill Y1→Y2→Y3，它们是一个整体工作流的三个阶段\"。\n\n**元组群规则的结构**：\n\n```\n## 元组群：<群名称>\n\n**触发条件**：<何时AI应该执行这组工作流>\n\n**整体目标**：<这组Skill共同完成的最终目标>\n\n**Skill目录**（按执行顺序）：\n1. Skill <Y1>：<阶段1名称>——<这个阶段做什么>，产出落盘到<文档>\n2. Skill <Y2>：<阶段2名称>——<这个阶段做什么>，读取<文档>，产出落盘到<文档>\n3. Skill <Y3>：<阶段3名称>——<这个阶段做什么>，读取<文档>，产出最终结果\n\n**阶段间传递**：<通过什么文档/数据文件传递，不依赖Session上下文>\n\n**何时进入下一阶段**：<前一个Skill完成并落盘后，AI检查目录，自然加载下一个Skill>\n```\n\n**为什么目录在规则中而不是在某个Skill中**：\n\n1. **规则是always-on的**——不受压缩影响。即使Session压缩了，规则仍然在上下文中可见，AI始终能看到元组群的全貌——有几个阶段、当前在哪个阶段、下一步该加载哪个Skill。\n\n2. **如果目录在Skill中**——Skill加载后形成临时上下文，压缩后目录丢失，AI不知道还有后续阶段，元组群的整体性断裂。\n\n3. **规则是元组群的\"目录页\"**——每个Skill是\"章节内容\"。章节内容可能被压缩掉，但目录页始终可见，AI随时可以翻到正确的章节。\n\n**元组群规则的放置位置**：\n\n- **全局元组群**（跨项目通用）→ `~/.config/devin/AGENTS.md` 或 `~/.devin/rules/`\n- **项目级元组群**（特定项目的工作流）→ 项目 `AGENTS.md` 或 `.devin/rules/`\n\n**与单一元组的关系**：元组群是单一元组的扩展。单一元组 = 1个规则 + 1个Skill。元组群 = 1个规则（含目录） + N个Skill。规则从\"指向单一Skill\"升级为\"指向一组Skill的有序目录\"。\n\n---\n\n## 元组：trajectory-workline-review（从trajectory回溯session工作脉络）\n\n**触发条件**：需要了解某个 session（自己的或别人的）做了什么工作；同一 repo 下有多个 session 并行工作需要区分各自工作范围；新 session 启动时需要了解前序 session 进展；审查某个 session 的工作过程。\n\n**Skill**：`~/.config/devin/skills/trajectory-workline-review/SKILL.md`\n\n**核心约束**：\n1. **禁止用 git log 区分 session**——同一 repo 下多个 session 的 commit 交织在 git log 中，无法区分。必须用 sessions.db 的 session_id 区分。\n2. **运行中的 session 用 sessions.db，不用 transcripts**——transcript 文件只在 session 结束后写入，运行中的 session 没有 transcript 文件。sessions.db 的 message_nodes 表是实时写入的，是运行中 session 的唯一数据源。\n3. **grep tool_calls 中的 file_path 是最快方法**——不用完整解析嵌套 JSON，直接 grep `\"file_path\":\"...\"` 字符串，sqlite3 输出管道给 grep 一行命令搞定。区分操作类型时用正则 `re.finditer(r'\"name\":\"write\".*?\"file_path\"...')` 比解析 JSON 的 tool_calls 结构更稳健（结构可能不规则）。\n4. **文件操作时间线 = 工作脉络骨架**——提取每个文件首次操作时间并按时间排序，就是工作脉络的时间线。按目录归类操作频次 = 工作重心分布。\n5. **区分 write/edit/read 三种操作**——write（创建）= 核心产出，edit（修改）= 迭代深化，read（读取）= 前置依赖。只看 write 会漏掉 session 的前置依赖（读取了别人创建的文档 = 吸收前置讨论基础）。多 session 协作时，交叉分析 read 和 write 揭示跨 session 依赖关系。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p35d639d404cc4c0792ab/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nIn the city of Digitalis, there are 1,000 unique data packets, each assigned a unique three-digit identification code ranging from 000 to 999. The city’s central processing hub contains 100 storage servers, labeled with two-digit addresses from 00 to 99.\n\nTo store a packet, a technician must select exactly one digit from the packet's three-digit code to delete. The packet is then moved to the storage server whose address matches the two remaining digits in their original relative order. For example, if a packet is coded 123, the technician could delete the '1' to send it to server 23, delete the '2' to send it to server 13, or delete the '3' to send it to server 12.\n\nDue to a localized power failure, some of the 100 storage servers are currently offline. A network engineer needs to determine the minimum number of servers that must remain operational to guarantee that every single one of the 1,000 packets can be successfully stored in at least one functioning server.\n\nDetermine the smallest number of servers required to ensure that all packets can be placed in them.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-14T13:02:51.760878+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-14T13:02:51.762062+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **long-running-work-sop**: 长程工作SOP化与迭代审计铁律。当用户启动一个可能跨越压缩边界的持续性工作时， AI必须将其SOP化（放入项目AGENTS.md）、用rules锁定流程行为、版本化审计修正历史。 本skill提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程， 以及积累的经验和反模式。 WHEN to use: 用户启动一个可能跨越压缩边界的持续性工作时； 发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要修正时。 WHEN NOT to use: 一次性任务（如\"运行这个脚本\"、\"修这个bug\"）； 明确不会跨越压缩边界的短任务。\n (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **qmd-search**: Search the AI conversation archive via QMD semantic/keyword/hybrid search AND Knowledge Graph queries (source: /Users/user/.agents/skills/qmd-search/SKILL.md)\n- **loop**: Runs an autonomous development loop with research and implementation modes. Use when orchestrating iterative research and implementation cycles with dots-based task tracking and git workflow automation. (source: /Users/user/.agents/skills/loop/SKILL.md)\n- **ssh-58**: Use when operating the Thunderbolt-connected Mac \"58\" at 100.100.100.58, especially SSH, Remote Management, remote GUI automation, remote Computer Use MCP, Dokobot/Chrome testing, or permission/TCC repair on that machine. (source: /Users/user/.agents/skills/ssh-58/SKILL.md)\n- **trajectory-workline-review**:  (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **ai-archive-search**: 搜索 AI 对话存档（AI-ALL-Markdown），使用 QMD 语义搜索。 WHEN to use: 需要搜索历史 AI 对话、查找之前的讨论内容、检索 AI 对话存档时。 WHEN NOT to use: 搜索当前项目代码（用 grep/glob）、一般网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/ai-archive-search/SKILL.md)\n- **bian-pai**: 成功执行编排的方法论与落地工作流。用于把复杂、多阶段、跨组件、可无人值守的 AI / 软件工程任务收束为可执行编排：明确目标、边界、依赖、输入冻结、可观测性、验证、失败恢复、并发、证据与停止条件，并产出 phase plan、runtime manifest、runbook、scenario matrix 与 verdict 结构。适用于设计自动化流程、tmux 联调、agent/worker 编排、故障注入与无人值守执行方案。 (source: /Users/user/.agents/skills/bian-pai/SKILL.md)\n- **db-file-traceability**:  (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **android-reverse-engineering**: Decompile Android APK, XAPK, JAR, and AAR files using jadx or Fernflower/Vineflower. Reverse engineer Android apps, extract HTTP API endpoints (Retrofit, OkHttp, Volley), and trace call flows from UI to network layer. Also covers maintaining the Lima VM-based AOSP/LineageOS source tree environment required for large-scale reverse engineering (repo sync monitoring with syncstate.json, tracking prebuilts without last_checkout, graceful shutdown, disk expansion via lima.yaml, migration of LIMA_HOME to large volumes like AI-PWD while leaving only 50GB host buffer). Use when the user wants to decompile, analyze, or reverse engineer Android packages, find API endpoints, follow call flows, or manage the underlying large source sync infrastructure in Lima. (source: /Users/user/.agents/skills/android-reverse-engineering/SKILL.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **setup-devin-rules-skills**: 指向元组 rule 中的 setup-devin-rules-skills 条目；安顿 Devin 的 rule 和 skill（位置、格式、加载机制、操作流程）。 (source: /Users/user/.agents/skills/setup-devin-rules-skills/SKILL.md)\n- **md-multi**: Save the recent multi-turn discussion (a connected sequence of Q&A turns on the same topic) as ONE numbered Markdown file under dev-docs/, transcribed verbatim turn by turn — no summarizing, no merging similar Q&As, no rephrasing. Use when the user runs /md-multi or says \"把刚才整段讨论存档\" / \"这几轮一起记下来\" / \"整段保留为开发文档\". (source: /Users/user/.agents/skills/md-multi/SKILL.md)\n- **rule-skill-tuple-assessment**: 评估用户的提问或要求是否应该设置为 rule、skill（SOP）、或元组（rule+skill）， 以及应该放入 Devin 全局配置还是项目本地 .devin/ 目录。 WHEN to use: 用户提出一个要求或认知，AI判断这个要求是否具有跨session复用价值时。 WHEN NOT to use: 一次性的具体任务执行（如\"运行这个脚本\"、\"修这个bug\"）。\n (source: /Users/user/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md)\n- **qmd-mcp-search**: 通过 QMD 语义搜索和知识图谱查询搜索 AI 对话存档。双模式检索，支持结构化实体发现。 WHEN to use: 需要语义搜索 AI 对话、知识图谱实体查询、文档相似度检索时。 WHEN NOT to use: 简单关键词搜索（用 ai-archive-search）、网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **auto-run-to-the-end**: 当用户明确要求无人值守、持续运行、不中途汇报、一路做到底时使用。该 skill 要求先形成计划；若存在 看板.md / KANBAN.md / runbook / phase plan，则必须把它作为 source of truth 连续执行并边做边更新；fallback 成功不得冒充主线完成。除非被阻塞、存在高风险操作、或高优先级宿主规则要求，否则中途不做工作汇报，直到阶段工作真正收口。 (source: /Users/user/.agents/skills/auto-run-to-the-end/SKILL.md)\n- **tmux-easy-setup**: 配置 tmux 达到最易用状态：大缓冲区、鼠标滚动、系统剪贴板集成、vi 复制模式。 WHEN to use: 用 tmux 运行 AI CLI（devin/codex）、长时间任务、多 session 监控， 或用户抱怨 tmux 复制粘贴/缓冲区/鼠标不好用时。 WHEN NOT to use: 不涉及 tmux 的任务。\n (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **new-email**: Create or reuse a mailbox on a configured Cloud Mail domain. Supports igreatagain.com by default and mail.0x10086.xyz or any subdomain under 0x10086.xyz when the user supplies that full address or the 0x10086 alias. (source: /Users/user/.agents/skills/new-email/SKILL.md)\n- **mempalace-codex-memory**: Use when Codex should interact with the local-only MemPalace memory layer for the current project: refresh project files or recent Codex transcripts into the canonical palace, render a low-token wake-up context, search project memory, or print the local MCP server command. Prefer this when you want real reusable local memory without remote services and without relying on repo-root `mempalace init` side effects. (source: /Users/user/.agents/skills/mempalace-codex-memory/SKILL.md)\n- **devin-config-harness**: Devin CLI 配置使用完整说明书。涵盖 rules（AGENTS.md + .devin/rules/）、skills、hooks、 config.json、MCP servers 的全局/项目本地位置、格式、参数和选择策略。 WHEN to use: 配置 Devin CLI、添加 rules/skills/hooks/MCP、理解 Devin 扩展架构、 从 Codex/Claude Code 迁移配置、排查配置问题。 WHEN NOT to use: 一般编码任务、非 Devin 配置相关的工作。\n (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **md**: Save the most recent single Q&A turn (the latest user message and the AI reply that immediately followed it) as ONE numbered Markdown file under the project's dev-docs/, transcribed verbatim — no summarizing, no merging, no rephrasing. Use when the user runs /md, says \"保存这次回答\" / \"把这一次记下来\" / \"把刚才那条存档\". (source: /Users/user/.agents/skills/md/SKILL.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **add-new-todo**: 将用户刚刚提出的新待办落盘到当前项目 AGENTS.md 的 Memory Section > §TODO，并同步必要的索引与变更记录。 (source: /Users/user/.agents/skills/add-new-todo/SKILL.md)\n- **videos-shink**: Batch-trim old `.mov` videos in one directory down to their last 20 minutes without re-encoding, write the results into a `shrink/` subdirectory, verify each output, and delete originals only after verification. Use for OBS-style cleanup jobs where one protected file, such as the file still being written, must not be touched. If the protected file is not explicitly identified, stop and ask the user before any mutating action. (source: /Users/user/.agents/skills/videos-shink/SKILL.md)\n- **android-reverse-engineering-simoneavogadro**: Decompile Android APK, XAPK, JAR, and AAR files using jadx or Fernflower/Vineflower. Reverse engineer Android apps, extract HTTP API endpoints (Retrofit, OkHttp, Volley), and trace call flows from UI to network layer. Use when the user wants to decompile, analyze, or reverse engineer Android packages, find API endpoints, or follow call flows. (source: /Users/user/.agents/skills/android-reverse-engineering-simoneavogadro/SKILL.md)\n- **prove-context-structure-analysis-completeness**: 对任意 agent/CLI/harness 系统执行上下文结构分析完备性证明。用 Boundary / Static / Dynamic / Orphan 四表穷举上下文主链，做 remainder=0 检查，并给出 PASS / PARTIAL / FAIL verdict。 (source: /Users/user/.agents/skills/prove-context-structure-analysis-completeness/SKILL.md)\n- **read-home-readme**: Read the machine-level home readme knowledge system to locate cross-project infrastructure knowledge before acting. Use when the user asks to look up something in home readme, wants machine-wide context, asks where a global workflow is documented, or when a task likely depends on knowledge stored in ~/README.md or ~/readme/. (source: /Users/user/.agents/skills/read-home-readme/SKILL.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **write-home-readme**: Write cross-project infrastructure or machine-level knowledge into the home readme system: detailed docs under ~/readme/, an entry in ~/README.md, and when needed a row in ~/readme/README.md. Use when the user says to record something in home readme, says this knowledge is cross-project or machine-wide, asks for a home-level index entry, or wants infrastructure/incident knowledge stored outside the current project. (source: /Users/user/.agents/skills/write-home-readme/SKILL.md)\n- **read-email**: Read mailbox messages from configured Cloud Mail domains. Supports igreatagain.com by default and mail.0x10086.xyz or any subdomain under 0x10086.xyz when the user supplies that full address or the 0x10086 alias; use for verification codes, links, or explicit $read-email requests. (source: /Users/user/.agents/skills/read-email/SKILL.md)\n- **ai-carrier-meta-memory**: Use when discussing meta-level evolution of AI coding tools or AI carriers such as Codex, Claude Code, Hermes, ECC, Superpowers, continuous learning, AI governance repos, repo analysis records, user-intent classification, workflow routing, memory classification, memory routing, or how AI agents should decide what kind of interaction they are in before acting. (source: /Users/user/.agents/skills/ai-carrier-meta-memory/SKILL.md)\n- **cliproxyapi-config**: Use when Codex needs to configure, audit, explain, or troubleshoot CLIProxyAPI / CPA configuration, including 8888 or 18888 instances, routing.strategy fill-first, session-affinity, session-affinity-ttl, nonstream-keepalive-interval, streaming keepalive, max-retry-credentials, payload.default/override/filter rules, provider credentials, management UI config, auth-dir, hot reload, or when the user asks for the official CLIProxyAPI configuration parameter list. Prioritize official CLIProxyAPI docs and the bundled official-parameter index before inspecting source code. (source: /Users/user/.agents/skills/cliproxyapi-config/SKILL.md)\n- **find-skills**: Helps users discover and install agent skills when they ask questions like \"how do I do X\", \"find a skill for X\", \"is there a skill that can...\", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill. (source: /Users/user/.agents/skills/find-skills/SKILL.md)\n- **handover-prompt**: 为下一个 session 维护项目级 AGENTS.md 的 Handover Section。先 /handover 落盘到 Memory Section，再 /handover-prompt 创建或更新 Handover Section。三个衡量标准：信息完整性、认知一致性、可无缝衔接性。 (source: /Users/user/.agents/skills/handover-prompt/SKILL.md)\n- **release-skills**: Universal release workflow. Auto-detects version files and changelogs. Supports Node.js, Python, Rust, Claude Plugin, GitHub Releases, annotated tags, historical release backfill, and generic projects. Use when user says \"release\", \"发布\", \"new version\", \"bump version\", \"push\", \"推送\", \"release notes\", \"GitHub Release\", or \"回填 Release\". (source: /Users/user/.agents/skills/release-skills/SKILL.md)\n- **hooks-operation**: Operate the live global Codex hook framework under `~/.codex` and the related prompt files under `~/`. Use when installing, uninstalling, inspecting, or testing the user-level Codex hooks such as `block-stop`, `post-tool-use`, `pre-tool-use`, `user-prompt-submit`, and `session-start`, especially when working with the explicit Stop installs `block-once` and `block-always`, or when updating the Home-directory prompt text files those hooks read at runtime. (source: /Users/user/.agents/skills/hooks-operation/SKILL.md)\n- **video-compress**: Compress local video files with ffmpeg using H.265 workflows that balance quality, compression ratio, and speed, including optional Apple VideoToolbox hardware encoding and rotation. Use when the user asks to compress, shrink, rotate while compressing, or reduce the size of a video from the command line while keeping quality high, especially for `.mp4`, screen recordings, and recordings that should stay easy to share or archive. (source: /Users/user/.agents/skills/video-compress/SKILL.md)\n- **jsonl-reader**: Use when inspecting a Codex rollout JSONL or session id for session recovery, dehydrated dialogue reconstruction, or structured audit. Best for turning a rollout into a readable Markdown transcript and then drilling into exact records with stats/list/get without mutating the source JSONL. (source: /Users/user/.agents/skills/jsonl-reader/SKILL.md)\n- **codex-config-harness**: Configure and manage Codex CLI extensibility (AGENTS.md rules, Skills, MCP servers, config.toml). Use when the user asks about Codex CLI setup, adding MCP servers, writing skills, configuring rules, enabling skills feature flag, or understanding the Codex extension architecture. Also use when migrating configuration from Devin or Claude Code to Codex. Do NOT use for general coding tasks unrelated to Codex configuration. (source: /Users/user/.agents/skills/codex-config-harness/SKILL.md)\n- **fact**: 记忆提取：概念型 + 事实型 + 笔记型三大块，按顺序执行。每步 Pre-echo 复述规范再动手。 (source: /Users/user/.agents/skills/fact/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据的完整存储位置、格式、读取方法。 Transcript（ATIF格式）、sessions.db（SQLite）、logs、summaries、--export参数。 WHEN to use: 需要提取/解析/审计Devin CLI的session对话数据时。 WHEN NOT to use: 一般编码任务、非Devin CLI相关的数据工作。 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **update-work-journal**: Record and maintain a user-facing, auditable work journal for the current project in `./dev-docs/工作日志.md`. Use when the user asks to update the visible work log, record progress, summarize current status, add a new workstream or branch line, or keep a human-readable engineering journal with exact timestamps. (source: /Users/user/.agents/skills/update-work-journal/SKILL.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **write-docs**: Write or rewrite technical documentation in a beginner-friendly, user-first, top-down teaching style. Use when the user asks for docs, code explanations, architecture writeups, source-analysis notes, API/process docs, or asks to explain concepts without assuming prior source-code knowledge. The goal is: don't make me think, don't make me ask twice. (source: /Users/user/.agents/skills/write-docs/SKILL.md)\n- **work-with-dev-docs**: 在以 `dev-docs/` 作为正式工作载体的项目中，判断何时必须先落分析/计划/行动方案文档，何时修订已有三位编号文档，以及何时应转交工作日志、TODO、home readme 或 docs/。 (source: /Users/user/.agents/skills/work-with-dev-docs/SKILL.md)\n- **add-to-dev-docs**: 在采用 `dev-docs/` 作为正式工作载体的项目中，新建或修订三位编号的 dev-docs 文档，默认版本化保存，并同步 `AGENTS.md` 文件索引与 `ChangeLog.md`。 (source: /Users/user/.agents/skills/add-to-dev-docs/SKILL.md)\n- **jsonl_curd**: Inspect, modify, validate, and resume Codex rollout JSONL files in controlled labs. Use when Codex needs to treat a rollout .jsonl as a structured test object: analyze its schema, perform CRUD-style mutations, verify rollout integrity, or start/resume Codex from an explicit rollout path for low-cost hook and boundary experiments. (source: /Users/user/.agents/skills/jsonl_curd/SKILL.md)\n- **headless-codex**: Launch a highly controlled headless Codex CLI instance with explicit model, reasoning effort, sandbox, approval policy, writable dirs, JSON output, and a custom project-doc file such as AGENTS.md/RULES.md. Use when you need another AI or script to call Codex non-interactively. (source: /Users/user/.agents/skills/headless-codex/SKILL.md)\n- **codex-pure-lab**: Use when you need a reusable Codex testing system for isolated labs, headless CLI tests, app-server tests, tmux/TUI tests, start-codex launcher tests, hook tests, self-compact tests, or compaction tests without contaminating the live environment. (source: /Users/user/.agents/skills/codex-pure-lab/SKILL.md)\n- **handover**: 压缩前执行。落盘对账 + 因果一致性 + 三大块记忆提取 + 交接写入，确保压缩后不丢认知。 (source: /Users/user/.agents/skills/handover/SKILL.md)\n- **spark**: Use when the user wants to brainstorm an idea or design a feature/spec. Explores intent and requirements through dialogue, then writes a spec document to docs/spark/ and STOPS. Does not auto-chain to implementation planning or any other skill. (source: /Users/user/.agents/skills/spark/SKILL.md)\n- **self-compact**: 在项目采用项目级 AGENTS 单文件 handover 机制时，用于在本轮 handover 工作完成后触发自压缩。读取当前项目目录中的 `.tmux_session_name`，校验 tmux pane target，并让当前 AI 通过同一 tmux pane 对自己发起 `/compact`。 (source: /Users/user/.agents/skills/self-compact/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Users/user/.local/share/devin/cli/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-14T13:02:53.705081+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me analyze this problem carefully.\n\nWe have 1000 packets with codes 000-999. Each packet has a 3-digit code. To store a packet, we delete one digit, leaving 2 digits in original order, which determines the server (00-99).\n\nSo each packet abc (where a,b,c are digits) can go to servers: bc (delete a), ac (delete b), ab (delete c).\n\nWe need to find the minimum number of servers that must remain operational to guarantee every packet can be stored. This is a set cover problem - we need to find the minimum number of servers (2-digit strings) such that every 3-digit string has at least one of its three 2-digit subsequences in our chosen set.\n\nWait, but the question asks for the minimum number of servers that must remain operational to GUARANTEE every packet can be stored. This means we choose which servers stay online (we get to pick the best subset), and we want the minimum size of such a subset that covers all 1000 packets.\n\nSo this is: find the minimum hitting set / minimum set cover where:\n- Universe: all 1000 three-digit codes\n- Each server s (a 2-digit code) covers all 3-digit codes that contain s as a subsequence (obtained by deleting one digit)\n\nWe want minimum number of servers such that every 3-digit code is covered.\n\nLet me think about this as a graph/hypergraph problem.\n\nEach 3-digit code abc maps to three 2-digit servers: bc, ac, ab.\n\nWe need to select a subset S of {00,...,99} such that for every abc in {000,...,999}, at least one of {bc, ac, ab} is in S.\n\nEquivalently, the complement: let T = {00,...,99} \\ S be the offline servers. We need that no 3-digit code has all three of its servers in T. That is, for every abc, not all of bc, ac, ab are in T.\n\nSo T is a set of 2-digit strings such that no 3-digit string has all three of its 2-subsequences in T. We want to maximize |T|, and the answer is 100 - |T|.\n\nSo the question becomes: what is the maximum size of a set T ⊆ {00,...,99} such that for every 3-digit string abc, at least one of {ab, ac, bc} is NOT in T?\n\nEquivalently, T is a set of 2-digit strings such that there is no triple (a,b,c) of digits with ab ∈ T, ac ∈ T, bc ∈ T.\n\nLet me think of this as a graph. Consider a directed graph on digits {0,...,9} where we have edges. Actually, let me think of each 2-digit string as an ordered pair (a,b) of digits.\n\nT is a set of ordered pairs (a,b) ∈ {0,...,9}² such that there is no triple (a,b,c) with (a,b) ∈ T, (a,c) ∈ T, (b,c) ∈ T.\n\nWait, let me re-examine. The three 2-digit subsequences of abc are:\n- Delete first digit: bc → (b,c)\n- Delete second digit: ac → (a,c)\n- Delete third digit: ab → (a,b)\n\nSo the condition is: there is no triple (a,b,c) of digits such that (a,b) ∈ T, (a,c) ∈ T, and (b,c) ∈ T.\n\nWe want to maximize |T|.\n\nNote that (a,a) pairs like 00, 11, etc. are included. Let's think about what triples (a,b,c) cause problems.\n\nIf a=b=c, say a=b=c=d, then the three pairs are (d,d), (d,d), (d,d) — all the same. So if (d,d) ∈ T, then the triple (d,d,d) has all three in T. So we cannot have any (d,d) in T if we want... wait, the triple (d,d,d) gives pairs (d,d), (d,d), (d,d). All three are (d,d). So if (d,d) ∈ T, then packet ddd cannot be stored. So (d,d) ∉ T for all d. That means all 10 diagonal pairs must be in S (online). So |T| ≤ 90.\n\nNow consider a=b ≠ c. Triple (a,a,c): pairs are (a,c), (a,c), (a,a). We need at least one not in T. Since (a,a) ∉ T already, this is automatically satisfied. Good.\n\nConsider a=c ≠ b. Triple (a,b,a): pairs are (b,a), (a,a), (a,b). Since (a,a) ∉ T, automatically satisfied.\n\nConsider b=c ≠ a. Triple (a,b,b): pairs are (b,b), (a,b), (a,b). Since (b,b) ∉ T, automatically satisfied.\n\nSo the only constraints come from triples (a,b,c) with all three distinct. For distinct a,b,c: pairs (a,b), (a,c), (b,c) — all three must not be simultaneously in T.\n\nSo the problem reduces to: we have a directed complete graph on {0,...,9} (without self-loops), and T is a subset of the 90 directed edges (ordered pairs of distinct digits). We need: for every triple of distinct digits {a,b,c}, not all of (a,b), (a,c), (b,c) are in T.\n\nNote: (a,b), (a,c), (b,c) — these are the three \"forward\" edges in the ordering a,b,c. But a,b,c are just digits, not necessarily ordered. Let me be careful.\n\nFor a triple (a,b,c) with a,b,c distinct, the three pairs are (a,b), (a,c), (b,c). These are specific directed edges. The constraint is that not all three are in T.\n\nSo for any ordered triple (a,b,c) of distinct digits, we cannot have all three directed edges (a,b), (a,c), (b,c) in T.\n\nNote that (a,b,c) and permutations give different sets of edges. For instance, (a,b,c) gives edges (a,b),(a,c),(b,c), while (a,c,b) gives edges (a,c),(a,b),(c,b). The first set is {(a,b),(a,c),(b,c)} and the second is {(a,c),(a,b),(c,b)} = {(a,b),(a,c),(c,b)}.\n\nSo for the unordered triple {a,b,c}, there are 6 orderings, each giving a different set of 3 directed edges. Let me enumerate for {a,b,c}:\n\nThe 6 orderings and their edge sets:\n1. (a,b,c): {(a,b),(a,c),(b,c)}\n2. (a,c,b): {(a,c),(a,b),(c,b)}\n3. (b,a,c): {(b,a),(b,c),(a,c)}\n4. (b,c,a): {(b,c),(b,a),(c,a)}\n5. (c,a,b): {(c,a),(c,b),(a,b)}\n6. (c,b,a): {(c,b),(c,a),(b,a)}\n\nSo the constraint is: for each of these 6 edge sets, not all 3 edges are in T.\n\nEach edge set is a \"transitive triangle\" — it's the set of edges forming a transitive tournament on 3 vertices. There are 6 transitive tournaments on 3 vertices (corresponding to the 6 orderings), and 2 cyclic tournaments.\n\nSo the constraint is: T contains no transitive triangle. That is, T (as a set of directed edges on 10 vertices) contains no transitive tournament on 3 vertices.\n\nWe want to maximize |T|, the number of directed edges, such that T contains no transitive triangle.\n\nA tournament where every triangle is cyclic — that's a very special structure. Actually, let me think again.\n\nT is a subset of directed edges (not necessarily a tournament — it doesn't have to include exactly one of (a,b) or (b,a) for each pair). T is any subset of the 90 directed edges.\n\nThe constraint: no transitive triangle is fully contained in T.\n\nWe want to maximize |T|.\n\nHmm, let me think about this differently. A transitive triangle on {a,b,c} is a set of 3 directed edges that form a total order. The 6 transitive triangles correspond to the 6 total orders on 3 elements.\n\nWe want a set of directed edges with no transitive triangle. What's the maximum size?\n\nLet me think about what structures avoid transitive triangles.\n\nIf T is a tournament (for each pair, exactly one direction), then \"no transitive triangle\" means every triangle is cyclic. A tournament where every triangle is cyclic is called a \"regular\" or \"cyclic\" tournament. But on 10 vertices, a tournament where every 3-cycle is... actually, a tournament where every triangle is cyclic doesn't exist for n ≥ 4, I think. Wait, no — a tournament where every triangle is cyclic would be a \"locally transitive\" complement... hmm, let me think.\n\nActually, a tournament where every triangle is cyclic: consider any 4 vertices. In a tournament on 4 vertices, there must be a transitive triangle (this is a known result — every tournament on 4 vertices contains a transitive triangle). So a tournament on n ≥ 4 vertices always contains a transitive triangle. So we can't use a tournament.\n\nBut T doesn't have to be a tournament. T can be any subset of directed edges.\n\nLet me think about this more carefully. We want to avoid having all three edges of any transitive triangle. \n\nAlternative approach: think of T as a directed graph (digraph) on 10 vertices. We want no transitive triangle, i.e., no three vertices a,b,c with edges a→b, a→c, b→c all present.\n\nThis is equivalent to saying: there's no \"out-out\" pattern — no vertex a with edges to both b and c, where there's also an edge from b to c.\n\nIn other words, for every vertex v, the out-neighborhood of v must be an independent set in the underlying graph (no edges between any two out-neighbors of v).\n\nWait, more precisely: if a→b and a→c are in T, then b→c must NOT be in T (and also c→b must not be in T, because that would form the transitive triangle (a,c,b): a→c, a→b, c→b).\n\nSo: for every vertex a, the out-neighborhood N⁺(a) must have no edges of T between any pair of vertices in N⁺(a). That is, N⁺(a) is an independent set in the underlying undirected graph of T.\n\nSimilarly, let me check: the in-neighborhood. If b→a and c→a are in T, is there a constraint? The transitive triangle would need edges forming a total order. If b→a and c→a, then for a transitive triangle we'd need b→c or c→b. If b→c is in T, then (b,c,a): b→c, b→a, c→a — yes, that's a transitive triangle. So if b→a, c→a, and b→c are all in T, that's forbidden. So the in-neighborhood N⁻(a) must also be an independent set (no edges of T between pairs in N⁻(a)).\n\nSo both the in-neighborhood and out-neighborhood of every vertex must be independent sets in the underlying graph.\n\nThis is a strong constraint. Let me think about what graphs satisfy this.\n\nActually, let me think about it from the perspective of the underlying undirected graph G (where we put an undirected edge between a,b if at least one of (a,b) or (b,a) is in T). And then for each undirected edge, we choose a direction (or both directions).\n\nThe constraint is: for every vertex v, N⁺(v) is independent and N⁻(v) is independent in the underlying graph.\n\nIf we use both directions for some edges, that uses 2 directed edges for 1 undirected edge. Let me first consider the case where T is an orientation (tournament-like, at most one direction per pair).\n\nIf T is an orientation of G (each undirected edge gets exactly one direction), then:\n- N⁺(v) and N⁻(v) partition the neighborhood of v in G.\n- Both must be independent sets in G.\n- This means the neighborhood of every vertex in G can be partitioned into two independent sets, i.e., the neighborhood of every vertex is bipartite, i.e., G is locally bipartite.\n\nAnd we want to maximize the number of directed edges = number of undirected edges in G.\n\nA locally bipartite graph on 10 vertices — what's the maximum number of edges?\n\nActually wait, I need to be more careful. If T is an orientation, the constraint is that for every vertex v, both N⁺(v) and N⁻(v) are independent sets in G. Since N⁺(v) ∪ N⁻(v) = N(v) (the neighborhood of v in G), and both are independent, this means N(v) is bipartite (can be 2-colored). So G is locally bipartite.\n\nBut we also need to check: is the constraint only about the underlying graph, or does the orientation matter? Let me re-examine.\n\nThe constraint is: no transitive triangle in T. If T is an orientation (no bidirectional edges), then a transitive triangle is exactly a directed 3-path that forms a total order. In an orientation, every triangle (3 vertices with all 3 undirected edges present) is either transitive or cyclic. So \"no transitive triangle\" = \"every triangle is cyclic.\"\n\nA tournament (orientation of complete graph) where every triangle is cyclic is impossible for n ≥ 4 as I noted. But we're not requiring a tournament — G doesn't have to be complete.\n\nSo: we want an orientation of a graph G on 10 vertices such that every triangle in G is cyclic (not transitive), and we want to maximize |E(G)|.\n\nA graph where every triangle can be oriented cyclically... A graph where every triangle is cyclic in the orientation. This is equivalent to: the orientation is a \"locally transitive\" orientation? No...\n\nActually, an orientation where every triangle is cyclic is called a \"cyclically oriented\" graph or the orientation is \"triangle-cyclic.\" \n\nLet me think about which graphs admit such an orientation. A triangle can be oriented cyclically. But what about larger cliques? A K₄ has 4 triangles. Can we orient K₄ so every triangle is cyclic? \n\nIn K₄, consider vertices 1,2,3,4. If every triangle is cyclic, consider the orientation. Take triangle 1,2,3: cyclic, say 1→2→3→1. Now add vertex 4. Triangle 1,2,4 must be cyclic. Triangle 1,3,4 must be cyclic. Triangle 2,3,4 must be cyclic.\n\nWith 1→2, 2→3, 3→1:\n- Triangle 1,2,4 cyclic: either 1→2→4→1, or 1→4→2→1. Since 1→2, we need either 2→4,4→1 or 4→2,1→4... wait, cyclic means 1→2, 2→4, 4→1 OR 1→4, 4→2, 2→1. But 2→1 contradicts 1→2. So we need 1→2, 2→4, 4→1. So 4→1 and 2→4.\n- Triangle 1,3,4 cyclic: we have 3→1 and 4→1. For cyclic: 3→1, 1→4, 4→3 (but 4→1 contradicts 1→4) or 3→4, 4→1, 1→3 (but 3→1 contradicts 1→3). Both options fail! So K₄ cannot be oriented with all triangles cyclic.\n\nSo K₄ cannot appear in G. The maximum clique size in G is 3 (triangles are OK, but K₄ is not).\n\nSo G is K₄-free. By Turán's theorem, the maximum number of edges in a K₄-free graph on 10 vertices is given by the Turán number T(10,3) = ex(10, K₄).\n\nTurán's theorem: ex(n, K_{r+1}) = (1 - 1/r) * n²/2 (approximately), achieved by the Turán graph T(n,r) which is the complete r-partite graph with parts as equal as possible.\n\nFor K₄-free (r=3), n=10: T(10,3) is the complete 3-partite graph with parts of size 4,3,3 (or 4,3,3 to be as equal as possible — 10/3 ≈ 3.33, so parts 4,3,3).\n\nNumber of edges = 4*3 + 4*3 + 3*3 = 12 + 12 + 9 = 33.\n\nBut wait, we also need the orientation to have all triangles cyclic. The Turán graph T(10,3) is complete 3-partite, so it has no triangles at all (it's 3-partite, hence triangle-free). So there are no triangles to worry about, and any orientation works!\n\nBut can we do better than 33 by including some triangles (which we orient cyclically)?\n\nHmm, let me reconsider. The constraint is that G is K₄-free AND admits an orientation where every triangle is cyclic. The Turán graph gives 33 edges with no triangles. Can we add more edges by including some cyclically-oriented triangles?\n\nActually, let me reconsider whether the constraint is exactly \"K₄-free.\" We showed K₄ can't be oriented with all triangles cyclic. But maybe we can have a graph with more than 33 edges that's K₄-free but has triangles, all of which can be oriented cyclically?\n\nThe Turán number ex(10, K₄) = 33 is the maximum for K₄-free graphs. Wait, is that right? Let me recalculate.\n\nTurán graph T(n, r): complete r-partite graph with parts as equal as possible. For n=10, r=3: parts of size ⌈10/3⌉=4, ⌈6/3⌉=2... no wait. 10 = 4 + 3 + 3. Parts: 4, 3, 3.\n\nEdges: total pairs minus pairs within parts = C(10,2) - C(4,2) - C(3,2) - C(3,2) = 45 - 6 - 3 - 3 = 33.\n\nAnd Turán's theorem says this is the maximum number of edges in a K₄-free graph on 10 vertices. So any K₄-free graph on 10 vertices has at most 33 edges.\n\nBut wait — is our constraint exactly K₄-free? We showed K₄ can't be oriented with all cyclic triangles. But what if we allow bidirectional edges? If T is not just an orientation but can have both (a,b) and (b,a), then maybe we can have more directed edges.\n\nLet me reconsider. T is a subset of all 90 directed edges (between distinct vertices). The constraint is: no transitive triangle. We want to maximize |T|.\n\nIf we allow bidirectional edges, then for a pair {a,b}, we can have both (a,b) and (b,a) in T. This gives us 2 edges for that pair.\n\nBut does having bidirectional edges help? Let's check: if (a,b) and (b,a) are both in T, and (a,c) is in T, then the transitive triangle (a,b,c) = {(a,b),(a,c),(b,c)} requires (b,c) ∈ T. And the transitive triangle (b,a,c) = {(b,a),(b,c),(a,c)} requires (b,c) ∈ T. So if (a,b),(b,a),(a,c) ∈ T, then (b,c) ∉ T. Similarly, (a,b),(b,a),(c,a) ∈ T implies (c,b) ∉ T (from triangle (b,a,c)... wait let me recheck).\n\nHmm, this is getting complicated. Let me think about it differently.\n\nLet me define: for each unordered pair {a,b}, let x_{ab} = number of directed edges between a and b in T (0, 1, or 2). Then |T| = Σ x_{ab}.\n\nThe constraint: for every ordered triple (a,b,c) of distinct vertices, not all of (a,b), (a,c), (b,c) are in T.\n\nLet me think about the maximum of |T| = Σ x_{ab} subject to the no-transitive-triangle constraint.\n\nClaim: the maximum is achieved when T is an orientation (x_{ab} ∈ {0,1} for all pairs), and the underlying graph is the Turán graph T(10,3), giving |T| = 33.\n\nBut wait, can we do better with bidirectional edges? Let me think of a small example.\n\nConsider 3 vertices a, b, c. The 6 directed edges are (a,b),(b,a),(a,c),(c,a),(b,c),(c,b). The 6 transitive triangles are:\n- (a,b,c): (a,b),(a,c),(b,c)\n- (a,c,b): (a,c),(a,b),(c,b)\n- (b,a,c): (b,a),(b,c),(a,c)\n- (b,c,a): (b,c),(b,a),(c,a)\n- (c,a,b): (c,a),(c,b),(a,b)\n- (c,b,a): (c,b),(c,a),(b,a)\n\nWe need: for each of these 6 sets, not all 3 edges are present.\n\nWhat's the maximum number of edges we can have on 3 vertices?\n\nIf we take all 6 edges, every transitive triangle is present. Not allowed.\nIf we take 5 edges, say all except (c,a). Then check:\n- (a,b,c): (a,b)✓,(a,c)✓,(b,c)✓ → all present! Not allowed.\n\nLet me try: take both directions for two pairs and one direction for the third.\nSay (a,b),(b,a),(a,c),(c,a),(b,c). Check:\n- (a,b,c): (a,b)✓,(a,c)✓,(b,c)✓ → all present! Not allowed.\n\nTry (a,b),(b,a),(a,c),(c,a),(c,b). Check:\n- (a,b,c): (a,b)✓,(a,c)✓,(b,c)? (b,c) not in T. OK.\n- (a,c,b): (a,c)✓,(a,b)✓,(c,b)✓ → all present! Not allowed.\n\nTry (a,b),(b,a),(a,c),(b,c),(c,b). Check:\n- (a,b,c): (a,b)✓,(a,c)✓,(b,c)✓ → all present! Not allowed.\n\nTry (a,b),(b,a),(c,a),(b,c),(c,b). Check:\n- (a,b,c): (a,b)✓,(a,c)? not in T. OK.\n- (a,c,b): (a,c)? not in T. OK.\n- (b,a,c): (b,a)✓,(b,c)✓,(a,c)? not in T. OK.\n- (b,c,a): (b,c)✓,(b,a)✓,(c,a)✓ → all present! Not allowed.\n\nHmm. Let me try 4 edges.\n(a,b),(b,a),(a,c),(c,a). Check all 6:\n- (a,b,c): (a,b)✓,(a,c)✓,(b,c)? No. OK.\n- (a,c,b): (a,c)✓,(a,b)✓,(c,b)? No. OK.\n- (b,a,c): (b,a)✓,(b,c)? No. OK.\n- (b,c,a): (b,c)? No. OK.\n- (c,a,b): (c,a)✓,(c,b)? No. OK.\n- (c,b,a): (c,b)? No. OK.\nSo 4 edges work for 3 vertices. That's both directions for 2 pairs and 0 for the third.\n\nCan we do 5? Let me try (a,b),(b,a),(a,c),(c,a),(b,c):\n- (a,b,c): (a,b),(a,c),(b,c) all ✓. Not allowed.\n\n(a,b),(b,a),(a,c),(c,a),(c,b):\n- (a,c,b): (a,c),(a,b),(c,b) all ✓. Not allowed.\n\n(a,b),(b,a),(a,c),(b,c),(c,b):\n- (a,b,c): (a,b),(a,c),(b,c) all ✓. Not allowed.\n\n(a,b),(b,a),(c,a),(b,c),(c,b):\n- (b,c,a): (b,c),(b,a),(c,a) all ✓. Not allowed.\n\n(a,b),(a,c),(c,a),(b,c),(c,b):\n- (c,b,a): (c,b),(c,a),(b,a)? (b,a) not in T. OK.\n- (a,b,c): (a,b),(a,c),(b,c) all ✓. Not allowed.\n\n(a,c),(c,a),(b,a),(b,c),(c,b):\n- (b,a,c): (b,a),(b,c),(a,c) all ✓. Not allowed.\n\nSo for 3 vertices, the maximum is 4 (both directions for 2 of the 3 pairs, nothing for the third pair). This gives 4 directed edges, which is more than the 3 we'd get from a cyclic triangle orientation.\n\nInteresting! So bidirectional edges can help. With 3 vertices, max is 4 = 2*2 (two bidirectional pairs).\n\nSo the problem is more subtle than just Turán's theorem.\n\nLet me reconsider. For 3 vertices, the optimal is 4 edges: take both directions for 2 pairs, skip the third pair entirely. The underlying undirected graph has 2 edges (a path), and we use both directions for each.\n\nSo the strategy might be: for each undirected edge in G, use both directions (2 directed edges), and choose G to avoid transitive triangles.\n\nIf we use both directions for every edge, then the constraint becomes: for every ordered triple (a,b,c), not all of (a,b),(a,c),(b,c) are in T. Since we use both directions, (a,b) ∈ T iff {a,b} is an edge of G, and similarly for (a,c) and (b,c). So the constraint becomes: for every ordered triple (a,b,c) of distinct vertices, at least one of {a,b}, {a,c}, {b,c} is NOT an edge of G.\n\nBut this must hold for ALL orderings. For the unordered triple {a,b,c}, we need: for every permutation (x,y,z), at least one of {x,y}, {x,z}, {y,z} is not an edge. But the set {{x,y},{x,z},{y,z}} is the same for all permutations — it's always the three pairs of the triple. So the constraint is simply: for every triple {a,b,c}, not all three pairs are edges of G. In other words, G is triangle-free!\n\nIf G is triangle-free and we use both directions for every edge, then |T| = 2 * |E(G)|. The maximum triangle-free graph on 10 vertices is the complete bipartite graph K_{5,5} with 25 edges (by Mantel's theorem, ex(10, K₃) = ⌊10²/4⌋ = 25). So |T| = 50.\n\nBut wait, can we do better by mixing — using both directions for some edges and one direction for others?\n\nLet me think about this more carefully. We have a graph G (underlying undirected graph) and for each edge, we choose to include 1 or 2 directed versions. The constraint is: no transitive triangle in T.\n\nLet me categorize. For a triple {a,b,c} that forms a triangle in G (all three edges present), we need to orient/double the edges so that no transitive triangle is fully present. For a triple that doesn't form a triangle in G, there's automatically no transitive triangle (since at least one edge is missing).\n\nSo the constraint only applies to triangles of G. For each triangle of G, we need to assign directions (1 or 2 per edge) such that no transitive triangle is formed.\n\nFor a triangle {a,b,c} in G: the 6 directed edges are (a,b),(b,a),(a,c),(c,a),(b,c),(c,b). We choose a subset. The constraint: none of the 6 transitive triangles is fully contained.\n\nFrom the 3-vertex analysis, the maximum for a single triangle is 4 directed edges (both directions for 2 edges, 0 for the third). But we could also do 3 edges (cyclic orientation: (a,b),(b,c),(c,a)) or other combinations.\n\nIf we use a cyclic orientation (3 edges) for each triangle, then triangles are fine. But we need consistency across triangles that share edges.\n\nThis is getting complex. Let me think about it as an optimization problem.\n\nLet me define variables: for each ordered pair (a,b) with a≠b, let y_{ab} ∈ {0,1} indicate whether (a,b) ∈ T. We want to maximize Σ y_{ab} subject to: for every ordered triple (a,b,c) of distinct vertices, y_{ab} + y_{ac} + y_{bc} ≤ 2 (i.e., not all three are 1).\n\nWait, that's not quite right. The constraint is that not all three of (a,b),(a,c),(b,c) are in T. So y_{ab} · y_{ac} · y_{bc} = 0, or equivalently, at least one is 0. This is equivalent to y_{ab} + y_{ac} + y_{bc} ≤ 2.\n\nSo we want to maximize Σ_{a≠b} y_{ab} subject to: for all distinct a,b,c: y_{ab} + y_{ac} + y_{bc} ≤ 2.\n\nThis is an integer linear program. Let me think about the LP relaxation and find the optimal.\n\nActually, let me think about this combinatorially. The constraint y_{ab} + y_{ac} + y_{bc} ≤ 2 for all distinct a,b,c means: for any three vertices, the number of \"forward\" edges (in the order a,b,c) is at most 2. But since this must hold for all 6 orderings, let me see what the combined constraint is.\n\nFor the unordered triple {a,b,c}, the 6 constraints are:\n1. y_{ab} + y_{ac} + y_{bc} ≤ 2\n2. y_{ac} + y_{ab} + y_{cb} ≤ 2  (same as y_{ab} + y_{ac} + y_{cb} ≤ 2)\n3. y_{ba} + y_{bc} + y_{ac} ≤ 2\n4. y_{bc} + y_{ba} + y_{ca} ≤ 2\n5. y_{ca} + y_{cb} + y_{ab} ≤ 2\n6. y_{cb} + y_{ca} + y_{ba} ≤ 2\n\nLet me denote the 6 variables as: p=y_{ab}, q=y_{ba}, r=y_{ac}, s=y_{ca}, t=y_{bc}, u=y_{cb}.\n\nConstraints:\n1. p + r + t ≤ 2\n2. p + r + u ≤ 2  (wait, let me recheck. (a,c,b): y_{ac} + y_{ab} + y_{cb} = r + p + u ≤ 2)\n3. q + t + r ≤ 2  (b,a,c): y_{ba} + y_{bc} + y_{ac} = q + t + r ≤ 2)\n4. t + q + s ≤ 2  (b,c,a): y_{bc} + y_{ba} + y_{ca} = t + q + s ≤ 2)\n5. s + u + p ≤ 2  (c,a,b): y_{ca} + y_{cb} + y_{ab} = s + u + p ≤ 2)\n6. u + s + q ≤ 2  (c,b,a): y_{cb} + y_{ca} + y_{ba} = u + s + q ≤ 2)\n\nWe want to maximize p + q + r + s + t + u subject to these 6 constraints and all variables in {0,1}.\n\nLet me find the maximum. From constraints 1 and 2: p + r + t ≤ 2 and p + r + u ≤ 2. So p + r + max(t,u) ≤ 2.\nFrom constraints 3 and 4: q + t + r ≤ 2 and q + t + s ≤ 2. So q + t + max(r,s) ≤ 2.\nFrom constraints 5 and 6: s + u + p ≤ 2 and s + u + q ≤ 2. So s + u + max(p,q) ≤ 2.\n\nLet me try to find the maximum sum. Let's try all 6 variables = 1: sum = 6. Check constraint 1: 1+1+1=3 > 2. Not feasible.\n\nTry 5 variables = 1, one = 0. Say u=0: p=q=r=s=t=1.\nConstraint 1: p+r+t = 3 > 2. Not feasible.\n\nTry p=q=r=s=1, t=u=0: sum=4.\nConstraint 1: p+r+t = 1+1+0 = 2 ≤ 2. ✓\nConstraint 2: p+r+u = 1+1+0 = 2 ≤ 2. ✓\nConstraint 3: q+t+r = 1+0+1 = 2 ≤ 2. ✓\nConstraint 4: t+q+s = 0+1+1 = 2 ≤ 2. ✓\nConstraint 5: s+u+p = 1+0+1 = 2 ≤ 2. ✓\nConstraint 6: u+s+q = 0+1+1 = 2 ≤ 2. ✓\nSum = 4. Feasible!\n\nCan we do 5? We need 5 of the 6 variables to be 1. WLOG say u=0 (by symmetry, any single variable being 0 is equivalent up to relabeling). Then p=q=r=s=t=1.\nConstraint 1: p+r+t = 3 > 2. ✗.\n\nWhat if two are 0? We already found sum=4 works. Can we get sum=5 with a different pattern? We need exactly one variable to be 0. But we showed any single variable being 0 leads to a constraint violation (by symmetry, if u=0 fails, any single 0 fails). Let me verify: if u=0, p=q=r=s=t=1, constraint 1 gives p+r+t=3>2. If t=0, p=q=r=s=u=1, constraint 2 gives p+r+u=3>2. By symmetry, any single 0 gives a violation. So max for a single triple is 4.\n\nSo for each triple of vertices, at most 4 of the 6 directed edges can be in T. And we showed this is achievable (both directions for 2 pairs, 0 for the third).\n\nNow, the global problem: maximize Σ y_{ab} over all 90 directed edges, subject to: for every triple {a,b,c}, the sum of the 6 directed edges among them is at most 4... wait, no. The constraint is not that the sum of all 6 is at most 4. The constraint is the 6 individual constraints. Let me re-examine.\n\nActually, the constraint is the 6 inequalities, not that the sum ≤ 4. The sum ≤ 4 is a consequence (adding any two complementary constraints... actually, let me check: is sum ≤ 4 a consequence of the 6 constraints?).\n\nAdding constraints 1 and 6: (p+r+t) + (u+s+q) ≤ 4, which is p+q+r+s+t+u ≤ 4. Yes! So the sum of all 6 variables is at most 4, and this is a consequence of constraints 1 and 6 alone.\n\nSo for every triple {a,b,c}, the total number of directed edges among the three vertices is at most 4.\n\nNow, the global problem: we have 10 vertices and 90 directed edges. For every triple, the number of directed edges within the triple is at most 4. Maximize total directed edges.\n\nLet d_{ab} = y_{ab} + y_{ba} ∈ {0,1,2} be the number of directed edges between a and b. Then the constraint for triple {a,b,c} is: d_{ab} + d_{ac} + d_{bc} ≤ 4.\n\nWe want to maximize Σ_{a<b} d_{ab}.\n\nThis is a cleaner formulation. We have a weighted graph on 10 vertices where each edge has weight 0, 1, or 2, and for every triangle, the sum of weights is at most 4. Maximize total weight.\n\nLet me think about this. If all weights are 2 (both directions for every pair), then every triangle has weight 6 > 4. Not feasible.\n\nIf all weights are 2 for edges in a triangle-free graph and 0 otherwise: then no triangle exists, so the constraint is vacuously satisfied. Total weight = 2 * |E(G)| where G is triangle-free. Max |E(G)| for triangle-free on 10 vertices = 25 (K_{5,5}). Total weight = 50.\n\nCan we do better by using some weight-1 edges and some weight-2 edges, allowing some triangles?\n\nConsider a triangle with weights w₁, w₂, w₃ ∈ {0,1,2} with w₁+w₂+w₃ ≤ 4. The maximum contribution of a triangle is 4 (e.g., 2+2+0 or 2+1+1).\n\nIn the triangle-free case with all weight 2, each edge contributes 2 and there are no triangles. Total = 50.\n\nCan we beat 50? Let me think about an upper bound.\n\nConsider the sum over all triples: Σ_{triples {a,b,c}} (d_{ab} + d_{ac} + d_{bc}) ≤ 4 * C(10,3) = 4 * 120 = 480.\n\nEach edge d_{ab} appears in C(8,1) = 8 triples (the third vertex can be any of the remaining 8). So Σ_{triples} (d_{ab} + d_{ac} + d_{bc}) = 8 * Σ_{a<b} d_{ab} = 8 * W where W is the total weight.\n\nSo 8W ≤ 480, giving W ≤ 60.\n\nSo the upper bound is 60. Can we achieve 60?\n\nTo achieve W = 60, we need every triple to have weight exactly 4. That means for every triple {a,b,c}: d_{ab} + d_{ac} + d_{bc} = 4.\n\nThis is a very strong condition. Let me see if it's achievable.\n\nIf every triple has weight sum 4, consider two triples sharing an edge. {a,b,c}: d_{ab}+d_{ac}+d_{bc}=4. {a,b,d}: d_{ab}+d_{ad}+d_{bd}=4. Subtracting: d_{ac}+d_{bc} = d_{ad}+d_{bd}.\n\nSo for any two vertices c,d (both ≠ a,b): d_{ac}+d_{bc} = d_{ad}+d_{bd}. This means d_{ac}+d_{bc} is constant for all c ≠ a,b. Let's call it f(a,b).\n\nNow, consider {a,c,d}: d_{ac}+d_{ad}+d_{cd}=4. And we know d_{ac}+d_{bc} = f(a,b) and d_{ad}+d_{bd} = f(a,b), so d_{ac} = f(a,b) - d_{bc} and d_{ad} = f(a,b) - d_{bd}.\n\nFrom {a,c,d}: (f(a,b) - d_{bc}) + (f(a,b) - d_{bd}) + d_{cd} = 4, so 2f(a,b) - d_{bc} - d_{bd} + d_{cd} = 4.\n\nFrom {b,c,d}: d_{bc}+d_{bd}+d_{cd}=4, so d_{cd} = 4 - d_{bc} - d_{bd}.\n\nSubstituting: 2f(a,b) - d_{bc} - d_{bd} + 4 - d_{bc} - d_{bd} = 4, so 2f(a,b) - 2d_{bc} - 2d_{bd} = 0, so f(a,b) = d_{bc} + d_{bd}.\n\nBut we also know d_{ac}+d_{bc} = f(a,b), so d_{ac} = f(a,b) - d_{bc} = d_{bd}. Similarly, d_{ad} = d_{bc}.\n\nSo d_{ac} = d_{bd} and d_{ad} = d_{bc} for all c,d ≠ a,b. This means: for fixed a,b, the value d_{ac} depends only on... hmm, d_{ac} = d_{bd} for all c,d. But d and c are free. So d_{ac} is the same for all c (since d can be anything and d_{bd} doesn't depend on c... wait, d_{bd} depends on d but not on c, and d_{ac} = d_{bd} for all c,d).\n\nActually, d_{ac} = d_{bd} for all c,d ≠ a,b. The left side depends on c, the right side depends on d. Since c and d are independent (as long as both ≠ a,b), this means d_{ac} is constant for all c ≠ a,b, and d_{bd} is the same constant for all d ≠ a,b.\n\nLet me denote this constant as g(a,b). So for all c ≠ a,b: d_{ac} = g(a,b) and d_{bc} = g(a,b) (by similar argument with d_{ad} = d_{bc}).\n\nWait, that means d_{ac} = g(a,b) for all c ≠ a,b, and d_{bc} = g(a,b) for all c ≠ a,b. But d_{ac} should also satisfy the same property when we pick a different pair. Let me think about this more carefully.\n\nFor the pair (a,b): d_{ac} = g(a,b) for all c ≠ a,b, and d_{bc} = g(a,b) for all c ≠ a,b.\n\nNow consider the pair (a,c) for some c ≠ a,b. We get: d_{ad} = g(a,c) for all d ≠ a,c, and d_{cd} = g(a,c) for all d ≠ a,c.\n\nIn particular, d_{ab} = g(a,c) (taking d = b) and d_{ad} = g(a,c) for all d ≠ a,c.\n\nBut from the pair (a,b), d_{ad} = g(a,b) for all d ≠ a,b. So for d ≠ a,b,c: g(a,c) = g(a,b). And d_{ab} = g(a,c).\n\nSo g(a,b) = g(a,c) for all b,c ≠ a. This means g(a,·) is constant — call it h(a). So d_{ab} = h(a) for all b ≠ a.\n\nBut by symmetry of d (d_{ab} = d_{ba}), h(a) = d_{ab} = d_{ba} = h(b) for all a,b. So h is constant — call it h. So d_{ab} = h for all a ≠ b.\n\nThen every triple has weight 3h = 4, so h = 4/3. But h must be an integer (0, 1, or 2). Contradiction!\n\nSo W = 60 is not achievable. The upper bound of 60 is not tight.\n\nLet me find the actual maximum. Since every d_{ab} ∈ {0,1,2} and every triple sum ≤ 4, and the uniform solution doesn't work, let me think about what structures work.\n\nLet me try a different approach. Let's think about the problem in terms of a 2-coloring or partition.\n\nApproach: Partition the 10 digits into groups, and assign weights based on group membership.\n\nCase 1: All weight 2, triangle-free graph. Max = 2 * 25 = 50 (K_{5,5}).\n\nCase 2: Mix of weights. Let me think about what happens if we have a graph where some edges have weight 2 and some have weight 1.\n\nLet me think about it differently. Let's say the edges with weight 2 form a graph G₂, and edges with weight 1 form a graph G₁ (disjoint from G₂). Edges with weight 0 are absent. The total weight is 2|E(G₂)| + |E(G₁)|.\n\nThe constraint: for every triangle in G = G₂ ∪ G₁, the sum of weights ≤ 4.\n\nA triangle with all three edges in G₂ has weight 6 > 4. Not allowed. So G₂ is triangle-free.\n\nA triangle with two edges in G₂ and one in G₁ has weight 5 > 4. Not allowed. So no triangle has 2 or more edges from G₂.\n\nA triangle with one edge in G₂ and two in G₁ has weight 4. Allowed.\nA triangle with all three in G₁ has weight 3. Allowed.\nA triangle with one in G₂, one in G₁, one absent: weight 3. Fine (no constraint since not a triangle in G).\n\nWait, I need to be more careful. The constraint is on every triple {a,b,c}, not just triangles of G. If d_{ab} + d_{ac} + d_{bc} ≤ 4, this applies to all triples, including those where some edges are absent (weight 0).\n\nFor a triple where one edge is in G₂ (weight 2) and the other two are absent (weight 0): sum = 2 ≤ 4. Fine.\nFor a triple where two edges are in G₂ and one absent: sum = 4 ≤ 4. Fine!\nFor a triple where two edges are in G₂ and one in G₁: sum = 5 > 4. Not allowed.\nFor a triple where two edges are in G₂ and one in G₂: sum = 6 > 4. Not allowed (three edges in G₂).\n\nSo the constraint is: no triple has two G₂ edges and a third edge (in G₁ or G₂) that makes the sum > 4. More precisely:\n- No triple has 3 edges in G₂ (sum 6).\n- No triple has 2 edges in G₂ and 1 in G₁ (sum 5).\n- No triple has 2 edges in G₂ and 1 in G₂ (covered above).\n- Triples with 2 edges in G₂ and 1 absent: sum 4, OK.\n- Triples with 1 edge in G₂ and 2 in G₁: sum 4, OK.\n- Triples with 1 edge in G₂, 1 in G₁, 1 absent: sum 3, OK.\n- Triples with 0 edges in G₂, 3 in G₁: sum 3, OK.\n- etc.\n\nSo the key constraints are:\n1. G₂ is triangle-free (no 3 edges from G₂ in any triple).\n2. No triple has 2 edges from G₂ and 1 edge from G₁. In other words, if two edges of a triple are in G₂, the third must be absent (weight 0, not in G₁ or G₂).\n\nConstraint 2 means: G₁ contains no edge that completes a \"2-edge G₂ path\" into a triangle. Specifically, if {a,b} and {a,c} are in G₂, then {b,c} ∉ G₁ (and also ∉ G₂ by constraint 1). Similarly for other combinations.\n\nSo: if two edges of a triple are in G₂, the third edge must have weight 0.\n\nNow, let's think about maximizing 2|E(G₂)| + |E(G₁)|.\n\nLet me think about the structure of G₂. G₂ is triangle-free. Consider the neighborhoods in G₂. If a is connected to b and c in G₂, then {b,c} must have weight 0 (not in G₁ or G₂). So the neighborhood of every vertex in G₂ is an independent set in G = G₂ ∪ G₁ (no edges at all, not even weight 1).\n\nThis means: for every vertex a, N_{G₂}(a) is an independent set in G (no edges among neighbors of a in G₂, in either G₂ or G₁).\n\nNow, let me think about the structure. G₂ is triangle-free, and for every vertex, its G₂-neighborhood has no edges in G at all.\n\nLet me consider G₂ = K_{5,5} (complete bipartite, 25 edges). Partition: A = {0,1,2,3,4}, B = {5,6,7,8,9}. Every vertex in A is connected to every vertex in B in G₂.\n\nFor vertex 0 ∈ A: N_{G₂}(0) = B = {5,6,7,8,9}. So no edges among {5,6,7,8,9} in G. Similarly for all vertices in A: their G₂-neighborhood is B, so B is an independent set in G.\n\nFor vertex 5 ∈ B: N_{G₂}(5) = A = {0,1,2,3,4}. So no edges among {0,1,2,3,4} in G. So A is an independent set in G.\n\nSo G has no edges within A and no edges within B. All edges of G are between A and B. But G₂ already has all A-B edges (K_{5,5}). So G₁ can only add edges between A and B, but those are already in G₂. So G₁ = ∅.\n\nTotal weight = 2 * 25 = 50.\n\nCan we do better with a different G₂?\n\nLet me try G₂ being a different triangle-free graph that leaves room for G₁ edges.\n\nThe idea: if G₂ has fewer edges, there might be more room for G₁ edges. Each G₂ edge contributes 2, each G₁ edge contributes 1. So replacing a G₂ edge with a G₁ edge loses 1. But if removing a G₂ edge allows adding multiple G₁ edges, it might be worth it.\n\nLet me think about small examples. Consider G₂ = a perfect matching on 10 vertices (5 edges). Then the constraint is: for each matched pair {a,b}, N_{G₂}(a) = {b} and N_{G₂}(b) = {a}. The constraint says N_{G₂}(a) is independent in G, which is trivially satisfied (single vertex). So the only constraint from G₂ is that G₂ is triangle-free (trivially true for a matching) and the \"two G₂ edges in a triple\" constraint.\n\nFor a matching, two edges of G₂ in a triple means the triple contains two matched pairs... but a triple has 3 vertices, so it can contain at most one matched pair (since matching edges are disjoint). Wait, no: a triple {a,b,c} where {a,b} is a matching edge and {a,c} is... but {a,c} is not a matching edge (since a is matched to b). So a triple can have at most one G₂ edge. So the constraint \"two G₂ edges in a triple\" never triggers. So G₁ can be anything!\n\nWith G₂ = matching (5 edges, weight 10) and G₁ = complete graph minus the matching (45 - 5 = 40 edges, weight 40). Total = 10 + 40 = 50.\n\nSame as before. Hmm.\n\nLet me try G₂ = empty (0 edges). Then G₁ can be the complete graph K₁₀ (45 edges). Total = 0 + 45 = 45. Worse.\n\nLet me try G₂ = a star (9 edges, center connected to all others). N_{G₂}(center) = all 9 others, which must be independent in G. So no edges among the 9 non-center vertices. G₁ can have edges from center to others, but those are already in G₂. So G₁ = ∅. Total = 2 * 9 = 18. Worse.\n\nLet me try G₂ = a path or cycle. Consider G₂ = C₁₀ (10-cycle). Each vertex has 2 neighbors in G₂. The constraint: N_{G₂}(v) is independent in G. For a 10-cycle 0-1-2-...-9-0, N_{G₂}(0) = {1,9}, so {1,9} must have no edge in G. N_{G₂}(1) = {0,2}, so {0,2} no edge. Etc.\n\nAlso, the \"two G₂ edges in a triple\" constraint: if {a,b} and {a,c} are both in G₂, then {b,c} must have weight 0. In a cycle, a has two G₂-neighbors, say b and c, so {b,c} must be weight 0. For vertex 0: neighbors 1 and 9, so {1,9} weight 0. For vertex 1: neighbors 0 and 2, so {0,2} weight 0. Etc.\n\nSo the forbidden edges (weight 0) are: {1,9}, {0,2}, {1,3}, {2,4}, {3,5}, {4,6}, {5,7}, {6,8}, {7,9}, {0,8}. That's 10 edges.\n\nThe G₂ edges are: {0,1},{1,2},{2,3},{3,4},{4,5},{5,6},{6,7},{7,8},{8,9},{9,0}. 10 edges.\n\nRemaining edges: 45 - 10 (G₂) - 10 (forbidden) = 25 edges available for G₁.\n\nTotal = 2*10 + 25 = 45. Worse than 50.\n\nLet me try a different approach. Let me think about what G₂ structures allow the most total weight.\n\nThe total weight is 2|E(G₂)| + |E(G₁)| = 2|E(G₂)| + (45 - |E(G₂)| - |F|) = 45 + |E(G₂)| - |F|, where F is the set of forbidden edges (weight 0, forced by G₂).\n\nWe want to maximize |E(G₂)| - |F|. The forbidden edges F come from:\n1. G₂ itself is triangle-free, so no triangles in G₂.\n2. For every pair of G₂ edges sharing a vertex, the \"closing\" edge is forbidden.\n\nSpecifically, F consists of all edges {b,c} such that there exists a vertex a with {a,b} ∈ G₂ and {a,c} ∈ G₂. In other words, F is the set of edges between vertices at distance 2 in G₂ (that aren't already in G₂).\n\nActually, F = { {b,c} : ∃ a, {a,b} ∈ E(G₂), {a,c} ∈ E(G₂), b ≠ c, {b,c} ∉ E(G₂) }.\n\nThis is the set of edges in the \"square\" of G₂ minus G₂ itself, restricted to pairs at distance exactly 2.\n\nWait, more precisely, F is the set of non-edges of G₂ that are between two vertices sharing a common G₂-neighbor. If {b,c} is already in G₂, it's not in F (it's in G₂). If {b,c} is not in G₂ but b and c share a common neighbor in G₂, then {b,c} ∈ F.\n\nSo |F| = |{ {b,c} ∉ E(G₂) : ∃ a, {a,b},{a,c} ∈ E(G₂) }|.\n\nAnd we want to maximize |E(G₂)| - |F| = |E(G₂)| - |{non-edges at distance 2 in G₂}|.\n\nAlternatively, total weight = 45 + |E(G₂)| - |F|.\n\nTo maximize, we want G₂ with many edges but few distance-2 non-edges.\n\nIf G₂ = K_{5,5}: |E(G₂)| = 25. Distance-2 pairs: within A (all pairs in A are at distance 2 via any vertex in B) and within B. |F| = C(5,2) + C(5,2) = 10 + 10 = 20. Total = 45 + 25 - 20 = 50.\n\nIf G₂ = complete bipartite K_{a,b} with a+b=10: |E(G₂)| = ab. F = C(a,2) + C(b,2) (all pairs within each part are at distance 2). Total = 45 + ab - C(a,2) - C(b,2) = 45 + ab - (a²-a+b²-b)/2 = 45 + ab - (a²+b²-10)/2 = 45 + ab - (100-2ab-10)/2 = 45 + ab - (90-2ab)/2 = 45 + ab - 45 + ab = 2ab.\n\nSo for K_{a,b}: total = 2ab. Maximized when a=b=5: 2*25 = 50. For a=4,b=6: 2*24=48. For a=3,b=7: 2*21=42. So K_{5,5} is the best complete bipartite.\n\nCan a non-bipartite G₂ do better? Let's try G₂ = complete tripartite K_{4,3,3} (Turán graph, 33 edges, triangle-free).\n\nParts: A={0,1,2,3}, B={4,5,6}, C={7,8,9}. Edges: all between different parts.\n\nDistance-2 pairs: \n- Within A: any two vertices in A share all neighbors in B and C. So all C(4,2)=6 pairs in A are at distance 2.\n- Within B: C(3,2)=3 pairs.\n- Within C: C(3,2)=3 pairs.\n- Between A and B: already edges in G₂, not in F.\n- Between A and C: already edges.\n- Between B and C: already edges.\n\nSo |F| = 6 + 3 + 3 = 12. Total = 45 + 33 - 12 = 66. Wait, that's more than 50!\n\nHmm wait, let me double-check. Is K_{4,3,3} triangle-free? Yes, it's 3-partite, so no triangles. Good.\n\nBut wait, I need to check the constraint more carefully. The constraint is that for every triple with two G₂ edges, the third edge must be weight 0 (in F). Let me verify that F is correctly computed.\n\nFor G₂ = K_{4,3,3}: take vertices a ∈ A, b ∈ B, c ∈ C. Edges {a,b} and {a,c} are in G₂. The third edge {b,c} is also in G₂ (since B and C are different parts). So this triple has 3 G₂ edges, which means weight 6 > 4. This violates the constraint!\n\nOh no, I made an error. G₂ must be triangle-free, but K_{4,3,3} is triangle-free. However, the constraint is not just that G₂ is triangle-free — it's that no triple has sum of weights > 4. A triple with 3 G₂ edges has weight 6, which violates the constraint even though G₂ is triangle-free.\n\nWait, I think I confused myself. Let me re-derive.\n\nG₂ is the set of weight-2 edges. A triangle in G₂ (3 edges all in G₂) would have weight 6 > 4. So G₂ must be triangle-free. K_{4,3,3} is triangle-free, so no triangle has 3 G₂ edges. ✓\n\nBut a triple {a,b,c} with a∈A, b∈B, c∈C has all three edges in G₂ (since all cross-part edges are in G₂). This IS a triangle in G₂! K_{4,3,3} is 3-partite, so it has no triangles... wait, does it?\n\nK_{4,3,3} is the complete 3-partite graph. A triangle would need 3 vertices with all 3 edges present. If we pick one from each part, all 3 edges are present (since they're in different parts). So K_{4,3,3} DOES have triangles! A 3-partite complete graph has triangles (one from each part).\n\nI was wrong — K_{4,3,3} is NOT triangle-free. A complete k-partite graph with k ≥ 3 has triangles. Only complete bipartite (k=2) graphs are triangle-free.\n\nSo G₂ must be triangle-free, meaning G₂ can be bipartite (or any triangle-free graph). The Turán graph T(10,3) = K_{4,3,3} has triangles, so it can't be G₂.\n\nOK so let me reconsider. G₂ must be triangle-free. The maximum triangle-free graph on 10 vertices is K_{5,5} with 25 edges (Mantel's theorem).\n\nBut G₂ doesn't have to be the maximum triangle-free graph. We want to maximize 45 + |E(G₂)| - |F|, not just |E(G₂)|.\n\nLet me reconsider with G₂ being triangle-free but not necessarily complete bipartite.\n\nLet me try G₂ = K_{5,5} minus some edges, to reduce |F|.\n\nActually, let me reconsider the formula. Total = 45 + |E(G₂)| - |F|, where F is the set of non-G₂ edges between vertices at distance 2 in G₂.\n\nFor K_{5,5}: |E(G₂)| = 25, |F| = 20 (all pairs within each part). Total = 50.\n\nWhat if G₂ is a subgraph of K_{5,5} with fewer edges? Then |E(G₂)| decreases, but |F| might also decrease. Let's see.\n\nIf G₂ = K_{5,5} minus one edge, say {0,5}: |E(G₂)| = 24. Now, is {0,5} still at distance 2? 0 is in A, 5 is in B. They share common neighbors: 0 is connected to 6,7,8,9 and 5 is connected to 1,2,3,4. Do they share a common neighbor? 0's neighbors: 6,7,8,9 (in B). 5's neighbors: 1,2,3,4 (in A). No common neighbor. So {0,5} is NOT at distance 2. So {0,5} is not in F.\n\nBut what about other pairs? The pairs within A: {0,1} — do 0 and 1 share a common neighbor? 0 is connected to 6,7,8,9 and 1 is connected to 5,6,7,8,9. Common neighbors: 6,7,8,9. So yes, {0,1} is at distance 2. Similarly for all other within-A pairs (since each vertex in A is still connected to at least 4 vertices in B, and any two vertices in A share at least 3 common neighbors in B). And within-B pairs similarly.\n\nSo |F| = 20 - 0 = 20 (the removed edge {0,5} is not at distance 2, but it was already not in F since it was a G₂ edge... wait, F is the set of non-G₂ edges at distance 2. {0,5} is now a non-G₂ edge. Is it at distance 2? No, as computed. So {0,5} ∉ F. But previously {0,5} was in G₂, so it wasn't in F either. So |F| is still 20.\n\nTotal = 45 + 24 - 20 = 49. Worse.\n\nWhat if we remove edges strategically to reduce |F|? We need to reduce distance-2 pairs.\n\nLet me think about this differently. Consider G₂ as a bipartite graph with parts A and B (|A|=a, |B|=b, a+b=10). Edges only between A and B. G₂ is triangle-free (bipartite).\n\nDistance-2 pairs: \n- Within A: {a₁, a₂} at distance 2 if they share a common neighbor in B.\n- Within B: {b₁, b₂} at distance 2 if they share a common neighbor in A.\n- Between A and B: {a, b} at distance 2 if there's a path a - b' - a' - b or a - b' - ... no, distance 2 means a - x - b where x is a common neighbor. But a ∈ A and b ∈ B, so a common neighbor x would need to be in both A and B, impossible (bipartite). Unless a and b are not directly connected and there's a path a - b' - a' - b... no, that's distance 3. Distance 2: a - x - b, x is adjacent to both a and b. x must be in B (adjacent to a) and in A (adjacent to b). Contradiction since A ∩ B = ∅. So no A-B pair is at distance 2 in a bipartite graph. Good.\n\nSo F consists of within-A pairs at distance 2 and within-B pairs at distance 2.\n\n|F| = |{pairs in A sharing a B-neighbor}| + |{pairs in B sharing an A-neighbor}|.\n\nTotal = 45 + |E(G₂)| - |F|.\n\nWe want to maximize |E(G₂)| - |F|.\n\nFor a bipartite graph with parts A (size a) and B (size b):\n- |E(G₂)| = number of edges.\n- |F_A| = number of pairs in A sharing a common neighbor in B.\n- |F_B| = number of pairs in B sharing a common neighbor in A.\n- |F| = |F_A| + |F_B|.\n\nFor K_{a,b}: |E| = ab, |F_A| = C(a,2) (all pairs share all b neighbors), |F_B| = C(b,2). |E| - |F| = ab - C(a,2) - C(b,2) = ab - a(a-1)/2 - b(b-1)/2. With a+b=10: = ab - (a²+b²-10)/2 = ab - (100-2ab-10)/2 = ab - 45 + ab = 2ab - 45. Maximized at a=b=5: 50-45=5. Total = 45 + 5 = 50.\n\nFor a non-complete bipartite graph, can we do better? We want to maximize |E| - |F_A| - |F_B|.\n\nConsider a bipartite graph where each vertex in A has degree 1 (matching from A to B). Then |E| = a, |F_A| = 0 (no two vertices in A share a neighbor, since it's a matching), |F_B| = 0 (each vertex in B has degree 1). |E| - |F| = a. Total = 45 + a. With a=5: 50. Same.\n\nWhat if we use a=5, b=5, and a graph that's not complete? Let me think about specific structures.\n\nConsider G₂ where each vertex in A is connected to exactly 2 vertices in B, and the connections are arranged so that no two A-vertices share a B-neighbor (i.e., the graph is a (2,2)-biregular graph with no shared neighbors). This requires 5*2 = 10 edges, and each B-vertex has degree 2. For no shared neighbors in A: each pair of A-vertices has disjoint B-neighborhoods. With 5 A-vertices each having 2 B-neighbors, we need 10 distinct (A-vertex, B-vertex) pairs with no two A-vertices sharing a B-vertex. But there are only 5 B-vertices, and each B-vertex can be connected to at most... well, if no two A-vertices share a B-neighbor, each B-vertex is connected to at most 1 A-vertex. But then |E| ≤ 5, not 10. Contradiction.\n\nSo we can't have 10 edges with no shared neighbors. Let me think about the tradeoff more carefully.\n\nLet me consider the problem as: maximize |E(G₂)| - |F| where G₂ is a bipartite graph on (A, B) with |A|=a, |B|=b, a+b=10.\n\n|E(G₂)| - |F| = |E| - |F_A| - |F_B|.\n\nFor each pair {a₁, a₂} in A, they contribute to |F_A| if they share a common neighbor. The number of such pairs is at most C(a,2).\n\nLet me think about it using inclusion-exclusion or a direct counting argument.\n\nActually, let me think about it differently. For each B-vertex b, let d(b) be its degree (number of A-neighbors). The number of A-pairs sharing b as a common neighbor is C(d(b), 2). The total |F_A| ≤ Σ_{b ∈ B} C(d(b), 2) (with equality if no pair is counted twice, i.e., no two A-vertices share more than one common B-neighbor; but in general, |F_A| ≤ Σ C(d(b),2) by union bound, and |F_A| ≥ ... well, by inclusion-exclusion it's complicated).\n\nActually, |F_A| = |{ {a₁,a₂} : N(a₁) ∩ N(a₂) ≠ ∅ }|, and Σ_{b} C(d(b),2) = Σ_{b} |{pairs of A-neighbors of b}| counts each pair {a₁,a₂} as many times as they have common neighbors. So Σ C(d(b),2) ≥ |F_A|, with equality iff every sharing pair shares exactly one common neighbor.\n\nSimilarly for |F_B|.\n\nSo |F| ≤ Σ_{b} C(d(b),2) + Σ_{a} C(d(a),2) where d(a) is the degree of a in A.\n\nAnd |E| = Σ_{b} d(b) = Σ_{a} d(a).\n\nWe want to maximize |E| - |F| ≥ |E| - Σ C(d(b),2) - Σ C(d(a),2).\n\nHmm, this gives a lower bound on |E| - |F|, not an upper bound. Let me think about upper bounds.\n\nWe have |F| ≥ ... well, |F_A| ≥ max over all B-vertices of C(d(b), 2) ... no, that's not right either.\n\nLet me try a different approach. Let me just try to find the best construction and prove it's optimal.\n\nLet me consider non-bipartite G₂. Wait, G₂ must be triangle-free, but it doesn't have to be bipartite. A triangle-free graph on 10 vertices can be non-bipartite (it would have odd cycles of length ≥ 5).\n\nBut actually, for maximizing |E(G₂)| - |F|, let me consider the Petersen graph. The Petersen graph is triangle-free, 3-regular, 10 vertices, 15 edges. It's non-bipartite (it has 5-cycles and 9-cycles).\n\nFor the Petersen graph: each vertex has degree 3. Distance-2 pairs: each vertex has 3 neighbors, and each neighbor has 2 other neighbors. So from each vertex, there are at most 3*2 = 6 vertices at distance 2 (but some might coincide). In the Petersen graph, the distance-2 neighborhood of each vertex has exactly 6 vertices (the Petersen graph has diameter 2, and each vertex has 3 neighbors and 6 vertices at distance 2). So each vertex has 6 distance-2 neighbors.\n\n|F| = (1/2) * Σ_v (number of distance-2 neighbors of v) = (1/2) * 10 * 6 = 30. But wait, this counts all distance-2 pairs, including those that might be actual edges. In the Petersen graph, the distance-2 pairs are exactly the non-edges (since diameter 2 and 15 edges out of 45 pairs, so 30 non-edges, all at distance 2). So |F| = 30.\n\nTotal = 45 + 15 - 30 = 30. Much worse.\n\nOK, the Petersen graph is bad because it has few edges and many distance-2 pairs.\n\nLet me go back to thinking about the problem more carefully. \n\nActually, I realize I should also consider G₂ that is not bipartite but is triangle-free. However, the key insight is that we want many edges and few distance-2 non-edges. Bipartite graphs with balanced parts seem good for this.\n\nLet me try to think about the problem from the LP perspective. We have the constraint that for every triple, d_{ab} + d_{ac} + d_{bc} ≤ 4, where each d ∈ {0,1,2}. We want to maximize Σ d_{ab}.\n\nThe LP relaxation (allowing d ∈ [0,2]) gives an upper bound. By symmetry, the optimal LP solution might have all d_{ab} equal. If d_{ab} = d for all pairs, then 3d ≤ 4, so d ≤ 4/3. Total = 45 * 4/3 = 60. But this isn't achievable with integer values.\n\nLet me think about better bounds. \n\nActually, let me reconsider the problem. Maybe I should think about it more carefully with a mix of weight 1 and weight 2 edges, not necessarily bipartite G₂.\n\nLet me consider the following construction:\n- Partition {0,...,9} into A = {0,1,2,3,4} and B = {5,6,7,8,9}.\n- G₂ = K_{5,5} (all A-B edges, weight 2). 25 edges.\n- G₁ = all edges within A and within B (weight 1). C(5,2) + C(5,2) = 20 edges.\n\nCheck constraints: \n- Triples with all 3 vertices in A: all three edges are in G₁, weight 1+1+1 = 3 ≤ 4. ✓\n- Triples with all 3 in B: same, 3 ≤ 4. ✓\n- Triples with 2 in A, 1 in B: say a₁, a₂ ∈ A, b ∈ B. Edges: {a₁,a₂} in G₁ (weight 1), {a₁,b} in G₂ (weight 2), {a₂,b} in G₂ (weight 2). Sum = 5 > 4. ✗!\n\nThis doesn't work! The triple with 2 in A and 1 in B has weight 5.\n\nSo we can't have both G₂ = K_{5,5} and G₁ = all within-part edges. The constraint is violated.\n\nThis confirms that the constraint is tight: if two edges of a triple are in G₂, the third must be weight 0.\n\nSo with G₂ = K_{5,5}, the within-part edges must all be weight 0 (in F). Total = 2*25 + 0 = 50.\n\nNow, can we do better with a different G₂? Let me think about G₂ that's not complete bipartite.\n\nConsider G₂ = K_{5,5} minus a perfect matching M. So G₂ has 25 - 5 = 20 edges. The removed matching pairs are {0,5}, {1,6}, {2,7}, {3,8}, {4,9}.\n\nNow, F consists of:\n- Within A: pairs sharing a common B-neighbor. Each A-vertex is connected to 4 B-vertices (all except its matched partner). Two A-vertices a₁, a₂ share common B-neighbors: B minus {matched partner of a₁} minus {matched partner of a₂}. If a₁ and a₂ have different matched partners, they share 5 - 2 = 3 common B-neighbors. So all C(5,2) = 10 within-A pairs are at distance 2. |F_A| = 10.\n- Within B: similarly, |F_B| = 10.\n- The removed matching edges: {0,5} — is this at distance 2? 0 is connected to {6,7,8,9} and 5 is connected to {1,2,3,4}. No common neighbor. So {0,5} is not at distance 2. Similarly for all matching edges. So they're not in F.\n\nSo |F| = 20, |E(G₂)| = 20. Total = 45 + 20 - 20 = 45. Worse than 50.\n\nWhat about G₂ = a 5-regular bipartite graph? That's K_{5,5} itself (5-regular on 5+5 vertices). Already considered.\n\nLet me try unbalanced bipartite. G₂ = K_{3,7}: |E| = 21, |F_A| = C(3,2) = 3, |F_B| = C(7,2) = 21. |F| = 24. Total = 45 + 21 - 24 = 42. Worse.\n\nG₂ = K_{4,6}: |E| = 24, |F_A| = C(4,2) = 6, |F_B| = C(6,2) = 15. |F| = 21. Total = 45 + 24 - 21 = 48. Worse than 50.\n\nSo among complete bipartite graphs, K_{5,5} is best with total 50.\n\nWhat about non-complete bipartite graphs? Let me think about whether we can beat 50.\n\nConsider G₂ with parts A (size 5) and B (size 5), but not complete. Let's say vertex a₀ ∈ A is connected to only 3 vertices in B (instead of 5). Then |E| = 24.\n\n|F_A|: pairs in A sharing a B-neighbor. a₀ is connected to 3 B-vertices. Any other a ∈ A is connected to 5 B-vertices. a₀ and a share at least 3 common B-neighbors. So all 4 pairs involving a₀ are at distance 2. Pairs not involving a₀: all connected to all 5 B-vertices, so all C(4,2) = 6 pairs at distance 2. |F_A| = 4 + 6 = 10. Same as before.\n\n|F_B|: pairs in B sharing an A-neighbor. The 3 B-vertices connected to a₀: each is connected to all 5 A-vertices. The 2 B-vertices not connected to a₀: each is connected to 4 A-vertices. Any two B-vertices share at least 3 common A-neighbors. So all C(5,2) = 10 pairs at distance 2. |F_B| = 10.\n\n|F| = 20. Total = 45 + 24 - 20 = 49. Worse.\n\nIt seems like reducing edges from K_{5,5} doesn't help because |F| stays at 20 (all within-part pairs are still at distance 2).\n\nWhat if we reduce edges enough that some within-part pairs are no longer at distance 2? For a pair {a₁, a₂} in A to NOT be at distance 2, they must share no common B-neighbor. This means N(a₁) ∩ N(a₂) = ∅, so |N(a₁)| + |N(a₂)| ≤ 5. If both have degree 2 and disjoint neighborhoods, they don't share a neighbor.\n\nLet me try: G₂ bipartite with A = {0,1,2,3,4}, B = {5,6,7,8,9}. Each A-vertex has degree 2, with disjoint neighborhoods. E.g., 0→{5,6}, 1→{7,8}, 2→{9,5}, 3→{6,7}, 4→{8,9}. This is a 2-regular bipartite graph (a union of cycles). Let me check: 0-5-2-9-4-8-1-7-3-6-0, that's a 10-cycle. So G₂ = C₁₀.\n\n|E| = 10. |F_A|: pairs in A sharing a B-neighbor. 0 and 2 share 5. 0 and 3 share 6. 1 and 3 share 7. 1 and 4 share 8. 2 and 4 share 9. That's 5 pairs. The other 5 pairs don't share. So |F_A| = 5. Similarly |F_B| = 5. |F| = 10.\n\nTotal = 45 + 10 - 10 = 45. Same as before.\n\nHmm. Let me try to find the theoretical maximum of |E| - |F| for bipartite graphs.\n\nFor a bipartite graph G₂ with parts A (size a) and B (size b), a+b=10:\n|E| - |F| = |E| - |F_A| - |F_B|.\n\nWe have |F_A| = |{pairs in A sharing a B-neighbor}| and |F_B| = |{pairs in B sharing an A-neighbor}|.\n\nNote that |F_A| ≥ |E| - (a-1) ... hmm, not sure about that.\n\nLet me think about it differently. For each B-vertex b with degree d(b), it \"covers\" C(d(b), 2) pairs in A. The total coverage is Σ C(d(b), 2). Each pair in A is covered at least once iff it's in F_A. So |F_A| ≤ Σ C(d(b), 2) (with equality iff no pair is covered more than once).\n\nAlso, |F_A| ≥ Σ C(d(b), 2) - (overcounting). By the principle of inclusion-exclusion, it's hard to get a clean bound.\n\nLet me try a different approach. Let me use the following:\n\n|E| - |F_A| = |E| - |{pairs in A at distance 2}|\n\nConsider the quantity |E| - |F_A|. Each edge contributes 1 to |E|. Each distance-2 pair in A contributes -1. \n\nHmm, let me think about it per-vertex. For a vertex b ∈ B with degree d, it contributes d to |E| and C(d,2) to the coverage of F_A. If no overcounting, |F_A| = Σ C(d(b), 2). Then:\n\n|E| - |F_A| = Σ d(b) - Σ C(d(b), 2) = Σ [d(b) - d(b)(d(b)-1)/2] = Σ d(b)(3-d(b))/2.\n\nThis is maximized when each d(b) is 0 or 3 (since d(3-d)/2 is maximized at d=1.5, but for integers, d=1 gives 1, d=2 gives 1, d=3 gives 0, d=0 gives 0). Wait: d=1: 1*(3-1)/2 = 1. d=2: 2*(3-2)/2 = 1. d=3: 3*0/2 = 0. d=4: 4*(-1)/2 = -2. d=5: 5*(-2)/2 = -5.\n\nSo to maximize |E| - |F_A| (assuming no overcounting), we want each d(b) ∈ {1, 2}. With d(b) = 1 or 2, each contributes 1 to |E| - |F_A|. With b=5 B-vertices, max |E| - |F_A| = 5 (each d(b) = 1 or 2). But this assumes no overcounting in F_A.\n\nSimilarly, |E| - |F_B| is maximized with each d(a) ∈ {1, 2}, giving max 5.\n\nBut |E| - |F| = |E| - |F_A| - |F_B|, and we need to be careful because |E| appears in both.\n\nActually, |E| - |F| = |E| - |F_A| - |F_B|. Let me compute this for the case where all degrees are 2 (2-regular bipartite graph, like C₁₀):\n\n|E| = 10, |F_A| = 5 (as computed), |F_B| = 5. |E| - |F| = 0. Total = 45.\n\nFor K_{5,5}: |E| = 25, |F_A| = 10, |F_B| = 10. |E| - |F| = 5. Total = 50.\n\nFor a graph where each B-vertex has degree 2 and each A-vertex has degree 2 (2-regular): |E| = 10, and we computed |E| - |F| = 0.\n\nFor a graph where each B-vertex has degree 1 (matching): |E| = 5, |F_A| = 0, |F_B| = 0. |E| - |F| = 5. Total = 50.\n\nInteresting, matching also gives 50! Same as K_{5,5}.\n\nWhat about a mix? Say 3 B-vertices have degree 2 and 2 have degree 1. Then |E| = 3*2 + 2*1 = 8. \n\n|F_A|: pairs in A sharing a B-neighbor. The 3 degree-2 B-vertices each cover 1 pair. If no two cover the same pair, |F_A| = 3. The degree-1 B-vertices cover 0 pairs. So |F_A| = 3 (if no overcounting).\n\n|F_B|: pairs in B sharing an A-neighbor. The degrees of A-vertices: total degree = 8, with 5 A-vertices. If degrees are 2,2,2,1,1, then the coverage is C(2,2)*3 + C(1,2)*2 = 3 + 0 = 3. So |F_B| = 3 (if no overcounting).\n\n|E| - |F| = 8 - 3 - 3 = 2. Total = 47. Worse.\n\nHmm. Let me try to see if 50 is actually the maximum.\n\nLet me think about an upper bound. We have the constraint that for every triple, the sum of weights ≤ 4. We want to maximize the total weight W = Σ d_{ab}.\n\nConsider the following counting argument. For each vertex v, let S_v = Σ_{u ≠ v} d_{uv} (the sum of weights of edges incident to v). Then Σ_v S_v = 2W.\n\nFor each vertex v, consider the 9 edges incident to v. Each has weight 0, 1, or 2. Now, for any two neighbors u, w of v, the triple {v, u, w} has constraint d_{uv} + d_{vw} + d_{uw} ≤ 4.\n\nHmm, this is still complex. Let me try another approach.\n\nLet me think about the problem as follows. We have 10 vertices. For each pair, weight 0, 1, or 2. Every triangle has weight ≤ 4. Maximize total weight.\n\nConsider the complement: let e_{ab} = 2 - d_{ab} ∈ {0, 1, 2}. Then the constraint d_{ab} + d_{ac} + d_{bc} ≤ 4 becomes (2 - e_{ab}) + (2 - e_{ac}) + (2 - e_{bc}) ≤ 4, i.e., e_{ab} + e_{ac} + e_{bc} ≥ 2. And we want to minimize Σ e_{ab} = 2*45 - W = 90 - W.\n\nSo: minimize Σ e_{ab} subject to: for every triple, e_{ab} + e_{ac} + e_{bc} ≥ 2, and e_{ab} ∈ {0, 1, 2}.\n\nThis is a covering problem: every triangle must be \"covered\" with total edge-weight at least 2.\n\nThe minimum of Σ e_{ab} gives 90 - W_max, so W_max = 90 - min Σ e_{ab}.\n\nBy the counting argument: Σ_{triples} (e_{ab} + e_{ac} + e_{bc}) ≥ 2 * C(10,3) = 240. And Σ_{triples} (e_{ab} + e_{ac} + e_{bc}) = 8 * Σ e_{ab} = 8 * (90 - W). So 8(90 - W) ≥ 240, giving 90 - W ≥ 30, W ≤ 60. Same bound as before.\n\nFor the covering problem: we need every triple to have edge-sum ≥ 2. The minimum total edge weight is 30 (from the bound). Can we achieve 30?\n\nIf e_{ab} = 2/3 for all edges (LP relaxation), total = 45 * 2/3 = 30. But we need integer values.\n\nWith e_{ab} ∈ {0, 1, 2}: we need every triple to have sum ≥ 2. If we set e_{ab} = 1 for edges in some graph H and 0 otherwise, then every triple must have at least 2 edges in H. This means the complement of H has no triangle (every triple has at most 1 edge in complement). So the complement of H is triangle-free, meaning H has at least 45 - 25 = 20 edges (complement is triangle-free with at most 25 edges). Total e = 20, giving W = 70. But wait, can we have H with exactly 20 edges such that every triple has ≥ 2 edges in H?\n\nH has 20 edges, complement has 25 edges. Complement is triangle-free with 25 edges = K_{5,5}. So H = K₁₀ minus K_{5,5} = two disjoint K₅'s (all edges within A and within B). Every triple: if all 3 in A, 3 edges in H. If 2 in A, 1 in B: 1 edge in H (the A-A edge) + 0 = 1 edge. Wait, that's only 1 edge in H, which gives e-sum = 1 < 2. Not enough!\n\nSo H = two K₅'s doesn't work because a triple with 2 in A and 1 in B has only 1 edge in H.\n\nWe need every triple to have ≥ 2 edges in H. This means the complement of H (call it H̄) has the property that every triple has at most 1 edge in H̄. In other words, H̄ is triangle-free AND has no path of length 2 (because a path a-b-c in H̄ would mean the triple {a,b,c} has 2 edges in H̄, i.e., 1 edge in H, which is < 2).\n\nWait, every triple has at most 1 edge in H̄ means H̄ has no two edges sharing a vertex (H̄ is a matching) and no triangle. A matching on 10 vertices has at most 5 edges. So H has at least 40 edges, giving Σ e = 40, W = 50.\n\nHmm, so with e ∈ {0, 1}: min Σ e = 40, W = 50. This matches our earlier result!\n\nBut can we do better with e ∈ {0, 1, 2}? Let me think.\n\nIf we allow e_{ab} = 2 for some edges, we might be able to reduce the total. For instance, if one edge has e = 2, it contributes 2 to every triple containing it, satisfying the constraint for those triples (as long as the other two edges have e ≥ 0).\n\nStrategy: pick a set of edges with e = 2, and the rest with e = 0 or 1, such that every triple has sum ≥ 2.\n\nIf an edge {a,b} has e = 2, then every triple containing {a,b} is satisfied (sum ≥ 2). The triples not containing {a,b} need to be satisfied by other edges.\n\nThis is like a covering problem. Let me think about it.\n\nLet E₂ = set of edges with e = 2, E₁ = set of edges with e = 1, E₀ = rest. Total = 2|E₂| + |E₁|.\n\nConstraint: every triple {a,b,c} has 2·(number of E₂ edges in triple) + (number of E₁ edges in triple) ≥ 2.\n\nA triple is \"covered\" if it has at least one E₂ edge, or at least two E₁ edges.\n\nWe want to minimize 2|E₂| + |E₁|.\n\nIf we use only E₂ edges (E₁ = ∅): every triple must contain at least one E₂ edge. This means E₂ is a \"covering\" set — every triple contains at least one edge from E₂. The complement E₀ has no triangle (every triple has at most 2 edges in E₀, but actually we need every triple to have at most 2 non-E₂ edges, which is always true since a triple has 3 edges and we need at least 1 in E₂). So E₀ is triangle-free. Min |E₂| = 45 - max triangle-free = 45 - 25 = 20. Total = 2*20 = 40. W = 50.\n\nIf we use only E₁ edges (E₂ = ∅): every triple must have ≥ 2 E₁ edges. As computed, E₀ = complement of E₁ must be a matching (at most 5 edges). Min |E₁| = 40. Total = 40. W = 50.\n\nCan we mix to get total < 40?\n\nLet me try: E₂ = a star (9 edges from center vertex 0 to all others). Then every triple containing vertex 0 is covered. Triples not containing 0: {a,b,c} with a,b,c ∈ {1,...,9}. These need ≥ 2 E₁ edges or 1 E₂ edge. Since E₂ only has edges from 0, triples not containing 0 have 0 E₂ edges. So they need ≥ 2 E₁ edges.\n\nThe triples not containing 0 are C(9,3) = 84 triples on vertices {1,...,9}. We need every such triple to have ≥ 2 E₁ edges. The E₁ edges are among {1,...,9} (since edges from 0 are in E₂). The complement (E₀ edges among {1,...,9}) must form a matching (at most ⌊9/2⌋ = 4 edges). So |E₁| ≥ C(9,2) - 4 = 36 - 4 = 32. Total = 2*9 + 32 = 50. W = 40. Worse!\n\nLet me try: E₂ = a perfect matching (5 edges). Every triple containing a matched pair is covered. A triple {a,b,c} is covered if it contains a matched edge. A triple is NOT covered by E₂ if it contains no matched edge, i.e., all three vertices are from different matched pairs. With 5 matched pairs, the number of triples with all 3 from different pairs is C(5,3) * 2³ = 10 * 8 = 80. These need to be covered by E₁ (≥ 2 E₁ edges per triple).\n\nThe E₁ edges are among the 45 - 5 = 40 non-matching edges. We need every \"cross-pair\" triple to have ≥ 2 E₁ edges. The complement E₀ (among non-matching edges) must have the property that no cross-pair triple has 2 E₀ edges. I.e., E₀ restricted to cross-pair triples has at most 1 edge per triple. This means E₀ (among non-matching edges) has no two edges that form part of a cross-pair triple. Two edges {a,b} and {a,c} (sharing vertex a) form part of triple {a,b,c}, which is a cross-pair triple if a,b,c are from different pairs. So E₀ can have at most 1 edge incident to each vertex (among non-matching edges), but only for cross-pair triples.\n\nThis is getting complicated. Let me try a different approach.\n\nLet me try: E₂ = 5 disjoint edges (matching), E₁ = all other edges, E₀ = ∅. Total = 2*5 + 40 = 50. W = 40. Worse.\n\nHmm, it seems hard to beat 40. Let me try to prove that 40 is optimal.\n\nClaim: min Σ e_{ab} = 40, i.e., W_max = 50.\n\nProof attempt: We need every triple to have e-sum ≥ 2. Consider any vertex v. The 9 edges incident to v have weights e_{v,u} for u ≠ v. For any two neighbors u, w, the triple {v,u,w} has e_{vu} + e_{vw} + e_{uw} ≥ 2.\n\nSumming over all C(9,2) = 36 pairs {u,w} of neighbors of v:\nΣ_{u<w} (e_{vu} + e_{vw} + e_{uw}) ≥ 2 * 36 = 72.\n\nThe left side: each e_{vu} appears in 8 pairs (paired with each of the other 8 neighbors). So Σ_{u<w} e_{vu} = 8 * Σ_u e_{vu} = 8 * S_v where S_v = Σ_u e_{vu}. Similarly for e_{vw}. And Σ_{u<w} e_{uw} = Σ_{u<w, u,w ≠ v} e_{uw}.\n\nSo 8 S_v + 8 S_v + Σ_{u<w, u,w≠v} e_{uw} ≥ 72. Wait, let me redo this.\n\nΣ_{u<w} (e_{vu} + e_{vw} + e_{uw}) = Σ_{u<w} e_{vu} + Σ_{u<w} e_{vw} + Σ_{u<w} e_{uw}.\n\nFor the first sum: e_{vu} appears for each w > u (or w < u, depending on ordering). Actually, for a fixed u, e_{vu} appears in all pairs {u,w} where w ≠ u, w ≠ v. There are 8 such w. So Σ_{u<w} e_{vu} = 8 * Σ_u e_{vu} = 8 S_v. Wait, that's not right either. Let me be more careful.\n\nΣ_{u<w, u,w ≠ v} e_{vu}: for each pair {u,w}, we add e_{vu}. For a fixed u, e_{vu} is added once for each w (w ≠ u, w ≠ v), so 8 times. So this sum = 8 * Σ_{u≠v} e_{vu} = 8 S_v.\n\nSimilarly, Σ_{u<w} e_{vw} = 8 S_v (by symmetry, each e_{vw} appears 8 times).\n\nAnd Σ_{u<w, u,w≠v} e_{uw} = T_v, where T_v is the sum of e-weights of edges not incident to v.\n\nSo 16 S_v + T_v ≥ 72.\n\nNow, Σ_v S_v = 2 * Σ e_{ab} = 2E (where E = Σ e_{ab}). And T_v = E - S_v (total minus edges incident to v).\n\nSo 16 S_v + (E - S_v) ≥ 72, i.e., 15 S_v + E ≥ 72, i.e., S_v ≥ (72 - E) / 15.\n\nSumming over all v: Σ S_v ≥ 10 * (72 - E) / 15 = 2(72 - E)/3. But Σ S_v = 2E. So 2E ≥ 2(72 - E)/3, i.e., 3E ≥ 72 - E, i.e., 4E ≥ 72, E ≥ 18.\n\nThis gives E ≥ 18, W ≤ 72. Not tight enough.\n\nLet me try a different approach. Let me sum the constraint over all triples directly.\n\nΣ_{triples} (e_{ab} + e_{ac} + e_{bc}) ≥ 2 * 120 = 240.\n8E ≥ 240, E ≥ 30, W ≤ 60.\n\nThis is the bound we already had. Not tight for integer solutions.\n\nLet me try to use the integrality more carefully. Since e_{ab} ∈ {0, 1, 2}, and every triple has sum ≥ 2, let me think about the structure of the optimal solution.\n\nCase analysis: In the optimal solution, let's say there are a₂ edges with e=2, a₁ edges with e=1, a₀ edges with e=0. a₂ + a₁ + a₀ = 45. E = 2a₂ + a₁. We want to minimize E.\n\nFor a triple with k₂ edges of weight 2, k₁ of weight 1, k₀ of weight 0 (k₂+k₁+k₀=3): constraint 2k₂ + k₁ ≥ 2.\n\nIf k₂ ≥ 1: satisfied.\nIf k₂ = 0: need k₁ ≥ 2, i.e., k₀ ≤ 1.\n\nSo: every triple with no weight-2 edge must have at most 1 weight-0 edge.\n\nEquivalently: among the edges with e=0 or e=1 (not e=2), every triple with no e=2 edge has at most 1 e=0 edge. In other words, the e=0 edges, restricted to triples with no e=2 edge, form a matching-like structure.\n\nLet me think about it as: let F = set of e=0 edges, G = set of e=2 edges. The remaining edges (e=1) are the rest.\n\nConstraint: every triple that avoids G (has no G-edge) has at most 1 F-edge. In other words, F has no two edges that are both in a G-free triple. Two F-edges {a,b} and {a,c} sharing vertex a: the triple {a,b,c} is G-free iff {a,b}, {a,c}, {b,c} are all not in G. So if {a,b} and {a,c} are in F and {b,c} ∉ G, then the triple {a,b,c} has 2 F-edges and 0 G-edges, violating the constraint.\n\nSo: for any two F-edges sharing a vertex a, say {a,b} and {a,c}, the edge {b,c} must be in G.\n\nSimilarly, two F-edges {a,b} and {c,d} with all 4 vertices distinct: they don't form a triple, so no constraint. But three F-edges forming a triangle {a,b}, {a,c}, {b,c}: the triple {a,b,c} has 3 F-edges and 0 G-edges (if none are in G), violating the constraint (k₂=0, k₁=0, k₀=3, sum=0 < 2). So F is triangle-free (assuming the triangle has no G-edge; but if any edge of the triangle is in G, it's not in F since G and F are disjoint).\n\nSo F is triangle-free. Also, for any two F-edges sharing a vertex, the \"closing\" edge must be in G.\n\nNow, let me think about the structure. F is triangle-free. For every \"V-shape\" in F (two edges sharing a vertex), the closing edge is in G.\n\nLet me denote the graph of F-edges as F and G-edges as G. F is triangle-free. For every path a-b-c in F (edges {a,b} and {b,c} in F), the edge {a,c} is in G.\n\nSo G contains all \"closing edges\" of paths of length 2 in F. The number of such closing edges is at most the number of pairs at distance 2 in F.\n\nLet me think about the tradeoff. We want to minimize E = 2|G| + |E₁| = 2|G| + (45 - |G| - |F|) = 45 + |G| - |F|.\n\nSo we want to minimize |G| - |F|, i.e., maximize |F| - |G|.\n\nG must contain all closing edges of length-2 paths in F. So |G| ≥ |{pairs at distance 2 in F}|. And |F| - |G| ≤ |F| - |{distance-2 pairs in F}|.\n\nWe want to maximize |F| - |{distance-2 pairs in F}| where F is triangle-free.\n\nThis is the same type of problem as before! We're back to maximizing |E| - |F_distance2| for a triangle-free graph.\n\nAnd we showed that for K_{5,5}: |F| = 25, distance-2 pairs = 20, |F| - dist2 = 5. For a matching: |F| = 5, dist2 = 0, |F| - dist2 = 5.\n\nCan we beat 5? Let me think about this.\n\nFor a triangle-free graph F on 10 vertices, maximize |E(F)| - |{distance-2 pairs in F}|.\n\nLet me consider F = C₅ + C₅ (two disjoint 5-cycles). |E| = 10. Distance-2 pairs: in each C₅, each vertex has 2 distance-2 neighbors. So 5*2/2 = 5 distance-2 pairs per cycle, 10 total. But some distance-2 pairs might be actual edges (in C₅, distance-2 vertices are not adjacent). So |dist2| = 10. |E| - |dist2| = 0. Worse.\n\nF = K_{3,3} + K_{2,2} (on 6+4 vertices): |E| = 9 + 4 = 13. Distance-2 in K_{3,3}: C(3,2) + C(3,2) = 6. Distance-2 in K_{2,2}: C(2,2) + C(2,2) = 2. Total dist2 = 8. |E| - dist2 = 5. Same!\n\nF = K_{3,3} + 4 isolated vertices: |E| = 9, dist2 = 6. |E| - dist2 = 3. Worse.\n\nF = K_{4,4} + 2 isolated: |E| = 16, dist2 = C(4,2)*2 = 12. |E| - dist2 = 4. Worse.\n\nF = K_{5,5}: |E| - dist2 = 25 - 20 = 5. \nF = matching of 5: |E| - dist2 = 5 - 0 = 5.\nF = K_{3,3} + K_{2,2}: 13 - 8 = 5.\n\nInteresting, all give 5. Let me check if 5 is always the maximum.\n\nClaim: for any triangle-free graph F on 10 vertices, |E(F)| - |{distance-2 pairs}| ≤ 5.\n\nLet me think about why. For a triangle-free graph, every edge {a,b} contributes to the \"non-distance-2\" count. An edge {a,b} is at distance 1 (not distance 2). A non-edge {a,b} is at distance 2 if there's a common neighbor, or at distance ≥ 3 (or in different components).\n\n|E| - |dist2| = |E| - |{non-edges at distance 2}|.\n\nTotal pairs = 45 = |E| + |non-edges|. |non-edges| = |dist2| + |{non-edges at distance ≥ 3 or in different components}|.\n\nSo |E| - |dist2| = |E| - (45 - |E| - |far|) = 2|E| - 45 + |far|, where |far| is the number of non-edges at distance ≥ 3 or in different components.\n\nTo maximize this, we want |E| large and |far| large. But these are somewhat contradictory: more edges means fewer far pairs.\n\nFor K_{5,5}: |E| = 25, |far| = 0 (diameter 2). 2*25 - 45 + 0 = 5.\nFor matching: |E| = 5, |far| = 45 - 5 - 0 = 40 (all non-edges are far, since matching has no distance-2 pairs). 2*5 - 45 + 40 = 5.\nFor K_{3,3} + K_{2,2}: |E| = 13, dist2 = 8, far = 45 - 13 - 8 = 24. 2*13 - 45 + 24 = 5.\n\nWow, they all give 5! Is this a coincidence or a theorem?\n\nLet me check another: F = path P₁₀ (9 edges). Distance-2 pairs: vertices 1-3, 2-4, 3-5, 4-6, 5-7, 6-8, 7-9, 8-10, and also 1-... wait, in a path 1-2-3-...-10, distance-2 pairs are {1,3},{2,4},{3,5},{4,6},{5,7},{6,8},{7,9},{8,10}. That's 8 pairs. |far| = 45 - 9 - 8 = 28. 2*9 - 45 + 28 = 1. Not 5!\n\nSo it's not always 5. The path gives 1. So 5 is not a universal bound; it depends on the graph.\n\nLet me recheck K_{3,3} + K_{2,2}. K_{3,3} on vertices {1,2,3,4,5,6} with parts {1,2,3} and {4,5,6}. K_{2,2} on vertices {7,8,9,10} with parts {7,8} and {9,10}.\n\nDistance-2 pairs in K_{3,3}: within {1,2,3}: {1,2},{1,3},{2,3} (3 pairs, all share neighbors in {4,5,6}). Within {4,5,6}: {4,5},{4,6},{5,6} (3 pairs). Total: 6.\n\nDistance-2 pairs in K_{2,2}: within {7,8}: {7,8} (share neighbors 9,10). Within {9,10}: {9,10}. Total: 2.\n\nCross-component pairs (e.g., {1,7}): these are in different components, so distance = ∞, hence \"far\".\n\n|E| = 9 + 4 = 13. |dist2| = 6 + 2 = 8. |far| = 45 - 13 - 8 = 24. 2*13 - 45 + 24 = 26 - 45 + 24 = 5. Yes, 5.\n\nLet me try F = K_{5,5} minus one edge: |E| = 24. The removed edge {a,b",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 22668,
+        "completion_tokens": 25000,
+        "cached_tokens": 12183
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 22668,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12183,
+    "total_steps": 8
+  }
+}

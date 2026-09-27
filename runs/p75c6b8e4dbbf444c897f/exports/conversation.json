@@ -1,0 +1,1060 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "cotton-trade",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-21T21:30:36.239247+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-21T21:30:36.243808+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-21T21:30:36.264412+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-21T21:30:36.244328+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p75c6b8e4dbbf444c897f (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Friday, 2026-08-21\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-21T21:30:36.245344+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"db-delete-backup-first\" path=\"/Users/user/.devin/rules/db-delete-backup-first.md\">\n# 删除数据库数据前必须先备份\n\n**硬约束**：删除数据库的任何数据之前，必须先备份相关的数据，确保删除错误的情况下可以恢复数据。\n\n## 为什么\n\nDB 删除操作不可逆。一旦执行 DELETE/DROP/TRUNCATE/批量删除，数据就没了。如果删除条件写错（比如 WHERE 条件不精确、dry-run 和实际执行结果不一致、脚本有 bug），会丢失不该删的数据，且无法恢复。\n\n历史教训（2026-08-21）：`cleanup_continuation_runs.py` 删除了 p27_continuation_runs 中 224 条 prepared 记录，删除后才发现实际删除数（224）与 dry-run 预期数（223）不一致——因为 collector 在 dry-run 和实际执行之间又创建了 1 条记录。虽然这次差异无害，但如果差异方向反过来（多删了不该删的），就无法恢复了。\n\n## 必做动作\n\n### 步骤1：备份\n\n删除前必须把要删除的数据导出到文件。备份文件路径记录在操作审计文档中。\n\n```bash\n# ArangoDB：用 AQL 导出要删除的记录到 JSON 文件\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\n# 用与删除相同的查询条件查出要删除的完整记录\nrecords = list(db.aql.execute('FOR r IN collection FILTER <删除条件> RETURN r', ttl=120))\nwith open('backup_<collection>_<date>.json', 'w') as f:\n    json.dump(records, f, ensure_ascii=False, indent=2)\nprint(f'备份 {len(records)} 条记录到 backup_<collection>_<date>.json')\n\"\n```\n\n### 步骤2：验证备份\n\n确认备份文件非空、记录数与预期一致、每条记录有完整的字段（特别是 `_key`/`_id`，恢复时需要）。\n\n### 步骤3：执行删除\n\n备份完成且验证通过后，才能执行删除。\n\n### 步骤4：记录审计\n\n在 dev-docs 中记录：备份文件路径、删除条件、删除数量、备份记录数。\n\n## 恢复方法\n\n如果删除后发现错误，用备份文件恢复：\n\n```bash\n# ArangoDB：从 JSON 文件恢复\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\nwith open('backup_<collection>_<date>.json') as f:\n    records = json.load(f)\ncol = db.collection('collection')\nfor r in records:\n    r.pop('_rev', None)  # _rev 不能手动设置\n    col.insert(r)\nprint(f'恢复 {len(records)} 条记录')\n\"\n```\n\n## 禁止\n\n- 禁止不备份就直接执行批量删除\n- 禁止只 dry-run 不备份就执行删除——dry-run 和实际执行之间可能有状态变化\n- 禁止备份后不验证备份文件就执行删除\n- 禁止删除后不记录备份文件路径——找不到备份=没备份\n\n## 例外\n\n| 情况 | 是否需要备份 |\n|---|---|\n| 批量删除（DELETE/FOR...REMOVE） | ✅ 必须 |\n| DROP collection | ✅ 必须（先导出全集合） |\n| TRUNCATE | ✅ 必须（先导出全集合） |\n| 覆盖写入（insert overwrite） | ✅ 必须（先导出被覆盖的数据） |\n| 单条记录删除 | 可不备份（影响小，可通过日志追溯） |\n| 单条记录状态更新（非删除） | 不需要 |\n| 只读查询 | 不需要 |\n\n## 与其他 rule 的关系\n\n| rule | 关系 |\n|---|---|\n| `closure-checklist-impact-analysis` | commit 前分析影响——本 rule 在删除操作前就触发，更早 |\n| `verify-with-logs` | 删除后验证——本 rule 是删除前预防 |\n| 全局 AGENTS.md §可审计性纪律 | \"重大分析、调查、审查必须留下 file:line 定位\"——本 rule 是其具体化到 DB 删除场景 |\n</rule>\n\n<rule name=\"search-default-internal\" path=\"/Users/user/.devin/rules/search-default-internal.md\">\n# 搜索默认走内置工具\n\n## 硬约束\n\n**默认情况下，使用 devin 内置的 `web_search` 和 `webfetch` 工具。** 不要一遇到搜索就加载 `search-tools` skill。\n\n`search-tools` skill 是重型武器库（6 个工具、38 个端点、完整参数表），只在以下场景才加载：\n\n## 何时加载 search-tools skill\n\n只有同时满足以下条件时才加载：\n\n1. **完备搜索**——内置 `web_search` 结果不够、需要多引擎交叉验证、需要语义搜索、需要学术论文搜索\n2. **大量抓取**——需要抓取多个 URL 转 Markdown、需要 PDF 转 Markdown、需要省 token 的批量取页\n\n## 何时只用内置工具\n\n以下场景**不需要**加载 `search-tools` skill，直接用 `web_search` + `webfetch`：\n\n- 查一个 API 怎么用——`web_search` 搜文档，`webfetch` 取页\n- 查一个概念/术语——`web_search` 一下就够\n- 查一个库的最新版本——`web_search`\n- 取一个 URL 的内容——`webfetch`\n- 简单的事实核查——`web_search`\n\n## 判断流程\n\n```\n需要网络搜索或抓取？\n├─ 查一两个东西就够了 → web_search + webfetch（内置）\n└─ 需要完备搜索或大量抓取\n   ├─ 多引擎交叉验证 → 加载 search-tools skill\n   ├─ 语义搜索 → 加载 search-tools skill\n   ├─ 学术论文搜索 → 加载 search-tools skill\n   ├─ PDF 转 Markdown → 加载 search-tools skill\n   ├─ 批量 URL 抓取 → 加载 search-tools skill\n   └─ 其他简单场景 → web_search + webfetch（内置）\n```\n\n## 理由\n\n`search-tools` skill 内容很长（500+ 行），加载它会占用大量上下文。日常搜索用内置工具完全够用，只有真正需要重型武器时才值得加载。\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"readme-structure-index\" path=\"/Users/user/.devin/rules/readme-structure-index.md\">\n# AGENTS.md与README.md的职责分工\n\n## 硬约束\n\n**AGENTS.md中不索引任何文档和代码。** repo的详细结构信息放在repo根目录的`README.md`中。\n\n## AGENTS.md只放什么\n\nAGENTS.md是always-on的，每一行都占用AI的上下文窗口。只放\"AI每次工作都必须知道的\"：\n\n1. **角色**——AI在这个repo中的身份和职责（一句话）\n2. **repo基本信息**——分支、Python路径、DB/Redis连接信息、.env位置、关键外部路径\n3. **铁律**——必须遵守的硬约束（编号列表）\n4. **运维认知**——监控/健康检查时容易误判的认知（如\"空pane是正常现象\"）\n5. **系统架构概要**——概念性架构图 + 核心服务表 + 启停命令 + 并发控制（不索引具体代码文件）\n6. **数据库表设计**——指向DATABASE.md的引用 + 关键JOIN关系 + 已知问题（不展开字段表）\n\n## README.md放什么\n\nREADME.md是AI工作引导地图，按需加载（不占always-on上下文）。放\"需要时才查的详细结构信息\"：\n\n1. **文档索引**——\"你要做什么→加载什么文档\"的对照表 + 各文档的关键节索引\n2. **代码文件索引**——按目录分组的代码文件表（文件名/用途/用法）\n3. **运行目录结构**——trajectory数据/solver工作目录的目录树 + 文件存在率表\n4. **Skills和Rules索引**——项目级skills/rules的用途表 + 全局skill引用\n5. **关键经验**——操作经验列表（如rate limit风暴、3秒启动间隔等）\n6. **与其他repo的关系**——依赖关系、共享资源\n\n## 判定标准\n\n| 内容 | 放哪里 | 判断依据 |\n|---|---|---|\n| 铁律（\"必须做/不能做\"） | AGENTS.md | 每次工作都必须知道 |\n| 运维认知（\"容易误判的\"） | AGENTS.md | 监控时必须知道 |\n| 启停命令 | AGENTS.md | 运行系统时必须知道 |\n| 文档索引（\"做什么→读什么\"） | README.md | 按需加载时才查 |\n| 代码文件索引（\"什么文件做什么\"） | README.md | 需要找代码时才查 |\n| 目录结构 | README.md | 需要找文件时才查 |\n| status枚举表 | README.md | 需要查终态时才查 |\n| 操作经验 | README.md | 遇到问题时才查 |\n\n## 反模式\n\n- ❌ AGENTS.md中有\"文档索引\"节——应该移到README.md\n- ❌ AGENTS.md中有\"代码文件索引\"节——应该移到README.md\n- ❌ AGENTS.md中列出每个文档的用途和路径——这是README.md的职责\n- ❌ AGENTS.md中列出每个代码文件的用途和用法——这是README.md的职责\n- ❌ README.md中放铁律——铁律在AGENTS.md中always-on\n- ❌ 没有README.md——每个repo必须有README.md作为引导地图\n- ✅ AGENTS.md只有铁律+角色+基本信息+运维认知+架构概要\n- ✅ README.md有完整的文档索引和代码索引\n- ✅ AGENTS.md中有一行\"详细结构信息见README.md\"的指引\n\n## 与三层架构的关系\n\n三层架构：AGENTS.md（铁律）→ README.md（引导地图）→ 具体文档/代码\n\n- **AGENTS.md** = 铁律 + 每次必须知道的认知（always-on，占上下文）\n- **README.md** = 引导地图（按需加载，不占always-on上下文）\n- **具体文档/代码** = 按需加载（从README.md索引中找到后加载）\n\n本规则确保AGENTS.md不膨胀——详细结构信息在README.md中，AI需要时才加载，不永久占用上下文。\n\n## 详见\n\n- `read` skill（操作流程：如何从README.md出发加载认知）\n- `read-sync` skill（维护模式：如何同步README.md和映射数据库）\n- `cognition-trace-ironlaws.md` §17（认知加载铁律）\n- `tuple-methodology.md`（AGENTS.md瘦身工程）\n</rule>\n\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在README.md中只记录脚本路径和一行用法示例。AGENTS.md是铁律和每次必须知道的认知，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。脚本分两类，存放位置不同（见下方\"脚本分类\"）。\n\n4. **在项目README.md中做好索引**——持久化脚本必须在项目README.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n6. **临时脚本必须在相关文档中建立索引**——如果某项任务有对应的方案文档或调查报告（如`dev-docs/`下的文档），临时脚本必须在文档中记录：脚本路径、用途、用法。这是为了让未来的审计AI可以追溯——如果后来审计发现异常，可以知道是哪个脚本产生的结果，检查脚本是否有问题。\n\n## 脚本分类\n\n脚本分两类，存放位置和索引方式不同：\n\n### 持久化脚本（可复用的操作工具）\n\n- **定义**：会重复使用的操作（如清理僵尸session、批量落盘、进度查询、队列准备）\n- **存放位置**：项目已有的脚本目录或项目的`scripts/`目录\n- **索引位置**：项目README.md\n- **维护方式**：持续改进，不重写\n\n### 临时脚本（一次性任务专用）\n\n- **定义**：为某个具体任务写的一次性脚本（如数据迁移、一次性查询、调查验证脚本）\n- **存放位置**：项目的`tmp-scripts/`子目录\n- **索引位置**：如果该任务有相关文档（方案文档、调查报告等），在文档中记录脚本路径+用途+用法；如果没有相关文档，在README.md中记录\n- **审计目的**：临时脚本的文档索引是为了审计可追溯——如果后来审计发现数据异常或结果异常，审计AI可以定位是哪个脚本产生的，检查脚本逻辑是否有bug\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n- **临时脚本的文档索引保证审计可追溯**——如果审计发现异常结果，可以回溯到产生该结果的脚本，检查脚本逻辑是否有bug\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **写成持久化脚本，放scripts/，索引到README.md** |\n| 一次性任务专用脚本（数据迁移、调查验证） | **写成临时脚本，放tmp-scripts/，索引到相关文档** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 判断脚本类型：持久化（可复用）还是临时（一次性任务）\n3. 检查项目内是否已有类似脚本（grep搜索、看README.md索引）\n4. **已有** → 改进那个脚本（edit工具修改），编译验证\n5. **没有** → 创建新文件：\n   - 持久化脚本 → 放项目脚本目录（如`scripts/`）\n   - 临时脚本 → 放`tmp-scripts/`子目录\n6. 建立索引：\n   - 持久化脚本 → 在项目README.md中记录\n   - 临时脚本 → 在相关文档中记录（如方案文档、调查报告）；无相关文档则在README.md中记录\n7. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新README.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是铁律不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ❌ **临时脚本不建立文档索引**——审计AI无法追溯异常结果的来源脚本\n- ❌ **临时脚本放到`/tmp/`或home目录**——不在项目内，无法git追踪，无法审计\n- ✅ 改进已有脚本的某个函数（而非另写新的）\n- ✅ 新建脚本并在README.md代码索引中记录\n- ✅ README.md中只写一行用法示例，不写完整调用参数和输出\n- ✅ 临时调查脚本放`tmp-scripts/`，在调查报告文档中记录脚本路径和用途\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p75c6b8e4dbbf444c897f/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nIs the space of compactly-supported orientation-preserving homeomorphisms on \\(\\mathbb{R}^n\\), denoted as \\(Homeo_c(\\mathbb{R}^n)\\), dense in the space of all orientation-preserving homeomorphisms on \\(\\mathbb{R}^n\\) to itself, denoted as \\(Homeo_0(\\mathbb{R}^n)\\), when equipped with the topology of compact convergence?\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"database-schema-doc\" path=\"/Users/user/.devin/rules/database-schema-doc.md\">\n# 数据库表结构强制文档化\n\n## 硬约束\n\n**所有项目的数据库表结构集中存放在 `/Users/user/database/` 目录**，每个项目一个文件，文件名与项目名对应。文件开头必须写明该项目的repo全路径。\n\n## 文件命名和位置\n\n- **存放目录**：`/Users/user/database/`\n- **文件名**：`<项目名>.md`（与repo目录名一致，如`AI-Math-Normal-Solver.md`）\n- **文件开头**：必须写明repo全路径，格式：\n  ```\n  > **Repo全路径**：`/Users/user/<repo目录名>/`\n  ```\n\n## 何时必须更新\n\n- 新建表/集合时\n- 修改表/集合的字段时（增删改字段、改字段类型、改字段含义）\n- 新增索引时\n- 修改字段语义时（如字段值从一种含义变为另一种含义）\n\n## 何时必须先读\n\n- **写查数据库的脚本前**——必须先读 `/Users/user/database/<项目名>.md` 了解表结构，不能凭猜测写AQL/SQL\n- **查数据库前**——必须先读对应文档确认字段名、字段类型、字段含义\n- **设计涉及数据库的功能前**——必须先读对应文档了解现有表结构\n\n## 内容要求\n\n每个表/集合必须记录：\n\n1. **表名/集合名** + 用途（一句话）\n2. **字段表**：字段名、类型、含义、是否必填、默认值\n3. **索引**：索引字段、索引类型\n4. **关键JOIN关系**：和其他表/集合的关联字段\n5. **字段值枚举**：如果字段是枚举值（如status），列出所有取值和含义\n6. **已知问题/注意事项**：字段不一致、缺失字段、历史遗留等\n\n## 多数据库情况\n\n- 如果一个repo涉及多个数据库，文档中分节记录每个数据库\n- 如果表结构由其他repo管理（如本repo只读另一个repo的数据库），文档中注明\"由XXX repo管理\"，并记录本repo依赖的字段\n\n## 反模式\n\n- ❌ 在代码中散落数据库字段名，没有集中文档\n- ❌ 写查数据库脚本前不读文档，凭猜测写AQL\n- ❌ 改了表结构但不更新 `/Users/user/database/` 中的文档\n- ❌ 文档只记表名不记字段\n- ❌ 文档记了字段但不记枚举值\n- ❌ 文档开头不写repo全路径\n- ❌ 把数据库文档放在repo内部而不是集中目录\n- ✅ 每次改表结构同时更新 `/Users/user/database/<项目名>.md` 并commit\n- ✅ 写查数据库脚本前先读 `/Users/user/database/<项目名>.md` 确认字段名和类型\n- ✅ 文档记录已知问题（如字段不一致、历史遗留）\n- ✅ 文档开头写明repo全路径\n</rule>\n\n<rule name=\"global-vs-project-local\" path=\"/Users/user/.devin/rules/global-vs-project-local.md\">\n# 全局vs项目本地判断铁律\n\n## 硬约束\n\n**用户说\"更新AGENTS.md\"或\"添加元组/rule/skill\"时，AI必须先判断这是全局还是项目本地内容，不能直接动手。**\n\n## 判断流程\n\n```\n用户说\"更新AGENTS.md\"或\"添加元组/rule/skill\"\n  ↓\n第一步：判断作用范围\n  ├─ 只在当前项目有意义 → 项目本地\n  └─ 在多个项目中都适用 → 全局\n  ↓\n第二步：判断用户意图\n  ├─ 用户明确说\"全局\" → 全局\n  ├─ 用户明确说\"项目本地\" → 项目本地\n  └─ 用户没说 → 必须问用户\n  ↓\n第三步：放到正确位置\n  ├─ 全局rule → ~/.devin/rules/<name>.md\n  ├─ 全局skill → ~/.config/devin/skills/<name>/SKILL.md\n  ├─ 全局AGENTS.md → ~/.config/devin/AGENTS.md\n  ├─ 项目本地rule → ./.devin/rules/<name>.md\n  ├─ 项目本地skill → ./.devin/skills/<name>/SKILL.md\n  └─ 项目本地AGENTS.md → ./AGENTS.md\n```\n\n## 判断标准\n\n| 信号 | 倾向 |\n|---|---|\n| 内容引用了具体项目的路径、脚本名、目录结构 | 项目本地 |\n| 内容是某个项目特有的操作流程、运维认知 | 项目本地 |\n| 内容是跨项目通用的约束、规范、工作流 | 全局 |\n| 内容修改会影响所有项目的AI行为 | 全局 |\n| 用户说\"以后所有项目都要...\" | 全局 |\n| 用户说\"这个项目要...\" | 项目本地 |\n\n## 禁止\n\n- ❌ 不判断就改全局配置（`~/.devin/`或`~/.config/devin/`）\n- ❌ 不判断就改项目本地配置（`./.devin/`或`./AGENTS.md`）\n- ❌ 把项目本地内容放到全局规则中（污染全局配置）\n- ❌ 把全局通用内容放到项目本地（其他项目无法复用）\n- ❌ 用户没说全局还是本地时自作主张决定\n\n## 必须\n\n- ✅ 先判断作用范围（全局还是项目本地）\n- ✅ 用户没明确说时，先问用户\n- ✅ 判断后告诉用户放在哪里，再动手\n- ✅ 改全局配置时遵循`global-config-git-commit`规则（三个独立repo分别commit）\n\n## 详见\n\n- `tuple-methodology.md`——元组的设计原则、全局vs项目本地的选择策略\n- `global-config-git-commit.md`——全局配置的git提交规则\n- `readme-structure-index.md`——AGENTS.md与README.md的职责分工\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-21T21:30:36.245355+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\nThese rules were triggered but could not be injected due to token limits. Read them when relevant using the read_file tool:\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\" />\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "overflow"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-21T21:30:36.245383+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **search-tools**: 搜索武器库——按需求组织：网页搜索完备性 + Markdown 网页抓取。所有方案免费可用。 WHEN to use: 需要网络搜索、网页抓取读取、学术论文搜索、PDF 转 Markdown、语义嵌入、结果重排时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **explicit-model-and-effort**: 使用 devin cli 时（无论 -p 模式还是 acp 模式）必须显式指明模型；推理强度当前 devin CLI 无独立开关（2026-08-21 核查），由模型默认行为控制——若未来版本提供 强度/思考参数，必须同样显式设置。opencode 侧的对应 rule 见 ~/.config/opencode/rules/explicit-model-and-effort.md（其 ACP 有 effort 接口， 且实测不显式选模型会落到内建默认）。 WHEN to use: 写 devin -p 命令时；写/改 devin acp 客户端启动参数时； 排查\"AI 表现与预期不符\"时。 WHEN NOT to use: 用户明确指定其他模型的对话。\n (path: /Users/user/.devin/rules/explicit-model-and-effort.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-21T21:30:36.270553+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-21T21:30:36.271428+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **search-tools**: 搜索武器库技术说明书——按需求组织：网页搜索完备性 + Markdown 网页抓取。 所有方案均为免费可用，基于 2026-08-21 实测数据编写。 (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **zcode-trajectory**: ZCode (z.ai 桌面客户端) model-io session trajectory 数据的 JSONL schema 与读取方法。 (source: /Users/user/.config/devin/skills/zcode-trajectory/SKILL.md)\n- **devin-acp-protocol**: Devin CLI ACP(Agent Client Protocol)模式使用指南——devin acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call/permission)、thinking实时流式推送、 权限处理、session管理、v1协议细节、实测验证的信号清单和检测逻辑。 WHEN to use: 需要用ACP模式启动devin cli(替代-p模式)时；需要实时检测AI工作状态(thinking spin/卡住)时； 需要从session/update通知组装conversation.json时；需要处理ACP权限请求时； 设计/实现/调试ACP客户端时；将现有-p模式管线改造为ACP模式时。 WHEN NOT to use: 只需要-p模式的简单非交互运行(用noninteractive-solver-run skill)； 只需要session最终产出(看文件即可)；只需要git历史(用git log)。 (source: /Users/user/.config/devin/skills/devin-acp-protocol/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **opencode-acp-protocol**: OpenCode ACP(Agent Client Protocol)模式完整指南——opencode acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call)、thinking实时流式推送、权限自动批准、 session管理(close/fork/list/resume)、v1协议细节、与Devin CLI ACP的关键区别。 WHEN to use: 用opencode acp启动为ACP server时；写ACP客户端对接opencode时； 需要实时检测AI工作状态(thinking/tool执行/卡住)时；从session/update通知组装trajectory时； 对比opencode ACP和devin ACP选方案时；将现有管线改造为ACP模式时。 WHEN NOT to use: 只需要opencode的最终结果(用opencode run)；非ACP的opencode使用； 只需要devin ACP(用devin-acp-protocol skill)。 (source: /Users/user/.config/devin/skills/opencode-acp-protocol/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-21T21:30:39.915221+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "The problem asks whether $Homeo_c(\\mathbb{R}^n)$ (compactly-supported orientation-preserving homeomorphisms) is dense in $Homeo_0(\\mathbb{R}^n)$ (all orientation-preserving homeomorphisms) with the topology of compact convergence.\n\nLet me think about this carefully.\n\nFirst, let me clarify the notation. $Homeo_0(\\mathbb{R}^n)$ likely denotes the identity component, i.e., orientation-preserving homeomorphisms (for $\\mathbb{R}^n$, the orientation-preserving ones form the identity component of $Homeo(\\mathbb{R}^n)$). And $Homeo_c(\\mathbb{R}^n)$ is the subgroup of compactly supported homeomorphisms (those that equal the identity outside a compact set).\n\nThe topology of compact convergence (also called compact-open topology, or topology of uniform convergence on compact sets) is the natural topology on homeomorphism groups.\n\nThe question: is $Homeo_c(\\mathbb{R}^n)$ dense in $Homeo_0(\\mathbb{R}^n)$?\n\nLet me think about this. Given an orientation-preserving homeomorphism $h: \\mathbb{R}^n \\to \\mathbb{R}^n$ and a compact set $K \\subset \\mathbb{R}^n$, we want to find a compactly supported homeomorphism $g$ that agrees with $h$ (or is close to $h$) on $K$.\n\nActually, the topology of compact convergence: a neighborhood of $h$ is determined by a compact set $K$ and $\\epsilon > 0$, consisting of all $g$ such that $|g(x) - h(x)| < \\epsilon$ for all $x \\in K$.\n\nSo we need: for any $h \\in Homeo_0(\\mathbb{R}^n)$, any compact $K$, any $\\epsilon > 0$, there exists $g \\in Homeo_c(\\mathbb{R}^n)$ with $|g(x) - h(x)| < \\epsilon$ for all $x \\in K$.\n\nActually, we can do better - we can make $g = h$ on $K$ (if $K$ is in the interior of the support region).\n\nLet me think about the construction. Take $h \\in Homeo_0(\\mathbb{R}^n)$. Take a compact set $K$. Choose a large ball $B_R$ containing $K$ in its interior. We want to construct $g$ that equals $h$ on $B_R$ (or at least on $K$) and equals the identity outside some larger ball.\n\nThe idea: we need to \"interpolate\" between $h$ on $K$ and the identity outside. \n\nConsider $h(B_R)$. This is some open set containing $h(K)$. We need to construct a homeomorphism that:\n- Equals $h$ on $K$ (or near $K$)\n- Equals identity outside some compact set\n\nOne approach: Use the Alexander trick or a collar/annulus construction.\n\nLet me think more carefully. Take a ball $B_R$ containing $K$. Consider $h|_{B_R}$. We have $h(B_R)$ is an open set. If $R$ is large enough, $h(K) \\subset B_R$ as well (since $h(K)$ is compact). Actually, we can choose $R$ large enough that both $K \\subset B_R$ and $h(K) \\subset B_R$.\n\nNow, $h$ maps $B_R$ to some open set $U = h(B_R)$ containing $h(K)$. We want to find a homeomorphism $g$ of $\\mathbb{R}^n$ that:\n- $g = h$ on $K$\n- $g = \\text{id}$ outside some compact set\n\nHere's a construction approach. On the annulus $A = B_{2R} \\setminus B_R$, we want to interpolate between $h$ on $\\partial B_R$ and identity on $\\partial B_{2R}$. But this requires that $h(\\partial B_R)$ and $\\partial B_{2R}$ are \"compatible\" in some sense for the annulus interpolation.\n\nActually, this is a well-known result. Let me recall.\n\nThe key result is that $Homeo_c(\\mathbb{R}^n)$ is dense in $Homeo_0(\\mathbb{R}^n)$ with the compact-open topology. This is a classical result.\n\nLet me think about the proof more carefully.\n\n**Step 1**: Given $h \\in Homeo_0(\\mathbb{R}^n)$, compact $K$, and $\\epsilon > 0$.\n\n**Step 2**: Choose $R$ large enough that $K \\subset B_R(0)$ and $h(K) \\subset B_R(0)$.\n\n**Step 3**: We want to construct $g \\in Homeo_c(\\mathbb{R}^n)$ with $g = h$ on $K$.\n\nThe idea is to use the fact that $h$ is isotopic to the identity (since $h$ is orientation-preserving, and for $\\mathbb{R}^n$, orientation-preserving homeomorphisms are isotopic to the identity - this is a consequence of the Alexander trick / stable homeomorphism theorem type results).\n\nActually, let me think about this differently. \n\nFor $n \\geq 2$: The group $Homeo_0(\\mathbb{R}^n)$ is the group of orientation-preserving homeomorphisms. By the stable homeomorphism theorem (Kirby-Siebenmann), every orientation-preserving homeomorphism of $\\mathbb{R}^n$ is a composition of homeomorphisms each of which is the identity on some open set. But that's a different statement.\n\nLet me think about the direct construction.\n\n**Direct construction for the density:**\n\nGiven $h \\in Homeo_0(\\mathbb{R}^n)$, compact $K \\subset \\mathbb{R}^n$, $\\epsilon > 0$.\n\nChoose $R > 0$ such that $K \\subset B_R$ and $h(K) \\subset B_R$.\n\nSince $h$ is orientation-preserving, by the isotopy extension theorem or by direct construction, $h$ is isotopic to the identity. Actually, for $\\mathbb{R}^n$, every orientation-preserving homeomorphism is isotopic to the identity through an isotopy $H_t$ with $H_0 = \\text{id}$ and $H_1 = h$.\n\nBut we need more: we need the isotopy to be \"controlled\" in some sense.\n\nActually, let me think about a simpler approach. \n\n**Approach via Alexander trick on a ball:**\n\nConsider $h|_{\\overline{B_R}}$. This is a homeomorphism from $\\overline{B_R}$ to $h(\\overline{B_R})$. \n\nNow, $h(\\overline{B_R})$ is a compact set homeomorphic to a closed ball. Both $\\overline{B_R}$ and $h(\\overline{B_R})$ are contained in $B_{R'}$ for some $R' > R$ (choose $R'$ large enough).\n\nWe want to construct a homeomorphism $g: \\mathbb{R}^n \\to \\mathbb{R}^n$ such that:\n- $g = h$ on $\\overline{B_R}$ (hence on $K$)\n- $g = \\text{id}$ outside $B_{R''}$ for some $R'' > R'$\n\nThis is equivalent to: extending the homeomorphism $h|_{\\overline{B_R}}: \\overline{B_R} \\to h(\\overline{B_R})$ to a compactly supported homeomorphism of $\\mathbb{R}^n$.\n\nBy the Schoenflies theorem (for $n = 2$, the classical Schoenflies; for general $n$, the generalized Schoenflies theorem of Mazur-Brown), if $\\Sigma$ is a bicollared $(n-1)$-sphere in $\\mathbb{R}^n$, then the closure of each complementary domain is homeomorphic to a closed ball.\n\nBoth $\\partial B_R$ (a round sphere) and $h(\\partial B_R)$ (image of a round sphere under a homeomorphism) are bicollared $(n-1)$-spheres. \n\nSo $h(\\partial B_R)$ bounds a region homeomorphic to a ball (the \"inside\") and the complement is also homeomorphic to the exterior of a ball.\n\nNow, the region between $\\partial B_R$ and $h(\\partial B_R)$... hmm, this is getting complicated because $h(\\partial B_R)$ might not be a nice sphere relative to $B_R$.\n\nLet me try a different approach.\n\n**Approach via isotopy:**\n\nSince $h$ is orientation-preserving, there exists an isotopy $F_t: \\mathbb{R}^n \\to \\mathbb{R}^n$ ($t \\in [0,1]$) with $F_0 = \\text{id}$, $F_1 = h$, and each $F_t$ a homeomorphism.\n\nThis is true for $n \\neq 4$ by the stable homeomorphism theorem (Kirby-Siebenmann), and for $n = 4$ it follows from Quinn's work. Actually, for $\\mathbb{R}^n$ specifically, the fact that orientation-preserving homeomorphisms are isotopic to the identity is a consequence of the stable homeomorphism theorem, which is known for all $n$ (the case $n = 4$ was settled by Quinn in 1982, and $n \\geq 5$ by Kirby-Siebenmann).\n\nWait, actually I need to be more careful. The stable homeomorphism theorem says that every orientation-preserving homeomorphism of $\\mathbb{R}^n$ is stable, meaning it's a composition of homeomorphisms each of which is the identity on some open set. This implies that $Homeo_0(\\mathbb{R}^n)$ is generated by compactly supported homeomorphisms... but does it imply density?\n\nHmm, let me think again.\n\nActually, the statement that $Homeo_c(\\mathbb{R}^n)$ is dense in $Homeo_0(\\mathbb{R}^n)$ might be a more elementary result that doesn't require the stable homeomorphism theorem.\n\nLet me think about the direct construction again.\n\n**Direct construction:**\n\nGiven $h \\in Homeo_0(\\mathbb{R}^n)$, compact $K$, $\\epsilon > 0$.\n\nChoose $R$ large enough that $K \\subset B_R$ and $h(B_R) \\supset B_R$... no, that's not guaranteed.\n\nLet me try yet another approach. The key insight is:\n\n**Claim**: For any $h \\in Homeo_0(\\mathbb{R}^n)$ and any compact $K$, there exists $g \\in Homeo_c(\\mathbb{R}^n)$ such that $g|_K = h|_K$.\n\nIf this claim is true, then density follows immediately (we can even get exact agreement on $K$, which is stronger than $\\epsilon$-closeness).\n\n**Proof of claim**: \n\nChoose $R$ large enough that $K \\subset B_R$ (the open ball of radius $R$). \n\nConsider $h|_{\\overline{B_R}}: \\overline{B_R} \\to h(\\overline{B_R})$. \n\nNow, $h(\\overline{B_R})$ is a topological closed ball in $\\mathbb{R}^n$ (since $h$ is a homeomorphism). Its boundary $h(\\partial B_R)$ is a bicollared $(n-1)$-sphere.\n\nBy the generalized Schoenflies theorem, $h(\\partial B_R)$ bounds a region $D$ (the \"inside\") that is homeomorphic to a closed ball, and $h(\\overline{B_R}) = D$ (since $h$ maps the inside of $\\partial B_R$ to the inside of $h(\\partial B_R)$... well, we need to be careful about \"inside\" and \"outside\" here).\n\nActually, $h(\\overline{B_R})$ is already a closed topological ball, and $h(\\partial B_R)$ is its boundary. The Schoenflies theorem tells us that the complement $\\mathbb{R}^n \\setminus h(\\overline{B_R})$ is homeomorphic to $\\mathbb{R}^n \\setminus \\overline{B_R}$, i.e., the exterior of a ball. More precisely, there exists a homeomorphism $\\phi: \\mathbb{R}^n \\to \\mathbb{R}^n$ such that $\\phi(\\overline{B_R}) = h(\\overline{B_R})$ and $\\phi = \\text{id}$ outside some large ball.\n\nWait, that's basically what we want to prove! Let me think differently.\n\nOK here's the key idea. We have two topological closed balls in $\\mathbb{R}^n$: $\\overline{B_R}$ and $h(\\overline{B_R})$. Both are bounded (contained in some large ball $B_{R'}$). \n\nWe want to find a homeomorphism $g$ of $\\mathbb{R}^n$ that:\n1. Maps $\\overline{B_R}$ to $h(\\overline{B_R})$ via $h$ (i.e., $g|_{\\overline{B_R}} = h|_{\\overline{B_R}}$)\n2. Is the identity outside some compact set\n\nThe region $\\mathbb{R}^n \\setminus \\overline{B_R}$ is the exterior of a ball, and $\\mathbb{R}^n \\setminus h(\\overline{B_R})$ is also the exterior of a (topological) ball. We need a homeomorphism between these exteriors that:\n- On $\\partial B_R$, it matches $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$\n- Outside some large ball, it's the identity\n\nThis is an extension problem. We need to extend the boundary homeomorphism $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ to a homeomorphism of the exteriors that is eventually the identity.\n\nLet me set up coordinates. Let $S = \\partial B_R$ (the sphere of radius $R$) and $S' = h(\\partial B_R)$. We have a homeomorphism $f = h|_S: S \\to S'$. We want to extend $f$ to a homeomorphism $\\tilde{f}: \\mathbb{R}^n \\setminus B_R \\to \\mathbb{R}^n \\setminus h(B_R)$ that is the identity outside some compact set.\n\nNow, $\\mathbb{R}^n \\setminus B_R$ is an annular region (exterior of a ball), and $\\mathbb{R}^n \\setminus h(B_R)$ is also an annular region (exterior of a topological ball). Both are homeomorphic to $S^{n-1} \\times [0, \\infty)$ (well, $\\mathbb{R}^n \\setminus B_R \\cong S^{n-1} \\times [R, \\infty)$ and $\\mathbb{R}^n \\setminus h(B_R) \\cong S' \\times [0, \\infty)$, but more precisely both are homeomorphic to $S^{n-1} \\times [0, \\infty)$).\n\nThe key question is: can we extend the boundary homeomorphism $f: S \\to S'$ to a homeomorphism of the exteriors that is eventually the identity?\n\nHere's the issue: the \"eventually the identity\" part. The exteriors are non-compact, and we want the homeomorphism to approach the identity at infinity.\n\nLet me think about this more carefully.\n\nChoose $R'$ large enough that $h(\\overline{B_R}) \\subset B_{R'}$. \n\nNow consider the region $A = \\overline{B_{R'}} \\setminus B_R$ (a closed annulus) and $A' = \\overline{B_{R'}} \\setminus h(B_R)$ (the region between $h(\\partial B_R)$ and $\\partial B_{R'}$).\n\nWe need a homeomorphism $\\psi: A \\to A'$ such that:\n- $\\psi|_{\\partial B_R} = f = h|_{\\partial B_R}$ (matching on the inner boundary)\n- $\\psi|_{\\partial B_{R'}} = \\text{id}$ (matching the identity on the outer boundary)\n\nIf we can find such $\\psi$, then we define:\n$$g(x) = \\begin{cases} h(x) & \\text{if } x \\in \\overline{B_R} \\\\ \\psi(x) & \\text{if } x \\in A \\\\ x & \\text{if } x \\notin B_{R'} \\end{cases}$$\n\nThis $g$ is a homeomorphism of $\\mathbb{R}^n$ that equals $h$ on $\\overline{B_R}$ (hence on $K$) and equals the identity outside $B_{R'}$, so $g \\in Homeo_c(\\mathbb{R}^n)$.\n\nSo the question reduces to: **can we extend $f: \\partial B_R \\to h(\\partial B_R)$ to a homeomorphism $\\psi: \\overline{B_{R'}} \\setminus B_R \\to \\overline{B_{R'}} \\setminus h(B_R)$ that is the identity on $\\partial B_{R'}$?**\n\nThis is a relative homeomorphism extension problem for annular regions.\n\nBoth $A = \\overline{B_{R'}} \\setminus B_R$ and $A' = \\overline{B_{R'}} \\setminus h(B_R)$ are compact $n$-manifolds with boundary, each having two boundary components. $A$ is a standard annulus (spherical shell), and $A'$ is the region between a topological sphere $h(\\partial B_R)$ and the round sphere $\\partial B_{R'}$.\n\nBoth $A$ and $A'$ are homeomorphic to $S^{n-1} \\times [0, 1]$ (annulus). \n\nThe question is whether we can find a homeomorphism $\\psi: A \\to A'$ with prescribed boundary values: $\\psi = f$ on $\\partial B_R$ and $\\psi = \\text{id}$ on $\\partial B_{R'}$.\n\nThis is a question about whether the map $f \\cup \\text{id}: \\partial B_R \\cup \\partial B_{R'} \\to h(\\partial B_R) \\cup \\partial B_{R'}$ extends to a homeomorphism $A \\to A'$.\n\nHmm, this is not trivial. The boundary map must be compatible in some sense.\n\nActually, let me think about this differently. The issue is that $f: \\partial B_R \\to h(\\partial B_R)$ is an arbitrary orientation-preserving homeomorphism of $(n-1)$-spheres (well, $h(\\partial B_R)$ is a topological sphere, not a round sphere, but still). And we need to extend it together with the identity on $\\partial B_{R'}$.\n\nLet me think about whether this is always possible.\n\n**Key observation**: Both $A$ and $A'$ are homeomorphic to $S^{n-1} \\times [0,1]$. Let $\\alpha: A \\to S^{n-1} \\times [0,1]$ and $\\beta: A' \\to S^{n-1} \\times [0,1]$ be homeomorphisms. Then the problem becomes: given a homeomorphism $\\beta \\circ f \\circ \\alpha^{-1}|_{S^{n-1} \\times \\{0\\}}: S^{n-1} \\times \\{0\\} \\to S^{n-1} \\times \\{0\\}$ and the identity on $S^{n-1} \\times \\{1\\}$, can we extend to a homeomorphism of $S^{n-1} \\times [0,1]$?\n\nBut the choice of $\\alpha$ and $\\beta$ matters. We can choose $\\alpha$ and $\\beta$ to make the boundary conditions nice.\n\nActually, let me think about this more carefully. \n\nThe boundary of $A$ is $\\partial B_R \\sqcup \\partial B_{R'}$, and the boundary of $A'$ is $h(\\partial B_R) \\sqcup \\partial B_{R'}$.\n\nWe want a homeomorphism $\\psi: A \\to A'$ with $\\psi|_{\\partial B_R} = f$ and $\\psi|_{\\partial B_{R'}} = \\text{id}$.\n\nFor this to work, $A$ and $A'$ must be homeomorphic as pairs (or rather, the boundary map must be extendable). \n\nBoth $A$ and $A'$ are compact $n$-manifolds with boundary, and both are homeomorphic to $S^{n-1} \\times [0,1]$. But the question is whether the specific boundary homeomorphism $f \\cup \\text{id}$ extends.\n\nLet me think about the case $n = 1$ first. For $n = 1$, $\\mathbb{R}^1 = \\mathbb{R}$, and orientation-preserving homeomorphisms are increasing homeomorphisms. $Homeo_c(\\mathbb{R})$ is the set of increasing homeomorphisms that are the identity outside a compact set. $Homeo_0(\\mathbb{R})$ is the set of all increasing homeomorphisms of $\\mathbb{R}$.\n\nFor $n = 1$: Given an increasing homeomorphism $h: \\mathbb{R} \\to \\mathbb{R}$ and a compact $K = [a, b]$, we want $g \\in Homeo_c(\\mathbb{R})$ with $g = h$ on $[a, b]$.\n\nChoose $R$ large with $-R < a$ and $h(-R) < h(a)$ (so $h(-R) < h(a)$, which is true since $h$ is increasing and $-R < a$). Similarly $R > b$ and $h(R) > h(b)$.\n\nWe need $g: \\mathbb{R} \\to \\mathbb{R}$ increasing homeomorphism with $g = h$ on $[-R, R]$ and $g = \\text{id}$ outside $[-R', R']$ for some $R'$.\n\nOn $[-R, R]$, $g = h$. So $g(-R) = h(-R)$ and $g(R) = h(R)$. Outside, $g$ must be increasing and eventually the identity. So on $(-\\infty, -R]$, $g$ goes from $-\\infty$ (as $x \\to -\\infty$, $g(x) \\to -\\infty$) to $h(-R)$ at $x = -R$. And $g = \\text{id}$ for $x \\leq -R'$ for some $R'$.\n\nThis is easy: just define $g$ to be the identity on $(-\\infty, -R']$, then interpolate linearly (or by any increasing homeomorphism) from $(-R', -R')$ to $(-R, h(-R))$ on $[-R', -R]$, then $g = h$ on $[-R, R]$, then interpolate from $(R, h(R))$ to $(R', R')$ on $[R, R']$, then identity on $[R', \\infty)$.\n\nThis works as long as $h(-R) > -R'$ and $h(R) < R'$, which we can ensure by choosing $R'$ large enough. Wait, we need $h(-R) \\in (-R', -R)$... no, we just need $h(-R) < -R$ is not required. We need $g$ to be increasing, so on $[-R', -R]$, $g$ goes from $-R'$ (at $x = -R'$) to $h(-R)$ (at $x = -R$). For this to be increasing, we need $-R' < h(-R)$, i.e., $R' > -h(-R) = |h(-R)|$ (if $h(-R) < 0$). Similarly, $h(R) < R'$.\n\nSince $h(-R)$ and $h(R)$ are fixed finite numbers, we can choose $R'$ large enough. So for $n = 1$, this works.\n\nFor $n \\geq 2$, the construction is more subtle. Let me think about whether the annulus extension always works.\n\n**The annulus extension problem:**\n\nWe have $A = \\overline{B_{R'}} \\setminus B_R \\cong S^{n-1} \\times [0,1]$ and $A' = \\overline{B_{R'}} \\setminus h(B_R) \\cong S^{n-1} \\times [0,1]$.\n\nWe want $\\psi: A \\to A'$ with $\\psi|_{\\partial B_R} = f$ and $\\psi|_{\\partial B_{R'}} = \\text{id}$.\n\nLet me think about this in terms of the mapping class group. The annulus $S^{n-1} \\times [0,1]$ has a mapping class group (relative to boundary) that classifies self-homeomorphisms up to isotopy. \n\nFor the annulus $S^{n-1} \\times [0,1]$, the mapping class group (fixing both boundary components pointwise) is:\n- For $n = 2$ (annulus $S^1 \\times [0,1]$): the mapping class group fixing both boundaries pointwise is trivial (by Alexander trick on the annulus). Wait, no. The mapping class group of the annulus fixing both boundary components pointwise is $\\mathbb{Z}$ (Dehn twists). Hmm, but we're not fixing pointwise, we're prescribing the boundary map.\n\nActually, let me reconsider. The question is not about self-homeomorphisms of the annulus, but about homeomorphisms between two different annular regions $A$ and $A'$ with prescribed boundary values.\n\nLet me think about it differently. Both $A$ and $A'$ are homeomorphic to $S^{n-1} \\times [0,1]$. Choose homeomorphisms $\\alpha: A \\to S^{n-1} \\times [0,1]$ and $\\beta: A' \\to S^{n-1} \\times [0,1]$. Then $\\psi: A \\to A'$ corresponds to $\\beta \\circ \\psi \\circ \\alpha^{-1}: S^{n-1} \\times [0,1] \\to S^{n-1} \\times [0,1]$.\n\nThe boundary conditions become:\n- On $S^{n-1} \\times \\{0\\}$ (corresponding to $\\partial B_R$): $\\beta \\circ f \\circ \\alpha^{-1}|_{S^{n-1} \\times \\{0\\}}$\n- On $S^{n-1} \\times \\{1\\}$ (corresponding to $\\partial B_{R'}$): $\\beta \\circ \\text{id} \\circ \\alpha^{-1}|_{S^{n-1} \\times \\{1\\}} = \\beta \\circ \\alpha^{-1}|_{S^{n-1} \\times \\{1\\}}$\n\nWe can choose $\\alpha$ and $\\beta$ to simplify these. In particular, we can choose $\\alpha$ and $\\beta$ so that on the outer boundary ($\\partial B_{R'}$), $\\beta \\circ \\alpha^{-1} = \\text{id}$. This is possible because both $\\alpha$ and $\\beta$ map $\\partial B_{R'}$ to $S^{n-1} \\times \\{1\\}$, and we can choose them to agree there.\n\nWith this choice, the outer boundary condition is the identity, and the inner boundary condition is some homeomorphism $\\phi: S^{n-1} \\to S^{n-1}$ (namely $\\phi = \\beta \\circ f \\circ \\alpha^{-1}|_{S^{n-1} \\times \\{0\\}}$).\n\nNow the question is: given a homeomorphism $\\phi: S^{n-1} \\to S^{n-1}$, can we extend it to a homeomorphism $\\Phi: S^{n-1} \\times [0,1] \\to S^{n-1} \\times [0,1]$ that is the identity on $S^{n-1} \\times \\{1\\}$?\n\nThis is the question of whether $\\phi$ is isotopic to the identity!\n\nIf $\\phi$ is isotopic to the identity, then the isotopy $F_t: S^{n-1} \\to S^{n-1}$ with $F_0 = \\phi$ and $F_1 = \\text{id}$ gives the extension $\\Phi(x, s) = (F_s(x), s)$.\n\nSo the question reduces to: **is $\\phi = \\beta \\circ f \\circ \\alpha^{-1}|_{S^{n-1} \\times \\{0\\}}$ isotopic to the identity?**\n\nNow, $f = h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$. The map $\\phi$ is the \"coordinate representation\" of $f$. Whether $\\phi$ is isotopic to the identity depends on the choices of $\\alpha$ and $\\beta$, but the isotopy class of $\\phi$ is well-defined (up to composition with homeomorphisms that extend over the annulus).\n\nHmm, actually the isotopy class of $\\phi$ is not well-defined without more care. Let me think again.\n\nThe real question is: is the boundary map $f \\cup \\text{id}: \\partial A \\to \\partial A'$ extendable to a homeomorphism $A \\to A'$?\n\nThis is equivalent to: the map $f \\cup \\text{id}$ defines an element of the mapping class group of $A$ (relative to one boundary component), and this element must be trivial for the extension to exist.\n\nActually, I think the cleaner way to think about this is:\n\n$A$ and $A'$ are both copies of $S^{n-1} \\times [0,1]$. The boundary map $f \\cup \\text{id}$ gives a homeomorphism $\\partial A \\to \\partial A'$. We want to know if this extends to $A \\to A'$.\n\nBy the classification of compact manifolds with boundary, two homeomorphisms of $S^{n-1} \\times [0,1]$ that agree on the boundary are isotopic (this is the Alexander trick for the annulus, or more precisely, the \"annulus theorem\" / \"isotopy extension\").\n\nActually, the relevant result is: **any homeomorphism of $\\partial(S^{n-1} \\times [0,1]) = S^{n-1} \\times \\{0\\} \\sqcup S^{n-1} \\times \\{1\\}$ that preserves the two components extends to a homeomorphism of $S^{n-1} \\times [0,1]$** if and only if the two boundary homeomorphisms are in the same \"mapping class\" relative to the annulus structure.\n\nHmm, I think I'm overcomplicating this. Let me think about it more directly.\n\nThe boundary of $A$ is $\\partial B_R \\sqcup \\partial B_{R'}$, and the boundary of $A'$ is $h(\\partial B_R) \\sqcup \\partial B_{R'}$. We want a homeomorphism $\\psi: A \\to A'$ extending $f \\cup \\text{id}$.\n\nConsider the composition: Start with $A = \\overline{B_{R'}} \\setminus B_R$. The map $h$ sends $\\overline{B_R}$ to $h(\\overline{B_R})$, and in particular sends $\\partial B_R$ to $h(\\partial B_R)$. But $h$ does NOT send $A$ to $A'$ in general (since $h$ might not map $\\partial B_{R'}$ to itself).\n\nHowever, consider the following: $h$ maps $\\overline{B_{R'}}$ to $h(\\overline{B_{R'}})$, which contains $h(\\overline{B_R})$. The region $h(\\overline{B_{R'}}) \\setminus h(B_R)$ is homeomorphic to $A' = \\overline{B_{R'}} \\setminus h(B_R)$... no, that's not right either.\n\nLet me try a completely different approach.\n\n**Approach using isotopy to identity:**\n\nThe key fact we need is that every orientation-preserving homeomorphism of $\\mathbb{R}^n$ is isotopic to the identity. This is known:\n\n- For $n = 1$: trivial (increasing homeomorphisms of $\\mathbb{R}$ are isotopic to the identity via the straight-line isotopy $H_t(x) = (1-t)x + th(x)$, which is an increasing homeomorphism for each $t$).\n\n- For $n = 2$: follows from the fact that orientation-preserving homeomorphisms of the plane are isotopic to the identity (this is a classical result).\n\n- For $n \\geq 5$: follows from the stable homeomorphism theorem (Kirby-Siebenmann).\n\n- For $n = 3$: follows from the fact that $\\mathbb{R}^3$ is irreducible and orientation-preserving homeomorphisms are isotopic to the identity (this follows from the Smale conjecture, proved by Hatcher).\n\n- For $n = 4$: follows from Quinn's results.\n\nSo assume $h$ is isotopic to the identity: there exists $H_t: \\mathbb{R}^n \\to \\mathbb{R}^n$ ($t \\in [0,1]$) with $H_0 = \\text{id}$, $H_1 = h$, each $H_t$ a homeomorphism.\n\nNow, given compact $K$ and $\\epsilon > 0$:\n\nChoose $R$ large with $K \\subset B_R$. The isotopy $H_t$ moves points continuously. For each $x \\in K$, the path $t \\mapsto H_t(x)$ is continuous, hence bounded. So $\\bigcup_{t \\in [0,1]} H_t(K)$ is compact. Choose $R'$ large enough that $\\bigcup_{t \\in [0,1]} H_t(K) \\subset B_{R'}$ and also $K \\subset B_{R'}$.\n\nNow, consider the isotopy $H_t$ restricted to $K$. We want to \"localize\" this isotopy to a compactly supported one.\n\n**Isotopy extension theorem**: Given an isotopy $H_t$ of a compact subset $K \\subset \\mathbb{R}^n$, there exists an isotopy $G_t$ of $\\mathbb{R}^n$ with compact support such that $G_t|_K = H_t|_K$ for all $t$.\n\nIf we have this, then $G_1 \\in Homeo_c(\\mathbb{R}^n)$ and $G_1|_K = H_1|_K = h|_K$, which gives us what we want (even exact agreement on $K$).\n\nThe isotopy extension theorem is a classical result in differential topology (for diffeomorphisms) and in geometric topology (for homeomorphisms). For homeomorphisms of $\\mathbb{R}^n$, it's a consequence of the annulus theorem and the Schoenflies theorem.\n\nActually, let me think about whether we even need the full isotopy extension theorem, or if we can construct the compactly supported homeomorphism more directly.\n\n**Direct construction using the isotopy:**\n\nWe have $H_t$ with $H_0 = \\text{id}$, $H_1 = h$. We know that $H_t(K) \\subset B_{R'}$ for all $t$.\n\nChoose $R$ large enough that $K \\subset B_R$ and $H_t(\\overline{B_R}) \\subset B_{R'}$ for all $t \\in [0,1]$. (This is possible because $\\bigcup_t H_t(\\overline{B_R})$ is compact.)\n\nNow, consider the \"trace\" of the isotopy: the set $\\mathcal{T} = \\{(t, x, H_t(x)) : t \\in [0,1], x \\in \\overline{B_R}\\} \\subset [0,1] \\times \\mathbb{R}^n \\times \\mathbb{R}^n$.\n\nWe want to construct $g \\in Homeo_c(\\mathbb{R}^n)$ with $g|_{\\overline{B_R}} = h|_{\\overline{B_R}} = H_1|_{\\overline{B_R}}$.\n\nHere's a construction: \n\nDefine $g$ to be $h$ on $\\overline{B_R}$, the identity outside $B_{R''}$ for some $R'' > R'$, and interpolate in between.\n\nThe interpolation region is the annulus $\\overline{B_{R''}} \\setminus B_R$. We need a homeomorphism from this annulus to the region $\\overline{B_{R''}} \\setminus h(B_R)$ that:\n- Agrees with $h$ on $\\partial B_R$\n- Agrees with the identity on $\\partial B_{R''}$\n\nAs I discussed above, this requires that the boundary homeomorphism $h|_{\\partial B_R} \\cup \\text{id}_{\\partial B_{R''}}$ extends to a homeomorphism of the annular regions.\n\nThe fact that $h$ is isotopic to the identity is exactly what makes this extension possible! Here's why:\n\nThe isotopy $H_t$ restricted to $\\partial B_R$ gives an isotopy from $\\text{id}|_{\\partial B_R}$ to $h|_{\\partial B_R}$. This isotopy takes values in homeomorphisms $\\partial B_R \\to H_t(\\partial B_R)$. \n\nNow, consider the region swept out: $\\bigcup_{t \\in [0,1]} H_t(\\partial B_R)$. This is a subset of $B_{R'}$ (by our choice of $R'$). \n\nWe can use this swept-out region to construct the interpolation. Specifically, the region between $\\partial B_R$ and $H_1(\\partial B_R) = h(\\partial B_R)$, together with the isotopy, gives us a \"collar\" structure that allows us to define the interpolation.\n\nHmm, but the swept-out region might be complicated (the spheres $H_t(\\partial B_R)$ might intersect each other). \n\nLet me think about this differently. \n\nActually, I think the cleanest approach is to use the isotopy extension theorem directly. Let me state it precisely:\n\n**Isotopy Extension Theorem (for homeomorphisms of $\\mathbb{R}^n$)**: Let $F_t: A \\to \\mathbb{R}^n$ ($t \\in [0,1]$) be an isotopy of a closed subset $A \\subset \\mathbb{R}^n$ (i.e., each $F_t$ is a homeomorphism from $A$ onto $F_t(A)$, $F_0 = \\text{id}_A$, and the map is continuous). Then there exists an isotopy $\\tilde{F}_t: \\mathbb{R}^n \\to \\mathbb{R}^n$ extending $F_t$ (i.e., $\\tilde{F}_t|_A = F_t$ for all $t$). Moreover, if $A$ is compact, then $\\tilde{F}_t$ can be chosen to have compact support (i.e., $\\tilde{F}_t = \\text{id}$ outside a compact set for all $t$).\n\nThis theorem is indeed a classical result. For smooth manifolds, it's in Hirsch's \"Differential Topology.\" For topological manifolds, it follows from the annulus theorem (which is known for all $n \\neq 4$ by Kirby-Siebenmann, and for $n = 4$ by Quinn).\n\nWait, but the annulus theorem itself has a complicated history. Let me recall:\n\n- The annulus theorem for $\\mathbb{R}^n$ states that the region between two disjoint bicollared $(n-1)$-spheres is homeomorphic to $S^{n-1} \\times [0,1]$.\n- For $n = 2$: classical (Schoenflies).\n- For $n = 3$: classical (Alexander, later refined).\n- For $n \\geq 5$: Kirby-Siebenmann (1969).\n- For $n = 4$: Quinn (1982).\n\nSo the annulus theorem is known for all $n$.\n\nGiven the annulus theorem, the isotopy extension theorem for homeomorphisms follows. And given the isotopy extension theorem, the density of $Homeo_c(\\mathbb{R}^n)$ in $Homeo_0(\\mathbb{R}^n)$ follows (assuming every orientation-preserving homeomorphism is isotopic to the identity, which also follows from the stable homeomorphism theorem, known for all $n$).\n\nBut wait, do we actually need the full strength of \"every orientation-preserving homeomorphism is isotopic to the identity\"? Let me reconsider.\n\nActually, for the density result, we might not need the isotopy to the identity. We just need to approximate $h$ on compact sets by compactly supported homeomorphisms. Let me think about whether there's a more direct argument.\n\n**Alternative approach without isotopy to identity:**\n\nGiven $h \\in Homeo_0(\\mathbb{R}^n)$, compact $K$, $\\epsilon > 0$.\n\nChoose $R$ large with $K \\subset B_R$ and $h(K) \\subset B_R$.\n\nWe want $g \\in Homeo_c(\\mathbb{R}^n)$ with $g = h$ on $K$ (or $\\|g - h\\|_K < \\epsilon$).\n\nConsider $h|_{\\overline{B_R}}: \\overline{B_R} \\to h(\\overline{B_R})$. Both $\\overline{B_R}$ and $h(\\overline{B_R})$ are closed topological $n$-balls in $\\mathbb{R}^n$, and both are contained in $B_{R'}$ for some $R' > R$.\n\nWe need to extend $h|_{\\overline{B_R}}$ to a homeomorphism $g: \\mathbb{R}^n \\to \\mathbb{R}^n$ with compact support.\n\nThis is equivalent to: find a homeomorphism $\\psi: \\mathbb{R}^n \\setminus B_R \\to \\mathbb{R}^n \\setminus h(B_R)$ with $\\psi|_{\\partial B_R} = h|_{\\partial B_R}$ and $\\psi = \\text{id}$ outside some compact set.\n\nNow, $\\mathbb{R}^n \\setminus B_R$ and $\\mathbb{R}^n \\setminus h(B_R)$ are both homeomorphic to $S^{n-1} \\times (0, \\infty)$ (the exterior of a ball). The boundary homeomorphism $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ needs to extend.\n\nThe exteriors $\\mathbb{R}^n \\setminus B_R$ and $\\mathbb{R}^n \\setminus h(B_R)$ are both open $n$-manifolds homeomorphic to $S^{n-1} \\times \\mathbb{R}$. The question is whether the boundary homeomorphism extends to a homeomorphism of these exteriors that is eventually the identity.\n\nBy the Schoenflies theorem, $h(\\partial B_R)$ is a bicollared sphere, and the exterior $\\mathbb{R}^n \\setminus h(B_R)$ is homeomorphic to $\\mathbb{R}^n \\setminus B_R$. But we need the extension to respect the boundary values AND be eventually the identity.\n\nHere's the key point: the exteriors are non-compact, and we want the homeomorphism to be the identity at infinity. This is where we need some control.\n\nLet me think about this using the \"engulfing\" idea.\n\nChoose $R'' > R'$ large enough. We want $\\psi: \\overline{B_{R''}} \\setminus B_R \\to \\overline{B_{R''}} \\setminus h(B_R)$ with $\\psi = h$ on $\\partial B_R$ and $\\psi = \\text{id}$ on $\\partial B_{R''}$.\n\nBoth $\\overline{B_{R''}} \\setminus B_R$ and $\\overline{B_{R''}} \\setminus h(B_R)$ are compact annular regions (homeomorphic to $S^{n-1} \\times [0,1]$ by the annulus theorem, since $\\partial B_R$ and $\\partial B_{R''}$ are disjoint bicollared spheres, and $h(\\partial B_R)$ and $\\partial B_{R''}$ are disjoint bicollared spheres — the latter because $h(\\overline{B_R}) \\subset B_{R'} \\subset B_{R''}$).\n\nNow, both annular regions are homeomorphic to $S^{n-1} \\times [0,1]$. The boundary map is $h|_{\\partial B_R} \\cup \\text{id}_{\\partial B_{R''}}$.\n\nThe question is: does this boundary map extend to a homeomorphism of the annular regions?\n\nAs I discussed before, this is equivalent to asking whether the \"inner boundary\" homeomorphism $h|_{\\partial B_R}$ (viewed as a self-homeomorphism of $S^{n-1}$ after identifying both boundaries with $S^{n-1}$) is isotopic to the identity.\n\nBut here's the thing: $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ is a homeomorphism between two different spheres. To view it as a self-homeomorphism of $S^{n-1}$, we need to identify both $\\partial B_R$ and $h(\\partial B_R)$ with $S^{n-1}$. The isotopy class of the resulting self-homeomorphism depends on these identifications.\n\nHowever, the extendability of the boundary map is independent of the choices. Let me think about what determines extendability.\n\nThe annular region $A = \\overline{B_{R''}} \\setminus B_R$ has a natural product structure (it's literally a spherical shell). The annular region $A' = \\overline{B_{R''}} \\setminus h(B_R)$ also has a product structure (by the annulus theorem). \n\nThe boundary map $f \\cup \\text{id}: \\partial A \\to \\partial A'$ extends to a homeomorphism $A \\to A'$ if and only if the two annular regions are \"equivalent\" relative to this boundary map.\n\nIn terms of mapping class groups: the annulus $S^{n-1} \\times [0,1]$ has a mapping class group. A homeomorphism of the boundary extends if and only if it represents the trivial element in a certain quotient of the mapping class group.\n\nFor $n \\geq 3$: The mapping class group of $S^{n-1} \\times [0,1]$ (fixing one boundary component pointwise and the other as a set) is isomorphic to $\\pi_0(\\text{Homeo}(S^{n-1}))$, the mapping class group of $S^{n-1}$. \n\nActually, let me be more precise. The mapping class group of $S^{n-1} \\times [0,1]$ relative to $S^{n-1} \\times \\{1\\}$ (fixing it pointwise) is $\\pi_0(\\text{Homeo}^+(S^{n-1}))$ (the mapping class group of orientation-preserving homeomorphisms of $S^{n-1}$, fixing a point if needed).\n\nFor $n \\geq 6$ (so $S^{n-1}$ with $n-1 \\geq 5$): $\\pi_0(\\text{Homeo}^+(S^{n-1}))$ is related to exotic spheres and is generally nontrivial. For example, $\\pi_0(\\text{Homeo}^+(S^5))$ is nontrivial (related to the group of exotic 6-spheres, which is $\\mathbb{Z}/28$ or something like that... actually, the mapping class group of $S^n$ for $n \\geq 5$ is $\\Theta_{n+1}$, the group of exotic $(n+1)$-spheres, which is nontrivial for many $n$).\n\nWait, this is a problem! If the mapping class group of $S^{n-1}$ is nontrivial, then not every boundary homeomorphism extends, and the density might fail!\n\nHmm, but wait. The boundary homeomorphism $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ is not an arbitrary homeomorphism of $S^{n-1}$ — it's the restriction of a homeomorphism of $\\mathbb{R}^n$ (or rather, of $\\overline{B_R}$). This might impose constraints.\n\nLet me reconsider. The map $h|_{\\partial B_R}$ extends to $h|_{\\overline{B_R}}: \\overline{B_R} \\to h(\\overline{B_R})$, which is a homeomorphism of closed $n$-balls. By the Alexander trick, every homeomorphism of a closed $n$-ball that is orientation-preserving is isotopic to the identity (relative to the boundary, if the boundary map is isotopic to the identity... no, the Alexander trick says every homeomorphism of the closed ball extends to a homeomorphism of the ball, and every homeomorphism of the ball is isotopic to the identity).\n\nWait, the Alexander trick says: every homeomorphism of the closed $n$-ball $D^n$ is isotopic to the identity (or to a reflection, if orientation-reversing). More precisely, every orientation-preserving homeomorphism of $D^n$ is isotopic to the identity.\n\nBut this isotopy does NOT fix the boundary! The Alexander trick isotopy moves the boundary.\n\nSo $h|_{\\overline{B_R}}: \\overline{B_R} \\to h(\\overline{B_R})$ is a homeomorphism between two closed balls. If we identify both with $D^n$, this gives a self-homeomorphism of $D^n$, which by the Alexander trick is isotopic to the identity. But this isotopy moves the boundary.\n\nThe question is about the boundary map $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$. After identifying $\\partial B_R$ and $h(\\partial B_R)$ with $S^{n-1}$, we get a self-homeomorphism of $S^{n-1}$. Is this isotopic to the identity?\n\nSince $h|_{\\overline{B_R}}$ extends to a homeomorphism of the ball, and by the Alexander trick this ball homeomorphism is isotopic to the identity, the boundary map $h|_{\\partial B_R}$ is isotopic to the identity (through the boundary values of the Alexander isotopy).\n\nWait, but the Alexander trick gives an isotopy of the ball that doesn't fix the boundary. The boundary values of this isotopy give an isotopy of the boundary map from $h|_{\\partial B_R}$ to $\\text{id}|_{\\partial B_R}$. But this isotopy of the boundary takes values in homeomorphisms $\\partial B_R \\to H_t(\\partial B_R)$, where $H_t$ is the Alexander isotopy of the ball. The target $H_t(\\partial B_R)$ changes with $t$, so this is an isotopy through homeomorphisms between different spheres, not a self-isotopy of $S^{n-1}$.\n\nTo get a self-isotopy of $S^{n-1}$, we'd need to identify all the $H_t(\\partial B_R)$ with $S^{n-1}$ in a consistent way. This is exactly the product structure on the annulus, which brings us back to the annulus theorem.\n\nOK, I think I need to be more careful. Let me think about what the actual obstruction is.\n\n**The obstruction:** The boundary map $f = h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ extends to a homeomorphism of the annular region $A = \\overline{B_{R''}} \\setminus B_R$ to $A' = \\overline{B_{R''}} \\setminus h(B_R)$ (with identity on $\\partial B_{R''}$) if and only if a certain element of the mapping class group of $S^{n-1}$ vanishes.\n\nThis element is constructed as follows: Choose product structures on $A$ and $A'$ (i.e., homeomorphisms $A \\cong S^{n-1} \\times [0,1]$ and $A' \\cong S^{n-1} \\times [0,1]$ that send $\\partial B_R$ and $h(\\partial B_R)$ to $S^{n-1} \\times \\{0\\}$ and $\\partial B_{R''}$ to $S^{n-1} \\times \\{1\\}$). Then $f$ becomes a self-homeomorphism of $S^{n-1} \\times \\{0\\}$, and the identity on $\\partial B_{R''}$ becomes a self-homeomorphism of $S^{n-1} \\times \\{1\\}$. The boundary map extends if and only if these two self-homeomorphisms of $S^{n-1}$ are isotopic.\n\nThe self-homeomorphism of $S^{n-1} \\times \\{1\\}$ (coming from the identity on $\\partial B_{R''}$) is determined by the product structures. We can choose the product structures so that this is the identity. Then the question is whether the self-homeomorphism of $S^{n-1} \\times \\{0\\}$ (coming from $f$) is isotopic to the identity.\n\nBut this self-homeomorphism depends on the choice of product structures! Different product structures give different self-homeomorphisms, differing by elements of the mapping class group of $S^{n-1}$.\n\nHowever, the extendability is independent of the choice. So the question is whether there EXISTS a choice of product structures making the boundary map extendable. This is equivalent to: the \"difference\" between the two product structures (an element of the mapping class group of $S^{n-1}$) can be chosen to cancel the obstruction from $f$.\n\nHmm, I think I'm going in circles. Let me try a completely different approach.\n\n**Using the fact that $h$ is isotopic to the identity:**\n\nAssume $h$ is isotopic to the identity via $H_t$ ($H_0 = \\text{id}$, $H_1 = h$). Given compact $K$ and $\\epsilon > 0$:\n\n1. Choose $R$ with $K \\subset B_R$.\n2. The set $\\bigcup_{t \\in [0,1]} H_t(K)$ is compact; choose $R'$ with this set contained in $B_{R'}$.\n3. By the isotopy extension theorem, the isotopy $H_t|_K$ extends to an isotopy $G_t$ of $\\mathbb{R}^n$ with compact support.\n4. Then $G_1 \\in Homeo_c(\\mathbb{R}^n)$ and $G_1|_K = H_1|_K = h|_K$.\n\nThis gives exact agreement on $K$, which is stronger than needed.\n\nThe key ingredients are:\n(a) Every $h \\in Homeo_0(\\mathbb{R}^n)$ is isotopic to the identity.\n(b) The isotopy extension theorem for homeomorphisms of $\\mathbb{R}^n$.\n\nBoth (a) and (b) are deep results in geometric topology:\n\n(a) is the \"stable homeomorphism theorem\" (Kirby-Siebenmann for $n \\geq 5$, Quinn for $n = 4$, classical for $n \\leq 3$).\n\n(b) follows from the annulus theorem (same provenance).\n\nActually, wait. Let me reconsider whether we need (a). \n\nFor the density, we need: for every $h \\in Homeo_0(\\mathbb{R}^n)$, compact $K$, $\\epsilon > 0$, there exists $g \\in Homeo_c(\\mathbb{R}^n)$ with $\\|g - h\\|_K < \\epsilon$.\n\nIf $h$ is isotopic to the identity, then by (b), we get $g = h$ on $K$. But what if $h$ is NOT isotopic to the identity? Then we might not be able to get $g = h$ on $K$, but maybe we can still approximate.\n\nActually, for $\\mathbb{R}^n$, ALL orientation-preserving homeomorphisms ARE isotopic to the identity (by the stable homeomorphism theorem). So (a) holds, and the density follows.\n\nBut let me double-check: is the stable homeomorphism theorem really saying this?\n\nThe stable homeomorphism theorem says: every orientation-preserving homeomorphism of $\\mathbb{R}^n$ is stable, i.e., a composition of homeomorphisms each of which is the identity on some open set.\n\nA \"stable\" homeomorphism is isotopic to the identity: if $h = h_1 \\circ \\cdots \\circ h_k$ where each $h_i$ is the identity on some open set $U_i$, then each $h_i$ is isotopic to the identity (by the Alexander trick applied to a ball in $U_i$), and hence $h$ is isotopic to the identity.\n\nSo yes, (a) follows from the stable homeomorphism theorem.\n\nNow, the stable homeomorphism theorem is known for all $n$:\n- $n \\leq 3$: classical\n- $n \\geq 5$: Kirby-Siebenmann (1969)\n- $n = 4$: Quinn (1982)\n\nAnd the annulus theorem (which gives (b)) is also known for all $n$:\n- $n \\leq 3$: classical\n- $n \\geq 5$: Kirby-Siebenmann (1969)\n- $n = 4$: Quinn (1982)\n\nSo the answer is **yes**, $Homeo_c(\\mathbb{R}^n)$ is dense in $Homeo_0(\\mathbb{R}^n)$ in the compact-open topology, for all $n$.\n\nLet me now write up a clean proof.\n\nActually, let me reconsider whether we need both (a) and (b), or whether one suffices.\n\nIf we have (a) (every $h \\in Homeo_0$ is isotopic to the identity) and (b) (isotopy extension), then the proof is straightforward as above.\n\nCan we prove density with just (a) and without the full isotopy extension theorem? \n\nGiven $h$ isotopic to the identity via $H_t$, and compact $K$:\n\nThe isotopy $H_t$ gives a continuous family of homeomorphisms. We want to \"cut off\" this isotopy to have compact support while preserving it on $K$.\n\nHere's a construction: Choose $R$ with $K \\subset B_R$ and $\\bigcup_t H_t(K) \\subset B_{R'}$. \n\nDefine $G_t$ as follows:\n- $G_t = H_t$ on $\\overline{B_R}$\n- $G_t = \\text{id}$ outside $B_{R''}$\n- Interpolate on the annulus $B_{R''} \\setminus B_R$.\n\nFor this to work, we need to extend $H_t|_{\\partial B_R}$ to the annulus, matching the identity on $\\partial B_{R''}$. This is the isotopy extension on the annulus, which requires the annulus theorem.\n\nSo we do need both (a) and (b), or more precisely, we need the annulus theorem (which gives both the product structure on annular regions and the isotopy extension).\n\nAlternatively, we can use the following more direct argument:\n\n**Direct argument using the stable homeomorphism theorem:**\n\nThe stable homeomorphism theorem says $Homeo_0(\\mathbb{R}^n)$ is generated by homeomorphisms that are the identity on some open set. But a homeomorphism that is the identity on an open set is NOT necessarily compactly supported. However, we can approximate such homeomorphisms by compactly supported ones.\n\nHmm, this is less direct. Let me stick with the isotopy approach.\n\nLet me also consider: is the result actually true? Let me think about potential counterexamples.\n\nFor $n = 1$: As I showed above, it's true by explicit construction.\n\nFor $n = 2$: It should be true. The group $Homeo_0(\\mathbb{R}^2)$ is well-studied, and compactly supported homeomorphisms are dense.\n\nFor $n \\geq 3$: The potential obstruction from the mapping class group of $S^{n-1}$ is real, but it's circumvented by the fact that the boundary map $h|_{\\partial B_R}$ extends to a homeomorphism of the ball (namely $h|_{\\overline{B_R}}$), and by the Alexander trick, this means the boundary map is isotopic to the identity (as a map between spheres, using the isotopy from the Alexander trick).\n\nWait, let me think about this more carefully. The Alexander trick says: any homeomorphism $f: D^n \\to D^n$ is isotopic to the identity (if orientation-preserving) or to a reflection (if orientation-reversing). The isotopy is $F_t(x) = t \\cdot f(x/t)$ for $t > 0$ and $F_0 = \\text{id}$ (for $x$ in the interior; on the boundary, $F_t|_{\\partial D^n} = f|_{\\partial D^n}$ for all $t > 0$... no, that's not right).\n\nActually, the Alexander trick isotopy is: $F_t(x) = (1-t) x + t f(x)$... no, that's for linear maps. The Alexander trick for homeomorphisms is:\n\n$F_t(x) = \\begin{cases} t \\cdot f(x/t) & \\text{if } |x| \\leq t \\\\ x & \\text{if } |x| \\geq t \\end{cases}$\n\nWait, this doesn't work directly because $f$ might not map the ball of radius $t$ to itself. Let me recall the correct statement.\n\nThe Alexander trick: Let $f: D^n \\to D^n$ be a homeomorphism with $f|_{\\partial D^n} = \\text{id}$. Then $f$ is isotopic to the identity relative to the boundary, via $F_t(x) = (1/t) f(tx)$ for $t \\in (0,1]$ and $F_0 = \\text{id}$.\n\nBut this requires $f$ to fix the boundary! In our case, $h|_{\\overline{B_R}}$ does NOT fix the boundary $\\partial B_R$ (it maps it to $h(\\partial B_R) \\neq \\partial B_R$ in general).\n\nThe more general Alexander trick: any homeomorphism $f: D^n \\to D^n$ (not necessarily fixing the boundary) is isotopic to the identity (if orientation-preserving). The isotopy is:\n\n$F_t(x) = \\begin{cases} t \\cdot f(x/t) & \\text{if } |x| \\leq t \\\\ x & \\text{if } |x| \\geq t \\end{cases}$\n\nBut this only works if $f$ maps $D^n$ to $D^n$ (i.e., $f$ is a self-homeomorphism of the ball). In our case, $h|_{\\overline{B_R}}: \\overline{B_R} \\to h(\\overline{B_R})$ is a homeomorphism between two different balls. After identifying $h(\\overline{B_R})$ with $\\overline{B_R}$ via some homeomorphism $\\phi: h(\\overline{B_R}) \\to \\overline{B_R}$, we get $\\phi \\circ h|_{\\overline{B_R}}: \\overline{B_R} \\to \\overline{B_R}$, a self-homeomorphism of the ball. By the Alexander trick, this is isotopic to the identity. But the isotopy moves the boundary, and the boundary values of the isotopy give an isotopy of $\\phi \\circ h|_{\\partial B_R}: \\partial B_R \\to \\partial B_R$ to the identity.\n\nSo $\\phi \\circ h|_{\\partial B_R}$ is isotopic to the identity as a self-homeomorphism of $S^{n-1}$. But the isotopy class of $\\phi \\circ h|_{\\partial B_R}$ depends on the choice of $\\phi$.\n\nThe key point is: the isotopy class of $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ as a \"homeomorphism between two spheres\" is well-defined (it doesn't depend on any choices), and the question is whether this isotopy class is \"trivial\" in the appropriate sense.\n\nA homeomorphism $f: S_1 \\to S_2$ between two copies of $S^{n-1}$ is \"isotopic to the identity\" if there exist identifications $\\alpha: S_1 \\to S^{n-1}$ and $\\beta: S_2 \\to S^{n-1}$ such that $\\beta \\circ f \\circ \\alpha^{-1}$ is isotopic to the identity in $\\text{Homeo}(S^{n-1})$. But this is always true! Because we can choose $\\alpha$ and $\\beta$ to make $\\beta \\circ f \\circ \\alpha^{-1} = \\text{id}$ (just set $\\beta = \\alpha \\circ f^{-1}$).\n\nSo the notion of \"isotopic to the identity\" for a homeomorphism between two different spheres is vacuous — it's always true. The real question is about the extension to the annulus, which involves the product structure.\n\nOK, I think the correct way to think about this is:\n\nThe boundary map $f \\cup \\text{id}: \\partial B_R \\sqcup \\partial B_{R''} \\to h(\\partial B_R) \\sqcup \\partial B_{R''}$ extends to a homeomorphism $A \\to A'$ if and only if the two annular regions $A$ and $A'$ are \"equivalent\" relative to this boundary map. \n\nBy the annulus theorem, both $A$ and $A'$ are homeomorphic to $S^{n-1} \\times [0,1]$. The boundary map $f \\cup \\text{id}$ gives a homeomorphism of the boundaries. The question is whether this extends.\n\nNow, here's the crucial point: the annulus $A = \\overline{B_{R''}} \\setminus B_R$ has a CANONICAL product structure (it's a round spherical shell, so it has the radial product structure $S^{n-1} \\times [R, R'']$). The annulus $A' = \\overline{B_{R''}} \\setminus h(B_R)$ has a product structure given by the annulus theorem, but this product structure is NOT canonical.\n\nThe boundary map $f \\cup \\text{id}$ extends if and only if, using the canonical product structure on $A$ and some product structure on $A'$, the \"inner boundary\" homeomorphism (after identifying via the product structures) is isotopic to the identity.\n\nBut since we're free to choose the product structure on $A'$, we can choose it to make the inner boundary homeomorphism anything we want (up to the mapping class group of $S^{n-1}$). So the question is whether the mapping class group of $S^{n-1}$ acts transitively enough.\n\nHmm, actually, I think the product structure on $A'$ is constrained by the requirement that the outer boundary ($\\partial B_{R''}$) maps to $S^{n-1} \\times \\{1\\}$ via the identity. This constrains the product structure.\n\nLet me think about this differently. \n\nThe product structure on $A'$ is a homeomorphism $p': A' \\to S^{n-1} \\times [0,1]$ with $p'(h(\\partial B_R)) = S^{n-1} \\times \\{0\\}$ and $p'(\\partial B_{R''}) = S^{n-1} \\times \\{1\\}$. The product structure on $A$ is $p: A \\to S^{n-1} \\times [0,1]$ with $p(\\partial B_R) = S^{n-1} \\times \\{0\\}$ and $p(\\partial B_{R''}) = S^{n-1} \\times \\{1\\}$.\n\nThe boundary map $f \\cup \\text{id}$ in these coordinates becomes:\n- On $S^{n-1} \\times \\{0\\}$: $p' \\circ f \\circ p^{-1}|_{S^{n-1} \\times \\{0\\}}: S^{n-1} \\to S^{n-1}$\n- On $S^{n-1} \\times \\{1\\}$: $p' \\circ \\text{id} \\circ p^{-1}|_{S^{n-1} \\times \\{1\\}}: S^{n-1} \\to S^{n-1}$\n\nWe want to choose $p$ and $p'$ so that both boundary maps are the identity (or at least isotopic, so that the extension exists).\n\nFor the outer boundary: we need $p'|_{\\partial B_{R''}} = p|_{\\partial B_{R''}}$ (so that the outer boundary map is the identity). We can arrange this by choosing $p$ and $p'$ to agree on $\\partial B_{R''}$.\n\nFor the inner boundary: we need $p' \\circ f \\circ p^{-1}|_{S^{n-1} \\times \\{0\\}} = \\text{id}$, i.e., $p'|_{h(\\partial B_R)} \\circ f = p|_{\\partial B_R}$. This means $p'|_{h(\\partial B_R)} = p|_{\\partial B_R} \\circ f^{-1}$.\n\nSo we need to find product structures $p$ and $p'$ on $A$ and $A'$ that:\n1. Agree on $\\partial B_{R''}$: $p|_{\\partial B_{R''}} = p'|_{\\partial B_{R''}}$\n2. Satisfy $p'|_{h(\\partial B_R)} = p|_{\\partial B_R} \\circ f^{-1}$ on the inner boundary\n\nIf such product structures exist, then the boundary map is the identity in both components, and the extension is trivial (just map $(x, s) \\mapsto (x, s)$).\n\nThe question is: given the boundary conditions on $p$ and $p'$, can we extend to product structures on the entire annular regions?\n\nThis is equivalent to: given a homeomorphism of the boundary of $S^{n-1} \\times [0,1]$ (namely, the map that is $p|_{\\partial B_R} \\circ f^{-1} \\circ (p'|_{h(\\partial B_R)})^{-1}$ on $S^{n-1} \\times \\{0\\}$ and the identity on $S^{n-1} \\times \\{1\\}$), does it extend to a homeomorphism of $S^{n-1} \\times [0,1]$?\n\nBut we're choosing $p$ and $p'$, so we have freedom. The constraint is that $p$ is a product structure on $A$ and $p'$ is a product structure on $A'$. \n\nActually, I think the issue is more subtle. Let me think about it from the perspective of the isotopy extension theorem.\n\nThe isotopy extension theorem (for homeomorphisms) states:\n\n**Theorem (Isotopy Extension)**: Let $M$ be a topological manifold, $C \\subset M$ a closed subset, and $F_t: C \\to M$ ($t \\in [0,1]$) an isotopy (each $F_t$ is a homeomorphism onto its image, $F_0 = \\text{id}_C$, and the map $(t, x) \\mapsto F_t(x)$ is continuous). If $C$ is compact, then there exists an isotopy $\\tilde{F}_t: M \\to M$ extending $F_t$ (i.e., $\\tilde{F}_t|_C = F_t$) with compact support.\n\nThis theorem is proven using the annulus theorem. The key step is: at each \"instant,\" the isotopy moves a compact set, and we can extend this local movement to a global homeomorphism with compact support using the annulus theorem.\n\nGiven this theorem, the density of $Homeo_c(\\mathbb{R}^n)$ in $Homeo_0(\\mathbb{R}^n)$ follows from:\n\n1. Every $h \\in Homeo_0(\\mathbb{R}^n)$ is isotopic to the identity (stable homeomorphism theorem).\n2. The isotopy extension theorem.\n\nLet me write up the proof now.\n\nActually, I realize I should also think about whether the problem is asking about $Homeo_0(\\mathbb{R}^n)$ meaning the identity component (which for $\\mathbb{R}^n$ is the orientation-preserving homeomorphisms) or something else. The problem says \"the space of all orientation-preserving homeomorphisms on $\\mathbb{R}^n$ to itself, denoted as $Homeo_0(\\mathbb{R}^n)$\". So $Homeo_0(\\mathbb{R}^n)$ is the orientation-preserving homeomorphisms, which is indeed the identity component of $Homeo(\\mathbb{R}^n)$.\n\nAnd $Homeo_c(\\mathbb{R}^n)$ is the compactly-supported orientation-preserving homeomorphisms (those that are the identity outside a compact set).\n\nThe topology is the compact-open topology (topology of compact convergence).\n\nOK so let me now write the proof. The answer is **yes**, $Homeo_c(\\mathbb{R}^n)$ is dense in $Homeo_0(\\mathbb{R}^n)$.\n\nLet me also think about whether there's a more elementary proof that doesn't rely on the stable homeomorphism theorem and the annulus theorem.\n\nFor $n = 1$: Elementary (as I showed).\n\nFor $n = 2$: Can be proven using the Schoenflies theorem and the fact that orientation-preserving homeomorphisms of the plane are isotopic to the identity (which can be proven elementarily for the plane).\n\nFor general $n$: Requires the stable homeomorphism theorem and the annulus theorem (or equivalently, the isotopy extension theorem).\n\nActually, let me think about whether we can avoid the stable homeomorphism theorem. \n\nThe stable homeomorphism theorem says every orientation-preserving homeomorphism of $\\mathbb{R}^n$ is isotopic to the identity. But for the density, we don't need the full isotopy — we just need to approximate on compact sets.\n\nHere's an alternative approach that might avoid the stable homeomorphism theorem:\n\nGiven $h \\in Homeo_0(\\mathbb{R}^n)$, compact $K$, $\\epsilon > 0$:\n\n1. Choose $R$ with $K \\subset B_R$ and $h(K) \\subset B_R$.\n2. We want $g \\in Homeo_c(\\mathbb{R}^n)$ with $\\|g - h\\|_K < \\epsilon$ (or $g = h$ on $K$).\n3. Consider $h|_{\\overline{B_R}}: \\overline{B_R} \\to h(\\overline{B_R})$. This is a homeomorphism between two closed $n$-balls.\n4. We need to extend this to a compactly supported homeomorphism of $\\mathbb{R}^n$.\n\nThe extension problem: extend $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ to a homeomorphism $\\psi: \\mathbb{R}^n \\setminus B_R \\to \\mathbb{R}^n \\setminus h(B_R)$ with compact support.\n\nBy the Schoenflies theorem, $h(\\partial B_R)$ is a bicollared sphere, and $\\mathbb{R}^n \\setminus h(B_R)$ is homeomorphic to $\\mathbb{R}^n \\setminus B_R$. But we need the extension to respect the boundary values and have compact support.\n\nThe Schoenflies theorem gives us a homeomorphism $\\phi: \\mathbb{R}^n \\to \\mathbb{R}^n$ with $\\phi(\\overline{B_R}) = h(\\overline{B_R})$ (by the \"strong Schoenflies theorem\" which says the Schoenflies homeomorphism can be chosen to be the identity outside a compact set). Wait, is this true?\n\nThe strong Schoenflies theorem: if $\\Sigma$ is a bicollared $(n-1)$-sphere in $\\mathbb{R}^n$, then there is a homeomorphism $\\phi: \\mathbb{R}^n \\to \\mathbb{R}^n$ that is the identity outside a compact set and maps the standard sphere $\\partial B_R$ to $\\Sigma$.\n\nIf this is true, then we can proceed as follows:\n\nLet $\\phi: \\mathbb{R}^n \\to \\mathbb{R}^n$ be a compactly supported homeomorphism with $\\phi(\\overline{B_R}) = h(\\overline{B_R})$. Then $\\phi^{-1} \\circ h|_{\\overline{B_R}}: \\overline{B_R} \\to \\overline{B_R}$ is a self-homeomorphism of the closed ball. By the Alexander trick, this is isotopic to the identity (if orientation-preserving, which it is since both $\\phi$ and $h$ are orientation-preserving).\n\nLet $F_t: \\overline{B_R} \\to \\overline{B_R}$ be the Alexander isotopy with $F_0 = \\text{id}$ and $F_1 = \\phi^{-1} \\circ h|_{\\overline{B_R}}$.\n\nNow, $\\phi \\circ F_t: \\overline{B_R} \\to h(\\overline{B_R})$ is an isotopy from $\\phi|_{\\overline{B_R}}$ to $h|_{\\overline{B_R}}$.\n\nWe want to extend this to an isotopy of $\\mathbb{R}^n$ with compact support. By the isotopy extension theorem, we can extend $\\phi \\circ F_t|_{\\partial B_R}$ to an isotopy $\\tilde{F}_t: \\mathbb{R}^n \\to \\mathbb{R}^n$ with compact support. Then $\\tilde{F}_1 \\circ \\phi$ is a compactly supported homeomorphism that agrees with $h$ on $\\overline{B_R}$ (hence on $K$).\n\nWait, let me be more careful. We have $\\phi \\in Homeo_c(\\mathbb{R}^n)$ with $\\phi(\\overline{B_R}) = h(\\overline{B_R})$. We want to find $g \\in Homeo_c(\\mathbb{R}^n)$ with $g = h$ on $K$.\n\nConsider $\\phi^{-1} \\circ h|_{\\overline{B_R}}: \\overline{B_R} \\to \\overline{B_R}$. This is an orientation-preserving self-homeomorphism of the closed ball. By the Alexander trick, it's isotopic to the identity via an isotopy $F_t: \\overline{B_R} \\to \\overline{B_R}$ with $F_0 = \\text{id}$ and $F_1 = \\phi^{-1} \\circ h|_{\\overline{B_R}}$.\n\nNow, $F_t|_{\\partial B_R}: \\partial B_R \\to \\partial B_R$ is an isotopy of the boundary. By the isotopy extension theorem, this extends to an isotopy $\\tilde{F}_t: \\mathbb{R}^n \\to \\mathbb{R}^n$ with compact support, with $\\tilde{F}_t|_{\\overline{B_R}} = F_t$ (extending from the boundary to the interior as well, or we can use the isotopy extension on $\\overline{B_R}$ directly).\n\nActually, the isotopy extension theorem extends isotopies of closed subsets. If we apply it to $C = \\overline{B_R}$ and the isotopy $F_t: \\overline{B_R} \\to \\overline{B_R}$, we get $\\tilde{F}_t: \\mathbb{R}^n \\to \\mathbb{R}^n$ with compact support and $\\tilde{F}_t|_{\\overline{B_R}} = F_t$.\n\nThen $g = \\phi \\circ \\tilde{F}_1$ is a composition of two compactly supported homeomorphisms, hence compactly supported. And $g|_{\\overline{B_R}} = \\phi \\circ F_1 = \\phi \\circ \\phi^{-1} \\circ h|_{\\overline{B_R}} = h|_{\\overline{B_R}}$. So $g = h$ on $K$.\n\nThis works! And the key ingredients are:\n1. The strong Schoenflies theorem (existence of $\\phi$).\n2. The Alexander trick (isotopy of ball homeomorphisms to the identity).\n3. The isotopy extension theorem.\n\nWe do NOT need the stable homeomorphism theorem! The strong Schoenflies theorem and the isotopy extension theorem suffice.\n\nWait, but the strong Schoenflies theorem and the isotopy extension theorem are both consequences of the annulus theorem. So we still need the annulus theorem.\n\nBut the annulus theorem is known for all $n$ (Kirby-Siebenmann for $n \\geq 5$, Quinn for $n = 4$, classical for $n \\leq 3$). So the result holds for all $n$.\n\nActually, let me reconsider. The strong Schoenflies theorem says: given a bicollared $(n-1)$-sphere $\\Sigma$ in $\\mathbb{R}^n$, there is a homeomorphism of $\\mathbb{R}^n$ mapping $\\Sigma$ to the standard sphere $S^{n-1}$. The \"strong\" version says this homeomorphism can be chosen to have compact support. Is this true?\n\nThe Schoenflies theorem (generalized, by Mazur-Brown) says: if $\\Sigma$ is a bicollared $(n-1)$-sphere in $S^n$, then the closure of each complementary domain is homeomorphic to $D^n$. This implies that there is a homeomorphism of $S^n$ mapping $\\Sigma$ to the equator $S^{n-1}$.\n\nFor $\\mathbb{R}^n$: if $\\Sigma$ is a bicollared $(n-1)$-sphere in $\\mathbb{R}^n$, then by compactifying to $S^n$ (adding the point at infinity), $\\Sigma$ becomes a bicollared sphere in $S^n$ not passing through $\\infty$. The Schoenflies theorem gives a homeomorphism of $S^n$ mapping $\\Sigma$ to the equator. But this homeomorphism might move $\\infty$.\n\nTo get a compactly supported homeomorphism, we need the homeomorphism to fix $\\infty$ (and a neighborhood of $\\infty$). This is the \"strong Schoenflies theorem\" or \"Schoenflies theorem with compact support.\"\n\nI believe this is true and follows from the annulus theorem. Here's the argument:\n\nGiven $\\Sigma \\subset \\mathbb{R}^n$ a bicollared sphere, with $\\Sigma \\subset B_R$ for some $R$. The region between $\\Sigma$ and $\\partial B_{R'}$ (for $R' > R$) is an annular region. By the annulus theorem, this is homeomorphic to $S^{n-1} \\times [0,1]$. This gives a product structure, which can be used to construct a homeomorphism that maps $\\Sigma$ to $\\partial B_{R'}$ and is the identity on $\\partial B_{R''}$ for $R'' > R'$. Wait, that's not quite right either.\n\nLet me think more carefully. We have $\\Sigma = h(\\partial B_R) \\subset B_{R'}$. We want a compactly supported homeomorphism $\\phi$ with $\\phi(\\partial B_R) = \\Sigma$.\n\nConsider the region $A = \\overline{B_{R'}} \\setminus B_R$ (between $\\partial B_R$ and $\\partial B_{R'}$) and the region $A' = \\overline{B_{R'}} \\setminus h(B_R)$ (between $\\Sigma$ and $\\partial B_{R'}$). By the annulus theorem, both are homeomorphic to $S^{n-1} \\times [0,1]$.\n\nWe want a homeomorphism $\\phi: \\mathbb{R}^n \\to \\mathbb{R}^n$ with:\n- $\\phi = \\text{id}$ outside $B_{R'}$\n- $\\phi(\\partial B_R) = \\Sigma$\n- $\\phi$ maps $B_R$ to the region bounded by $\\Sigma$ (which is $h(B_R)$)\n\nThis is equivalent to finding a homeomorphism $\\psi: A \\to A'$ with $\\psi|_{\\partial B_{R'}} = \\text{id}$ and $\\psi(\\partial B_R) = \\Sigma$ (with $\\psi|_{\\partial B_R}$ being any homeomorphism $\\partial B_R \\to \\Sigma$).\n\nThe existence of such $\\psi$ is equivalent to: the two annular regions $A$ and $A'$ are homeomorphic relative to the outer boundary. Since both are annuli (by the annulus theorem) and the outer boundary is $\\partial B_{R'}$ in both cases, we can choose the product structures to agree on $\\partial B_{R'}$, and then $\\psi$ exists if and only if the \"inner boundary\" homeomorphism (in the product coordinates) is isotopic to the identity.\n\nBut we're free to choose the inner boundary homeomorphism (any homeomorphism $\\partial B_R \\to \\Sigma$). So we can choose it to be the one that makes the product structures compatible, i.e., we choose the product structure on $A'$ first, then define the inner boundary homeomorphism to be the one compatible with the product structure on $A$.\n\nMore concretely: choose a product structure $p': A' \\to S^{n-1} \\times [0,1]$ with $p'(\\Sigma) = S^{n-1} \\times \\{0\\}$ and $p'(\\partial B_{R'}) = S^{n-1} \\times \\{1\\}$. Choose a product structure $p: A \\to S^{n-1} \\times [0,1]$ with $p(\\partial B_R) = S^{n-1} \\times \\{0\\}$ and $p(\\partial B_{R'}) = S^{n-1} \\times \\{1\\}$, and $p|_{\\partial B_{R'}} = p'|_{\\partial B_{R'}}$ (we can arrange this). Then define $\\psi = p'^{-1} \\circ p: A \\to A'$. This is a homeomorphism with $\\psi|_{\\partial B_{R'}} = \\text{id}$ and $\\psi(\\partial B_R) = \\Sigma$.\n\nSo the strong Schoenflies theorem (with compact support) follows from the annulus theorem. Good.\n\nNow, putting it all together:\n\n**Proof that $Homeo_c(\\mathbb{R}^n)$ is dense in $Homeo_0(\\mathbb{R}^n)$:**\n\nGiven $h \\in Homeo_0(\\mathbb{R}^n)$, compact $K \\subset \\mathbb{R}^n$, and $\\epsilon > 0$:\n\n**Step 1**: Choose $R > 0$ with $K \\subset B_R$ and $h(K) \\subset B_R$. Choose $R' > R$ with $h(\\overline{B_R}) \\subset B_{R'}$.\n\n**Step 2** (Strong Schoenflies): By the annulus theorem, there exists $\\phi \\in Homeo_c(\\mathbb{R}^n)$ with $\\phi(\\overline{B_R}) = h(\\overline{B_R})$ and $\\phi = \\text{id}$ outside $B_{R'}$.\n\n**Step 3** (Alexander trick): The map $f = \\phi^{-1} \\circ h|_{\\overline{B_R}}: \\overline{B_R} \\to \\overline{B_R}$ is an orientation-preserving self-homeomorphism of the closed ball. By the Alexander trick, $f$ is isotopic to the identity: there exists $F_t: \\overline{B_R} \\to \\overline{B_R}$ ($t \\in [0,1]$) with $F_0 = \\text{id}$, $F_1 = f$, each $F_t$ a homeomorphism.\n\n**Step 4** (Isotopy extension): By the isotopy extension theorem (which follows from the annulus theorem), the isotopy $F_t$ of the compact set $\\overline{B_R}$ extends to an isotopy $\\tilde{F}_t: \\mathbb{R}^n \\to \\mathbb{R}^n$ with compact support, i.e., $\\tilde{F}_t|_{\\overline{B_R}} = F_t$ and $\\tilde{F}_t = \\text{id}$ outside some compact set.\n\n**Step 5**: Define $g = \\phi \\circ \\tilde{F}_1$. Then:\n- $g \\in Homeo_c(\\mathbb{R}^n)$ (composition of compactly supported homeomorphisms).\n- $g|_{\\overline{B_R}} = \\phi \\circ F_1 = \\phi \\circ \\phi^{-1} \\circ h|_{\\overline{B_R}} = h|_{\\overline{B_R}}$.\n- In particular, $g|_K = h|_K$, so $\\|g - h\\|_K = 0 < \\epsilon$.\n\nThis proves density. $\\square$\n\nWait, I should double-check the Alexander trick for homeomorphisms of the closed ball that don't fix the boundary.\n\nThe Alexander trick: Let $f: D^n \\to D^n$ be a homeomorphism. Define $F_t: D^n \\to D^n$ by:\n$$F_t(x) = \\begin{cases} t \\cdot f(x/t) & \\text{if } |x| \\leq t \\text{ and } t > 0 \\\\ x & \\text{if } |x| \\geq t \\end{cases}$$\n\nWait, this doesn't work because $f$ might not map $D^n_t = \\{x : |x| \\leq t\\}$ to itself. Let me recall the correct version.\n\nThe Alexander trick for a homeomorphism $f: D^n \\to D^n$ with $f|_{\\partial D^n} = \\text{id}$:\n\n$F_t(x) = \\begin{cases} (1/t) f(tx) & \\text{if } |x| \\leq 1, t \\in (0,1] \\\\ x & \\text{if } t = 0 \\end{cases}$\n\nThis gives an isotopy from $f$ (at $t = 1$) to the identity (at $t = 0$), fixing the boundary. But this requires $f|_{\\partial D^n} = \\text{id}$.\n\nFor a general homeomorphism $f: D^n \\to D^n$ (not fixing the boundary), the Alexander trick gives an isotopy to the identity as follows:\n\n$F_t(x) = \\begin{cases} t \\cdot f(x/t) & \\text{if } |x| \\leq t, t > 0 \\\\ x & \\text{if } |x| \\geq t \\end{cases}$\n\nHere, for $|x| \\leq t$, $x/t \\in D^n$, so $f(x/t) \\in D^n$, and $t \\cdot f(x/t) \\in D^n_t$. For $|x| \\geq t$, $F_t(x) = x$. At $|x| = t$, we need continuity: $t \\cdot f(x/t) = t \\cdot f(y)$ where $|y| = 1$, so $f(y) \\in \\partial D^n$ and $|t \\cdot f(y)| = t$. But $f(y)$ is on the boundary, so $|f(y)| = 1$, hence $|t \\cdot f(y)| = t = |x|$. So $F_t$ maps the sphere of radius $t$ to itself. But for $|x| = t$, $F_t(x) = x$ (from the second branch), while from the first branch, $F_t(x) = t \\cdot f(x/t)$ which is on the sphere of radius $t$ but not necessarily equal to $x$. So there's a discontinuity unless $f|_{\\partial D^n} = \\text{id}$.\n\nSo the Alexander trick as stated only works for boundary-fixing homeomorphisms. For general homeomorphisms, we need a different argument.\n\nHmm, so the Alexander trick doesn't directly give us that every self-homeomorphism of the ball is isotopic to the identity. Let me reconsider.\n\nActually, the statement \"every orientation-preserving homeomorphism of $D^n$ is isotopic to the identity\" is true, but the proof is more subtle than the basic Alexander trick.\n\nOne approach: First, isotope $f$ to fix the boundary, then apply the Alexander trick.\n\nTo isotope $f$ to fix the boundary: Consider $f|_{\\partial D^n}: \\partial D^n \\to \\partial D^n$, an orientation-preserving homeomorphism of $S^{n-1}$. If this is isotopic to the identity (as a homeomorphism of $S^{n-1}$), then we can use the isotopy extension theorem to extend this isotopy to an isotopy of $D^n$, reducing to the boundary-fixing case.\n\nBut is every orientation-preserving homeomorphism of $S^{n-1}$ isotopic to the identity? This is the question of whether $\\pi_0(\\text{Homeo}^+(S^{n-1})) = 0$.\n\nFor $n = 1$: $S^0 = \\{\\pm 1\\}$, $\\text{Homeo}^+(S^0) = \\{\\text{id}\\}$, trivially yes.\nFor $n = 2$: $S^1$, $\\pi_0(\\text{Homeo}^+(S^1)) = 0$ (classical, by the Alexander trick for $S^1$ or by the fact that $\\text{Homeo}^+(S^1)$ is path-connected).\nFor $n = 3$: $S^2$, $\\pi_0(\\text{Homeo}^+(S^2)) = 0$ (by the Smale conjecture, proved by Hatcher — actually, the Smale conjecture says $\\text{Homeo}(S^2) \\simeq O(3)$, which implies path-connectedness of the identity component).\nFor $n = 4$: $S^3$, $\\pi_0(\\text{Homeo}^+(S^3)) = 0$ (by Hatcher's proof of the Smale conjecture for $S^3$).\nFor $n \\geq 6$: $S^{n-1}$ with $n-1 \\geq 5$, $\\pi_0(\\text{Homeo}^+(S^{n-1}))$ is $\\Theta_n$, the group of exotic $n$-spheres, which is NONTRIVIAL for many $n$ (e.g., $n = 7$, $\\Theta_7 = \\mathbb{Z}/28$).\n\nSo for $n \\geq 6$, there exist orientation-preserving homeomorphisms of $S^{n-1}$ that are NOT isotopic to the identity! This means there exist orientation-preserving homeomorphisms of $D^n$ that are NOT isotopic to the identity (relative to the boundary)!\n\nWait, but the question is about isotopy NOT relative to the boundary. A homeomorphism of $D^n$ that is not isotopic to the identity relative to the boundary might still be isotopic to the identity (not relative to the boundary).\n\nThe isotopy classes of homeomorphisms of $D^n$ (not relative to boundary) are classified by $\\pi_0(\\text{Homeo}^+(D^n))$. By the Alexander trick (the version that works), $\\text{Homeo}^+(D^n)$ is contractible (or at least path-connected). Wait, is this true?\n\nThe Alexander trick (corrected): The inclusion $\\text{Homeo}^+(D^n, \\partial D^n) \\hookrightarrow \\text{Homeo}^+(D^n)$ is a homotopy equivalence, where $\\text{Homeo}^+(D^n, \\partial D^n)$ is the group of orientation-preserving homeomorphisms fixing the boundary. And $\\text{Homeo}^+(D^n, \\partial D^n)$ is contractible (by the Alexander trick $F_t(x) = (1/t) f(tx)$). Wait, that's not quite right either. The Alexander trick shows that $\\text{Homeo}^+(D^n, \\partial D^n)$ is contractible, but the inclusion into $\\text{Homeo}^+(D^n)$ being a homotopy equivalence requires the isotopy extension theorem.\n\nActually, I think the correct statement is:\n\n$\\text{Homeo}^+(D^n)$ is path-connected for all $n$. This follows from the fact that every orientation-preserving homeomorphism of $D^n$ is isotopic to the identity (not relative to the boundary).\n\nBut this is NOT a direct consequence of the Alexander trick. It requires additional input.\n\nHmm, let me think about this. For $f: D^n \\to D^n$ orientation-preserving:\n\n1. $f|_{\\partial D^n}: S^{n-1} \\to S^{n-1}$ is orientation-preserving.\n2. If $f|_{\\partial D^n}$ is isotopic to the identity (in $\\text{Homeo}^+(S^{n-1})$), then by isotopy extension, we can isotope $f$ to fix the boundary, and then by Alexander trick, isotope to the identity.\n3. If $f|_{\\partial D^n}$ is NOT isotopic to the identity, then... $f$ might still be isotopic to the identity (the isotopy would move the boundary).\n\nThe question is: can a homeomorphism of $D^n$ whose boundary restriction is not isotopic to the identity still be isotopic to the identity?\n\nIf $f$ is isotopic to the identity via $F_t$, then $F_t|_{\\partial D^n}$ is an isotopy of $f|_{\\partial D^n}$ to the identity in $\\text{Homeo}^+(S^{n-1})$. So if $f$ is isotopic to the identity (in $\\text{Homeo}^+(D^n)$), then $f|_{\\partial D^n}$ is isotopic to the identity (in $\\text{Homeo}^+(S^{n-1})$).\n\nConversely, if $f|_{\\partial D^n}$ is isotopic to the identity, then by isotopy extension, $f$ is isotopic to a boundary-fixing homeomorphism, which by Alexander trick is isotopic to the identity.\n\nSo: **$f \\in \\text{Homeo}^+(D^n)$ is isotopic to the identity if and only if $f|_{\\partial D^n} \\in \\text{Homeo}^+(S^{n-1})$ is isotopic to the identity.**\n\nThis means: for $n \\geq 6$ (where $\\pi_0(\\text{Homeo}^+(S^{n-1})) \\neq 0$), there exist orientation-preserving homeomorphisms of $D^n$ that are NOT isotopic to the identity!\n\nThis is a problem for my proof. In Step 3, I claimed that $\\phi^{-1} \\circ h|_{\\overline{B_R}}$ is isotopic to the identity by the Alexander trick. But this might not be true for $n \\geq 6$!\n\nHowever, $\\phi^{-1} \\circ h|_{\\overline{B_R}}$ is not just any homeomorphism of the ball — it's the restriction of a homeomorphism of $\\mathbb{R}^n$. Does this help?\n\nWell, $\\phi^{-1} \\circ h$ is a homeomorphism of $\\mathbb{R}^n$ (composition of two homeomorphisms). Its restriction to $\\overline{B_R}$ is a self-homeomorphism of $\\overline{B_R}$ (since $\\phi(\\overline{B_R}) = h(\\overline{B_R})$, so $\\phi^{-1}(h(\\overline{B_R})) = \\overline{B_R}$). The boundary restriction is $(\\phi^{-1} \\circ h)|_{\\partial B_R}: \\partial B_R \\to \\partial B_R$.\n\nNow, $\\phi^{-1} \\circ h$ is a homeomorphism of $\\mathbb{R}^n$ that maps $\\overline{B_R}$ to itself. Its boundary restriction is a self-homeomorphism of $S^{n-1}$. Is this isotopic to the identity?\n\nNot necessarily! The homeomorphism $\\phi^{-1} \\circ h$ of $\\mathbb{R}^n$ might restrict to a non-trivial mapping class on $\\partial B_R$.\n\nBut wait — $\\phi^{-1} \\circ h$ is a homeomorphism of $\\mathbb{R}^n$ that is the identity outside $B_{R'}$ (since $\\phi = \\text{id}$ outside $B_{R'}$ and $h$ might not be the identity outside $B_{R'}$... actually, $h$ is not compactly supported in general). Hmm, $\\phi$ is compactly supported but $h$ is not, so $\\phi^{-1} \\circ h$ is not compactly supported.\n\nLet me reconsider. We have:\n- $\\phi \\in Homeo_c(\\mathbb{R}^n)$ with $\\phi(\\overline{B_R}) = h(\\overline{B_R})$, $\\phi = \\text{id}$ outside $B_{R'}$.\n- $h \\in Homeo_0(\\mathbb{R}^n)$ is the given homeomorphism.\n- $f = \\phi^{-1} \\circ h|_{\\overline{B_R}}: \\overline{B_R} \\to \\overline{B_R}$.\n\nThe boundary restriction $f|_{\\partial B_R} = \\phi^{-1} \\circ h|_{\\partial B_R}: \\partial B_R \\to \\partial B_R$.\n\nThis is a self-homeomorphism of $S^{n-1}$. Its isotopy class is an element of $\\pi_0(\\text{Homeo}^+(S^{n-1}))$, which might be nontrivial.\n\nIf this element is nontrivial, then $f$ is not isotopic to the identity (as a homeomorphism of the ball), and my proof breaks down.\n\nSo the question is: can we choose $\\phi$ so that $f|_{\\partial B_R}$ is isotopic to the identity?\n\nRecall that $\\phi$ maps $\\overline{B_R}$ to $h(\\overline{B_R})$, and we're free to choose $\\phi$ (subject to being compactly supported). The boundary map $\\phi|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ can be any homeomorphism (we choose it when constructing $\\phi$). Then $f|_{\\partial B_R} = \\phi^{-1}|_{h(\\partial B_R)} \\circ h|_{\\partial B_R} = (\\phi|_{\\partial B_R})^{-1} \\circ h|_{\\partial B_R}$.\n\nSo $f|_{\\partial B_R}$ is the \"difference\" between $h|_{\\partial B_R}$ and $\\phi|_{\\partial B_R}$ (both maps $\\partial B_R \\to h(\\partial B_R)$). By choosing $\\phi|_{\\partial B_R}$ appropriately, we can make $f|_{\\partial B_R}$ be any self-homeomorphism of $\\partial B_R$ (after identifying $h(\\partial B_R)$ with $\\partial B_R$).\n\nSpecifically, if we choose $\\phi|_{\\partial B_R} = h|_{\\partial B_R}$, then $f|_{\\partial B_R} = \\text{id}$, and $f$ fixes the boundary. Then by the Alexander trick, $f$ is isotopic to the identity (relative to the boundary).\n\nBut can we choose $\\phi|_{\\partial B_R} = h|_{\\partial B_R}$? This means $\\phi$ maps $\\partial B_R$ to $h(\\partial B_R)$ via $h|_{\\partial B_R}$. The question is whether we can extend $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ to a compactly supported homeomorphism $\\phi: \\mathbb{R}^n \\to \\mathbb{R}^n$ with $\\phi(\\overline{B_R}) = h(\\overline{B_R})$.\n\nThis is a more refined version of the strong Schoenflies theorem: not only do we want $\\phi$ to map $\\overline{B_R}$ to $h(\\overline{B_R})$, but we want $\\phi|_{\\partial B_R} = h|_{\\partial B_R}$ specifically.\n\nCan we do this? We need to extend $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ to a homeomorphism $\\phi: \\mathbb{R}^n \\to \\mathbb{R}^n$ with $\\phi(\\overline{B_R}) = h(\\overline{B_R})$ and $\\phi = \\text{id}$ outside some compact set.\n\nThis is equivalent to: extend $h|_{\\partial B_R}$ to a homeomorphism from the exterior $\\mathbb{R}^n \\setminus B_R$ to $\\mathbb{R}^n \\setminus h(B_R)$ that is the identity outside a compact set, AND extend $h|_{\\partial B_R}$ to a homeomorphism from the interior $B_R$ to $h(B_R)$.\n\nThe interior extension is easy: $h|_{B_R}: B_R \\to h(B_R)$ is already a homeomorphism. So we can set $\\phi = h$ on $\\overline{B_R}$.\n\nThe exterior extension: we need to extend $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ to a homeomorphism $\\psi: \\mathbb{R}^n \\setminus B_R \\to \\mathbb{R}^n \\setminus h(B_R)$ with $\\psi = \\text{id}$ outside some compact set.\n\nThis is the same extension problem as before! And as I discussed, this requires the boundary homeomorphism $h|_{\\partial B_R}$ to be compatible with the annulus structure, which might fail for $n \\geq 6$.\n\nSo the issue is real. Let me think about how to resolve it.\n\n**The key insight**: The boundary homeomorphism $h|_{\\partial B_R}: \\partial B_R \\to h(\\partial B_R)$ extends to a homeomorphism of the interiors ($h|_{B_R}: B_R \\to h(B_R)$). This means the \"mapping class\" of $h|_{\\partial B_R}$ is in the image of the restriction map $\\pi_0(\\text{Homeo}^+(D^n)) \\to \\pi_0(\\text{Homeo}^+(S^{n-1}))$.\n\nBut we showed that $\\pi_0(\\text{Homeo}^+(D^n)) \\cong \\pi_0(\\text{Homeo}^+(S^{n-1}))$ (via the restriction map, which is an isomorphism by the discussion above). So the image is all of $\\pi_0(\\text{Homeo}^+(S^{n-1}))$, which means there's no constraint — the boundary homeomorphism can be any mapping class.\n\nHmm, so the boundary homeomorphism $h|_{\\partial B_R}$ can be a nontrivial mapping class, and we can't always extend it to a compactly supported homeomorphism of the exterior.\n\nWait, but $h|_{\\partial B_R}$ extends to $h|_{\\overline{B_R}}: \\overline{B_R} \\to h(\\overline{B_R})$, which is a homeomorphism of balls. After identifying $h(\\overline{B_R})$ with $\\overline{B_R}$ (via some homeomorphism $\\alpha: h(\\overline{B_R}) \\to \\overline{B_R}$), we get $\\alpha \\circ h|_{\\overline{B_R}}: \\overline{B_R} \\to \\overline{B_R}$, a self-homeomorphism of the ball. The boundary restriction is $\\alpha \\circ h|_{\\partial B_R}: \\partial B_R \\to \\partial B_R$.\n\nThe isotopy class of $\\alpha \\circ h|_{\\partial B_R}$ in $\\pi_0(\\text{Homeo}^+(S^{n-1}))$ depends on $\\alpha$. Different choices of $\\alpha$ give different isotopy classes, differing by elements of $\\pi_0(\\text{Homeo}^+(S^{n-1}))$.\n\nSo the \"mapping class\" of $h|_{\\partial B_R}$ as a map $\\partial B_R \\to h(\\partial B_R)$ is not well-defined without choosing an identification $h(\\partial B_R) \\cong \\partial B_R$.\n\nThe question is: can we choose $\\alpha$ (equivalently, choose $\\phi|_{\\partial B_R}$) so that the resulting self-homeomorphism of $S^{n-1}$ is isotopic to the identity?\n\nSince different choices of $\\alpha$ give different isotopy classes, and the set of isotopy classes is $\\pi_0(\\text{Homeo}^+(S^{n-1}))$, we can choose $\\alpha$ to make the isotopy class trivial IF AND ONLY IF the map from choices of $\\alpha$ to isotopy classes is surjective.\n\nThe choices of $\\alpha: h(\\overline{B_R}) \\to \\overline{B_R}$ form a torsor for $\\text{Homeo}^+(\\overline{B_R})$. The map to $\\pi_0(\\text{Homeo}^+(S^{n-1}))$ sends $\\alpha$ to $[\\alpha \\circ h|_{\\partial B_R}]$. Changing $\\alpha$ by composing with $\\beta \\in \\text{Homeo}^+(\\overline{B_R})$ changes the isotopy class by $[\\beta|_{\\partial B_R}]$. The image of $\\text{Homeo}^+(\\overline{B_R}) \\to \\pi_0(\\text{Homeo}^+(S^{n-1}))$ is all of $\\pi_0(\\text{",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 24566,
+        "completion_tokens": 25000,
+        "cached_tokens": 12183
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 24566,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12183,
+    "total_steps": 10
+  }
+}

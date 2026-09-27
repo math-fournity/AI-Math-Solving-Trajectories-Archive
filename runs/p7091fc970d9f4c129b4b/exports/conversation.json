@@ -1,0 +1,1060 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "treasure-ethernet",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-22T03:13:42.043381+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-22T03:13:42.043923+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-22T03:13:42.051834+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-22T03:13:42.044258+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p7091fc970d9f4c129b4b (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Friday, 2026-08-21\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-22T03:13:42.044824+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"database-schema-doc\" path=\"/Users/user/.devin/rules/database-schema-doc.md\">\n# 数据库表结构强制文档化\n\n## 硬约束\n\n**所有项目的数据库表结构集中存放在 `/Users/user/database/` 目录**，每个项目一个文件，文件名与项目名对应。文件开头必须写明该项目的repo全路径。\n\n## 文件命名和位置\n\n- **存放目录**：`/Users/user/database/`\n- **文件名**：`<项目名>.md`（与repo目录名一致，如`AI-Math-Normal-Solver.md`）\n- **文件开头**：必须写明repo全路径，格式：\n  ```\n  > **Repo全路径**：`/Users/user/<repo目录名>/`\n  ```\n\n## 何时必须更新\n\n- 新建表/集合时\n- 修改表/集合的字段时（增删改字段、改字段类型、改字段含义）\n- 新增索引时\n- 修改字段语义时（如字段值从一种含义变为另一种含义）\n\n## 何时必须先读\n\n- **写查数据库的脚本前**——必须先读 `/Users/user/database/<项目名>.md` 了解表结构，不能凭猜测写AQL/SQL\n- **查数据库前**——必须先读对应文档确认字段名、字段类型、字段含义\n- **设计涉及数据库的功能前**——必须先读对应文档了解现有表结构\n\n## 内容要求\n\n每个表/集合必须记录：\n\n1. **表名/集合名** + 用途（一句话）\n2. **字段表**：字段名、类型、含义、是否必填、默认值\n3. **索引**：索引字段、索引类型\n4. **关键JOIN关系**：和其他表/集合的关联字段\n5. **字段值枚举**：如果字段是枚举值（如status），列出所有取值和含义\n6. **已知问题/注意事项**：字段不一致、缺失字段、历史遗留等\n\n## 多数据库情况\n\n- 如果一个repo涉及多个数据库，文档中分节记录每个数据库\n- 如果表结构由其他repo管理（如本repo只读另一个repo的数据库），文档中注明\"由XXX repo管理\"，并记录本repo依赖的字段\n\n## 反模式\n\n- ❌ 在代码中散落数据库字段名，没有集中文档\n- ❌ 写查数据库脚本前不读文档，凭猜测写AQL\n- ❌ 改了表结构但不更新 `/Users/user/database/` 中的文档\n- ❌ 文档只记表名不记字段\n- ❌ 文档记了字段但不记枚举值\n- ❌ 文档开头不写repo全路径\n- ❌ 把数据库文档放在repo内部而不是集中目录\n- ✅ 每次改表结构同时更新 `/Users/user/database/<项目名>.md` 并commit\n- ✅ 写查数据库脚本前先读 `/Users/user/database/<项目名>.md` 确认字段名和类型\n- ✅ 文档记录已知问题（如字段不一致、历史遗留）\n- ✅ 文档开头写明repo全路径\n</rule>\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n\n<rule name=\"global-vs-project-local\" path=\"/Users/user/.devin/rules/global-vs-project-local.md\">\n# 全局vs项目本地判断铁律\n\n## 硬约束\n\n**用户说\"更新AGENTS.md\"或\"添加元组/rule/skill\"时，AI必须先判断这是全局还是项目本地内容，不能直接动手。**\n\n## 判断流程\n\n```\n用户说\"更新AGENTS.md\"或\"添加元组/rule/skill\"\n  ↓\n第一步：判断作用范围\n  ├─ 只在当前项目有意义 → 项目本地\n  └─ 在多个项目中都适用 → 全局\n  ↓\n第二步：判断用户意图\n  ├─ 用户明确说\"全局\" → 全局\n  ├─ 用户明确说\"项目本地\" → 项目本地\n  └─ 用户没说 → 必须问用户\n  ↓\n第三步：放到正确位置\n  ├─ 全局rule → ~/.devin/rules/<name>.md\n  ├─ 全局skill → ~/.config/devin/skills/<name>/SKILL.md\n  ├─ 全局AGENTS.md → ~/.config/devin/AGENTS.md\n  ├─ 项目本地rule → ./.devin/rules/<name>.md\n  ├─ 项目本地skill → ./.devin/skills/<name>/SKILL.md\n  └─ 项目本地AGENTS.md → ./AGENTS.md\n```\n\n## 判断标准\n\n| 信号 | 倾向 |\n|---|---|\n| 内容引用了具体项目的路径、脚本名、目录结构 | 项目本地 |\n| 内容是某个项目特有的操作流程、运维认知 | 项目本地 |\n| 内容是跨项目通用的约束、规范、工作流 | 全局 |\n| 内容修改会影响所有项目的AI行为 | 全局 |\n| 用户说\"以后所有项目都要...\" | 全局 |\n| 用户说\"这个项目要...\" | 项目本地 |\n\n## 禁止\n\n- ❌ 不判断就改全局配置（`~/.devin/`或`~/.config/devin/`）\n- ❌ 不判断就改项目本地配置（`./.devin/`或`./AGENTS.md`）\n- ❌ 把项目本地内容放到全局规则中（污染全局配置）\n- ❌ 把全局通用内容放到项目本地（其他项目无法复用）\n- ❌ 用户没说全局还是本地时自作主张决定\n\n## 必须\n\n- ✅ 先判断作用范围（全局还是项目本地）\n- ✅ 用户没明确说时，先问用户\n- ✅ 判断后告诉用户放在哪里，再动手\n- ✅ 改全局配置时遵循`global-config-git-commit`规则（三个独立repo分别commit）\n\n## 详见\n\n- `tuple-methodology.md`——元组的设计原则、全局vs项目本地的选择策略\n- `global-config-git-commit.md`——全局配置的git提交规则\n- `readme-structure-index.md`——AGENTS.md与README.md的职责分工\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p7091fc970d9f4c129b4b/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nTwo decks $A$ and $B$ of $40$ cards each are placed on a table at noon. Every minute thereafter, we pick the top cards $a \\in A$ and $b \\in B$ and perform a \\emph{duel}.\n\nFor any two cards $a \\in A$ and $b \\in B$, each time $a$ and $b$ duel, the outcome remains the same and is independent of all other duels. A duel has three possible outcomes:\n\\begin{itemize}\n\\item If a card wins, it is placed back at the top of its deck and the losing card is placed at the bottom of its deck.\n\\item If $a$ and $b$ are evenly matched, they are both removed from their respective decks.\n\\item If $a$ and $b$ do not interact with each other, then both are placed at the bottom of their respective decks.\n\\end{itemize}\nThe process ends when both decks are empty. A process is called a \\emph{game} if it ends. Determine the maximum time a \\emph{game} can last, in hours.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"db-delete-backup-first\" path=\"/Users/user/.devin/rules/db-delete-backup-first.md\">\n# 删除数据库数据前必须先备份\n\n**硬约束**：删除数据库的任何数据之前，必须先备份相关的数据，确保删除错误的情况下可以恢复数据。\n\n## 为什么\n\nDB 删除操作不可逆。一旦执行 DELETE/DROP/TRUNCATE/批量删除，数据就没了。如果删除条件写错（比如 WHERE 条件不精确、dry-run 和实际执行结果不一致、脚本有 bug），会丢失不该删的数据，且无法恢复。\n\n历史教训（2026-08-21）：`cleanup_continuation_runs.py` 删除了 p27_continuation_runs 中 224 条 prepared 记录，删除后才发现实际删除数（224）与 dry-run 预期数（223）不一致——因为 collector 在 dry-run 和实际执行之间又创建了 1 条记录。虽然这次差异无害，但如果差异方向反过来（多删了不该删的），就无法恢复了。\n\n## 必做动作\n\n### 步骤1：备份\n\n删除前必须把要删除的数据导出到文件。备份文件路径记录在操作审计文档中。\n\n```bash\n# ArangoDB：用 AQL 导出要删除的记录到 JSON 文件\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\n# 用与删除相同的查询条件查出要删除的完整记录\nrecords = list(db.aql.execute('FOR r IN collection FILTER <删除条件> RETURN r', ttl=120))\nwith open('backup_<collection>_<date>.json', 'w') as f:\n    json.dump(records, f, ensure_ascii=False, indent=2)\nprint(f'备份 {len(records)} 条记录到 backup_<collection>_<date>.json')\n\"\n```\n\n### 步骤2：验证备份\n\n确认备份文件非空、记录数与预期一致、每条记录有完整的字段（特别是 `_key`/`_id`，恢复时需要）。\n\n### 步骤3：执行删除\n\n备份完成且验证通过后，才能执行删除。\n\n### 步骤4：记录审计\n\n在 dev-docs 中记录：备份文件路径、删除条件、删除数量、备份记录数。\n\n## 恢复方法\n\n如果删除后发现错误，用备份文件恢复：\n\n```bash\n# ArangoDB：从 JSON 文件恢复\npython -c \"\nfrom arango import ArangoClient\nimport json\nc = ArangoClient(hosts='http://localhost:8529')\ndb = c.db('dbname', username='root', password='xxx')\nwith open('backup_<collection>_<date>.json') as f:\n    records = json.load(f)\ncol = db.collection('collection')\nfor r in records:\n    r.pop('_rev', None)  # _rev 不能手动设置\n    col.insert(r)\nprint(f'恢复 {len(records)} 条记录')\n\"\n```\n\n## 禁止\n\n- 禁止不备份就直接执行批量删除\n- 禁止只 dry-run 不备份就执行删除——dry-run 和实际执行之间可能有状态变化\n- 禁止备份后不验证备份文件就执行删除\n- 禁止删除后不记录备份文件路径——找不到备份=没备份\n\n## 例外\n\n| 情况 | 是否需要备份 |\n|---|---|\n| 批量删除（DELETE/FOR...REMOVE） | ✅ 必须 |\n| DROP collection | ✅ 必须（先导出全集合） |\n| TRUNCATE | ✅ 必须（先导出全集合） |\n| 覆盖写入（insert overwrite） | ✅ 必须（先导出被覆盖的数据） |\n| 单条记录删除 | 可不备份（影响小，可通过日志追溯） |\n| 单条记录状态更新（非删除） | 不需要 |\n| 只读查询 | 不需要 |\n\n## 与其他 rule 的关系\n\n| rule | 关系 |\n|---|---|\n| `closure-checklist-impact-analysis` | commit 前分析影响——本 rule 在删除操作前就触发，更早 |\n| `verify-with-logs` | 删除后验证——本 rule 是删除前预防 |\n| 全局 AGENTS.md §可审计性纪律 | \"重大分析、调查、审查必须留下 file:line 定位\"——本 rule 是其具体化到 DB 删除场景 |\n</rule>\n\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在README.md中只记录脚本路径和一行用法示例。AGENTS.md是铁律和每次必须知道的认知，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。脚本分两类，存放位置不同（见下方\"脚本分类\"）。\n\n4. **在项目README.md中做好索引**——持久化脚本必须在项目README.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n6. **临时脚本必须在相关文档中建立索引**——如果某项任务有对应的方案文档或调查报告（如`dev-docs/`下的文档），临时脚本必须在文档中记录：脚本路径、用途、用法。这是为了让未来的审计AI可以追溯——如果后来审计发现异常，可以知道是哪个脚本产生的结果，检查脚本是否有问题。\n\n## 脚本分类\n\n脚本分两类，存放位置和索引方式不同：\n\n### 持久化脚本（可复用的操作工具）\n\n- **定义**：会重复使用的操作（如清理僵尸session、批量落盘、进度查询、队列准备）\n- **存放位置**：项目已有的脚本目录或项目的`scripts/`目录\n- **索引位置**：项目README.md\n- **维护方式**：持续改进，不重写\n\n### 临时脚本（一次性任务专用）\n\n- **定义**：为某个具体任务写的一次性脚本（如数据迁移、一次性查询、调查验证脚本）\n- **存放位置**：项目的`tmp-scripts/`子目录\n- **索引位置**：如果该任务有相关文档（方案文档、调查报告等），在文档中记录脚本路径+用途+用法；如果没有相关文档，在README.md中记录\n- **审计目的**：临时脚本的文档索引是为了审计可追溯——如果后来审计发现数据异常或结果异常，审计AI可以定位是哪个脚本产生的，检查脚本逻辑是否有bug\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n- **临时脚本的文档索引保证审计可追溯**——如果审计发现异常结果，可以回溯到产生该结果的脚本，检查脚本逻辑是否有bug\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **写成持久化脚本，放scripts/，索引到README.md** |\n| 一次性任务专用脚本（数据迁移、调查验证） | **写成临时脚本，放tmp-scripts/，索引到相关文档** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 判断脚本类型：持久化（可复用）还是临时（一次性任务）\n3. 检查项目内是否已有类似脚本（grep搜索、看README.md索引）\n4. **已有** → 改进那个脚本（edit工具修改），编译验证\n5. **没有** → 创建新文件：\n   - 持久化脚本 → 放项目脚本目录（如`scripts/`）\n   - 临时脚本 → 放`tmp-scripts/`子目录\n6. 建立索引：\n   - 持久化脚本 → 在项目README.md中记录\n   - 临时脚本 → 在相关文档中记录（如方案文档、调查报告）；无相关文档则在README.md中记录\n7. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新README.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是铁律不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ❌ **临时脚本不建立文档索引**——审计AI无法追溯异常结果的来源脚本\n- ❌ **临时脚本放到`/tmp/`或home目录**——不在项目内，无法git追踪，无法审计\n- ✅ 改进已有脚本的某个函数（而非另写新的）\n- ✅ 新建脚本并在README.md代码索引中记录\n- ✅ README.md中只写一行用法示例，不写完整调用参数和输出\n- ✅ 临时调查脚本放`tmp-scripts/`，在调查报告文档中记录脚本路径和用途\n</rule>\n\n<rule name=\"search-default-internal\" path=\"/Users/user/.devin/rules/search-default-internal.md\">\n# 搜索默认走内置工具\n\n## 硬约束\n\n**默认情况下，使用 devin 内置的 `web_search` 和 `webfetch` 工具。** 不要一遇到搜索就加载 `search-tools` skill。\n\n`search-tools` skill 是重型武器库（6 个工具、38 个端点、完整参数表），只在以下场景才加载：\n\n## 何时加载 search-tools skill\n\n只有同时满足以下条件时才加载：\n\n1. **完备搜索**——内置 `web_search` 结果不够、需要多引擎交叉验证、需要语义搜索、需要学术论文搜索\n2. **大量抓取**——需要抓取多个 URL 转 Markdown、需要 PDF 转 Markdown、需要省 token 的批量取页\n\n## 何时只用内置工具\n\n以下场景**不需要**加载 `search-tools` skill，直接用 `web_search` + `webfetch`：\n\n- 查一个 API 怎么用——`web_search` 搜文档，`webfetch` 取页\n- 查一个概念/术语——`web_search` 一下就够\n- 查一个库的最新版本——`web_search`\n- 取一个 URL 的内容——`webfetch`\n- 简单的事实核查——`web_search`\n\n## 判断流程\n\n```\n需要网络搜索或抓取？\n├─ 查一两个东西就够了 → web_search + webfetch（内置）\n└─ 需要完备搜索或大量抓取\n   ├─ 多引擎交叉验证 → 加载 search-tools skill\n   ├─ 语义搜索 → 加载 search-tools skill\n   ├─ 学术论文搜索 → 加载 search-tools skill\n   ├─ PDF 转 Markdown → 加载 search-tools skill\n   ├─ 批量 URL 抓取 → 加载 search-tools skill\n   └─ 其他简单场景 → web_search + webfetch（内置）\n```\n\n## 理由\n\n`search-tools` skill 内容很长（500+ 行），加载它会占用大量上下文。日常搜索用内置工具完全够用，只有真正需要重型武器时才值得加载。\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-22T03:13:42.044832+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\nThese rules were triggered but could not be injected due to token limits. Read them when relevant using the read_file tool:\n\n<rule name=\"readme-structure-index\" path=\"/Users/user/.devin/rules/readme-structure-index.md\" />\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "overflow"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-22T03:13:42.044844+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **search-tools**: 搜索武器库——按需求组织：网页搜索完备性 + Markdown 网页抓取。所有方案免费可用。 WHEN to use: 需要网络搜索、网页抓取读取、学术论文搜索、PDF 转 Markdown、语义嵌入、结果重排时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **explicit-model-and-effort**: 使用 devin cli 时（无论 -p 模式还是 acp 模式）必须显式指明模型；推理强度当前 devin CLI 无独立开关（2026-08-21 核查），由模型默认行为控制——若未来版本提供 强度/思考参数，必须同样显式设置。opencode 侧的对应 rule 见 ~/.config/opencode/rules/explicit-model-and-effort.md（其 ACP 有 effort 接口， 且实测不显式选模型会落到内建默认）。 WHEN to use: 写 devin -p 命令时；写/改 devin acp 客户端启动参数时； 排查\"AI 表现与预期不符\"时。 WHEN NOT to use: 用户明确指定其他模型的对话。\n (path: /Users/user/.devin/rules/explicit-model-and-effort.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-22T03:13:42.054993+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-22T03:13:42.055880+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **devin-acp-protocol**: Devin CLI ACP(Agent Client Protocol)模式使用指南——devin acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call/permission)、thinking实时流式推送、 权限处理、session管理、v1协议细节、实测验证的信号清单和检测逻辑。 WHEN to use: 需要用ACP模式启动devin cli(替代-p模式)时；需要实时检测AI工作状态(thinking spin/卡住)时； 需要从session/update通知组装conversation.json时；需要处理ACP权限请求时； 设计/实现/调试ACP客户端时；将现有-p模式管线改造为ACP模式时。 WHEN NOT to use: 只需要-p模式的简单非交互运行(用noninteractive-solver-run skill)； 只需要session最终产出(看文件即可)；只需要git历史(用git log)。 (source: /Users/user/.config/devin/skills/devin-acp-protocol/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **zcode-trajectory**: ZCode (z.ai 桌面客户端) model-io session trajectory 数据的 JSONL schema 与读取方法。 (source: /Users/user/.config/devin/skills/zcode-trajectory/SKILL.md)\n- **search-tools**: 搜索武器库技术说明书——按需求组织：网页搜索完备性 + Markdown 网页抓取。 所有方案均为免费可用，基于 2026-08-21 实测数据编写。 (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **opencode-acp-protocol**: OpenCode ACP(Agent Client Protocol)模式完整指南——opencode acp子命令、JSON-RPC over stdio通信、 session/update通知变体(thought/message/tool_call)、thinking实时流式推送、权限自动批准、 session管理(close/fork/list/resume)、v1协议细节、与Devin CLI ACP的关键区别。 WHEN to use: 用opencode acp启动为ACP server时；写ACP客户端对接opencode时； 需要实时检测AI工作状态(thinking/tool执行/卡住)时；从session/update通知组装trajectory时； 对比opencode ACP和devin ACP选方案时；将现有管线改造为ACP模式时。 WHEN NOT to use: 只需要opencode的最终结果(用opencode run)；非ACP的opencode使用； 只需要devin ACP(用devin-acp-protocol skill)。 (source: /Users/user/.config/devin/skills/opencode-acp-protocol/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-22T03:13:44.780036+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me read the problem carefully.\n\nTwo decks A and B of 40 cards each. Every minute, pick top cards a∈A and b∈B and duel.\n\nDuel outcomes:\n1. If a card wins, it's placed back at top of its deck, loser placed at bottom of its deck.\n2. If a and b are evenly matched, both removed.\n3. If a and b don't interact, both placed at bottom of their respective decks.\n\nProcess ends when both decks empty. A process is called a game if it ends. Determine maximum time a game can last, in hours.\n\nLet me think about this carefully.\n\nFirst, let me understand the structure. We have two decks. Each minute we take the top card from each deck and they duel.\n\nThe duel outcomes depend on the pair (a,b). For each pair, the outcome is fixed and independent.\n\nLet me categorize pairs:\n- \"a beats b\": a stays at top of A, b goes to bottom of B.\n- \"b beats a\": b stays at top of B, a goes to bottom of A.\n- \"evenly matched\": both removed.\n- \"don't interact\": both go to bottom.\n\nSo for each pair (a,b) ∈ A×B, one of four outcomes.\n\nA game ends when both decks are empty. For the game to end, all cards must be removed. Cards are only removed via \"evenly matched\" outcome. So every card must eventually be in an evenly-matched duel to be removed.\n\nWait, but if a card wins, it stays at top. If it doesn't interact, it goes to bottom. If it loses, it goes to bottom. Only evenly matched removes cards.\n\nSo for the game to end, every card in A and every card in B must at some point be in an evenly-matched duel and be removed.\n\nLet me think about when a card gets removed. Card a∈A is removed when it duels some b∈B that it's evenly matched with. Similarly for b.\n\nNow, the question is about the maximum time (number of minutes) before the game ends.\n\nLet me think about the structure more carefully.\n\nLet me think of it as: each card a∈A has a set of cards in B it's evenly matched with (possibly empty, possibly multiple). Similarly each b∈B has a set of cards in A it's evenly matched with.\n\nFor the game to end, we need a perfect matching where each card is removed. Actually, we need each card to be removed exactly once. When a and b are evenly matched, both are removed simultaneously. So we need a perfect matching between A and B using \"evenly matched\" edges, such that the process actually terminates with all cards removed.\n\nWait, but actually it's more subtle. The process is deterministic given the initial deck orderings and the duel outcome function. We get to choose:\n1. The initial ordering of deck A (permutation of 40 cards)\n2. The initial ordering of deck B (permutation of 40 cards)\n3. The duel outcome function (which pairs beat which, which are evenly matched, which don't interact)\n\nWe want to maximize the number of minutes (duels) before both decks are empty, subject to the constraint that the process does end (it's a \"game\").\n\nLet me think about what makes a process not end. If there's a cycle where no card ever gets removed, the process never ends. So we need to ensure termination.\n\nLet me think about small cases first.\n\nCase: 1 card each. a and b duel. If evenly matched, both removed, game lasts 1 minute. If a beats b, a stays, b goes to bottom (but b is the only card, so b comes back to top). Actually with 1 card in B, b goes to bottom which means b is still the only card. So next minute same duel. If a beats b always, infinite loop. So for game to end, must be evenly matched. Time = 1.\n\nCase: 2 cards each. Let A = {a1, a2}, B = {b1, b2}.\n\nLet me think about maximizing time.\n\nLet's say a1 is at top of A, a2 at bottom. b1 at top of B, b2 at bottom.\n\nMinute 1: a1 vs b1.\n- If evenly matched: both removed. Now A = {a2}, B = {b2}. Minute 2: a2 vs b2. If evenly matched, done. Time = 2.\n- If a1 beats b1: a1 stays at top of A, b1 goes to bottom of B. B becomes {b2, b1} (b2 now top). Minute 2: a1 vs b2. \n  - If evenly matched: both removed. A = {a2}, B = {b1}. Minute 3: a2 vs b1. If evenly matched, done. Time = 3.\n  - If a1 beats b2: a1 stays, b2 goes to bottom. B = {b1, b2}. Minute 3: a1 vs b1 again. Same as minute 1. Infinite loop unless something changes. But outcomes are fixed, so infinite loop. Not a game.\n  - If b2 beats a1: b2 stays at top of B, a1 goes to bottom of A. A = {a2, a1}. Minute 3: a2 vs b2.\n  - If don't interact: both go to bottom. A = {a2, a1}, B = {b1, b2}. Minute 3: a2 vs b1.\n\nThis is getting complex. Let me think about it more abstractly.\n\nKey insight: A card stays at the top of its deck only if it wins. Otherwise it goes to the bottom (or is removed).\n\nLet me think about the \"win\" relation. If a beats b, then a stays at top and b cycles to bottom. This means a will keep dueling the next card in B.\n\nSo if a1 beats b1, b2, ..., b_k, then a1 stays at top and cycles through B, beating each one (sending each to bottom), until a1 meets a card it doesn't beat.\n\nThis is like a \"champion\" that stays at top and cycles through the opponent's deck.\n\nLet me think about the maximum time. We have 40×40 = 1600 pairs. Each minute one duel happens. We want to maximize the number of duels.\n\nEach duel either:\n- Removes 2 cards (evenly matched)\n- Keeps one at top, sends one to bottom (win/loss)\n- Sends both to bottom (no interaction)\n\nFor the game to end, all 80 cards must be removed, requiring at least 40 \"evenly matched\" duels (each removes one from A and one from B). But there can be many non-removing duels in between.\n\nLet me think about the maximum number of duels.\n\nTotal duels = (removing duels) + (non-removing duels). Removing duels = 40 (each removes one pair). Non-removing duels can be many.\n\nBut there's a constraint: the process must terminate. So we can't have infinite non-removing duels.\n\nLet me think about what limits the non-removing duels.\n\nConsider the state as (position in A's cycle, position in B's cycle) but it's more complex because cards get removed.\n\nActually, let me think of it differently. Let me think about the \"phase\" structure.\n\nLet me think about a simpler model. Suppose we have a \"champion\" a at top of A that beats many cards in B. Each time a beats b, b goes to bottom of B and a stays. So a cycles through B. After going through all of B once, a is back to facing the first card of B again. If a beats all cards in B, then we get an infinite loop (a never gets removed, never changes). So for termination, a must eventually not beat some card.\n\nLet me think about the maximum time more carefully.\n\nLet me consider the following strategy. We want to maximize the number of duels. Each non-removing duel \"wastes\" a minute. We want as many non-removing duels as possible while still terminating.\n\nLet me think about the structure. Consider the \"win\" relation as a directed graph or tournament-like structure.\n\nActually, let me think about it as follows. The key observation is:\n\nWhen a card a is at the top of A and wins against the top of B, a stays and the B deck rotates by one. So a \"consumes\" one position of B's rotation. If a beats k consecutive cards in B's current order, that's k duels where a stays at top.\n\nSimilarly, if a doesn't interact with b, both go to bottom, so both decks rotate by one. This is like both decks advancing.\n\nIf a loses to b, a goes to bottom of A and b stays at top of B. Now b is the \"champion\" of B.\n\nSo the process alternates between:\n- A's champion cycling through B (when A's top card wins)\n- B's champion cycling through A (when B's top card wins)\n- Both rotating (when no interaction)\n- Removal (when evenly matched)\n\nLet me think about the maximum number of duels.\n\nLet me think about an upper bound. Each non-removing duel either:\n1. A's top wins: A's top stays, B rotates. The pair (a, b) where a beats b is \"used\" but could be reused if b comes back to top.\n2. B's top wins: B's top stays, A rotates.\n3. No interaction: both rotate.\n\nWait, can the same pair duel multiple times? Yes! If a beats b, a stays at top and b goes to bottom. Later, b might come back to top (after B rotates fully), and a is still at top, so they duel again with the same outcome. This would be an infinite loop.\n\nSo for termination, we need to avoid infinite loops. The key constraint is that the process must eventually terminate.\n\nLet me think about when the same pair (a,b) duels twice with the same non-removing outcome. If a beats b and they duel again (a still at top, b came back to top of B), then we're in a cycle. Unless some card was removed in between, changing the deck composition.\n\nAh, that's the key. If between the two duels of (a,b), some cards were removed from B, then when b comes back to top, the deck B is shorter, and the \"cycle\" is different. Eventually B might be empty or a might face a different card.\n\nSo the process can have the same pair duel multiple times, as long as cards are being removed in between, preventing infinite loops.\n\nLet me think about this more carefully.\n\nLet me consider the following setup. Suppose a1 (top of A) beats all cards in B except b1 (which it's evenly matched with). And suppose the order of B is such that b1 is at the bottom.\n\nThen a1 beats b2, b3, ..., b40 (39 duels), then faces b1, evenly matched, both removed. That's 40 duels to remove 2 cards. But wait, during those 39 duels, b2...b40 each went to the bottom of B. After a1 beats b2, B = [b3, ..., b40, b1, b2]. After beating b3, B = [b4, ..., b40, b1, b2, b3]. ... After beating b40, B = [b1, b2, ..., b40]. Wait no.\n\nLet me be more careful. Initially B = [b1, b2, ..., b40] (b1 at top? or b40 at top?). Let me say the deck is a queue, top is the front.\n\nInitially A = [a1, a2, ..., a40], B = [b1, b2, ..., b40].\n\nMinute 1: a1 vs b1. a1 beats b1. a1 stays at top of A (A = [a1, a2, ..., a40]), b1 goes to bottom of B (B = [b2, b3, ..., b40, b1]).\n\nMinute 2: a1 vs b2. a1 beats b2. A = [a1, a2, ..., a40], B = [b3, ..., b40, b1, b2].\n\n...\n\nMinute k: a1 vs b_k. a1 beats b_k. B = [b_{k+1}, ..., b40, b1, ..., b_k].\n\nMinute 40: a1 vs b40. a1 beats b40. B = [b1, b2, ..., b40].\n\nMinute 41: a1 vs b1 again. Same as minute 1. Infinite loop!\n\nSo if a1 beats all of B, we get an infinite loop. We need a1 to be evenly matched with at least one card, and that card needs to come to the top before the cycle repeats.\n\nBut if a1 beats b1 through b39 and is evenly matched with b40, and B = [b1, b2, ..., b40]:\n\nMinutes 1-39: a1 beats b1 through b39. B = [b40, b1, b2, ..., b39].\nMinute 40: a1 vs b40. Evenly matched. Both removed. A = [a2, ..., a40], B = [b1, b2, ..., b39].\n\nThat's 40 duels to remove a1 and b40. Now we have 39 cards in each deck.\n\nNow a2 is at top of A. If a2 beats b1 through b38 and is evenly matched with b39:\nMinutes 41-78: a2 beats b1 through b38 (38 duels). B = [b39, b1, ..., b38].\nMinute 79: a2 vs b39. Evenly matched. Both removed. A = [a3, ..., a40], B = [b1, ..., b38].\n\n79 duels so far, removed 4 cards (2 from each).\n\nContinuing this pattern: a_k beats the first (40-k) cards of B and is evenly matched with the (40-k+1)-th card.\n\nFor a_k (k from 1 to 40): it beats (40-k) cards and then is evenly matched with 1 card. That's (40-k+1) duels.\n\nTotal duels = sum_{k=1}^{40} (40 - k + 1) = sum_{k=1}^{40} (41 - k) = sum_{j=1}^{40} j = 40*41/2 = 820.\n\nWait, let me check. For k=1: 40 duels (beats 39, then evenly matched with 1). For k=2: 39 duels. ... For k=40: 1 duel.\n\nTotal = 40 + 39 + ... + 1 = 820.\n\n820 minutes = 820/60 hours ≈ 13.67 hours.\n\nBut can we do better? The above uses only \"win\" and \"evenly matched\" outcomes. We haven't used \"no interaction\" or \"B's card wins\" outcomes.\n\nLet me think about whether we can interleave more duels.\n\nThe key question is: can we make the process longer by using more complex interactions?\n\nLet me think about using \"no interaction\" duels. When a and b don't interact, both go to bottom. This rotates both decks by one. This doesn't remove any cards but advances both decks. If we have a full cycle of \"no interaction\" duels, both decks rotate fully and we're back to the start - infinite loop. So we need removals to happen.\n\nBut \"no interaction\" duels can be interleaved with other duels to add extra duels.\n\nHmm, let me think about this differently. Let me think about the process as a sequence of duels and try to maximize the length.\n\nLet me think about what happens with the \"B's card wins\" outcome. If b beats a, then b stays at top of B and a goes to bottom of A. Now b is the champion and cycles through A.\n\nSo we could have a pattern where:\n1. a1 (champion of A) beats several B cards, then\n2. a1 meets b_j which beats a1, so b_j becomes champion and beats several A cards, then\n3. b_j meets a_k which beats b_j, so a_k becomes champion, etc.\n\nThis could create a much longer process!\n\nLet me think about this more carefully.\n\nLet me consider a scenario with 2 cards each: A = [a1, a2], B = [b1, b2].\n\nSuppose:\n- a1 beats b1, a1 evenly matched with b2\n- b1 beats a2, b1 evenly matched with... wait, b1 needs to be removed too.\n\nActually, every card must be removed via \"evenly matched\". So each card must have at least one \"evenly matched\" partner in the other deck, and that partner must be encountered during the process.\n\nLet me reconsider. Let me think about the 2-card case more carefully to understand the structure.\n\nA = [a1, a2], B = [b1, b2].\n\nSuppose:\n- a1 beats b1\n- a1 evenly matched with b2\n- b1 beats a2\n- b2 evenly matched with a1 (same as above)\n- a2 evenly matched with b1? No, b1 beats a2. So a2 is not evenly matched with b1.\n- a2 needs to be evenly matched with someone. a2 evenly matched with b2? But then both a1 and a2 are evenly matched with b2, and b2 can only be removed once.\n\nHmm, let me think. Each card is removed exactly once. When a and b are evenly matched, both are removed. So we need a perfect matching of \"evenly matched\" pairs: each card in A paired with exactly one card in B, and they're evenly matched.\n\nFor 2 cards: either (a1-b1, a2-b2) or (a1-b2, a2-b1).\n\nLet me try (a1-b2, a2-b1) as the evenly matched pairs.\n\nSo: a1 evenly matched with b2, a2 evenly matched with b1.\n\nOther outcomes: a1 vs b1, a2 vs b2. Let's say a1 beats b1, and a2 vs b2... let's say b2 beats a2 (or no interaction, or a2 beats b2).\n\nLet me try: a1 beats b1, b2 beats a2.\n\nA = [a1, a2], B = [b1, b2].\n\nMinute 1: a1 vs b1. a1 beats b1. A = [a1, a2], B = [b2, b1].\nMinute 2: a1 vs b2. Evenly matched. Both removed. A = [a2], B = [b1].\nMinute 3: a2 vs b1. Evenly matched. Both removed. Done.\n\nTotal: 3 duels. Same as before.\n\nCan we do better with 2 cards? Let me try using \"no interaction\".\n\na1 evenly matched with b2, a2 evenly matched with b1.\na1 vs b1: no interaction. a2 vs b2: no interaction.\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. No interaction. A = [a2, a1], B = [b2, b1].\nMinute 2: a2 vs b2. No interaction. A = [a1, a2], B = [b1, b2].\nMinute 3: a1 vs b1. No interaction again. Infinite loop!\n\nSo pure no-interaction leads to infinite loop. We need to break the cycle.\n\nWhat if a1 beats b1, a2 vs b2 no interaction?\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. a1 beats b1. A = [a1, a2], B = [b2, b1].\nMinute 2: a1 vs b2. Evenly matched. Both removed. A = [a2], B = [b1].\nMinute 3: a2 vs b1. Evenly matched. Both removed. Done.\n\n3 duels. Same.\n\nWhat if b1 beats a1, a1 evenly matched with b2, a2 evenly matched with b1, a2 vs b2 no interaction?\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. b1 beats a1. b1 stays at top of B, a1 goes to bottom of A. A = [a2, a1], B = [b1, b2].\nMinute 2: a2 vs b1. Evenly matched. Both removed. A = [a1], B = [b2].\nMinute 3: a1 vs b2. Evenly matched. Both removed. Done.\n\n3 duels. Same.\n\nHmm, can we get more than 3 with 2 cards? Let me try harder.\n\na1 evenly matched with b2, a2 evenly matched with b1.\na1 beats b1, b2 beats a2.\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. a1 beats b1. A = [a1, a2], B = [b2, b1].\nMinute 2: a1 vs b2. Evenly matched. Both removed. A = [a2], B = [b1].\nMinute 3: a2 vs b1. Evenly matched. Done. 3 duels.\n\nWhat about:\na1 evenly matched with b1, a2 evenly matched with b2.\na1 vs b2: a1 beats b2. a2 vs b1: b1 beats a2.\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. Evenly matched. Both removed. A = [a2], B = [b2].\nMinute 2: a2 vs b2. Evenly matched. Done. 2 duels.\n\nWhat if we reorder? A = [a2, a1], B = [b2, b1].\nMinute 1: a2 vs b2. Evenly matched. Done in 2.\n\nWhat about A = [a1, a2], B = [b2, b1]?\nMinute 1: a1 vs b2. a1 beats b2. A = [a1, a2], B = [b1, b2].\nMinute 2: a1 vs b1. Evenly matched. Both removed. A = [a2], B = [b2].\nMinute 3: a2 vs b2. Evenly matched. Done. 3 duels.\n\nCan we get 4 with 2 cards? Let me think...\n\nTo get 4 duels with 2 cards, we need 2 removing duels and 2 non-removing duels. The 2 non-removing duels must not create a cycle.\n\nLet me try: a1 evenly matched with b2, a2 evenly matched with b1.\na1 vs b1: no interaction. a2 vs b2: a2 beats b2.\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. No interaction. A = [a2, a1], B = [b2, b1].\nMinute 2: a2 vs b2. a2 beats b2. A = [a2, a1], B = [b1, b2].\nMinute 3: a2 vs b1. Evenly matched. Both removed. A = [a1], B = [b2].\nMinute 4: a1 vs b2. Evenly matched. Both removed. Done. 4 duels!\n\nSo with 2 cards we can get 4 duels. That's better than 3.\n\nLet me verify: \n- Minute 1: a1 vs b1, no interaction. Both go to bottom. A = [a2, a1], B = [b2, b1]. ✓\n- Minute 2: a2 vs b2, a2 beats b2. a2 stays at top of A, b2 goes to bottom of B. A = [a2, a1], B = [b1, b2]. ✓\n- Minute 3: a2 vs b1, evenly matched. Both removed. A = [a1], B = [b2]. ✓\n- Minute 4: a1 vs b2, evenly matched. Both removed. Done. ✓\n\n4 duels with 2 cards. Can we do 5?\n\nTo get 5, we need 2 removing and 3 non-removing. Let me try.\n\na1 evenly matched with b2, a2 evenly matched with b1.\na1 vs b1: no interaction. a2 vs b2: no interaction.\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. No interaction. A = [a2, a1], B = [b2, b1].\nMinute 2: a2 vs b2. No interaction. A = [a1, a2], B = [b1, b2].\nMinute 3: a1 vs b1. No interaction. Infinite loop!\n\nSo both no-interaction creates a cycle. We need at least one \"win\" to break the cycle.\n\nWhat about: a1 vs b1: a1 beats b1. a2 vs b2: no interaction.\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. a1 beats b1. A = [a1, a2], B = [b2, b1].\nMinute 2: a1 vs b2. Evenly matched. Both removed. A = [a2], B = [b1].\nMinute 3: a2 vs b1. Evenly matched. Done. 3 duels.\n\nWhat if we start differently? A = [a2, a1], B = [b1, b2].\nMinute 1: a2 vs b1. Evenly matched. Both removed. A = [a1], B = [b2].\nMinute 2: a1 vs b2. Evenly matched. Done. 2 duels.\n\nWhat about: a1 vs b1: no interaction. a2 vs b2: a2 beats b2. (This is the case that gave 4.)\n\nCan we add more? What if we have a1 vs b1: b1 beats a1. a2 vs b2: a2 beats b2.\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. b1 beats a1. b1 stays at top of B, a1 goes to bottom of A. A = [a2, a1], B = [b1, b2].\nMinute 2: a2 vs b1. Evenly matched. Both removed. A = [a1], B = [b2].\nMinute 3: a1 vs b2. Evenly matched. Done. 3 duels.\n\nWhat about: a1 vs b1: b1 beats a1. a2 vs b2: no interaction.\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. b1 beats a1. A = [a2, a1], B = [b1, b2].\nMinute 2: a2 vs b1. Evenly matched. Both removed. A = [a1], B = [b2].\nMinute 3: a1 vs b2. Evenly matched. Done. 3 duels.\n\nWhat about: a1 vs b1: no interaction. a2 vs b2: b2 beats a2.\n\nA = [a1, a2], B = [b1, b2].\nMinute 1: a1 vs b1. No interaction. A = [a2, a1], B = [b2, b1].\nMinute 2: a2 vs b2. b2 beats a2. b2 stays at top of B, a2 goes to bottom of A. A = [a1, a2], B = [b2, b1].\nMinute 3: a1 vs b2. Evenly matched. Both removed. A = [a2], B = [b1].\nMinute 4: a2 vs b1. Evenly matched. Done. 4 duels!\n\nSame as before, just mirrored. 4 duels.\n\nCan we get 5 with 2 cards? Let me think about what's needed.\n\nWith 2 cards, we have 4 pairs: (a1,b1), (a1,b2), (a2,b1), (a2,b2). Two of these are \"evenly matched\" (the removal pairs). The other two are non-removing.\n\nThe maximum number of non-removing duels is limited by the cycle structure. With 2 cards, the state space is small. Let me enumerate all possible states.\n\nState: (A's order, B's order) where A and B are permutations of remaining cards. With 2 cards each, possible states:\n- ([a1,a2], [b1,b2])\n- ([a1,a2], [b2,b1])\n- ([a2,a1], [b1,b2])\n- ([a2,a1], [b2,b1])\n- ([a1], [b1]) - after one removal\n- ([a1], [b2])\n- ([a2], [b1])\n- ([a2], [b2])\n- empty\n\nFrom each state, the duel is determined by the top cards and the outcome function.\n\nLet me trace through the case that gave 4:\nStates: ([a1,a2],[b1,b2]) → no interaction → ([a2,a1],[b2,b1]) → a2 beats b2 → ([a2,a1],[b1,b2]) → evenly matched → ([a1],[b2]) → evenly matched → done.\n\n4 duels, 4 states visited (before terminal).\n\nCan we visit 5 states? We have 4 non-terminal states with 2 cards each, plus 4 states with 1 card each. To get 5 duels, we need to visit 5 states before reaching terminal.\n\nFrom the 4 two-card states, we can visit at most 4 before either removing cards or cycling. If we visit all 4 two-card states (without removing), then we must cycle (since there are only 4). So we can visit at most 3 two-card states without cycling (since the 4th would return to a visited state or remove).\n\nWait, actually, we could visit 3 two-card states, then remove (going to a 1-card state), then... but 1-card states only have 1 duel (evenly matched or infinite loop). So from a 1-card state, we get exactly 1 more duel (if evenly matched).\n\nSo maximum = 3 (two-card, non-removing) + 1 (two-card, removing) + 1 (one-card, removing) = 5 duels?\n\nBut can we visit 3 two-card states without cycling? Let's see.\n\nThe 4 two-card states form a graph. From each state, the duel outcome determines the next state (or removal). Let me label states:\nS1 = ([a1,a2],[b1,b2])\nS2 = ([a1,a2],[b2,b1])\nS3 = ([a2,a1],[b1,b2])\nS4 = ([a2,a1],[b2,b1])\n\nFrom S1, top cards are a1, b1. Outcomes:\n- a1 beats b1: → S2 (A stays [a1,a2], B becomes [b2,b1])\n- b1 beats a1: → S3 (A becomes [a2,a1], B stays [b1,b2])\n- no interaction: → S4 (A becomes [a2,a1], B becomes [b2,b1])\n- evenly matched: → ([a2],[b2]) (removal)\n\nFrom S2, top cards are a1, b2:\n- a1 beats b2: → S1 (B becomes [b1,b2])\n- b2 beats a1: → S4 (A becomes [a2,a1], B stays [b2,b1])\n- no interaction: → S3 (A becomes [a2,a1], B becomes [b1,b2])\n- evenly matched: → ([a2],[b1])\n\nFrom S3, top cards are a2, b1:\n- a2 beats b1: → S4 (B becomes [b2,b1])\n- b1 beats a2: → S1 (A becomes [a1,a2], B stays [b1,b2])\n- no interaction: → S2 (A becomes [a1,a2], B becomes [b2,b1])\n- evenly matched: → ([a1],[b2])\n\nFrom S4, top cards are a2, b2:\n- a2 beats b2: → S3 (B becomes [b1,b2])\n- b2 beats a2: → S2 (A becomes [a1,a2], B stays [b2,b1])\n- no interaction: → S1 (A becomes [a1,a2], B becomes [b1,b2])\n- evenly matched: → ([a1],[b1])\n\nSo the transitions between two-card states form a complete graph (each state can go to any other state, or to a removal). The key is that from each state, the outcome is fixed (determined by the pair of top cards).\n\nLet me assign outcomes:\n- (a1,b1): outcome X1 (from S1)\n- (a1,b2): outcome X2 (from S2)\n- (a2,b1): outcome X3 (from S3)\n- (a2,b2): outcome X4 (from S4)\n\nFor a game, we need two of these to be \"evenly matched\" forming a perfect matching: either (X1, X4) or (X2, X3).\n\nCase 1: X1 = evenly matched, X4 = evenly matched. Then X2, X3 are non-removing.\nFrom S1: removal → ([a2],[b2]). 1 duel from S1.\nFrom S4: removal → ([a1],[b1]). 1 duel from S4.\nFrom S2: X2 determines transition to S1, S3, or S4 (non-removing).\nFrom S3: X3 determines transition to S1, S2, or S4 (non-removing).\n\nStarting from some state, we want to maximize path length before all cards removed.\n\nIf we start at S2: S2 → (X2) → some state. If X2 leads to S3, then S3 → (X3) → some state. If X3 leads to S2, we cycle S2→S3→S2→... infinite. If X3 leads to S1, then S1 → removal. Path: S2, S3, S1, ([a2],[b2]), done. 4 duels. If X3 leads to S4, then S4 → removal. Path: S2, S3, S4, ([a1],[b1]), done. 4 duels.\n\nIf X2 leads to S1: S2, S1, removal. 3 duels (then 1 more from 1-card state = 4 total? No, S1 removes a1,b1, leaving [a2],[b2]. Then a2 vs b2, X4 = evenly matched, done. 3 duels total.)\n\nWait, I need to be more careful. Let me trace:\n\nX1 = evenly matched, X4 = evenly matched.\nX2 = a1 beats b2 (S2 → S1), X3 = a2 beats b1 (S3 → S4).\n\nStart at S2: \n- S2: a1 vs b2, a1 beats b2 → S1.\n- S1: a1 vs b1, evenly matched → ([a2],[b2]).\n- [a2] vs [b2]: a2 vs b2, evenly matched → done.\n3 duels.\n\nStart at S3:\n- S3: a2 vs b1, a2 beats b1 → S4.\n- S4: a2 vs b2, evenly matched → ([a1],[b1]).\n- [a1] vs [b1]: evenly matched → done.\n3 duels.\n\nStart at S4:\n- S4: evenly matched → ([a1],[b1]).\n- [a1] vs [b1]: evenly matched → done.\n2 duels.\n\nStart at S1:\n- S1: evenly matched → ([a2],[b2]).\n- done in 2.\n\nNow try X2 = no interaction (S2 → S3), X3 = no interaction (S3 → S2).\nStart at S2: S2 → S3 → S2 → ... infinite loop. Not a game.\n\nX2 = no interaction (S2 → S3), X3 = a2 beats b1 (S3 → S4).\nStart at S2: S2 → S3 → S4 → removal → 1-card → done. 4 duels.\nStart at S1: S1 → removal → 1-card → done. 2 duels.\n\nX2 = no interaction (S2 → S3), X3 = b1 beats a2 (S3 → S1).\nStart at S2: S2 → S3 → S1 → removal → 1-card → done. 4 duels.\n\nX2 = b2 beats a1 (S2 → S4), X3 = no interaction (S3 → S2).\nStart at S3: S3 → S2 → S4 → removal → done. 4 duels.\nStart at S1: S1 → removal → done. 2 duels.\n\nX2 = b2 beats a1 (S2 → S4), X3 = a2 beats b1 (S3 → S4).\nStart at S3: S3 → S4 → removal → done. 3 duels.\nStart at S2: S2 → S4 → removal → done. 3 duels.\nStart at S1: S1 → removal → done. 2.\n\nX2 = b2 beats a1 (S2 → S4), X3 = b1 beats a2 (S3 → S1).\nStart at S2: S2 → S4 → removal → done. 3 duels.\nStart at S3: S3 → S1 → removal → done. 3 duels.\n\nX2 = a1 beats b2 (S2 → S1), X3 = no interaction (S3 → S2).\nStart at S3: S3 → S2 → S1 → removal → done. 4 duels.\nStart at S4: S4 → removal → done. 2.\n\nX2 = a1 beats b2 (S2 → S1), X3 = b1 beats a2 (S3 → S1).\nStart at S2: S2 → S1 → removal → done. 3 duels.\nStart at S3: S3 → S1 → removal → done. 3 duels.\n\nSo in Case 1, maximum is 4 duels (starting from the right state).\n\nCase 2: X2 = evenly matched, X3 = evenly matched. Then X1, X4 are non-removing.\nFrom S2: removal → ([a2],[b1]).\nFrom S3: removal → ([a1],[b2]).\nFrom S1: X1 determines transition.\nFrom S4: X4 determines transition.\n\nX1 = no interaction (S1 → S4), X4 = no interaction (S4 → S1).\nStart at S1: S1 → S4 → S1 → ... infinite.\n\nX1 = no interaction (S1 → S4), X4 = a2 beats b2 (S4 → S3).\nStart at S1: S1 → S4 → S3 → removal → done. 4 duels.\n\nX1 = no interaction (S1 → S4), X4 = b2 beats a2 (S4 → S2).\nStart at S1: S1 → S4 → S2 → removal → done. 4 duels.\n\nX1 = a1 beats b1 (S1 → S2), X4 = no interaction (S4 → S1).\nStart at S4: S4 → S1 → S2 → removal → done. 4 duels.\n\nX1 = a1 beats b1 (S1 → S2), X4 = a2 beats b2 (S4 → S3).\nStart at S1: S1 → S2 → removal → done. 3.\nStart at S4: S4 → S3 → removal → done. 3.\n\nX1 = a1 beats b1 (S1 → S2), X4 = b2 beats a2 (S4 → S2).\nStart at S1: S1 → S2 → removal → done. 3.\nStart at S4: S4 → S2 → removal → done. 3.\n\nX1 = b1 beats a1 (S1 → S3), X4 = no interaction (S4 → S1).\nStart at S1: S1 → S3 → removal → done. 3.\nStart at S4: S4 → S1 → S3 → removal → done. 4.\n\nX1 = b1 beats a1 (S1 → S3), X4 = a2 beats b2 (S4 → S3).\nStart at S1: S1 → S3 → removal → done. 3.\nStart at S4: S4 → S3 → removal → done. 3.\n\nX1 = b1 beats a1 (S1 → S3), X4 = b2 beats a2 (S4 → S2).\nStart at S4: S4 → S2 → removal → done. 3.\nStart at S1: S1 → S3 → removal → done. 3.\n\nSo in Case 2, maximum is also 4 duels.\n\nSo with 2 cards, maximum is 4 duels. This matches our earlier finding.\n\nNow, 4 = 2 * 2 = n^2 for n=2? Or 4 = 2 + 2? Or 4 = 2*2?\n\nHmm, let me think about n=1: max = 1. n=2: max = 4.\n\nLet me check n=3. This is more complex. Let me think about it computationally or find a pattern.\n\nActually, let me think about this problem more abstractly.\n\nThe state of the system is (permutation of A's remaining cards, permutation of B's remaining cards). The number of states with k cards in each deck is (k!)^2. The total number of states is sum_{k=0}^{n} (k!)^2 (but we need to account for which cards remain).\n\nActually, the state is more specific: it's (ordered list of remaining A cards, ordered list of remaining B cards). The number of possible states with exactly k A-cards and k B-cards is C(n,k) * k! * C(n,k) * k! = C(n,k)^2 * (k!)^2 = (n!/(n-k)!)^2 / ... hmm, let me just think of it as: the state is a pair of sequences.\n\nFor the process to terminate, we need a path through states that ends at (empty, empty), and the path must be a simple path (no repeated states, otherwise infinite loop).\n\nWait, actually, the path doesn't need to be simple in terms of all states. It needs to not have cycles. But since the outcome function is deterministic, if we revisit a state, we'll cycle forever. So the path must be simple (no repeated states).\n\nSo the maximum number of duels = maximum length of a simple path from some initial state to (empty, empty), where the transitions are determined by the outcome function, and the outcome function must be consistent (same pair always gives same outcome).\n\nThe constraint on the outcome function is: it must be consistent. If pair (a,b) appears at the top in two different states, the outcome must be the same. But the outcome determines the transition, so this constrains which paths are valid.\n\nThis is a complex combinatorial optimization. Let me think about upper bounds.\n\nUpper bound: The total number of non-terminal states is sum_{k=1}^{n} (number of states with k cards each). The number of states with k cards each is C(n,k)^2 * (k!)^2 = (P(n,k))^2 where P(n,k) = n!/(n-k)!.\n\nFor n=40, this is astronomically large. But the consistency constraint on the outcome function severely limits which paths are possible.\n\nLet me think about this differently. Let me think about what the outcome function looks like.\n\nThe outcome function assigns to each pair (a,b) one of: a wins, b wins, evenly matched, no interaction. This is a fixed function. The path through states is then determined by the initial state and this function.\n\nSo we're choosing:\n1. The outcome function f: A × B → {a wins, b wins, evenly matched, no interaction}\n2. The initial orderings of A and B\n\nSuch that the resulting process terminates, and we want to maximize the number of steps.\n\nThe \"evenly matched\" pairs must form a perfect matching (each card evenly matched with exactly one card in the other deck) for all cards to be removed. Wait, actually, does each card need to be evenly matched with exactly one card? A card could be evenly matched with multiple cards, but it only needs to be removed once. But if a is evenly matched with both b1 and b2, then when a meets b1, both are removed, and a never meets b2. So b2 needs another evenly matched partner. \n\nActually, the constraint is just that the process terminates with all cards removed. The \"evenly matched\" relation doesn't need to be a perfect matching a priori, but for all cards to be removed, each card must be evenly matched with at least one card in the other deck, and the process must arrange for each card to meet an evenly matched partner.\n\nBut actually, it's possible that a card is evenly matched with multiple cards, and only one of those encounters happens. The others are irrelevant. So the effective \"evenly matched\" relation (the pairs that actually result in removal) forms a perfect matching.\n\nFor maximizing the path length, we want to choose the outcome function and initial state to create the longest terminating path.\n\nLet me think about this as a graph problem. The state graph has vertices = all possible states, and edges determined by the outcome function. But the outcome function creates a functional graph (each state has exactly one outgoing edge, determined by the top cards' outcome). We want the longest path to (empty, empty).\n\nThe key constraint is consistency: if two states have the same top cards (a, b), they must have the same outcome, hence the same edge.\n\nHmm, this is quite complex. Let me think about it from a different angle.\n\nLet me think about the problem in terms of \"rounds\" or \"phases.\"\n\nAlternative approach: Think about the process as follows. At any point, one of the decks has a \"champion\" at the top (a card that keeps winning), or both decks are rotating (no interaction duels).\n\nLet me think about the maximum number of times a specific pair (a, b) can duel. If a beats b, then a stays at top and b goes to bottom. For (a,b) to duel again, b must come back to the top of B. This requires B to complete a full rotation. But during that rotation, a duels every other card in B. If a beats all of them, then after one full rotation, (a,b) duels again with the same outcome - infinite loop. So for termination, during the rotation, either:\n- a is evenly matched with some card (gets removed), or\n- a loses to some card (a goes to bottom, new champion), or\n- a doesn't interact with some card (both go to bottom, but a was at top... wait, no interaction means both go to bottom, so a is no longer at top).\n\nWait, if a doesn't interact with some b', then a goes to bottom of A and b' goes to bottom of B. So a is no longer the champion. The next top of A is the next card.\n\nSo actually, \"no interaction\" also breaks the champion's streak.\n\nLet me reconsider. When a is at top of A and duels b at top of B:\n- a wins: a stays, b goes to bottom. (a remains champion)\n- b wins: b stays, a goes to bottom. (b becomes champion)\n- evenly matched: both removed.\n- no interaction: both go to bottom. (both decks rotate, new tops)\n\nSo a remains champion only if a wins. As soon as a doesn't win (b wins, evenly matched, or no interaction), a leaves the top.\n\nThis means a champion a can duel at most |B_remaining| - 1 cards before either:\n- Meeting a card it doesn't beat (and leaving the top), or\n- Cycling back to a card it already beat (which would be an infinite loop if no cards were removed in between).\n\nWait, but if a beats b1, b2, ..., b_{k}, and then meets b1 again, that's k+1 duels with a as champion, and then it's back to b1. If no cards were removed, this is an infinite loop. So a can be champion for at most |B_remaining| - 1 duels (beating |B_remaining| - 1 cards) before it must either lose, tie, or not interact with the last card.\n\nActually, a can be champion for at most |B_remaining| duels if the last card is evenly matched (removing a). Or at most |B_remaining| - 1 if the last card causes a to leave (win/loss/no interaction) without removal.\n\nHmm wait. If a beats b1, ..., b_{k-1} (k-1 duels) and then meets b_k which it's evenly matched with, that's k duels and a is removed. k can be at most |B_remaining|.\n\nIf a beats b1, ..., b_{k-1} and then meets b_k which beats a (or no interaction), that's k duels and a goes to bottom. k can be at most |B_remaining| (but if k = |B_remaining|, a has beaten all of B and the next duel would be a repeat, so actually k ≤ |B_remaining| - 1 for the non-removal case, because the |B_remaining|-th card must not be beaten by a).\n\nWait, let me re-examine. If B has m cards, and a beats the first m-1 of them (in order), then the m-th card must not be beaten (otherwise infinite loop). So a is champion for exactly m duels: m-1 wins + 1 non-win. The non-win is either evenly matched (removal) or not (a goes to bottom).\n\nIf the non-win is evenly matched: a is removed, m duels total for this phase.\nIf the non-win is a loss or no interaction: a goes to bottom, m duels total, and now either b (if b won) is the new champion, or both decks rotated.\n\nSo each \"champion phase\" uses exactly |B_remaining| duels (if the champion beats all but the last card) or fewer (if the champion doesn't beat some earlier card).\n\nTo maximize, we want each champion to beat as many cards as possible. The maximum is |B_remaining| - 1 wins, then 1 non-win.\n\nNow, after a champion phase, what happens?\n- If evenly matched: both a and the last b are removed. |A| and |B| each decrease by 1.\n- If b wins: b is the new champion, a goes to bottom of A. Now b cycles through A.\n- If no interaction: both go to bottom. Both decks rotate by 1.\n\nThe \"b wins\" case is interesting because it starts a new champion phase with b as champion, cycling through A. This can create a long chain of champion phases.\n\nLet me think about a \"champion chain\":\n1. a1 is champion, beats m_B - 1 cards in B, then loses to b_j. (m_B duels)\n2. b_j is champion, beats m_A - 1 cards in A, then loses to a_k. (m_A duels)\n3. a_k is champion, beats m_B - 1 cards in B, then loses to b_l. (m_B duels)\n...\n\nWait, but after step 1, a1 went to the bottom of A. After step 2, a1 is still in A (it went to bottom, and then b_j beat some cards, sending them to bottom too). The composition of A and B changes as cards go to the bottom.\n\nActually, the sizes m_A and m_B don't change during champion phases (no removals). They only change when evenly matched.\n\nSo in a champion chain without removals:\n- Phase 1: a1 beats m_B - 1 B-cards, loses to b_j. m_B duels. A rotates by 1 (a1 to bottom), B rotates by m_B - 1 (but since b_j stays at top, B's order is: b_j, then the cards a1 beat, in order).\n- Phase 2: b_j beats m_A - 1 A-cards, loses to a_k. m_A duels. B rotates by 1 (b_j to bottom), A rotates by m_A - 1.\n...\n\nHow long can this chain go? Each phase, the champion changes. The champion must be a card that hasn't been champion before (or if it has, the situation must be different because the deck order changed).\n\nActually, a card can be champion multiple times, as long as the deck order is different each time (so it faces different cards and the outcome is different).\n\nHmm, this is getting complicated. Let me think about it differently.\n\nLet me think about the total number of duels. Each duel either removes 2 cards or doesn't. There are exactly n = 40 removals (removing duels). The non-removal duels are what we want to maximize.\n\nLet me think about an upper bound on non-removal duels.\n\nConsider the \"state\" as (permutation of A, permutation of B) with |A| = |B| = k. The number of such states (for a fixed set of k cards in each) is (k!)^2. But the outcome function constrains transitions.\n\nKey insight: The outcome function is consistent. If (a, b) is the top pair in two different states, the outcome is the same. This means the transition from those states is the same type.\n\nLet me think about the total number of states across all k. For a fixed set of cards, the number of states with k cards in each deck is (k!)^2. But we also choose which cards are in each deck at each stage. Actually, the cards in each deck are determined by which cards have been removed, and the removal is determined by the evenly matched pairs.\n\nIf the evenly matched pairs form a perfect matching M = {(a_{π(1)}, b_1), ..., (a_{π(n)}, b_n)} (after relabeling), then at each stage, the remaining cards are some subset. The process removes cards in pairs according to M.\n\nSo the sequence of removals is an ordering of the n pairs in M. At step i, the i-th pair is removed. Between removals, there are non-removal duels.\n\nLet me think about the number of states between the (i-1)-th and i-th removal. At this point, there are n - i + 1 cards in each deck. The number of possible states is ((n-i+1)!)^2. But the path through these states must be simple (no repeats) and must end at a state where the top cards are evenly matched.\n\nThe maximum number of non-removal duels between the (i-1)-th and i-th removal is at most ((n-i+1)!)^2 - 1 (visiting all states). But this is a very loose bound and the consistency constraint makes it much smaller.\n\nHmm, I think the answer might be related to n^2 or something polynomial, not factorial.\n\nLet me think about small cases more carefully and look for a pattern.\n\nn=1: max = 1.\nn=2: max = 4.\n\nLet me try to compute n=3.\n\nFor n=3, let me think about the champion chain approach.\n\nLet A = [a1, a2, a3], B = [b1, b2, b3].\n\nEvenly matched pairs: let's say (a1, b3), (a2, b2), (a3, b1).\n\nStrategy: Use champion chains to maximize duels.\n\nPhase 1: a1 is champion, beats b1, b2 (2 duels), then evenly matched with b3 (1 duel). Total: 3 duels. Removes a1, b3.\nNow A = [a2, a3], B = [b1, b2] (after the removal, the next cards become top).\n\nWait, I need to trace more carefully. Initially A = [a1, a2, a3], B = [b1, b2, b3].\n\nMinute 1: a1 vs b1. a1 beats b1. A = [a1, a2, a3], B = [b2, b3, b1].\nMinute 2: a1 vs b2. a1 beats b2. A = [a1, a2, a3], B = [b3, b1, b2].\nMinute 3: a1 vs b3. Evenly matched. Both removed. A = [a2, a3], B = [b1, b2].\n\nNow a2 is at top of A, b1 at top of B.\n\nMinute 4: a2 vs b1. Let's say a2 beats b1. A = [a2, a3], B = [b2, b1].\nMinute 5: a2 vs b2. Evenly matched. Both removed. A = [a3], B = [b1].\n\nMinute 6: a3 vs b1. Evenly matched. Done.\n\nTotal: 6 duels. That's 3 + 2 + 1 = 6.\n\nBut can we do better? Let me try using champion chains with losses.\n\nLet me try: a1 beats b1, b2, then loses to b3 (b3 beats a1). Then b3 is champion, beats a2, a3... wait, but b3 needs to be removed eventually.\n\nEvenly matched pairs: (a1, b2), (a2, b3), (a3, b1). Let me try this.\n\nA = [a1, a2, a3], B = [b1, b2, b3].\n\nMinute 1: a1 vs b1. a1 beats b1. B = [b2, b3, b1].\nMinute 2: a1 vs b2. Evenly matched. Both removed. A = [a2, a3], B = [b3, b1].\n\nOnly 2 duels for the first removal. Not great.\n\nLet me try: (a1, b3), (a2, b1), (a3, b2) as evenly matched.\n\nA = [a1, a2, a3], B = [b1, b2, b3].\n\na1 beats b1, b2, evenly matched with b3.\nMinute 1: a1 vs b1. a1 beats b1. B = [b2, b3, b1].\nMinute 2: a1 vs b2. a1 beats b2. B = [b3, b1, b2].\nMinute 3: a1 vs b3. Evenly matched. Both removed. A = [a2, a3], B = [b1, b2].\n\nNow a2 vs b1. a2 evenly matched with b1.\nMinute 4: a2 vs b1. Evenly matched. Both removed. A = [a3], B = [b2].\nMinute 5: a3 vs b2. Evenly matched. Done.\n\n5 duels. Worse.\n\nLet me try to use losses to extend.\n\n(a1, b3), (a2, b2), (a3, b1) evenly matched.\na1 beats b1, a1 beats b2, b3 beats a1 (no, a1 is evenly matched with b3, so a1 vs b3 is evenly matched, not b3 beats a1).\n\nHmm, the evenly matched outcome is fixed. So a1 vs b3 is always evenly matched.\n\nLet me try: (a1, b1), (a2, b2), (a3, b3) evenly matched.\na1 beats b2, b3. a2 beats b1, b3. a3 beats b1, b2.\n\nA = [a1, a2, a3], B = [b1, b2, b3].\n\nMinute 1: a1 vs b1. Evenly matched. Both removed. A = [a2, a3], B = [b2, b3].\nMinute 2: a2 vs b2. Evenly matched. Both removed. A = [a3], B = [b3].\nMinute 3: a3 vs b3. Evenly matched. Done.\n\n3 duels. Bad.\n\nLet me try: (a1, b1), (a2, b2), (a3, b3) evenly matched.\na1 beats b2, b3. b1 beats a2, a3. a2 beats b3. b2 beats a3. a3 beats b1.\n\nWait, this is getting complicated. Let me think about it more systematically.\n\nFor n=3, let me try to use the champion chain with losses.\n\n(a3, b3), (a2, b2), (a1, b1) evenly matched (removal order: a3-b3 first, then a2-b2, then a1-b1).\n\nActually, the removal order depends on the process. Let me try a specific setup.\n\nLet me try to get a long champion chain.\n\nA = [a1, a2, a3], B = [b1, b2, b3].\n\nEvenly matched: (a1, b3), (a2, b1), (a3, b2).\n\na1 beats b1, b2. (a1 evenly matched with b3)\nb1 beats a2, a3. (b1 evenly matched with a2) -- wait, b1 is evenly matched with a2, so b1 vs a2 is evenly matched, not b1 beats a2.\n\nHmm, I need to be careful. b1 is evenly matched with a2, so b1 vs a2 → evenly matched. b1 vs a3 can be anything (let's say b1 beats a3).\n\nSo:\n- a1 vs b1: a1 beats b1\n- a1 vs b2: a1 beats b2\n- a1 vs b3: evenly matched\n- a2 vs b1: evenly matched\n- a2 vs b2: ? (let's decide later)\n- a2 vs b3: ?\n- a3 vs b1: b1 beats a3\n- a3 vs b2: evenly matched\n- a3 vs b3: ?\n\nLet me trace:\nA = [a1, a2, a3], B = [b1, b2, b3].\n\nMinute 1: a1 vs b1. a1 beats b1. A = [a1, a2, a3], B = [b2, b3, b1].\nMinute 2: a1 vs b2. a1 beats b2. A = [a1, a2, a3], B = [b3, b1, b2].\nMinute 3: a1 vs b3. Evenly matched. Both removed. A = [a2, a3], B = [b1, b2].\n\nNow a2 vs b1.\nMinute 4: a2 vs b1. Evenly matched. Both removed. A = [a3], B = [b2].\nMinute 5: a3 vs b2. Evenly matched. Done.\n\n5 duels. The problem is that a2 meets b1 immediately and they're evenly matched.\n\nI need to arrange the deck orders so that evenly matched cards don't meet too early. Let me try different initial orders.\n\nA = [a1, a2, a3], B = [b2, b3, b1].\n\nEvenly matched: (a1, b3), (a2, b1), (a3, b2).\n\na1 beats b2, b1. a1 evenly matched with b3.\n\nMinute 1: a1 vs b2. a1 beats b2. B = [b3, b1, b2].\nMinute 2: a1 vs b3. Evenly matched. Both removed. A = [a2, a3], B = [b1, b2].\n\nOnly 2 duels for first removal. Worse.\n\nLet me try: A = [a1, a2, a3], B = [b1, b3, b2].\n\nEvenly matched: (a1, b2), (a2, b1), (a3, b3).\n\na1 beats b1, b3. a1 evenly matched with b2.\n\nMinute 1: a1 vs b1. a1 beats b1. B = [b3, b2, b1].\nMinute 2: a1 vs b3. a1 beats b3. B = [b2, b1, b3].\nMinute 3: a1 vs b2. Evenly matched. Both removed. A = [a2, a3], B = [b1, b3].\n\nMinute 4: a2 vs b1. Evenly matched. Both removed. A = [a3], B = [b3].\nMinute 5: a3 vs b3. Evenly matched. Done.\n\n5 duels again. The issue is a2 meets b1 right away.\n\nI need to separate the evenly matched pairs in the deck order. Let me try:\n\nA = [a1, a2, a3], B = [b1, b2, b3].\nEvenly matched: (a1, b3), (a2, b1), (a3, b2).\n\na1 beats b1, b2. (a1 evenly matched with b3)\na2 beats b3. b1 beats a3. (a2 evenly matched with b1, b1 beats a3)\na3 evenly matched with b2. a3 vs b3: b3 beats a3.\n\nMinute 1: a1 vs b1. a1 beats b1. B = [b2, b3, b1].\nMinute 2: a1 vs b2. a1 beats b2. B = [b3, b1, b2].\nMinute 3: a1 vs b3. Evenly matched. Both removed. A = [a2, a3], B = [b1, b2].\n\nMinute 4: a2 vs b1. Evenly matched. Both removed. A = [a3], B = [b2].\n\nMinute 5: a3 vs b2. Evenly matched. Done.\n\nStill 5. The problem is after removing a1 and b3, a2 is at top of A and b1 is at top of B, and they're evenly matched.\n\nI need to make sure that after the first removal, the new top cards are NOT evenly matched. Let me think...\n\nAfter removing a1 (top of A) and b3 (which was at top of B when removed), the new tops are a2 (next in A) and whatever was next in B after b3.\n\nWhen a1 vs b3 is evenly matched, both are removed. A was [a1, a2, a3], becomes [a2, a3]. B was [b3, b1, b2], becomes [b1, b2]. So new tops are a2 and b1.\n\nTo avoid a2 and b1 being evenly matched, I need to choose the evenly matched pairs differently, or arrange the deck order so that b1 is not at the top after b3 is removed.\n\nBut b1 is at the top after b3 is removed because b1 was second in B's order at that point. The order of B when b3 was removed was [b3, b1, b2], so after removing b3, it's [b1, b2].\n\nTo change this, I need to change the order of B when b3 is removed. The order depends on which cards a1 beat and in what order.\n\nInitially B = [b1, b2, b3]. After a1 beats b1: B = [b2, b3, b1]. After a1 beats b2: B = [b3, b1, b2]. Then a1 vs b3: evenly matched, B becomes [b1, b2].\n\nWhat if initially B = [b2, b1, b3]? After a1 beats b2: B = [b1, b3, b2]. After a1 beats b1: B = [b3, b2, b1]. Then a1 vs b3: evenly matched, B becomes [b2, b1]. Now tops are a2 and b2.\n\nIf a2 is evenly matched with b2, that's bad (immediate removal). If a2 is NOT evenly matched with b2, we can continue.\n\nLet me set up: Evenly matched: (a1, b3), (a2, b1), (a3, b2).\nA = [a1, a2, a3], B = [b2, b1, b3].\na1 beats b2, b1. a1 evenly matched with b3.\n\nMinute 1: a1 vs b2. a1 beats b2. B = [b1, b3, b2].\nMinute 2: a1 vs b1. a1 beats b1. B = [b3, b2, b1].\nMinute 3: a1 vs b3. Evenly matched. Both removed. A = [a2, a3], B = [b2, b1].\n\nNow tops: a2 vs b2. a2 is evenly matched with b1, not b2. So a2 vs b2 is not evenly matched. Let's say a2 beats b2.\n\nMinute 4: a2 vs b2. a2 beats b2. A = [a2, a3], B = [b1, b2].\nMinute 5: a2 vs b1. Evenly matched. Both removed. A = [a3], B = [b2].\nMinute 6: a3 vs b2. Evenly matched. Done.\n\n6 duels! Better. Now can we extend further?\n\nAfter minute 3, A = [a2, a3], B = [b2, b1]. Instead of a2 beating b2 and then meeting b1, what if a2 beats b2, then b1 beats a2? No, a2 is evenly matched with b1, so a2 vs b1 is evenly matched, not b1 beats a2.\n\nWhat if we use a different champion chain? After minute 3, tops are a2 and b2. Let's say b2 beats a2.\n\nMinute 4: a2 vs b2. b2 beats a2. b2 stays at top of B, a2 goes to bottom of A. A = [a3, a2], B = [b2, b1].\nMinute 5: a3 vs b2. a3 evenly matched with b2. Both removed. A = [a2], B = [b1].\nMinute 6: a2 vs b1. Evenly matched. Done.\n\n6 duels. Same.\n\nWhat if after minute 3, we have a2 vs b2 be \"no interaction\"?\n\nMinute 4: a2 vs b2. No interaction. A = [a3, a2], B = [b1, b2].\nMinute 5: a3 vs b1. a3 evenly matched with b2, not b1. Let's say b1 beats a3. b1 stays at top of B, a3 goes to bottom of A. A = [a2, a3], B = [b1, b2].\nMinute 6: a2 vs b1. Evenly matched. Both removed. A = [a3], B = [b2].\nMinute 7: a3 vs b2. Evenly matched. Done.\n\n7 duels! Better!\n\nLet me verify:\n- A = [a1, a2, a3], B = [b2, b1, b3].\n- Evenly matched: (a1,b3), (a2,b1), (a3,b2).\n- a1 beats b2, b1. a2 vs b2: no interaction. a3 vs b1: b1 beats a3. a2 vs b3: ? (doesn't matter, b3 is removed before a2 meets it). a3 vs b3: ? (doesn't matter).\n\nMinute 1: a1 vs b2. a1 beats b2. A = [a1,a2,a3], B = [b1,b3,b2]. ✓\nMinute 2: a1 vs b1. a1 beats b1. A = [a1,a2,a3], B = [b3,b2,b1]. ✓\nMinute 3: a1 vs b3. Evenly matched. Both removed. A = [a2,a3], B = [b2,b1]. ✓\nMinute 4: a2 vs b2. No interaction. A = [a3,a2], B = [b1,b2]. ✓\nMinute 5: a3 vs b1. b1 beats a3. b1 stays at top of B, a3 goes to bottom of A. A = [a2,a3], B = [b1,b2]. ✓\nMinute 6: a2 vs b1. Evenly matched. Both removed. A = [a3], B = [b2]. ✓\nMinute 7: a3 vs b2. Evenly matched. Done. ✓\n\n7 duels with n=3. Can we do better?\n\nLet me try to extend further. After minute 3, A = [a2, a3], B = [b2, b1].\n\nWhat if we do more no-interaction/loss duels before the next removal?\n\nMinute 4: a2 vs b2. No interaction. A = [a3, a2], B = [b1, b2].\nMinute 5: a3 vs b1. No interaction. A = [a2, a3], B = [b2, b1].\n\nNow we're back to A = [a2, a3], B = [b2, b1] - same as after minute 3! Infinite loop.\n\nSo we can't do two no-interactions in a row here (it cycles back).\n\nWhat about: Minute 4: a2 vs b2. No interaction. A = [a3, a2], B = [b1, b2].\nMinute 5: a3 vs b1. b1 beats a3. A = [a2, a3], B = [b1, b2].\nMinute 6: a2 vs b1. Evenly matched. Both removed. A = [a3], B = [b2].\nMinute 7: a3 vs b2. Evenly matched. Done.\n\n7 duels. Same as before.\n\nCan we insert more duels? After minute 5, A = [a2, a3], B = [b1, b2]. Tops: a2 vs b1, evenly matched. We can't avoid this.\n\nWhat if we make a2 vs b1 not evenly matched? But we need a2 to be removed somehow. a2 must be evenly matched with some card in B. If not b1, then b2. But a3 is evenly matched with b2. So both a2 and a3 can't be evenly matched with b2 (well, they can, but only one removal happens).\n\nActually, wait. Can two cards in A be evenly matched with the same card in B? If a2 and a3 are both evenly matched with b2, then whichever meets b2 first gets removed along with b2. The other one (say a3) then has no evenly matched partner and can never be removed. So the process doesn't terminate. So we need a perfect matching of evenly matched pairs.\n\nOK so with n=3, we need 3 evenly matched pairs forming a perfect matching. Let me try different matchings and orderings.\n\nLet me try to get 8 or more duels with n=3.\n\nAfter the first removal (a1, b3), we have A = [a2, a3], B = [b2, b1] (with the right initial ordering). We need to maximize duels before the next removal with 2 cards each, and we showed the max for n=2 is 4.\n\nSo the total would be 3 (first phase) + 4 (second phase) + 1 (last removal) = 8? Wait, the second phase with 2 cards has 4 duels total (including the 2 removals). So total = 3 + 4 = 7. Hmm, but the 4 duels for n=2 includes both removals. Let me re-examine.\n\nFor n=2, the 4-duel sequence was:\n1. no interaction (both rotate)\n2. a beats b (champion)\n3. evenly matched (removal)\n4. evenly matched (removal)\n\nSo 2 non-removal + 2 removal = 4 duels.\n\nAfter the first removal in n=3 (3 duels: 2 non-removal + 1 removal), we have 2 cards each. If we can achieve 4 duels, total = 3 + 4 = 7.\n\nBut can we achieve the 4-duel sequence for the 2-card sub-problem? The 4-duel sequence requires specific outcomes for the 2-card pairs. Let me check if it's compatible.\n\nAfter first removal: A = [a2, a3], B = [b2, b1].\nEvenly matched: (a2, b1), (a3, b2).\n\nFor the 4-duel n=2 sequence, we need (from our earlier analysis):\n- One \"no interaction\" and one \"win\" among the non-evenly-matched pairs.\n- The non-evenly-matched pairs are (a2, b2) and (a3, b1).\n\nThe 4-duel sequence was: no interaction, then win, then removal, then removal.\n\nFrom state ([a2, a3], [b2, b1]):\n- a2 vs b2: no interaction → ([a3, a2], [b1, b2])\n- a3 vs b1: a3 beats b1 → ([a3, a2], [b2, b1]) (a3 stays, b1 goes to bottom)\n\nWait, a3 beats b1 means a3 stays at top of A, b1 goes to bottom of B. A = [a3, a2], B = [b2, b1].\n\n- a3 vs b2: evenly matched → both removed. A = [a2], B = [b1].\n- a2 vs b1: evenly matched → done.\n\nThat's 4 duels. Total = 3 + 4 = 7. ✓\n\nBut wait, I had a3 vs b1 as \"b1 beats a3\" in my earlier 7-duel solution. Let me try with \"a3 beats b1\" instead.\n\nA = [a1, a2, a3], B = [b2, b1, b3].\nEvenly matched: (a1,b3), (a2,b1), (a3,b2).\na1 beats b2, b1. a2 vs b2: no interaction. a3 vs b1: a3 beats b1.\n\nMinute 1: a1 vs b2. a1 beats b2. B = [b1, b3, b2].\nMinute 2: a1 vs b1. a1 beats b1. B = [b3, b2, b1].\nMinute 3: a1 vs b3. Evenly matched. A = [a2, a3], B = [b2, b1].\nMinute 4: a2 vs b2. No interaction. A = [a3, a2], B = [b1, b2].\nMinute 5: a3 vs b1. a3 beats b1. A = [a3, a2], B = [b2, b1].\nMinute 6: a3 vs b2. Evenly matched. A = [a2], B = [b1].\nMinute 7: a2 vs b1. Evenly matched. Done.\n\n7 duels. Same.\n\nCan we get 8? We need 3 + 5 or 4 + 4 or something.\n\nFor the first phase (3 cards), can we get more than 3 duels before the first removal?\n\nWith 3 cards in each deck, the first removal happens when the top cards are evenly matched. Before that, we have non-removal duels. The champion (a1) can beat at most 2 cards before meeting the 3rd. If the 3rd is evenly matched, that's 3 duels (2 wins + 1 removal). Can we get more?\n\nWhat if a1 beats 1 card, then doesn't beat the next? Then a1 leaves the top, and we continue with new top cards. This could give more duels before any removal.\n\nLet me try:\nA = [a1, a2, a3], B = [b1, b2, b3].\nEvenly matched: (a1, b3), (a2, b1), (a3, b2).\n\na1 beats b1. a1 vs b2: no interaction. a2 vs b2: a2 beats b2. a2 vs b3: no interaction. a3 vs b1: a3 beats b1. a3 vs b3: no interaction.\n\nLet me trace:\nMinute 1: a1 vs b1. a1 beats b1. A = [a1,a2,a3], B = [b2,b3,b1].\nMinute 2: a1 vs b2. No interaction. A = [a2,a3,a1], B = [b3,b1,b2].\nMinute 3: a2 vs b3. No interaction. A = [a3,a1,a2], B = [b1,b2,b3].\nMinute 4: a3 vs b1. a3 beats b1. A = [a3,a1,a2], B = [b2,b3,b1].\nMinute 5: a3 vs b2. Evenly matched. Both removed. A = [a1,a2], B = [b3,b1].\n\n5 duels before first removal! Now we have A = [a1, a2], B = [b3, b1].\n\nEvenly matched remaining: (a1, b3), (a2, b1). Both are at the top! a1 vs b3 is evenly matched.\n\nMinute 6: a1 vs b3. Evenly matched. Both removed. A = [a2], B = [b1].\nMinute 7: a2 vs b1. Evenly matched. Done.\n\n7 duels total. The problem is that after the first removal, the evenly matched pairs are right at the top.\n\nLet me try to arrange so that after the first removal, the remaining cards are not evenly matched at the top.\n\nA = [a1, a2, a3], B = [b1, b2, b3].\nEvenly matched: (a1, b3), (a2, b1), (a3, b2).\n\nI want the first removal to be (a3, b2) (or some pair), and after that, the tops are not evenly matched.\n\nLet me try to get the first removal to be (a3, b2), with a different deck order after.\n\nMinute 1: a1 vs b1. a1 beats b1. B = [b2, b3, b1].\nMinute 2: a1 vs b2. No interaction. A = [a2, a3, a1], B = [b3, b1, b2].\nMinute 3: a2 vs b3. a2 beats b3. A = [a2, a3, a1], B = [b1, b2, b3].\nMinute 4: a2 vs b1. Evenly matched. Both removed. A = [a3, a1], B = [b2, b3].\n\n4 duels, first removal is (a2, b1). Now A = [a3, a1], B = [b2, b3]. Tops: a3 vs b2, evenly matched!\n\nMinute 5: a3 vs b2. Evenly matched. A = [a1], B = [b3].\nMinute 6: a1 vs b3. Evenly matched. Done.\n\n6 duels. Worse.\n\nThe challenge is that after a removal, the next cards become tops, and if they're evenly matched, we lose opportunities for more duels.\n\nLet me think about this differently. The key is to arrange the deck orders so that evenly matched cards are far apart, and non-evenly-matched cards create long chains.\n\nLet me try a different approach. Let me think about what the maximum could be.\n\nFor n=2, max = 4 = 2^2.\nFor n=3, let me try to get 9 = 3^2.\n\nHmm, let me think about whether n^2 is achievable.\n\nFor n=2, 4 = 2^2. ✓\nFor n=1, 1 = 1^2. ✓\n\nLet me try to get 9 for n=3.\n\nActually, let me think about this more carefully. Let me consider the following approach:\n\nThink of the process as a sequence of duels. Each card in A duels each card in B at most once before being removed (or the process doesn't terminate). Wait, is that true?\n\nNo, a card can duel the same card multiple times, as long as the deck composition changes in between (cards are removed).\n\nHmm, actually, let me think about whether a pair can duel more than once.\n\nIf a1 beats b1, a1 stays at top, b1 goes to bottom. For (a1, b1) to duel again, b1 must come back to the top of B. This requires B to complete a full rotation. During this rotation, a1 duels every other card in B. If a1 beats all of them and b1 comes back, (a1, b1) duels again with the same outcome (a1 beats b1). This is a cycle unless some card was removed in between.\n\nBut if a1 beats all cards in B, no card is removed (a1 only beats, never evenly matched), so it's an infinite loop. So for termination, a1 must not beat at least one card in B. If a1 beats all but one card (say b_k), and a1 is evenly matched with b_k, then a1 duels each card in B exactly once before being removed. If a1 beats all but one card and loses to that card, a1 duels each card once and then leaves the top.\n\nSo in a single champion phase, each pair (a1, b_j) duels at most once. But across different phases, the same pair could duel again if the deck composition changed.\n\nWait, can a pair (a, b) duel more than once across different phases? If a was champion, beat some cards, left the top, then later a is at the top again and b is at the top of B. This could happen if both a and b went to the bottom and came back up. But the outcome is the same. If a beat b before, a beats b again. This doesn't help extend the process (it's a repeat).\n\nUnless the deck composition changed (some cards removed), so the rotation is different, and a and b meet in a different context. But the outcome is still the same.\n\nHmm, I think the key insight is that each pair (a, b) can duel at most once with a non-removal outcome, unless the deck composition changes between duels. But even if the composition changes, the outcome is the same, so the duel is \"redundant.\"\n\nWait, but the duel still counts as a minute! Even if the outcome is the same, it's still a duel that takes time. The question is whether it leads to a cycle or not.\n\nLet me think about this more carefully. If (a, b) duel twice with the same outcome (say a beats b), the second duel is only possible if the deck composition changed (cards removed). In that case, it's not a cycle. But does it help?\n\nIf a beats b twice, both times a stays at top and b goes to bottom. The second time, B is shorter (some cards removed), so the rotation is faster. This could be part of a longer process.\n\nActually, I think pairs can duel multiple times. Let me think of an example.\n\nn=3. A = [a1, a2, a3], B = [b1, b2, b3].\nEvenly matched: (a1, b3), (a2, b2), (a3, b1).\n\na1 beats b1, b2. a1 evenly matched with b3.\n\nMinute 1: a1 vs b1. a1 beats b1. B = [b2, b3, b1].\nMinute 2: a1 vs b2. a1 beats b2. B = [b3, b1, b2].\nMinute 3: a1 vs b3. Evenly matched. A = [a2, a3], B = [b1, b2].\n\nNow a2 vs b1. Let's say a2 beats b1.\nMinute 4: a2 vs b1. a2 beats b1. A = [a2, a3], B = [b2, b1].\nMinute 5: a2 vs b2. Evenly matched. A = [a3], B = [b1].\nMinute 6: a3 vs b1. Evenly matched. Done.\n\n6 duels. Here (a1, b1) dueled once, (a1, b2) once, (a1, b3) once, (a2, b1) once, (a2, b2) once, (a3, b1) once. Each pair dueled at most once. 6 duels = 6 pairs dueled.\n\nBut we had 9 pairs total, and only 6 dueled. 3 pairs never dueled: (a2, b3), (a3, b2), (a3, b3). These are \"wasted\" opportunities.\n\nTo maximize, we want as many pairs as possible to duel. The maximum is 9 pairs (all pairs duel at least once), but 3 of those are evenly matched (removals), so 6 non-removal duels + 3 removals = 9 duels.\n\nCan we achieve 9 duels for n=3? That would mean every pair duels exactly once.\n\nLet me try to construct such a process.\n\nWe need a sequence of 9 duels where each pair (a_i, b_j) appears exactly once, 3 of them are evenly matched (removals), and the process is consistent (same pair always has same outcome) and terminates.\n\nThe 3 evenly matched pairs form a perfect matching. Let's say (a1, b1), (a2, b2), (a3, b3).\n\nThe other 6 pairs have non-removal outcomes. We need to choose outcomes and initial deck orders such that each pair duels exactly once and the process terminates.\n\nLet me think about what sequence of states would give 9 duels.\n\nState is (A_order, B_order). Start: ([a1,a2,a3], [b1,b2,b3]).\n\nFor each pair to duel exactly once, we need the top cards to be a different pair each time. After 9 duels, all cards are removed.\n\nThe 3 removals happen at specific points, reducing the deck sizes. Between removals, the decks rotate.\n\nLet me think about the sequence of top pairs:\n(a1,b1), (a1,b2), (a1,b3), (a2,b3), (a2,b1), (a2,b2), (a3,b2), (a3,b3), (a3,b1)\n\nThis is one possible ordering. But we need the deck mechanics to produce this.\n\nFor (a1,b1) to be first: A = [a1,...], B = [b1,...]. ✓\nAfter (a1,b1): if evenly matched, both removed. But then a2 becomes top of A and b2 becomes top of B, giving (a2,b2) next. That skips many pairs.\n\nSo the first duel shouldn't be a removal. Let me reorder:\n(a1,b2), (a1,b3), (a1,b1)→removal, (a2,b3), (a2,b1), (a2,b2)→removal, (a3,b1), (a3,b3), (a3,b2)→removal.\n\nWait, but after (a1,b1) is removed, the next top of A is a2 and next top of B is... depends on B's order at that point.\n\nLet me trace:\nA = [a1, a2, a3], B = [b2, b3, b1].\n\nMinute 1: a1 vs b2. a1 beats b2. B = [b3, b1, b2]. (a1 stays)\nMinute 2: a1 vs b3. a1 beats b3. B = [b1, b2, b3]. (a1 stays)\nMinute 3: a1 vs b1. Evenly matched. Both removed. A = [a2, a3], B = [b2, b3].\n\nNow tops: a2 vs b2. But we want a2 vs b3 next (to get all pairs). But b2 is at top, not b3.\n\nIf a2 beats b2: B = [b3, b2]. Then a2 vs b3. If evenly matched, removed. A = [a3], B = [b2]. Then a3 vs b2. Evenly matched. Done.\n\nDuels: (a1,b2), (a1,b3), (a1,b1), (a2,b2), (a2,b3), (a3,b2). 6 duels. Missing (a2,b1), (a3,b1), (a3,b3).\n\nThe problem is that after the first removal, b1 is gone, so a2 and a3 can never duel b1. So pairs involving removed cards can't duel.\n\nThis means: if b1 is removed in the first removal, then no A card after a1 can duel b1. So b1 only duels a1. Similarly, a1 only duels cards in B before a1 is removed.\n\nSo the pairs that duel are:\n- a1 duels some subset of B (before a1 is removed)\n- a2 duels some subset of remaining B (before a2 is removed)\n- a3 duels some subset of remaining B (before a3 is removed)\n\nThe subsets are determined by the process. a1 duels all cards in B that come to the top before a1 is removed. If a1 is champion and beats k cards before being evenly matched with the (k+1)-th, a1 duels k+1 cards.\n\nAfter a1 is removed, the remaining B cards are those that weren't removed (i.e., all except the one a1 was evenly matched with). But the order of B depends on which cards a1 beat.\n\nSo a1 duels some cards in B (say m1 cards, including the evenly matched one). Then a2 duels some cards in the remaining B (m2 cards). Then a3 duels the rest (m3 cards). m1 + m2 + m3 = 9 (if every pair duels exactly once). But m1 ≤ 3, m2 ≤ 2, m3 ≤ 1. So m1 + m2 + m3 ≤ 6. So we can't get 9 duels with this \"sequential champion\" approach!\n\nWait, that's only if each a_i is a champion (stays at top until removed). If a_i leaves the top (loses or no interaction), then a different card comes to the top, and we can have more complex sequences.\n\nLet me reconsider. The process doesn't have to be \"a1 is champion until removed, then a2 is champion, etc.\" It can be more complex with cards leaving and returning to the top.\n\nBut the constraint is: once a card is removed, it's gone. So a pair (a, b) can only duel if both a and b are still in their decks.\n\nLet me think about the maximum number of duels more carefully.\n\nConsider the \"lifetime\" of each card. Card a is in the deck from the start until it's removed. During its lifetime, it duels some cards in B. Each duel either:\n- a wins: a stays at top, B rotates\n- a loses: a goes to bottom, b stays at top\n- evenly matched: a is removed\n- no interaction: both go to bottom\n\nWhen a is at the top and wins, it duels the next B card. When a is not at the top, it's somewhere in the deck and doesn't duel.\n\nSo a only duels when it's at the top of A. Between consecutive duels of a, a must go to the bottom and come back to the top (which requires all cards above it to also go to the bottom or be removed).\n\nThis is getting complex. Let me think about it from the perspective of total duels.\n\nUpper bound approach: Each duel involves one A-card and one B-card. Consider the total number of (card, duel) incidences. Each duel has 2 incidences (one A, one B). The total number of duels is D. Each A-card participates in some number of duels during its lifetime. The total A-incidences = D, and total B-incidences = D.\n\nFor card a, the number of duels it participates in is the number of times it's at the top of A when a duel happens. Each time a is at the top, it duels one B-card and then either stays (win), leaves (loss/no interaction), or is removed (evenly matched).\n\nIf a wins, a stays at top and duels again. If a leaves, a goes to bottom and must wait for a full rotation to come back. If a is removed, it's done.\n\nSo the number of duels a participates in = (number of times a comes to the top) × (average streak length at top). But each time a comes to the top (except the last), it eventually leaves (goes to bottom). The last time, it's removed.\n\nWhen a is at the top and wins k times in a row, then leaves (or is removed), that's k+1 duels (k wins + 1 non-win). But a can come to the top multiple times.\n\nHow many times can a come to the top? Each time a leaves the top (goes to bottom), it must wait for all cards above it to leave the top (go to bottom or be removed) before a comes back. If there are m cards in A (including a), a comes back to the top after at most m-1 other duels where other A-cards are at the top.\n\nHmm, this is getting complicated. Let me try a different approach.\n\nLet me think about the problem as a directed graph / Eulerian path problem.\n\nConsider a bipartite graph where vertices are cards (A-cards on one side, B-cards on the other). Each duel corresponds to an edge between the two cards. The process creates a sequence of edges (a walk on this graph). The walk must satisfy the deck mechanics constraints.\n\nActually, let me think about it as follows. The state is (A_deck, B_deck) where each deck is a sequence. The process is a walk on the state graph. The walk must be simple (no repeated states) and end at (empty, empty).\n\nThe maximum walk length is bounded by the number of states minus 1. But the consistency constraint (same pair → same outcome) limits this.\n\nLet me think about the number of states. With k cards in each deck, the number of states is (k!)^2 × C(n,k)^2 (choosing which k cards are in each deck, times the number of orderings). But the cards in each deck are determined by which cards have been removed, and the removal is determined by the evenly matched pairs (a perfect matching).\n\nIf the evenly matched matching is M = {(a_1, b_{π(1)}), ..., (a_n, b_{π(n)})}, then at each stage, the remaining cards are determined by which pairs have been removed. If pairs are removed in order p_1, p_2, ..., p_n, then after the i-th removal, the remaining A-cards are {a_j : j not in {p_1, ..., p_i}} and similarly for B.\n\nThe number of possible removal orders is n! (any permutation of the n pairs). For each removal order, the process goes through states with n, n-1, ..., 1, 0 cards in each deck.\n\nFor a fixed removal order, the number of states with k cards is (k!)^2 (since the set of k cards is determined). The maximum number of duels between the (i-1)-th and i-th removal is at most ((n-i+1)!)^2 - 1.\n\nBut this is a very loose bound. The consistency constraint makes it much smaller.\n\nLet me think about the consistency constraint more carefully.\n\nThe outcome function f(a, b) is fixed. For each pair (a, b), f(a, b) is one of {a wins, b wins, evenly matched, no interaction}. The evenly matched pairs form a perfect matching M.\n\nConsider the state (A_deck, B_deck) with top cards (a, b). The outcome f(a, b) determines the next state:\n- a wins: (A_deck, rotate_B_by_1) (a stays at top, b goes to bottom)\n- b wins: (rotate_A_by_1, B_deck) (a goes to bottom, b stays at top)\n- evenly matched: (A_deck \\ {a}, B_deck \\ {b}) (both removed)\n- no interaction: (rotate_A_by_1, rotate_B_by_1) (both go to bottom)\n\nThe consistency constraint means: if two states have the same top pair (a, b), they have the same outcome and hence the same type of transition. But the resulting states might be different (because the rest of the deck is different).\n\nNow, the key question is: how many states can we visit before reaching (empty, empty)?\n\nLet me think about this in terms of the \"rotation\" of each deck. If no cards are removed, the state is (A_deck, B_deck) and the process cycles through rotations. With k cards in each deck, there are k possible rotations of A and k of B, giving k^2 states. The process cycles through these k^2 states. If no pair is evenly matched (no removal), the process visits some subset of these k^2 states and eventually cycles.\n\nFor the process to not cycle (and eventually remove cards), the cycle must include a state where the top pair is evenly matched. So the process visits some states, then hits an evenly matched pair, removes cards, and continues with fewer cards.\n\nThe maximum number of states visited before a removal is at most k^2 - 1 (all non-removal states with k cards). But the consistency constraint might prevent visiting all of them.\n\nWait, actually, with k cards in each deck (no removals), the state is (rotation of A, rotation of B). There are k^2 states. The transition from each state is determined by f(top_A, top_B). The process is a deterministic walk on these k^2 states. Since it's deterministic, it eventually enters a cycle. The walk visits some number of states before entering the cycle, then cycles forever.\n\nFor the process to terminate, the walk must hit a state where the top pair is evenly matched (removal). This state is a \"sink\" (leads to a state with fewer cards). So the walk must visit this state before cycling.\n\nThe maximum number of non-removal states visited before hitting the removal state is k^2 - 1 (visiting all other states first). But can we achieve this?\n\nFor this, we need the walk to be a Hamiltonian path on the k^2 states (minus the removal state), ending at the removal state. This requires the outcome function to create such a path.\n\nThe k^2 states form a k × k grid (rotation of A × rotation of B). The transitions are:\n- a wins: (i, j) → (i, j+1 mod k) (B rotates, A stays)\n- b wins: (i, j) → (i+1 mod k, j) (A rotates, B stays)\n- no interaction: (i, j) → (i+1 mod k, j+1 mod k) (both rotate)\n- evenly matched: removal (sink)\n\nSo from each state (i, j), the transition is one of:\n- Right: (i, j+1)\n- Down: (i+1, j)\n- Diagonal: (i+1, j+1)\n- Sink (removal)\n\n(All mod k.)\n\nWe want a Hamiltonian path on the k^2 - 1 non-sink states, ending at the sink state. The transitions are determined by f(a_i, b_j) where a_i is the i-th card in A's rotation and b_j is the j-th in B's rotation.\n\nBut wait, the consistency constraint: f(a, b) is fixed for each pair (a, b). In the grid, state (i, j) has top cards (A[i], B[j]). The transition from (i, j) depends on f(A[i], B[j]). But A[i] is the card at position i in A's rotation, which is a specific card. So f(A[i], B[j]) is the outcome for the pair (A[i], B[j]).\n\nNow, different states (i, j) and (i', j') might have the same pair (A[i], B[j]) = (A[i'], B[j']) if A[i] = A[i'] and B[j] = B[j']. But since A is a permutation, A[i] = A[i'] iff i = i'. Similarly for B. So different states always have different pairs. \n\nWait, that's the key! Each state (i, j) has a unique pair (A[i], B[j]), and different states have different pairs (since A and B are permutations). So the consistency constraint is automatically satisfied! We can choose any transition for each state independently!\n\nWait, is that right? Let me double-check. State (i, j) means A's deck is rotated by i and B's by j. The top cards are A[i] and B[j]. Since A is a permutation of the k remaining cards, A[i] is a specific card, and different i give different cards. Similarly for B. So (A[i], B[j]) is a unique pair for each (i, j). And f(A[i], B[j]) is the outcome for that pair, which we can choose freely.\n\nBut wait, the consistency constraint says f(a, b) is the same every time a and b duel. If (a, b) = (A[i], B[j]) appears in multiple states... but we just said each state has a unique pair. So the pair (a, b) appears in exactly one state (i, j) (for a given set of remaining cards). \n\nBut across different stages (different sets of remaining cards), the same pair (a, b) might appear again. For example, if a and b are both still in the decks after some removals, they might be at the top in some state with fewer cards. In that state, f(a, b) must be the same as before.\n\nSo the consistency constraint is: for each pair (a, b), f(a, b) is the same across all stages. This means if (a, b) is not evenly matched, it's never evenly matched (even in a smaller deck). And if (a, b) is evenly matched, it's always evenly matched.\n\nBut the evenly matched pairs form a perfect matching M. So for (a, b) ∈ M, f(a, b) = evenly matched. For (a, b) ∉ M, f(a, b) ∈ {a wins, b wins, no interaction}.\n\nNow, within a single stage (k cards in each deck, no removals), each pair (a, b) appears in exactly one state (i, j). So we can choose the transition for each state independently, as long as:\n- For (a, b) ∈ M: transition is removal (sink).\n- For (a, b) ∉ M: transition is right, down, or diagonal.\n\nAnd we want a Hamiltonian path on the k^2 - 1 non-sink states, ending at the sink state.\n\nBut there's only one sink state (the state where the top pair is in M). Wait, actually, there might be multiple states where the top pair is in M. If (a, b) ∈ M and a is at position i in A and b is at position j in B, then state (i, j) is a sink. But there's only one such state for each (a, b) ∈ M. And since M is a perfect matching with k pairs, there are k sink states (one for each pair in M that hasn't been removed yet).\n\nWait, no. M is the overall perfect matching of all n pairs. At a stage with k remaining cards, the remaining pairs in M are k pairs (those where both cards are still in the decks). So there are k sink states.\n\nHmm, but we want the process to remove one pair at a time. So the process hits one sink state, removes that pair, and continues with k-1 cards. The other k-1 sink states are still there but not hit yet.\n\nSo the process visits some non-sink states, hits a sink state (removal), and continues. We want to maximize the total number of states visited across all stages.\n\nFor a stage with k cards, the maximum number of non-sink states visited before hitting a sink is at most k^2 - k (total states minus sink states). But we also need the walk to actually hit a sink (not cycle among non-sink states).\n\nThe walk on the k^2 states (with k sinks) is deterministic. From each non-sink state, the transition is right, down, or diagonal (mod k). From each sink state, the transition is removal (to a state with k-1 cards).\n\nWe want to choose the transitions (for non-sink states) to maximize the total path length, which is the sum over stages of (non-sink states visited) + (sink states hit, which is 1 per stage).\n\nTotal duels = sum over stages of (non-sink states visited + 1).\n\nFor stage with k cards: at most k^2 - k non-sink states + 1 sink = k^2 - k + 1 duels.\n\nBut can we achieve k^2 - k + 1 duels per stage? This requires visiting all k^2 - k non-sink states before hitting a sink. This is a Hamiltonian path on the non-sink states ending at a sink.\n\nThe non-sink states form a k × k grid minus k cells (the sink cells). The transitions are right, down, or diagonal (mod k). We need a Hamiltonian path on this grid.\n\nThis is possible in some cases but not all. Let me think about when it's possible.\n\nActually, wait. The transitions are not arbitrary graph edges. From state (i, j), the transition is to (i, j+1), (i+1, j), or (i+1, j+1) (mod k). These are specific directions. The walk is a deterministic path where each step goes right, down, or diagonally.\n\nThis is like a rook/bishop move on a toroidal chessboard. The path must visit all non-sink cells and end at a sink cell.\n\nHmm, this is a non-trivial combinatorial problem. Let me think about small cases.\n\nFor k=1: 1 state, which is a sink. 1 duel. ✓ (1 = 1^2 - 1 + 1)\nFor k=2: 4 states, 2 sinks, 2 non-sinks. Max duels = 2 + 1 = 3? But we showed max for n=2 is 4.\n\nWait, I think I'm confusing stages. For n=2, the process has 2 stages: k=2 and k=1. Stage k=2: at most 4 - 2 + 1 = 3 duels. Stage k=1: 1 duel. Total = 4. ✓\n\nFor n=3: stages k=3, k=2, k=1. Max per stage: 9 - 3 + 1 = 7, 4 - 2 + 1 = 3, 1. Total = 11? But we only got 7. So either the bound is not tight or we haven't found the optimal solution.\n\nWait, but the consistency constraint across stages might prevent achieving the per-stage maximum. Let me reconsider.\n\nThe outcome f(a, b) is fixed across all stages. In stage k=3, the pair (a, b) appears in state (i, j) and has a specific outcome. In stage k=2 (after some removals), if",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 24778,
+        "completion_tokens": 25000,
+        "cached_tokens": 11777
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 24778,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 11777,
+    "total_steps": 10
+  }
+}

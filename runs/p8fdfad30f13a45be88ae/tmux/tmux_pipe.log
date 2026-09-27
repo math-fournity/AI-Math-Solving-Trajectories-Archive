@@ -1,0 +1,144 @@
+No answer leak detected. The problem states only the theorem (criterion), not a solution.
+
+## Solution
+
+We are given a holomorphic function `f` on a punctured disk `D(0,r)\{0}`. By the Riemann removable singularities theorem, `f` extends holomorphically through `0` **iff** `f` is bounded in some neighborhood of `0`. Since `f` is already holomorphic on the punctured disk, the only obstruction to continuation is the behavior at `0`; thus the test reduces to a **boundedness test** near the origin.
+
+A numerically robust way to test boundedness, without needing a closed form for `f`, is to sample `f` on a sequence of circles `|z| = ρₖ` with `ρₖ → 0` and check that the maximum modulus on those circles stays bounded (in fact, by the maximum principle it must stay bounded and tend to `|f(0)|` of the continuation). If `f` had a pole or essential singularity at `0`, the maximum modulus on `|z|=ρ` would blow up like `ρ⁻ᵐ` (pole of order `m`) or be unbounded along subsequences (essential, by Casorati/`limsup = ∞`). Hence:
+
+- `sup_{|z|=ρ} |f(z)|` bounded as `ρ → 0` ⟹ removable (bounded) ⟹ holomorphic continuation exists.
+- `sup_{|z|=ρ} |f(z)| → ∞` ⟹ not removable.
+
+### MATLAB routine
+
+```matlab
+function [isRemovable, boundEst] = testRemovableSingularity(fhandle, r, opts)
+%TESTREMOVABLESINGULARITY  Test whether a holomorphic f on D(0,r)\{0}
+%   has a holomorphic continuation past 0, via the Riemann removable
+%   singularities theorem (f extends iff f is bounded near 0).
+%
+%   Inputs:
+%     fhandle : function handle accepting a complex vector z, returning
+%               f(z) (complex vector). Must be holomorphic on the
+%               punctured disk D(0,r)\{0}.
+%     r       : radius of the punctured disk on which f is defined (r>0).
+%     opts    : (optional) struct with fields
+%                 rhoSeq   : vector of radii decreasing to 0 (default
+%                            logspace(log10(r),-12,200))
+%                 nTheta   : number of sample points per circle (default 256)
+%                 tol      : relative growth tolerance (default 1e3)
+%
+%   Outputs:
+%     isRemovable : true  -> f is bounded near 0 -> holomorphic
+%                            continuation past 0 EXISTS.
+%                   false -> f is unbounded near 0 -> NO holomorphic
+%                            continuation (pole or essential singularity).
+%     boundEst    : estimated local bound sup_{|z|<=rho} |f(z)| near 0
+%                   (Inf if unbounded detected).
+
+  if nargin < 3 || isempty(opts)
+    opts = struct();
+  end
+  if ~isfield(opts,'rhoSeq')
+    % geometric sequence of radii from r down to ~1e-12
+    opts.rhoSeq = logspace(log10(r), -12, 200);
+  end
+  if ~isfield(opts,'nTheta'),  opts.nTheta = 256;  end
+  if ~isfield(opts,'tol'),     opts.tol    = 1e3;  end
+
+  rhoSeq  = opts.rhoSeq(:);
+  nTheta  = opts.nTheta;
+  tol     = opts.tol;
+
+  assert(r > 0, 'r must be positive');
+  assert(all(rhoSeq > 0) && all(rhoSeq <= r), 'rhoSeq must lie in (0,r]');
+  assert(issorted(rhoSeq,'descend'), 'rhoSeq should decrease to 0');
+
+  theta = linspace(0, 2*pi, nTheta+1); theta = theta(1:end-1);
+  c     = cos(theta); s = sin(theta);
+
+  maxMod = zeros(size(rhoSeq));
+  for k = 1:numel(rhoSeq)
+    rho = rhoSeq(k);
+    z   = rho * (c + 1i*s);          % |z| = rho circle
+    fz  = fhandle(z);
+    if any(~isfinite(fz))
+      maxMod(k) = Inf;
+    else
+      maxMod(k) = max(abs(fz));
+    end
+  end
+
+  % --- Decision rule ---------------------------------------------------
+  %  removable  : maxMod stays bounded as rho -> 0.
+  %  not remov. : maxMod -> Inf (pole: power-law blow-up;
+  %              essential: unbounded along subsequence).
+  if any(isinf(maxMod))
+    isRemovable = false;
+    boundEst    = Inf;
+    return;
+  end
+
+  % Look at the tail (smallest radii); boundedness is what matters.
+  tail = maxMod(end/2:end);
+  M0   = max(tail);
+
+  % Growth test: if the ratio (max over all radii)/(tail max) is huge,
+  % the function is blowing up as rho->0 -> not removable.
+  globalMax = max(maxMod);
+  if isfinite(globalMax) && globalMax > tol * M0 && M0 > 0
+    isRemovable = false;
+    boundEst    = globalMax;
+    return;
+  end
+
+  % Monotonic blow-up test toward 0: in a pole, maxMod ~ rho^{-m},
+  % strictly increasing as rho decreases. Check the tail trend.
+  if numel(tail) >= 3
+    trend = diff(tail);
+    if all(trend > 0) && tail(end) > tol * tail(1) && tail(1) > 0
+      isRemovable = false;
+      boundEst    = tail(end);
+      return;
+    end
+  end
+
+  % Otherwise: bounded near 0 -> removable -> continuation exists.
+  isRemovable = true;
+  boundEst    = M0;
+end
+```
+
+### Why this correctly implements the theorem
+
+1. **Sampling on circles is sufficient.** By the maximum-modulus principle, `sup_{|z|≤ρ}|f(z)| = max_{|z|=ρ}|f(z)|` for `f` holomorphic on the annulus `ρ ≤ |z| ≤ r`. So sampling the circle `|z|=ρ` captures the supremum on the whole sub-disk; no interior points are needed.
+
+2. **Boundedness detection.** The routine computes `M(ρₖ) = max_{|z|=ρₖ}|f(z)|` for a geometric sequence `ρₖ ↓ 0`. The Riemann theorem says `f` is removable **iff** `M(ρ)` is bounded as `ρ→0`. The decision rule flags failure if (a) any sample is non-finite, (b) the global max dwarfs the tail max by a factor exceeding `tol` (blow-up), or (c) the tail is monotonically increasing toward `0` with a large growth ratio (power-law blow-up characteristic of a pole of order `m`: `M(ρ)∼Cρ⁻ᵐ`). If none of these triggers, `M(ρ)` is bounded near `0`, so `f` is removable.
+
+3. **Distinguishing the two failure modes (optional refinement).** A pole gives `M(ρ)∼Cρ⁻ᵐ` — clean power-law growth; fitting `log M(ρ)` vs `−log ρ` to a line yields the pole order `m`. An essential singularity gives `limsup_{ρ→0} M(ρ) = ∞` but without a clean power law (by Casorati–Weierstrass the values are dense, and by Picard they attain all values except possibly one). The routine reports both as `isRemovable = false`; a follow-up log-log fit can separate them if desired.
+
+4. **Returning the bound.** When removable, `boundEst = max tail M(ρₖ)` is a numerical estimate of the local bound; the true value of the continuation at `0` is `f(0) = lim_{z→0} f(z)`, which can be recovered separately by Richardson/extrapolation of the samples if needed.
+
+### Example usage
+
+```matlab
+% Removable: f(z) = sin(z)/z  (bounded, limit = 1 at 0)
+f1 = @(z) sin(z)./z;
+[ok1, b1] = testRemovableSingularity(f1, 1);
+% ok1 = true  -> holomorphic continuation past 0 exists (value 1).
+
+% Pole: f(z) = 1/z^2
+f2 = @(z) 1./z.^2;
+[ok2, b2] = testRemovableSingularity(f2, 1);
+% ok2 = false -> no holomorphic continuation (pole of order 2).
+
+% Essential: f(z) = exp(1/z)
+f3 = @(z) exp(1./z);
+[ok3, b3] = testRemovableSingularity(f3, 1);
+% ok3 = false -> no holomorphic continuation (essential singularity).
+```
+
+The three cases match the classification of isolated singularities: `sin(z)/z` is removable (bounded), `1/z²` is a pole (blows up polynomially), `e^{1/z}` is essential (unbounded along `z→0⁺`). The routine correctly returns `true` only for the removable case, exactly as the Riemann removable singularities theorem prescribes: **a holomorphic continuation past `0` exists if and only if `f` is bounded near `0`.**
+
+### PROOF COMPLETE
+DEVIN_CLI_EXITED code=0

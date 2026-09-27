@@ -1,0 +1,781 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_04650</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Let $S$ denote the set of all composite numbers not exceeding 79. Let $k$ be the minimum number of subsets into which $S$ can be partitioned such that the elements in each subset form an arithmetic sequence. Find the value of $k$.
+
+## Standard Solution
+
+The problem asks for the minimum number of arithmetic sequences needed to cover all composite numbers up to 79. The solution shows that $S$ can be partitioned into 3 such subsets ($S_1, S_2, S_3$ starting with $3^2, 5^2, 7^2$ and common differences $2 \cdot 3, 2 \cdot 5, 2 \cdot 7$ respectively). The second part of the solution proves that $S$ cannot be partitioned into 2 such subsets by checking various possible arithmetic sequences starting from the smallest composite numbers (9, 15, 21, 25, etc.) and showing that elements like 49 cannot be covered or that prime numbers are erroneously included. Thus, $k=3$.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. I need to find the minimum number of subsets into which S (composite numbers ≤ 79) can be partitioned such that each subset forms an arithmetic sequence.
+
+First, let me list composite numbers ≤ 79.
+
+Primes ≤ 79: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79.
+
+So composite numbers ≤ 79 (excluding 1 which is neither prime nor composite):
+4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 22, 24, 25, 26, 27, 28, 30, 32, 33, 34, 35, 36, 38, 39, 40, 42, 44, 45, 46, 48, 49, 50, 51, 52, 54, 55, 56, 57, 58, 60, 62, 63, 64, 65, 66, 68, 69, 70, 72, 74, 75, 76, 77, 78.
+
+Let me count: from 4 to 78, total numbers = 75 (numbers 4..78). Primes in range 4..78: 5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73 = 19 primes. Also 1 is excluded but 1 < 4 so not in range. So composites = 75 - 19 = 56.
+
+Let me list them: 4,6,8,9,10,12,14,15,16,18,20,21,22,24,25,26,27,28,30,32,33,34,35,36,38,39,40,42,44,45,46,48,49,50,51,52,54,55,56,57,58,60,62,63,64,65,66,68,69,70,72,74,75,76,77,78.
+
+That's 56 numbers.
+
+Note: a single element forms an arithmetic sequence (trivially). So the question is the minimum number of arithmetic-progression subsets to partition S.
+
+This is essentially a graph coloring / partition problem. We want to partition into minimum number of arithmetic progressions (APs).
+
+An AP can have common difference d ≥ 0. If d=0, all elements equal — not useful for partition of distinct elements (each element used once). Actually a subset with one element is an AP. A subset with two elements is always an AP. So really we want to maximize the use of longer APs to minimize count.
+
+We want minimum partition into APs. This is equivalent to: cover all 56 elements with APs (each element in exactly one AP), minimize number of APs.
+
+To minimize, we want long APs. The longest APs within composites ≤ 79.
+
+Let me think about this as a covering problem. Hard to do optimally by hand but let me try.
+
+Actually, let me think about which long arithmetic progressions of composites exist.
+
+Even numbers: 4,6,8,...,78 is an AP with d=2, from 4 to 78. That's (78-4)/2+1 = 38 terms. All even numbers ≥4 and ≤78 are composite (since even and ≥4). So all even composites form one AP: {4,6,8,...,78}, 38 elements.
+
+Odd composites ≤ 79: 9,15,21,25,27,33,35,39,45,49,51,55,57,63,65,69,75,77.
+
+Let me list odd numbers from 1 to 79: 1,3,5,7,9,11,...,79. Odd composites: 9,15,21,25,27,33,35,39,45,49,51,55,57,63,65,69,75,77.
+
+Count: let me count. 9,15,21,25,27,33,35,39,45,49,51,55,57,63,65,69,75,77. That's 18 numbers.
+
+Total: 38 + 18 = 56. Good.
+
+So we can take the even AP (38 elements, 1 subset). Now we need to partition the 18 odd composites into APs.
+
+Odd composites: 9, 15, 21, 25, 27, 33, 35, 39, 45, 49, 51, 55, 57, 63, 65, 69, 75, 77.
+
+We want to partition these 18 into minimum number of APs.
+
+Let me think. Multiples of 3 that are odd composites: 9,15,21,27,33,39,45,51,57,63,69,75. These form an AP with d=6: 9,15,21,27,33,39,45,51,57,63,69,75. That's 12 terms! All are multiples of 3 and odd, so composite (since ≥9). Check: 9,15,21,27,33,39,45,51,57,63,69,75. Difference 6. (75-9)/6+1 = 66/6+1 = 11+1 = 12. Yes, 12 terms.
+
+Remaining odd composites: 25, 35, 49, 55, 65, 77. (18 - 12 = 6 numbers.)
+
+These are: 25, 35, 49, 55, 65, 77.
+
+Can we form APs from these?
+- 25, 35, 45, 55, 65, 75 — but 45, 75 already used.
+- 35, 49, 63, 77 — 63 used.
+- 25, 49, 73 — 73 prime, not in set.
+
+Let me see: 25, 35, 45, 55, 65, 75 is AP d=10 but 45,75 used.
+35, 49, 63, 77 is AP d=14 but 63 used.
+
+Remaining: 25, 35, 49, 55, 65, 77.
+
+Pairs: 25,35 (d=10); 49,55 (d=6); 65,77 (d=12). Or try to make triples.
+
+25, 65 — d=40, middle 45 used.
+35, 65 — d=30, middle 50 even not in set.
+49, 77 — d=28, middle 63 used.
+55, 77 — d=22, middle 66 even.
+25, 49 — d=24, middle 37 prime.
+35, 55 — d=20, middle 45 used.
+25, 55 — d=30, middle 40 even.
+35, 77 — d=42, middle 56 even.
+49, 65 — d=16, middle 57 used.
+65, 77 — d=12, middle 71 prime.
+
+So no triples among remaining 6. Best we can do is pairs. 6 elements → 3 pairs.
+
+So total: 1 (evens) + 1 (multiples of 3, odd) + 3 (pairs) = 5 subsets.
+
+But wait, can we do better with a different decomposition? Maybe not taking all multiples of 3 together, but combining differently to reduce total.
+
+Let me reconsider. We have 56 composites. Lower bound: if we use APs, the maximum length AP... The even AP has 38. Then 18 odd. If we could cover 18 odd with fewer than 4 APs (i.e., 3 or fewer), total would be 4.
+
+Can we cover 18 odd composites with 3 APs? That requires average 6 per AP. 
+
+Odd composites: 9,15,21,25,27,33,35,39,45,49,51,55,57,63,65,69,75,77.
+
+The AP d=6 (multiples of 3): 12 elements. Remaining 6 need to be covered by 2 APs (to total 3 APs for odds). But remaining 6 = {25,35,49,55,65,77} can't form 2 APs of 3 (no triples). So can't cover with 2 APs. So odds need ≥ 4 APs (1 of length 12 + 3 pairs) = 4. Total ≥ 5.
+
+But maybe a different split of odds allows 3 APs? Let's check if 18 odd composites can be partitioned into 3 APs.
+
+For 3 APs covering 18, lengths could be e.g. 12+3+3, 12+4+2, 12+5+1, 10+4+4, 9+5+4, 8+6+4, 6+6+6, etc.
+
+We need 3 APs whose union = the 18 odd composites exactly.
+
+The 12-term AP (d=6) is very efficient. If we use it, remaining 6 can't be 2 APs. So if using the 12-term AP, need ≥ 4 total for odds.
+
+Alternative: don't use full 12-term AP. Maybe use a different long AP and combine.
+
+What other long APs of odd composites exist?
+- d=2: odd composites with d=2 would be consecutive odd numbers, but consecutive odd numbers include primes. E.g., 9,11(prime). So no long d=2 AP.
+- d=4: 9,13(prime). 25,29(prime). 33,37(prime). 49,53(prime). 65,69,73(prime). So d=4 APs hit primes quickly.
+  - 9,13 no. 25,29 no. 33,37 no. 49,53 no. 65,69,73 no. 9,13... 
+  - Actually 25, 29 prime. Let me check 9,13,17 all prime after 9. 
+  - d=4: 9,13✗. 15,19✗. 21,25,29✗ (29 prime). 27,31✗. 33,37✗. 35,39,43✗. 45,49,53✗. 51,55,59✗. 57,61✗. 63,67✗. 65,69,73✗. 75,79✗(79 prime, also >77). 
+  - So d=4 max length 2 (e.g., 21,25; 35,39; 45,49; 51,55; 65,69).
+- d=6: the 12-term one. Also subsets.
+- d=8: 9,17✗. 15,23✗. 25,33,41✗. 27,35,43✗. 33,41✗. 35,43✗. 39,47✗. 45,53✗. 49,57,65,73✗. 51,59✗. 55,63,71✗. 57,65,73✗. 63,71✗. 65,73✗. 69,77. 
+  - 49,57,65 (d=8): 49,57,65 all composite? 49=7², 57=3·19, 65=5·13. Yes! Next 73 prime. So 49,57,65 length 3.
+  - 25,33,41✗. 
+  - 9,17✗.
+  - So d=8: 49,57,65 (length 3). Also 69,77 (length 2).
+- d=10: 9,19✗. 15,25,35,45,55,65,75 (d=10): 15,25,35,45,55,65,75 all composite? 15,25,35,45,55,65,75 yes all composite. Next 85 > 79. So 15,25,35,45,55,65,75 length 7! 
+  - Also 25,35,45,55,65,75 (length 6), etc.
+  - 9,19✗. 21,31✗. 27,37✗. 33,43✗. 39,49,59✗. 49,59✗. 51,61✗. 57,67✗. 63,73✗. 69,79✗. 77,87✗.
+  - So d=10: 15,25,35,45,55,65,75 (length 7).
+- d=12: 9,21,33,45,57,69 (d=12): all composite? 9,21,33,45,57,69 yes. Next 81>79. Length 6. Also 15,27,39,51,63,75 (d=12): 15,27,39,51,63,75 all composite, length 6. 
+  - 25,37✗. 35,47✗. 49,61✗. 55,67✗. 65,77 (length 2). 
+- d=14: 9,23✗. 15,29✗. 21,35,49,63,77 (d=14): 21,35,49,63,77 all composite? 21,35,49,63,77 yes! Length 5. Next 91>79.
+  - 25,39,53✗. 27,41✗. 33,47✗. 45,59✗. 51,65,79✗. 55,69 (length 2). 57,71✗. 
+- d=16: 9,25,41✗. 15,31✗. 21,37✗. 25,41✗. 27,43✗. 33,49,65 (d=16): 33,49,65 all composite, length 3. Next 81>79. 35,51,67✗. 39,55,71✗. 45,61✗. 49,65 (length 2). 51,67✗. 57,73✗. 63,79✗. 
+- d=18: 9,27,45,63 (d=18): all composite, length 4. Next 81>79. 15,33,51,69 (d=18): length 4. 21,39,57,75 (d=18): length 4. 25,43✗. 27,45,63 (subset). 35,53✗. 49,67✗. 55,73✗. 65,83✗. 77,95✗.
+- d=20: 9,29✗. 15,35,55,75 (d=20): length 4. 25,45,65 (d=20): length 3. 27,47✗. 33,53✗. 35,55,75 (subset). 39,59✗. 45,65 (subset). 49,69 (length 2). 51,71✗. 55,75 (subset). 57,77 (length 2). 
+- d=22: 9,31✗. 15,37✗. 21,43✗. 25,47✗. 27,49,71✗. 33,55,77 (d=22): 33,55,77 all composite, length 3. 35,57,79✗. 39,61✗. 45,67✗. 51,73✗. 53✗. 55,77 (subset). 65,87✗. 
+- d=24: 9,33,57 (d=24): length 3. 15,39,63,87✗ → 15,39,63 length 3. 21,45,69 (d=24): length 3. 25,49,73✗. 27,51,75 (d=24): length 3. 35,59✗. 39,63 (subset). 45,69 (subset). 49,73✗. 51,75 (subset). 55,79✗. 57,81✗. 65,89✗. 77,101✗.
+- d=30: 9,39,69 (d=30): length 3. 15,45,75 (d=30): length 3. 21,51,81✗ → 21,51 length 2. 25,55,85✗ → 25,55 length 2. 27,57,87✗ → 27,57 length 2. 33,63,93✗ → 33,63 length 2. 35,65,95✗ → 35,65 length 2. 39,69 (subset). 45,75 (subset). 49,79✗. 51,81✗. 55,85✗. 57,87✗. 63,93✗. 65,95✗. 77,107✗.
+
+OK so the longest APs among odd composites:
+- d=6: length 12 (9,15,...,75)
+- d=10: length 7 (15,25,...,75)
+- d=12: length 6 (two of them)
+- d=14: length 5 (21,35,49,63,77)
+- d=18: length 4 (three of them)
+- d=20: length 4 (15,35,55,75)
+
+Now, can we partition 18 odd composites into 3 APs? Let's see what combinations work.
+
+We need 3 APs covering all 18. The 18 odd composites: {9,15,21,25,27,33,35,39,45,49,51,55,57,63,65,69,75,77}.
+
+Option A: Use d=6 length-12 AP: {9,15,21,27,33,39,45,51,57,63,69,75}. Remaining: {25,35,49,55,65,77}. Need 2 APs covering these 6. As shown, no triple exists, so need 3 pairs = 3 APs. Total 4 APs for odds. Not 3.
+
+Option B: Use d=10 length-7 AP: {15,25,35,45,55,65,75}. Remaining: {9,21,27,33,39,49,51,57,63,69,77} (11 elements). Need 2 APs covering 11. One AP length 6 + one length 5, or 7+4, etc.
+
+Can we find an AP of length 6 in remaining? Remaining = {9,21,27,33,39,49,51,57,63,69,77}.
+- d=6: 9,15✗(15 used). 21,27,33,39,45✗. 27,33,39,45✗. 33,39,45✗. 39,45✗. 51,57,63,69,75✗. 57,63,69,75✗. 63,69,75✗. So d=6 broken by 45 being used.
+  - 9,15 used. 21,27,33,39 (length 4, then 45 used). 51,57,63,69 (length 4, then 75 used). 
+- d=12: 9,21,33,45✗. 15✗. 21,33,45✗. 27,39,51,63,75✗ → 27,39,51,63 (length 4). 33,45✗. 39,51,63 (subset). 45✗. 51,63,75✗. 57,69,81✗ → 57,69 (length 2). 
+  - 27,39,51,63 (length 4).
+- d=14: 9,23✗. 21,35✗(used). 27,41✗. 33,47✗. 39,53✗. 49,63,77 (d=14): 49,63,77 all in remaining? 49 yes, 63 yes, 77 yes. Length 3. 
+- d=18: 9,27,45✗. 21,39,57,75✗ → 21,39,57 (length 3). 27,45✗. 33,51,69,87✗ → 33,51,69 (length 3). 39,57,75✗ → 39,57 (length 2). 49,67✗. 51,69 (subset). 57,75✗. 63,81✗. 
+- d=24: 9,33,57 (length 3). 21,45✗. 27,51,75✗ → 27,51 (length 2). 33,57 (subset). 39,63,87✗ → 39,63 (length 2). 49,73✗. 51,75✗. 57,81✗. 63,87✗. 69,93✗. 77,101✗.
+- d=30: 9,39,69 (length 3). 21,51,81✗ → 21,51 (length 2). 27,57,87✗ → 27,57 (length 2). 33,63,93✗ → 33,63 (length 2). 39,69 (subset). 49,79✗. 51,81✗. 57,87✗. 63,93✗. 77,107✗.
+
+So in remaining 11, max AP length is 4 (27,39,51,63 d=12). So 2 APs can cover at most 4+4=8 < 11. Not enough. So Option B fails for 3 APs.
+
+Hmm, actually we need 2 APs to cover 11 elements, so need lengths summing to 11, e.g., 6+5, 7+4. Max is 4, so impossible. Option B gives 1 + (cover 11 with APs). 11 elements with max AP 4 → need at least ceil(11/4)=3 more APs → total 4 APs for odds. Same as option A.
+
+Option C: Use d=14 length-5 AP: {21,35,49,63,77}. Remaining: {9,15,25,27,33,39,45,51,55,57,65,69,75} (13 elements). Need 2 APs covering 13. Max AP in remaining?
+- d=6: 9,15,21✗. 15,21✗. 27,33,39,45,51,57,63✗ → 27,33,39,45,51,57 (length 6). 33,39,45,51,57 (subset). 39,45,51,57 (subset). 45,51,57,63✗. 51,57,63✗. 57,63✗. 63✗. 69,75,81✗ → 69,75 (length 2).
+  - 27,33,39,45,51,57 (length 6)! 
+- So remaining has AP length 6: {27,33,39,45,51,57}. After removing: {9,15,25,55,65,69,75} (7 elements). Need 1 AP covering 7? No, we said 2 APs for 13. We used 1 AP (length 6), remaining 7 need 1 AP. 
+  - {9,15,25,55,65,69,75}: any AP of length 7? d=6: 9,15,21✗. d=10: 15,25,35✗. 25,35✗. 55,65,75 (d=10): 55,65,75 length 3. 9,19✗. d=... 9,15,21✗. 25,55,85✗. 65,75 (d=10). 69,75 (d=6). No long AP. Max length 3 (55,65,75). So 7 elements need ≥ 3 APs (3+2+2). Total for odds: 1 (d=14) + 1 (d=6 len6) + 3 = 5. Worse.
+
+Hmm. Let me reconsider. Actually maybe I shouldn't fix the first AP. Let me think about whether 3 APs can cover all 18 odd composites at all.
+
+Total 18 elements in 3 APs. The APs have lengths summing to 18. Possible: 12+3+3, 12+4+2, 12+5+1, 12+6+... wait 12+6=18 but that's 2 APs. 12+3+3=18. 11+4+3, 10+5+3, 10+4+4, 9+6+3, 9+5+4, 8+6+4, 8+5+5, 7+7+4, 7+6+5, 6+6+6, etc.
+
+The only AP of length ≥ 10 is the d=6 length-12 one. Length 7: d=10. Length 6: d=12 (two). Length 5: d=14, d=18 (no, d=18 length 4), d=20 length 4. Actually length 5: d=14 (21,35,49,63,77). 
+
+Case 12+3+3: Use d=6 length-12. Remaining 6 = {25,35,49,55,65,77}. Need 2 APs of length 3. No triple exists (shown earlier). Impossible.
+
+Case 12+4+2: Remaining 6, need AP length 4 + AP length 2. Any length-4 AP in {25,35,49,55,65,77}? d=10: 25,35,45✗. 35,45✗. 45✗. 55,65,75✗. d=12: 25,37✗. 49,61✗. 65,77 (length 2). d=14: 35,49,63✗. 49,63✗. 63✗. d=20: 35,55,75✗. 25,45✗. d=24: 25,49,73✗. d=28: 49,77 (length 2). d=30: 25,55,85✗. 35,65,95✗. d=40: 25,65 (length 2). d=42: 35,77 (length 2). d=12: 65,77. No length-4. So impossible.
+
+Case 12+5+1: Remaining 6, need AP length 5. Impossible (max length 2 in remaining).
+
+Case 12+6: 2 APs total for odds. Remaining 6 need AP length 6. Impossible.
+
+So any partition using the length-12 AP needs ≥ 4 APs for odds.
+
+Now cases without length-12 AP: max length is 7 (d=10) or 6 (d=12).
+
+Case 7+6+5: lengths sum 18. 
+- d=10 length-7: {15,25,35,45,55,65,75}. Remaining 11: {9,21,27,33,39,49,51,57,63,69,77}. Need AP length 6 + AP length 5.
+  - Length 6 in remaining: d=12: 27,39,51,63 (length 4 only). d=6: 21,27,33,39,45✗. 51,57,63,69,75✗. 9,15✗. So max d=6 length 4. d=18: 21,39,57,75✗ → length 3. 33,51,69,87✗ → length 3. 9,27,45✗. d=24: 9,33,57 (length 3). 21,45✗. 27,51,75✗ → 27,51 (length 2). 33,57 (subset). 39,63,87✗ → 39,63 (length 2). 49,73✗. 51,75✗. 57,81✗. 63,87✗. 69,93✗. 77,101✗. d=30: 9,39,69 (length 3). 21,51,81✗ → 21,51 (length 2). 27,57,87✗ → 27,57 (length 2). 33,63,93✗ → 33,63 (length 2). 39,69 (subset). 49,79✗. 51,81✗. 57,87✗. 63,93✗. 77,107✗. d=14: 49,63,77 (length 3). 21,35✗. d=8: 49,57,65✗(65 used). d=20: 9,29✗. 49,69 (length 2). 57,77 (length 2). d=22: 33,55✗. 55✗. d=16: 33,49,65✗. 49,65✗. 
+  - Max length in remaining is 4 (27,39,51,63). So can't get length 6. Case 7+6+5 impossible with d=10 as the 7.
+
+  - Other length-7 AP? Only d=10 gives length 7. So 7+6+5 impossible.
+
+Case 6+6+6: three APs of length 6.
+- d=12 length-6 APs: {9,21,33,45,57,69} and {15,27,39,51,63,75}. These two are disjoint! Together they cover: 9,15,21,27,33,39,45,51,57,63,69,75 (12 elements). Remaining: {25,35,49,55,65,77} (6 elements). Need 1 AP of length 6. Impossible (max length 2).
+- Other length-6 APs? d=6 has length 12 (contains sub-APs of length 6 but they overlap with the d=12 ones). d=10 length 7 (not 6). Actually are there other length-6 APs? 
+  - d=6: 9,15,21,27,33,39 (length 6, subset of the 12). 15,21,27,33,39,45. 21,27,33,39,45,51. 27,33,39,45,51,57. 33,39,45,51,57,63. 39,45,51,57,63,69. 45,51,57,63,69,75. Many length-6 sub-APs of the d=6 AP.
+  - d=12: the two mentioned.
+  - d=10: 15,25,35,45,55,65 (length 6, subset of length-7). 25,35,45,55,65,75 (length 6).
+  - d=14: max length 5.
+  - d=18: max length 4.
+  - d=20: max length 4.
+  - d=24: max length 3.
+  - d=30: max length 3.
+  
+  So length-6 APs are: sub-APs of d=6 (the 7 consecutive windows), the two d=12 ones, and d=10 sub-APs (15-65, 25-75).
+
+  For 6+6+6, we need 3 disjoint length-6 APs covering all 18. The two d=12 APs cover 12 elements (all the multiples-of-3 odd composites). Remaining 6 = {25,35,49,55,65,77} has no length-6 AP. 
+  
+  What if we use one d=12 and two others? d=12 #1 = {9,21,33,45,57,69}. Remaining = {15,25,27,35,39,49,51,55,63,65,75,77} (12). Need 2 disjoint length-6 APs from these 12.
+    - d=12 #2 = {15,27,39,51,63,75}. Remaining after both: {25,35,49,55,65,77}. No length-6. Same as before.
+    - d=10: {15,25,35,45,55,65} — 45 used. {25,35,45,55,65,75} — 45 used. So no d=10 length-6 in remaining (45 is in d=12 #1).
+    - d=6 sub-APs in remaining {15,25,27,35,39,49,51,55,63,65,75,77}: 15,21✗. 27,33✗. 39,45✗. 51,57✗. 63,69✗. 75,81✗. No d=6 (all broken by removing the d=12 #1 elements which are every other multiple of 3).
+    - So no. 
+
+  What about using d=10 length-6 APs? {15,25,35,45,55,65} and {25,35,45,55,65,75} overlap. Can't use both. Use {15,25,35,45,55,65}. Remaining: {9,21,27,33,39,49,51,57,63,69,75,77} (12). Need 2 length-6 APs.
+    - d=6: 9,15✗. 21,27,33,39,45✗. 27,33,39,45✗. 33,39,45✗. 39,45✗. 51,57,63,69,75,81✗ → 51,57,63,69,75 (length 5). 57,63,69,75 (length 4). 63,69,75 (length 3). So max d=6 length 5.
+    - d=12: 9,21,33,45✗. 15✗. 21,33,45✗. 27,39,51,63,75 (length 5). 33,45✗. 39,51,63,75 (length 4). 45✗. 51,63,75 (length 3). 57,69,81✗ → 57,69 (length 2). 
+    - d=18: 9,27,45✗. 21,39,57,75 (length 4). 27,45✗. 33,51,69,87✗ → 33,51,69 (length 3). 39,57,75 (subset). 51,69 (subset). 57,75 (subset). 63,81✗. 
+    - d=24: 9,33,57 (length 3). 21,45✗. 27,51,75 (length 3). 33,57 (subset). 39,63,87✗ → 39,63 (length 2). 49,73✗. 51,75 (subset). 57,81✗. 63,87✗. 69,93✗. 77,101✗.
+    - d=14: 21,35✗. 49,63,77 (length 3). 
+    - d=30: 9,39,69 (length 3). 21,51,81✗ → 21,51 (length 2). 27,57,87✗ → 27,57 (length 2). 33,63,93✗ → 33,63 (length 2). 39,69 (subset). 51,81✗. 57,87✗. 63,93✗. 77,107✗.
+    - Max length 5 (51,57,63,69,75 d=6 or 27,39,51,63,75 d=12). So can't get 2 length-6 APs. 
+
+  So 6+6+6 impossible.
+
+Case 7+7+4: two length-7 APs. Only one length-7 AP exists (d=10). So impossible.
+
+Case 8+...: no length-8 AP exists (d=6 max is 12, but that's the length-12; sub-APs of length 8 exist within it). Actually d=6 has length 12, so length-8 sub-APs exist: 9..51 (8 terms: 9,15,21,27,33,39,45,51), 15..57, 21..63, 27..69, 33..75. Five length-8 sub-APs.
+
+Case 8+5+5: 
+- Use d=6 length-8: say {9,15,21,27,33,39,45,51}. Remaining: {25,35,49,55,57,63,65,69,75,77} (10). Need 2 length-5 APs.
+  - Length-5 APs in remaining: d=14: 21,35,49,63,77 — 21 used. 35,49,63,77 (length 4, need 35,49,63,77,91✗). Actually 21,35,49,63,77 is length 5 but 21 used. Without 21: 35,49,63,77 (length 4). 
+  - d=6: 57,63,69,75 (length 4). 
+  - d=10: 25,35,45✗. 35,45✗. 45✗. 55,65,75 (length 3). 25,35✗. 
+  - d=20: 35,55,75 (length 3). 25,45✗. 
+  - d=12: 27✗. 51✗. 63,75 (length 2). 
+  - d=18: 39✗. 57,75 (length 2). 
+  - d=24: 51✗. 
+  - d=30: 25,55,85✗ → 25,55 (length 2). 35,65,95✗ → 35,65 (length 2). 
+  - d=8: 49,57,65 (length 3). 
+  - d=16: 33✗. 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - d=14: 35,49,63,77 (length 4). 
+  - Max length in remaining is 4. Can't get 2 length-5. Impossible.
+
+- Use d=6 length-8: {15,21,27,33,39,45,51,57}. Remaining: {9,25,35,49,55,63,65,69,75,77} (10). Need 2 length-5.
+  - d=14: 21✗. 35,49,63,77 (length 4). 
+  - d=10: 25,35,45✗. 35,45✗. 55,65,75 (length 3). 25,35✗. 
+  - d=6: 9,15✗. 63,69,75 (length 3). 
+  - d=20: 35,55,75 (length 3). 25,45✗. 
+  - d=30: 9,39✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - Max length 4. Impossible.
+
+- Use d=6 length-8: {21,27,33,39,45,51,57,63}. Remaining: {9,15,25,35,49,55,65,69,75,77} (10). Need 2 length-5.
+  - d=10: 15,25,35,45✗. 25,35,45✗. 35,45✗. 45✗. 55,65,75 (length 3). 15,25,35 (length 3). 
+  - d=6: 9,15,21✗. 15,21✗. 69,75 (length 2). 
+  - d=14: 21✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=20: 15,35,55,75 (length 4). 25,45✗. 35,55,75 (subset). 
+  - d=30: 9,39✗. 15,45✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 39✗. 45✗. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - d=12: 9,21✗. 15,27✗. 51✗. 63✗. 69,81✗ → 69. 75,87✗ → 75. 
+  - d=18: 9,27✗. 15,33✗. 51,69,87✗ → 51,69. 57✗. 
+  - Max length 4 (15,35,55,75 d=20). Impossible.
+
+- Use d=6 length-8: {27,33,39,45,51,57,63,69}. Remaining: {9,15,21,25,35,49,55,65,75,77} (10). Need 2 length-5.
+  - d=6: 9,15,21,27✗. 15,21,27✗. 21,27✗. 
+  - d=10: 15,25,35,45✗. 25,35,45✗. 35,45✗. 45✗. 55,65,75 (length 3). 15,25,35 (length 3). 
+  - d=14: 21,35,49,63✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=20: 15,35,55,75 (length 4). 25,45✗. 35,55,75 (subset). 
+  - d=30: 9,39✗. 15,45✗. 21,51✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 45✗. 51✗. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - d=12: 9,21,33✗. 15,27✗. 21,33✗. 
+  - d=18: 9,27✗. 15,33✗. 21,39✗. 
+  - d=24: 9,33✗. 21,45✗. 
+  - Max length 4. Impossible.
+
+- Use d=6 length-8: {33,39,45,51,57,63,69,75}. Remaining: {9,15,21,25,27,35,49,55,65,77} (10). Need 2 length-5.
+  - d=6: 9,15,21,27,33✗. 15,21,27,33✗. 21,27,33✗. 27,33✗. 
+  - d=10: 15,25,35,45✗. 25,35,45✗. 35,45✗. 45✗. 55,65,75✗. 25,35 (length 2). 15,25,35 (length 3). 
+  - d=14: 21,35,49,63✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=20: 15,35,55,75✗. 25,45✗. 35,55,75✗. 15,35,55 (length 3). 
+  - d=30: 9,39✗. 15,45✗. 21,51✗. 27,57✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - d=12: 9,21,33✗. 15,27,39✗. 21,33✗. 27,39✗. 
+  - d=18: 9,27,45✗. 15,33✗. 21,39✗. 27,45✗. 
+  - d=24: 9,33✗. 21,45✗. 27,51✗. 
+  - d=22: 33✗. 55,77 (length 2). 
+  - Max length 3. Impossible.
+
+So 8+5+5 impossible.
+
+Case 9+5+4 or 9+6+3: length-9 AP? d=6 has length 12, so length-9 sub-APs exist: 9..57 (9,15,21,27,33,39,45,51,57), 15..63, 21..69, 27..75. Four length-9 sub-APs.
+
+Case 9+5+4:
+- Use {9,15,21,27,33,39,45,51,57}. Remaining: {25,35,49,55,63,65,69,75,77} (9). Need length-5 + length-4.
+  - d=14: 35,49,63,77 (length 4). 21,35,49,63,77 — 21 used. 
+  - d=6: 63,69,75 (length 3). 
+  - d=10: 25,35,45✗. 35,45✗. 55,65,75 (length 3). 
+  - d=20: 35,55,75 (length 3). 25,45✗. 
+  - d=8: 49,57✗. 
+  - d=30: 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - d=12: 63,75 (length 2). 
+  - Max length 4 (35,49,63,77 d=14). So length-5 impossible. Can't do 9+5+4 with this.
+
+- Use {15,21,27,33,39,45,51,57,63}. Remaining: {9,25,35,49,55,65,69,75,77} (9). Need 5+4.
+  - d=14: 21✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=10: 25,35,45✗. 35,45✗. 45✗. 55,65,75 (length 3). 
+  - d=6: 9,15✗. 69,75 (length 2). 
+  - d=20: 35,55,75 (length 3). 25,45✗. 
+  - d=30: 9,39✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - Max length 3. Impossible.
+
+- Use {21,27,33,39,45,51,57,63,69}. Remaining: {9,15,25,35,49,55,65,75,77} (9). Need 5+4.
+  - d=10: 15,25,35,45✗. 25,35,45✗. 35,45✗. 45✗. 55,65,75 (length 3). 15,25,35 (length 3). 
+  - d=20: 15,35,55,75 (length 4). 25,45✗. 35,55,75 (subset). 
+  - d=14: 21✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=6: 9,15,21✗. 15,21✗. 
+  - d=30: 9,39✗. 15,45✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - Max length 4 (15,35,55,75 d=20). Need length 5: impossible. 
+
+- Use {27,33,39,45,51,57,63,69,75}. Remaining: {9,15,21,25,35,49,55,65,77} (9). Need 5+4.
+  - d=6: 9,15,21,27✗. 15,21,27✗. 21,27✗. 
+  - d=10: 15,25,35,45✗. 25,35,45✗. 35,45✗. 45✗. 55,65,75✗. 15,25,35 (length 3). 
+  - d=14: 21,35,49,63✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=20: 15,35,55,75✗. 25,45✗. 35,55,75✗. 15,35,55 (length 3). 
+  - d=30: 9,39✗. 15,45✗. 21,51✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - d=12: 9,21,33✗. 15,27✗. 21,33✗. 
+  - Max length 3. Impossible.
+
+So 9+5+4 impossible.
+
+Case 9+6+3:
+- Use {9,15,21,27,33,39,45,51,57}. Remaining: {25,35,49,55,63,65,69,75,77} (9). Need 6+3.
+  - Max length in remaining is 4 (35,49,63,77). Can't get 6. Impossible.
+
+- Use {15,21,27,33,39,45,51,57,63}. Remaining: {9,25,35,49,55,65,69,75,77} (9). Need 6+3.
+  - Max length 3. Impossible.
+
+- Others similar, max length too small. Impossible.
+
+Case 10+5+3 or 10+4+4: length-10 AP? d=6 length-12 has length-10 sub-APs: 9..63 (10 terms), 15..69, 21..75. Three of them.
+
+Case 10+5+3:
+- Use {9,15,21,27,33,39,45,51,57,63}. Remaining: {25,35,49,55,65,69,75,77} (8). Need 5+3.
+  - d=14: 21✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=10: 25,35,45✗. 35,45✗. 45✗. 55,65,75 (length 3). 
+  - d=6: 69,75 (length 2). 
+  - d=20: 35,55,75 (length 3). 25,45✗. 
+  - d=30: 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - Max length 3. Need length 5: impossible.
+
+- Use {15,21,27,33,39,45,51,57,63,69}. Remaining: {9,25,35,49,55,65,75,77} (8). Need 5+3.
+  - d=10: 25,35,45✗. 35,45✗. 45✗. 55,65,75 (length 3). 
+  - d=20: 35,55,75 (length 3). 25,45✗. 
+  - d=14: 21✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=30: 9,39✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - d=6: 9,15✗. 
+  - Max length 3. Impossible.
+
+- Use {21,27,33,39,45,51,57,63,69,75}. Remaining: {9,15,25,35,49,55,65,77} (8). Need 5+3.
+  - d=10: 15,25,35,45✗. 25,35,45✗. 35,45✗. 45✗. 55,65,75✗. 15,25,35 (length 3). 
+  - d=20: 15,35,55,75✗. 25,45✗. 35,55,75✗. 15,35,55 (length 3). 
+  - d=14: 21✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=6: 9,15,21✗. 15,21✗. 
+  - d=30: 9,39✗. 15,45✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - Max length 3. Impossible.
+
+Case 10+4+4: need two length-4 APs in remaining (8 elements). 
+- Use {9,15,21,27,33,39,45,51,57,63}. Remaining: {25,35,49,55,65,69,75,77} (8). Need 4+4.
+  - Length-4 APs: d=14: 35,49,63✗. d=10: 55,65,75 (length 3). d=20: 35,55,75 (length 3). d=6: 69,75 (length 2). Hmm, 35,49,63,77 — 63 used. So no length-4. 
+  - Actually wait, is there any length-4? 25,35,45✗. 49,57✗. 25,55,85✗. 35,65,95✗. 49,65,81✗. 25,49,73✗. 35,77 (d=42). 49,77 (d=28). 25,65 (d=40). 55,77 (d=22). 65,77 (d=12). 69,77 (d=8). No length-4 AP. Impossible.
+
+- Use {15,21,27,33,39,45,51,57,63,69}. Remaining: {9,25,35,49,55,65,75,77} (8). Need 4+4.
+  - d=10: 55,65,75 (length 3). 25,35,45✗. 
+  - d=20: 35,55,75 (length 3). 
+  - d=14: 35,49,63✗. 49,63✗. 
+  - d=30: 9,39✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - d=6: 9,15✗. 
+  - Max length 3. Impossible.
+
+- Use {21,27,33,39,45,51,57,63,69,75}. Remaining: {9,15,25,35,49,55,65,77} (8). Need 4+4.
+  - d=10: 15,25,35,45✗. 25,35,45✗. 35,45✗. 45✗. 55,65,75✗. 15,25,35 (length 3). 
+  - d=20: 15,35,55,75✗. 25,45✗. 35,55,75✗. 15,35,55 (length 3). 
+  - d=14: 21✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=6: 9,15,21✗. 15,21✗. 
+  - d=30: 9,39✗. 15,45✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - Max length 3. Impossible.
+
+Case 11+4+3 or 11+5+2 or 11+7: length-11 AP? d=6 length-12 has length-11 sub-APs: 9..69 (11), 15..75 (11). Two of them.
+
+Case 11+4+3:
+- Use {9,15,21,27,33,39,45,51,57,63,69}. Remaining: {25,35,49,55,65,75,77} (7). Need 4+3.
+  - d=10: 25,35,45✗. 35,45✗. 45✗. 55,65,75 (length 3). 
+  - d=20: 35,55,75 (length 3). 25,45✗. 
+  - d=14: 21✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=30: 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - d=6: 75,81✗ → 75. 
+  - Max length 3. Need length 4: impossible.
+
+- Use {15,21,27,33,39,45,51,57,63,69,75}. Remaining: {9,25,35,49,55,65,77} (7). Need 4+3.
+  - d=10: 25,35,45✗. 35,45✗. 45✗. 55,65,75✗. 
+  - d=20: 35,55,75✗. 25,45✗. 
+  - d=14: 21✗. 35,49,63✗. 49,63✗. 63✗. 
+  - d=30: 9,39✗. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 
+  - d=8: 49,57✗. 
+  - d=16: 49,65 (length 2). 
+  - d=28: 49,77 (length 2). 
+  - d=6: 9,15✗. 
+  - Max length 2. Impossible.
+
+Case 11+5+2: 
+- Use {9,...,69}. Remaining 7. Need 5+2. Max length 3. Impossible.
+- Use {15,...,75}. Remaining 7. Max length 2. Impossible.
+
+Case 11+7: 2 APs. Need length 7 in remaining. 
+- {9,...,69} remaining {25,35,49,55,65,75,77}: max length 3. Impossible.
+- {15,...,75} remaining {9,25,35,49,55,65,77}: max length 2. Impossible.
+
+Case 12+6: covered above, impossible.
+
+Case 12+3+3, 12+4+2, 12+5+1: covered, impossible.
+
+So it seems 3 APs cannot cover all 18 odd composites. Therefore odds need ≥ 4 APs, total ≥ 5.
+
+Wait, but I should also check: maybe we don't have to use the even AP as a single AP. Maybe a different overall partition does better. But the even AP gives 38 elements in 1 subset, which is extremely efficient. Any other approach would need to cover 38 even composites plus 18 odd. If we break the evens, we'd need more subsets for evens, unlikely to help.
+
+Actually, let me reconsider the whole problem. The minimum is at least... let me think about lower bounds more carefully.
+
+Actually, let me reconsider. We found a partition into 5: 
+1. Evens: {4,6,8,...,78} (38 elements, d=2)
+2. {9,15,21,27,33,39,45,51,57,63,69,75} (12 elements, d=6)
+3. {25,35} (d=10)
+4. {49,55} (d=6)
+5. {65,77} (d=12)
+
+Wait, let me double check these pairs are APs: {25,35} d=10 ✓. {49,55} d=6 ✓. {65,77} d=12 ✓. And remaining 6 = {25,35,49,55,65,77}, partitioned into 3 pairs. Total 5.
+
+Now I need to prove 5 is minimal, i.e., 4 is impossible.
+
+For 4 subsets total: we'd need to cover 56 composites with 4 APs. Average 14 per AP. 
+
+The even AP (d=2) has 38 elements. If we use it, remaining 18 odds need 3 APs. We showed 3 APs can't cover 18 odds. So using the even AP, need ≥ 5.
+
+If we don't use the full even AP, we need to cover 38 even composites with some APs plus 18 odds. With only 4 APs total, and 56 elements, we need very long APs.
+
+What are the longest APs of composites ≤ 79 (including even)?
+- d=1: consecutive composites. 8,9,10 (length 3). 24,25,26,27,28 (length 5). 32,33,34,35,36 (length 5). 48,49,50 (length 3). 60,...? 62,63,64,65,66 (length 5). 74,75,76,77,78 (length 5). Max d=1 length 5.
+- d=2: evens 4..78 (length 38). Also odds: 9,11✗. So only evens, length 38.
+- d=3: 4,7✗. 6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78 (d=3): all composite? 6,9,12,...,78. These are multiples of 3 ≥ 6. All composite. Length: (78-6)/3+1 = 72/3+1 = 25. So {6,9,12,...,78} length 25, d=3. But this includes both even and odd.
+  - Also 4,7✗. 8,11✗. 10,13✗. 14,17✗. 16,19✗. 20,23✗. 22,25,28,31✗. 25,28,31✗. 26,29✗. 34,37✗. 38,41✗. 40,43✗. 44,47✗. 46,49,52,55,58,61✗. 49,52,55,58,61✗. 50,53✗. 52,55,58,61✗. 56,59✗. 58,61✗. 64,67✗. 68,71✗. 70,73✗. 76,79✗. 
+  - So d=3: {6,9,...,78} length 25, and {46,49,52,55,58} length 5, {22,25,28} length 3, etc.
+- d=4: 4,8,12,...,76 (evens, d=4): length (76-4)/4+1 = 19. All even ≥4, composite. Also 9,13✗. 15,19✗. 21,25,29✗. 25,29✗. 27,31✗. 33,37✗. 35,39,43✗. 45,49,53✗. 49,53✗. 51,55,59✗. 55,59✗. 57,61✗. 63,67✗. 65,69,73✗. 69,73✗. 75,79✗. 77,81✗. 
+  - d=4: {4,8,...,76} length 19. {6,10,14,...,78} length 19. {9,13✗}. So two length-19 APs (even, d=4). Plus short odd ones.
+  - Actually {6,10,14,18,22,26,30,34,38,42,46,50,54,58,62,66,70,74,78} length 19. And {4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76} length 19.
+- d=5: 4,9,14,19✗. 6,11✗. 8,13✗. 9,14,19✗. 10,15,20,25,30,35,40,45,50,55,60,65,70,75 (d=5): all composite? 10,15,20,25,30,35,40,45,50,55,60,65,70,75. Yes all composite. Length 14. Next 80>79. 
+  - Also 12,17✗. 14,19✗. 16,21,26,31✗. 18,23✗. 21,26,31✗. 22,27,32,37✗. 24,29✗. 26,31✗. 27,32,37✗. 28,33,38,43✗. 33,38,43✗. 34,39,44,49,54,59✗. 36,41✗. 38,43✗. 39,44,49,54,59✗. 42,47✗. 44,49,54,59✗. 46,51,56,61✗. 48,53✗. 49,54,59✗. 51,56,61✗. 52,57,62,67✗. 54,59✗. 56,61✗. 57,62,67✗. 58,63,68,73✗. 63,68,73✗. 64,69,74,79✗. 66,71✗. 68,73✗. 69,74,79✗. 72,77 (length 2). 
+  - d=5: {10,15,...,75} length 14. {34,39,44,49,54} length 5. {16,21,26} length 3. {28,33,38} length 3. etc.
+- d=6: {6,12,...,78} length 13 (evens, multiples of 6). {9,15,...,75} length 12 (odd multiples of 3). {4,10,16,22,28,34,40,46,52,58,64,70,76} d=6: 4,10,16,22,28,34,40,46,52,58,64,70,76 all composite? 4,10,16,22,28,34,40,46,52,58,64,70,76 yes. Length 13. {8,14,20,26,32,38,44,50,56,62,68,74} d=6 length 12. 
+  - So d=6 has several long APs.
+- d=7: 4,11✗. 6,13✗. 8,15,22,29✗. 9,16,23✗. 10,17✗. 12,19✗. 14,21,28,35,42,49,56,63,70,77 (d=7): all composite? 14,21,28,35,42,49,56,63,70,77 yes! Length 10. Next 84>79. 
+  - Also 15,22,29✗. 16,23✗. 18,25,32,39,46,53✗. 20,27,34,41✗. 21,28,35,42,49,56,63,70,77 (subset). 22,29✗. 24,31✗. 25,32,39,46,53✗. 26,33,40,47✗. 27,34,41✗. 28,35,...(subset). 30,37✗. 32,39,46,53✗. 33,40,47✗. 34,41✗. 35,42,...(subset). 36,43✗. 38,45,52,59✗. 39,46,53✗. 40,47✗. 42,49,...(subset). 44,51,58,65,72,79✗ → 44,51,58,65,72 (length 5). 45,52,59✗. 46,53✗. 48,55,62,69,76 (d=7): 48,55,62,69,76 all composite, length 5. 49,56,...(subset). 50,57,64,71✗. 51,58,65,72 (subset). 52,59✗. 54,61✗. 55,62,69,76 (subset). 56,63,...(subset). 57,64,71✗. 58,65,72 (subset). 60,67✗. 62,69,76 (subset). 63,70,77 (subset). 64,71✗. 65,72 (subset). 66,73✗. 68,75 (length 2). 69,76 (subset). 70,77 (subset). 
+  - d=7: {14,21,28,35,42,49,56,63,70,77} length 10. {44,51,58,65,72} length 5. {48,55,62,69,76} length 5. {18,25,32,39,46} length 5. 
+
+Interesting! d=7 gives a length-10 AP: {14,21,28,35,42,49,56,63,70,77}. This mixes even and odd.
+
+Let me reconsider the problem with mixed APs. Maybe we can do better than 5.
+
+Let me think about this more carefully. We want to partition 56 composites into minimum APs. Let me look for a partition into 4 APs.
+
+4 APs covering 56 elements. Need long APs. Candidates:
+- d=2: length 38 (evens)
+- d=3: length 25 ({6,9,...,78})
+- d=4: length 19 (two of them)
+- d=5: length 14 ({10,15,...,75})
+- d=6: length 13 ({4,10,...,76} or {6,12,...,78})
+- d=7: length 10 ({14,21,...,77})
+
+For 4 APs summing to 56: e.g., 38+12+3+3, 38+6+6+6, 25+14+10+7, 25+19+8+4, 19+19+14+4, etc.
+
+Let me try 38+12+3+3: evens (38) + d=6 odd multiples of 3 (12) + 2 triples from {25,35,49,55,65,77}. But no triples exist. Fail.
+
+38+6+6+6: evens (38) + cover 18 odds with 3 APs of length 6. We showed 3 APs can't cover 18 odds. But wait, here the 3 APs must each be length 6. Even harder. Fail.
+
+38+12+4+2: evens + d=6(12) + length-4 AP from {25,35,49,55,65,77} + pair. No length-4 in remaining 6. Fail.
+
+Let me try non-even-based: 25+14+10+7 = 56. 
+- d=3 length-25: {6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78}.
+- d=5 length-14: {10,15,20,25,30,35,40,45,50,55,60,65,70,75}. But overlaps with d=3 AP (15,30,45,60,75 are in both). Can't use both in a partition.
+
+So APs must be disjoint. Let me think about which long APs are disjoint.
+
+d=2 evens: {4,6,8,...,78} — all 38 evens.
+d=3 {6,9,...,78} — overlaps with evens on even multiples of 3.
+
+This is getting complex. Let me think differently.
+
+Key insight: The 18 odd composites need to be covered. If we use the even AP (38 evens in 1), we need ≥ 4 APs for odds (shown 3 is impossible). Total ≥ 5.
+
+If we don't use the even AP, we need to cover 38 evens + 18 odds = 56 with 4 APs. Each AP can mix even and odd (if d is odd). 
+
+For an AP with odd common difference d, it alternates even/odd. For even d, all terms have same parity.
+
+Let me think about it. With 4 APs covering 56, average 14. The longest APs are 38 (d=2), 25 (d=3), 19 (d=4), 14 (d=5), 13 (d=6), 10 (d=7).
+
+If we use the d=2 (38) AP, remaining 18 need 3 APs. Impossible (shown). So 4 APs with d=2 evens is impossible.
+
+Without d=2: max is 25 (d=3). 25 + 14 + 10 + 7 = 56. Need 4 disjoint APs of these lengths.
+
+d=3 length-25: {6,9,12,...,78} = all multiples of 3 from 6 to 78. That's 25 numbers: 6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78.
+
+Remaining 31 composites: {4,8,10,14,16,20,22,25,26,28,32,34,35,38,40,44,46,49,50,52,55,56,58,62,64,65,68,70,74,76,77}.
+
+Wait let me recount. Total 56 composites. Remove 25 multiples of 3 (6..78). Remaining = 56 - 25 = 31.
+
+Remaining: all composites ≤ 79 that are NOT multiples of 3 (and not in the d=3 AP). 
+Composites not divisible by 3: 4,8,10,14,16,20,22,25,26,28,32,34,35,38,40,44,46,49,50,52,55,56,58,62,64,65,68,70,74,76,77.
+
+Count: 4,8,10,14,16,20,22,25,26,28,32,34,35,38,40,44,46,49,50,52,55,56,58,62,64,65,68,70,74,76,77. Let me count: 4(1),8(2),10(3),14(4),16(5),20(6),22(7),25(8),26(9),28(10),32(11),34(12),35(13),38(14),40(15),44(16),46(17),49(18),50(19),52(20),55(21),56(22),58(23),62(24),64(25),65(26),68(27),70(28),74(29),76(30),77(31). Yes, 31.
+
+Need 3 APs covering these 31. Max lengths: 14 (d=5 {10,15,...,75} — but 15,30,45,60,75 are multiples of 3, removed). So d=5 AP in remaining: 10,15✗. Hmm, 15 is removed. So {10,15,...} broken. 
+
+Let me find long APs in the remaining 31.
+
+Remaining: {4,8,10,14,16,20,22,25,26,28,32,34,35,38,40,44,46,49,50,52,55,56,58,62,64,65,68,70,74,76,77}.
+
+d=2 (evens in remaining): 4,8,10✗(10 even, 4,6✗,8,10... wait d=2: 4,6✗. 8,10,12✗. 10,12✗. 14,16,18✗. 16,18✗. 20,22,24✗. 22,24✗. 26,28,30✗. 28,30✗. 32,34,36✗. 34,36✗. 38,40,42✗. 40,42✗. 44,46,48✗. 46,48✗. 50,52,54✗. 52,54✗. 56,58,60✗. 58,60✗. 62,64,66✗. 64,66✗. 68,70,72✗. 70,72✗. 74,76,78✗. 76,78✗. 
+  - d=2 broken everywhere by removed multiples of 3 (every 3rd even is multiple of 6). Max d=2 length 2.
+
+d=4: 4,8,12✗. 8,12✗. 10,14,18✗. 14,18✗. 16,20,24✗. 20,24✗. 22,26,30✗. 26,30✗. 28,32,36✗. 32,36✗. 34,38,42✗. 38,42✗. 40,44,48✗. 44,48✗. 46,50,54✗. 50,54✗. 52,56,60✗. 56,60✗. 58,62,66✗. 62,66✗. 64,68,72✗. 68,72✗. 70,74,78✗. 74,78✗. 76,80✗. 
+  - d=4 max length 2.
+
+d=5: 4,9✗. 8,13✗. 10,15✗. 14,19✗. 16,21✗. 20,25,30✗. 25,30✗. 22,27✗. 26,31✗. 28,33✗. 32,37✗. 34,39✗. 35,40,45✗. 40,45✗. 38,43✗. 44,49,54✗. 49,54✗. 46,51✗. 50,55,60✗. 55,60✗. 52,57✗. 56,61✗. 58,63✗. 62,67✗. 64,69✗. 65,70,75✗. 70,75✗. 68,73✗. 74,79✗. 76,81✗. 77,82✗. 
+  - d=5 max length 2 (20,25; 35,40; 44,49; 50,55; 65,70).
+
+d=7: 4,11✗. 8,15✗. 10,17✗. 14,21✗. 16,23✗. 20,27✗. 22,29✗. 25,32,39✗. 32,39✗. 26,33✗. 28,35,42✗. 35,42✗. 34,41✗. 38,45✗. 40,47✗. 44,51✗. 46,53✗. 49,56,63✗. 56,63✗. 50,57✗. 52,59✗. 55,62,69✗. 62,69✗. 58,65,72✗. 65,72✗. 64,71✗. 68,75✗. 70,77,84✗ → 70,77 (length 2). 74,81✗. 76,83✗. 
+  - d=7 max length 2.
+
+d=8: 4,12✗. 8,16,24✗. 16,24✗. 10,18✗. 14,22,30✗. 22,30✗. 20,28,36✗. 28,36✗. 26,34,42✗. 34,42✗. 32,40,48✗. 40,48✗. 38,46,54✗. 46,54✗. 44,52,60✗. 52,60✗. 50,58,66✗. 58,66✗. 56,64,72✗. 64,72✗. 62,70,78✗. 70,78✗. 68,76 (length 2). 65,73✗. 77,85✗. 49,57✗. 55,63✗. 
+  - d=8 max length 2.
+
+d=9: 4,13✗. 8,17✗. 10,19✗. 14,23✗. 16,25,34,43✗. 25,34,43✗. 20,29✗. 22,31✗. 26,35,44,53✗. 35,44,53✗. 28,37✗. 32,41✗. 38,47✗. 40,49,58,67✗. 49,58,67✗. 46,55,64,73✗. 55,64,73✗. 50,59✗. 52,61✗. 56,65,74,83✗ → 56,65,74 (length 3). 62,71✗. 68,77 (length 2). 70,79✗. 76,85✗. 
+  - d=9: 56,65,74 (length 3). 16,25,34 (length 3). 26,35,44 (length 3). 40,49,58 (length 3). 46,55,64 (length 3). 
+
+d=10: 4,14,24✗. 14,24✗. 8,18✗. 10,20,30✗. 20,30✗. 16,26,36✗. 26,36✗. 22,32,42✗. 32,42✗. 28,38,48✗. 38,48✗. 34,44,54✗. 44,54✗. 40,50,60✗. 50,60✗. 46,56,66✗. 56,66✗. 52,62,72✗. 62,72✗. 58,68,78✗. 68,78✗. 64,74 (length 2). 70,80✗. 76,86✗. 25,35,45✗. 35,45✗. 49,59✗. 55,65,75✗. 65,75✗. 77,87✗. 
+  - d=10 max length 2.
+
+d=11: 4,15✗. 8,19✗. 10,21✗. 14,25,36✗. 25,36✗. 16,27✗. 20,31✗. 22,33✗. 26,37✗. 28,39✗. 32,43✗. 34,45✗. 38,49,60✗. 49,60✗. 40,51✗. 44,55,66✗. 55,66✗. 46,57✗. 50,61✗. 52,63✗. 56,67✗. 58,69✗. 62,73✗. 64,75✗. 65,76 (length 2). 68,79✗. 70,81✗. 74,85✗. 77,88✗. 
+  - d=11 max length 2.
+
+d=12: 4,16,28,40,52,64,76 (d=12): all in remaining? 4,16,28,40,52,64,76 — yes all not multiples of 3. Length 7! Next 88>79. 
+  - 8,20,32,44,56,68 (d=12): 8,20,32,44,56,68 all in remaining. Length 6. Next 80>79. 
+  - 10,22,34,46,58,70 (d=12): all in remaining. Length 6. Next 82>79. 
+  - 14,26,38,50,62,74 (d=12): all in remaining. Length 6. Next 86>79. 
+  - 25,37✗. 35,47✗. 49,61✗. 55,67✗. 65,77 (length 2). 
+  - So d=12: {4,16,28,40,52,64,76} length 7, {8,20,32,44,56,68} length 6, {10,22,34,46,58,70} length 6, {14,26,38,50,62,74} length 6.
+
+d=14: 4,18✗. 8,22,36✗. 22,36✗. 10,24✗. 14,28,42✗. 28,42✗. 16,30✗. 20,34,48✗. 34,48✗. 26,40,54✗. 40,54✗. 32,46,60✗. 46,60✗. 38,52,66✗. 52,66✗. 44,58,72✗. 58,72✗. 50,64,78✗. 64,78✗. 56,70 (length 2). 62,76 (length 2). 68,82✗. 25,39✗. 35,49,63✗. 49,63✗. 55,69✗. 65,79✗. 77,91✗. 
+  - d=14 max length 2.
+
+d=16: 4,20,36✗. 20,36✗. 8,24✗. 10,26,42✗. 26,42✗. 14,30✗. 16,32,48✗. 32,48✗. 22,38,54✗. 38,54✗. 28,44,60✗. 44,60✗. 34,50,66✗. 50,66✗. 40,56,72✗. 56,72✗. 46,62,78✗. 62,78✗. 52,68 (length 2). 58,74 (length 2). 64,80✗. 70,86✗. 76,92✗. 25,41✗. 35,51✗. 49,65 (length 2). 55,71✗. 77,93✗. 
+  - d=16 max length 2.
+
+d=18: 4,22,40,58,76 (d=18): all in remaining? 4,22,40,58,76 yes. Length 5. Next 94>79. 
+  - 8,26,44,62 (d=18): length 4. 80>79. 
+  - 10,28,46,64 (d=18): length 4. 
+  - 14,32,50,68 (d=18): length 4. 
+  - 16,34,52,70 (d=18): length 4. 
+  - 20,38,56,74 (d=18): length 4. 
+  - 25,43✗. 35,53✗. 49,67✗. 55,73✗. 65,83✗. 77,95✗. 
+  - d=18: {4,22,40,58,76} length 5, and several length-4.
+
+d=20: 4,24✗. 8,28,48✗. 28,48✗. 10,30✗. 14,34,54✗. 34,54✗. 16,36✗. 20,40,60✗. 40,60✗. 22,42✗. 26,46,66✗. 46,66✗. 32,52,72✗. 52,72✗. 38,58,78✗. 58,78✗. 44,64 (length 2). 50,70 (length 2). 56,76 (length 2). 62,82✗. 68,88✗. 74,94✗. 25,45✗. 35,55,75✗. 55,75✗. 49,69✗. 65,85✗. 77,97✗. 
+  - d=20 max length 2.
+
+d=22: 4,26,48✗. 26,48✗. 8,30✗. 10,32,54✗. 32,54✗. 14,36✗. 16,38,60✗. 38,60✗. 20,42✗. 22,44,66✗. 44,66✗. 28,50,72✗. 50,72✗. 34,56,78✗. 56,78✗. 40,62 (length 2). 46,68 (length 2). 52,74 (length 2). 58,80✗. 64,86✗. 70,92✗. 76,98✗. 25,47✗. 35,57✗. 49,71✗. 55,77 (length 2). 65,87✗. 
+  - d=22 max length 2.
+
+d=24: 4,28,52,76 (d=24): all in remaining? 4,28,52,76 yes. Length 4. Next 100>79. 
+  - 8,32,56 (d=24): length 3. 
+  - 10,34,58 (d=24): length 3. 
+  - 14,38,62 (d=24): length 3. 
+  - 16,40,64 (d=24): length 3. 
+  - 20,44,68 (d=24): length 3. 
+  - 22,46,70 (d=24): length 3. 
+  - 26,50,74 (d=24): length 3. 
+  - 25,49,73✗. 35,59✗. 55,79✗. 65,89✗. 77,101✗. 
+  - d=24: {4,28,52,76} length 4.
+
+d=30: 4,34,64 (d=30): length 3. 8,38,68 (length 3). 10,40,70 (length 3). 14,44,74 (length 3). 16,46,76 (length 3). 20,50,80✗ → 20,50 (length 2). 22,52,82✗ → 22,52. 26,56,86✗ → 26,56. 28,58,88✗ → 28,58. 32,62,92✗ → 32,62. 25,55,85✗ → 25,55. 35,65,95✗ → 35,65. 49,79✗. 77,107✗. 
+  - d=30 max length 3.
+
+OK so in the remaining 31 (after removing d=3 length-25 AP), the longest APs are:
+- d=12: length 7 ({4,16,28,40,52,64,76}), and three of length 6.
+- d=18: length 5 ({4,22,40,58,76}).
+- d=9: several length 3.
+- d=24: length 4.
+
+So to cover 31 with 3 APs: 7+?+? = 31 → need 24 more in 2 APs, so 12+12. Max is 7. Impossible. Even 7+7+7=21 < 31. So 3 APs can't cover 31. Need ≥ 5 APs for remaining (31/7 ≈ 4.4, so ≥ 5). Total ≥ 6. Worse.
+
+So using d=3 length-25 is worse. Let me go back.
+
+Let me try d=4 approach. Two length-19 APs: {4,8,12,...,76} and {6,10,14,...,78}. Together they cover all 38 evens. Same as d=2. Then 18 odds remain, need ≥ 4. Total ≥ 6. Worse.
+
+Hmm. What about mixing? Let me try d=5 length-14: {10,15,20,25,30,35,40,45,50,55,60,65,70,75}. This has 7 evens and 7 odds.
+
+Remaining 42 composites. Need 3 APs for 42, avg 14. Max remaining AP... let me check.
+
+Actually this is getting very complicated. Let me step back and think about whether 4 is possible at all.
+
+Claim: k = 5.
+
+We've shown a partition into 5. We need to show 4 is impossible.
+
+For 4 APs to cover 56 composites, we need 4 disjoint APs with lengths summing to 56. The possible AP lengths (for composites ≤ 79) are at most 38 (d=2). 
+
+If one AP has length 38 (the evens), remaining 18 need 3 APs. We showed this is impossible (no 3 APs partition the 18 odd composites). 
+
+If no AP has length 38, the max is 25 (d=3). Then 25 + remaining 31 in 3 APs. Max AP in remaining is 7 (d=12). 7+7+7=21 < 31. Impossible.
+
+If max is 19 (d=4, when d=3 AP not used): 19 + 37 in 3 APs. But actually if we use one d=4 length-19 AP, remaining 37 need 3 APs. Max AP in remaining... the other d=4 length-19 AP is available (if disjoint). 19+19=38, remaining 18 in 2 APs. 18 odds, 2 APs: max 12 (d=6). 12 + 6 = 18. Is there a length-6 AP in the remaining 6 odds {25,35,49,55,65,77}? No (max length 2). So 12+6 doesn't work. What about 7+11? No length-11 odd AP except d=6 sub. Actually the d=6 length-12 covers 12 odds, remaining 6 can't be 1 AP. So 2 APs for 18 odds: need lengths summing to 18, like 12+6, 7+11, etc. 12+6: the 6 must be an AP from {25,35,49,55,65,77}, max length 2. Fail. 7+11: length-7 odd AP is {15,25,35,45,55,65,75} (d=10). Remaining 11 odds need 1 AP of length 11. Only d=6 sub-APs of length 11, but they'd need to be from the remaining 11. Remaining after removing d=10 length-7: {9,21,27,33,39,49,51,57,63,69,77}. Max AP length 4. Fail. So 2 APs can't cover 18 odds. So with two d=4 length-19 APs, remaining 18 odds need ≥ 3 APs (actually ≥ 4 as shown). Total ≥ 2 + 4 = 6.
+
+Wait, I need to be more careful. With two d=4 APs covering all 38 evens, remaining 18 odds need ≥ 4 APs. Total ≥ 6.
+
+What if we use one d=4 length-19 AP and mix? 19 + 3 APs covering 37. The 3 APs could include odd composites. Max AP length 14 (d=5) or 12 (d=6 odd) or 10 (d=7). 19+14+10+13? But 13 (d=6 even) overlaps with d=4. 
+
+This is really complex. Let me think about it more systematically.
+
+Actually, let me reconsider. The key question is: can 4 APs partition all 56 composites?
+
+Let me think about a lower bound argument. Consider the 18 odd composites. Each AP can contain at most... well, an AP with even common difference contains only same-parity elements. An AP with odd common difference alternates parity.
+
+For an AP with odd d, starting from an odd number: odd, even, odd, even, ... So it contains ceil(n/2) odds and floor(n/2) evens (or vice versa). 
+
+The 18 odd composites must be covered by the 4 APs. Each AP contributes some odd composites. An AP with even d and odd start: all odd, length up to 12 (d=6). An AP with even d and even start: all even. An AP with odd d: alternates.
+
+If we use the d=2 even AP (38 evens, 0 odds), then 3 APs must cover 18 odds. These 3 APs can have even d (all odd) or odd d (mixed). But if an AP has odd d and contains some evens, those evens are already covered by the d=2 AP — but we're partitioning, so each element in exactly one AP. So the 3 remaining APs can only contain odd composites (since all evens are in the d=2 AP). So the 3 APs must be all-odd APs, i.e., even common difference. We showed 3 all-odd APs can't partition 18 odd composites. So with d=2, need ≥ 5.
+
+Now without d=2: some APs have odd d and contain both even and odd composites. Let's say the 4 APs are A1, A2, A3, A4. Let oi = number of odd composites in Ai. Sum oi = 18. Each oi ≤ length of Ai.
+
+For an AP with even d: all same parity. If odd start, oi = length. Max length for all-odd AP is 12 (d=6).
+For an AP with odd d: oi = ceil(length/2) or floor(length/2). 
+
+To cover 18 odds with 4 APs (some possibly having 0 odds), we need sum oi = 18.
+
+If all 4 APs have even d (all same parity): at most one can be all-even (covering some evens), and the rest all-odd. But all-even AP with even d: e.g., d=4 {4,8,...,76} length 19. Then 3 all-odd APs cover 18 odds. We showed impossible. Or two all-even, two all-odd: two all-even APs cover evens, two all-odd cover 18 odds. Two all-odd APs: max 12+12=24 ≥ 18 but need exact partition. 12+6: need length-6 AP from remaining 6. Fail. Other combos: 7+11, 7+7+4 (that's 3). With 2 APs: 12+6, 7+11, 6+12, 5+13, etc. We need 2 APs partitioning 18 odds. Is there any pair of disjoint all-odd APs partitioning 18 odds? 
+
+The 18 odds: {9,15,21,25,27,33,35,39,45,49,51,55,57,63,65,69,75,77}.
+
+Pair 1: d=6 length-12 {9,15,...,75} + AP covering {25,35,49,55,65,77}. Need 1 AP of length 6. Max length 2. Fail.
+
+Pair 2: d=10 length-7 {15,25,35,45,55,65,75} + AP covering {9,21,27,33,39,49,51,57,63,69,77} (11). Need 1 AP of length 11. Max length 4. Fail.
+
+Pair 3: d=12 length-6 {9,21,33,45,57,69} + AP covering {15,25,27,35,39,49,51,55,63,65,75,77} (12). Need 1 AP of length 12. Options: d=6 {15,21,...} — 21 used. d=6 {27,33,...} — 33 used. So d=6 broken. d=10 {15,25,35,45,...} — 45 used. d=12 {15,27,39,51,63,75} — that's length 6, not 12. Remaining after this: {25,35,49,55,65,77} (6). So {9,21,33,45,57,69} + {15,27,39,51,63,75} = 12 odds, remaining 6 can't be 1 AP. Fail.
+
+Pair 4: d=14 length-5 {21,35,49,63,77} + AP covering {9,15,25,27,33,39,45,51,55,57,65,69,75} (13). Need 1 AP of length 13. Max all-odd AP is 12. Fail.
+
+So no 2 all-odd APs partition 18 odds. Therefore with all-even-d APs, need ≥ 3 all-odd APs for the 18 odds,

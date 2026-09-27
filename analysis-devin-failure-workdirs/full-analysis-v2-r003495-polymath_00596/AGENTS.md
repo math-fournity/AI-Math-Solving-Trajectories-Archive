@@ -1,0 +1,694 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_00596</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Five. (15 points) Let $\left\{a_{n}\right\}$ be an integer sequence, and it satisfies: for any $n\left(n \in \mathbf{N}_{+}\right)$, we have
+$$
+(n-1) a_{n+1}=(n+1) a_{n}-2(n-1) \text {, }
+$$
+
+and $2008 \mid a_{2000}$. Find the smallest positive integer $n(n \geqslant 2)$, such that $2008 \mid a_{n}$.
+
+## Standard Solution
+
+When $n=1$, we have $a_{1}=0$.
+When $n \geqslant 2$, the original equation transforms to
+$$
+a_{n+1}=\frac{n+1}{n-1} a_{n}-2 \text{. }
+$$
+
+Let $b_{n}=\frac{a_{n}}{n-1}$, then $n b_{n+1}=(n+1) b_{n}-2$.
+Thus, for $n \geqslant 2$, we have
+$$
+b_{n+1}-2=\frac{n+1}{n}\left(b_{n}-2\right) \text{. }
+$$
+
+From equation (2), we know
+$$
+\begin{array}{l}
+b_{n}-2=\frac{n}{n-1} \cdot \frac{n-1}{n-2} \cdots \cdot \frac{3}{2}\left(b_{2}-2\right)=\left(\frac{b_{2}}{2}-1\right) n \\
+\Rightarrow a_{n}=(n-1)\left[\left(\frac{a_{2}}{2}-1\right) n+2\right] .
+\end{array}
+$$
+
+Given $2008 \mid a_{2000}$, we have $\frac{a_{2}}{2} \in \mathbf{Z}$.
+Thus, let $a_{2}=2 k(k \in \mathbf{Z})$.
+From equation (3), we get $a_{n}=(n-1)[(k-1) n+2]$.
+Given $2008 \mid a_{2007}$
+$$
+\begin{array}{l}
+\Rightarrow 2006(2007 k-2005) \equiv 0(\bmod 2008) \\
+\Rightarrow k \equiv 3(\bmod 1004) \\
+\Rightarrow a_{n}=(n-1)[(1004 m+2) n+2](m \in \mathbf{Z}) .
+\end{array}
+$$
+
+Then $20081 a_{n}$
+$$
+\begin{array}{l}
+\Leftrightarrow 20081(n-1)[(1004 m+2) n+2] \\
+\Rightarrow 1004 \mid(n-1)(n+1) .
+\end{array}
+$$
+
+Thus, $2 \mid n$.
+Let $n=2 l+1(l \in \mathbf{Z}) \Rightarrow 251 \mid l(l+1)$.
+Since 251 is a prime number, and $(l, l+1)=1$, we have
+$$
+l+1 \geqslant 251 \Rightarrow l_{\text {min }}=250 \Rightarrow n_{\text {min }}=501 .
+$$
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. Let me first check for answer leaks — the problem statement is clean, just states the recurrence and condition. No leaks.
+
+Now solve. Recurrence: $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$ for $n \geq 1$.
+
+Wait, for $n=1$: $(0)a_2 = 2a_1 - 0$, so $0 = 2a_1$, giving $a_1 = 0$. Good, that's consistent, and $a_2$ is free? Actually for $n=1$ the equation gives $a_1=0$ but doesn't determine $a_2$. For $n \geq 2$, we can solve forward.
+
+Let me find the general solution. Rearrange for $n \geq 2$:
+$$a_{n+1} = \frac{n+1}{n-1} a_n - 2.$$
+
+Let me find a particular solution. Try $a_n = c$ constant: $c = \frac{n+1}{n-1}c - 2$, so $c - \frac{n+1}{n-1}c = -2$, $c\cdot\frac{(n-1)-(n+1)}{n-1} = -2$, $c\cdot\frac{-2}{n-1} = -2$, $c = n-1$. Not constant. Try $a_n = n-1$: check $a_{n+1}=n$, RHS $\frac{n+1}{n-1}(n-1) - 2 = (n+1)-2 = n-1$. That's not $n$. So $a_n = n-1$ gives $a_{n+1}$ should be $n$ but RHS gives $n-1$. Not a solution.
+
+Let me try $a_n = n+1$: $a_{n+1}=n+2$, RHS $\frac{n+1}{n-1}(n+1)-2 = \frac{(n+1)^2}{n-1}-2 = \frac{(n+1)^2-2(n-1)}{n-1}=\frac{n^2+2n+1-2n+2}{n-1}=\frac{n^2+3}{n-1}$. Not $n+2$ generally.
+
+Let me try the substitution. Homogeneous: $a_{n+1} = \frac{n+1}{n-1}a_n$. Product: $\prod_{k=2}^{n-1}\frac{k+1}{k-1}$ for going from $a_2$ to $a_n$. Actually $a_n = a_2 \prod_{k=2}^{n-1}\frac{k+1}{k-1}$.
+
+$\prod_{k=2}^{n-1}\frac{k+1}{k-1} = \frac{3\cdot4\cdot5\cdots n}{1\cdot2\cdot3\cdots(n-2)} = \frac{n!/(2!)}{(n-2)!/1} \cdot$... let me compute: numerator $= 3\cdot4\cdots n = n!/2$, denominator $= 1\cdot2\cdots(n-2) = (n-2)!$. So ratio $= \frac{n!}{2(n-2)!} = \frac{n(n-1)}{2}$.
+
+So homogeneous solution: $a_n = C\cdot\frac{n(n-1)}{2}$ where $C = a_2$ (since at $n=2$, $\frac{2\cdot1}{2}=1$, so $C=a_2$). Good.
+
+Now particular solution. Try $a_n = \alpha n + \beta$. $a_{n+1} = \alpha(n+1)+\beta = \alpha n + \alpha + \beta$. RHS $= \frac{n+1}{n-1}(\alpha n+\beta) - 2$. Set equal:
+$\alpha n + \alpha + \beta = \frac{(n+1)(\alpha n+\beta)}{n-1} - 2$.
+
+Multiply by $n-1$: $(\alpha n+\alpha+\beta)(n-1) = (n+1)(\alpha n+\beta) - 2(n-1)$.
+
+LHS: $(\alpha n + \alpha+\beta)(n-1) = \alpha n^2 - \alpha n + (\alpha+\beta)n - (\alpha+\beta) = \alpha n^2 + \beta n - \alpha - \beta$.
+
+RHS: $(n+1)(\alpha n+\beta) - 2n + 2 = \alpha n^2 + \beta n + \alpha n + \beta - 2n + 2 = \alpha n^2 + (\alpha+\beta-2)n + \beta + 2$.
+
+Compare: LHS $= \alpha n^2 + \beta n - \alpha - \beta$. RHS $= \alpha n^2 + (\alpha+\beta-2)n + \beta+2$.
+
+Coefficient of $n$: $\beta = \alpha+\beta-2 \Rightarrow \alpha = 2$.
+Constant: $-\alpha-\beta = \beta+2 \Rightarrow -2-\beta = \beta+2 \Rightarrow -2\beta = 4 \Rightarrow \beta = -2$.
+
+So particular solution $a_n = 2n - 2 = 2(n-1)$.
+
+Check: $a_{n+1}=2n$, RHS $\frac{n+1}{n-1}\cdot 2(n-1) - 2 = 2(n+1)-2 = 2n$. ✓
+
+General solution: $a_n = C\cdot\frac{n(n-1)}{2} + 2(n-1)$, where $C = a_2$ is an integer (since sequence is integer, $a_2\in\mathbb{Z}$).
+
+Let me verify $a_1 = C\cdot\frac{1\cdot0}{2} + 2\cdot0 = 0$. ✓ Good.
+
+So $a_n = \frac{C\,n(n-1)}{2} + 2(n-1) = (n-1)\left(\frac{Cn}{2} + 2\right)$.
+
+Now $2008 = 8 \cdot 251 = 2^3 \cdot 251$. And $251$ is prime.
+
+Condition: $2008 \mid a_{2000}$, i.e., $2008 \mid (n-1)\left(\frac{Cn}{2}+2\right)$ at $n=2000$.
+
+$a_{2000} = 1999\left(\frac{2000 C}{2}+2\right) = 1999(1000 C + 2)$.
+
+Now $1999$ — is it divisible by $2$ or $251$? $1999/251 \approx 7.96$, $251\cdot7=1757$, $251\cdot8=2008$. So $1999 = 2008-9$, not divisible by $251$. $1999$ odd. So $\gcd(1999, 2008)=\gcd(1999,2008)$. $2008-1999=9$. $\gcd(1999,9)$: $1999 = 9\cdot222+1$, so $\gcd=1$. So $1999$ coprime to $2008$.
+
+Therefore $2008 \mid a_{2000} \iff 2008 \mid (1000C+2)$.
+
+$1000C + 2 \equiv 0 \pmod{2008}$. $1000C \equiv -2 \pmod{2008}$.
+
+$\gcd(1000,2008)$: $2008 = 2\cdot1000+8$, $1000=125\cdot8+0$, so $\gcd=8$. $8\mid -2$? No, $8\nmid 2$. So no solution?!
+
+Hmm, that's a problem. Let me recheck. $1000C+2 \equiv 0 \pmod{2008}$ requires $8 \mid (1000C+2)$. $1000C \equiv 0 \pmod 8$ always (since $1000=8\cdot125$). So $1000C+2 \equiv 2\pmod 8$, never $\equiv 0$. Contradiction.
+
+So there's no integer $C$ making $2008\mid a_{2000}$? But the problem states $2008\mid a_{2000}$. Let me recheck my algebra.
+
+Wait, let me recheck the recurrence and particular solution more carefully. Actually let me recheck: is $a_2$ really free, or is the recurrence valid for $n\geq 1$ giving $a_1=0$ and then $a_2$ determined by... no, $n=1$ gives $0\cdot a_2 = 2a_1$, so $a_1=0$, $a_2$ free. Then $n=2$: $a_3 = \frac{3}{1}a_2 - 2 = 3a_2-2$. Etc. So $a_2$ is the free parameter. Good.
+
+Let me recompute the homogeneous product. $a_{n+1} = \frac{n+1}{n-1}a_n$ for $n\geq 2$. So $a_3 = \frac{3}{1}a_2$, $a_4 = \frac{4}{2}a_3 = \frac{4}{2}\cdot\frac{3}{1}a_2$, ..., $a_n = a_2 \prod_{k=2}^{n-1}\frac{k+1}{k-1}$.
+
+$\prod_{k=2}^{n-1}(k+1) = 3\cdot4\cdots n = \frac{n!}{2}$.
+$\prod_{k=2}^{n-1}(k-1) = 1\cdot2\cdots(n-2) = (n-2)!$.
+
+Ratio $= \frac{n!}{2(n-2)!} = \frac{n(n-1)(n-2)!}{2(n-2)!} = \frac{n(n-1)}{2}$. ✓
+
+So homogeneous $a_n = a_2 \cdot \frac{n(n-1)}{2}$. With $C=a_2$.
+
+Particular $2(n-1)$. So $a_n = \frac{C n(n-1)}{2} + 2(n-1)$.
+
+Hmm wait, but is $a_n$ always an integer? $\frac{Cn(n-1)}{2}$: $n(n-1)$ is always even, so yes integer for any integer $C$. Good.
+
+So $a_{2000} = \frac{C\cdot2000\cdot1999}{2} + 2\cdot1999 = C\cdot1000\cdot1999 + 3998 = 1999(1000C+2)$.
+
+And we need $2008 \mid 1999(1000C+2)$. Since $\gcd(1999,2008)=1$, need $2008\mid(1000C+2)$.
+
+$1000C+2 \equiv 0\pmod{2008}$. As shown, $\gcd(1000,2008)=8\nmid 2$, impossible.
+
+So either I made an error, or the problem is stated differently. Let me re-read the problem.
+
+"$(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$"
+
+Hmm, maybe it's $-2(n-1)$ or maybe $-2\cdot(n-1)$... yes that's what I used. Let me reconsider — maybe the recurrence is meant for $n\geq 2$ (i.e., $n\in\mathbb{N}_+$ but the equation only constrains from $n=2$)? Actually it says "for any $n (n\in\mathbb{N}_+)$". With $n=1$ giving $a_1=0$.
+
+Wait, but maybe I should reconsider whether the particular solution is right. Let me re-examine with a direct check at small values. Let $C=a_2$.
+
+$a_2 = C$.
+Formula: $a_2 = \frac{C\cdot2\cdot1}{2}+2\cdot1 = C+2$?? That gives $a_2 = C+2$, but I set $C=a_2$. Contradiction!
+
+Let me recompute. $a_n = C\frac{n(n-1)}{2} + 2(n-1)$. At $n=2$: $a_2 = C\cdot\frac{2\cdot1}{2}+2\cdot1 = C+2$. So $a_2 = C+2$, meaning $C = a_2 - 2$.
+
+I made an error earlier — the homogeneous solution at $n=2$ is $\frac{2\cdot1}{2}=1$, so homogeneous part $= C\cdot1 = C$, and particular part $= 2(2-1)=2$. So $a_2 = C+2$, thus $C = a_2-2$. The constant $C$ in the general solution is NOT $a_2$; it's $a_2-2$. That's fine, $C$ is still an arbitrary integer (since $a_2$ integer). Let me redo.
+
+$a_n = C\cdot\frac{n(n-1)}{2} + 2(n-1)$ where $C = a_2 - 2 \in \mathbb{Z}$.
+
+$a_{2000} = C\cdot\frac{2000\cdot1999}{2} + 2\cdot1999 = 1000\cdot1999\cdot C + 3998 = 1999(1000C+2)$.
+
+Same expression. So the issue remains: $2008\mid 1999(1000C+2)$, $\gcd(1999,2008)=1$, need $2008\mid(1000C+2)$, impossible since $8\mid 1000C$ but $8\nmid 2$.
+
+So $1000C+2\equiv 2\pmod 8$ always. Hence $a_{2000}\equiv 1999\cdot 2 \equiv 2\pmod 8$ (since $1999$ odd, $1999\cdot2\equiv 2\pmod 8$). So $a_{2000}\equiv 2\pmod 8$, meaning $8\nmid a_{2000}$, so $2008\nmid a_{2000}$. Contradiction with problem statement.
+
+So I must have an error somewhere. Let me recheck the particular solution by plugging into the original recurrence directly.
+
+Original: $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$.
+
+With $a_n = 2(n-1)$: LHS $(n-1)\cdot 2n = 2n(n-1)$. RHS $(n+1)\cdot 2(n-1) - 2(n-1) = 2(n-1)[(n+1)-1]=2(n-1)\cdot n = 2n(n-1)$. ✓ Good, particular solution correct.
+
+Homogeneous: $(n-1)a_{n+1}=(n+1)a_n$, $a_{n+1}=\frac{n+1}{n-1}a_n$. ✓
+
+So general solution is correct. The contradiction is real given my reading. Let me re-read the problem statement once more.
+
+"$(n-1) a_{n+1}=(n+1) a_{n}-2(n-1)$"
+
+Hmm, what if it's $-2(n+1)$ or $-2\cdot a_{n-1}$... no. Or what if the recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n+1)$? Let me not guess; the problem clearly says $-2(n-1)$.
+
+Wait — maybe I'm wrong about $\gcd(1999,2008)$. $2008 = 2^3\cdot251$. $1999$: is it divisible by 251? $251\cdot7 = 1757$, $251\cdot8=2008$. $1999-1757=242\neq0$. So no. $1999$ odd. So $\gcd(1999,2008)=1$. Confirmed.
+
+So with the recurrence as stated, $a_{2000}\equiv 2\pmod 8$, impossible for $2008\mid a_{2000}$.
+
+Hmm. Let me reconsider. Maybe the indexing: perhaps the recurrence holds for $n\geq 2$ only (not $n=1$), and $a_1, a_2$ are both free? But the problem says "for any $n\in\mathbb{N}_+$", which includes $n=1$. With $n=1$: $0\cdot a_2 = 2a_1 - 0$, so $a_1=0$. $a_2$ free. That's what I had.
+
+Actually wait, even if $a_1$ were free, the recurrence from $n=2$ onward determines $a_n$ for $n\geq 3$ in terms of $a_2$, and $a_1$ doesn't affect $a_{2000}$. So $a_{2000}$ depends only on $a_2$. And we showed $a_{2000}\equiv 2\pmod 8$. So regardless, impossible.
+
+Let me reconsider the problem. Perhaps the recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$ but I should double check by computing $a_{2000}\bmod 8$ via the recurrence directly for a specific $a_2$.
+
+Take $a_2=0$: then $a_3 = 3\cdot0/1 - 2 = -2$. $a_4 = \frac{4}{2}(-2)-2 = -4-2=-6$. $a_5=\frac{5}{3}(-6)-2=-10-2=-12$. $a_6=\frac{6}{4}(-12)-2=-18-2=-20$. Pattern: $a_n = 2(n-1)$? With $C=a_2-2=0-2=-2$: $a_n = -2\frac{n(n-1)}{2}+2(n-1)=-(n)(n-1)+2(n-1)=(n-1)(2-n)=-(n-1)(n-2)$. Check $a_3=-(2)(1)=-2$✓, $a_4=-3\cdot2=-6$✓, $a_5=-4\cdot3=-12$✓, $a_6=-5\cdot4=-20$✓. Good. $a_{2000}=-(1999)(1998)$. $\bmod 8$: $1999\equiv 7\pmod8$ (since $1999=8\cdot249+7$), $1998\equiv 6\pmod8$. $-(7\cdot6)=-42\equiv -42+48=6\pmod8$. So $a_{2000}\equiv6\pmod8$.
+
+Hmm, that's 6, not 2. Let me recompute the general formula mod 8.
+
+$a_{2000} = 1999(1000C+2)$. $1000C\equiv 0\pmod8$. So $1000C+2\equiv2\pmod8$. $1999\equiv7\pmod8$. So $a_{2000}\equiv 7\cdot2=14\equiv6\pmod8$. Yes, $6\pmod8$, I made an arithmetic error before ($1999\cdot2=3998$, $3998\bmod8$: $8\cdot499=3992$, $3998-3992=6$). So $a_{2000}\equiv6\pmod8$, still not $0$. So $8\nmid a_{2000}$, contradiction remains.
+
+So the problem as literally stated has no solution. That suggests I'm misreading. Let me reconsider: maybe it's $-2(n+1)$ instead of $-2(n-1)$. Let me try that variant and see if it becomes solvable, to check if this is a known problem.
+
+Actually, this is a known competition problem (China, 2008, given 2008 and 2000). Let me think about what the intended recurrence is. The answer is likely $n=502$ or similar. Let me reconsider.
+
+Actually, let me reconsider the possibility that the recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$ but maybe I need to reconsider: perhaps $a_n$ need not satisfy $a_1=0$; maybe the recurrence is only for $n\geq 2$. But as noted, $a_1$ doesn't matter for $a_{2000}$.
+
+Alternatively, maybe the recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n+1)$. Let me try that.
+
+Particular solution: try $a_n = \alpha n + \beta$. $(n-1)(\alpha(n+1)+\beta) = (n+1)(\alpha n+\beta) - 2(n+1)$.
+LHS: $(n-1)(\alpha n+\alpha+\beta) = \alpha n^2 + \alpha n + \beta n - \alpha n - \alpha - \beta = \alpha n^2 + \beta n - \alpha - \beta$.
+RHS: $(n+1)(\alpha n+\beta) - 2n - 2 = \alpha n^2 + \alpha n + \beta n + \beta - 2n - 2 = \alpha n^2 + (\alpha+\beta-2)n + \beta - 2$.
+Compare: $\beta = \alpha+\beta-2 \Rightarrow\alpha=2$. Constant: $-\alpha-\beta = \beta-2 \Rightarrow -2-\beta=\beta-2\Rightarrow -2\beta=0\Rightarrow\beta=0$. So particular $a_n=2n$. Check: $(n-1)\cdot2(n+1)=2(n^2-1)$; RHS $(n+1)\cdot2n-2(n+1)=2(n+1)(n-1)=2(n^2-1)$✓.
+
+General: $a_n = C\frac{n(n-1)}{2} + 2n$. At $n=2$: $a_2 = C + 4$, $C=a_2-4$.
+
+$a_{2000} = C\cdot1000\cdot1999 + 4000 = 1999\cdot1000 C + 4000$. $= 1999(1000C) + 4000$. Hmm, $4000 = 1999\cdot2 + 2$, so $a_{2000}=1999(1000C+2)+2$. Not clean. Let me just compute mod 8: $1000C\equiv0$, $a_{2000}\equiv 4000\equiv0\pmod8$. Good, $8\mid a_{2000}$ possible. And mod 251: need $251\mid a_{2000}$. $1999\bmod251$: $251\cdot7=1757$, $1999-1757=242$. So $1999\equiv242\equiv -9\pmod{251}$. $a_{2000}\equiv -9\cdot1000C + 4000\pmod{251}$. $1000\bmod251$: $251\cdot3=753$, $1000-753=247\equiv-4$. $4000\bmod251$: $251\cdot15=3765$, $4000-3765=235\equiv-16$. So $a_{2000}\equiv -9\cdot(-4)C + (-16) = 36C - 16\pmod{251}$. Set $\equiv0$: $36C\equiv16\pmod{251}$. $\gcd(36,251)=1$. $36^{-1}\pmod{251}$: need $36x\equiv1$. $251=36\cdot6+35$, $36=35\cdot1+1$, so $1=36-35=36-(251-36\cdot6)=7\cdot36-251$. So $36^{-1}\equiv7$. $C\equiv7\cdot16=112\pmod{251}$.
+
+So $C\equiv112\pmod{251}$ and $C$ even? Wait we need $8\mid a_{2000}$: $a_{2000}\equiv0\pmod8$ always (since $1000C\equiv0\pmod8$ and $4000\equiv0\pmod8$). So $8\mid a_{2000}$ for all $C$. Good. So condition $2008\mid a_{2000}\iff 251\mid a_{2000}\iff C\equiv112\pmod{251}$.
+
+Now we want smallest $n\geq2$ with $2008\mid a_n$, i.e., $8\mid a_n$ and $251\mid a_n$.
+
+$a_n = C\frac{n(n-1)}{2} + 2n$.
+
+Hmm, but this is for the variant recurrence. I'm not sure the problem is this variant. Let me reconsider the original.
+
+Actually, let me reconsider. Maybe I should re-examine: the problem says $2008\mid a_{2000}$ and asks smallest $n\geq2$ with $2008\mid a_n$. Given the structure, $2008=8\cdot251$, and $2000=8\cdot250$. The numbers 2008 and 2000 suggest the year. The answer is probably a nice number.
+
+Given my analysis shows the literal recurrence is impossible, but the variant $-2(n+1)$ works, OR maybe I mis-transcribed and it's $-2(n-1)$ but actually the issue is different. Let me re-examine the original recurrence once more very carefully, considering maybe $a_n$ could be such that... no, mod 8 it's forced to be 6.
+
+Hold on. Let me reconsider: maybe the recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$ and the condition is $2008\mid a_{2000}$, and actually the problem intends $a_n$ to be a sequence of integers but maybe $a_2$ is not free—maybe there's additional constraint. No.
+
+Actually, wait. Let me reconsider whether $a_1$ must be $0$. The recurrence for $n=1$: $(1-1)a_2 = (1+1)a_1 - 2(1-1)$, i.e., $0 = 2a_1$, so $a_1=0$. Yes.
+
+Given the impossibility, I strongly suspect the intended recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n+1)$, OR the constant is $-2\cdot n$, or the problem uses $-2(n-1)$ but with a different... Let me try $-2n$ (i.e., $(n-1)a_{n+1}=(n+1)a_n - 2n$).
+
+Particular $a_n=\alpha n+\beta$: $(n-1)(\alpha n+\alpha+\beta)=(n+1)(\alpha n+\beta)-2n$.
+LHS $=\alpha n^2+\beta n-\alpha-\beta$. RHS $=\alpha n^2+(\alpha+\beta)n+\beta-2n=\alpha n^2+(\alpha+\beta-2)n+\beta$.
+$n$ coeff: $\beta=\alpha+\beta-2\Rightarrow\alpha=2$. Const: $-\alpha-\beta=\beta\Rightarrow-2-\beta=\beta\Rightarrow\beta=-1$. Particular $a_n=2n-1$. Check: $(n-1)(2(n+1)-1)=(n-1)(2n+1)=2n^2-n-1$; RHS $(n+1)(2n-1)-2n=2n^2+n-2n-1=2n^2-n-1$✓.
+
+General $a_n=C\frac{n(n-1)}{2}+2n-1$. $a_{2000}=1999\cdot1000C+3999$. $\bmod8$: $0+3999\bmod8$. $3999=8\cdot499+7$, so $\equiv7\pmod8$. Not divisible by 8. Impossible again.
+
+So the $-2(n-1)$ and $-2n$ variants both give $a_{2000}\not\equiv0\pmod8$. The $-2(n+1)$ variant gives $\equiv0\pmod8$. So likely the intended is $-2(n+1)$.
+
+Hmm, but actually, let me reconsider. Let me reconsider the original $-2(n-1)$ but check: maybe I should reconsider the problem as having the recurrence $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$ and the answer exists because actually $a_{2000}\bmod 8$... no I've triple-checked it's 6.
+
+Actually, wait. Let me reconsider — maybe the problem is correct and I need to reconsider. Let me recompute $a_{2000}\bmod 8$ from the formula $a_n = (n-1)\left(\frac{Cn}{2}+2\right)$ where $C=a_2-2$.
+
+$a_{2000} = 1999\left(\frac{2000C}{2}+2\right) = 1999(1000C+2)$.
+
+$1999 \bmod 8 = 7$. $1000C+2\bmod8 = 0+2=2$. $7\cdot2=14\equiv6\pmod8$. So $a_{2000}\equiv6\pmod8$. Definitely not divisible by 8. So $2008\nmid a_{2000}$ for any integer $a_2$.
+
+Therefore the problem as literally written is inconsistent. Given this is a known competition problem, the intended recurrence must be slightly different. The most likely intended form that makes it consistent is $(n-1)a_{n+1} = (n+1)a_n - 2(n+1)$.
+
+Hmm, but actually, let me reconsider. Let me reconsider if maybe it's $-2(n-1)$ but the problem is from a Chinese competition and the original might be $-2(n+1)$ or the "$n-1$" on the right is "$n+1$". Given the structure and that the answer should be findable, let me go with the variant that works: $-2(n+1)$.
+
+Actually, wait. Let me reconsider more carefully. Let me reconsider the original problem. This appears to be from the 2008 Chinese Mathematical Olympiad or similar. Let me think about what gives a clean answer.
+
+With the $-2(n+1)$ variant: $a_n = C\frac{n(n-1)}{2}+2n$, $C\equiv112\pmod{251}$, and $8\mid a_n$ always.
+
+We need smallest $n\geq2$ with $251\mid a_n$ (since $8\mid a_n$ always, $2008\mid a_n\iff251\mid a_n$).
+
+Wait, is $8\mid a_n$ for all $n$? $a_n = C\frac{n(n-1)}{2}+2n$. $\frac{n(n-1)}{2}$ is integer. $C\frac{n(n-1)}{2}\bmod8$ depends on $n$. $2n\bmod8$ depends on $n$. So no, $8\mid a_n$ is not automatic for all $n$. Let me recompute. We need both $8\mid a_n$ and $251\mid a_n$.
+
+Hmm, this is getting complicated. Let me reconsider.
+
+Actually, let me step back. The problem is likely correctly stated and I'm making an error. Let me very carefully re-examine the recurrence solution by computing a few terms symbolically and checking mod 8 behavior, for the ORIGINAL recurrence $-2(n-1)$.
+
+$a_1=0$. $a_2=C'$ (free, call it $b$). 
+$n=2$: $a_3 = \frac{3}{1}b - 2\cdot1 = 3b-2$.
+$n=3$: $2a_4 = 4a_3 - 2\cdot2 = 4(3b-2)-4=12b-12$, $a_4=6b-6$.
+$n=4$: $3a_5 = 5a_4 - 2\cdot3 = 5(6b-6)-6=30b-36$, $a_5=10b-12$.
+$n=5$: $4a_6 = 6a_5-2\cdot4=6(10b-12)-8=60b-80$, $a_6=15b-20$.
+
+Formula check with $C=b-2$: $a_n=(b-2)\frac{n(n-1)}{2}+2(n-1)$.
+$a_3=(b-2)\cdot3+4=3b-6+4=3b-2$✓.
+$a_4=(b-2)\cdot6+6=6b-12+6=6b-6$✓.
+$a_5=(b-2)\cdot10+8=10b-20+8=10b-12$✓.
+$a_6=(b-2)\cdot15+10=15b-30+10=15b-20$✓. 
+
+Now $a_{2000}=(b-2)\cdot\frac{2000\cdot1999}{2}+2\cdot1999=(b-2)\cdot1999000+3998$.
+$\bmod8$: $1999000\bmod8$: $1999000=8\cdot249875$, so $\equiv0$. $3998\bmod8$: $8\cdot499=3992$, $3998-3992=6$. So $a_{2000}\equiv6\pmod8$. Confirmed. Impossible to have $8\mid a_{2000}$.
+
+So the original problem statement, as given, is inconsistent. There must be a typo. The most natural fix making it consistent: change $-2(n-1)$ to $-2(n+1)$.
+
+Given the constraints of the task (solve the problem), and that this is clearly a known problem with a typo in transcription, I'll solve the consistent version. But which version? Let me think about which gives a "nice" answer, since competition problems have nice answers.
+
+Let me reconsider. Actually, maybe the intended recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$ but the condition is $2008\mid a_{2008}$ or the year numbers differ. Or maybe $2008\mid a_{2000}$ is right but recurrence different.
+
+Let me try the variant $-2(n+1)$ fully and find the answer.
+
+$a_n = C\frac{n(n-1)}{2}+2n$, $C=a_2-4$, $C\equiv112\pmod{251}$.
+
+$a_n = \frac{C\,n(n-1)}{2}+2n = n\left(\frac{C(n-1)}{2}+2\right)$.
+
+We need $2008\mid a_n$, i.e., $8\mid a_n$ and $251\mid a_n$.
+
+$251\mid a_n$: $a_n = n\left(\frac{C(n-1)}{2}+2\right)$. Since $251$ prime, either $251\mid n$ or $251\mid\left(\frac{C(n-1)}{2}+2\right)$.
+
+Case A: $251\mid n$, i.e., $n=251k$. Smallest $n\geq2$ with $251\mid n$ is $n=251$. Check $8\mid a_{251}$: $a_{251}=251\left(\frac{C\cdot250}{2}+2\right)=251(125C+2)$. $125C+2\bmod8$: $125\equiv5\pmod8$, so $5C+2\bmod8$. With $C\equiv112\pmod{251}$, $C\bmod8$ is not determined by the 251 condition alone (since $\gcd(251,8)=1$, $C$ ranges over a residue mod 251, and mod 8 it can be anything depending on which representative). Wait, but $C$ is a specific integer (determined by $a_2$). The condition $2008\mid a_{2000}$ gives $C\equiv112\pmod{251}$ (and automatically $8\mid a_{2000}$). So $C$ is fixed mod 251 but free mod 8? No—$C$ is a single integer satisfying $C\equiv112\pmod{251}$. There are infinitely many such $C$ (differing by multiples of 251), and they have different residues mod 8. So actually $C\bmod8$ is NOT fixed; the problem only constrains $C\bmod251$.
+
+Wait, that means $a_{2000}\bmod8$ must be 0 for ALL $C\equiv112\pmod{251}$? Let me check: $a_{2000}=C\cdot1999000+4000$ (with the $-2(n+1)$ variant, $a_{2000}=(b-4)\cdot1999000+4000$ where $b=a_2$, $C=b-4$). $1999000\equiv0\pmod8$, $4000\equiv0\pmod8$. So $a_{2000}\equiv0\pmod8$ for all $C$. Good, consistent. And $251\mid a_{2000}\iff C\equiv112\pmod{251}$. So the condition $2008\mid a_{2000}$ is equivalent to $C\equiv112\pmod{251}$, with $C$ otherwise free (any integer $\equiv112\pmod{251}$).
+
+But then the answer (smallest $n$ with $2008\mid a_n$) might depend on $C\bmod8$, which is free! That can't be right for a well-posed problem. Unless the answer is the same regardless of $C\bmod8$, or $8\mid a_n$ is automatic when $251\mid a_n$.
+
+Hmm, let me reconsider. For the problem to be well-posed, the smallest $n$ should be determined. Let me check: maybe $8\mid a_n$ is automatic whenever $251\mid a_n$ (for $n\geq2$), given $C\equiv112\pmod{251}$.
+
+$a_n = n\left(\frac{C(n-1)}{2}+2\right)$. 
+
+This is getting complicated. Let me reconsider whether the original problem might actually be correct and I need a different approach. Let me reconsider: maybe the problem is correct and the answer is that no such $n$ exists... no, the problem asks to "find" it, implying existence.
+
+Let me reconsider the original recurrence once more. Actually, maybe I should reconsider: the problem says "integer sequence" and "for any $n\in\mathbb{N}_+$". What if $\mathbb{N}_+$ here starts from a different convention, or the recurrence is meant for $n\geq 2$? Even so, $a_{2000}$ only depends on $a_2$ and the recurrence from $n=2$ to $n=1999$, giving $a_{2000}\equiv6\pmod8$. So no.
+
+OK here's another thought: maybe the recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$ and actually it should be $-2\cdot(n-1)\cdot a_n$ or the $-2(n-1)$ is $-2\cdot a_{n-1}$? Unlikely.
+
+Let me just try to look at this from the answer's perspective. The problem uses 2008 and 2000. $2008 = 8\cdot251$. $2000=8\cdot250=2^4\cdot125$. The smallest $n\geq2$ with $2008\mid a_n$ given $2008\mid a_{2000}$... 
+
+Given the structure $a_n = (n-1)\left(\frac{Cn}{2}+2\right)$ (original) or $a_n = n\left(\frac{C(n-1)}{2}+2\right)$ (variant), the divisibility by 251 and 8 interplay.
+
+Let me try yet another variant: maybe the recurrence is $(n-1)a_{n+1} = (n+1)a_n + 2(n-1)$ (plus instead of minus). Particular: try $a_n=2(n-1)$: LHS $2n(n-1)$, RHS $2(n-1)(n+1)+2(n-1)=2(n-1)(n+2)$. $2n(n-1)$ vs $2(n-1)(n+2)$: $n$ vs $n+2$, no. Try $a_n = -2(n-1)$: LHS $(n-1)(-2n)=-2n(n-1)$, RHS $(n+1)(-2(n-1))+2(n-1)=-2(n-1)(n+1)+2(n-1)=-2(n-1)n=-2n(n-1)$✓. So particular $a_n=-2(n-1)$. General $a_n=C\frac{n(n-1)}{2}-2(n-1)=(n-1)(\frac{Cn}{2}-2)$. $a_{2000}=1999(1000C-2)$. $\bmod8$: $1999\cdot(-2)\equiv7\cdot6=42\equiv2\pmod8$. Not 0. Impossible.
+
+So only the $-2(n+1)$ variant works among these. Let me also try $(n-1)a_{n+1}=(n+1)a_n-2$ (constant 2). Particular $a_n=\alpha n+\beta$: $(n-1)(\alpha n+\alpha+\beta)=(n+1)(\alpha n+\beta)-2$. LHS $\alpha n^2+\beta n-\alpha-\beta$. RHS $\alpha n^2+(\alpha+\beta)n+\beta-2$. $n$ coeff: $\beta=\alpha+\beta\Rightarrow\alpha=0$. Const: $-\alpha-\beta=\beta-2\Rightarrow-\beta=\beta-2\Rightarrow\beta=1$. So $a_n=1$? Check: $(n-1)\cdot1=(n+1)\cdot1-2=n-1$✓. So particular $a_n=1$. General $a_n=C\frac{n(n-1)}{2}+1$. $a_{2000}=C\cdot1999000+1\equiv1\pmod8$ (since $1999000\equiv0\pmod8$). Not divisible by 8. Impossible.
+
+So definitively, the consistent variant is $-2(n+1)$. I'll solve that version. But I'm uneasy about changing the problem. 
+
+Hmm, let me reconsider the original problem statement once more: "$(n-1) a_{n+1}=(n+1) a_{n}-2(n-1)$". 
+
+What if I misread and it's actually $-2(n+1)$ in the original Chinese and the translation/transcription here has a typo? Given the impossibility proof, I'm confident it's a typo and the intended is $-2(n+1)$.
+
+Actually, hold on. Let me reconsider. What if the recurrence is correct as $-2(n-1)$ but I need $a_n$ to NOT necessarily come from a single free parameter — what if $a_1$ is also free and the recurrence only for $n\geq2$? Then $a_2$ is free, $a_1$ free but irrelevant. Same result. No.
+
+Alternatively — what if the problem means $2008\mid a_{2000}$ is a given (axiom) and we shouldn't question it, and the recurrence might force a specific $a_2$ that... but we showed no $a_2$ works. So it's genuinely inconsistent.
+
+Given the task says "solve the problem completely" and "you may use computation for exploration or verification," but also "do not search for this exact problem," I think the intended path is to solve the well-posed version. Let me go with $-2(n+1)$ and find the answer, but I should note the issue. Actually, the instructions say output the proof directly. Let me reconsider whether to flag the inconsistency or solve the intended version.
+
+Hmm, actually, let me reconsider the original ONE more time, very carefully, because maybe I'm wrong about divisibility.
+
+$a_{2000} = 1999(1000C+2)$ where $C=a_2-2\in\mathbb{Z}$.
+
+For $2008\mid a_{2000}$: $2008 = 8\cdot251$.
+- $8\mid a_{2000}$: $a_{2000}\bmod8 = (1999\bmod8)\cdot((1000C+2)\bmod8) = 7\cdot(0+2)=14\equiv6$. So $a_{2000}\equiv6\pmod8$. $8\nmid a_{2000}$. 
+
+This is airtight. The problem as stated is inconsistent.
+
+Given the instructions: "If you cannot solve this problem, say ### I CANNOT SOLVE THIS". But the issue isn't that I can't solve it—it's that it's inconsistent. The instructions also mention answer leak detection but not inconsistency detection.
+
+I think the right call: the problem has a typo, the intended recurrence is $(n-1)a_{n+1}=(n+1)a_n-2(n+1)$, and I should solve that. This is a famous problem (2008 CMO problem 5, likely). Let me solve the intended version and present it, noting the typo.
+
+Actually, let me reconsider whether it might be $-2(n+1)$ vs some other. Let me search my memory: I recall a problem: "$(n-1)a_{n+1}=(n+1)a_n-2(n+1)$, $2008\mid a_{2000}$, find smallest $n\geq2$ with $2008\mid a_n$." I believe the answer is $n=502$. Let me verify with the $-2(n+1)$ variant.
+
+$a_n = n\left(\frac{C(n-1)}{2}+2\right)$, $C\equiv112\pmod{251}$.
+
+We need smallest $n\geq2$ with $8\mid a_n$ and $251\mid a_n$.
+
+$251\mid a_n$: either $251\mid n$ or $251\mid\frac{C(n-1)}{2}+2$.
+
+$8\mid a_n$: $a_n = n\left(\frac{C(n-1)}{2}+2\right)$. Let me denote $f(n)=\frac{C(n-1)}{2}+2$. Note $C(n-1)$ must be even for $a_n$ integer; since $a_n$ is always integer (given), $C(n-1)$ even for all $n$, which requires $C$ even (so that for odd $n-1$, still even). Actually $n(n-1)$ is even so $C\frac{n(n-1)}{2}$ integer always; $a_n=n\cdot f(n)$ where $f(n)=\frac{C(n-1)}{2}+2$. For $a_n$ integer we need... $a_n=C\frac{n(n-1)}{2}+2n$, always integer. But $f(n)=\frac{C(n-1)}{2}+2$ need not be integer. However $n\cdot f(n)=a_n$ integer. So when $n$ is odd, $f(n)$ must be integer, requiring $C$ even. When $n$ even, $n\cdot f(n)$ integer regardless. Actually for the sequence to be all integers, we need $C$ even? Let me check: $a_3 = C\cdot3+6=3C+6$, integer for any $C$. $a_2=C+4$. $a_5=C\cdot10+10=10C+10$. All integer for any integer $C$. So $C$ any integer. $f(n)=\frac{C(n-1)}{2}+2$; for odd $n$, $n-1$ even, $f$ integer iff $C$ even? No: $n-1$ even means $\frac{C(n-1)}{2}$ integer always. For even $n$, $n-1$ odd, $\frac{C(n-1)}{2}$ integer iff $C$ even. But $a_n=n\cdot f(n)$ with $n$ even: $n\cdot\frac{C(n-1)}{2}=\frac{Cn(n-1)}{2}$ integer since $n$ even. So $a_n$ integer always, but $f(n)$ may be half-integer when $n$ even and $C$ odd.
+
+This complicates the $251\mid f(n)$ analysis. Let me work directly with $a_n = C\frac{n(n-1)}{2}+2n$.
+
+$251\mid a_n \iff 251\mid \left(C\frac{n(n-1)}{2}+2n\right) \iff 251\mid n\left(\frac{C(n-1)}{2}+2\right)$.
+
+Since $251$ prime and odd, $251\mid a_n\iff 251\mid n$ or $251\mid\left(C(n-1)+4\right)$ (multiplying the bracket by 2, since $\gcd(2,251)=1$; careful: $\frac{C(n-1)}{2}+2\equiv0\pmod{251}\iff C(n-1)+4\equiv0\pmod{251}$, valid because $2$ invertible mod 251).
+
+So $251\mid a_n \iff [251\mid n] \text{ or } [C(n-1)\equiv -4\pmod{251}]$.
+
+Given $C\equiv112\pmod{251}$, the second condition: $112(n-1)\equiv-4\pmod{251}$, $n-1\equiv -4\cdot112^{-1}\pmod{251}$. $112^{-1}\pmod{251}$: $251=112\cdot2+27$, $112=27\cdot4+4$, $27=4\cdot6+3$, $4=3\cdot1+1$. Back: $1=4-3=4-(27-4\cdot6)=7\cdot4-27=7(112-27\cdot4)-27=7\cdot112-29\cdot27=7\cdot112-29(251-2\cdot112)=65\cdot112-29\cdot251$. So $112^{-1}\equiv65\pmod{251}$. Check: $112\cdot65=7280$. $251\cdot29=7279$. $7280-7279=1$✓.
+
+So $n-1\equiv -4\cdot65=-260\pmod{251}$. $-260+2\cdot251=-260+502=242$. So $n-1\equiv242\pmod{251}$, $n\equiv243\pmod{251}$.
+
+So $251\mid a_n\iff n\equiv0\pmod{251}$ or $n\equiv243\pmod{251}$.
+
+Now $8\mid a_n$: $a_n=C\frac{n(n-1)}{2}+2n$. $\bmod8$. This depends on $C\bmod8$ and $n\bmod8$ (and $n\bmod16$ for the $\frac{n(n-1)}{2}$ term potentially). Hmm, $\frac{n(n-1)}{2}\bmod8$ depends on $n\bmod16$. This is getting complicated and $C\bmod8$ is free. So the answer would depend on $C\bmod8$?? That can't be.
+
+Wait, unless the problem intends $C$ to be fully determined. Let me reconsider: maybe $2008\mid a_{2000}$ determines $C$ completely mod 2008, not just mod 251. Let me recheck: $a_{2000}=C\cdot1999000+4000$. $2008\mid a_{2000}\iff 2008\mid(C\cdot1999000+4000)$. $1999000\bmod2008$: $2008\cdot994=1995952$, $1999000-1995952=3048$; $3048-2008=1040$. So $1999000\equiv1040\pmod{2008}$. $4000\bmod2008=4000-2008=1992$. So $a_{2000}\equiv1040C+1992\pmod{2008}$. Set $\equiv0$: $1040C\equiv-1992\pmod{2008}$. $-1992\bmod2008=16$. So $1040C\equiv16\pmod{2008}$.
+
+$\gcd(1040,2008)$: $2008=1040\cdot1+968$, $1040=968+72$, $968=72\cdot13+32$, $72=32\cdot2+8$, $32=8\cdot4$. So $\gcd=8$. $8\mid16$✓. Divide by 8: $130C\equiv2\pmod{251}$. $\gcd(130,251)$: $251=130+121$, $130=121+9$, $121=9\cdot13+4$, $9=4\cdot2+1$. $\gcd=1$. $130^{-1}\pmod{251}$: $1=9-4\cdot2=9-(121-9\cdot13)\cdot2=27\cdot9-2\cdot121=27(130-121)-2\cdot121=27\cdot130-29\cdot121=27\cdot130-29(251-130)=56\cdot130-29\cdot251$. So $130^{-1}\equiv56$. $C\equiv2\cdot56=112\pmod{251}$. 
+
+So $C\equiv112\pmod{251}$, and $C\bmod8$ is FREE (the equation $1040C\equiv16\pmod{2008}$ has solutions $C\equiv112\pmod{251}$, and since $2008=8\cdot251$ with the 8-part automatically satisfied, $C$ mod 8 is unconstrained). So indeed $C\bmod8$ is free, meaning different valid sequences give different $C\bmod8$, and the smallest $n$ with $8\mid a_n$ could vary. That means the problem is ill-posed even with the $-2(n+1)$ variant!
+
+Unless... the smallest $n$ with $2008\mid a_n$ is the same regardless of $C\bmod8$. Let me check. The candidates for $251\mid a_n$ are $n\equiv0$ or $243\pmod{251}$, smallest being $n=243$ (since $243<251$) and then $n=251$, $n=494=243+251$, etc. Wait $n\geq2$, smallest $n$ with $251\mid a_n$ is $n=243$ (if $8\mid a_{243}$) or we check $n=251$, etc.
+
+But $8\mid a_n$ depends on $C\bmod8$. So for some $C$, $8\mid a_{243}$, for others not. The problem asks for THE smallest $n$, implying uniqueness. So either:
+(a) $8\mid a_n$ is automatic for all $n\equiv0$ or $243\pmod{251}$ (regardless of $C\bmod8$), or
+(b) the problem is still ill-posed.
+
+Let me check (a). $a_n=C\frac{n(n-1)}{2}+2n$. For $n\equiv0\pmod{251}$: write $n=251k$. $a_n=C\frac{251k(251k-1)}{2}+2\cdot251k$. $\bmod8$: depends on $k$ and $C$. Not obviously 0.
+
+For $n\equiv243\pmod{251}$: $n=243+251k$. Also depends.
+
+So (a) is false in general. Hence the $-2(n+1)$ variant is also ill-posed?! That's strange for a competition problem.
+
+Let me reconsider. Maybe I have the wrong particular solution or the wrong variant entirely. Let me reconsider the original recurrence and think about whether the problem might actually be well-posed with a different reading.
+
+Hold on—let me reconsider the ORIGINAL recurrence $-2(n-1)$ but with the possibility that the problem is well-posed and I made an arithmetic error in $a_{2000}\bmod8$. Let me recompute $a_{2000}$ from scratch with $a_n=(n-1)(\frac{Cn}{2}+2)$, $C=a_2-2$.
+
+$a_{2000}=1999\cdot(\frac{2000C}{2}+2)=1999(1000C+2)$.
+$1999=8\cdot249+7$, so $1999\equiv7\pmod8$.
+$1000=8\cdot125$, $1000C\equiv0\pmod8$, $1000C+2\equiv2\pmod8$.
+$7\cdot2=14\equiv6\pmod8$.
+$a_{2000}\equiv6\pmod8$. Confirmed impossible.
+
+So original is definitely inconsistent. 
+
+Let me now think harder about what the correct problem is. This is "Five. (15 points)" suggesting problem 5 of a competition, 15 points. The year 2008 and 2000. Let me think about the 2008 China Mathematical Competition (CMO) or the national high school competition.
+
+I recall a problem: Let $\{a_n\}$ be an integer sequence satisfying $(n-1)a_{n+1}=(n+1)a_n-2(n+1)$ for all $n\in\mathbb{N}_+$, and $2008\mid a_{2000}$. Find the least $n\geq2$ such that $2008\mid a_n$.
+
+But we showed that's ill-posed due to free $C\bmod8$. Unless I made an error. Let me recheck whether $C\bmod8$ is really free.
+
+The condition is $2008\mid a_{2000}$, i.e., $1040C+1992\equiv0\pmod{2008}$ (from the $-2(n+1)$ variant). We found this $\iff C\equiv112\pmod{251}$, with $C\bmod8$ free. Let me double-check by plugging $C=112$: $1040\cdot112+1992=116480+1992=118472$. $118472/2008=59$? $2008\cdot59=118472$. Yes! So $C=112$ works. Now $C=112+251=363$: $1040\cdot363+1992=377520+1992=379512$. $379512/2008=189$? $2008\cdot189=379512$. Yes. $363\bmod8=363-360=3$. $112\bmod8=0$. So $C\bmod8$ differs (0 vs 3) between two valid sequences. So indeed free. 
+
+So with $C=112$ ($C\bmod8=0$): $a_n=112\frac{n(n-1)}{2}+2n=56n(n-1)+2n$. $a_{243}=56\cdot243\cdot242+486$. $243\cdot242=58806$. $56\cdot58806=3293136$. $+486=3293622$. $\bmod8$: $56\equiv0\pmod8$, so $56n(n-1)\equiv0\pmod8$, $a_n\equiv2n\pmod8$. $a_{243}\equiv2\cdot243=486\equiv6\pmod8$. So $8\nmid a_{243}$ for $C=112$. Next candidate $n=251$: $a_{251}\equiv2\cdot251=502\equiv6\pmod8$. Not 8. $n=494$: $2\cdot494=988\equiv4\pmod8$. Not. $n=502=2\cdot251$: $2\cdot502=1004\equiv4$. $n=745=243+502$? Wait candidates are $n\equiv0$ or $243\pmod{251}$: $243,251,494,502,737,745,...$. $a_n\equiv2n\pmod8$ (for $C\equiv0\pmod8$). $2n\equiv0\pmod8\iff n\equiv0\pmod4$. Among candidates: $243\bmod4=3$, $251\bmod4=3$, $494\bmod4=2$, $502\bmod4=2$, $737\bmod4=1$, $745\bmod4=1$, $988=4\cdot247$ so $988\bmod4=0$! $988=251\cdot4-16=1004-16$... $251\cdot4=1004$, $988=1004-16$, so $988\not\equiv0\pmod{251}$. Let me list candidates properly: $n\equiv0\pmod{251}$: $251,502,753,1004,...$. $n\equiv243\pmod{251}$: $243,494,745,996,...$. Combined sorted: $243,251,494,502,745,753,996,1004,...$. Need $n\equiv0\pmod4$: $243(3),251(3),494(2),502(2),745(1),753(1),996(0!)$, $1004(0)$. So $n=996$ is first with $n\equiv0\pmod4$ among candidates. $996=243+753=243+3\cdot251$. So $n\equiv243\pmod{251}$, $996=243+3\cdot251$. $996\bmod4=0$. So $a_{996}\equiv2\cdot996=1992\equiv0\pmod8$ (since $1992=8\cdot249$). So for $C=112$, smallest is $n=996$.
+
+Now with $C=363$ ($C\bmod8=3$): $a_n=363\frac{n(n-1)}{2}+2n$. $\frac{n(n-1)}{2}\bmod8$ depends on $n\bmod16$. This gives different answer. So the answer depends on $C$! Ill-posed.
+
+So the $-2(n+1)$ variant is ill-posed too. Something is fundamentally off in my approach. Let me reconsider.
+
+Hmm, wait. Maybe the recurrence is correct as originally stated $-2(n-1)$, and the problem is well-posed, and I'm wrong that it's impossible. Let me re-examine the possibility that $a_2$ is NOT free—maybe the recurrence for $n=1$ doesn't just give $a_1=0$ but the problem intends the recurrence for $n\geq2$ and $a_1$ is free, and then there's a consistency... no, $a_1$ doesn't affect $a_{2000}$.
+
+OR maybe the sequence is defined for $n\geq0$ or the indexing is shifted. Let me try: suppose the recurrence is for $n\geq1$ but $a_n$ indexed from $a_0$. I.e., $(n-1)a_n = (n+1)a_{n-1}-2(n-1)$? That's just reindexing. Same structure.
+
+Let me try a completely different interpretation: maybe it's $(n-1)a_{n+1} = (n+1)(a_n - 2)(n-1)$? No, that's weird.
+
+Or maybe $-2(n-1)$ means $-2\cdot a_{n-1}$? Let me try $(n-1)a_{n+1}=(n+1)a_n-2a_{n-1}$? That's a second-order recurrence, very different. Unlikely given notation.
+
+Let me step back and think about what makes a clean problem. We want: a one-parameter family (parameter $C$), condition $2008\mid a_{2000}$ pins $C$ to a single residue mod 2008 (so $C\bmod8$ AND $C\bmod251$ both fixed), then find smallest $n$ with $2008\mid a_n$. For $C\bmod8$ to be pinned, we need $a_{2000}\bmod8$ to depend on $C\bmod8$ (i.e., the coefficient of $C$ in $a_{2000}$ must be odd, or at least not divisible by 8).
+
+In the original $-2(n-1)$: $a_{2000}=1999(1000C+2)$, coefficient of $C$ is $1999\cdot1000=1999000\equiv0\pmod8$. So $C\bmod8$ free AND $a_{2000}\bmod8$ fixed at 6 (impossible). 
+
+For the problem to be well-posed, we need the coefficient of $C$ in $a_{2000}$ to be coprime to 2008 (or at least to 8 and 251). The coefficient is $\frac{2000\cdot1999}{2}=1999000=2^3\cdot\cdots$. It's divisible by 8. So ANY recurrence of this homogeneous-part form gives coefficient $\frac{2000\cdot1999}{2}$ for $C$, which is $\equiv0\pmod8$. So $C\bmod8$ is ALWAYS free, and $a_{2000}\bmod8$ is always fixed (equal to the particular solution's value at 2000 mod 8). For the problem to be consistent, we need the particular solution at $n=2000$ to be $\equiv0\pmod8$.
+
+Particular solution $p_n$: for $-2(n-1)$, $p_n=2(n-1)$, $p_{2000}=3998\equiv6\pmod8$. ✗.
+For $-2(n+1)$, $p_n=2n$, $p_{2000}=4000\equiv0\pmod8$. ✓ (consistent, but $C\bmod8$ free → ill-posed).
+For $-2n$, $p_n=2n-1$, $p_{2000}=3999\equiv7$. ✗.
+For $+2(n-1)$, $p_n=-2(n-1)$, $p_{2000}=-3998\equiv2$. ✗.
+For constant $-2$, $p_n=1$, $p_{2000}=1$. ✗.
+For $-2(n+1)$: consistent but ill-posed (free $C\bmod8$).
+
+Hmm. So with a one-parameter family, $C\bmod8$ is always free (since coeff $\equiv0\pmod8$), so the problem is always ill-posed unless $8\mid a_n$ is automatic for the candidate $n$'s. 
+
+Wait, unless the problem is well-posed because the answer is the same for all $C\bmod8$! Let me reconsider. Maybe for the $-2(n+1)$ variant, the smallest $n$ with $2008\mid a_n$ is the same regardless of $C\bmod8$. Let me check more carefully with $C=363$ ($C\bmod8=3$).
+
+$a_n=363\frac{n(n-1)}{2}+2n$. $\bmod8$: $363\equiv3\pmod8$. So $a_n\equiv3\cdot\frac{n(n-1)}{2}+2n\pmod8$. Need $\frac{n(n-1)}{2}\bmod8$, which depends on $n\bmod16$.
+
+Candidates (where $251\mid a_n$): $n\equiv0$ or $243\pmod{251}$: $243,251,494,502,745,753,996,1004,1247,1255,...$
+
+For each, compute $a_n\bmod8$ with $C\equiv3\pmod8$:
+- $n=243$: $n\bmod16=243-16\cdot15=243-240=3$. $\frac{243\cdot242}{2}=\frac{58806}{2}=29403$. $29403\bmod8$: $29403=8\cdot3675+3$, so $\equiv3$. $a\equiv3\cdot3+2\cdot243=9+486=495\equiv495-8\cdot61=495-488=7\pmod8$. Not 0.
+- $n=251$: $n\bmod16=251-240=11$. $\frac{251\cdot250}{2}=\frac{62750}{2}=31375$. $31375\bmod8=31375-8\cdot3921=31375-31368=7$. $a\equiv3\cdot7+2\cdot251=21+502=523\equiv523-8\cdot65=523-520=3\pmod8$. Not 0.
+- $n=494$: $n\bmod16=494-16\cdot30=494-480=14$. $\frac{494\cdot493}{2}=\frac{243542}{2}=121771$. $121771\bmod8=121771-8\cdot15221=121771-121768=3$. $a\equiv3\cdot3+2\cdot494=9+988=997\equiv997-8\cdot124=997-992=5\pmod8$. Not 0.
+- $n=502$: $n\bmod16=502-496=6$. $\frac{502\cdot501}{2}=\frac{251502}{2}=125751$. $125751\bmod8=125751-8\cdot15718=125751-125744=7$. $a\equiv3\cdot7+2\cdot502=21+1004=1025\equiv1025-8\cdot128=1025-1024=1\pmod8$. Not 0.
+- $n=745$: $n\bmod16=745-736=9$. $\frac{745\cdot744}{2}=\frac{554280}{2}=277140$. $277140\bmod8=277140-8\cdot34642=277140-277136=4$. $a\equiv3\cdot4+2\cdot745=12+1490=1502\equiv1502-8\cdot187=1502-1496=6\pmod8$. Not 0.
+- $n=753$: $n\bmod16=753-752=1$. $\frac{753\cdot752}{2}=\frac{566256}{2}=283128$. $283128\bmod8=283128-8\cdot35391=283128-283128=0$. $a\equiv3\cdot0+2\cdot753=1506\equiv1506-8\cdot188=1506-1504=2\pmod8$. Not 0.
+- $n=996$: $n\bmod16=996-992=4$. $\frac{996\cdot995}{2}=\frac{991020}{2}=495510$. $495510\bmod8=495510-8\cdot61938=495510-495504=6$. $a\equiv3\cdot6+2\cdot996=18+1992=2010\equiv2010-8\cdot251=2010-2008=2\pmod8$. Not 0.
+- $n=1004$: $n\bmod16=1004-1008=-4\equiv12$. $\frac{1004\cdot1003}{2}=\frac{1007012}{2}=503506$. $503506\bmod8=503506-8\cdot62938=503506-503504=2$. $a\equiv3\cdot2+2\cdot1004=6+2008=2014\equiv2014-2008=6\pmod8$. Not 0.
+- $n=1247$: $n\bmod16=1247-1248=-1\equiv15$. $\frac{1247\cdot1246}{2}=\frac{1553762}{2}=776881$. $776881\bmod8=776881-8\cdot97110=776881-776880=1$. $a\equiv3\cdot1+2\cdot1247=3+2494=2497\equiv2497-8\cdot312=2497-2496=1\pmod8$. Not 0.
+- $n=1255$: $n\bmod16=1255-1248=7$. $\frac{1255\cdot1254}{2}=\frac{1573770}{2}=786885$. $786885\bmod8=786885-8\cdot98360=786885-786880=5$. $a\equiv3\cdot5+2\cdot1255=15+2510=2525\equiv2525-8\cdot315=2525-2520=5\pmod8$. Not 0.
+
+Hmm, none so far. For $C=112$ ($C\bmod8=0$) we found $n=996$ works. For $C=363$ ($C\bmod8=3$), $n=996$ gives $a\equiv2\pmod8$, doesn't work. So the answer differs. Ill-posed confirmed for the $-2(n+1)$ variant.
+
+So NEITHER variant is well-posed?! That's very confusing. Let me reconsider the whole approach.
+
+Maybe the recurrence is different such that the homogeneous coefficient is NOT $\frac{n(n-1)}{2}$. What if the recurrence is $n a_{n+1} = (n+2)a_n - \text{something}$, or the indices differ. Let me reconsider the original: $(n-1)a_{n+1}=(n+1)a_n-2(n-1)$. The homogeneous ratio is $\frac{n+1}{n-1}$, product $\frac{n(n-1)}{2}$. 
+
+What if instead the recurrence is $(n-1)a_{n+1}=(n+1)a_n-2(n-1)$ but we should look for $a_n$ mod 2008 only considering the 251 part and the 8 part separately, and the problem actually IS well-posed because... 
+
+Actually, wait. Let me reconsider. Maybe the problem is well-posed with the ORIGINAL recurrence and I need to reconsider: perhaps $a_{2000}\equiv6\pmod8$ is fine and the condition $2008\mid a_{2000}$ is just impossible, meaning the problem is testing something else. No, the problem says "it satisfies... and $2008\mid a_{2000}$", asserting existence.
+
+Let me reconsider: maybe I have the wrong homogeneous solution because the recurrence might be valid only for $n\geq2$ and $a_1$ is free, AND there's a relation I'm missing. No.
+
+Alternatively, maybe the recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$ but $a_n$ are not necessarily integers at every step—wait, problem says integer sequence.
+
+OK let me try to actually look at this differently. Let me consider that maybe the problem is correct and well-posed, and reconsider my claim that $C\bmod8$ is free. The key insight: $a_{2000}\bmod8 = (\text{particular})\bmod8$ is FIXED regardless of $C$ (since coeff of $C$ is $\equiv0\pmod8$). For the original, it's 6 (impossible). So original is inconsistent. Full stop.
+
+Given that, the problem MUST have a typo. The question is what typo makes it well-posed. For well-posedness, we need (i) particular solution at 2000 ≡ 0 mod 8 (consistency), and (ii) the answer independent of $C\bmod8$.
+
+Condition (ii) is the tricky one. When is the smallest $n$ with $2008\mid a_n$ independent of $C\bmod8$? 
+
+$a_n = C\frac{n(n-1)}{2}+p_n$ where $p_n$ is particular. $8\mid a_n \iff C\frac{n(n-1)}{2}\equiv -p_n\pmod8$. Since $C\bmod8$ free, for this to hold for ALL valid $C$ (i.e., the answer $n$ works regardless), we'd need $\frac{n(n-1)}{2}\equiv0\pmod8$ AND $p_n\equiv0\pmod8$. $\frac{n(n-1)}{2}\equiv0\pmod8\iff n(n-1)\equiv0\pmod{16}\iff n\equiv0$ or $1\pmod{16}$ (since $n,n-1$ consecutive, one even; need the even one divisible by 16, i.e., $n\equiv0$ or $1\pmod{16}$). So for $n\equiv0$ or $1\pmod{16}$, $a_n\equiv p_n\pmod8$ independent of $C$. 
+
+So if the smallest $n$ (with $251\mid a_n$) that also satisfies $n\equiv0$ or $1\pmod{16}$ AND $p_n\equiv0\pmod8$ is the answer, and it's the same for all $C$... but for $C$ where a smaller $n$ (not $\equiv0,1\pmod{16}$) happens to satisfy $8\mid a_n$, that smaller $n$ would be the answer for that $C$. So the answer is NOT independent unless no smaller candidate ever works for any $C$.
+
+This is getting really deep. I think I'm overcomplicating. Let me reconsider: perhaps the problem is well-posed and the answer is determined, and I should just solve it assuming the recurrence as given but recognizing the typo is minor. 
+
+Actually, let me reconsider the possibility that the recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$ and it's CORRECT, and the trick is that the condition $2008\mid a_{2000}$ combined with the recurrence forces something I'm not seeing. But mod 8 it's literally impossible. So no.
+
+Let me try assuming the recurrence is $(n-1)a_{n+1}=(n+1)a_n-2(n+1)$ (the consistent variant) and just compute the answer for the "generic" or intended $C$. But which $C$? 
+
+Hmm, actually, wait. Let me reconsider whether the problem might have the recurrence $(n-1)a_{n+1}=(n+1)a_n-2(n-1)$ and condition $2008\mid a_{2008}$ (not $a_{2000}$). Let me check consistency: $a_{2008}=2007(1004C+2)$ (with original particular $2(n-1)$, $a_{2008}=(2007)(\frac{2008C}{2}+2)=2007(1004C+2)$). $2007\bmod8=2007-2000=7$. $1004C+2\bmod8=4C+2$. $a_{2008}\equiv7(4C+2)=28C+14\equiv4C+6\pmod8$. For $8\mid a_{2008}$: $4C+6\equiv0\pmod8\Rightarrow4C\equiv2\pmod8$, impossible (LHS even multiple of 4, $\equiv0$ or $4$). So still impossible.
+
+What about condition $2008\mid a_{2008}$ with the $-2(n+1)$ variant: $a_{2008}=2008(1004C+2)=2008\cdot(\ldots)$. Oh! $a_{2008}=2008(1004C+2)$, which is ALWAYS divisible by 2008! So the condition would be trivial. Not interesting.
+
+Let me try original recurrence with condition $2008\mid a_{2000}$ replaced by something. This is getting nowhere.
+
+Let me take yet another approach: maybe the recurrence is correct, and the problem is from a specific competition, and the answer is known to be 502. Let me just try to see if $n=502$ makes sense with some interpretation.
+
+Actually, let me reconsider the problem completely. Let me re-examine: maybe the recurrence is $(n-1)a_{n+1} = (n+1)a_n - 2(n-1)$ and I should solve it mod 251 and mod 8 separately, and the condition $2008\mid a_{2000}$, while impossible mod 8... 
+
+No. It's impossible. I keep confirming.
+
+New idea: maybe the "$2(n-1)$" is actually "$2^{(n-1)}$" (2 to the power n-1)? That would be a very different recurrence. $(n-1)a_{n+1}=(n+1)a_n - 2^{n-1}$. Hmm, that's possible if the original used superscript notation. But then it's not a linear recurrence with constant-ish particular solution. Let me not go there.
+
+Another idea: maybe it's $(n-1)a_{n+1} = (n+1)a_n - 2(n+1)$ and the problem IS well-posed and I made an error in the ill-posedness analysis. Let me recheck: is $C\bmod8$ really free, or does the integer sequence condition restrict it?
+
+The sequence is integer for all $n$. $a_n=C\frac{n(n-1)}{2}+2n$. For this to be integer for all $n\geq1$: $\frac{n(n-1)}{2}$ is always integer, so $a_n$ integer for any integer $C$. No restriction on $C\bmod8$. So $C\bmod8$ free. Ill-posed confirmed.
+
+Unless the problem means something by "smallest $n$ such that $2008\mid a_n$" that's the smallest over ALL valid sequences? Or the smallest $n$ that works for ALL valid $C$? That would be a different (and well-posed) question: "find the smallest $n\geq2$ such that $2008\mid a_n$ for every integer sequence satisfying the recurrence and $2008\mid a_{2000}$." 
+
+Hmm, but the natural reading is "for the given sequence." Let me reconsider: in competition problems, when a sequence is given with a free parameter and a condition, the condition usually pins the parameter enough that the answer is unique. If $C\bmod8$ is free, the problem is flawed. But maybe the intended reading is "for all such sequences" or the answer happens to be unique.
+
+Let me check: is there an $n$ that works for ALL $C\equiv112\pmod{251}$ (all $C\bmod8$)? We need $251\mid a_n$ (independent of $C\bmod8$ since $251\mid a_n$ depends on $C\bmod251=112$, fixed) AND $8\mid a_n$ for all $C\bmod8$. $8\mid a_n$ for all $C\bmod8$ requires $\frac{n(n-1)}{2}\equiv0\pmod8$ (so the $C$-term vanishes mod 8) and $p_n\equiv0\pmod8$.
+
+For the $-2(n+1)$ variant, $p_n=2n$. $\frac{n(n-1)}{2}\equiv0\pmod8\iff n\equiv0,1\pmod{16}$. $2n\equiv0\pmod8\iff n\equiv0\pmod4$. Combined: $n\equiv0\pmod{16}$ (since $n\equiv0\pmod4$ and $n\equiv0$ or $1\pmod{16}$ → $n\equiv0\pmod{16}$). Wait $n\equiv0\pmod4$ means $n\equiv0$ or $4$ or $8$ or $12\pmod{16}$. Intersect with $\{0,1\}\pmod{16}$: only $n\equiv0\pmod{16}$. So need $n\equiv0\pmod{16}$ and ($n\equiv0$ or $243\pmod{251}$).
+
+Smallest $n\geq2$ with $n\equiv0\pmod{16}$ and ($n\equiv0$ or $243\pmod{251}$):
+- $n\equiv0\pmod{251}$ and $n\equiv0\pmod{16}$: $\text{lcm}(251,16)=4016$ (since $\gcd=1$). Smallest positive $=4016$. (Also $n=0$ but $n\geq2$.)
+- $n\equiv243\pmod{251}$ and $n\equiv0\pmod{16}$: $n=243+251k$, $243+251k\equiv0\pmod{16}$. $243\bmod16=243-240=3$. $251\bmod16=11$. $3+11k\equiv0\pmod{16}\Rightarrow11k\equiv-3\equiv13\pmod{16}$. $11^{-1}\pmod{16}$: $11\cdot3=33\equiv1\pmod{16}$. So $k\equiv3\cdot13=39\equiv7\pmod{16}$. Smallest $k=7$: $n=243+251\cdot7=243+1757=2000$. Oh interesting, $n=2000$! That's the given. Next $k=7+16=23$: $n=243+251\cdot23=243+5773=6016$. So smallest in this branch $\geq2$ (other than 2000) is 6016. But 2000 is the given condition. The next after 2000 in this branch is 6016.
+
+So the smallest $n$ (other than 2000) that works for ALL $C$ would be $\min(4016, 6016)=4016$? But wait we should also check $n$ between, and also $n=2000$ itself is given. The problem asks smallest $n\geq2$ with $2008\mid a_n$; $n=2000$ is one such (given). We want the smallest, so $n<2000$ possibly. But for "all $C$" interpretation, $n$ must be $\equiv0\pmod{16}$ and $\equiv0$ or $243\pmod{251}$, smallest $\geq2$: $n=4016$? No wait that's $>2000$. And $n=2000$ works (it's $\equiv243\pmod{251}$? $2000\bmod251$: $251\cdot7=1757$, $2000-1757=243$. Yes! $2000\equiv243\pmod{251}$, and $2000\equiv0\pmod{16}$ ($2000=16\cdot125$). So $n=2000$ works for all $C$. Are there smaller $n$? $n\equiv0\pmod{16}$ and $n\equiv243\pmod{251}$: solutions $n=2000+4016t$ (since period $\text{lcm}(16,251)=4016$). So $n=2000, 6016, ...$ and $n=2000-4016<0$. So smallest positive in this class is 2000. And $n\equiv0\pmod{16}$ and $n\equiv0\pmod{251}$: $n=4016t$, smallest $\geq2$ is 4016. So the "for all $C$" smallest is 2000 itself—but that's the given, and the problem asks for it as if finding it (but it's given?). 
+
+Hmm, that doesn't work either. The problem gives $2008\mid a_{2000}$ and asks for smallest $n\geq2$ with $2008\mid a_n$. If the answer were 2000, that's trivial (given). So the answer must be $<2000$. So the "for all $C$" interpretation gives 2000 (trivial), not interesting.
+
+So the intended interpretation is "for the specific (given) sequence," and the answer is $<2000$, and it depends on $C\bmod8$. So the problem must pin $C\bmod8$ somehow. 
+
+This means the recurrence must be such that the coefficient of $C$ in $a_{2000}$ is NOT divisible by 8. But we showed it's always $\frac{2000\cdot1999}{2}=1999000\equiv0\pmod8$ for this homogeneous structure. So NO recurrence of the form $(n-1)a_{n+1}=(n+1)a_n + g(n)$ can pin $C\bmod8$ via $a_{2000}$.
+
+Therefore, the problem as a one-parameter family is fundamentally ill-posed (or trivial). UNLESS the recurrence is second-order or has a different structure that changes the homogeneous solution.
+
+Wait, unless the recurrence determines TWO parameters (e.g., if it's valid from $n=1$ and gives a relation at $n=1$ that doesn't collapse). For $(n-1)a_{n+1}=(n+1)a_n+\ldots$, at $n=1$: $0\cdot a_2 = 2a_1+\ldots$, giving $a_1$ in terms of constants, and $a_2$ free. So one free parameter. 
+
+What if the recurrence is $n\cdot a_{n+1} = (n+2)a_n + \ldots$ (shifted)? Then at $n=1$: $a_2=3a_1+\ldots$, one free param ($a_1$). Homogeneous ratio $\frac{n+2}{n}$, product $\prod_{k=1}^{n-1}\frac{k+2}{k}=\frac{3\cdot4\cdots(n+1)}{1\cdot2\cdots(n-1)}=\frac{(n+1)!/(2!)}{(n-1)!}=\frac{(n+1)n(n-1)!/(2)}{(n-1)!}=\frac{n(n+1)}{2}$. Coefficient of $C$ in $a_{2000}$: $\frac{2000\cdot2001}{2}=2001000\equiv0\pmod8$ (since $2001000=8\cdot250125$). Still $\equiv0\pmod8$. Hmm.
+
+What about $\frac{n(n+1)}{2}$ vs needing odd coefficient... For the coefficient to be odd mod 8, we'd need $\frac{n(n\pm1)}{2}$ to be odd, i.e., $n(n\pm1)\equiv2\pmod{16}$, i.e., one of $n, n\pm1$ is $\equiv2\pmod{16}$ (the even one is $2\pmod{16}$). For $n=2000$: $2000\equiv0\pmod{16}$, so $2000\cdot1999$ has $2000$ divisible by 16, product $\equiv0\pmod{16}$, half $\equiv0\pmod8$. For $n=2000\cdot2001$: $2000$ div by 16, same. So with $n=2000$, any $\frac{2000\cdot m}{2}$ with $m$ near 2000 gives coefficient $\equiv0\pmod8$ because $2000$ is divisible by 16. 
+
+So the issue is $2000=16\cdot125$, making the coefficient always $\equiv0\pmod8$. Hence $C\bmod8$ can never be pinned by $a_{2000}$. So the problem is ill-posed for ANY first-order linear recurrence of this type with condition on $a_{2000}$ and modulus 8.
+
+This strongly suggests the modulus is NOT $2008=8\cdot251$ with the 8-part mattering, OR the problem uses a different structure. 
+
+Wait—unless the 8-part is automatically satisfied for all $n$ where the 251-part is satisfied, making the 8-part irrelevant and the problem effectively about 251 only. Let me check for the original recurrence: $a_n\equiv6\pmod8$ for $n=2000$ (impossible). For the $-2(n+1)$ variant: $a_n\bmod8$ varies. Not automatic.
+
+Hmm, what if the modulus were just 251 (not 2008)? Then the problem is: $251\mid a_{2000}$, find smallest $n\geq2$ with $251\mid a_n$. With $a_n=(n-1)(\frac{Cn}{2}+2)$ (original), $251\mid a_{2000}=1999(1000C+2)$, $\gcd(1999,251)=1$, so $251\mid(1000C+2)$, $1000C\equiv-2\pmod{251}$, $1000\equiv247\equiv-4\pmod{251}$, $-4C\equiv-2\pmod{251}$, $4C\equiv2\pmod{251}$, $C\equiv2\cdot4^{-1}=2\cdot63$ (since $4\cdot63=252\equiv1$) $=126\pmod{251}$. Then $251\mid a_n\iff251\mid(n-1)$ or $251\mid(\frac{Cn}{2}+2)\iff Cn+4\equiv0\pmod{251}\iff126n\equiv-4\pmod{251}\iff n\equiv-4\cdot126^{-1}$. $126^{-1}\pmod{251}$: $251=126\cdot1+125$, $126=125+1$, so $1=126-125=126-(251-126)=2\cdot126-251$, $126^{-1}\equiv2$. $n\equiv-4\cdot2=-8\equiv243\pmod{251}$. So $251\mid a_n\iff n\equiv1\pmod{251}$ (from $251\mid(n-1)$) or $n\equiv243\pmod{251}$. Smallest $n\geq2$: $n=1$ is excluded ($n\geq2$), so $n\equiv1\pmod{251}$ gives $n=252$. $n\equiv243$ gives $n=243$. So smallest is $243$.
+
+So if the modulus were 251, answer is 243. If modulus 2008 with the 8-part, it's more complex.
+
+Hmm, $243$ is a plausible competition answer. But the problem says 2008.
+
+Let me reconsider. Maybe the problem is well-posed with modulus 2008 and the original recurrence, and the answer accounts for both 8 and 251, and I need to find the smallest $n$ with $8\mid a_n$ AND $251\mid a_n$, where $C$ is determined mod 251 (by the 251-part of the condition) and $C\bmod8$ is free BUT the problem asks for the smallest $n$ that works for the GIVEN sequence (any valid one), and the answer is the minimum over... no.
+
+Actually, you know what, let me just reconsider: maybe the problem is well-posed and the answer is unique because although $C\bmod8$ is free, the smallest $n<2000$ with $2008\mid a_n$ is the same for all $C\equiv126\pmod{251}$ (original recurrence, ignoring the 8-impossibility). But the 8-impossibility kills the original. 
+
+Let me try the $-2(n+1)$ variant and check if the smallest $n<2000$ with $2008\mid a_n$ is the same for all $C\equiv112\pmod{251}$, all $C\bmod8$. We need $251\mid a_n$ ($n\equiv0$ or $243\pmod{251}$) and $8\mid a_n$.
+
+For $C\bmod8=0$: $a_n\equiv2n\pmod8$ (since $C\frac{n(n-1)}{2}\equiv0$ when... no wait, $C\equiv0\pmod8$ means $C\frac{n(n-1)}{2}\equiv0\pmod8$ only if $\frac{n(n-1)}{2}$ integer, which it is, and $C\equiv0\pmod8$ so $C\cdot(\text{integer})\equiv0\pmod8$. Yes.) So $a_n\equiv2n\pmod8$. $8\mid a_n\iff8\mid2n\iff4\mid n$. Candidates $n\equiv0,243\pmod{251}$, $n<2000$, $4\mid n$: 
+$n\equiv0\pmod{251}$: $251,502,753,1004,1255,1506,1757$ (next 2008>2000). Which $\equiv0\pmod4$: $251\bmod4=3,502\bmod4=2,753\bmod4=1,1004\bmod4=0$✓. So $n=1004$.
+$n\equiv243\pmod{251}$: $243,494,745,996,1247,1498,1749$. $\equiv0\pmod4$: $243(3),494(2),745(1),996(0)$✓. So $n=996$.
+Smallest: $\min(996,1004)=996$.
+
+For $C\bmod8=3$ (e.g., $C=363$): we computed candidates up to 1255, none had $8\mid a_n$. Let me continue. Actually this is tedious. Let me reconsider: for $C\bmod8=3$, $a_n\equiv3\frac{n(n-1)}{2}+2n\pmod8$. Need this $\equiv0$. Candidates $n\equiv0,243\pmod{251}$, $n<2000$.
+
+Let me compute for all candidates $n<2000$:
+$n\equiv0\pmod{251}$: $251,502,753,1004,1255,1506,1757$.
+$n\equiv243\pmod{251}$: $243,494,745,996,1247,1498,1749$.
+
+For each, $n\bmod16$ and $\frac{n(n-1)}{2}\bmod8$:
+$\frac{n(n-1)}{2}\bmod8$ depends on $n\bmod16$:
+- $n\bmod16=0$: $n=16k$, $\frac{16k(16k-1)}2=8k(16k-1)\equiv0\pmod8$.
+- $n\bmod16=1$: $\frac{(16k+1)(16k)}2=(16k+1)8k\equiv0$.
+- $n\bmod16=2$: $\frac{(16k+2)(16k+1)}2=(8k+1)(16k+1)\equiv1\cdot1=1\pmod8$ (since $8k+1\equiv1$, $16k+1\equiv1$). So $\equiv1$.
+- $n\bmod16=3$: $\frac{(16k+3)(16k+2)}2=(16k+3)(8k+1)\equiv3\cdot1=3$.
+- $n\bmod16=4$: $\frac{(16k+4)(16k+3)}2=(8k+2)(16k+3)\equiv2\cdot3=6$.
+- $n\bmod16=5$: $\frac{(16k+5)(16k+4)}2=(16k+5)(8k+2)\equiv5\cdot2=10\equiv2$.
+- $n\bmod16=6$: $\frac{(16k+6)(16k+5)}2=(8k+3)(16k+5)\equiv3\cdot5=15\equiv7$.
+- $n\bmod16=7$: $\frac{(16k+7)(16k+6)}2=(16k+7)(8k+3)\equiv7\cdot3=21\equiv5$.
+- $n\bmod16=8$: $\frac{(16k+8)(16k+7)}2=(8k+4)(16k+7)\equiv4\cdot7=28\equiv4$.
+- $n\bmod16=9$: $\frac{(16k+9)(16k+8)}2=(16k+9)(8k+4)\equiv9\cdot4=36\equiv4$... wait $9\bmod8=1$, $4\bmod8=4$, $1\cdot4=4$. Let me redo using $n\bmod16$ and computing $\frac{n(n-1)}2\bmod8$ directly with $n$ reduced mod 16 (but need $n(n-1)/2$ mod 8, and $n$ mod 16 suffices since we need $n(n-1)$ mod 16):
+  Actually $\frac{n(n-1)}2\bmod8$ requires $n(n-1)\bmod16$. $n\bmod16$ determines $n(n-1)\bmod16$. Let me just compute $t=\frac{n(n-1)}2\bmod8$ for $n\bmod16=0..15$:
+  - 0: $0\cdot(-1)/2=0$ → 0
+  - 1: $1\cdot0/2=0$ → 0
+  - 2: $2\cdot1/2=1$ → 1
+  - 3: $3\cdot2/2=3$ → 3
+  - 4: $4\cdot3/2=6$ → 6
+  - 5: $5\cdot4/2=10$ → 2
+  - 6: $6\cdot5/2=15$ → 7
+  - 7: $7\cdot6/2=21$ → 5
+  - 8: $8\cdot7/2=28$ → 4
+  - 9: $9\cdot8/2=36$ → 4
+  - 10: $10\cdot9/2=45$ → 5
+  - 11: $11\cdot10/2=55$ → 7
+  - 12: $12\cdot11/2=66$ → 2
+  - 13: $13\cdot12/2=78$ → 6
+  - 14: $14\cdot13/2=91$ → 3
+  - 15: $15\cdot14/2=105$ → 1
+
+Now for $C\bmod8=3$: $a_n\equiv3t+2n\pmod8$ where $t=\frac{n(n-1)}2\bmod8$, $2n\bmod8=2(n\bmod4)$.
+
+Candidates:
+$n=243$: $243\bmod16=3$, $t=3$. $2n\bmod8=2\cdot(243\bmod4)=2\cdot3=6$. $a\equiv3\cdot3+6=15\equiv7$. ✗
+$n=251$: $251\bmod16=11$, $t=7$. $2n=2\cdot3=6$. $a\equiv3\cdot7+6=27\equiv3$. ✗
+$n=494$: $494\bmod16=14$, $t=3$. $2n=2\cdot2=4$. $a\equiv3\cdot3+4=13\equiv5$. ✗
+$n=502$: $502\bmod16=6$, $t=7$. $2n=2\cdot2=4$. $a\equiv3\cdot7+4=25\equiv1$. ✗
+$n=745$: $745\bmod16=9$, $t=4$. $2n=2\cdot1=2$. $a\equiv3\cdot4+2=14\equiv6$. ✗
+$n=753$: $753\bmod16=1$, $t=0$. $2n=2\cdot1=2$. $a\equiv0+2=2$. ✗
+$n=996$: $996\bmod16=4$, $t=6$. $2n=2\cdot0=0$. $a\equiv3\cdot6+0=18\equiv2$. ✗
+$n=1004$: $1004\bmod16=12$, $t=2$. $2n=2\cdot0=0$. $a\equiv3\cdot2+0=6$. ✗
+$n=1247$: $1247\bmod16=15$, $t=1$. $2n=2\cdot3=6$. $a\equiv3\cdot1+6=9\equiv1$. ✗
+$n=1255$: $1255\bmod16=7$, $t=5$. $2n=2\cdot3=6$. $a\equiv3\cdot5+6=21\equiv5$. ✗
+$n=1498$: $1498\bmod16=10$, $t=5$. $2n=2\cdot2=4$. $a\equiv3\cdot5+4=19\equiv3$. ✗
+$n=1506$: $1506\bmod16=2$, $t=1$. $2n=2\cdot2=4$. $a\equiv3\cdot1+4=7$. ✗
+$n=1749$: $1749\bmod16=13$, $t=6$. $2n=2\cdot1=2$. $a\equiv3\cdot6+2=20\equiv4$. ✗
+$n=1757$: $1757\bmod16=5$, $t=2$. $2n=2\cdot1=2$. $a\equiv3\cdot2+2=8\equiv0$. ✓!
+
+So for $C\bmod8=3$, smallest is $n=1757$ (much larger than 996). So the answer depends heavily on $C\bmod8$. Definitely ill-posed for the $-2(n+1)$ variant.
+
+So neither variant is well-posed. I'm quite stuck on what the correct problem is.
+
+Let me reconsider from scratch. Maybe the recurrence is correct as stated, the problem IS well-posed, and I'm wrong about impossibility. Let me re-examine the $n=1$ case. $(n-1)a_{n+1}=(n+1)a_n-2(n-1)$ at $n=1$: $(0)a_2 = (2)a_1 - 2(0)$, i.e., $0=2a_1$, $a_1=0$. Fine.
+
+But what if the recurrence is meant for $n\geq 2$ only (and the problem's "$n\in\mathbb{N}_+$" is a slight abuse, or $\mathbb{N}_+$ means $n\geq2$ in their convention—unlikely)? Then $a_1$ and $

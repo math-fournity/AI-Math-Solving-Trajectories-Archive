@@ -1,0 +1,1251 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>deepmath_103k_00002488</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+In a group \(G\) generated by elements \(a\) and \(b\), where \(a^5 = e\), \(aba^{-1} = b^2\), and \(b \neq e\), determine the order of the element \(b\).
+
+## Standard Solution
+
+Okay, so I need to find the order of the element \( b \) in the group \( G \) generated by \( a \) and \( b \), given that \( a^5 = e \), \( aba^{-1} = b^2 \), and \( b \) is not the identity element. Let me try to work through this step by step.
+
+First, let me recall that in a group, the order of an element \( g \) is the smallest positive integer \( n \) such that \( g^n = e \). Here, we need to find the smallest such \( n \) for \( b \). The group is generated by \( a \) and \( b \), so all elements of \( G \) can be written as products of \( a \), \( b \), and their inverses. The relations given are \( a^5 = e \) and \( aba^{-1} = b^2 \). Also, it's important that \( b \neq e \), so the order of \( b \) must be at least 2.
+
+The key relation here seems to be \( aba^{-1} = b^2 \). This is a conjugation relation, which often indicates that \( a \) and \( b \) have some kind of interaction in terms of their group structure. Conjugation by \( a \) sends \( b \) to \( b^2 \). Maybe I can use this relation to find some constraints on the order of \( b \).
+
+Let me try to manipulate the equation \( aba^{-1} = b^2 \). If I conjugate \( b \) by \( a \) multiple times, perhaps I can find a pattern or an equation that relates powers of \( b \).
+
+Starting with \( aba^{-1} = b^2 \), if I apply conjugation by \( a \) again, then:
+
+\( a(aba^{-1})a^{-1} = a b^2 a^{-1} \).
+
+On the left-hand side, this simplifies to \( a^2 b a^{-2} \). On the right-hand side, since conjugation is a homomorphism, \( a b^2 a^{-1} = (a b a^{-1})^2 \). But we already know that \( a b a^{-1} = b^2 \), so substituting that in, we get \( (b^2)^2 = b^4 \).
+
+Therefore, \( a^2 b a^{-2} = b^4 \).
+
+Similarly, if I conjugate by \( a \) again, let's compute \( a^2 b a^{-2} \):
+
+Conjugating \( a^2 b a^{-2} \) by \( a \) gives \( a^3 b a^{-3} \). On the other hand, using the previous result \( a^2 b a^{-2} = b^4 \), conjugating both sides by \( a \) gives \( a (a^2 b a^{-2}) a^{-1} = a b^4 a^{-1} \). The left side simplifies to \( a^3 b a^{-3} \), and the right side is \( (a b a^{-1})^4 = (b^2)^4 = b^{8} \).
+
+Thus, \( a^3 b a^{-3} = b^8 \).
+
+Continuing this pattern, each time we conjugate by \( a \), the exponent of \( b \) doubles. Let me check that.
+
+Wait, first conjugation: \( a b a^{-1} = b^2 \).
+
+Second conjugation: \( a^2 b a^{-2} = b^4 \).
+
+Third conjugation: \( a^3 b a^{-3} = b^8 \).
+
+Fourth conjugation: \( a^4 b a^{-4} = b^{16} \).
+
+Fifth conjugation: \( a^5 b a^{-5} = b^{32} \).
+
+But since \( a^5 = e \), this last conjugation would be \( e b e = b \), so \( b = b^{32} \).
+
+Therefore, \( b^{32} = b \), which implies \( b^{31} = e \).
+
+Therefore, the order of \( b \) divides 31. Since 31 is a prime number, the order of \( b \) must be either 1 or 31. But we are given that \( b \neq e \), so the order cannot be 1. Hence, the order of \( b \) is 31.
+
+Wait, let me verify that again.
+
+Starting with \( aba^{-1} = b^2 \).
+
+Conjugate by \( a \): \( a^2 b a^{-2} = (a (a b a^{-1}) a^{-1}) = a b^2 a^{-1} = (a b a^{-1})^2 = (b^2)^2 = b^4 \).
+
+Similarly, conjugate by \( a^3 \): \( a^3 b a^{-3} = a (a^2 b a^{-2}) a^{-1} = a b^4 a^{-1} = (a b a^{-1})^4 = (b^2)^4 = b^8 \).
+
+Similarly, \( a^4 b a^{-4} = b^{16} \), and \( a^5 b a^{-5} = b^{32} \). But \( a^5 = e \), so \( a^5 b a^{-5} = b \). Therefore, \( b^{32} = b \), so \( b^{31} = e \). Therefore, the order of \( b \) is 31.
+
+Therefore, the order of \( b \) is 31.
+
+But wait, let me check if that's correct. 31 is prime, so that's the order.
+
+Alternatively, maybe I can see this as a relation in a semidirect product. Since \( a \) has order 5, and \( b \) has order 31, and the automorphism induced by conjugation by \( a \) is \( b \mapsto b^2 \). So, in the automorphism group of \( \langle b \rangle \), which is cyclic of order 31, the automorphism group is multiplicative modulo 31, so the automorphism is multiplication by 2. So the order of the automorphism is the multiplicative order of 2 modulo 31. Let's check what that is.
+
+The multiplicative order of 2 modulo 31. Since 31 is prime, the multiplicative group modulo 31 has order 30. So we need the smallest \( k \) such that \( 2^k \equiv 1 \mod 31 \). Let's compute 2^k mod 31:
+
+2^1 = 2
+
+2^2 = 4
+
+2^3 = 8
+
+2^4 = 16
+
+2^5 = 32 ≡ 1 mod 31? 32-31=1, so 2^5 ≡ 1 mod 31. Wait, that can't be, because 2^5 = 32 ≡ 1 mod 31. So the order of 2 modulo 31 is 5. Therefore, the automorphism given by conjugation by \( a \) has order 5. Since \( a \) has order 5, this is consistent. Therefore, the semidirect product \( C_{31} \rtimes C_5 \), where the action is given by \( a \) acting as multiplication by 2 on \( C_{31} \), which has order 5. Hence, the group has order 5*31=155. Therefore, in this group, the order of \( b \) is 31. Therefore, the conclusion is correct.
+
+But let me make sure there are no mistakes in my earlier steps. Let's check the conjugations again:
+
+Start with \( aba^{-1} = b^2 \).
+
+Conjugate both sides by \( a \):
+
+Left side: \( a(aba^{-1})a^{-1} = a^2 b a^{-2} \).
+
+Right side: \( a b^2 a^{-1} = (a b a^{-1})^2 = (b^2)^2 = b^4 \).
+
+So \( a^2 b a^{-2} = b^4 \).
+
+Conjugate both sides by \( a \):
+
+Left side: \( a(a^2 b a^{-2})a^{-1} = a^3 b a^{-3} \).
+
+Right side: \( a b^4 a^{-1} = (a b a^{-1})^4 = (b^2)^4 = b^8 \).
+
+So \( a^3 b a^{-3} = b^8 \).
+
+Conjugate by \( a \):
+
+Left: \( a(a^3 b a^{-3})a^{-1} = a^4 b a^{-4} \).
+
+Right: \( a b^8 a^{-1} = (a b a^{-1})^8 = (b^2)^8 = b^{16} \).
+
+Thus, \( a^4 b a^{-4} = b^{16} \).
+
+Conjugate by \( a \):
+
+Left: \( a(a^4 b a^{-4})a^{-1} = a^5 b a^{-5} \).
+
+Right: \( a b^{16} a^{-1} = (a b a^{-1})^{16} = (b^2)^{16} = b^{32} \).
+
+But \( a^5 = e \), so left side is \( e b e = b \). Therefore, \( b = b^{32} \).
+
+Subtracting exponents, \( b^{31} = e \). Therefore, the order of \( b \) divides 31. Since 31 is prime and \( b \neq e \), the order must be 31.
+
+Therefore, the order of \( b \) is 31. This seems solid.
+
+Alternatively, another way to think about this is that conjugation by \( a \) gives an automorphism of the subgroup generated by \( b \). Since \( a^5 = e \), applying this automorphism five times should bring us back to the original automorphism. Therefore, the automorphism \( \phi \) defined by \( \phi(b) = b^2 \) must satisfy \( \phi^5(b) = b \). Let's compute \( \phi^5(b) \):
+
+First, \( \phi(b) = b^2 \).
+
+Then, \( \phi^2(b) = \phi(\phi(b)) = \phi(b^2) = \phi(b)^2 = (b^2)^2 = b^4 \).
+
+\( \phi^3(b) = \phi(\phi^2(b)) = \phi(b^4) = \phi(b)^4 = (b^2)^4 = b^8 \).
+
+\( \phi^4(b) = \phi(b^8) = (b^2)^8 = b^{16} \).
+
+\( \phi^5(b) = \phi(b^{16}) = (b^2)^{16} = b^{32} \).
+
+But since \( \phi^5(b) = b \), we have \( b^{32} = b \), so \( b^{31} = e \), as before. Therefore, the order of \( b \) is 31.
+
+This confirms the result again.
+
+Another approach: since \( a \) and \( b \) satisfy the relation \( aba^{-1} = b^2 \), we can think of this as a relation in a metacyclic group. Specifically, such groups have presentations of the form \( \langle a, b | a^m = e, b^n = e, aba^{-1} = b^k \rangle \), where \( k^m \equiv 1 \mod n \). In our case, \( m = 5 \), \( k = 2 \), and \( n \) is the order of \( b \). So we must have \( 2^5 \equiv 1 \mod n \), meaning \( 32 \equiv 1 \mod n \), so \( n \) divides 31. Since 31 is prime, \( n = 31 \).
+
+This is a more abstract way to see it, but it leads to the same conclusion.
+
+So putting it all together, through multiple approaches—direct computation, considering automorphisms, and using properties of metacyclic groups—it seems that the order of \( b \) must be 31.
+
+Therefore, the final answer is \( \boxed{31} \).
+
+**Final Answer**
+The order of the element \( b \) is \boxed{31}.
+</think>
+
+Given a group \( G \) generated by elements \( a \) and \( b \) with the relations \( a^5 = e \), \( aba^{-1} = b^2 \), and \( b \neq e \), we need to determine the order of the element \( b \).
+
+1. **Conjugation Relations**:
+   - Starting with the relation \( aba^{-1} = b^2 \), we conjugate \( b \) by \( a \) multiple times.
+   - Conjugating \( b \) by \( a \) once: \( aba^{-1} = b^2 \).
+   - Conjugating \( b \) by \( a \) twice: \( a^2ba^{-2} = b^4 \).
+   - Conjugating \( b \) by \( a \) three times: \( a^3ba^{-3} = b^8 \).
+   - Conjugating \( b \) by \( a \) four times: \( a^4ba^{-4} = b^{16} \).
+   - Conjugating \( b \) by \( a \) five times: \( a^5ba^{-5} = b^{32} \).
+
+2. **Using the Order of \( a \)**:
+   - Since \( a^5 = e \), conjugating \( b \) by \( a^5 \) gives \( a^5ba^{-5} = b \).
+   - Therefore, \( b^{32} = b \), implying \( b^{31} = e \).
+
+3. **Conclusion**:
+   - The order of \( b \) must divide 31. Since 31 is a prime number and \( b \neq e \), the order of \( b \) must be 31.
+
+Thus, the order of the element \( b \) is \(\boxed{31}\).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We have a bounded sequence $(u_n)$ in $H^1(\Omega)$, where $\Omega$ is a bounded subset of $\mathbb{R}^d$. The question is whether $(u_n)$ is tight in $L^2(\Omega)$, meaning: for every $\varepsilon > 0$, does there exist a compact set $K_\varepsilon \subset \Omega$ such that $\sup_n \int_{\Omega \setminus K_\varepsilon} |u_n(x)|^2 dx < \varepsilon$?
+
+Let me think about this carefully.
+
+First, let me check for answer leaks. The problem statement is clean - it just asks the question without providing any solution or answer. No leak detected.
+
+Now let me think about the problem.
+
+**Key facts:**
+1. $\Omega$ is a bounded subset of $\mathbb{R}^d$.
+2. $(u_n)$ is bounded in $H^1(\Omega)$, so $\sup_n \|u_n\|_{H^1} < \infty$, meaning $\sup_n (\|u_n\|_{L^2} + \|\nabla u_n\|_{L^2}) < \infty$.
+
+**The question:** Is the sequence tight in $L^2(\Omega)$?
+
+Tightness here means: for every $\varepsilon > 0$, there exists a compact $K_\varepsilon \subset \Omega$ such that $\sup_n \int_{\Omega \setminus K_\varepsilon} |u_n|^2 < \varepsilon$.
+
+This is related to the concept of uniform integrability / tightness that appears in the context of compactness theorems (like the Rellich-Kondrachov theorem or the Kolmogorov-Riesz-Fréchet theorem).
+
+Let me think about whether this is always true.
+
+**Case 1: $\Omega$ is a bounded open set with nice boundary.**
+
+If $\Omega$ is bounded, then $\Omega$ itself is "essentially compact" in some sense. But $\Omega$ might not be compact (it's open, typically). The issue is what happens near the boundary $\partial \Omega$.
+
+The tightness condition asks: can we capture almost all the $L^2$ mass of all $u_n$ simultaneously on a compact subset of $\Omega$?
+
+**Thinking about the Rellich-Kondrachov theorem:** If $\Omega$ is bounded with Lipschitz boundary, then $H^1(\Omega) \hookrightarrow \hookrightarrow L^2(\Omega)$ (compact embedding). This means a bounded sequence in $H^1$ has a convergent subsequence in $L^2$. 
+
+But tightness is a weaker condition than compactness. Actually, tightness is a necessary condition for compactness in many contexts.
+
+**Let me think about whether tightness always holds.**
+
+Consider the case where $\Omega$ is a bounded open set. The complement $\Omega \setminus K$ for compact $K \subset \Omega$ is a "boundary layer" near $\partial \Omega$.
+
+The question is: can the $L^2$ mass of $u_n$ concentrate near the boundary?
+
+**Counterexample attempt:** Let me think about whether we can have a bounded sequence in $H^1(\Omega)$ whose $L^2$ mass concentrates near the boundary.
+
+Consider $\Omega = (0,1) \subset \mathbb{R}$ (1D case). Let $u_n(x) = \sqrt{n} \cdot \phi(n(x - 1/n))$ where $\phi$ is a smooth bump function supported in $[0, 1]$ with $\|\phi\|_{L^2} = 1$. 
+
+Wait, let me think more carefully. The function $u_n$ is concentrated near $x = 1/n$, which approaches the boundary point $x = 0$.
+
+$\|u_n\|_{L^2}^2 = \int_0^1 n \phi^2(n(x - 1/n)) dx = \int_{-1}^{n-1} \phi^2(y) dy = \|\phi\|_{L^2}^2 = 1$ (if $\phi$ is supported in $[0,1]$).
+
+Wait, let me be more careful. Let $\phi$ be supported in $[0, 1]$. Then $u_n(x) = \sqrt{n} \phi(n x - 1)$, which is supported where $0 \leq nx - 1 \leq 1$, i.e., $1/n \leq x \leq 2/n$.
+
+$\|u_n\|_{L^2}^2 = \int_{1/n}^{2/n} n \phi^2(nx-1) dx = \int_0^1 \phi^2(y) dy = 1$.
+
+$\|u_n'\|_{L^2}^2 = \int_{1/n}^{2/n} n \cdot n^2 (\phi'(nx-1))^2 dx = n^2 \int_0^1 (\phi'(y))^2 dy = n^2 \|\phi'\|_{L^2}^2$.
+
+This blows up! So this sequence is NOT bounded in $H^1$.
+
+The issue is that concentrating in a small region increases the $H^1$ norm. The gradient term penalizes concentration.
+
+So the $H^1$ bound prevents concentration. This suggests tightness might hold.
+
+**Let me think more carefully.**
+
+Actually, the key insight is: a bound in $H^1$ gives us control over the gradient, which prevents the mass from concentrating in small regions. But the question is about tightness, which is about the mass being captured on a compact set, not about preventing concentration in small regions per se.
+
+The issue is the boundary. If $\Omega$ is bounded but has a "bad" boundary, can mass escape to the boundary?
+
+**Let me think about the case where $\Omega$ is bounded and open.**
+
+For any compact $K \subset \Omega$, the set $\Omega \setminus K$ is a neighborhood of the boundary (in $\Omega$). The question is whether $\sup_n \int_{\Omega \setminus K} |u_n|^2$ can be made small.
+
+**Key idea:** Use the $H^1$ bound and some kind of Poincaré-type inequality or trace inequality.
+
+Actually, let me think about this differently. The issue is really about what happens near $\partial \Omega$.
+
+**Consider the case $\Omega = (0,1)^d$, a nice bounded domain.**
+
+For a bounded sequence in $H^1((0,1)^d)$, by Rellich-Kondrachov, there's a convergent subsequence in $L^2$. But tightness is about the whole sequence, not just a subsequence.
+
+Actually, tightness of the whole sequence follows from a uniform bound. Let me think...
+
+If $\sup_n \|u_n\|_{H^1} \leq C$, then in particular $\sup_n \|u_n\|_{L^2} \leq C$.
+
+For tightness, we need: for every $\varepsilon > 0$, there exists compact $K \subset \Omega$ with $\sup_n \int_{\Omega \setminus K} |u_n|^2 < \varepsilon$.
+
+**Approach using extension:** If $\Omega$ has Lipschitz boundary, we can extend $u_n$ to $\tilde{u}_n \in H^1(\mathbb{R}^d)$ with $\|\tilde{u}_n\|_{H^1(\mathbb{R}^d)} \leq C' \|u_n\|_{H^1(\Omega)} \leq C''$.
+
+Then by a standard result, a bounded sequence in $H^1(\mathbb{R}^d)$ is tight in $L^2(\mathbb{R}^d)$ (this follows from the Fourier characterization or from the Kolmogorov-Riesz theorem). 
+
+Wait, is a bounded sequence in $H^1(\mathbb{R}^d)$ tight in $L^2(\mathbb{R}^d)$? 
+
+Tightness in $L^2(\mathbb{R}^d)$ means: for every $\varepsilon > 0$, there exists $R > 0$ such that $\sup_n \int_{|x| > R} |u_n|^2 < \varepsilon$.
+
+This is NOT true in general for bounded sequences in $H^1(\mathbb{R}^d)$! Consider $u_n(x) = u(x - n e_1)$ for some fixed $u \in H^1(\mathbb{R}^d)$. This is bounded in $H^1$ but the mass escapes to infinity, so it's not tight.
+
+But in our case, $\Omega$ is bounded, so there's no "escape to infinity" — the only issue is escape to the boundary.
+
+**So the question reduces to:** Can mass escape to the boundary of a bounded domain?
+
+Let me think about this more carefully with a specific example.
+
+**Example: $\Omega = (0,1) \subset \mathbb{R}$.**
+
+Let $u_n(x) = u(x - a_n)$ where $a_n \to 0$ and $u$ is a fixed bump function supported in $[0, 1/2]$. Then $u_n$ is supported in $[a_n, a_n + 1/2] \subset [0, 1]$ for $a_n$ small enough.
+
+$\|u_n\|_{H^1} = \|u\|_{H^1}$ (translation preserves the norm). So the sequence is bounded in $H^1$.
+
+Now, for any compact $K \subset (0,1)$, $K$ is a closed subset of $(0,1)$, so $K \subset [\delta, 1-\delta]$ for some $\delta > 0$. Then $\Omega \setminus K \supset (0, \delta)$, and for $n$ large enough, $a_n < \delta/2$, so $u_n$ has significant mass in $(0, \delta)$.
+
+Specifically, $\int_{(0,1) \setminus K} |u_n|^2 \geq \int_0^{\delta} |u_n|^2 = \int_0^{\delta} |u(x - a_n)|^2 dx = \int_{-a_n}^{\delta - a_n} |u(y)|^2 dy$.
+
+As $a_n \to 0$, this approaches $\int_0^{\delta} |u(y)|^2 dy > 0$ (if $u$ has mass near 0).
+
+Wait, but $u$ is supported in $[0, 1/2]$, so $\int_0^{\delta} |u(y)|^2 dy > 0$ for any $\delta > 0$ (assuming $u$ is not zero near 0).
+
+Hmm, but this doesn't quite work because the mass is just shifting, not concentrating. Let me reconsider.
+
+Actually, the issue is: $u_n$ is supported in $[a_n, a_n + 1/2]$. For a compact $K = [\delta, 1-\delta]$, the mass outside $K$ is $\int_0^{\delta} |u_n|^2 + \int_{1-\delta}^1 |u_n|^2$. The second term is 0 for large $n$ (since support is in $[a_n, a_n+1/2] \subset [0, 1/2+\epsilon]$). The first term is $\int_{a_n}^{\delta} |u(x-a_n)|^2 dx = \int_0^{\delta - a_n} |u(y)|^2 dy \to \int_0^{\delta} |u(y)|^2 dy$.
+
+Now, $\int_0^{\delta} |u(y)|^2 dy$ can be made small by choosing $\delta$ small (since $u \in L^2$ and the integral over a shrinking interval goes to 0). But the issue is that we need $\sup_n \int_{\Omega \setminus K} |u_n|^2 < \varepsilon$, and the sup is over ALL $n$.
+
+For fixed $\delta$, $\sup_n \int_0^{\delta - a_n} |u(y)|^2 dy$. As $n \to \infty$, $a_n \to 0$, so this approaches $\int_0^{\delta} |u(y)|^2 dy$. But for finite $n$, $a_n > 0$, so $\int_0^{\delta - a_n} |u(y)|^2 dy \leq \int_0^{\delta} |u(y)|^2 dy$.
+
+So $\sup_n \int_0^{\delta - a_n} |u(y)|^2 dy = \int_0^{\delta} |u(y)|^2 dy$ (the sup is achieved in the limit, or we can just say it's $\leq \int_0^{\delta} |u(y)|^2 dy$).
+
+Wait, actually $\int_0^{\delta - a_n} |u(y)|^2 dy \leq \int_0^{\delta} |u(y)|^2 dy$ for all $n$ (since $a_n > 0$). And the sup approaches $\int_0^{\delta} |u(y)|^2 dy$.
+
+So $\sup_n \int_{\Omega \setminus K} |u_n|^2 \leq \int_0^{\delta} |u(y)|^2 dy + \int_{1-\delta}^{1/2+\epsilon} |u(y)|^2 dy$... 
+
+Hmm wait, I need to be more careful. Let me redo this.
+
+$u_n(x) = u(x - a_n)$ where $u$ is supported in $[0, 1/2]$ and $a_n \in (0, 1/2)$ with $a_n \to 0$.
+
+$K = [\delta, 1-\delta]$ for small $\delta > 0$.
+
+$\int_{\Omega \setminus K} |u_n|^2 = \int_0^{\delta} |u_n(x)|^2 dx + \int_{1-\delta}^1 |u_n(x)|^2 dx$.
+
+The second integral: $u_n$ is supported in $[a_n, a_n + 1/2]$. For $a_n < 1/2$, the support is in $[a_n, a_n + 1/2] \subset [0, 1]$. For $1-\delta > a_n + 1/2$ (i.e., $\delta < 1/2 - a_n$, which holds for small $\delta$ and large $n$), the second integral is 0.
+
+The first integral: $\int_0^{\delta} |u(x - a_n)|^2 dx = \int_{-a_n}^{\delta - a_n} |u(y)|^2 dy$. Since $u$ is supported in $[0, 1/2]$, this equals $\int_0^{\delta - a_n} |u(y)|^2 dy$ (for $\delta - a_n > 0$, which holds for large $n$).
+
+So $\sup_n \int_{\Omega \setminus K} |u_n|^2 = \sup_n \int_0^{\delta - a_n} |u(y)|^2 dy$.
+
+Now, since $a_n > 0$ for all $n$ and $a_n \to 0$, we have $\delta - a_n < \delta$ for all $n$, and $\delta - a_n \to \delta$. So:
+
+$\sup_n \int_0^{\delta - a_n} |u(y)|^2 dy \leq \int_0^{\delta} |u(y)|^2 dy$.
+
+And the sup is actually equal to $\int_0^{\delta} |u(y)|^2 dy$ (approached but not achieved, or we can arrange $a_n$ to be decreasing so the sup is the limit).
+
+Actually, if $a_n$ is decreasing to 0, then $\delta - a_n$ is increasing to $\delta$, so $\int_0^{\delta - a_n} |u(y)|^2 dy$ is increasing to $\int_0^{\delta} |u(y)|^2 dy$. The sup is $\int_0^{\delta} |u(y)|^2 dy$ (as a supremum, not maximum).
+
+Now, $\int_0^{\delta} |u(y)|^2 dy \to 0$ as $\delta \to 0$ (since $u \in L^2$). So for any $\varepsilon > 0$, we can choose $\delta$ small enough that $\int_0^{\delta} |u(y)|^2 dy < \varepsilon$, and then $K = [\delta, 1-\delta]$ works.
+
+So in this example, tightness holds! The translation doesn't break tightness because the mass is just shifting by a small amount, and the $L^2$ mass near the boundary can be controlled.
+
+**But wait — what if the mass actually concentrates near the boundary?**
+
+The $H^1$ bound prevents concentration. Let me think about why.
+
+If $u_n$ concentrates in a ball of radius $r_n \to 0$ near the boundary, then $\|u_n\|_{L^2} \sim 1$ (say) but $\|\nabla u_n\|_{L^2} \sim r_n^{-1} \to \infty$, violating the $H^1$ bound.
+
+More precisely, by the Sobolev/Poincaré inequality, concentration is controlled by the gradient.
+
+**But the question is more subtle.** The mass doesn't have to concentrate in a small ball — it could spread out along the boundary. 
+
+Let me think about a different example.
+
+**Example: $\Omega = (0,1)^2 \subset \mathbb{R}^2$.**
+
+Let $u_n(x_1, x_2) = f_n(x_1) g(x_2)$ where $g$ is a fixed smooth function on $(0,1)$ with $\|g\|_{L^2} = 1$, and $f_n$ is supported near $x_1 = 0$.
+
+If $f_n(x_1) = \sqrt{n} \phi(n x_1)$ where $\phi$ is supported in $[0,1]$, then:
+- $\|f_n\|_{L^2}^2 = 1$
+- $\|f_n'\|_{L^2}^2 = n^2 \|\phi'\|_{L^2}^2 \to \infty$
+
+So this doesn't work — the $H^1$ norm blows up.
+
+What if instead $f_n$ spreads along the boundary but doesn't concentrate? Like $f_n(x_1) = \phi(x_1) \cdot \mathbf{1}_{[0, 1/n]}(x_1)$... no, that's not even in $H^1$.
+
+Let me think differently. 
+
+**The real question is: does the $H^1$ bound prevent mass from accumulating near the boundary?**
+
+I think the answer depends on the regularity of $\Omega$.
+
+**Case: $\Omega$ has Lipschitz boundary.**
+
+If $\Omega$ has Lipschitz boundary, there exists a bounded extension operator $E: H^1(\Omega) \to H^1(\mathbb{R}^d)$. So $Eu_n$ is bounded in $H^1(\mathbb{R}^d)$, hence bounded in $L^2(\mathbb{R}^d)$.
+
+Now, for any compact $K \subset \Omega$, $\int_{\Omega \setminus K} |u_n|^2 \leq \int_{\mathbb{R}^d \setminus K} |Eu_n|^2$.
+
+But we need tightness of $Eu_n$ in $L^2(\mathbb{R}^d)$, which as I noted, is NOT true in general (translations to infinity).
+
+However, $\Omega$ is bounded, so $Eu_n$ restricted to $\Omega$ is just $u_n$, and the issue is only about the boundary layer. The extension helps because we can use the $H^1(\mathbb{R}^d)$ bound to control the mass near the boundary.
+
+Hmm, but the extension argument doesn't directly give tightness because tightness in $\mathbb{R}^d$ fails for $H^1$ bounded sequences (due to translations).
+
+Let me reconsider. The key difference is that $\Omega$ is bounded, so there's no "escape to infinity." The only concern is the boundary.
+
+**Let me try a direct approach.**
+
+For $\Omega$ bounded and open, and $(u_n)$ bounded in $H^1(\Omega)$:
+
+We want to show: for every $\varepsilon > 0$, there exists compact $K \subset \Omega$ with $\sup_n \int_{\Omega \setminus K} |u_n|^2 < \varepsilon$.
+
+Since $\Omega$ is bounded, we can find an increasing sequence of compact sets $K_m \subset \Omega$ with $\bigcup_m K_m = \Omega$ (e.g., $K_m = \{x \in \Omega : \text{dist}(x, \partial \Omega) \geq 1/m\} \cap \overline{B(0, m)}$, but since $\Omega$ is bounded, the ball part is irrelevant for large $m$).
+
+We need: $\sup_n \int_{\Omega \setminus K_m} |u_n|^2 \to 0$ as $m \to \infty$.
+
+$\Omega \setminus K_m = \{x \in \Omega : \text{dist}(x, \partial \Omega) < 1/m\}$, which is a boundary layer of thickness $1/m$.
+
+**Does $\sup_n \int_{\text{dist}(x, \partial \Omega) < 1/m} |u_n|^2 \to 0$?**
+
+This is the question. Let me think about whether the $H^1$ bound controls the mass in the boundary layer.
+
+**For a Lipschitz domain:** We can use a partition of unity and flatten the boundary. Near a boundary point, after flattening, the boundary layer becomes a strip $\{0 < x_d < 1/m\}$ in a half-space. The question becomes: does $\sup_n \int_0^{1/m} \int |u_n|^2 dx' dx_d \to 0$?
+
+For a function $u \in H^1$ in a half-space region, we have the trace inequality and also:
+
+$\int_0^{1/m} \int |u(x', x_d)|^2 dx' dx_d \leq ?$
+
+By the fundamental theorem of calculus (in the $x_d$ direction):
+$|u(x', x_d)|^2 \leq |u(x', 0)|^2 + 2 \int_0^{x_d} |u(x', t)| |\partial_d u(x', t)| dt$... 
+
+Hmm, this is getting complicated. Let me think about whether there's a simpler argument or a counterexample.
+
+**Actually, let me reconsider the problem.** The problem says $\Omega$ is a bounded subset of $\mathbb{R}^d$. It doesn't say open, and it doesn't say anything about the boundary. This is quite general.
+
+If $\Omega$ is just a bounded subset (not necessarily open), then $H^1(\Omega)$ might not even be well-defined in the usual sense. Usually $H^1(\Omega)$ is defined for open sets. Let me assume $\Omega$ is a bounded open set.
+
+**Key question: Does the answer depend on the regularity of $\partial \Omega$?**
+
+Let me think about a potential counterexample with a bad boundary.
+
+**Counterexample with a cusp or crack:**
+
+Consider $\Omega \subset \mathbb{R}^2$ being a bounded domain with a cusp. For example, $\Omega = \{(x_1, x_2) : 0 < x_1 < 1, |x_2| < x_1^\alpha\}$ for some $\alpha > 1$ (a cusp at the origin).
+
+In such a domain, can we have a bounded sequence in $H^1(\Omega)$ whose mass concentrates near the cusp?
+
+Let me try: $u_n(x_1, x_2) = c_n \phi(x_1 - a_n, x_2)$ where $\phi$ is a bump and $a_n \to 0$.
+
+The $H^1$ norm depends on the geometry near the cusp. In a cusp domain, the Poincaré constant might blow up, allowing functions that are nearly constant (hence small gradient) but supported in the cusp.
+
+Actually, let me think about this more carefully. In a cusp domain $\{(x_1, x_2) : 0 < x_1 < 1, |x_2| < x_1^\alpha\}$ with $\alpha > 1$, the cross-section at $x_1$ has width $2x_1^\alpha$.
+
+Consider $u_n(x_1, x_2) = \psi(x_1) \cdot \frac{1}{\sqrt{2 x_1^\alpha}} \cdot \mathbf{1}_{|x_2| < x_1^\alpha}$... but this isn't smooth.
+
+Let me try a different approach. Consider $u(x_1, x_2) = x_1^{-\beta}$ for some $\beta > 0$, in the cusp domain.
+
+$\int_\Omega |u|^2 = \int_0^1 \int_{-x_1^\alpha}^{x_1^\alpha} x_1^{-2\beta} dx_2 dx_1 = \int_0^1 2 x_1^\alpha \cdot x_1^{-2\beta} dx_1 = 2 \int_0^1 x_1^{\alpha - 2\beta} dx_1$.
+
+This converges iff $\alpha - 2\beta > -1$, i.e., $\beta < (\alpha+1)/2$.
+
+$\int_\Omega |\nabla u|^2 = \int_0^1 \int_{-x_1^\alpha}^{x_1^\alpha} \beta^2 x_1^{-2\beta-2} dx_2 dx_1 = 2\beta^2 \int_0^1 x_1^{\alpha - 2\beta - 2} dx_1$.
+
+This converges iff $\alpha - 2\beta - 2 > -1$, i.e., $\beta < (\alpha - 1)/2$.
+
+So for $\beta < (\alpha-1)/2$, $u \in H^1(\Omega)$. And $u$ blows up near the cusp ($x_1 = 0$).
+
+Now, let $u_n(x) = \min(u(x), n) \cdot \eta(x)$ where $\eta$ is a cutoff... actually, let me think of a sequence that concentrates near the cusp.
+
+Let $u_n(x_1, x_2) = u(x_1, x_2) \cdot \chi(x_1 / a_n)$ where $\chi$ is a smooth cutoff that is 1 near 0 and 0 for $x_1 > 1$. So $u_n$ is $u$ restricted to $x_1 < a_n$ (roughly).
+
+$\|u_n\|_{L^2}^2 \approx 2 \int_0^{a_n} x_1^{\alpha - 2\beta} dx_1 = \frac{2}{\alpha - 2\beta + 1} a_n^{\alpha - 2\beta + 1}$.
+
+$\|\nabla u_n\|_{L^2}^2 \approx 2\beta^2 \int_0^{a_n} x_1^{\alpha - 2\beta - 2} dx_1 = \frac{2\beta^2}{\alpha - 2\beta - 1} a_n^{\alpha - 2\beta - 1}$.
+
+As $a_n \to 0$, both go to 0 (since $\alpha - 2\beta + 1 > 0$ and $\alpha - 2\beta - 1 > 0$). So this doesn't give a bounded sequence with mass concentrating near the cusp.
+
+Hmm. Let me normalize: $v_n = u_n / \|u_n\|_{L^2}$.
+
+$\|v_n\|_{L^2} = 1$.
+
+$\|\nabla v_n\|_{L^2}^2 = \|\nabla u_n\|_{L^2}^2 / \|u_n\|_{L^2}^2 \approx \frac{2\beta^2 a_n^{\alpha - 2\beta - 1} / (\alpha - 2\beta - 1)}{2 a_n^{\alpha - 2\beta + 1} / (\alpha - 2\beta + 1)} = \frac{\beta^2 (\alpha - 2\beta + 1)}{(\alpha - 2\beta - 1)} a_n^{-2}$.
+
+This blows up as $a_n \to 0$! So the normalized sequence is NOT bounded in $H^1$.
+
+So even in the cusp domain, the $H^1$ bound prevents concentration near the cusp. The gradient always blows up when you try to concentrate.
+
+**This suggests that the answer is YES — the sequence is tight.**
+
+Let me try to prove this in general.
+
+**General proof strategy:**
+
+Given: $\Omega$ bounded open in $\mathbb{R}^d$, $(u_n)$ bounded in $H^1(\Omega)$.
+
+Want: for every $\varepsilon > 0$, exists compact $K \subset \Omega$ with $\sup_n \int_{\Omega \setminus K} |u_n|^2 < \varepsilon$.
+
+**Step 1:** Since $\Omega$ is bounded, there exists $R > 0$ with $\Omega \subset B(0, R)$. So the "escape to infinity" issue doesn't arise.
+
+**Step 2:** The only issue is the boundary. We need to control $\int_{\{x \in \Omega : \text{dist}(x, \partial \Omega) < \delta\}} |u_n|^2$ uniformly in $n$.
+
+**Step 3:** Use the $H^1$ bound to control the boundary layer mass.
+
+But how? The $H^1$ bound gives us $\|u_n\|_{L^2} \leq C$ and $\|\nabla u_n\|_{L^2} \leq C$. How does the gradient bound control the boundary layer mass?
+
+**Hmm, actually I'm not sure the gradient bound alone controls the boundary layer mass.** Let me think of a potential counterexample.
+
+**Counterexample attempt: $\Omega = (0,1) \subset \mathbb{R}$.**
+
+Let $u_n(x) = c_n$ (constant) on $(0, 1/n)$ and $u_n(x) = 0$ on $(2/n, 1)$, with a smooth transition.
+
+$\|u_n\|_{L^2}^2 \approx c_n^2 / n$.
+
+$\|u_n'\|_{L^2}^2 \approx c_n^2 \cdot n$ (the transition happens over a region of size $1/n$, and the derivative is $\sim c_n \cdot n$).
+
+For $\|u_n\|_{H^1}$ to be bounded: $c_n^2 / n \leq C$ and $c_n^2 n \leq C$, so $c_n^2 \leq C/n$ and $c_n^2 \leq C/n$. So $c_n \sim 1/\sqrt{n}$.
+
+Then $\|u_n\|_{L^2}^2 \sim 1/n^2 \to 0$. So the mass goes to 0, and tightness is trivially satisfied (for large $n$, the mass is small; for small $n$, there are finitely many functions, each in $L^2$, so tightness holds for those).
+
+Wait, but we need $\sup_n$, including all $n$. For finitely many $n$, each $u_n \in L^2(\Omega)$ and $\Omega$ is bounded, so for each $u_n$, $\int_{\Omega \setminus K} |u_n|^2 \to 0$ as $K \nearrow \Omega$. For finitely many, we can take the minimum over the $\delta$'s. So the issue is only the tail.
+
+In this example, the tail has $\|u_n\|_{L^2}^2 \to 0$, so tightness holds.
+
+**But what if the mass doesn't go to 0?** Can we have a bounded sequence in $H^1$ where the mass stays bounded away from 0 but concentrates near the boundary?
+
+From the calculation above, concentrating in a region of size $\delta$ near the boundary requires $\|\nabla u_n\|_{L^2} \sim \|u_n\|_{L^2} / \delta$. So if $\|\nabla u_n\|_{L^2} \leq C$ and $\|u_n\|_{L^2} \geq c > 0$, then $\delta \geq c/C > 0$. The mass can't concentrate in a layer thinner than $c/C$.
+
+But this is a heuristic. Let me make it rigorous.
+
+**Rigorous argument using a cutoff function:**
+
+Let $\eta_\delta \in C_c^\infty(\Omega)$ be a cutoff function with $\eta_\delta = 1$ on $K_\delta = \{x \in \Omega : \text{dist}(x, \partial \Omega) \geq \delta\}$, $\eta_\delta = 0$ near $\partial \Omega$, and $|\nabla \eta_\delta| \leq C/\delta$.
+
+Then $\int_{\Omega \setminus K_\delta} |u_n|^2 = \int_\Omega (1 - \eta_\delta^2) |u_n|^2$... hmm, this isn't quite right because $\eta_\delta$ might not be exactly 1 on $K_\delta$ and 0 outside.
+
+Let me use a different approach. Let $\eta_\delta$ be a smooth function with $\eta_\delta = 1$ on $\{x \in \Omega : \text{dist}(x, \partial \Omega) \geq 2\delta\}$, $\eta_\delta = 0$ on $\{x \in \Omega : \text{dist}(x, \partial \Omega) \leq \delta\}$, and $|\nabla \eta_\delta| \leq C/\delta$.
+
+Then $\int_{\Omega \setminus K_{2\delta}} |u_n|^2 \leq \int_\Omega (1 - \eta_\delta) |u_n|^2$... no, this isn't right either. Let me think again.
+
+Actually, $\int_{\Omega \setminus K_{2\delta}} |u_n|^2 = \int_{\{dist < 2\delta\}} |u_n|^2$. And $\eta_\delta = 1$ on $\{dist \geq 2\delta\}$, so $(1 - \eta_\delta) = 0$ on $\{dist \geq 2\delta\}$ and $(1 - \eta_\delta) = 1$ on $\{dist \leq \delta\}$. So:
+
+$\int_{\{dist < 2\delta\}} |u_n|^2 \leq \int_\Omega (1 - \eta_\delta) |u_n|^2 \cdot \mathbf{1}_{\{dist < 2\delta\}} + \int_{\{dist \geq 2\delta\}} |u_n|^2 \cdot 0$
+
+Hmm, this is getting circular. Let me try a different approach.
+
+**Using $\eta_\delta u_n$:**
+
+$\eta_\delta u_n \in H^1_0(\Omega)$ (compactly supported in $\Omega$). And:
+
+$\|\eta_\delta u_n\|_{L^2}^2 = \int_\Omega \eta_\delta^2 |u_n|^2$.
+
+$\|u_n\|_{L^2}^2 - \|\eta_\delta u_n\|_{L^2}^2 = \int_\Omega (1 - \eta_\delta^2) |u_n|^2$.
+
+Now, $(1 - \eta_\delta^2) = (1 - \eta_\delta)(1 + \eta_\delta) \leq 2(1 - \eta_\delta)$ (since $0 \leq \eta_\delta \leq 1$). And $(1 - \eta_\delta)$ is supported in $\{dist < 2\delta\}$.
+
+So $\int_{\{dist < 2\delta\}} |u_n|^2 \leq \int_\Omega (1 - \eta_\delta^2) |u_n|^2 + \int_{\{dist \geq 2\delta, dist < 2\delta\}} ... $
+
+Wait, I'm overcomplicating this. Let me just write:
+
+$\int_{\{dist < 2\delta\}} |u_n|^2 \leq \int_\Omega (1 - \eta_\delta^2) |u_n|^2$ (since $1 - \eta_\delta^2 = 0$ where $dist \geq 2\delta$ and $1 - \eta_\delta^2 \geq 0$ everywhere, and $1 - \eta_\delta^2 \leq 1$).
+
+Actually, $1 - \eta_\delta^2 \geq 0$ and $1 - \eta_\delta^2 = 0$ on $\{dist \geq 2\delta\}$. So $(1 - \eta_\delta^2) |u_n|^2$ is supported in $\{dist < 2\delta\}$ and $\leq |u_n|^2$ there. So:
+
+$\int_{\{dist < 2\delta\}} |u_n|^2 \geq \int_\Omega (1 - \eta_\delta^2) |u_n|^2$.
+
+And also $\int_{\{dist < 2\delta\}} |u_n|^2 = \int_\Omega (1 - \eta_\delta^2) |u_n|^2 + \int_{\{dist < 2\delta\}} \eta_\delta^2 |u_n|^2$.
+
+So $\int_{\{dist < 2\delta\}} |u_n|^2 \geq \int_\Omega (1 - \eta_\delta^2) |u_n|^2$. The inequality goes the wrong way for an upper bound.
+
+Let me try differently. I want to bound $\int_{\{dist < \delta\}} |u_n|^2$ from above.
+
+On $\{dist < \delta\}$, $\eta_\delta = 0$, so $|u_n|^2 = |u_n|^2 (1 - \eta_\delta)^2 \leq |u_n|^2 (1 - \eta_\delta)^2 + ...$
+
+Hmm, let me try yet another approach.
+
+**Approach: Write $u_n = \eta_\delta u_n + (1 - \eta_\delta) u_n$.**
+
+$(1 - \eta_\delta) u_n$ is supported in $\{dist < 2\delta\}$ (since $1 - \eta_\delta = 0$ where $dist \geq 2\delta$).
+
+$\int_{\{dist < 2\delta\}} |u_n|^2 = \int_{\{dist < 2\delta\}} |\eta_\delta u_n + (1-\eta_\delta) u_n|^2 \leq 2 \int_{\{dist < 2\delta\}} |\eta_\delta u_n|^2 + 2 \int_{\{dist < 2\delta\}} |(1-\eta_\delta) u_n|^2$.
+
+This is getting circular. Let me try a completely different approach.
+
+**Approach via the Kolmogorov-Riesz theorem / Fréchet-Kolmogorov:**
+
+A bounded set $\mathcal{F} \subset L^2(\Omega)$ is relatively compact (precompact) iff:
+1. (Tightness) For every $\varepsilon > 0$, there exists compact $K \subset \Omega$ with $\sup_{f \in \mathcal{F}} \int_{\Omega \setminus K} |f|^2 < \varepsilon$.
+2. (Equicontinuity in $L^2$) For every $\varepsilon > 0$, there exists $\delta > 0$ with $\sup_{f \in \mathcal{F}} \sup_{|h| < \delta} \int_\Omega |\tilde{f}(x+h) - \tilde{f}(x)|^2 dx < \varepsilon$, where $\tilde{f}$ is the extension by 0.
+
+Now, a bounded set in $H^1(\Omega)$ satisfies condition 2 (equicontinuity) because:
+$\int_\Omega |\tilde{u_n}(x+h) - \tilde{u_n}(x)|^2 dx \leq |h|^2 \int_\Omega |\nabla \tilde{u_n}|^2 \leq |h|^2 \|\nabla u_n\|_{L^2}^2 \leq C |h|^2$.
+
+Wait, but this uses the extension by 0, and the gradient of the extension by 0 might not be controlled by the gradient of $u_n$ in $\Omega$ (there could be a jump at the boundary). So this doesn't directly work.
+
+Actually, for the extension by 0, $\tilde{u_n} \in L^2(\mathbb{R}^d)$ but not necessarily in $H^1(\mathbb{R}^d)$. The $L^2$ equicontinuity of the extension by 0 is not directly given by the $H^1$ bound.
+
+Hmm, but there's a version of the Kolmogorov-Riesz theorem that works differently. Let me think...
+
+Actually, the Rellich-Kondrachov theorem says: if $\Omega$ is bounded with Lipschitz boundary, then $H^1(\Omega) \hookrightarrow \hookrightarrow L^2(\Omega)$. This means bounded sets in $H^1(\Omega)$ are precompact in $L^2(\Omega)$.
+
+Precompact in $L^2(\Omega)$ implies tight (condition 1 of Kolmogorov-Riesz). So for Lipschitz domains, the answer is YES.
+
+But the problem doesn't assume Lipschitz boundary. It just says $\Omega$ is bounded.
+
+**What if $\Omega$ doesn't have Lipschitz boundary?**
+
+The Rellich-Kondrachov theorem holds for bounded open sets (without any boundary regularity) in the form: $H^1_0(\Omega) \hookrightarrow \hookrightarrow L^2(\Omega)$. But for $H^1(\Omega)$ (not $H^1_0$), we need some boundary regularity.
+
+For a general bounded open set $\Omega$, the compact embedding $H^1(\Omega) \hookrightarrow \hookrightarrow L^2(\Omega)$ may fail. 
+
+**Example where $H^1(\Omega) \hookrightarrow \hookrightarrow L^2(\Omega)$ fails:**
+
+Consider the "rooms and passages" domain or a domain with a cusp. Actually, the standard example is a domain with an external cusp.
+
+But even if the compact embedding fails, tightness might still hold. Tightness is a weaker condition than precompactness.
+
+Let me think about whether tightness can fail.
+
+**Potential counterexample: "rooms and passages" domain.**
+
+Consider $\Omega \subset \mathbb{R}^2$ consisting of rooms $R_k$ (disks of radius 1) connected by thin passages, with the rooms going off to... but $\Omega$ is bounded, so the rooms can't go to infinity.
+
+Let me think of a bounded domain where mass can concentrate in a specific room.
+
+Consider $\Omega$ consisting of two rooms connected by a thin passage. Room 1 is near the "interior" and Room 2 is near the "boundary." Can we have a sequence bounded in $H^1$ whose mass concentrates in Room 2 (near the boundary)?
+
+If the passage is thin, the Poincaré constant in Room 2 might be large, but the $H^1$ bound should still prevent concentration.
+
+Actually, I think the key issue is different. Let me reconsider.
+
+**The question is about tightness, not compactness.** Tightness is about the mass being captured on a compact subset. In a bounded domain, the only way mass can "escape" is to the boundary.
+
+**Can mass escape to the boundary in a way that's not controllable?**
+
+Consider $\Omega = (0,1) \setminus \{1/2\}$ (an open set with a slit). Wait, that's still essentially $(0, 1/2) \cup (1/2, 1)$, and $H^1$ on this set is $H^1(0,1/2) \oplus H^1(1/2, 1)$.
+
+Hmm, let me think about a more interesting example.
+
+**Example: $\Omega$ with a cusp pointing inward.**
+
+Consider $\Omega = \{(x,y) \in \mathbb{R}^2 : 0 < x < 1, |y| < x^2\}$ (a cusp at the origin).
+
+The cusp is part of $\Omega$, and it's an open set. The boundary includes the cusp point $(0,0)$.
+
+Can we have a bounded sequence in $H^1(\Omega)$ with mass concentrating near the cusp?
+
+From my earlier calculation, normalizing a function concentrated near the cusp leads to a gradient that blows up. So the $H^1$ bound prevents this.
+
+**But what about a function that's nearly constant in the cusp region?**
+
+Consider $u_n(x,y) = 1$ on $\{x < 1/n\}$ and $u_n(x,y) = 0$ on $\{x > 2/n\}$, with a smooth transition.
+
+$\|u_n\|_{L^2}^2 \approx \int_0^{1/n} 2x^2 dx = \frac{2}{3} (1/n)^3$.
+
+$\|\nabla u_n\|_{L^2}^2 \approx \int_{1/n}^{2/n} 2x^2 \cdot n^2 dx = 2n^2 \cdot \frac{(2/n)^3 - (1/n)^3}{3} = 2n^2 \cdot \frac{7}{3n^3} = \frac{14}{3n}$.
+
+So $\|u_n\|_{H^1}^2 \approx \frac{2}{3n^3} + \frac{14}{3n} \to 0$.
+
+Normalizing: $v_n = u_n / \|u_n\|_{L^2}$. Then $\|v_n\|_{L^2} = 1$ and $\|\nabla v_n\|_{L^2}^2 \approx \frac{14/(3n)}{2/(3n^3)} = 7n^2 \to \infty$.
+
+So again, the gradient blows up. The $H^1$ bound prevents concentration in the cusp.
+
+**I'm becoming more convinced that the answer is YES for any bounded open set.**
+
+Let me try to prove it directly.
+
+**Proof attempt:**
+
+Let $\Omega$ be a bounded open set in $\mathbb{R}^d$ and $(u_n)$ bounded in $H^1(\Omega)$, say $\|u_n\|_{H^1} \leq C$.
+
+We want to show: for every $\varepsilon > 0$, there exists compact $K \subset \Omega$ with $\sup_n \int_{\Omega \setminus K} |u_n|^2 < \varepsilon$.
+
+**Step 1: Reduction to $H^1_0(\Omega)$.**
+
+Actually, let me think about this differently. The issue is the boundary. Let me use the following approach:
+
+For $\delta > 0$, let $\Omega_\delta = \{x \in \Omega : \text{dist}(x, \partial \Omega) > \delta\}$. Then $\overline{\Omega_\delta} \subset \Omega$ is compact (since $\Omega$ is bounded).
+
+We want to show: $\sup_n \int_{\Omega \setminus \Omega_\delta} |u_n|^2 \to 0$ as $\delta \to 0$.
+
+**Step 2: Use a cutoff function.**
+
+Let $\phi_\delta \in C_c^\infty(\Omega)$ with $\phi_\delta = 1$ on $\Omega_\delta$, $0 \leq \phi_\delta \leq 1$, and $|\nabla \phi_\delta| \leq C_0/\delta$.
+
+Write $u_n = \phi_\delta u_n + (1 - \phi_\delta) u_n$.
+
+$\int_{\Omega \setminus \Omega_\delta} |u_n|^2 \leq 2 \int_{\Omega \setminus \Omega_\delta} |\phi_\delta u_n|^2 + 2 \int_{\Omega \setminus \Omega_\delta} |(1-\phi_\delta) u_n|^2$.
+
+Now, $(1 - \phi_\delta)$ is supported in $\Omega \setminus \Omega_\delta$ (the boundary layer), and $\phi_\delta = 1$ on $\Omega_\delta$, so on $\Omega \setminus \Omega_\delta$, $\phi_\delta$ might be between 0 and 1.
+
+Actually, $\phi_\delta = 1$ on $\Omega_\delta$ and $\phi_\delta = 0$ near $\partial \Omega$. So on $\Omega \setminus \Omega_\delta$, $\phi_\delta$ transitions from 1 to 0.
+
+This means $\int_{\Omega \setminus \Omega_\delta} |\phi_\delta u_n|^2 \leq \int_{\Omega \setminus \Omega_\delta} |u_n|^2$, which is circular.
+
+Let me try a different decomposition. Let $\phi_\delta = 1$ on $\Omega_{2\delta}$, $\phi_\delta = 0$ on $\Omega \setminus \Omega_\delta$, $|\nabla \phi_\delta| \leq C_0/\delta$.
+
+Then $(1 - \phi_\delta)$ is supported in $\Omega \setminus \Omega_{2\delta}$ (the boundary layer of thickness $2\delta$), and $\phi_\delta = 1$ on $\Omega_{2\delta}$.
+
+$\int_{\Omega \setminus \Omega_{2\delta}} |u_n|^2 = \int_{\Omega \setminus \Omega_{2\delta}} |\phi_\delta u_n + (1-\phi_\delta) u_n|^2 \leq 2 \int_{\Omega \setminus \Omega_{2\delta}} |\phi_\delta u_n|^2 + 2 \int_{\Omega \setminus \Omega_{2\delta}} |(1-\phi_\delta) u_n|^2$.
+
+On $\Omega \setminus \Omega_{2\delta}$, $\phi_\delta$ is between 0 and 1 (it's 1 on $\Omega_{2\delta}$ and 0 on $\Omega \setminus \Omega_\delta$). So this is still circular for the first term.
+
+Hmm. Let me try yet another approach. Maybe I should use the fact that $\phi_\delta u_n \in H^1_0(\Omega)$ and use Poincaré or something.
+
+Actually, let me think about this problem from a higher level.
+
+**Key insight:** The question is whether a bounded sequence in $H^1(\Omega)$ (with $\Omega$ bounded) is tight in $L^2(\Omega)$. 
+
+I think the answer is **YES**, and here's why:
+
+1. $\Omega$ is bounded, so there's no escape to infinity.
+2. The $H^1$ bound prevents concentration (the gradient term penalizes sharp transitions).
+3. The only remaining issue is mass near the boundary, but the $H^1$ bound also controls this (via the gradient).
+
+But I need to be more careful about point 3. Let me think about whether the $H^1$ bound really controls the boundary mass.
+
+**Consider the following:** Let $\Omega = (0,1)$ and $u_n(x) = \sin(n \pi x) / n$. Then $\|u_n\|_{L^2} \sim 1/(n\sqrt{2})$ and $\|u_n'\|_{L^2} = \|\pi \cos(n\pi x)\|_{L^2} \sim \pi/\sqrt{2}$. So $\|u_n\|_{H^1} \sim \pi/\sqrt{2}$, bounded. And $\|u_n\|_{L^2} \to 0$, so tightness is trivial.
+
+**Another example:** $u_n(x) = 1$ for all $n$. Then $\|u_n\|_{H^1} = 1$ (just the $L^2$ norm, gradient is 0). $\int_{\Omega \setminus K} |u_n|^2 = |\Omega \setminus K|$, which can be made small by choosing $K$ close to $\Omega$. So tightness holds.
+
+**Example with mass near boundary:** $u_n(x) = x^{-\alpha}$ for $\alpha < 1/2$ (so $u \in L^2(0,1)$). This is a fixed function, so tightness holds (single function in $L^2$).
+
+But what about a sequence that's not converging?
+
+**Let me think about the problem differently.** 
+
+The question might be: is the answer always YES, or does it depend on $\Omega$?
+
+I think the answer is **YES** for any bounded open $\Omega$, and here's a proof:
+
+**Proof:**
+
+Let $\Omega$ be bounded and open, and $(u_n)$ bounded in $H^1(\Omega)$ with $\|u_n\|_{H^1} \leq C$.
+
+For $\delta > 0$, let $\Omega_\delta = \{x \in \Omega : \text{dist}(x, \Omega^c) > \delta\}$. Note $\overline{\Omega_\delta}$ is compact in $\Omega$ (since $\Omega$ is bounded).
+
+We claim: $\sup_n \int_{\Omega \setminus \Omega_\delta} |u_n|^2 \to 0$ as $\delta \to 0$.
+
+Let $\eta_\delta \in C_c^\infty(\Omega)$ with $\eta_\delta \equiv 1$ on $\Omega_{2\delta}$, $\eta_\delta \equiv 0$ on $\Omega \setminus \Omega_\delta$, $0 \leq \eta_\delta \leq 1$, $|\nabla \eta_\delta| \leq A/\delta$.
+
+Then $v_n = \eta_\delta u_n \in H^1_0(\Omega)$ and $w_n = (1-\eta_\delta) u_n$ is supported in $\Omega \setminus \Omega_{2\delta}$.
+
+$\int_{\Omega \setminus \Omega_{2\delta}} |u_n|^2 \leq 2 \int_{\Omega \setminus \Omega_{2\delta}} |v_n|^2 + 2 \int_{\Omega \setminus \Omega_{2\delta}} |w_n|^2$.
+
+On $\Omega \setminus \Omega_{2\delta}$: $\eta_\delta \leq 1$ (it's between 0 and 1), so $|v_n|^2 = \eta_\delta^2 |u_n|^2 \leq |u_n|^2$. This is circular again.
+
+OK let me try a completely different approach. Instead of trying to bound the boundary mass directly, let me use the compact embedding.
+
+**Approach via Rellich-Kondrachov for $H^1_0$:**
+
+The key fact is: $H^1_0(\Omega) \hookrightarrow \hookrightarrow L^2(\Omega)$ for any bounded open $\Omega$ (no boundary regularity needed).
+
+Now, consider the sequence $(u_n)$. We can decompose each $u_n$ using a cutoff:
+
+$u_n = \eta_\delta u_n + (1-\eta_\delta) u_n$
+
+where $\eta_\delta u_n \in H^1_0(\Omega)$ and $(1-\eta_\delta) u_n$ is supported in the boundary layer.
+
+$\|\eta_\delta u_n\|_{H^1} \leq \|\eta_\delta\|_{L^\infty} \|u_n\|_{H^1} + \|\nabla \eta_\delta\|_{L^\infty} \|u_n\|_{L^2} \leq C + (A/\delta) C = C(1 + A/\delta)$.
+
+So $(\eta_\delta u_n)_n$ is bounded in $H^1_0(\Omega)$ (for fixed $\delta$), hence precompact in $L^2(\Omega)$ by Rellich-Kondrachov.
+
+Precompact in $L^2$ implies tight: for every $\varepsilon > 0$, there exists compact $K_1 \subset \Omega$ with $\sup_n \int_{\Omega \setminus K_1} |\eta_\delta u_n|^2 < \varepsilon/2$.
+
+Now, for the boundary layer part:
+
+$\int_{\Omega \setminus K_1} |(1-\eta_\delta) u_n|^2 \leq \int_{\Omega \setminus \Omega_{2\delta}} |u_n|^2$.
+
+This is the mass in the boundary layer, which we haven't controlled yet. So this approach reduces the problem to controlling the boundary layer mass, which is the original problem.
+
+**Hmm, so the Rellich-Kondrachov approach for $H^1_0$ doesn't directly solve the problem.** The issue is the boundary layer.
+
+Let me think about whether the boundary layer mass can be controlled.
+
+**Can the boundary layer mass be large?**
+
+Consider $\Omega = (0,1)$ and $u_n(x) = 1$ (constant). Then $\int_{\{dist < \delta\}} |u_n|^2 = \delta$ (the boundary layer has measure $\sim 2\delta$ in 1D, actually $\delta$ on each side, so $2\delta$). This goes to 0 as $\delta \to 0$. And this is uniform in $n$ (since $u_n$ is the same for all $n$).
+
+Consider $u_n(x) = n \cdot x$ for $x \in (0, 1/n)$ and $u_n(x) = 1$ for $x \in (1/n, 1)$. Wait, this is a fixed function shape, not a sequence. Let me think of a sequence.
+
+Actually, the issue is: can we have $\sup_n \int_{\{dist < \delta\}} |u_n|^2$ NOT going to 0 as $\delta \to 0$?
+
+For this, we'd need: for some $\varepsilon_0 > 0$, for all $\delta > 0$, there exists $n$ with $\int_{\{dist < \delta\}} |u_n|^2 \geq \varepsilon_0$.
+
+This means: for every $\delta$, some $u_n$ has $\varepsilon_0$ mass in the $\delta$-layer near the boundary.
+
+Can this happen with $\|u_n\|_{H^1} \leq C$?
+
+**In 1D, $\Omega = (0,1)$:** The boundary layer is $(0, \delta) \cup (1-\delta, 1)$.
+
+$\int_0^\delta |u_n|^2 \leq \delta \cdot \|u_n\|_{L^\infty(0,\delta)}^2$.
+
+By Sobolev embedding in 1D, $|u_n(x)| \leq \|u_n\|_{H^1(0,1)} \leq C$ (since $H^1(0,1) \hookrightarrow L^\infty(0,1)$). So $\int_0^\delta |u_n|^2 \leq C^2 \delta \to 0$.
+
+So in 1D, tightness holds by the Sobolev embedding $H^1 \hookrightarrow L^\infty$.
+
+**In higher dimensions:** $H^1$ doesn't embed into $L^\infty$ for $d \geq 2$. So the above argument doesn't work.
+
+**In 2D:** $H^1 \hookrightarrow L^p$ for $p < \infty$ (but not $L^\infty$). Specifically, $H^1 \hookrightarrow L^q$ for $q \leq 2d/(d-2) = 4$ in 2D.
+
+$\int_{\{dist < \delta\}} |u_n|^2 \leq |\{dist < \delta\}|^{1 - 2/q} \|u_n\|_{L^q}^2$ by Hölder.
+
+For $q = 4$ (in 2D): $\int_{\{dist < \delta\}} |u_n|^2 \leq |\{dist < \delta\}|^{1/2} \|u_n\|_{L^4}^2 \leq |\{dist < \delta\}|^{1/2} C^2$.
+
+Now, $|\{dist < \delta\}|$ is the measure of the boundary layer. For a "nice" domain, this is $\sim \delta \cdot |\partial \Omega| \to 0$. But for a domain with a very rough boundary (e.g., fractal boundary), $|\{dist < \delta\}|$ might not go to 0 as $\delta \to 0$.
+
+Wait, actually, for any bounded open set $\Omega$, $|\{dist < \delta\}| = |\Omega| - |\Omega_\delta|$. And $|\Omega_\delta| \to |\Omega|$ as $\delta \to 0$ (since $\bigcup_\delta \Omega_\delta = \Omega$ and $\Omega_\delta$ is increasing). So $|\{dist < \delta\}| \to 0$ as $\delta \to 0$.
+
+So in 2D: $\int_{\{dist < \delta\}} |u_n|^2 \leq |\{dist < \delta\}|^{1/2} C^2 \to 0$ as $\delta \to 0$, uniformly in $n$.
+
+This works for $d = 2$!
+
+**In $d$ dimensions:** $H^1 \hookrightarrow L^q$ for $q \leq 2d/(d-2)$ (for $d \geq 3$). Using Hölder:
+
+$\int_{\{dist < \delta\}} |u_n|^2 \leq |\{dist < \delta\}|^{1 - 2/q} \|u_n\|_{L^q}^2 \leq |\{dist < \delta\}|^{2/d} C^2$.
+
+(Using $q = 2d/(d-2)$, so $1 - 2/q = 1 - (d-2)/d = 2/d$.)
+
+And $|\{dist < \delta\}| \to 0$ as $\delta \to 0$, so $|\{dist < \delta\}|^{2/d} \to 0$.
+
+This works for $d \geq 3$ too!
+
+**For $d = 1$:** As shown above, $H^1 \hookrightarrow L^\infty$, so $\int_{\{dist < \delta\}} |u_n|^2 \leq C^2 |\{dist < \delta\}| \to 0$.
+
+**So the answer is YES for all dimensions $d$, and the proof uses the Sobolev embedding + Hölder's inequality + the fact that the boundary layer measure goes to 0.**
+
+Wait, but I need to be careful. The Sobolev embedding $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for $q = 2d/(d-2)$ — does this hold for arbitrary bounded open $\Omega$?
+
+The Sobolev embedding theorem: For $\Omega$ bounded with Lipschitz boundary, $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for $q \leq 2d/(d-2)$.
+
+For arbitrary bounded open $\Omega$, the embedding $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for $q \leq 2d/(d-2)$ might not hold. The issue is that for non-Lipschitz domains, the embedding can fail.
+
+Hmm, actually, the Sobolev embedding $W^{1,p}(\Omega) \hookrightarrow L^{p^*}(\Omega)$ with $p^* = dp/(d-p)$ holds for any open set $\Omega$ (no boundary regularity needed) when $p < d$. This is because it's a local result — it follows from the Sobolev inequality on $\mathbb{R}^d$ applied locally.
+
+Wait, is that right? Let me recall. The Sobolev inequality on $\mathbb{R}^d$ says $\|u\|_{L^{p^*}(\mathbb{R}^d)} \leq C \|\nabla u\|_{L^p(\mathbb{R}^d)}$ for $u \in W^{1,p}_0(\mathbb{R}^d)$. For $u \in W^{1,p}(\Omega)$ (not $W^{1,p}_0$), we need an extension or a different argument.
+
+Actually, the Sobolev embedding $W^{1,p}(\Omega) \hookrightarrow L^{p^*}(\Omega)$ for $p < d$ holds for any open set $\Omega$ (this is a consequence of the local nature of the Sobolev inequality). The key point is that the Sobolev inequality is local: for any ball $B$, $\|u\|_{L^{p^*}(B)} \leq C(\|u\|_{L^p(B)} + \|\nabla u\|_{L^p(B)})$. Covering $\Omega$ by balls gives the global result.
+
+Actually, I need to be more careful. The Sobolev inequality $\|u\|_{L^{p^*}(\Omega)} \leq C \|u\|_{W^{1,p}(\Omega)}$ for all $u \in W^{1,p}(\Omega)$ — does this hold for any open $\Omega$?
+
+I believe the answer is yes, for $p < d$. The reason is that the Sobolev inequality is essentially local. One way to see this: extend $u$ by 0 to $\mathbb{R}^d$ (this gives $\tilde{u} \in L^p(\mathbb{R}^d)$ but $\nabla \tilde{u}$ might have a singular part at $\partial \Omega$). So the extension by 0 doesn't work directly.
+
+Alternatively, use a partition of unity. Cover $\overline{\Omega}$ by balls $B_i$ (with $\Omega \cap B_i$ being a "half-ball" near the boundary). Use the Sobolev inequality on each ball (for the interior balls, it's the standard $\mathbb{R}^d$ inequality; for the boundary balls, we need the inequality on half-balls, which holds by reflection).
+
+Actually, the Sobolev inequality on half-balls (or more generally, on domains satisfying the "cone condition") is standard. For arbitrary open sets, the cone condition might not hold.
+
+Hmm, let me reconsider. For an arbitrary bounded open set $\Omega$, does $H^1(\Omega) \hookrightarrow L^{2d/(d-2)}(\Omega)$ hold?
+
+I think the answer is: it holds for $q < 2d/(d-2)$ (strict inequality) for any bounded open $\Omega$, but the endpoint $q = 2d/(d-2)$ might require some regularity.
+
+Actually, I recall that the Sobolev embedding $W^{1,p}(\Omega) \hookrightarrow L^q(\Omega)$ for $q \leq p^* = dp/(d-p)$ holds for any open $\Omega$ with finite measure, when $p < d$. This is because one can use the extension by 0 and the fact that $\|u\|_{L^{p^*}(\mathbb{R}^d)} \leq C \|\nabla u\|_{L^p(\mathbb{R}^d)}$ for $u \in W^{1,p}_0(\mathbb{R}^d)$... but the extension by 0 of a $W^{1,p}(\Omega)$ function is not in $W^{1,p}(\mathbb{R}^d)$ in general.
+
+OK, I think I'm overcomplicating this. Let me look at it from a different angle.
+
+**Alternative approach: Use the Gagliardo-Nirenberg-Sobolev inequality locally.**
+
+For any $u \in H^1(\Omega)$ and any ball $B \subset \Omega$ (completely contained in $\Omega$), we have the Sobolev inequality on $B$:
+
+$\|u\|_{L^q(B)} \leq C \|u\|_{H^1(B)}$ for $q \leq 2d/(d-2)$.
+
+But for balls that intersect the boundary, we need an inequality on $\Omega \cap B$, which might not be a nice set.
+
+**Actually, let me use a different approach entirely.**
+
+**Approach: Use the Kolmogorov-Riesz compactness criterion directly.**
+
+The Kolmogorov-Riesz theorem (for $L^2(\Omega)$): A bounded set $\mathcal{F} \subset L^2(\Omega)$ is precompact iff:
+(a) For every $\varepsilon > 0$, there exists compact $K \subset \Omega$ with $\sup_{f \in \mathcal{F}} \int_{\Omega \setminus K} |f|^2 < \varepsilon$ (tightness).
+(b) For every $\varepsilon > 0$, there exists $\delta > 0$ with $\sup_{f \in \mathcal{F}} \sup_{|h| < \delta} \int_\Omega |\tilde{f}(x+h) - \tilde{f}(x)|^2 dx < \varepsilon$ (equicontinuity), where $\tilde{f}$ is the extension by 0.
+
+Now, condition (b) is what we can check using the $H^1$ bound. But as I noted, the extension by 0 doesn't preserve the $H^1$ bound.
+
+However, there's a version of the Kolmogorov-Riesz theorem that works with translations inside $\Omega$:
+
+$\sup_{f \in \mathcal{F}} \sup_{|h| < \delta} \int_{\Omega \cap (\Omega - h)} |f(x+h) - f(x)|^2 dx < \varepsilon$.
+
+For this version, we can use the $H^1$ bound:
+
+$\int_{\Omega \cap (\Omega - h)} |u_n(x+h) - u_n(x)|^2 dx \leq |h|^2 \int_{\Omega \cap (\Omega - h)} \int_0^1 |\nabla u_n(x + th)|^2 dt \, dx \leq |h|^2 \|\nabla u_n\|_{L^2(\Omega)}^2 \leq C^2 |h|^2$.
+
+Wait, this needs the segment $[x, x+h]$ to be in $\Omega$, which is guaranteed if $x \in \Omega \cap (\Omega - h)$ and... actually no. $x \in \Omega$ and $x + h \in \Omega$ doesn't mean the segment is in $\Omega$.
+
+But for convex $\Omega$, it does. For general $\Omega$, we need a different argument.
+
+Actually, for the translation estimate, we can use:
+
+$|u_n(x+h) - u_n(x)|^2 = \left|\int_0^1 \nabla u_n(x + th) \cdot h \, dt\right|^2 \leq |h|^2 \int_0^1 |\nabla u_n(x + th)|^2 dt$.
+
+This requires $x + th \in \Omega$ for all $t \in [0,1]$, i.e., the segment $[x, x+h] \subset \Omega$.
+
+For general $\Omega$, this is not guaranteed. But we can use a density argument: approximate $u_n$ by smooth functions, for which the estimate holds pointwise, and then pass to the limit.
+
+Actually, for smooth $u_n$ on $\Omega$, the estimate $\int_{\Omega_h} |u_n(x+h) - u_n(x)|^2 dx \leq |h|^2 \|\nabla u_n\|_{L^2(\Omega)}^2$ holds, where $\Omega_h = \{x \in \Omega : x + th \in \Omega \text{ for all } t \in [0,1]\}$... but this is a subset of $\Omega$.
+
+Hmm, this is getting complicated. Let me think about whether there's a simpler argument.
+
+**Simpler approach: Use the fact that for bounded $\Omega$, the boundary layer measure goes to 0, combined with a uniform $L^p$ bound for some $p > 2$.**
+
+If we can show that $\sup_n \|u_n\|_{L^p(\Omega)} \leq C$ for some $p > 2$, then by Hölder:
+
+$\int_{\{dist < \delta\}} |u_n|^2 \leq |\{dist < \delta\}|^{1 - 2/p} \|u_n\|_{L^p}^2 \leq C^2 |\{dist < \delta\}|^{1 - 2/p} \to 0$.
+
+The question is: does $\sup_n \|u_n\|_{L^p(\Omega)} \leq C$ hold for some $p > 2$?
+
+By Sobolev embedding, $H^1(\Omega) \hookrightarrow L^p(\Omega)$ for $p \leq 2d/(d-2)$ (when $d \geq 3$), $p < \infty$ (when $d = 2$), and $p = \infty$ (when $d = 1$).
+
+For this embedding to hold, we need some conditions on $\Omega$. For Lipschitz domains, it holds. For arbitrary bounded open sets...
+
+Actually, I think the Sobolev embedding $H^1(\Omega) \hookrightarrow L^p(\Omega)$ for $p \leq 2d/(d-2)$ holds for any open set $\Omega \subset \mathbb{R}^d$ (not necessarily bounded or with nice boundary), as long as $p \leq 2d/(d-2)$. The reason is that the Sobolev inequality is local.
+
+Let me verify this. The Sobolev inequality on $\mathbb{R}^d$: for $u \in H^1(\mathbb{R}^d)$, $\|u\|_{L^{2d/(d-2)}(\mathbb{R}^d)} \leq C \|\nabla u\|_{L^2(\mathbb{R}^d)}$ (for $d \geq 3$).
+
+For $u \in H^1(\Omega)$, extend by 0 to get $\tilde{u} \in L^2(\mathbb{R}^d)$. But $\tilde{u} \notin H^1(\mathbb{R}^d)$ in general (the gradient has a singular part at $\partial \Omega$). So we can't directly apply the $\mathbb{R}^d$ inequality.
+
+However, there's a version of the Sobolev inequality that works on domains. The key result is:
+
+**Theorem (Sobolev embedding on arbitrary open sets):** Let $\Omega$ be an open set in $\mathbb{R}^d$ and $1 \leq p < d$. Then $W^{1,p}(\Omega) \hookrightarrow L^{p^*}(\Omega)$ where $p^* = dp/(d-p)$, with $\|u\|_{L^{p^*}(\Omega)} \leq C \|u\|_{W^{1,p}(\Omega)}$.
+
+Actually, I'm not sure this holds for arbitrary open sets. Let me think again.
+
+For $W^{1,p}_0(\Omega)$, the embedding into $L^{p^*}(\Omega)$ holds for any open $\Omega$ (by extension by 0 and the $\mathbb{R}^d$ inequality).
+
+For $W^{1,p}(\Omega)$ (not $W^{1,p}_0$), the embedding into $L^{p^*}(\Omega)$ requires some regularity of $\Omega$ (e.g., Lipschitz boundary, or the cone condition).
+
+Actually, I recall now: the Sobolev embedding $W^{1,p}(\Omega) \hookrightarrow L^q(\Omega)$ for $q \leq p^*$ holds for any open $\Omega$ with finite measure, when $p < d$. This is because one can use the extension by 0 and the fact that $\|u\|_{L^{p^*}(\mathbb{R}^d)} \leq C \|\nabla u\|_{L^p(\mathbb{R}^d)}$ for $u \in W^{1,p}_0(\mathbb{R}^d)$... but the extension by 0 of a $W^{1,p}(\Omega)$ function is not in $W^{1,p}(\mathbb{R}^d)$ in general.
+
+OK, I think I'm overcomplicating this. Let me look at it from a different angle.
+
+**Actually, I think the Sobolev inequality does hold on arbitrary open sets for $p < d$.** Here's why:
+
+The key is the following result: for any open set $\Omega \subset \mathbb{R}^d$ and $u \in W^{1,p}(\Omega)$ with $1 \leq p < d$:
+
+$\|u\|_{L^{p^*}(\Omega)} \leq C \|\nabla u\|_{L^p(\Omega)}$
+
+This is NOT true in general (consider $u = 1$ on a bounded $\Omega$; then $\|\nabla u\| = 0$ but $\|u\|_{L^{p^*}} > 0$).
+
+So we need the full $W^{1,p}$ norm: $\|u\|_{L^{p^*}(\Omega)} \leq C \|u\|_{W^{1,p}(\Omega)}$.
+
+This holds for $\Omega$ with finite measure, by the following argument:
+
+$\|u\|_{L^{p^*}(\Omega)} \leq \|u\|_{L^{p^*}(\mathbb{R}^d)}$ (extension by 0, but this doesn't work for $W^{1,p}$ functions)...
+
+OK, I think the issue is that for non-Lipschitz domains, the Sobolev embedding might fail. Let me think of a specific counterexample.
+
+**Counterexample: $\Omega$ with a cusp, $d \geq 2$.**
+
+Consider $\Omega = \{(x_1, x') \in \mathbb{R}^d : 0 < x_1 < 1, |x'| < x_1^\alpha\}$ for $\alpha > 1$ (a cusp domain). The Sobolev embedding $H^1(\Omega) \hookrightarrow L^q(\Omega)$ might fail for $q = 2d/(d-2)$ if the cusp is sharp enough.
+
+Actually, for cusp domains, the Sobolev embedding can fail. The critical exponent depends on the cusp.
+
+But we don't need the endpoint $q = 2d/(d-2)$. We just need some $q > 2$.
+
+**For any bounded open $\Omega$, does $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for some $q > 2$?**
+
+I believe the answer is yes, and in fact $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for all $q \leq 2d/(d-2)$ (when $d \geq 3$) and for all $q < \infty$ (when $d = 2$), for any bounded open $\Omega$.
+
+The reason is the following result (see, e.g., Adams & Fournier, "Sobolev Spaces"):
+
+**Theorem:** If $\Omega$ is an open set in $\mathbb{R}^d$ with $|\Omega| < \infty$, and $1 \leq p < d$, then $W^{1,p}(\Omega) \hookrightarrow L^q(\Omega)$ for $1 \leq q \leq p^* = dp/(d-p)$.
+
+This holds without any boundary regularity. The proof uses the extension by 0 and the Sobolev inequality on $\mathbb{R}^d$, but applied to $u - c$ for appropriate constants $c$, or more precisely, it uses the fact that for bounded $\Omega$, the $L^p$ norm controls the $L^q$ norm for $q \leq p^*$ via the Sobolev inequality applied locally.
+
+Actually, I think the correct statement is:
+
+For $\Omega$ with finite measure, $W^{1,p}(\Omega) \hookrightarrow L^q(\Omega)$ for $q \leq p^*$, and this follows from the Sobolev inequality on $\mathbb{R}^d$ combined with the extension by 0 (which works because $W^{1,p}(\Omega) \hookrightarrow W^{1,p}_{loc}(\Omega)$ and the local Sobolev inequality).
+
+Hmm, but the extension by 0 of a $W^{1,p}(\Omega)$ function is in $W^{1,p}(\mathbb{R}^d)$ only if $u \in W^{1,p}_0(\Omega)$. For general $u \in W^{1,p}(\Omega)$, the extension by 0 is in $L^p(\mathbb{R}^d)$ but its distributional gradient might have a singular part.
+
+Let me think about this more carefully. Actually, I think the key result is:
+
+**For any open $\Omega \subset \mathbb{R}^d$ with $|\Omega| < \infty$, and $1 \leq p < d$:**
+$$\|u\|_{L^{p^*}(\Omega)} \leq C \|\nabla u\|_{L^p(\Omega)}$$
+**for all $u \in W^{1,p}_0(\Omega)$.**
+
+This follows from extending $u$ by 0 to $\mathbb{R}^d$ and applying the Sobolev inequality on $\mathbb{R}^d$.
+
+**For $u \in W^{1,p}(\Omega)$ (not $W^{1,p}_0$), we need:**
+$$\|u\|_{L^{p^*}(\Omega)} \leq C \|u\|_{W^{1,p}(\Omega)}$$
+
+This can be obtained by using a cutoff: let $\eta \in C_c^\infty(\Omega)$, then $\eta u \in W^{1,p}_0(\Omega)$ and $(1-\eta)u$ is supported away from the boundary. For $(1-\eta)u$, we can use the local Sobolev inequality (since it's supported in the interior). For $\eta u$, we use the $W^{1,p}_0$ inequality.
+
+But the cutoff $\eta$ introduces a term $\|\nabla \eta \cdot u\|_{L^p}$, which is bounded by $\|\nabla \eta\|_{L^\infty} \|u\|_{L^p}$. This is fine as long as $\|\nabla \eta\|_{L^\infty}$ is bounded, which it is for a fixed cutoff.
+
+Wait, but we need a global inequality, not one that depends on a specific cutoff. Let me think about this differently.
+
+Actually, I think the correct approach is:
+
+**Step 1:** For $u \in W^{1,p}(\Omega)$, use the local Sobolev inequality on a covering of $\Omega$ by balls.
+
+For each ball $B_i$ in the covering, $\|u\|_{L^{p^*}(B_i \cap \Omega)} \leq C \|u\|_{W^{1,p}(B_i \cap \Omega)}$.
+
+But $B_i \cap \Omega$ might not be a nice set, and the Sobolev inequality on $B_i \cap \Omega$ might not hold.
+
+Hmm, actually, for the local Sobolev inequality, we can use the fact that $u \in W^{1,p}(B_i)$ (if $B_i \subset \Omega$) and apply the $\mathbb{R}^d$ Sobolev inequality on $B_i$ (which is a nice domain). For balls that intersect the boundary, $u$ is only defined on $B_i \cap \Omega$, and we need the Sobolev inequality on $B_i \cap \Omega$.
+
+For $B_i \cap \Omega$ with $\Omega$ arbitrary, this might not work.
+
+**OK, I think I need to take a step back and think about what's really going on.**
+
+Let me consider the possibility that the answer is NO — that tightness can fail for some bounded $\Omega$ and some bounded sequence in $H^1(\Omega)$.
+
+**Potential counterexample: A domain where $H^1$ functions can have mass concentrating near the boundary without large gradient.**
+
+Consider a domain $\Omega$ with a "long thin finger" — a long, thin protrusion. In such a domain, a function that's constant along the finger has small gradient but its mass is concentrated in the finger (which is near the boundary).
+
+But $\Omega$ is bounded, so the finger has finite length. Let me make this concrete.
+
+**Example: $\Omega \subset \mathbb{R}^2$ is a "dumbbell" or "rooms and passages" domain.**
+
+Let $\Omega$ consist of a large room $R_0 = B(0, 1)$ connected by a thin passage $P = (0, 1) \times (-\epsilon, \epsilon)$ to a small room $R_1 = B((2, 0), r)$, where $\epsilon$ and $r$ are small.
+
+Consider $u_n$ that is 1 on $R_1$ and 0 on $R_0$, with a transition in $P$. The gradient is $\sim 1/\epsilon$ in the passage (transition over length 1 with width $\epsilon$... actually the gradient in the $x_1$ direction is $\sim 1$, and the $L^2$ norm of the gradient is $\sim 1 \cdot |P|^{1/2} \sim \sqrt{\epsilon}$).
+
+$\|u_n\|_{L^2}^2 \approx |R_1| = \pi r^2$.
+
+$\|\nabla u_n\|_{L^2}^2 \approx \epsilon$ (the passage contribution).
+
+So $\|u_n\|_{H^1} \approx \sqrt{\pi r^2 + \epsilon}$, which is bounded. And the mass $\pi r^2$ is concentrated in $R_1$, which is near the boundary.
+
+But this is a fixed function, not a sequence. For a fixed function, tightness always holds (since $u \in L^2(\Omega)$ and $\Omega$ is bounded, $\int_{\Omega \setminus K} |u|^2 \to 0$ as $K \nearrow \Omega$).
+
+The question is about a sequence. Can we have a sequence of such functions with the mass staying in $R_1$ but $R_1$ getting closer and closer to the boundary?
+
+Since $\Omega$ is fixed, $R_1$ is at a fixed distance from the boundary. So this doesn't work.
+
+**What if $\Omega$ has a sequence of rooms getting closer to the boundary?**
+
+But $\Omega$ is a fixed bounded open set. The boundary is fixed. The rooms are part of $\Omega$ and are at fixed distances from the boundary.
+
+Hmm, I think the issue is that for a fixed bounded $\Omega$, the boundary is at a fixed location, and the $H^1$ bound prevents mass from concentrating in thinner and thinner layers near the boundary.
+
+**Let me try to prove the result using a different method.**
+
+**Method: Use the Fourier transform (for $\Omega$ a cube).**
+
+If $\Omega = (0, L)^d$, we can use Fourier series. A bounded sequence in $H^1$ has bounded Fourier coefficients with $\sum_k (1 + |k|^2) |\hat{u}_n(k)|^2 \leq C$. The high-frequency tail is controlled:
+
+$\int_{\Omega \setminus K} |u_n|^2 \leq \|u_n\|_{L^2}^2$... this doesn't directly help.
+
+Actually, for the cube, we can use the Rellich-Kondrachov theorem (which holds for Lipschitz domains), so tightness follows from precompactness.
+
+**Let me think about the general case more carefully.**
+
+I think the key insight is:
+
+1. For $d = 1$: $H^1 \hookrightarrow L^\infty$, so $\int_{\{dist < \delta\}} |u_n|^2 \leq C^2 |\{dist < \delta\}| \to 0$. Tightness holds.
+
+2. For $d \geq 2$: We need a uniform $L^p$ bound for some $p > 2$. If $H^1(\Omega) \hookrightarrow L^p(\Omega)$ for some $p > 2$, then tightness follows from Hölder and the fact that the boundary layer measure goes to 0.
+
+The question is whether $H^1(\Omega) \hookrightarrow L^p(\Omega)$ for some $p > 2$ holds for any bounded open $\Omega$.
+
+**I believe the answer is YES.** Here's the argument:
+
+For any bounded open $\Omega$ and $u \in H^1(\Omega)$, we can use the following:
+
+**Step 1:** Extend $u$ to $\tilde{u} \in H^1(\mathbb{R}^d)$... but this requires an extension operator, which needs boundary regularity.
+
+**Step 2 (alternative):** Use the local Sobolev inequality.
+
+For any ball $B(x, r) \subset \Omega$ (completely contained in $\Omega$), the Sobolev inequality on $B(x, r)$ gives:
+$\|u\|_{L^p(B(x,r))} \leq C \|u\|_{H^1(B(x,r))}$ for $p \leq 2d/(d-2)$.
+
+For balls near the boundary, we can't directly use this. But we can use a covering argument.
+
+**Actually, I think the Sobolev embedding $H^1(\Omega) \hookrightarrow L^p(\Omega)$ for $p \leq 2d/(d-2)$ does hold for any bounded open $\Omega$, and here's a proof:**
+
+The key is the following lemma:
+
+**Lemma:** For any open $\Omega \subset \mathbb{R}^d$ with $|\Omega| < \infty$, and $u \in H^1(\Omega)$:
+$$\|u\|_{L^{p^*}(\Omega)} \leq C(\|u\|_{L^2(\Omega)} + \|\nabla u\|_{L^2(\Omega)})$$
+where $p^* = 2d/(d-2)$ (for $d \geq 3$).
+
+**Proof of Lemma:** This follows from the fact that $H^1(\Omega) = W^{1,2}(\Omega)$ and the Sobolev inequality for $W^{1,p}$ on domains with finite measure. The standard reference is Adams & Fournier, Theorem 5.4 (or similar), which states that for any open $\Omega$ with $|\Omega| < \infty$, $W^{1,p}(\Omega) \hookrightarrow L^q(\Omega)$ for $p \leq q \leq p^*$ when $p < d$.
+
+Actually, I just recalled: the Sobolev embedding $W^{1,p}(\Omega) \hookrightarrow L^{p^*}(\Omega)$ for $p < d$ holds for any open set $\Omega$ (no boundary regularity needed). This is because it follows from the isoperimetric inequality / Sobolev inequality on $\mathbb{R}^d$, applied via the co-area formula or the representation formula.
+
+More precisely, for $u \in W^{1,p}(\Omega)$, we have the representation:
+$|u(x)| \leq C \int_\Omega \frac{|\nabla u(y)|}{|x-y|^{d-1}} dy + C \int_\Omega \frac{|u(y)|}{|x-y|^d} dy$ (Riesz potential representation).
+
+From this, the Hardy-Littlewood-Sobolev inequality gives $\|u\|_{L^{p^*}} \leq C \|\nabla u\|_{L^p}$... but this requires $u$ to vanish at the boundary or something.
+
+Hmm, I'm going in circles. Let me just look at this from a more practical standpoint.
+
+**I think the answer to the problem is YES, the sequence is tight.** And I think the proof works as follows:
+
+**For $d \leq 2$:** The Sobolev embedding gives $H^1(\Omega) \hookrightarrow L^p(\Omega)$ for some $p > 2$ (in fact, for all $p < \infty$ when $d = 2$, and $p = \infty$ when $d = 1$). This holds for any bounded open $\Omega$ (the embedding $W^{1,p} \hookrightarrow L^q$ for $q \leq p^*$ holds on any open set with finite measure when $p \leq d$; for $p > d$, the embedding into $L^\infty$ requires the cone condition, but for $p = d = 2$, the embedding into $L^q$ for $q < \infty$ holds on any bounded open set).
+
+Wait, for $d = 2$ and $p = 2 = d$, the critical Sobolev exponent is $p^* = 2d/(d-2) = \infty$. The embedding $H^1(\Omega) \hookrightarrow L^\infty(\Omega)$ does NOT hold in general (even for nice domains). But $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for all $q < \infty$ does hold for bounded $\Omega$ (this is the "critical" case).
+
+For $d = 2$, the embedding $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for all $q < \infty$ holds for any bounded open $\Omega$. This follows from the Trudinger-Moser theory or more directly from the Sobolev inequality on $\mathbb{R}^2$ (the critical case).
+
+Actually, for $d = 2$, $H^1(\mathbb{R}^2) \hookrightarrow L^q(\mathbb{R}^2)$ for all $2 \leq q < \infty$ (this is a consequence of the Gagliardo-Nirenberg inequality). For bounded $\Omega$, $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for all $q < \infty$ follows (using extension or local arguments).
+
+For $d \geq 3$, $H^1(\Omega) \hookrightarrow L^{2d/(d-2)}(\Omega)$ holds for bounded $\Omega$ with Lipschitz boundary. For arbitrary bounded $\Omega$, I believe $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for $q < 2d/(d-2)$ still holds.
+
+**Actually, let me just use the following well-known result:**
+
+**Theorem (Sobolev embedding on bounded open sets):** Let $\Omega$ be a bounded open set in $\mathbb{R}^d$. Then:
+- If $d = 1$: $H^1(\Omega) \hookrightarrow L^\infty(\Omega)$.
+- If $d = 2$: $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for all $q \in [2, \infty)$.
+- If $d \geq 3$: $H^1(\Omega) \hookrightarrow L^q(\Omega)$ for all $q \in [2, 2d/(d-2)]$.
+
+This holds without any boundary regularity assumption. The key is that $\Omega$ has finite measure.
+
+I'm fairly confident this is correct. The Sobolev embedding $W^{1,p}(\Omega) \hookrightarrow L^q(\Omega)$ for $q \leq p^*$ (when $p < d$) and for $q < \infty$ (when $p = d$) holds for any open set with finite measure. This is because the Sobolev inequality is essentially local, and the finite measure of $\Omega$ allows us to control the $L^p$ norm by the $L^{p^*}$ norm locally.
+
+Actually, I just want to double-check: does the Sobolev embedding hold on arbitrary bounded open sets, or only on those with some boundary regularity?
+
+I looked this up in my memory: The Sobolev embedding $W^{1,p}(\Omega) \hookrightarrow L^{p^*}(\Omega)$ for $p < d$ holds for any open $\Omega$ (no boundary regularity needed). This is Theorem 5.4 in Adams & Fournier (or similar in other references). The proof uses the extension by zero to $\mathbb{R}^d$... wait, but that doesn't work for $W^{1,p}$ functions that don't vanish at the boundary.
+
+OK, let me think about this more carefully. The issue is: for $u \in W^{1,p}(\Omega)$ (not $W^{1,p}_0(\Omega)$), the extension by 0 is not in $W^{1,p}(\mathbb{R}^d)$. So we can't directly use the $\mathbb{R}^d$ Sobolev inequality.
+
+However, there's a different proof that works for arbitrary open sets:
+
+**Proof using the representation formula:**
+
+For $u \in C^\infty_c(\mathbb{R}^d)$ (smooth and compactly supported), we have:
+$u(x) = C \int_{\mathbb{R}^d} \frac{(x-y) \cdot \nabla u(y)}{|x-y|^d} dy$.
+
+This gives $|u(x)| \leq C \int_{\mathbb{R}^d} \frac{|\nabla u(y)|}{|x-y|^{d-1}} dy = C (I_1 * |\nabla u|)(x)$,
+
+where $I_1$ is the Riesz potential of order 1. By the Hardy-Littlewood-Sobolev inequality, $\|I_1 * f\|_{L^{p^*}} \leq C \|f\|_{L^p}$ for $1/p^* = 1/p - 1/d$.
+
+So $\|u\|_{L^{p^*}(\mathbb{R}^d)} \leq C \|\nabla u\|_{L^p(\mathbb{R}^d)}$ for $u \in C^\infty_c(\mathbb{R}^d)$.
+
+By density, this extends to $W^{1,p}_0(\Omega)$ for any open $\Omega$.
+
+For $u \in W^{1,p}(\Omega)$ (not $W^{1,p}_0$), we can't directly use this. But we can use a cutoff:
+
+Let $\eta \in C^\infty_c(\Omega)$ with $\eta = 1$ on $\Omega_\delta$ (the interior $\delta$-layer). Then $\eta u \in W^{1,p}_0(\Omega)$, so:
+$\|\eta u\|_{L^{p^*}(\Omega)} \leq C \|\nabla(\eta u)\|_{L^p(\Omega)} \leq C(\|\nabla u\|_{L^p} + \|\nabla \eta\|_{L^\infty} \|u\|_{L^p})$.
+
+And $(1-\eta)u$ is supported in the boundary layer, where we can use the $L^p$ bound (since the boundary layer has small measure, and $L^p \hookrightarrow L^q$ on sets of finite measure for $q \leq p$... but we need $q = p^* > p$, so this doesn't work).
+
+Hmm, so the cutoff approach doesn't directly give the Sobolev embedding for $W^{1,p}(\Omega)$ on arbitrary domains.
+
+**I think the Sobolev embedding $W^{1,p}(\Omega) \hookrightarrow L^{p^*}(\Omega)$ does NOT hold for arbitrary open $\Omega$.** It requires some boundary regularity (e.g., Lipschitz boundary or the cone condition).
+
+**Counterexample:** Consider $\Omega$ with an external cusp: $\Omega = \{(x,y) \in \mathbb{R}^2 : 0 < x < 1, |y| < e^{-1/x}\}$. This is a bounded open set with a very sharp cusp at the origin.
+
+The function $u(x,y) = x^{-\alpha}$ for some $\alpha > 0$ might be in $H^1(\Omega)$ but not in $L^q(\Omega)$ for large $q$.
+
+$\int_\Omega |u|^q = \int_0^1 \int_{-e^{-1/x}}^{e^{-1/x}} x^{-\alpha q} dy \, dx = \int_0^1 2 e^{-1/x} x^{-\alpha q} dx$.
+
+For $x$ near 0, $e^{-1/x}$ decays faster than any power, so this integral converges for all $\alpha, q$. So $u \in L^q(\Omega)$ for all $q$.
+
+$\int_\Omega |\nabla u|^2 = \int_0^1 \int_{-e^{-1/x}}^{e^{-1/x}} \alpha^2 x^{-2\alpha - 2} dy \, dx = 2\alpha^2 \int_0^1 e^{-1/x} x^{-2\alpha - 2} dx$.
+
+Again, the exponential decay makes this converge for all $\alpha$. So $u \in H^1(\Omega)$ and $u \in L^q(\Omega)$ for all $q$.
+
+This doesn't give a counterexample. The cusp is so sharp that it actually helps integrability.
+
+**What about an internal cusp?** Consider $\Omega = B(0,1) \setminus \{(x,0) : 0 \leq x < 1\}$ (the unit disk with a slit). This is a bounded open set (it's open because we remove a closed set from an open set). $H^1(\Omega) = H^1(B(0,1))$ (since the slit has measure 0). So the Sobolev embedding holds as for the disk.
+
+**What about a domain with a "crack"?** Similar to the slit, it doesn't affect $H^1$ since the crack has measure 0.
+
+**What about the "rooms and passages" domain?** This is a bounded open set where the Sobolev embedding $H^1 \hookrightarrow L^q$ might fail for large $q$ if the passages are thin enough. But I think for $q$ slightly larger than 2, the embedding still holds.
+
+Actually, I recall that for the "rooms and passages" domain, the Rellich-Kondrachov compactness $H^1 \hookrightarrow \hookrightarrow L^2$ can fail. This is a classic example. But the embedding $H^1 \hookrightarrow L^2$ (continuous, not compact) always holds.
+
+If $H^1 \hookrightarrow \hookrightarrow L^2$ fails, then precompactness fails, which means either tightness or equicontinuity (or both) fails. If tightness fails, then the answer to our question is NO.
+
+**Let me think about the "rooms and passages" example more carefully.**
+
+Consider $\Omega \subset \mathbb{R}^2$ consisting of rooms $R_k$ (disks of radius $r_k$) centered at points $c_k$, connected by thin passages. The rooms are arranged so that $c_k \to c_0 \in \partial \Omega$ (the rooms approach the boundary).
+
+Wait, but $\Omega$ is a fixed open set. The rooms are part of $\Omega$ and are at fixed positions. The sequence $(u_n)$ is what varies.
+
+Let me make this concrete. Consider $\Omega$ consisting of countably many rooms $R_k$ (disks of radius $r_k$) connected by passages, with $R_k$ approaching a point on the boundary.
+
+Let $u_k = 1$ on $R_k$ and 0 elsewhere (with a smooth transition in the passage). Then:
+- $\|u_k\|_{L^2}^2 \approx |R_k| = \pi r_k^2$.
+- $\|\nabla u_k\|_{L^2}^2 \approx$ (passage contribution) $\sim 1$ (if the passage has unit length and width $\epsilon_k$, the gradient is $\sim 1/\epsilon_k$ in the passage, and $\|\nabla u_k\|_{L^2}^2 \sim (1/\epsilon_k)^2 \cdot \epsilon_k = 1/\epsilon_k$... wait, that's not right).
+
+Let me be more careful. The passage $P_k$ connecting $R_{k-1}$ to $R_k$ has length $L_k$ and width $\epsilon_k$. The function $u_k$ transitions from 0 to 1 over the passage. The gradient is $\sim 1/L_k$ in the $x_1$ direction, and $\|\nabla u_k\|_{L^2(P_k)}^2 \sim (1/L_k)^2 \cdot L_k \cdot \epsilon_k = \epsilon_k / L_k$.
+
+If $L_k = 1$ and $\epsilon_k = \epsilon$ (fixed), then $\|\nabla u_k\|_{L^2}^2 \sim \epsilon$, which is bounded. And $\|u_k\|_{L^2}^2 \sim r_k^2$.
+
+If $r_k = r$ (fixed), then $\|u_k\|_{H^1} \sim \sqrt{r^2 + \epsilon}$, bounded.
+
+Now, the mass of $u_k$ is concentrated in $R_k$, which is at distance $\sim \sum_{j=1}^k L_j$ from the "main" part of $\Omega$. If the rooms go off to the boundary, then $R_k$ is close to $\partial \Omega$ for large $k$.
+
+For any compact $K \subset \Omega$, $K$ is at positive distance from $\partial \Omega$, so $K$ can only contain finitely many rooms (those at distance $> \delta$ from $\partial \Omega$). For $k$ large enough, $R_k \subset \Omega \setminus K$, so $\int_{\Omega \setminus K} |u_k|^2 \geq \pi r^2$.
+
+This means $\sup_k \int_{\Omega \setminus K} |u_k|^2 \geq \pi r^2 > 0$ for all compact $K$.
+
+So tightness fails! The sequence $(u_k)$ is bounded in $H^1(\Omega)$ but not tight in $L^2(\Omega)$.
+
+Wait, but I need to check that $\Omega$ is bounded. If the rooms go off to infinity, $\Omega$ is unbounded. But the problem says $\Omega$ is bounded.
+
+So let me arrange the rooms to approach a boundary point. Consider $\Omega \subset B(0, 1)$ with rooms $R_k$ centered at $c_k = (1 - 1/k, 0)$ with radius $r_k = 1/(10k^2)$, connected by passages. The rooms approach the point $(1, 0) \in \partial \Omega$.
+
+$\Omega$ is bounded (contained in $B(0, 2)$, say). The rooms $R_k$ approach the boundary point $(1, 0)$.
+
+For $u_k = 1$ on $R_k$ and 0 elsewhere (with transition in passages):
+- $\|u_k\|_{L^2}^2 \approx \pi r_k^2 = \pi/(100 k^4)$.
+- $\|\nabla u_k\|_{L^2}^2 \approx$ passage contribution.
+
+The passage from $R_{k-1}$ to $R_k$ has length $\sim 1/k^2$ (distance between centers) and width $\epsilon_k$. The gradient is $\sim k^2$, and $\|\nabla u_k\|_{L^2}^2 \sim k^4 \cdot (1/k^2) \cdot \epsilon_k = k^2 \epsilon_k$.
+
+For this to be bounded, we need $\epsilon_k \sim 1/k^2$.
+
+But then the passage width $\epsilon_k \sim 1/k^2$ is comparable to the room radius $r_k \sim 1/k^2$, which is fine.
+
+With $\epsilon_k = 1/k^2$: $\|\nabla u_k\|_{L^2}^2 \sim k^2 \cdot 1/k^2 = 1$. Bounded!
+
+And $\|u_k\|_{L^2}^2 \sim 1/k^4 \to 0$.
+
+Hmm, the $L^2$ norm goes to 0. So for large $k$, the mass is small, and tightness might still hold (the sup over $k$ of the boundary mass is dominated by the finitely many large rooms, which can be captured by a compact set).
+
+Let me adjust: make the rooms have the same size. $r_k = r$ (fixed), $c_k = (1 - 1/k, 0)$.
+
+But then the rooms overlap for large $k$ (since $|c_k - c_{k+1}| = 1/(k(k+1)) \to 0$ while $r$ is fixed). So the rooms can't all have the same radius if they're approaching a point.
+
+Let me use a different arrangement. Instead of rooms approaching a point, use rooms approaching a line (the boundary).
+
+Consider $\Omega \subset \mathbb{R}^2$ with rooms $R_k$ (disks of radius $r$) centered at $c_k = (0, 1/k)$, connected by passages. The rooms approach the $x$-axis, which is part of

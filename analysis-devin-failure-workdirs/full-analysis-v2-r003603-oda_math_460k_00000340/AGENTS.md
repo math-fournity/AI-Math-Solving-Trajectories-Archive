@@ -1,0 +1,1140 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>oda_math_460k_00000340</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+A regular triangle whose side is equal to \(a\) revolves about its axis, which is parallel to a side of the triangle and is passed through the vertex opposite to this side. Find the surface area of the solid of revolution thus generated.
+
+## Standard Solution
+
+<think>Okay, let's try to solve this problem. The question is about a regular triangle (equilateral triangle) with side length \(a\) revolving around an axis. The axis is parallel to one of its sides and passes through the vertex opposite that side. We need to find the surface area of the resulting solid of revolution. 
+
+First, let's visualize the problem. Let's denote the equilateral triangle as \(ABC\), where \(BC\) is the side parallel to the axis of rotation, and \(A\) is the opposite vertex. So the axis is parallel to \(BC\) and passes through \(A\). Let's set up a coordinate system to make this easier. Let's place the triangle in the plane, say the xy-plane, with the axis of rotation along the x-axis. Wait, but the axis is parallel to \(BC\), so if \(BC\) is horizontal, the axis is also horizontal. Let's define coordinates more precisely.
+
+Let me first find the coordinates of the triangle. Let's let side \(BC\) be of length \(a\). Let's place point \(B\) at \((-b, 0)\), point \(C\) at \((b, 0)\), so that \(BC\) is centered at the origin, length \(BC = 2b = a\), so \(b = a/2\). Then the third vertex \(A\) of the equilateral triangle will be at \((0, h)\), where \(h\) is the height of the triangle. For an equilateral triangle, the height \(h = \sqrt{a^2 - (a/2)^2} = \sqrt{3}a/2\). So coordinates: \(A(0, h)\), \(B(-a/2, 0)\), \(C(a/2, 0)\).
+
+Now, the axis of rotation is parallel to \(BC\) (which is along the x-axis) and passes through \(A\). Since \(BC\) is along the x-axis, the axis is a horizontal line (parallel to x-axis) passing through \(A\). Let's confirm: the axis is parallel to \(BC\), which is the x-axis, so the axis is a horizontal line. Since it passes through \(A(0, h)\), the equation of the axis is \(y = h\) (if we consider the axis as a line in the plane; but wait, when we revolve around an axis, the axis is a line in 3D space. But since the triangle is in a plane, let's assume the triangle is in the plane \(z=0\), and the axis is parallel to the x-axis (so direction vector (1,0,0)) and passes through \(A\). Wait, but the problem says "axis, which is parallel to a side of the triangle and is passed through the vertex opposite to this side". So the axis is a line: let's clarify the position.
+
+Wait, maybe it's better to set the axis as the x-axis. Let's reorient. Let's suppose the side \(BC\) is horizontal, and the axis of rotation is a line parallel to \(BC\) passing through \(A\). Let's let the axis be the x-axis. Then we need to find the distance from each point of the triangle to the axis, because when revolving, the surface area generated by a line segment is \(2\pi r L\), where \(r\) is the distance from the line segment to the axis, and \(L\) is the length of the segment. But wait, actually, for a curve, the surface area is \(2\pi \int y \, ds\), where \(y\) is the distance from the curve to the axis, and \(ds\) is the arc length element. But here, the triangle is a polygon, so it's composed of three line segments: \(AB\), \(BC\), and \(CA\). When revolving, each side will generate a surface, but we need to check if the axis intersects any sides, but in this case, the axis passes through \(A\), and is parallel to \(BC\). Let's confirm the axis's position.
+
+Let me re-define coordinates properly. Let's set the axis of rotation as the x-axis. Let's let the vertex \(A\) be on the axis, since the axis passes through \(A\). The axis is parallel to side \(BC\), so \(BC\) is parallel to the x-axis. Let's find the coordinates:
+
+Let’s place vertex \(A\) at the origin \((0, 0)\) for simplicity, since the axis passes through \(A\). The axis is the x-axis (since it's the line through \(A\) and parallel to \(BC\)). Now, we need to find the coordinates of \(B\) and \(C\). Since \(BC\) is parallel to the x-axis, let's denote the coordinates of \(B\) as \((p, q)\) and \(C\) as \((r, q)\), so that \(BC\) is horizontal (parallel to x-axis). The length \(BC = a\), so \(r - p = a\). The triangle \(ABC\) is equilateral, so \(AB = AC = BC = a\). Since \(A\) is at \((0,0)\), \(AB\) distance is \(\sqrt{p^2 + q^2} = a\), \(AC\) distance is \(\sqrt{r^2 + q^2} = a\). Also, \(BC\) length is \(r - p = a\).
+
+So we have:
+
+\(p^2 + q^2 = a^2\) (1)
+
+\(r^2 + q^2 = a^2\) (2)
+
+\(r - p = a\) (3)
+
+From (1) and (2), \(p^2 = r^2\), so \(r = -p\) (since if \(r = p\), then \(r - p = 0 \neq a\)). So \(r = -p\). Then from (3): \(-p - p = a \Rightarrow -2p = a \Rightarrow p = -a/2\), so \(r = a/2\). Then from (1): \((-a/2)^2 + q^2 = a^2 \Rightarrow a^2/4 + q^2 = a^2 \Rightarrow q^2 = 3a^2/4 \Rightarrow q = \sqrt{3}a/2\) (since it's a triangle above the axis, we take positive q). So coordinates:
+
+\(A(0, 0)\) (on the x-axis, axis of rotation),
+
+\(B(-a/2, \sqrt{3}a/2)\),
+
+\(C(a/2, \sqrt{3}a/2)\).
+
+Yes, that makes sense. Now, let's confirm the side \(BC\): distance between \(B\) and \(C\) is \((a/2 - (-a/2)) = a\), correct. \(AB\) distance: \(\sqrt{(-a/2)^2 + (\sqrt{3}a/2)^2} = \sqrt{a^2/4 + 3a^2/4} = \sqrt{a^2} = a\), correct. So this coordinate system is good. The axis of rotation is the x-axis, passing through \(A(0,0)\), and parallel to \(BC\) (since \(BC\) is from \((-a/2, \sqrt{3}a/2)\) to \((a/2, \sqrt{3}a/2)\), which is horizontal, same as the x-axis).
+
+Now, we need to find the surface area generated when the triangle revolves around the x-axis. The surface area of revolution for a polygon is the sum of the surface areas generated by each side. Let's consider each side:
+
+1. Side \(AB\): from \(A(0,0)\) to \(B(-a/2, \sqrt{3}a/2)\)
+
+2. Side \(BC\): from \(B(-a/2, \sqrt{3}a/2)\) to \(C(a/2, \sqrt{3}a/2)\)
+
+3. Side \(CA\): from \(C(a/2, \sqrt{3}a/2)\) to \(A(0,0)\)
+
+We need to check if each side, when revolved, generates a surface. Note that when a line segment is revolved around an axis, if the segment is not intersecting the axis, it generates a frustum of a cone (a truncated cone). If the segment passes through the axis, it might generate a cone (if one end is on the axis) or a line (if the entire segment is on the axis, but that's not the case here).
+
+First, let's find the distance from each point to the axis (x-axis). The distance from a point \((x, y)\) to the x-axis is \(|y|\). But for a line segment, the surface area generated is \(2\pi \times \text{average radius} \times \text{length of the segment}\)? Wait, no. The formula for the surface area generated by revolving a curve around the x-axis is \(2\pi \int y \, ds\), where \(ds\) is the arc length element. For a straight line segment, we can parameterize it and compute the integral, or use the Pappus's Centroid Theorem, which states that the surface area of a surface of revolution generated by rotating a plane curve about an external axis is equal to the product of the arc length of the curve and the distance traveled by its centroid.
+
+Yes, Pappus's Theorem is useful here. For each side (which is a line segment, a curve), the surface area generated by rotating it around the axis is \(L \times 2\pi \times \bar{r}\), where \(L\) is the length of the segment, and \(\bar{r}\) is the distance from the centroid of the segment to the axis.
+
+So let's apply this for each side.
+
+First, let's list the sides:
+
+Side 1: \(AB\). Let's find its length. We already know \(AB = a\) (since it's a side of the equilateral triangle). Now, the centroid of a line segment is its midpoint. Let's find the midpoint of \(AB\). Coordinates of \(A(0,0)\), \(B(-a/2, \sqrt{3}a/2)\). Midpoint \(M_1\) has coordinates \(( (-a/4), (\sqrt{3}a/4) )\). The distance from \(M_1\) to the x-axis (axis) is the y-coordinate, which is \(\sqrt{3}a/4\). So the surface area generated by \(AB\) is \(L_1 \times 2\pi \times \bar{r}_1 = a \times 2\pi \times (\sqrt{3}a/4) = (2\pi a)(\sqrt{3}a/4) = (\pi a^2 \sqrt{3})/2\).
+
+Side 2: \(BC\). Length \(BC = a\). Midpoint \(M_2\) of \(BC\): coordinates of \(B(-a/2, \sqrt{3}a/2)\), \(C(a/2, \sqrt{3}a/2)\), midpoint is \((0, \sqrt{3}a/2)\). Distance from \(M_2\) to the x-axis is \(\sqrt{3}a/2\). Surface area generated by \(BC\): \(L_2 \times 2\pi \times \bar{r}_2 = a \times 2\pi \times (\sqrt{3}a/2) = 2\pi a \times (\sqrt{3}a/2) = \pi a^2 \sqrt{3}\).
+
+Side 3: \(CA\). Length \(CA = a\). Midpoint \(M_3\) of \(CA\): coordinates of \(C(a/2, \sqrt{3}a/2)\), \(A(0,0)\), midpoint is \((a/4, \sqrt{3}a/4)\). Distance from \(M_3\) to x-axis is \(\sqrt{3}a/4\). Surface area generated by \(CA\): \(L_3 \times 2\pi \times \bar{r}_3 = a \times 2\pi \times (\sqrt{3}a/4) = same as side 1: (\pi a^2 \sqrt{3})/2\).
+
+Now, we need to check if any of these surfaces overlap or if we need to exclude any parts. But since the triangle is a closed figure, when revolving, the surfaces generated by the three sides will form the total surface area of the solid. However, we need to be careful: when a line segment is on the axis, revolving it would generate a line, not a surface, but in our case, side \(AB\) and \(CA\) start at \(A\), which is on the axis. Let's check side \(AB\): it goes from \(A(0,0)\) (on the axis) to \(B(-a/2, \sqrt{3}a/2)\). When revolved, this generates a cone? Wait, no. Wait, a line segment from a point on the axis to another point not on the axis, when revolved, generates a cone. Let's confirm with Pappus's theorem. The centroid of \(AB\) is at \((-a/4, \sqrt{3}a/4)\), distance to axis is \(\sqrt{3}a/4\), length is \(a\), so surface area is \(a \times 2\pi \times (\sqrt{3}a/4) = (\pi \sqrt{3} a^2)/2\). Alternatively, if we think of it as a cone: the radius of the base is the distance from \(B\) to the axis, which is \(\sqrt{3}a/2\) (since \(B\) has y-coordinate \(\sqrt{3}a/2\)), and the slant height is the length of \(AB\), which is \(a\). The lateral surface area of a cone is \(\pi r l\), where \(r\) is the base radius, \(l\) is the slant height. Here, \(r = \sqrt{3}a/2\), \(l = a\), so lateral surface area is \(\pi \times (\sqrt{3}a/2) \times a = (\pi \sqrt{3} a^2)/2\), which matches the Pappus result. Good, so that's correct.
+
+Similarly, side \(CA\) is from \(A(0,0)\) to \(C(a/2, \sqrt{3}a/2)\). Revolving this also generates a cone with the same radius \(\sqrt{3}a/2\) and slant height \(a\), so lateral surface area is the same as \(AB\), which matches.
+
+Now, side \(BC\): it's a horizontal line segment at \(y = \sqrt{3}a/2\), from \(x = -a/2\) to \(x = a/2\). When revolved around the x-axis, this generates a cylinder. Wait, a horizontal line segment parallel to the x-axis, distance \(d\) from the axis, length \(L\), when revolved, generates a cylinder with radius \(d\) and height \(L\). The surface area of a cylinder (lateral surface area, since the top and bottom are circles, but here the segment is a line, so revolving it gives a curved surface) is \(2\pi d L\). Let's check with Pappus: centroid is at the midpoint, distance \(d = \sqrt{3}a/2\), length \(L = a\), so surface area is \(a \times 2\pi \times (\sqrt{3}a/2) = \pi \sqrt{3} a^2\), which matches the cylinder lateral surface area (since \(2\pi d L = 2\pi (\sqrt{3}a/2) a = \pi \sqrt{3} a^2\)). Correct.
+
+Now, the total surface area is the sum of the surface areas generated by each side. Let's add them up:
+
+Surface area from \(AB\): \((\pi \sqrt{3} a^2)/2\)
+
+Surface area from \(BC\): \(\pi \sqrt{3} a^2\)
+
+Surface area from \(CA\): \((\pi \sqrt{3} a^2)/2\)
+
+Total surface area \(S = (\pi \sqrt{3} a^2)/2 + \pi \sqrt{3} a^2 + (\pi \sqrt{3} a^2)/2\)
+
+Let's compute:
+
+\((\pi \sqrt{3} a^2)/2 + (\pi \sqrt{3} a^2)/2 = \pi \sqrt{3} a^2\)
+
+Then add the middle term: \(\pi \sqrt{3} a^2 + \pi \sqrt{3} a^2 = 2\pi \sqrt{3} a^2\)
+
+Wait, that's the total. But wait, is there a mistake here? Because when we revolve the triangle, the surfaces generated by the sides are the lateral surfaces of the cones (from \(AB\) and \(CA\)) and the lateral surface of the cylinder (from \(BC\)). But does the solid have any other surfaces? For example, when you revolve a triangle, the interior is filled, but the surface area of the solid is the union of the surfaces generated by the edges. Since the triangle is a closed polygon, the surfaces generated by the edges form a closed surface. Let's confirm:
+
+- The edge \(AB\) generates a cone surface (lateral surface) from \(A\) to the circle traced by \(B\).
+
+- The edge \(BC\) generates a cylindrical surface between the two circles traced by \(B\) and \(C\).
+
+- The edge \(CA\) generates a cone surface from \(A\) to the circle traced by \(C\).
+
+But wait, the circles traced by \(B\) and \(C\): since \(B\) and \(C\) are at the same distance from the axis (both have y-coordinate \(\sqrt{3}a/2\)), so they trace the same circle when revolved around the x-axis. Wait, no: \(B\) is at \((-a/2, \sqrt{3}a/2)\), so when revolved around x-axis, it traces a circle with radius \(\sqrt{3}a/2\) in the plane perpendicular to x-axis at x = -a/2. Similarly, \(C\) is at (a/2, \sqrt{3}a/2), so it traces a circle with radius \(\sqrt{3}a/2\) in the plane x = a/2. So the cylindrical surface from \(BC\) connects these two circles. The cone surfaces from \(AB\) and \(CA\) connect these circles to the point \(A\) (which is at x=0, y=0, so when revolved, it's just the origin, a point). Wait, but \(A\) is on the axis, so revolving \(A\) gives a point, not a surface.
+
+Wait a second, maybe I made a mistake in considering the surfaces. Let's think about the solid formed. The triangle is being rotated around the x-axis. Let's describe the solid:
+
+- The vertex \(A\) is on the axis, so it's fixed.
+
+- The side \(AB\) is a line from \(A(0,0)\) to \(B(-a/2, \sqrt{3}a/2)\). When rotated, this sweeps out a cone. The apex is at \(A\), and the base is the circle traced by \(B\). The radius of the base is the distance from \(B\) to the axis, which is \(\sqrt{3}a/2\), and the slant height is \(AB = a\), which matches earlier.
+
+- The side \(CA\) is a line from \(A(0,0)\) to \(C(a/2, \sqrt{3}a/2)\). Rotating this also sweeps out a cone with the same apex \(A\), base radius \(\sqrt{3}a/2\), slant height \(a\).
+
+- The side \(BC\) is a line from \(B\) to \(C\). Rotating this sweeps out a cylindrical surface connecting the two bases of the two cones? Wait, no. The two cones from \(AB\) and \(CA\) each have their own base circles. But \(B\) and \(C\) are different points, so their traced circles are different. The circle from \(B\) is at x = -a/2, radius \(\sqrt{3}a/2\), and the circle from \(C\) is at x = a/2, radius \(\sqrt{3}a/2\). The line \(BC\) connects \(B\) to \(C\), so rotating \(BC\) creates a surface that connects these two circles. What's the shape of this surface? It's a frustum of a cone? Wait, no. Let's see: the line \(BC\) is horizontal, y = \(\sqrt{3}a/2\), x from -a/2 to a/2. When rotated around x-axis, each point (x, \(\sqrt{3}a/2\)) on \(BC\) traces a circle with radius \(\sqrt{3}a/2\), so the surface is a cylinder with radius \(\sqrt{3}a/2\) and height equal to the length of \(BC\) projected onto the x-axis. Wait, the length of \(BC\) is a, and since it's horizontal, the x-coordinate goes from -a/2 to a/2, so the height (along x-axis) is a. So the surface is indeed a right circular cylinder with radius r = \(\sqrt{3}a/2\) and height h = a. The lateral surface area of a cylinder is 2πrh, which is 2π*(√3 a/2)*a = π√3 a², which matches our earlier calculation using Pappus. So that's correct.
+
+Now, the total surface area of the solid is the sum of the lateral surfaces of the two cones and the lateral surface of the cylinder. Wait, but do the cones' bases overlap with the cylinder's surfaces? Let's see:
+
+- The cone from \(AB\) has a base circle (traced by \(B\)): this is a circle at x = -a/2, radius √3 a/2.
+
+- The cone from \(CA\) has a base circle (traced by \(C\)): circle at x = a/2, radius √3 a/2.
+
+- The cylinder from \(BC\) has a surface that connects these two circles. But the cylinder's surface does not include the top and bottom circles (since it's the lateral surface). The cones' surfaces include their lateral surfaces but not their base circles (since the base circles are part of the cylinder's surfaces? No, the base circles of the cones are exactly the circles traced by \(B\) and \(C\), which are the ends of the cylinder. Wait, but when we revolve the edge \(BC\), we only get the lateral surface of the cylinder, not the top and bottom. The edges \(AB\) and \(CA\) when revolved generate the lateral surfaces of the cones, not including the base circles (since the edges are lines, not including the area). Therefore, the total surface area of the solid is indeed the sum of the lateral areas of the two cones and the lateral area of the cylinder. Because the solid's surface is composed of these three surfaces: the two cone lateral surfaces and the cylinder lateral surface. There are no other surfaces because the interior is filled, but the surface area only counts the outer surfaces.
+
+Wait, but let's confirm with an example. Suppose we have a triangle with vertices at (0,0), (1,1), (0,1). Rotating around the x-axis. The edges: (0,0)-(1,1): generates a cone, (1,1)-(0,1): generates a cylinder, (0,1)-(0,0): generates a line (since it's vertical, but (0,1) to (0,0) is vertical, rotating around x-axis would generate a circle, but wait, (0,1) is (x=0,y=1), rotating around x-axis gives a circle in x=0 plane, radius 1. The edge (0,1)-(0,0) is a vertical line, rotating it would generate a disk (filled), but the surface area of the edge is just the line, which when rotated generates a circle (1D), but in reality, the edge is part of the boundary. But in our problem, we are to find the surface area of the solid of revolution, which is the union of all points traced by the boundary of the triangle. The boundary is the three edges, so the surface area is the sum of the surfaces generated by each edge. Each edge is a 1D curve, so their revolution surfaces are 2D, and the total surface area is the sum of these.
+
+In our original problem, each edge is a line segment, so their revolution surfaces are:
+
+- \(AB\): cone lateral surface (area πrl, where r is the radius at the base, l is slant height)
+
+- \(BC\): cylinder lateral surface (area 2πrh, where r is radius, h is height)
+
+- \(CA\): cone lateral surface (same as AB)
+
+We already calculated these areas:
+
+AB: π*(√3 a/2)*a = (√3 π a²)/2
+
+BC: 2π*(√3 a/2)*a = √3 π a²
+
+CA: same as AB: (√3 π a²)/2
+
+Total: (√3 π a²)/2 + √3 π a² + (√3 π a²)/2 = (√3 π a²)(1/2 + 1 + 1/2) = √3 π a² * 2 = 2√3 π a²
+
+Wait, that's the same as before. So the total surface area is 2√3 π a².
+
+But let's double-check using Pappus's theorem for the entire triangle. Wait, Pappus's theorem can also be applied to a plane area: the volume of the solid of revolution is the product of the area and the distance traveled by its centroid. But we need surface area, which is for the boundary. However, maybe we can think of the surface as the union of the three edges, so the total surface area is the sum of the surface areas generated by each edge, which is what we did.
+
+Alternatively, let's parameterize each edge and compute the surface area using the integral formula.
+
+For a curve defined by y = f(x), x from x1 to x2, revolved around the x-axis, the surface area is 2π ∫ y ds, where ds = √(1 + (dy/dx)²) dx.
+
+Let's parameterize each edge:
+
+Edge AB: from A(0,0) to B(-a/2, √3 a/2). Let's write the equation of line AB. The slope m = (√3 a/2 - 0)/(-a/2 - 0) = (√3 a/2)/(-a/2) = -√3. So equation: y = -√3 x, where x goes from 0 to -a/2 (but let's take x from -a/2 to 0 for integration). Wait, let's parameterize with x from x = -a/2 to x = 0. Then y = -√3 x (since when x = -a/2, y = √3*(a/2) = √3 a/2; when x=0, y=0). So dy/dx = -√3, so ds = √(1 + (dy/dx)^2) dx = √(1 + 3) dx = 2 dx.
+
+Surface area for AB: 2π ∫ y ds from x=-a/2 to x=0. But wait, when x is from -a/2 to 0, y is from √3 a/2 to 0. But ds is positive, and we need to integrate over the curve. Alternatively, parameterize with a parameter t from 0 to 1, where t=0 is A, t=1 is B. Let x(t) = - (a/2) t, y(t) = (√3 a/2) t, t ∈ [0,1]. Then dx/dt = -a/2, dy/dt = √3 a/2. ds/dt = √[(dx/dt)^2 + (dy/dt)^2] = √[(a²/4) + (3a²/4)] = √(a²) = a. So ds = a dt. Then y(t) = (√3 a/2) t. The surface area is 2π ∫ y(t) ds from t=0 to t=1 = 2π ∫ (√3 a/2 t) * a dt = 2π*(√3 a²/2) ∫ t dt from 0 to 1 = π√3 a² * [t²/2]₀¹ = π√3 a² * 1/2 = (√3 π a²)/2. Which matches our earlier result. Good.
+
+Edge BC: from B(-a/2, √3 a/2) to C(a/2, √3 a/2). This is a horizontal line, y = √3 a/2, x from -a/2 to a/2. dy/dx = 0, so ds = dx. Surface area: 2π ∫ y ds from x=-a/2 to x=a/2 = 2π*(√3 a/2)*(a/2 - (-a/2)) = 2π*(√3 a/2)*(a) = π√3 a². Correct, same as before.
+
+Edge CA: from C(a/2, √3 a/2) to A(0,0). Let's parameterize this. The line CA has slope (√3 a/2 - 0)/(a/2 - 0) = √3, so equation y = √3 x, x from 0 to a/2. Alternatively, parameterize with t from 0 to 1: x(t) = (a/2)(1 - t), y(t) = (√3 a/2)(1 - t), t ∈ [0,1]. Wait, when t=0, x=a/2, y=√3 a/2 (point C); t=1, x=0, y=0 (point A). Then dx/dt = -a/2, dy/dt = -√3 a/2. ds/dt = √[(a²/4) + (3a²/4)] = a, so ds = a dt. y(t) = (√3 a/2)(1 - t). Surface area: 2π ∫ y(t) ds from t=0 to t=1 = 2π ∫ (√3 a/2)(1 - t) * a dt = 2π*(√3 a²/2) ∫ (1 - t) dt from 0 to1 = π√3 a² [ (t - t²/2) ]₀¹ = π√3 a² (1 - 1/2) = π√3 a² * 1/2 = (√3 π a²)/2. Same as edge AB. Correct.
+
+Adding all three: (√3 π a²)/2 + π√3 a² + (√3 π a²)/2 = 2√3 π a². So that's the total surface area.
+
+Is there any chance we missed something? For example, when revolving a closed curve, sometimes the surface might have overlapping areas, but in this case, the three edges are distinct and their revolution surfaces meet at the circles traced by B and C, but since each edge is part of the boundary, their surfaces are all part of the total surface area. There's no overlapping because each surface is generated by a unique edge, and they meet along the circles (which are 1D, so don't contribute to area). Therefore, the total surface area is indeed the sum of the three surface areas, which is 2√3 π a².
+
+I think that's the correct answer.
+</think>
+
+To solve the problem of finding the surface area of the solid generated by revolving a regular triangle (equilateral triangle) with side length \(a\) around an axis parallel to one of its sides and passing through the opposite vertex, we follow these steps:
+
+### Step 1: Coordinate System Setup
+We place the equilateral triangle \(ABC\) in the plane with the axis of rotation (x-axis) passing through vertex \(A\) and parallel to side \(BC\). The coordinates of the vertices are:
+- \(A(0, 0)\) (on the x-axis, axis of rotation),
+- \(B\left(-\frac{a}{2}, \frac{\sqrt{3}a}{2}\right)\),
+- \(C\left(\frac{a}{2}, \frac{\sqrt{3}a}{2}\right)\).
+
+### Step 2: Surface Area Generated by Each Side
+The surface area of revolution for a line segment can be found using Pappus's Centroid Theorem, which states that the surface area is the product of the length of the segment and the distance traveled by its centroid (i.e., \(2\pi \times \text{centroid distance} \times \text{length}\)).
+
+#### Side \(AB\):
+- Length: \(AB = a\) (side of the equilateral triangle).
+- Centroid (midpoint): \(\left(-\frac{a}{4}, \frac{\sqrt{3}a}{4}\right)\).
+- Distance from centroid to the x-axis: \(\frac{\sqrt{3}a}{4}\).
+- Surface area: \(a \times 2\pi \times \frac{\sqrt{3}a}{4} = \frac{\pi \sqrt{3}a^2}{2}\).
+
+#### Side \(BC\):
+- Length: \(BC = a\).
+- Centroid (midpoint): \(\left(0, \frac{\sqrt{3}a}{2}\right)\).
+- Distance from centroid to the x-axis: \(\frac{\sqrt{3}a}{2}\).
+- Surface area: \(a \times 2\pi \times \frac{\sqrt{3}a}{2} = \pi \sqrt{3}a^2\).
+
+#### Side \(CA\):
+- Length: \(CA = a\).
+- Centroid (midpoint): \(\left(\frac{a}{4}, \frac{\sqrt{3}a}{4}\right)\).
+- Distance from centroid to the x-axis: \(\frac{\sqrt{3}a}{4}\).
+- Surface area: \(a \times 2\pi \times \frac{\sqrt{3}a}{4} = \frac{\pi \sqrt{3}a^2}{2}\).
+
+### Step 3: Total Surface Area
+Summing the surface areas generated by each side:
+\[
+\text{Total Surface Area} = \frac{\pi \sqrt{3}a^2}{2} + \pi \sqrt{3}a^2 + \frac{\pi \sqrt{3}a^2}{2} = 2\pi \sqrt{3}a^2
+\]
+
+The final answer is \(\boxed{2\sqrt{3}\pi a^2}\).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze the problem. We need to find the extremal points of $\mathcal{H}$, the set of symmetric positive (semidefinite) matrices with entries in $[0,1]$.
+
+Wait, "symmetric positive" - in French mathematical tradition, "positive" often means "positive semidefinite" (positif) and "positive definite" is "défini positif". Let me consider both interpretations but I think "symmetric positive" means symmetric positive semidefinite.
+
+Actually, let me think carefully. The set $\mathcal{H}$ consists of symmetric matrices with entries in $[0,1]$ that are positive (semidefinite). We need to find extreme points.
+
+Let me think about this. $\mathcal{H}$ is a convex compact set (intersection of the PSD cone with the box constraints $0 \le a_{ij} \le 1$ and symmetry).
+
+Let me think about what the extreme points are.
+
+First, let's consider small cases.
+
+**Case $n=1$**: $\mathcal{H} = [0,1]$. Extreme points: $\{0, 1\}$.
+
+**Case $n=2$**: Symmetric matrices $\begin{pmatrix} a & b \\ b & c \end{pmatrix}$ with $a,c,b \in [0,1]$ and $A \succeq 0$. PSD condition: $a \ge 0$, $c \ge 0$, $ac - b^2 \ge 0$, i.e., $|b| \le \sqrt{ac}$. Since $b \ge 0$, we need $b \le \sqrt{ac}$.
+
+The extreme points... Let me think. The constraint set is defined by $0 \le a \le 1$, $0 \le c \le 1$, $0 \le b \le 1$, $b \le \sqrt{ac}$, i.e., $b^2 \le ac$.
+
+Hmm, this is getting complicated. Let me think more carefully.
+
+Actually, let me reconsider the problem. The set $\mathcal{H}$ is the intersection of:
+1. Symmetric matrices
+2. PSD cone
+3. Box $[0,1]^{n \times n}$ (entry-wise)
+
+The extreme points of such an intersection... 
+
+Let me think about this differently. A matrix $A$ is an extreme point of $\mathcal{H}$ if it cannot be written as a convex combination of two distinct elements of $\mathcal{H}$.
+
+Let me think about the structure. The PSD cone intersected with a box.
+
+For the case of correlation matrices (PSD with diagonal = 1), the extreme points are well-studied. But here the diagonal is also in $[0,1]$.
+
+Let me think about $n=2$ more carefully. We have $(a, b, c)$ with $0 \le a, b, c \le 1$ and $b^2 \le ac$.
+
+The feasible region: $a, c \in [0,1]$, $b \in [0, \min(1, \sqrt{ac})]$.
+
+Extreme points of this region:
+- $(0, 0, 0)$: the zero matrix
+- $(1, 0, 0)$: $\begin{pmatrix} 1 & 0 \\ 0 & 0 \end{pmatrix}$
+- $(0, 0, 1)$: $\begin{pmatrix} 0 & 0 \\ 0 & 1 \end{pmatrix}$
+- $(1, 0, 1)$: $\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$ = identity
+- $(1, 1, 1)$: $\begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$ = all-ones (rank 1, PSD)
+- What about points on the boundary $b = \sqrt{ac}$ with $a, c < 1$?
+
+Consider the point $(a, b, c) = (t, t, t)$ for $t \in (0,1)$. This is $\begin{pmatrix} t & t \\ t & t \end{pmatrix}$ which is PSD (rank 1, eigenvalues $2t$ and $0$). Is this an extreme point? 
+
+Can we write $\begin{pmatrix} t & t \\ t & t \end{pmatrix} = \frac{1}{2} A + \frac{1}{2} B$ with $A, B \in \mathcal{H}$, $A \ne B$?
+
+If $A = \begin{pmatrix} a_1 & b_1 \\ b_1 & c_1 \end{pmatrix}$ and $B = \begin{pmatrix} a_2 & b_2 \\ b_2 & c_2 \end{pmatrix}$, then $a_1 + a_2 = 2t$, $c_1 + c_2 = 2t$, $b_1 + b_2 = 2t$.
+
+We need $b_i^2 \le a_i c_i$ for $i = 1, 2$.
+
+By AM-GM or similar, $b_1^2 + b_2^2 \le a_1 c_1 + a_2 c_2$. We have $b_1 + b_2 = 2t$, $a_1 + a_2 = 2t$, $c_1 + c_2 = 2t$.
+
+Let $a_1 = t + s$, $a_2 = t - s$, $c_1 = t + u$, $c_2 = t - u$, $b_1 = t + v$, $b_2 = t - v$.
+
+Constraints: $0 \le t \pm s \le 1$, $0 \le t \pm u \le 1$, $0 \le t \pm v \le 1$.
+
+PSD: $(t+v)^2 \le (t+s)(t+u)$ and $(t-v)^2 \le (t-s)(t-u)$.
+
+Adding: $(t+v)^2 + (t-v)^2 \le (t+s)(t+u) + (t-s)(t-u)$
+$2t^2 + 2v^2 \le 2t^2 + 2su$
+$v^2 \le su$.
+
+So we need $v^2 \le su$ with $s, u, v$ not all zero (for $A \ne B$).
+
+If $s = u = 0$ and $v \ne 0$, then $v^2 \le 0$ fails. So we need at least one of $s, u$ nonzero.
+
+Take $s = u = \epsilon > 0$, $v = \epsilon$. Then $v^2 = \epsilon^2 = su = \epsilon^2$. OK. And we need $0 \le t \pm \epsilon \le 1$, which holds for small $\epsilon$ if $0 < t < 1$.
+
+So $A = \begin{pmatrix} t+\epsilon & t+\epsilon \\ t+\epsilon & t+\epsilon \end{pmatrix}$ and $B = \begin{pmatrix} t-\epsilon & t-\epsilon \\ t-\epsilon & t-\epsilon \end{pmatrix}$. Both are in $\mathcal{H}$ (PSD, entries in $[0,1]$ for small $\epsilon$). And $A \ne B$.
+
+So $(t, t, t)$ is NOT an extreme point for $t \in (0,1)$.
+
+What about the point $(1, 1, 1)$? Can we write it as a convex combination? If $A + B = 2 \cdot \begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$, then $a_1 + a_2 = 2$, so $a_1 = a_2 = 1$ (since $a_i \le 1$). Similarly $c_1 = c_2 = 1$, $b_1 = b_2 = 1$. So $A = B = \begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$. This IS an extreme point.
+
+Similarly, $(1, 0, 0)$: $a_1 + a_2 = 2$, so $a_1 = a_2 = 1$. $b_1 + b_2 = 0$, so $b_1 = b_2 = 0$. $c_1 + c_2 = 0$, so $c_1 = c_2 = 0$. Extreme point. ✓
+
+$(0, 0, 0)$: similarly extreme. ✓
+
+$(1, 0, 1)$: $a_1 = a_2 = 1$, $c_1 = c_2 = 1$, $b_1 = b_2 = 0$. Extreme. ✓
+
+What about points like $(1, t, t)$ for $t \in (0,1)$? $\begin{pmatrix} 1 & t \\ t & t \end{pmatrix}$. Is this PSD? $t - t^2 = t(1-t) \ge 0$ for $t \in [0,1]$. Yes.
+
+Is it extreme? $a_1 + a_2 = 2 \Rightarrow a_1 = a_2 = 1$. $c_1 + c_2 = 2t$, $b_1 + b_2 = 2t$. PSD: $b_i^2 \le c_i$ (since $a_i = 1$). So $b_i^2 \le c_i$ and $b_1 + b_2 = 2t$, $c_1 + c_2 = 2t$.
+
+Let $c_1 = t + s$, $c_2 = t - s$, $b_1 = t + v$, $b_2 = t - v$. Need $(t+v)^2 \le t+s$ and $(t-v)^2 \le t-s$. Adding: $2t^2 + 2v^2 \le 2t$, so $v^2 \le t - t^2 = t(1-t)$. Also need $0 \le t \pm s \le 1$ and $0 \le t \pm v \le 1$.
+
+If $t \in (0,1)$, take $v = 0$, $s = \epsilon$ small. Then $(t)^2 \le t + \epsilon$ ✓ and $(t)^2 \le t - \epsilon$ needs $t^2 \le t - \epsilon$, i.e., $\epsilon \le t(1-t)$. So for small enough $\epsilon$, this works. $A = \begin{pmatrix} 1 & t \\ t & t+\epsilon \end{pmatrix}$, $B = \begin{pmatrix} 1 & t \\ t & t-\epsilon \end{pmatrix}$, both PSD and in $\mathcal{H}$, $A \ne B$.
+
+So $(1, t, t)$ is not extreme for $t \in (0,1)$.
+
+Hmm wait, but I need $B$ to be PSD: $t - (t-\epsilon) \cdot 1 = \epsilon \ge 0$ ✓, and $(t-0)^2 = t^2 \le t - \epsilon$? No wait, $b_2 = t$, $c_2 = t - \epsilon$. PSD needs $b_2^2 \le a_2 c_2 = 1 \cdot (t-\epsilon) = t - \epsilon$. So $t^2 \le t - \epsilon$, i.e., $\epsilon \le t - t^2 = t(1-t)$. For $t \in (0,1)$, $t(1-t) > 0$, so small $\epsilon$ works.
+
+So indeed not extreme.
+
+What about $(1, 1, 1)$? Already showed it's extreme.
+
+What about $(a, b, c) = (1, 1, 1)$? That's the all-ones matrix, extreme.
+
+What about $(1, 0, 0)$, $(0, 0, 1)$, $(1, 0, 1)$, $(0, 0, 0)$, $(1, 1, 1)$? Are there others?
+
+What about $(1, 1, 0)$? $\begin{pmatrix} 1 & 1 \\ 1 & 0 \end{pmatrix}$. Determinant $= -1 < 0$. Not PSD. Not in $\mathcal{H}$.
+
+What about points on the boundary $b^2 = ac$ with $a, c \in (0,1)$? E.g., $(a, \sqrt{ac}, c)$ with $a, c \in (0,1)$.
+
+Take $(a, b, c) = (a, \sqrt{ac}, c)$. Can we decompose? We need $b_1 + b_2 = 2\sqrt{ac}$, $a_1 + a_2 = 2a$, $c_1 + c_2 = 2c$, with $b_i^2 \le a_i c_i$.
+
+By the analysis above, adding the two PSD constraints gives $v^2 \le su$ where $a_1 = a+s, a_2 = a-s$, etc. If $su \ge 0$ and we can find nonzero $s, u, v$ with $v^2 \le su$...
+
+Actually, from the earlier analysis: $v^2 \le su$ where $s, u$ can be positive or negative. If $su < 0$, then $v^2 \le su < 0$ is impossible, so $v = 0$ and $su \ge 0$... no, $v^2 \le su$ requires $su \ge 0$.
+
+Wait, I need to redo this. Let me set $a_1 = a + s$, $a_2 = a - s$, $c_1 = c + u$, $c_2 = c - u$, $b_1 = \sqrt{ac} + v$, $b_2 = \sqrt{ac} - v$.
+
+PSD constraints: $(\sqrt{ac} + v)^2 \le (a+s)(c+u)$ and $(\sqrt{ac} - v)^2 \le (a-s)(c-u)$.
+
+Expanding: $ac + 2v\sqrt{ac} + v^2 \le ac + au + cs + su$ and $ac - 2v\sqrt{ac} + v^2 \le ac - au - cs + su$.
+
+Adding: $2ac + 2v^2 \le 2ac + 2su$, so $v^2 \le su$.
+
+Subtracting: $4v\sqrt{ac} \le 2au + 2cs$, so $2v\sqrt{ac} \le au + cs$.
+
+So we need $v^2 \le su$ and $2v\sqrt{ac} \le au + cs$, plus box constraints.
+
+If $a, c \in (0,1)$, we have room to move. Take $s = u = \epsilon > 0$, $v = \epsilon$. Then $v^2 = \epsilon^2 = su$ ✓. And $2\epsilon\sqrt{ac} \le a\epsilon + c\epsilon = (a+c)\epsilon$, i.e., $2\sqrt{ac} \le a + c$, which is AM-GM, always true. And box constraints: $0 \le a \pm \epsilon \le 1$, etc., satisfied for small $\epsilon$.
+
+So points on $b^2 = ac$ with $a, c \in (0,1)$ are NOT extreme.
+
+What if $a = 1$ or $c = 1$? Say $a = 1$, $c \in (0,1)$, $b = \sqrt{c}$. Then $a_1 + a_2 = 2 \Rightarrow a_1 = a_2 = 1$. So $s = 0$. Then $v^2 \le 0 \cdot u = 0$, so $v = 0$. Then $b_1 = b_2 = \sqrt{c}$. And $c_1 + c_2 = 2c$, with $(\sqrt{c})^2 \le c_1$ and $(\sqrt{c})^2 \le c_2$, i.e., $c \le c_1$ and $c \le c_2$. But $c_1 + c_2 = 2c$, so $c_1 = c_2 = c$. So $A = B$. Extreme point!
+
+So $(1, \sqrt{c}, c)$ for $c \in (0,1)$ is an extreme point? Let me double-check. $A = \begin{pmatrix} 1 & \sqrt{c} \\ \sqrt{c} & c \end{pmatrix}$. This is rank 1: $= \begin{pmatrix} 1 \\ \sqrt{c} \end{pmatrix} \begin{pmatrix} 1 & \sqrt{c} \end{pmatrix}$. PSD ✓. Entries in $[0,1]$ ✓ (since $c \in [0,1]$, $\sqrt{c} \in [0,1]$).
+
+And we showed it's extreme. Similarly $(c, \sqrt{c}, 1)$ for $c \in (0,1)$.
+
+And $(1, 1, 1)$ is the case $c = 1$. And $(1, 0, 0)$ is the case $c = 0$.
+
+So for $n = 2$, the extreme points include all rank-1 matrices $\begin{pmatrix} 1 & \sqrt{c} \\ \sqrt{c} & c \end{pmatrix}$ for $c \in [0,1]$, plus $\begin{pmatrix} 0 & 0 \\ 0 & 1 \end{pmatrix}$, plus $\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$?
+
+Wait, let me also check $(0, 0, 1)$. $a_1 + a_2 = 0 \Rightarrow a_1 = a_2 = 0$. $b_1 + b_2 = 0 \Rightarrow b_1 = b_2 = 0$. $c_1 + c_2 = 2$, $c_i \in [0,1]$, so $c_1 = c_2 = 1$. Extreme ✓.
+
+And $(1, 0, 1)$: $a_1 = a_2 = 1$, $c_1 = c_2 = 1$, $b_1 = b_2 = 0$. Extreme ✓.
+
+So for $n=2$, extreme points are:
+- $\begin{pmatrix} 0 & 0 \\ 0 & 0 \end{pmatrix}$
+- $\begin{pmatrix} 1 & 0 \\ 0 & 0 \end{pmatrix}$
+- $\begin{pmatrix} 0 & 0 \\ 0 & 1 \end{pmatrix}$
+- $\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$
+- $\begin{pmatrix} 1 & \sqrt{c} \\ \sqrt{c} & c \end{pmatrix}$ for $c \in [0,1]$ (this includes $(1,0,0)$ at $c=0$ and $(1,1,1)$ at $c=1$)
+- $\begin{pmatrix} c & \sqrt{c} \\ \sqrt{c} & 1 \end{pmatrix}$ for $c \in [0,1]$ (this includes $(0,0,1)$ at $c=0$ and $(1,1,1)$ at $c=1$)
+
+Hmm wait, but $(1,0,1)$ is not of the form $\begin{pmatrix} 1 & \sqrt{c} \\ \sqrt{c} & c \end{pmatrix}$ or $\begin{pmatrix} c & \sqrt{c} \\ \sqrt{c} & 1 \end{pmatrix}$ for any $c$. For the first form, $b = \sqrt{c}$ and $c_{22} = c$, so $b^2 = c_{22}$, meaning rank 1. But $(1,0,1)$ has rank 2.
+
+So the extreme points for $n=2$ are:
+1. The zero matrix
+2. Rank-1 matrices $vv^T$ where $v$ has entries in $\{0,1\}$... no, that's not right either.
+
+Let me reconsider. The rank-1 matrices $\begin{pmatrix} 1 & \sqrt{c} \\ \sqrt{c} & c \end{pmatrix} = \begin{pmatrix} 1 \\ \sqrt{c} \end{pmatrix}\begin{pmatrix} 1 & \sqrt{c} \end{pmatrix}$ for $c \in [0,1]$. These have the first entry of $v$ being 1 and the second being $\sqrt{c} \in [0,1]$.
+
+Similarly $\begin{pmatrix} c & \sqrt{c} \\ \sqrt{c} & 1 \end{pmatrix} = \begin{pmatrix} \sqrt{c} \\ 1 \end{pmatrix}\begin{pmatrix} \sqrt{c} & 1 \end{pmatrix}$.
+
+And the identity $\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$, which is rank 2.
+
+And the zero matrix.
+
+Hmm, this is getting complex. Let me think about the general structure.
+
+Actually, let me reconsider. The identity matrix is an extreme point. Is it? For $n=2$, $I = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$. If $I = \frac{1}{2}(A + B)$, then $a_{11}^A + a_{11}^B = 2$, so both are 1. Similarly $a_{22}^A = a_{22}^B = 1$. And $a_{12}^A + a_{12}^B = 0$, so both are 0. So $A = B = I$. Yes, extreme.
+
+For general $n$, the identity matrix $I_n$ is an extreme point (same argument: diagonal forces all diagonal entries to be 1, off-diagonal sums to 0 forces off-diagonal to be 0).
+
+Now let me think about the general pattern. 
+
+The key insight: if $A$ is an extreme point and $A = \frac{1}{2}(B + C)$ with $B, C \in \mathcal{H}$, then $B = C = A$.
+
+For an entry $a_{ij} = 1$: we must have $b_{ij} = c_{ij} = 1$.
+For an entry $a_{ij} = 0$: we must have $b_{ij} = c_{ij} = 0$.
+For an entry $a_{ij} \in (0,1)$: we might have flexibility.
+
+But the PSD constraint also plays a role.
+
+Let me think about this more carefully. The set $\mathcal{H}$ is the intersection of the PSD cone $\mathcal{S}_+^n$ with the box $[0,1]^{n(n+1)/2}$ (for the upper triangular entries).
+
+An extreme point of this intersection must be on the boundary of both the PSD cone and the box (or at least on enough constraints).
+
+Let me think about it in terms of the rank of the matrix and which entries are at 0 or 1.
+
+**Claim**: The extreme points of $\mathcal{H}$ are exactly the matrices $A \in \mathcal{H}$ such that $A$ cannot be perturbed in any direction while staying in $\mathcal{H}$.
+
+Let me think about the structure more carefully.
+
+For a matrix $A \in \mathcal{H}$, consider the set of "free" entries (those in $(0,1)$) and "fixed" entries (those at 0 or 1). The matrix is extreme if there's no nonzero symmetric perturbation $\Delta$ such that $A \pm \epsilon \Delta \in \mathcal{H}$ for small $\epsilon$.
+
+For $A \pm \epsilon \Delta$ to be in $\mathcal{H}$:
+1. Entries must stay in $[0,1]$: $\Delta_{ij} = 0$ if $a_{ij} \in \{0, 1\}$.
+2. PSD must be preserved: $A \pm \epsilon \Delta \succeq 0$.
+
+For condition 2, if $A$ has rank $r < n$, then there's a nontrivial null space. The condition $A + \epsilon \Delta \succeq 0$ for small $\epsilon$ requires that $\Delta$ restricted to the null space of $A$ is PSD (to second order). More precisely, if $A = \sum_{i=1}^r \lambda_i u_i u_i^T$ with $\lambda_i > 0$, and $V = \text{span}(u_{r+1}, \ldots, u_n)$ is the null space, then for $A + \epsilon \Delta \succeq 0$, we need $V^T \Delta V \succeq 0$ (and $V^T \Delta V \preceq 0$ for $A - \epsilon \Delta$), which means $V^T \Delta V = 0$.
+
+So the condition for $A$ to be extreme is: the only symmetric $\Delta$ with $\Delta_{ij} = 0$ whenever $a_{ij} \in \{0,1\}$ and $V^T \Delta V = 0$ (where $V = \ker A$) is $\Delta = 0$.
+
+Hmm, this is the tangent cone analysis. Let me think about it differently.
+
+Actually, let me think about what kinds of matrices are extreme.
+
+From the $n=2$ analysis:
+- Zero matrix (all entries 0, rank 0)
+- Identity (diagonal entries 1, off-diagonal 0, rank 2 = n)
+- Rank-1 matrices $vv^T$ where $v$ has at least one entry equal to 1 and all entries in $[0,1]$, with the constraint that entries of $vv^T$ are in $[0,1]$ (which is automatic if $v_i \in [0,1]$).
+
+Wait, for $vv^T$ with $v \in [0,1]^n$, the entries are $v_i v_j \in [0,1]$. And $vv^T$ is PSD. So $vv^T \in \mathcal{H}$.
+
+But not all such rank-1 matrices are extreme. From the $n=2$ case, $\begin{pmatrix} t & t \\ t & t \end{pmatrix} = \begin{pmatrix} \sqrt{t} \\ \sqrt{t} \end{pmatrix}\begin{pmatrix} \sqrt{t} & \sqrt{t} \end{pmatrix}$ with $v = (\sqrt{t}, \sqrt{t})$ and $t \in (0,1)$, so $v \in (0,1)^2$ with no entry equal to 1. This was NOT extreme.
+
+But $\begin{pmatrix} 1 & \sqrt{c} \\ \sqrt{c} & c \end{pmatrix}$ with $v = (1, \sqrt{c})$ has $v_1 = 1$, and this WAS extreme.
+
+So the pattern for rank-1 extreme points seems to be: $vv^T$ where $v \in [0,1]^n$ and at least one $v_i = 1$ (or $v = 0$)?
+
+Wait, but we also need to check: is $vv^T$ with $v = (1, \sqrt{c})$ extreme for all $c \in [0,1]$? We showed yes for $n=2$.
+
+Let me check for $n=2$: is $vv^T$ with $v = (1, 1)$ extreme? That's $\begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$. Yes, we showed it's extreme (all entries are 0 or 1, so no perturbation possible).
+
+What about $v = (1, 0)$? That's $\begin{pmatrix} 1 & 0 \\ 0 & 0 \end{pmatrix}$. Extreme ✓.
+
+So for $n=2$, the rank-1 extreme points are $vv^T$ with $v \in [0,1]^2$ and $\max(v) = 1$ (i.e., at least one entry is 1), plus $v = 0$.
+
+But we also have the identity matrix, which is rank 2. So the extreme points are not just rank-1 matrices.
+
+Let me reconsider. The identity $I_2$ has all diagonal entries 1 and all off-diagonal entries 0. It's "maximally constrained" by the box.
+
+Let me think about the general structure. An extreme point $A$ of $\mathcal{H}$ must satisfy: the only symmetric matrix $\Delta$ with:
+- $\Delta_{ij} = 0$ if $a_{ij} \in \{0, 1\}$
+- $A + t\Delta \succeq 0$ and $A - t\Delta \succeq 0$ for small $t > 0$
+
+is $\Delta = 0$.
+
+The second condition, when $A$ has rank $r$, means: the projection of $\Delta$ onto $\ker(A)$ is zero (i.e., $P \Delta P = 0$ where $P$ is the projection onto $\ker(A)$). Actually more precisely, for $A + t\Delta \succeq 0$ with $A$ having eigenvalues $\lambda_1 \geq \cdots \geq \lambda_r > 0 = \lambda_{r+1} = \cdots = \lambda_n$, the condition for small $t$ is that $V^T \Delta V \succeq 0$ where $V$ spans $\ker(A)$. For both $+t\Delta$ and $-t\Delta$, we need $V^T \Delta V \succeq 0$ and $V^T \Delta V \preceq 0$, so $V^T \Delta V = 0$.
+
+So the condition is: $\Delta$ is symmetric, $\Delta_{ij} = 0$ when $a_{ij} \in \{0,1\}$, and $V^T \Delta V = 0$ where $V = \ker(A)$, implies $\Delta = 0$.
+
+The dimension of the space of such $\Delta$ is: the number of "free" entries (entries in $(0,1)$) minus the number of independent constraints from $V^T \Delta V = 0$.
+
+$V^T \Delta V = 0$ gives $\binom{n-r+1}{2}$ constraints (it's a symmetric $(n-r) \times (n-r)$ matrix equal to zero). But these constraints are on the entries of $\Delta$, and the number of independent constraints depends on the structure of $V$.
+
+Actually, let me think about this differently. Let $F$ be the set of "free" positions $(i,j)$ with $a_{ij} \in (0,1)$. The space of admissible $\Delta$ is the space of symmetric matrices supported on $F$. The condition $V^T \Delta V = 0$ is a linear condition on $\Delta$.
+
+$A$ is extreme iff the only $\Delta$ supported on $F$ with $V^T \Delta V = 0$ is $\Delta = 0$.
+
+The dimension of symmetric matrices supported on $F$ is $|F|$ (where $F$ is the set of free positions in the upper triangle, including diagonal). The condition $V^T \Delta V = 0$ gives $\binom{n-r+1}{2}$ linear equations (but they might not all be independent, and some might be trivially satisfied).
+
+For $A$ to be extreme, we need $|F| \leq \text{rank of the constraint system}$, roughly.
+
+This is getting complicated. Let me think about specific structures.
+
+**Case 1: $A$ has full rank ($r = n$).** Then $\ker(A) = \{0\}$, and $V^T \Delta V = 0$ is vacuous. So $A$ is extreme iff there are no free entries, i.e., all entries are 0 or 1. So $A$ is a $\{0,1\}$-valued symmetric PSD matrix.
+
+A $\{0,1\}$-valued symmetric PSD matrix: these are exactly the matrices of the form $A = BB^T$ where $B$ is a $\{0,1\}$-matrix... no. Actually, a $\{0,1\}$ symmetric PSD matrix. 
+
+The $\{0,1\}$ symmetric matrices that are PSD: Let me think. If $A$ is $\{0,1\}$ symmetric and PSD, what can it be?
+
+For $n=2$: $\begin{pmatrix} 0 & 0 \\ 0 & 0 \end{pmatrix}$, $\begin{pmatrix} 1 & 0 \\ 0 & 0 \end{pmatrix}$, $\begin{pmatrix} 0 & 0 \\ 0 & 1 \end{pmatrix}$, $\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$, $\begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$. 
+
+$\begin{pmatrix} 0 & 0 \\ 0 & 1 \end{pmatrix}$: PSD ✓ (eigenvalues 0, 1).
+$\begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$: PSD ✓ (eigenvalues 0, 2).
+$\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$: PSD ✓.
+$\begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$: not PSD (eigenvalues -1, 1).
+$\begin{pmatrix} 0 & 1 \\ 1 & 1 \end{pmatrix}$: det = -1, not PSD.
+$\begin{pmatrix} 1 & 1 \\ 1 & 0 \end{pmatrix}$: det = -1, not PSD.
+
+So for $n=2$, the $\{0,1\}$ PSD matrices are: zero, the three diagonal matrices with 0/1 on diagonal and 0 off-diagonal, and the all-ones matrix. That's $\{0, I, E_{11}, E_{22}, J\}$ where $J$ is all-ones.
+
+Wait, but $\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} = I$ is full rank, and we showed it's extreme. $\begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix} = J$ is rank 1, and we showed it's extreme. $E_{11}$ is rank 1, extreme. $E_{22}$ is rank 1, extreme. Zero is rank 0, extreme.
+
+But we also found extreme points that are NOT $\{0,1\}$-valued: $\begin{pmatrix} 1 & \sqrt{c} \\ \sqrt{c} & c \end{pmatrix}$ for $c \in (0,1)$. These are rank 1 with some entries in $(0,1)$.
+
+So the extreme points are not just the $\{0,1\}$ PSD matrices.
+
+Let me reconsider. The rank-1 extreme points $\begin{pmatrix} 1 & \sqrt{c} \\ \sqrt{c} & c \end{pmatrix}$ have $a_{11} = 1$ (fixed at boundary), $a_{12} = \sqrt{c} \in (0,1)$ (free), $a_{22} = c \in (0,1)$ (free). So $|F| = 2$ (positions $(1,2)$ and $(2,2)$). The rank is 1, so $\ker(A)$ is 1-dimensional, spanned by $v = (-\sqrt{c}, 1)^T$ (the null vector of $\begin{pmatrix} 1 & \sqrt{c} \\ \sqrt{c} & c \end{pmatrix}$).
+
+The condition $V^T \Delta V = 0$: $V = (-\sqrt{c}, 1)^T$, so $V^T \Delta V = \Delta_{11} c - 2\Delta_{12}\sqrt{c} + \Delta_{22} = 0$. But $\Delta_{11} = 0$ (since $a_{11} = 1$ is fixed). So $-2\Delta_{12}\sqrt{c} + \Delta_{22} = 0$, i.e., $\Delta_{22} = 2\sqrt{c} \Delta_{12}$.
+
+So the space of admissible $\Delta$ is 2-dimensional ($\Delta_{12}$ and $\Delta_{22}$ free) with 1 constraint, giving a 1-dimensional space. So there exist nonzero $\Delta$, which means... wait, but we showed this matrix IS extreme!
+
+Let me recheck. If $\Delta_{22} = 2\sqrt{c} \Delta_{12}$, take $\Delta_{12} = 1$, $\Delta_{22} = 2\sqrt{c}$. Then $\Delta = \begin{pmatrix} 0 & 1 \\ 1 & 2\sqrt{c} \end{pmatrix}$.
+
+Check $A + t\Delta = \begin{pmatrix} 1 & \sqrt{c} + t \\ \sqrt{c} + t & c + 2t\sqrt{c} \end{pmatrix}$. Is this PSD? Determinant $= 1 \cdot (c + 2t\sqrt{c}) - (\sqrt{c} + t)^2 = c + 2t\sqrt{c} - c - 2t\sqrt{c} - t^2 = -t^2 < 0$ for $t \ne 0$.
+
+So $A + t\Delta$ is NOT PSD for any $t \ne 0$! The determinant is $-t^2 < 0$.
+
+So even though $V^T \Delta V = 0$, the matrix $A + t\Delta$ is not PSD because the first-order condition is satisfied but the second-order condition fails. The condition $V^T \Delta V = 0$ is necessary but not sufficient for $A + t\Delta \succeq 0$ for small $t$.
+
+I need to be more careful. The correct condition for $A + t\Delta \succeq 0$ (with $A \succeq 0$, rank $r$) for small $t > 0$ is:
+1. $V^T \Delta V \succeq 0$ (where $V = \ker A$) — this is the leading order condition for the zero eigenvalues.
+2. But also, the first-order change in the positive eigenvalues must not make them negative — this is automatic for small $t$ since they're bounded away from 0.
+
+Wait, but the issue is more subtle. When $V^T \Delta V = 0$ (not just $\succeq 0$), the zero eigenvalues might become negative at second order.
+
+Actually, the correct analysis: if $A$ has eigenvalue 0 with multiplicity $k = n - r$, and we perturb by $t\Delta$, the $k$ eigenvalues near 0 behave (to leading order) like the eigenvalues of $t \cdot V^T \Delta V$ where $V$ is an orthonormal basis of $\ker A$. So for $A + t\Delta \succeq 0$, we need $V^T \Delta V \succeq 0$. For $A - t\Delta \succeq 0$, we need $V^T \Delta V \preceq 0$, i.e., $-V^T \Delta V \succeq 0$, i.e., $V^T \Delta V \preceq 0$. Combined: $V^T \Delta V = 0$.
+
+But when $V^T \Delta V = 0$, the leading order term vanishes, and we need to look at second order. The eigenvalues near 0 then behave like $t^2$ times something. This second-order term involves the interaction between $\Delta$ and the positive eigenvalues of $A$.
+
+Specifically, if $A = \sum_{i=1}^r \lambda_i u_i u_i^T$ and $V$ spans $\ker A$, then the second-order correction to the zero eigenvalues involves $\sum_{i=1}^r \frac{(u_i^T \Delta v)^2}{\lambda_i}$ for $v \in \ker A$. The effective second-order matrix is $\sum_{i=1}^r \frac{1}{\lambda_i} V^T \Delta u_i u_i^T \Delta V$.
+
+So when $V^T \Delta V = 0$, the condition for $A + t\Delta \succeq 0$ (for small $t > 0$) is that this second-order term is $\succeq 0$, which it always is (it's a sum of rank-1 PSD matrices). And for $A - t\Delta \succeq 0$, the second-order term is the same (since $(-\Delta)$ gives the same squared terms), so it's also $\succeq 0$.
+
+Wait, that means when $V^T \Delta V = 0$, both $A + t\Delta$ and $A - t\Delta$ are PSD for small $t$? But we just showed a counterexample!
+
+Let me recompute. $A = \begin{pmatrix} 1 & \sqrt{c} \\ \sqrt{c} & c \end{pmatrix}$, $\Delta = \begin{pmatrix} 0 & 1 \\ 1 & 2\sqrt{c} \end{pmatrix}$.
+
+$A + t\Delta = \begin{pmatrix} 1 & \sqrt{c} + t \\ \sqrt{c} + t & c + 2t\sqrt{c} \end{pmatrix}$.
+
+The eigenvalues of $A$ are $1 + c$ and $0$. The eigenvector for 0 is $v = \frac{1}{\sqrt{1+c}}(-\sqrt{c}, 1)^T$.
+
+$V^T \Delta V = \frac{1}{1+c}(c \cdot 0 - 2\sqrt{c} \cdot 1 + 1 \cdot 2\sqrt{c}) = \frac{1}{1+c}(-2\sqrt{c} + 2\sqrt{c}) = 0$. ✓
+
+Now the second-order term: $u_1 = \frac{1}{\sqrt{1+c}}(1, \sqrt{c})^T$, $\lambda_1 = 1 + c$.
+
+$u_1^T \Delta v = \frac{1}{\sqrt{1+c}} \frac{1}{\sqrt{1+c}} (1 \cdot 0 + \sqrt{c} \cdot 1 + 1 \cdot 1 + \sqrt{c} \cdot 2\sqrt{c})$
+
+Wait, let me be more careful. $\Delta v = \begin{pmatrix} 0 & 1 \\ 1 & 2\sqrt{c} \end{pmatrix} \frac{1}{\sqrt{1+c}} \begin{pmatrix} -\sqrt{c} \\ 1 \end{pmatrix} = \frac{1}{\sqrt{1+c}} \begin{pmatrix} 1 \\ -\sqrt{c} + 2\sqrt{c} \end{pmatrix} = \frac{1}{\sqrt{1+c}} \begin{pmatrix} 1 \\ \sqrt{c} \end{pmatrix}$.
+
+$u_1^T (\Delta v) = \frac{1}{\sqrt{1+c}} \frac{1}{\sqrt{1+c}} (1 + c) = 1$.
+
+Second-order term: $\frac{(u_1^T \Delta v)^2}{\lambda_1} = \frac{1}{1+c}$.
+
+So the zero eigenvalue becomes approximately $t^2 \cdot \frac{1}{1+c} > 0$ for both $+t$ and $-t$. So both $A + t\Delta$ and $A - t\Delta$ should be PSD for small $t$.
+
+But we computed the determinant of $A + t\Delta = -t^2 < 0$! Contradiction!
+
+Let me recheck the determinant. $A + t\Delta = \begin{pmatrix} 1 & \sqrt{c} + t \\ \sqrt{c} + t & c + 2t\sqrt{c} \end{pmatrix}$.
+
+$\det = 1 \cdot (c + 2t\sqrt{c}) - (\sqrt{c} + t)^2 = c + 2t\sqrt{c} - (c + 2t\sqrt{c} + t^2) = -t^2$.
+
+So $\det = -t^2 < 0$ for $t \ne 0$. This means one eigenvalue is negative. But the second-order analysis says the zero eigenvalue should become $+t^2/(1+c) > 0$...
+
+The issue is that the trace is $\text{tr}(A + t\Delta) = 1 + c + 2t\sqrt{c}$. The eigenvalues are approximately $\lambda_1 \approx (1+c) + 2t\sqrt{c} \cdot \frac{\sqrt{c}}{\sqrt{1+c}} \cdot \sqrt{1+c}$... hmm, let me just compute directly.
+
+The eigenvalues of $A + t\Delta$: trace $= 1 + c + 2t\sqrt{c}$, det $= -t^2$. So eigenvalues are $\frac{(1+c+2t\sqrt{c}) \pm \sqrt{(1+c+2t\sqrt{c})^2 + 4t^2}}{2}$.
+
+For small $t$, the small eigenvalue is approximately $\frac{\det}{\text{trace}} \approx \frac{-t^2}{1+c} < 0$.
+
+So the small eigenvalue is $-t^2/(1+c) < 0$, not $+t^2/(1+c)$. I made an error in the second-order analysis.
+
+Let me redo. The second-order perturbation theory for eigenvalues: if $A$ has eigenvalue 0 with eigenvector $v$, and we perturb by $t\Delta$, the second-order correction to the zero eigenvalue is:
+
+$\lambda_0^{(2)} = \sum_{i: \lambda_i \ne 0} \frac{(u_i^T \Delta v)^2}{\lambda_i} \cdot t^2$
+
+But wait, this is the correction when the first-order term $v^T \Delta v = 0$. The sign depends on $\lambda_i$: if $\lambda_i > 0$, the contribution is positive. But we also need to account for the first-order shift of the nonzero eigenvalues and how that affects things...
+
+Actually, I think the issue is that the formula gives the second-order correction to the eigenvalue, and since all $\lambda_i > 0$, the correction is $+t^2 \sum \frac{(u_i^T \Delta v)^2}{\lambda_i} > 0$. But the actual computation shows the eigenvalue goes negative.
+
+Let me recheck. $u_1 = \frac{1}{\sqrt{1+c}}(1, \sqrt{c})^T$, $v = \frac{1}{\sqrt{1+c}}(-\sqrt{c}, 1)^T$, $\lambda_1 = 1+c$.
+
+$u_1^T \Delta v$: 
+
+$\Delta v = \frac{1}{\sqrt{1+c}} \begin{pmatrix} 0 \cdot (-\sqrt{c}) + 1 \cdot 1 \\ 1 \cdot (-\sqrt{c}) + 2\sqrt{c} \cdot 1 \end{pmatrix} = \frac{1}{\sqrt{1+c}} \begin{pmatrix} 1 \\ \sqrt{c} \end{pmatrix}$
+
+$u_1^T \Delta v = \frac{1}{\sqrt{1+c}} (1 \cdot 1 + \sqrt{c} \cdot \sqrt{c}) \cdot \frac{1}{\sqrt{1+c}} = \frac{1 + c}{1+c} = 1$.
+
+So the second-order correction is $\frac{1^2}{1+c} t^2 = \frac{t^2}{1+c}$.
+
+But the actual eigenvalue is approximately $\frac{-t^2}{1+c}$. So the sign is wrong!
+
+I think the issue is the sign convention. The second-order perturbation formula for eigenvalue $\lambda_0 = 0$ is:
+
+$\delta\lambda = t \cdot v^T \Delta v + t^2 \sum_{i \ne 0} \frac{|u_i^T \Delta v|^2}{\lambda_0 - \lambda_i}$
+
+Note: it's $\lambda_0 - \lambda_i = 0 - \lambda_i = -\lambda_i < 0$! So the second-order correction is $-t^2 \sum \frac{|u_i^T \Delta v|^2}{\lambda_i} < 0$.
+
+That matches! The eigenvalue goes to $-t^2/(1+c) < 0$.
+
+So the correct condition is: when $V^T \Delta V = 0$ (first order vanishes), the second-order correction is always negative (since $\lambda_i > 0$ and the formula has $\lambda_0 - \lambda_i < 0$). This means $A + t\Delta$ is NOT PSD for any nonzero $\Delta$ with $V^T \Delta V = 0$ (when $A$ is rank-deficient).
+
+Wait, but that would mean that ANY rank-deficient $A$ with all free entries is extreme, which can't be right since we showed $(t, t, t)$ for $t \in (0,1)$ is not extreme.
+
+Hmm, let me reconsider. For $(t, t, t) = \begin{pmatrix} t & t \\ t & t \end{pmatrix}$, this is rank 1 with eigenvalues $2t$ and $0$. The free entries are all three: $(1,1), (1,2), (2,2)$ all in $(0,1)$. So $|F| = 3$.
+
+$\ker A$ is spanned by $v = \frac{1}{\sqrt{2}}(-1, 1)^T$.
+
+$V^T \Delta V = 0$ gives: $\frac{1}{2}(\Delta_{11} - 2\Delta_{12} + \Delta_{22}) = 0$, i.e., $\Delta_{11} - 2\Delta_{12} + \Delta_{22} = 0$.
+
+This is 1 constraint on 3 variables, leaving a 2-dimensional space. So there are nonzero $\Delta$ with $V^T \Delta V = 0$.
+
+But we showed that the decomposition $A = \frac{1}{2}(A_1 + A_2)$ with $A_1 = \begin{pmatrix} t+\epsilon & t+\epsilon \\ t+\epsilon & t+\epsilon \end{pmatrix}$ and $A_2 = \begin{pmatrix} t-\epsilon & t-\epsilon \\ t-\epsilon & t-\epsilon \end{pmatrix}$ works. Here $\Delta = A_1 - A = \begin{pmatrix} \epsilon & \epsilon \\ \epsilon & \epsilon \end{pmatrix}$, and $V^T \Delta V = \frac{1}{2}(\epsilon - 2\epsilon + \epsilon) = 0$. ✓
+
+But $A + \Delta = A_1 = \begin{pmatrix} t+\epsilon & t+\epsilon \\ t+\epsilon & t+\epsilon \end{pmatrix}$, which is PSD (rank 1, eigenvalue $2(t+\epsilon) > 0$). And $A - \Delta = A_2$, also PSD.
+
+But the second-order analysis says the zero eigenvalue should go negative! Let me check.
+
+$A + \Delta = \begin{pmatrix} t+\epsilon & t+\epsilon \\ t+\epsilon & t+\epsilon \end{pmatrix}$. This has eigenvalues $2(t+\epsilon)$ and $0$. So the zero eigenvalue stays at 0, not going negative!
+
+The difference from the previous example: here, $\Delta$ is proportional to $A$ itself (well, $\Delta = \frac{\epsilon}{t} A$). So $A + \Delta = (1 + \epsilon/t) A$, which just scales $A$. The zero eigenvalue stays at 0 because we're just rescaling.
+
+So the second-order analysis I did was for infinitesimal $t$, but the key is whether the perturbation keeps the matrix PSD or not. When $\Delta$ is proportional to $A$, the rank doesn't change and PSD is preserved. When $\Delta$ is not proportional to $A$, the zero eigenvalue might go negative.
+
+So the condition is more subtle. Let me reconsider.
+
+For $A + t\Delta \succeq 0$ with $A$ rank $r$ and $V^T \Delta V = 0$:
+- The zero eigenvalues get second-order corrections $-t^2 \sum_{i=1}^r \frac{(u_i^T \Delta v)^2}{\lambda_i}$ for each $v \in \ker A$.
+- This is $\leq 0$, and $= 0$ only if $u_i^T \Delta v = 0$ for all $i$ and all $v \in \ker A$.
+- $u_i^T \Delta v = 0$ for all $i$ and all $v \in \ker A$ means $\Delta v \in \ker A$ for all $v \in \ker A$ (since $\{u_i\}$ span the range of $A$, and $\Delta v$ being orthogonal to all $u_i$ means $\Delta v \in \ker A$). Wait, $u_i^T \Delta v = 0$ means $\Delta v$ is orthogonal to $u_i$, i.e., $\Delta v \in (\text{range } A)^\perp = \ker A$. So $\Delta$ maps $\ker A$ to $\ker A$.
+
+So the condition for $A + t\Delta \succeq 0$ (with $V^T \Delta V = 0$) for small $t > 0$ is: $\Delta(\ker A) \subseteq \ker A$, i.e., $\Delta$ preserves the kernel of $A$.
+
+Similarly, for $A - t\Delta \succeq 0$: same condition (since the second-order term has the same sign).
+
+Wait, but if $\Delta$ preserves $\ker A$ and $V^T \Delta V = 0$, then the zero eigenvalues stay at 0 to second order, and we'd need to check higher orders. But actually, if $\Delta$ preserves $\ker A$ and $V^T \Delta V = 0$, then $A + t\Delta$ has the same kernel as $A$ (to first order), and the zero eigenvalues remain 0. Let me verify.
+
+If $\Delta(\ker A) \subseteq \ker A$ and $V^T \Delta V = 0$, then for $v \in \ker A$, $(A + t\Delta)v = t\Delta v \in \ker A$. But we need $(A + t\Delta)v = 0$ for $v$ to be in the kernel. $\Delta v \in \ker A$ doesn't mean $\Delta v = 0$.
+
+Hmm, let me think again. $(A + t\Delta)v = A v + t \Delta v = 0 + t \Delta v$. For this to be 0, we need $\Delta v = 0$. So $\Delta v = 0$ for all $v \in \ker A$, i.e., $\ker A \subseteq \ker \Delta$.
+
+Wait, but that's stronger than $\Delta(\ker A) \subseteq \ker A$. Let me reconsider.
+
+For $A + t\Delta \succeq 0$, we need all eigenvalues $\geq 0$. The zero eigenvalues of $A$ become, to first order, the eigenvalues of $V^T \Delta V$ (where $V$ is orthonormal basis of $\ker A$). If $V^T \Delta V \succ 0$, they become positive. If $V^T \Delta V = 0$, we need second order, which gives $-t^2 \cdot (\text{positive})$, so they become negative.
+
+Unless the second-order term also vanishes, which happens when $\Delta v \in \ker A^\perp = \text{range}(A)$... no wait. Let me be very precise.
+
+The second-order correction to eigenvalue 0 (with eigenvector $v$) is:
+$$\lambda^{(2)} = \sum_{i=1}^{r} \frac{(u_i^T \Delta v)^2}{0 - \lambda_i} = -\sum_{i=1}^{r} \frac{(u_i^T \Delta v)^2}{\lambda_i}$$
+
+This is 0 iff $u_i^T \Delta v = 0$ for all $i$, i.e., $\Delta v \perp \text{range}(A)$, i.e., $\Delta v \in \ker(A)$ (since $A$ is symmetric, $\ker(A) = \text{range}(A)^\perp$).
+
+So $\lambda^{(2)} = 0$ iff $\Delta v \in \ker(A)$ for the specific eigenvector $v$. For all zero eigenvalues to remain non-negative, we need this for all $v \in \ker(A)$, i.e., $\Delta(\ker A) \subseteq \ker A$.
+
+But then we need to check third order, etc. If $\Delta(\ker A) \subseteq \ker A$ and $V^T \Delta V = 0$, then... 
+
+Actually, if $\Delta(\ker A) \subseteq \ker A$, we can decompose $\Delta$ in the basis $\{u_1, \ldots, u_r, v_1, \ldots, v_{n-r}\}$ where $\{v_j\}$ span $\ker A$:
+
+$\Delta = \begin{pmatrix} \Delta_{RR} & \Delta_{RK} \\ \Delta_{KR} & \Delta_{KK} \end{pmatrix}$
+
+where $R$ = range, $K$ = kernel. $\Delta(\ker A) \subseteq \ker A$ means $\Delta_{RK} = 0$. And $V^T \Delta V = 0$ means $\Delta_{KK} = 0$.
+
+So $\Delta = \begin{pmatrix} \Delta_{RR} & 0 \\ \Delta_{KR} & 0 \end{pmatrix}$.
+
+But $\Delta$ is symmetric, so $\Delta_{RK} = \Delta_{KR}^T = 0$, meaning $\Delta_{KR} = 0$ too.
+
+So $\Delta = \begin{pmatrix} \Delta_{RR} & 0 \\ 0 & 0 \end{pmatrix}$.
+
+In this case, $A + t\Delta = \begin{pmatrix} \Lambda + t\Delta_{RR} & 0 \\ 0 & 0 \end{pmatrix}$ (in the eigenbasis of $A$). This is PSD iff $\Lambda + t\Delta_{RR} \succeq 0$, which is true for small $t$ since $\Lambda \succ 0$.
+
+So the condition for both $A + t\Delta \succeq 0$ and $A - t\Delta \succeq 0$ (for small $t$) is:
+1. $\Delta_{ij} = 0$ when $a_{ij} \in \{0, 1\}$ (box constraints)
+2. $V^T \Delta V = 0$ (first-order kernel condition)
+3. $\Delta(\ker A) \subseteq \ker A$ (second-order kernel condition)
+4. Combined with symmetry, this gives $\Delta = \begin{pmatrix} \Delta_{RR} & 0 \\ 0 & 0 \end{pmatrix}$ in the eigenbasis.
+
+And then $A \pm t\Delta \succeq 0$ for small $t$ as long as $\Lambda \pm t\Delta_{RR} \succeq 0$, which holds for small $t$.
+
+So $A$ is extreme iff the only symmetric $\Delta$ satisfying conditions 1-4 is $\Delta = 0$.
+
+Condition 4 means $\Delta$ is supported on $\text{range}(A) \times \text{range}(A)$, i.e., $\Delta = P \Delta P$ where $P$ is the projection onto $\text{range}(A)$. Equivalently, $\ker(A) \subseteq \ker(\Delta)$.
+
+So the conditions are:
+- $\Delta$ symmetric
+- $\Delta_{ij} = 0$ when $a_{ij} \in \{0, 1\}$
+- $\ker(A) \subseteq \ker(\Delta)$ (i.e., $\Delta$ vanishes on $\ker A$)
+
+And $A$ is extreme iff the only such $\Delta$ is 0.
+
+Now, $\ker(A) \subseteq \ker(\Delta)$ means $\Delta = P \Delta P$ where $P$ projects onto $\text{range}(A) = \ker(A)^\perp$. In matrix terms, if $A = U \Lambda U^T$ with $U = [U_1 | U_2]$ where $U_1$ spans range and $U_2$ spans kernel, then $\Delta = U_1 M U_1^T$ for some symmetric $M$.
+
+The condition $\Delta_{ij} = 0$ when $a_{ij} \in \{0,1\}$ gives linear constraints on $M$.
+
+The dimension of the space of such $\Delta$ is $\binom{r+1}{2}$ (the dimension of symmetric $r \times r$ matrices $M$). The number of linear constraints is the number of fixed entries (entries at 0 or 1).
+
+$A$ is extreme iff the number of independent constraints $\geq \binom{r+1}{2}$.
+
+But the constraints might not be independent, and the specific structure matters.
+
+Let me think about this differently. Let me consider the support of $A$.
+
+Actually, let me think about the problem from a higher level. Let me consider what the extreme points look like.
+
+**Key observation**: $A \in \mathcal{H}$ is extreme iff there's no nonzero $\Delta$ with:
+- $\Delta$ symmetric
+- $\text{supp}(\Delta) \subseteq \text{free entries of } A$ (entries in $(0,1)$)
+- $\ker(A) \subseteq \ker(\Delta)$
+
+The condition $\ker(A) \subseteq \ker(\Delta)$ is equivalent to $\text{range}(\Delta) \subseteq \text{range}(A)$ (for symmetric matrices).
+
+So $\Delta$ must be a symmetric matrix whose range is contained in $\text{range}(A)$ and whose support is contained in the free entries of $A$.
+
+The space of symmetric matrices with range in $\text{range}(A)$ is $\{U_1 M U_1^T : M \text{ symmetric}\}$, which has dimension $\binom{r+1}{2}$.
+
+The space of symmetric matrices supported on the free entries has dimension $|F|$ (number of free entries in upper triangle).
+
+$A$ is extreme iff the intersection of these two spaces is $\{0\}$.
+
+This is a question about when a subspace of symmetric matrices (those supported on $F$) intersects trivially with another subspace (those with range in $\text{range}(A)$).
+
+By dimension counting: the intersection has dimension $\geq \binom{r+1}{2} + |F| - \binom{n+1}{2}$. For the intersection to be $\{0\}$, we need $\binom{r+1}{2} + |F| \leq \binom{n+1}{2}$, i.e., $|F| \leq \binom{n+1}{2} - \binom{r+1}{2} = \binom{n+1}{2} - \binom{r+1}{2}$.
+
+Note that $\binom{n+1}{2} - \binom{r+1}{2} = \frac{n(n+1) - r(r+1)}{2} = \frac{(n-r)(n+r+1)}{2}$.
+
+So a necessary condition is $|F| \leq \frac{(n-r)(n+r+1)}{2}$.
+
+But this is just necessary, not sufficient. The actual condition depends on the specific structure.
+
+Let me now think about what the extreme points actually are.
+
+Let me consider the case where $A$ is rank 1: $A = vv^T$ with $v \in [0,1]^n$ (and $vv^T \in [0,1]^{n \times n}$, which is automatic). The range of $A$ is $\text{span}(v)$, and $\ker(A) = v^\perp$.
+
+The condition $\ker(A) \subseteq \ker(\Delta)$ means $\Delta = \alpha vv^T$ for some scalar $\alpha$ (since the range of $\Delta$ must be in $\text{span}(v)$, and $\Delta$ is symmetric, so $\Delta = \alpha vv^T$).
+
+The support condition: $\Delta_{ij} = \alpha v_i v_j = 0$ when $a_{ij} = v_i v_j \in \{0, 1\}$.
+
+If $v_i v_j \in \{0, 1\}$, then either $v_i = 0$ or $v_j = 0$ (giving $v_i v_j = 0$) or $v_i = v_j = 1$ (giving $v_i v_j = 1$).
+
+$\Delta_{ij} = \alpha v_i v_j$. For this to be 0 when $v_i v_j \in \{0, 1\}$:
+- When $v_i = 0$ or $v_j = 0$: $v_i v_j = 0$, so $\Delta_{ij} = 0$ automatically.
+- When $v_i = v_j = 1$: $\Delta_{ij} = \alpha \ne 0$ in general. So we need $\alpha = 0$ unless there are no pairs with $v_i = v_j = 1$.
+
+Wait, but we also need the entries of $A \pm \epsilon \Delta$ to be in $[0,1]$. If $v_i v_j \in (0,1)$, then $a_{ij} \pm \epsilon \alpha v_i v_j$ must be in $[0,1]$, which is fine for small $\epsilon$.
+
+If $v_i = v_j = 1$, then $a_{ij} = 1$, and $\Delta_{ij} = \alpha$. For the box constraint, we need $\Delta_{ij} = 0$, so $\alpha = 0$.
+
+So: if there exist $i, j$ with $v_i = v_j = 1$ (including $i = j$), then $\alpha = 0$ and $A$ is extreme. If no such pair exists, i.e., at most one $v_i = 1$, then $\alpha$ can be nonzero and $A$ is not extreme (unless $v = 0$).
+
+Wait, but if $v = 0$, then $A = 0$ and $\Delta = 0$ is the only option, so it's extreme.
+
+If $v \ne 0$ and no $v_i = 1$: then all $v_i \in [0,1)$, and we can take $\Delta = vv^T \ne 0$ (with $\alpha = 1$). Then $A + \epsilon \Delta = (1+\epsilon) vv^T$, which is PSD and has entries $(1+\epsilon) v_i v_j$. For small $\epsilon > 0$, these are still in $[0,1]$ (since $v_i v_j < 1$). And $A - \epsilon \Delta = (1-\epsilon) vv^T$, also in $\mathcal{H}$ for small $\epsilon$. So $A$ is not extreme.
+
+If $v \ne 0$ and at least one $v_i = 1$: then there exists $i$ with $v_i = 1$, so $a_{ii} = 1$. For any $\Delta = \alpha vv^T$, $\Delta_{ii} = \alpha v_i^2 = \alpha$. Since $a_{ii} = 1$ (fixed), we need $\Delta_{ii} = 0$, so $\alpha = 0$. Thus $A$ is extreme.
+
+So **rank-1 extreme points** are: $vv^T$ where $v \in [0,1]^n$ with $\max_i v_i = 1$ (at least one entry is 1), plus the zero matrix.
+
+Now, what about higher-rank extreme points?
+
+For $A$ with rank $r \geq 2$: $A$ is extreme iff the only symmetric $\Delta$ with range in $\text{range}(A)$ and support in free entries is 0.
+
+Let me think about full-rank extreme points ($r = n$). Then $\ker(A) = \{0\}$, and the condition is just: $\Delta$ symmetric with support in free entries implies $\Delta = 0$. This means there are no free entries, i.e., all entries are 0 or 1.
+
+So **full-rank extreme points** are: $\{0,1\}$-valued symmetric PSD matrices with full rank.
+
+For $n = 2$, the only full-rank $\{0,1\}$ PSD matrix is $I_2 = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$.
+
+For general $n$, a $\{0,1\}$ symmetric PSD matrix with full rank... Let me think about what $\{0,1\}$ PSD matrices look like.
+
+A $\{0,1\}$ symmetric matrix $A$ is PSD iff for all $x$, $x^T A x \geq 0$. 
+
+Claim: A $\{0,1\}$ symmetric PSD matrix is of the form $A = P^T P$ where $P$ is a $\{0,1\}$ matrix... no, that's not right either. $A = BB^T$ for some real $B$, but $B$ need not be $\{0,1\}$.
+
+Actually, let me think about $\{0,1\}$ symmetric PSD matrices. If $A$ is $\{0,1\}$ symmetric and PSD, then $A = \sum_k \lambda_k u_k u_k^T$ with $\lambda_k \geq 0$. But the entries are 0 or 1.
+
+Consider the graph $G$ with adjacency matrix $A - \text{diag}(A)$ (the off-diagonal part). The diagonal of $A$ indicates which vertices have self-loops.
+
+Actually, let me think about it differently. A $\{0,1\}$ symmetric PSD matrix: consider $A = \sum_{S} c_S \mathbf{1}_S \mathbf{1}_S^T$ where $c_S \geq 0$... this is a sum of rank-1 PSD matrices with $\{0,1\}$ vectors. But the result might not be $\{0,1\}$.
+
+Hmm, let me think about small cases.
+
+For $n = 3$: $\{0,1\}$ symmetric PSD matrices. The diagonal entries are 0 or 1. If $a_{ii} = 0$, then row $i$ and column $i$ must be all 0 (since $A$ is PSD, $a_{ii} = 0$ implies $a_{ij} = 0$ for all $j$). So WLOG, consider the case where all diagonal entries are 1 (the identity-like case) or some are 0.
+
+If all diagonal entries are 1: $A = I + B$ where $B$ is the off-diagonal part (symmetric, $\{0,1\}$, zero diagonal). $A$ is PSD iff $I + B \succeq 0$, i.e., all eigenvalues of $B$ are $\geq -1$.
+
+$B$ is the adjacency matrix of a graph $G$. $I + B \succeq 0$ iff all eigenvalues of $B$ are $\geq -1$.
+
+The graphs whose adjacency matrices have all eigenvalues $\geq -1$ are exactly the graphs whose connected components are complete graphs $K_m$ (including $K_1$). This is a known result: the adjacency matrix of a graph has minimum eigenvalue $\geq -1$ iff the graph is a disjoint union of cliques.
+
+Wait, is that right? The eigenvalues of $K_m$ are $m-1$ (once) and $-1$ (with multiplicity $m-1$). So the minimum eigenvalue is $-1$. For a disjoint union of cliques, the eigenvalues are the union of eigenvalues of each clique, so the minimum is $-1$.
+
+Conversely, if the minimum eigenvalue of the adjacency matrix is $\geq -1$, then the graph is a disjoint union of cliques. This is indeed a known result (related to the theory of root systems and the classification of graphs with smallest eigenvalue $\geq -2$, but for $\geq -1$ it's simpler).
+
+Actually, let me verify: the graphs with smallest eigenvalue $\geq -1$ are exactly the disjoint unions of complete graphs. This is because the adjacency matrix $B$ has smallest eigenvalue $\geq -1$ iff $I + B \succeq 0$, and $I + B$ is the matrix of the "friendship" relation. 
+
+Hmm, I recall that the classification of graphs with smallest eigenvalue $\geq -1$ is indeed the disjoint union of complete graphs (also known as "cluster graphs"). Let me verify for a path $P_3 = K_{1,2}$: adjacency matrix $\begin{pmatrix} 0 & 1 & 0 \\ 1 & 0 & 1 \\ 0 & 1 & 0 \end{pmatrix}$, eigenvalues $\sqrt{2}, 0, -\sqrt{2}$. Since $-\sqrt{2} < -1$, $P_3$ is not in this class. ✓
+
+For $K_3$: eigenvalues $2, -1, -1$. Min eigenvalue $-1 \geq -1$. ✓
+
+For $C_4$: eigenvalues $2, 0, 0, -2$. Min $= -2 < -1$. Not in class. ✓
+
+So the $\{0,1\}$ symmetric PSD matrices with all diagonal entries 1 are exactly $I + B$ where $B$ is the adjacency matrix of a disjoint union of cliques. In other words, $A$ is a block diagonal matrix (after permutation) where each block is the all-ones matrix $J_m$ for some $m$.
+
+But we also need to consider matrices where some diagonal entries are 0. If $a_{ii} = 0$, then the entire row/column $i$ is 0 (by PSD). So the matrix decomposes into a zero part and a part with all diagonal entries 1.
+
+So the $\{0,1\}$ symmetric PSD matrices are: after permutation, block diagonal with blocks being $J_m$ (all-ones $m \times m$) for various $m$ (including $m = 1$, which gives a 1 on the diagonal), and zero rows/columns.
+
+Wait, $J_1 = (1)$, which is just the $1 \times 1$ identity. And $J_m$ for $m \geq 2$ is the all-ones matrix, which has rank 1. So a block diagonal matrix with blocks $J_{m_1}, J_{m_2}, \ldots$ has rank equal to the number of blocks (each block contributes rank 1).
+
+For full rank, we need each block to be $J_1 = (1)$, i.e., the matrix is the identity. So the only full-rank $\{0,1\}$ PSD matrix is the identity $I_n$.
+
+Hmm wait, that's for $n \times n$. The identity has rank $n$. A block diagonal with blocks $J_{m_i}$ has rank = number of blocks. For full rank $n$, we need $n$ blocks, each of size 1, so $I_n$.
+
+OK so for full rank, the only $\{0,1\}$ PSD matrix is $I_n$. But there are also $\{0,1\}$ PSD matrices of lower rank that are extreme (when $r < n$ but all entries are 0 or 1, so no free entries, so $\Delta = 0$ is forced).
+
+Wait, I need to reconsider. For a $\{0,1\}$ PSD matrix $A$ with rank $r < n$, all entries are 0 or 1, so there are no free entries. The condition for extremality is: the only $\Delta$ with range in $\text{range}(A)$ and support in free entries (which is empty) is $\Delta = 0$. Since the support must be empty, $\Delta = 0$. So $A$ is extreme.
+
+So ALL $\{0,1\}$ symmetric PSD matrices are extreme points, regardless of rank.
+
+And we showed that rank-1 extreme points are $vv^T$ with $v \in [0,1]^n$ and $\max v_i = 1$, plus $v = 0$.
+
+Now what about rank-$r$ extreme points with $2 \leq r < n$ and some entries in $(0,1)$?
+
+Let me think about $n = 3$, rank 2. Consider $A = \begin{pmatrix} 1 & 0 & a \\ 0 & 1 & b \\ a & b & c \end{pmatrix}$ with $a, b, c \in (0,1)$ and $A$ PSD.
+
+The range of $A$ is 2-dimensional. $\ker(A)$ is 1-dimensional, spanned by some vector $v$.
+
+For $A$ to be extreme, we need: no nonzero symmetric $\Delta$ with range in $\text{range}(A)$ and $\Delta_{ij} = 0$ for $(i,j) \in \{(1,1), (1,2), (2,2)\}$ (the fixed entries, which are 1, 0, 1).
+
+The free entries are $(1,3), (2,3), (3,3)$, so $|F| = 3$.
+
+The space of symmetric $\Delta$ with range in $\text{range}(A)$ has dimension $\binom{3}{2} = 3$ (since $r = 2$). The constraints are $\Delta_{11} = 0, \Delta_{12} = 0, \Delta_{22} = 0$, which are 3 linear constraints.
+
+So we have a 3-dimensional space with 3 constraints. If the constraints are independent, $\Delta = 0$ and $A$ is extreme. But they might not be independent.
+
+Let me compute. $A = \begin{pmatrix} 1 & 0 & a \\ 0 & 1 & b \\ a & b & c \end{pmatrix}$, PSD, rank 2. The kernel is spanned by $v = (v_1, v_2, v_3)$ with $Av = 0$:
+- $v_1 + av_3 = 0 \Rightarrow v_1 = -av_3$
+- $v_2 + bv_3 = 0 \Rightarrow v_2 = -bv_3$
+- $av_1 + bv_2 + cv_3 = 0 \Rightarrow -a^2 v_3 - b^2 v_3 + cv_3 = 0 \Rightarrow c = a^2 + b^2$.
+
+So for rank 2, we need $c = a^2 + b^2$ (and $c \leq 1$, $a, b \in (0,1)$, $a^2 + b^2 \leq 1$).
+
+The kernel is spanned by $v = (-a, -b, 1)^T$ (up to scaling).
+
+$\Delta$ with range in $\text{range}(A)$: $\Delta = U_1 M U_1^T$ where $U_1$ is a $3 \times 2$ matrix whose columns span $\text{range}(A) = v^\perp$.
+
+Equivalently, $\Delta$ satisfies $v^T \Delta = 0$ and $\Delta v = 0$ (since $\Delta$ is symmetric, these are the same). So $\Delta v = 0$.
+
+$\Delta v = 0$ gives:
+- $\Delta_{11}(-a) + \Delta_{12}(-b) + \Delta_{13}(1) = 0 \Rightarrow \Delta_{13} = a\Delta_{11} + b\Delta_{12}$
+- $\Delta_{12}(-a) + \Delta_{22}(-b) + \Delta_{23}(1) = 0 \Rightarrow \Delta_{23} = a\Delta_{12} + b\Delta_{22}$
+- $\Delta_{13}(-a) + \Delta_{23}(-b) + \Delta_{33}(1) = 0 \Rightarrow \Delta_{33} = a\Delta_{13} + b\Delta_{23}$
+
+With the constraints $\Delta_{11} = 0, \Delta_{12} = 0, \Delta_{22} = 0$:
+- $\Delta_{13} = 0$
+- $\Delta_{23} = 0$
+- $\Delta_{33} = 0$
+
+So $\Delta = 0$! Great, so $A$ is extreme.
+
+So for $n = 3$, the matrix $\begin{pmatrix} 1 & 0 & a \\ 0 & 1 & b \\ a & b & a^2+b^2 \end{pmatrix}$ with $a, b \in (0,1)$, $a^2 + b^2 \in (0,1)$ is an extreme point.
+
+This is a rank-2 matrix with some entries in $(0,1)$.
+
+Hmm, so the extreme points have a rich structure. Let me think about the general pattern.
+
+Let me reconsider. The key condition is: $A \in \mathcal{H}$ is extreme iff the only symmetric $\Delta$ with:
+1. $\Delta_{ij} = 0$ when $a_{ij} \in \{0, 1\}$
+2. $\Delta v = 0$ for all $v \in \ker(A)$ (equivalently, $\text{range}(\Delta) \subseteq \text{range}(A)$)
+
+is $\Delta = 0$.
+
+Let me think about this in terms of the structure of $A$.
+
+Let $S = \{i : a_{ii} = 1\}$ (indices with diagonal entry 1) and $T = \{i : a_{ii} = 0\}$ (indices with diagonal entry 0). Since $A$ is PSD, if $a_{ii} = 0$, then the entire row/column $i$ is 0. So $T$ indices correspond to zero rows/columns.
+
+WLOG, assume $A$ has no zero rows (i.e., $a_{ii} > 0$ for all $i$, so $T = \emptyset$). Actually, $a_{ii} \in (0,1]$ for all $i$.
+
+Now, let $S_1 = \{i : a_{ii} = 1\}$ and $S_2 = \{i : a_{ii} \in (0,1)\}$.
+
+For $i \in S_1$: $a_{ii} = 1$ is fixed, so $\Delta_{ii} = 0$.
+For $i \in S_2$: $a_{ii} \in (0,1)$ is free, so $\Delta_{ii}$ can be nonzero.
+
+For off-diagonal: $a_{ij} \in \{0, 1\}$ → fixed; $a_{ij} \in (0,1)$ → free.
+
+This is getting quite involved. Let me try to think about the problem from the perspective of the answer.
+
+Let me consider the possibility that the extreme points are exactly the matrices of the form $A = \sum_{k} v_k v_k^T$ where... no, that's too general.
+
+Actually, let me reconsider the problem. Maybe "symmetric positive" means "symmetric positive definite" (not semidefinite). In French math, "positive" usually means $\succeq 0$ (semidefinite) and "définie positive" means $\succ 0$. But in English, "positive" sometimes means $\succ 0$.
+
+If $\mathcal{H}$ is the set of symmetric positive definite matrices with entries in $[0,1]$, then $\mathcal{H}$ is open (not compact), and extreme points don't exist (or the concept doesn't apply in the usual sense). So it must be positive semidefinite.
+
+Actually wait, even if it's positive definite, the set is $\{A : A \succ 0, a_{ij} \in [0,1]\}$, which is open and convex but not compact. Extreme points of a non-compact convex set can exist but it's unusual. I think the problem means positive semidefinite.
+
+Let me also reconsider: maybe the problem is asking about a different notion. "Symmetric positive" could mean "symmetric with positive entries" (i.e., all entries positive). But that doesn't quite work with $a_{ij} \in [0,1]$ either (since 0 is allowed).
+
+I'll go with: $\mathcal{H}$ = symmetric PSD matrices with entries in $[0,1]$.
+
+Now, let me try to characterize the extreme points more carefully.
+
+Let me think about the problem in terms of a graph structure. Given $A \in \mathcal{H}$, define:
+- $Z = \{(i,j) : a_{ij} = 0\}$ (zero entries)
+- $O = \{(i,j) : a_{ij} = 1\}$ (one entries)
+- $F = \{(i,j) : a_{ij} \in (0,1)\}$ (free entries)
+
+$A$ is extreme iff the only symmetric $\Delta$ supported on $F$ with $\Delta v = 0$ for all $v \in \ker(A)$ is $\Delta = 0$.
+
+Let me think about specific families.
+
+**Family 1: $\{0,1\}$ PSD matrices.** All entries are 0 or 1, so $F = \emptyset$, and $\Delta = 0$ is forced. These are always extreme.
+
+As we discussed, these are (up to permutation) block diagonal matrices with blocks $J_m$ (all-ones) and zero rows/columns.
+
+**Family 2: Rank-1 matrices $vv^T$ with $\max v_i = 1$.** We showed these are extreme.
+
+**Family 3: Higher-rank matrices with some free entries.** Like the $n=3$ example above.
+
+Let me think about whether there's a clean characterization.
+
+Actually, let me think about this more carefully using the concept of "completely positive" matrices or some other structure.
+
+Hmm, let me try a different approach. Let me think about the problem as follows.
+
+$\mathcal{H} = \{A \in \mathbb{S}^n : A \succeq 0, 0 \leq A \leq J\}$ where $J$ is the all-ones matrix and $\leq$ is entry-wise.
+
+Actually, $0 \leq a_{ij} \leq 1$ is entry-wise, so $\mathcal{H} = \{A \succeq 0 : 0 \leq A \leq J\}$ (entry-wise).
+
+The extreme points of this set... Let me think about it as the intersection of the PSD cone with the box $[0, J]$ (entry-wise).
+
+There's a general theory about extreme points of spectrahedra (intersections of the PSD cone with affine spaces). But here the box constraints are not affine — they're inequalities. So $\mathcal{H}$ is a spectrahedral shadow or something more complex.
+
+Actually, $\mathcal{H}$ is the intersection of the PSD cone with the box $\{A : 0 \leq A_{ij} \leq 1\}$, which is a polyhedron. So $\mathcal{H}$ is the intersection of a spectrahedron with a polyhedron.
+
+The extreme points of such an intersection can be characterized, but it's not straightforward.
+
+Let me try yet another approach. Let me think about what matrices can be decomposed.
+
+A matrix $A \in \mathcal{H}$ is NOT extreme iff there exist $B, C \in \mathcal{H}$, $B \neq C$, with $A = \frac{1}{2}(B + C)$.
+
+Equivalently, there exists a nonzero symmetric $\Delta$ such that $A \pm \Delta \in \mathcal{H}$ (i.e., $A \pm \Delta \succeq 0$ and $0 \leq A \pm \Delta \leq J$ entry-wise).
+
+The entry-wise condition: $0 \leq a_{ij} \pm \delta_{ij} \leq 1$, which requires $\delta_{ij} = 0$ when $a_{ij} \in \{0, 1\}$ and $|\delta_{ij}| \leq \min(a_{ij}, 1 - a_{ij})$ when $a_{ij} \in (0,1)$.
+
+The PSD condition: $A \pm \Delta \succeq 0$.
+
+From our analysis, $A \pm \Delta \succeq 0$ for small $\Delta$ iff $\Delta v = 0$ for all $v \in \ker(A)$ (combined with the second-order analysis, which showed that the condition is exactly $\ker(A) \subseteq \ker(\Delta)$, i.e., $\text{range}(\Delta) \subseteq \text{range}(A)$).
+
+Wait, I need to be more careful. The condition $A + \Delta \succeq 0$ and $A - \Delta \succeq 0$ for SMALL $\Delta$ is:
+- $\text{range}(\Delta) \subseteq \text{range}(A)$ (from the kernel analysis)
+
+But we need this for some nonzero $\Delta$, not just infinitesimal. However, if there's a nonzero $\Delta$ with $\text{range}(\Delta) \subseteq \text{range}(A)$ and $\delta_{ij} = 0$ for fixed entries, then for small enough $\epsilon$, $A \pm \epsilon \Delta \in \mathcal{H}$ (the free entries stay in $(0,1)$ and the PSD condition is satisfied since $\text{range}(\Delta) \subseteq \text{range}(A)$ implies $A \pm \epsilon \Delta \succeq 0$ for small $\epsilon$).
+
+Wait, is that true? If $\text{range}(\Delta) \subseteq \text{range}(A)$, is $A + \epsilon \Delta \succeq 0$ for small $\epsilon$?
+
+$A + \epsilon \Delta$: in the eigenbasis of $A$, $A = \text{diag}(\lambda_1, \ldots, \lambda_r, 0, \ldots, 0)$ and $\Delta = \begin{pmatrix} M & 0 \\ 0 & 0 \end{pmatrix}$ (since range of $\Delta$ is in range of $A$). So $A + \epsilon \Delta = \begin{pmatrix} \Lambda + \epsilon M & 0 \\ 0 & 0 \end{pmatrix}$. This is PSD iff $\Lambda + \epsilon M \succeq 0$, which holds for small $\epsilon$ since $\Lambda \succ 0$. ✓
+
+So the condition is exactly: $A$ is extreme iff the only symmetric $\Delta$ with:
+1. $\delta_{ij} = 0$ when $a_{ij} \in \{0, 1\}$
+2. $\text{range}(\Delta) \subseteq \text{range}(A)$
+
+is $\Delta = 0$.
+
+Now, condition 2 is equivalent to $A^\dagger A \Delta = \Delta$ (where $A^\dagger$ is the pseudoinverse), or equivalently, $\Delta = P \Delta P$ where $P = A^\dagger A$ is the projection onto $\text{range}(A)$.
+
+Or equivalently, $V^T \Delta = 0$ where $V$ spans $\ker(A)$ (since $\text{range}(\Delta) \subseteq \text{range}(A) = \ker(A)^\perp$).
+
+So the condition is: $\Delta$ is symmetric, $\Delta_{ij} = 0$ for $(i,j) \in Z \cup O$, and $V^T \Delta = 0$ (where $V$ spans $\ker A$), implies $\Delta = 0$.
+
+$V^T \Delta = 0$ means: for each $v \in \ker(A)$ and each $j$, $\sum_i v_i \Delta_{ij} = 0$.
+
+This is a system of linear equations on $\Delta$. The number of unknowns is $|F|$ (the free entries). The number of equations is $(n - r) \cdot n$ (from $V^T \Delta = 0$, which gives $(n-r) \times n$ equations, but since $\Delta$ is symmetric, some are redundant). Actually, $V^T \Delta = 0$ gives $(n-r) \times n$ equations, but we also need $\Delta V = 0$ (which is the transpose, and since $\Delta$ is symmetric, it's the same). So the number of independent equations from $V^T \Delta = 0$ is $(n-r) \times n$ but with the symmetry of $\Delta$, it's $(n-r) \times n$ equations on $n(n+1)/2$ unknowns... 
+
+Actually, let me think about it differently. The space of symmetric matrices with range in $\text{range}(A)$ has dimension $\binom{r+1}{2}$. The space of symmetric matrices supported on $F$ has dimension $|F|$. The intersection has dimension $\geq \binom{r+1}{2} + |F| - \binom{n+1}{2}$.
+
+For $A$ to be extreme, we need this intersection to be $\{0\}$, so $\binom{r+1}{2} + |F| \leq \binom{n+1}{2}$, i.e., $|F| \leq \binom{n+1}{2} - \binom{r+1}{2} = \frac{(n-r)(n+r+1)}{2}$.
+
+This is necessary but not sufficient. The sufficiency depends on the specific structure.
+
+Let me now try to find the general characterization.
+
+Let me think about the problem in terms of the "support graph" and the "kernel structure."
+
+Given $A \in \mathcal{H}$ with rank $r$, let $V$ be a basis for $\ker(A)$ (an $n \times (n-r)$ matrix). The condition $V^T \Delta = 0$ means each column of $\Delta$ is orthogonal to each column of $V$, i.e., each column of $\Delta$ is in $\text{range}(A)$.
+
+Now, let $F$ be the set of free positions. $\Delta$ is supported on $F$ (and symmetric). The condition is that $\Delta$'s columns are in $\text{range}(A)$.
+
+Let me think about this column by column. Column $j$ of $\Delta$ has nonzero entries only at positions $(i,j)$ where $(i,j) \in F$ (or $(j,i) \in F$ since $\Delta$ is symmetric). The condition is that this column is in $\text{range}(A)$.
+
+Hmm, this is still complex. Let me try to think about specific structures that give extreme points.
+
+**Structure 1: $A$ is a $\{0,1\}$ PSD matrix.** Always extreme (no free entries).
+
+**Structure 2: $A = vv^T$ with $\max v_i = 1$.** Always extreme (rank 1, and the constraint from $v_i = 1$ forces $\Delta = 0$).
+
+**Structure 3: $A$ has a specific block structure.** Let me think about this.
+
+Consider $A$ partitioned as $\begin{pmatrix} I_p & B \\ B^T & C \end{pmatrix}$ where $I_p$ is the $p \times p$ identity (so the first $p$ diagonal entries are 1, and the first $p \times p$ block is identity, meaning the off-diagonal entries in this block are 0).
+
+The free entries are in $B$ and $C$ (assuming they're in $(0,1)$). The fixed entries are the $I_p$ block.
+
+$\ker(A)$: vectors $(x, y)$ with $x + By = 0$ and $B^T x + Cy = 0$. From the first: $x = -By$. Substituting: $-B^T By + Cy = 0$, so $(C - B^T B)y = 0$.
+
+If $A$ has rank $p$ (so $C = B^T B$), then $\ker(A) = \{(−By, y) : y \in \mathbb{R}^{n-p}\}$, which has dimension $n - p$.
+
+The condition $V^T \Delta = 0$: for all $y$, $(-By)^T \Delta_{\cdot 1} + y^T \Delta_{\cdot 2} = 0$ where $\Delta_{\cdot 1}$ is the first $p$ rows of $\Delta$ and $\Delta_{\cdot 2}$ is the last $n-p$ rows.
+
+This gives: $-B^T \Delta_{\cdot 1} + \Delta_{\cdot 2} = 0$ (as a matrix equation, for all $y$), i.e., $\Delta_{\cdot 2} = B^T \Delta_{\cdot 1}$.
+
+But $\Delta_{\cdot 1}$ (the first $p$ rows) has $\Delta_{ij} = 0$ for $i, j \leq p$ (since the $I_p$ block is fixed). So $\Delta_{\cdot 1}$ has nonzero entries only in the $B$ part (positions $(i, j)$ with $i \leq p, j > p$).
+
+Let me write $\Delta = \begin{pmatrix} 0 & D \\ D^T & E \end{pmatrix}$ where $D$ is $p \times (n-p)$ and $E$ is $(n-p) \times (n-p)$ symmetric, and these correspond to the free entries.
+
+The condition $\Delta_{\cdot 2} = B^T \Delta_{\cdot 1}$: 
+
+$\Delta_{\cdot 1} = \begin{pmatrix} 0 & D \end{pmatrix}$ (first $p$ rows, all $n$ columns). So $B^T \Delta_{\cdot 1} = B^T \begin{pmatrix} 0 & D \end{pmatrix} = \begin{pmatrix} 0 & B^T D \end{pmatrix}$.
+
+$\Delta_{\cdot 2} = \begin{pmatrix} D^T & E \end{pmatrix}$ (last $n-p$ rows).
+
+So the condition is: $\begin{pmatrix} D^T & E \end{pmatrix} = \begin{pmatrix} 0 & B^T D \end{pmatrix}$.
+
+This gives: $D^T = 0$ (so $D = 0$) and $E = B^T D = 0$.
+
+So $\Delta = 0$! This means any $A = \begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$ with appropriate entry constraints is extreme.
+
+Wait, but we need $A \in \mathcal{H}$: entries in $[0,1]$ and PSD. $A = \begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$ is PSD (it's $\begin{pmatrix} I \\ B^T \end{pmatrix} \begin{pmatrix} I & B \end{pmatrix} = W W^T$ where $W = \begin{pmatrix} I_p \\ B^T \end{pmatrix}$, wait no.
+
+$A = \begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$. Let's check: $\begin{pmatrix} I_p \\ B^T \end{pmatrix} \begin{pmatrix} I_p & B \end{pmatrix} = \begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$. Yes! So $A = WW^T$ where $W = \begin{pmatrix} I_p \\ B^T \end{pmatrix}$, which is $n \times p$. So $A$ has rank $p$ and is PSD. ✓
+
+For entries to be in $[0,1]$: $I_p$ entries are 0 or 1 ✓. $B$ entries need to be in $[0,1]$. $B^T B$ entries: $(B^T B)_{ij} = \sum_k b_{ki} b_{kj}$, which needs to be in $[0,1]$. Since $b_{ki} \in [0,1]$, $(B^T B)_{ij} \leq \sum_k 1 = p$. So we need $\sum_k b_{ki} b_{kj} \leq 1$ for all $i, j$.
+
+In particular, $(B^T B)_{ii} = \sum_k b_{ki}^2 \leq 1$, so each column of $B$ has $\ell^2$ norm $\leq 1$.
+
+So the family of extreme points includes all matrices of the form $A = \begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$ where $B \in [0,1]^{p \times (n-p)}$ and $B^T B \in [0,1]^{(n-p) \times (n-p)}$ (entry-wise), for any $0 \leq p \leq n$.
+
+But wait, this is after a specific permutation of rows/columns. More generally, we can choose any set $S$ of $p$ indices to have diagonal entry 1 and form an identity block, with the rest determined by $B$.
+
+But actually, the structure is more general than just $\begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$. The $I_p$ block means the first $p$ indices have $a_{ii} = 1$ and $a_{ij} = 0$ for $i \neq j$, $i, j \leq p$. But we could also have $a_{ij} = 1$ for some $i \neq j$ in the "fixed" block.
+
+Let me think more generally. The fixed entries (those at 0 or 1) impose constraints on $\Delta$. The kernel of $A$ imposes constraints on $\Delta$. The interplay determines extremality.
+
+Let me consider a more general structure. Suppose $A$ has the form where we partition the indices into "fixed" and "free" based on the diagonal:
+- $S = \{i : a_{ii} = 1\}$ (diagonal at 1)
+- $T = \{i : a_{ii} \in (0,1)\}$ (diagonal free)
+- $U = \{i : a_{ii} = 0\}$ (diagonal at 0, hence entire row/column is 0)
+
+WLOG, $U = \emptyset$ (zero rows/columns just reduce the effective size).
+
+For $i \in S$: $a_{ii} = 1$. For $i, j \in S$, $a_{ij}$ could be 0 or 1 (if $i \neq j$) or in $(0,1)$.
+
+Hmm, this is getting very complex. Let me try to think about whether there's a clean closed-form answer.
+
+Let me reconsider the problem. Maybe the answer is simpler than I think.
+
+Let me reconsider: perhaps the extreme points are exactly the matrices $A \in \mathcal{H}$ that can be written as $A = \sum_{k=1}^{r} v_k v_k^T$ where the $v_k$ are vectors with entries in $[0,1]$ and the $v_k v_k^T$ have disjoint supports... no, that doesn't seem right.
+
+Actually, let me reconsider the structure $\begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$. This is $WW^T$ where $W = \begin{pmatrix} I_p \\ B^T \end{pmatrix}$. The columns of $W$ are $w_k = e_k + \sum_{j} b_{kj} e_{p+j}$ for $k = 1, \ldots, p$. These are vectors with a 1 in position $k$ and entries $b_{kj} \in [0,1]$ in positions $p+j$.
+
+So $A = \sum_{k=1}^p w_k w_k^T$ where each $w_k$ has a 1 in one position and other entries in $[0,1]$.
+
+But we also have the $\{0,1\}$ PSD matrices, which are block diagonal with $J_m$ blocks. $J_m = \mathbf{1}_m \mathbf{1}_m^T = w w^T$ where $w = \mathbf{1}_m$ (the all-ones vector of length $m$, padded with zeros). This is a rank-1 matrix $vv^T$ with $v \in \{0,1\}^n$.
+
+And the rank-1 extreme points $vv^T$ with $v \in [0,1]^n$, $\max v_i = 1$.
+
+And the $\begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$ family.
+
+Hmm, but the $\begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$ family includes the rank-1 case when $p = 1$: $\begin{pmatrix} 1 & b^T \\ b & b b^T \end{pmatrix} = \begin{pmatrix} 1 \\ b \end{pmatrix} \begin{pmatrix} 1 & b \end{pmatrix} = vv^T$ with $v = (1, b_1, \ldots, b_{n-1}) \in [0,1]^n$ and $v_1 = 1$. ✓
+
+And when $p = n$: $A = I_n$, which is the identity. ✓
+
+And when $B = 0$: $A = \begin{pmatrix} I_p & 0 \\ 0 & 0 \end{pmatrix}$, which is a $\{0,1\}$ PSD matrix (diagonal with $p$ ones and $n-p$ zeros). ✓
+
+But what about the $\{0,1\}$ PSD matrices that are not of this form, like $J_m$ (all-ones block)? $J_m$ has all entries 1, including off-diagonal. In our family $\begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$, the $I_p$ block has off-diagonal entries 0. So $J_m$ is not in this family (for $m \geq 2$).
+
+But $J_m$ is an extreme point (it's a $\{0,1\}$ PSD matrix). So our family doesn't capture all extreme points.
+
+Let me think about what other structures give extreme points.
+
+Consider $A = J_n$ (all-ones). This is $vv^T$ with $v = \mathbf{1}_n$, so $\max v_i = 1$. It's a rank-1 extreme point. ✓
+
+Consider a block diagonal matrix with blocks $J_{m_1}, \ldots, J_{m_k}$ (and possibly zero blocks). This is a $\{0,1\}$ PSD matrix, hence extreme. But it's not of the form $\begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$ unless all blocks are $J_1 = (1)$.
+
+So the family $\begin{pmatrix} I_p & B \\ B^T & B^T B \end{pmatrix}$ is not the full story.
+
+Let me think about a more general family. Consider $A = WW^T$ where $W$ is an $n \times r$ matrix with entries in $[0,1]$, and the rows of $W$ corresponding to "fixed" entries of $A$ are constrained.
+
+Actually, let me think about it differently. The condition for extremality is that the "free" entries are determined by the "fixed" entries via the kernel constraint.
+
+Let me consider a general approach. $A \in \mathcal{H}$, rank $r$. Let $V$ be a basis for $\ker(A)$. The free entries $F$ are those in $(0,1)$. $A$ is extreme iff the system:
+
+$\Delta$ symmetric, $\Delta_{ij} = 0$ for $(i,j) \notin F$, $V^T \Delta = 0$
+
+has only the

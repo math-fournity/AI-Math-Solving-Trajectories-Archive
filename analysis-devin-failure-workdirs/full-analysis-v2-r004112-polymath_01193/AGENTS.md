@@ -1,0 +1,1054 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_01193</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Given a real number $a$ such that $0 < a < 2$, we define two properties:
+(a) Let $B$ be the smallest real number such that for any real numbers $x$ and $y$, there exist integers $p, q \in \mathbb{Z}$ satisfying
+\[(x+p)^{2} + a(x+p)(y+q) + (y+q)^{2} \leq B.\]
+(b) Let $C$ be the smallest real number such that for any real numbers $x$ and $y$, there exist numbers $p, q$ that are either both integers ($p, q \in \mathbb{Z}$) or both halves of odd integers ($p, q \in \mathbb{Z}_{1/2}$) satisfying
+\[(x+p)^{2} + a(x+p)(y+q) + (y+q)^{2} \leq C.\]
+Find the value of $B + C$ when $a = 1/2$.
+
+## Standard Solution
+
+From the original solution, we have $B = \frac{1}{a+2}$ and $C = \frac{1}{4}$. Substituting $a = 1/2$ into the formula for $B$ gives $B = \frac{1}{1/2 + 2} = \frac{1}{5/2} = \frac{2}{5}$. Thus, $B + C = \frac{2}{5} + \frac{1}{4} = \frac{8+5}{20} = \frac{13}{20}$.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We have a real number $a$ with $0 < a < 2$, and we define a quadratic form:
+$$Q(u, v) = u^2 + a \cdot u \cdot v + v^2$$
+
+**Part (a):** Find the smallest $B$ such that for any real $x, y$, there exist integers $p, q \in \mathbb{Z}$ with $Q(x+p, y+q) \leq B$.
+
+This is the covering radius problem for the lattice $\mathbb{Z}^2$ with respect to the quadratic form $Q$.
+
+**Part (b):** Find the smallest $C$ such that for any real $x, y$, there exist $p, q$ both in $\mathbb{Z}$ or both in $\mathbb{Z}_{1/2}$ (halves of odd integers) with $Q(x+p, y+q) \leq C$.
+
+Here $\mathbb{Z}_{1/2} = \{n + 1/2 : n \in \mathbb{Z}\}$, so the allowed shifts are either $(p, q) \in \mathbb{Z}^2$ or $(p, q) \in (\mathbb{Z} + 1/2)^2$.
+
+The set of allowed shift vectors is $\Lambda = \mathbb{Z}^2 \cup (\mathbb{Z} + 1/2)^2$. Note that this is actually a lattice! It's the lattice generated by $(1, 0)$, $(0, 1)$, and $(1/2, 1/2)$. Actually, let me think... $\mathbb{Z}^2 \cup (\mathbb{Z}+1/2)^2$ — is this a lattice?
+
+The lattice $\mathbb{Z}^2 \cup (\mathbb{Z}+1/2)^2$ is the union of $\mathbb{Z}^2$ and $\mathbb{Z}^2 + (1/2, 1/2)$. This is the lattice $\mathbb{Z}^2 + \mathbb{Z} \cdot (1/2, 1/2)$. A basis for this lattice is $\{(1, 0), (1/2, 1/2)\}$, or equivalently $\{(1, 0), (0, 1), (1/2, 1/2)\}$ but $(0,1) = (1,0) - 2(1/2, 1/2) + (1,0)$... wait let me think.
+
+Actually, $\Lambda = \{(m, n) : m, n \in \mathbb{Z}\} \cup \{(m+1/2, n+1/2) : m, n \in \mathbb{Z}\}$. This is a lattice with basis $\{(1, 0), (1/2, 1/2)\}$. Check: any element is either $(m, n) = m(1,0) + n(0,1)$, and $(0,1) = (1, 1) - (1, 0) = 2(1/2, 1/2) - (1, 0)$... hmm, $(0,1) = 2(1/2, 1/2) - (1, 0)$? $2(1/2, 1/2) - (1, 0) = (1, 1) - (1, 0) = (0, 1)$. Yes! So $(0,1)$ is in the lattice generated by $\{(1,0), (1/2, 1/2)\}$, and so is $(1, 0)$. And $(1/2, 1/2)$ is in the lattice. So the lattice generated by $\{(1,0), (1/2, 1/2)\}$ contains all of $\mathbb{Z}^2$ and all of $(\mathbb{Z}+1/2)^2$.
+
+Conversely, any element of the lattice $\{m(1,0) + n(1/2, 1/2) : m, n \in \mathbb{Z}\} = \{(m + n/2, n/2) : m, n \in \mathbb{Z}\}$. If $n$ is even, $n = 2k$, then we get $(m+k, k) \in \mathbb{Z}^2$. If $n$ is odd, $n = 2k+1$, then we get $(m + k + 1/2, k + 1/2) \in (\mathbb{Z}+1/2)^2$. So indeed $\Lambda = \{m(1,0) + n(1/2, 1/2) : m, n \in \mathbb{Z}\}$.
+
+So part (b) is the covering radius problem for the lattice $\Lambda$ with basis $\{(1, 0), (1/2, 1/2)\}$ with respect to $Q$.
+
+Now, the covering radius of a lattice $\Lambda$ with respect to a quadratic form $Q$ is:
+$$\rho = \max_{\mathbf{v} \in \mathbb{R}^2} \min_{\lambda \in \Lambda} Q(\mathbf{v} - \lambda)$$
+
+This equals the maximum of $Q$ over the fundamental domain (Voronoi cell) at its vertices (the "deep holes").
+
+Let me set up coordinates. For part (a), the lattice is $\mathbb{Z}^2$ with the quadratic form $Q(u,v) = u^2 + auv + v^2$.
+
+The matrix of the quadratic form is $M = \begin{pmatrix} 1 & a/2 \\ a/2 & 1 \end{pmatrix}$.
+
+The covering radius of $\mathbb{Z}^2$ with respect to $Q$ is the maximum of $Q$ over the Voronoi cell of $\mathbb{Z}^2$, which is $[-1/2, 1/2]^2$. The maximum of a convex function (quadratic form with positive definite matrix) over a convex polytope is attained at a vertex. The vertices of $[-1/2, 1/2]^2$ are $(\pm 1/2, \pm 1/2)$.
+
+So $B = \max_{\epsilon_1, \epsilon_2 \in \{-1/2, 1/2\}} Q(\epsilon_1, \epsilon_2) = Q(1/2, 1/2) = 1/4 + a/4 + 1/4 = (2 + a)/4$.
+
+Wait, but we need to check all four vertices. $Q(1/2, 1/2) = 1/4 + a/4 + 1/4 = (2+a)/4$. $Q(1/2, -1/2) = 1/4 - a/4 + 1/4 = (2-a)/4$. Since $a > 0$, $(2+a)/4 > (2-a)/4$. So $B = (2+a)/4$.
+
+For $a = 1/2$: $B = (2 + 1/2)/4 = (5/2)/4 = 5/8$.
+
+Now for part (b), the lattice $\Lambda$ has basis $\mathbf{b}_1 = (1, 0)$, $\mathbf{b}_2 = (1/2, 1/2)$. The Gram matrix with respect to $Q$ is:
+$$G_{ij} = Q(\mathbf{b}_i, \mathbf{b}_j) = \mathbf{b}_i^T M \mathbf{b}_j$$
+
+Actually, let me think about this differently. The covering radius is the maximum of $Q$ over the Voronoi cell of $\Lambda$.
+
+First, let me find the Voronoi cell of $\Lambda$. The lattice $\Lambda$ has basis $(1, 0)$ and $(1/2, 1/2)$. The fundamental parallelogram has vertices $(0,0), (1,0), (1/2, 1/2), (3/2, 1/2)$.
+
+Actually, let me think about the Voronoi cell more carefully. The Voronoi cell is the set of points closer to the origin than to any other lattice point. With respect to the quadratic form $Q$, the Voronoi cell is:
+$$V = \{\mathbf{x} : Q(\mathbf{x}) \leq Q(\mathbf{x} - \lambda) \text{ for all } \lambda \in \Lambda\}$$
+
+This is equivalent to $\mathbf{x} \cdot M \lambda \leq Q(\lambda)/2$ for all $\lambda \in \Lambda$ (where $\cdot$ is the standard dot product and $M$ is the matrix of $Q$).
+
+Hmm, this is getting complex. Let me think about it more concretely.
+
+Actually, for a 2D lattice, the covering radius is the maximum of $Q$ over the Voronoi cell, which is attained at a vertex of the Voronoi cell (a "deep hole").
+
+Let me use a different approach. Let me change coordinates to make the lattice simpler.
+
+The lattice $\Lambda$ in the $(u, v)$ plane has basis $(1, 0)$ and $(1/2, 1/2)$. Let me use coordinates $(s, t)$ where a point $(u, v) = s(1, 0) + t(1/2, 1/2) = (s + t/2, t/2)$. So $u = s + t/2$, $v = t/2$, i.e., $t = 2v$, $s = u - v$.
+
+In these coordinates, the lattice is just $\mathbb{Z}^2$ in $(s, t)$ space. The quadratic form becomes:
+$$Q = u^2 + auv + v^2 = (s + t/2)^2 + a(s + t/2)(t/2) + (t/2)^2$$
+$$= s^2 + st + t^2/4 + a(st/2 + t^2/4) + t^2/4$$
+$$= s^2 + st(1 + a/2) + t^2(1/4 + a/4 + 1/4)$$
+$$= s^2 + (1 + a/2)st + (1/2 + a/4)t^2$$
+
+Hmm, let me redo this. $u = s + t/2$, $v = t/2$.
+
+$u^2 = s^2 + st + t^2/4$
+$uv = (s + t/2)(t/2) = st/2 + t^2/4$
+$v^2 = t^2/4$
+
+$Q = s^2 + st + t^2/4 + a(st/2 + t^2/4) + t^2/4$
+$= s^2 + st(1 + a/2) + t^2(1/4 + a/4 + 1/4)$
+$= s^2 + (1 + a/2)st + (1/2 + a/4)t^2$
+
+For $a = 1/2$:
+$Q = s^2 + (1 + 1/4)st + (1/2 + 1/8)t^2 = s^2 + (5/4)st + (5/8)t^2$
+
+So in $(s, t)$ coordinates, the lattice is $\mathbb{Z}^2$ and the quadratic form is $Q(s, t) = s^2 + \frac{5}{4}st + \frac{5}{8}t^2$.
+
+The covering radius is the maximum of $Q$ over the Voronoi cell of $\mathbb{Z}^2$ with respect to this quadratic form.
+
+The matrix of this quadratic form is $M' = \begin{pmatrix} 1 & 5/8 \\ 5/8 & 5/8 \end{pmatrix}$.
+
+Wait, let me be careful. $Q(s, t) = s^2 + \frac{5}{4}st + \frac{5}{8}t^2$. The matrix is $M' = \begin{pmatrix} 1 & 5/8 \\ 5/8 & 5/8 \end{pmatrix}$ since $Q = \begin{pmatrix} s & t \end{pmatrix} M' \begin{pmatrix} s \\ t \end{pmatrix} = M'_{11} s^2 + 2M'_{12} st + M'_{22} t^2 = s^2 + \frac{5}{4}st + \frac{5}{8}t^2$. Yes, $M'_{12} = 5/8$.
+
+Now, the Voronoi cell of $\mathbb{Z}^2$ with respect to $Q$ is the set of $(s, t)$ such that $Q(s, t) \leq Q(s - m, t - n)$ for all $(m, n) \in \mathbb{Z}^2$.
+
+$Q(s-m, t-n) = Q(s,t) - 2(s \cdot m + t \cdot n \text{ with respect to } M') + Q(m, n)$
+
+More precisely, $Q(\mathbf{x} - \lambda) = Q(\mathbf{x}) - 2\mathbf{x}^T M' \lambda + Q(\lambda)$.
+
+So $Q(\mathbf{x}) \leq Q(\mathbf{x} - \lambda)$ iff $\mathbf{x}^T M' \lambda \leq Q(\lambda)/2$.
+
+The Voronoi cell is defined by the inequalities $\mathbf{x}^T M' \lambda \leq Q(\lambda)/2$ for all $\lambda \in \mathbb{Z}^2 \setminus \{0\}$. Only the "relevant vectors" matter.
+
+For a 2D lattice, the relevant vectors are typically the shortest lattice vectors in various directions. Let me compute $Q$ for small lattice vectors:
+
+$Q(1, 0) = 1$
+$Q(0, 1) = 5/8$
+$Q(1, 1) = 1 + 5/4 + 5/8 = 1 + 10/8 + 5/8 = 1 + 15/8 = 23/8$
+$Q(1, -1) = 1 - 5/4 + 5/8 = 1 - 10/8 + 5/8 = 1 - 5/8 = 3/8$
+$Q(2, 0) = 4$
+$Q(0, 2) = 4 \cdot 5/8 = 5/2$
+$Q(1, -2) = 1 - 5/2 + 4 \cdot 5/8 = 1 - 5/2 + 5/2 = 1$
+$Q(2, -1) = 4 - 5/2 + 5/8 = 4 - 20/8 + 5/8 = 4 - 15/8 = 17/8$
+
+So the shortest vectors by $Q$-norm:
+- $(1, -1)$: $Q = 3/8$
+- $(0, 1)$: $Q = 5/8$
+- $(1, 0)$: $Q = 1$
+- $(1, -2)$: $Q = 1$
+
+For the Voronoi cell, the relevant vectors are those whose bisectors form the boundary. In 2D, these are the vectors such that the perpendicular bisectors (with respect to $Q$) form the cell.
+
+The relevant vectors for a 2D lattice are the "strictly Voronoi relevant" vectors, which are the minimal vectors in each "direction class." For a 2D lattice, there are typically 3 pairs of relevant vectors (giving a hexagonal Voronoi cell) or 2 pairs (giving a rectangular Voronoi cell).
+
+Let me think about which vectors are relevant. A vector $\lambda$ is relevant if its bisector $\mathbf{x}^T M' \lambda = Q(\lambda)/2$ contributes a facet to the Voronoi cell.
+
+The candidates are the shortest vectors. Let me check $(1, -1)$, $(0, 1)$, $(1, 0)$, and $(1, -2)$.
+
+The bisector for $\lambda = (1, -1)$: $\mathbf{x}^T M' (1, -1)^T = Q(1, -1)/2 = 3/16$.
+$M' (1, -1)^T = (1 \cdot 1 + 5/8 \cdot (-1), 5/8 \cdot 1 + 5/8 \cdot (-1)) = (1 - 5/8, 5/8 - 5/8) = (3/8, 0)$.
+So the bisector is $(3/8)s = 3/16$, i.e., $s = 1/2$.
+
+The bisector for $\lambda = (0, 1)$: $\mathbf{x}^T M' (0, 1)^T = Q(0, 1)/2 = 5/16$.
+$M' (0, 1)^T = (5/8, 5/8)$.
+So the bisector is $(5/8)s + (5/8)t = 5/16$, i.e., $s + t = 1/2$.
+
+The bisector for $\lambda = (1, 0)$: $\mathbf{x}^T M' (1, 0)^T = Q(1, 0)/2 = 1/2$.
+$M' (1, 0)^T = (1, 5/8)$.
+So the bisector is $s + (5/8)t = 1/2$, i.e., $8s + 5t = 4$.
+
+The bisector for $\lambda = (1, -2)$: $\mathbf{x}^T M' (1, -2)^T = Q(1, -2)/2 = 1/2$.
+$M' (1, -2)^T = (1 - 10/8, 5/8 - 10/8) = (-2/8, -5/8) = (-1/4, -5/8)$.
+So the bisector is $(-1/4)s + (-5/8)t = 1/2$, i.e., $-2s - 5t = 4$, i.e., $2s + 5t = -4$.
+
+By symmetry ($\lambda \to -\lambda$), we also have:
+- $s = -1/2$ (from $(-1, 1)$)
+- $s + t = -1/2$ (from $(0, -1)$)
+- $8s + 5t = -4$ (from $(-1, 0)$)
+- $2s + 5t = 4$ (from $(-1, 2)$)
+
+Now I need to determine which of these actually bound the Voronoi cell. Let me find the intersection points.
+
+The Voronoi cell is the intersection of all half-planes $\mathbf{x}^T M' \lambda \leq Q(\lambda)/2$.
+
+Let me check if the bisector for $(1, 0)$ is relevant. The vertex of the Voronoi cell near the $(1, 0)$ direction would be the intersection of bisectors for $(1, -1)$ and $(1, 0)$ (and possibly others).
+
+Intersection of $s = 1/2$ and $8s + 5t = 4$: $4 + 5t = 4$, so $t = 0$. Point: $(1/2, 0)$.
+
+Check if this point satisfies all other constraints:
+- $s + t \leq 1/2$: $1/2 + 0 = 1/2 \leq 1/2$. ✓ (on boundary)
+- $2s + 5t \leq 4$: $1 \leq 4$. ✓
+- $-2s - 5t \leq 4$: $-1 \leq 4$. ✓
+
+Hmm, so $(1/2, 0)$ is on the bisectors of $(1, -1)$, $(1, 0)$, and $(0, 1)$. Let me check: $s + t = 1/2$ is the bisector of $(0, 1)$. At $(1/2, 0)$: $1/2 + 0 = 1/2$. Yes, it's on this bisector too.
+
+So three bisectors meet at $(1/2, 0)$: those of $(1, -1)$, $(1, 0)$, and $(0, 1)$.
+
+Now let me find other vertices. Intersection of $s = 1/2$ and $s + t = 1/2$: $t = 0$. Same point.
+
+Intersection of $s + t = 1/2$ and $8s + 5t = 4$: From $s + t = 1/2$, $s = 1/2 - t$. Substitute: $8(1/2 - t) + 5t = 4$, $4 - 8t + 5t = 4$, $-3t = 0$, $t = 0$. Same point again!
+
+So it seems like three bisectors meet at one point. Let me check other combinations.
+
+Intersection of $s = 1/2$ and $2s + 5t = 4$: $1 + 5t = 4$, $t = 3/5$. Point: $(1/2, 3/5)$.
+
+Check constraints:
+- $s + t = 1/2 + 3/5 = 11/10 > 1/2$. ✗!
+
+So this point is outside the Voronoi cell (violates the $(0, 1)$ constraint). So the bisector of $(1, -2)$ doesn't contribute here.
+
+Let me try intersection of $s + t = 1/2$ and $2s + 5t = 4$: $s = 1/2 - t$, $2(1/2 - t) + 5t = 4$, $1 - 2t + 5t = 4$, $3t = 3$, $t = 1$, $s = -1/2$. Point: $(-1/2, 1)$.
+
+Check constraints:
+- $s = -1/2 \geq -1/2$. ✓ (on boundary of $(-1, 1)$)
+- $8s + 5t = -4 + 5 = 1 \leq 4$. ✓
+- $-2s - 5t = 1 - 5 = -4 \leq 4$. ✓
+
+So $(-1/2, 1)$ is a vertex, on bisectors of $(0, 1)$, $(1, -2)$, and $(-1, 1)$.
+
+By symmetry, let me find all vertices. The Voronoi cell should be centrally symmetric. The vertices come in $\pm$ pairs.
+
+Let me be more systematic. The relevant vectors seem to be $(1, -1)$, $(0, 1)$, and $(1, -2)$ (and their negatives). Let me verify this gives a consistent hexagonal Voronoi cell.
+
+Bisectors (for positive relevant vectors):
+1. $(1, -1)$: $s = 1/2$
+2. $(0, 1)$: $s + t = 1/2$
+3. $(1, -2)$: $2s + 5t = 4$
+
+And their negatives:
+1'. $(-1, 1)$: $s = -1/2$
+2'. $(0, -1)$: $s + t = -1/2$
+3'. $(-1, 2)$: $2s + 5t = -4$
+
+Wait, but I found that $(1/2, 0)$ is on the bisectors of $(1, -1)$, $(1, 0)$, and $(0, 1)$. If $(1, 0)$ is not a relevant vector, then the vertex $(1/2, 0)$ is the intersection of bisectors of $(1, -1)$ and $(0, 1)$ only. Let me check: $s = 1/2$ and $s + t = 1/2$ intersect at $(1/2, 0)$. And the bisector of $(1, 0)$ passes through this point too, but it might not be a facet.
+
+Let me check if the bisector of $(1, 0)$ is redundant. The constraint $8s + 5t \leq 4$ — is this implied by $s \leq 1/2$ and $s + t \leq 1/2$?
+
+At $(1/2, 0)$: $8(1/2) + 5(0) = 4$. So it's tight. But is it always implied? Consider a point on the edge from $(1/2, 0)$ to the next vertex. If the next vertex (going counterclockwise) is the intersection of $s + t = 1/2$ and $2s + 5t = 4$, which is $(-1/2, 1)$.
+
+On the edge from $(1/2, 0)$ to $(-1/2, 1)$, parameterized as $(1/2 - u, u)$ for $u \in [0, 1]$:
+$8s + 5t = 8(1/2 - u) + 5u = 4 - 3u$. For $u \in [0, 1]$, this ranges from $4$ to $1$, all $\leq 4$. So the constraint $8s + 5t \leq 4$ is satisfied (with equality only at $u = 0$).
+
+So the bisector of $(1, 0)$ touches the Voronoi cell only at the vertex $(1/2, 0)$ but doesn't form a facet. So $(1, 0)$ is not a relevant vector (it's "weakly relevant" but doesn't contribute a facet).
+
+So the Voronoi cell is a hexagon with vertices at:
+- $(1/2, 0)$: intersection of $s = 1/2$ and $s + t = 1/2$
+- $(-1/2, 1)$: intersection of $s + t = 1/2$ and $2s + 5t = 4$
+- $(-1/2, -1)$: by central symmetry, negative of $(1/2, 0)$... wait, no. Central symmetry means if $\mathbf{v}$ is a vertex, so is $-\mathbf{v}$.
+
+$-(1/2, 0) = (-1/2, 0)$: intersection of $s = -1/2$ and $s + t = -1/2$.
+$-(-1/2, 1) = (1/2, -1)$: intersection of $s + t = -1/2$ and $2s + 5t = -4$.
+
+And by the symmetry of the relevant vectors, we should also have vertices from other intersections:
+- $s = 1/2$ and $2s + 5t = -4$: $1 + 5t = -4$, $t = -1$. Point: $(1/2, -1)$. ✓ (matches above)
+- $s = -1/2$ and $2s + 5t = 4$: $-1 + 5t = 4$, $t = 1$. Point: $(-1/2, 1)$. ✓ (matches above)
+
+So the hexagon has vertices:
+1. $(1/2, 0)$
+2. $(-1/2, 1)$
+3. $(-1/2, 0)$ — wait, is this a vertex? Let me check. $(-1/2, 0)$ is the intersection of $s = -1/2$ and $s + t = -1/2$. But is it actually a vertex of the hexagon?
+
+Let me list all 6 vertices of the hexagon. The facets are (going around):
+- $s = 1/2$ (from $(1, -1)$)
+- $s + t = 1/2$ (from $(0, 1)$)
+- $2s + 5t = 4$ (from $(1, -2)$)
+- $s = -1/2$ (from $(-1, 1)$)
+- $s + t = -1/2$ (from $(0, -1)$)
+- $2s + 5t = -4$ (from $(-1, 2)$)
+
+Vertices (intersections of consecutive facets):
+1. $s = 1/2$ ∩ $s + t = 1/2$: $(1/2, 0)$
+2. $s + t = 1/2$ ∩ $2s + 5t = 4$: $(-1/2, 1)$
+3. $2s + 5t = 4$ ∩ $s = -1/2$: $(-1/2, 1)$ — same as above!
+
+Hmm, that means $s + t = 1/2$ and $s = -1/2$ both pass through $(-1/2, 1)$. Let me check: $s + t = -1/2 + 1 = 1/2$. Yes. And $2(-1/2) + 5(1) = -1 + 5 = 4$. Yes. So three facets meet at $(-1/2, 1)$: $s + t = 1/2$, $2s + 5t = 4$, and $s = -1/2$.
+
+Wait, that can't be right for a hexagon. Let me reconsider the ordering of facets.
+
+Going counterclockwise around the Voronoi cell, the facets should be ordered by the angle of their normal vectors (in the $Q$-metric). Let me compute the normal directions.
+
+The normal to the bisector of $\lambda$ is $M'\lambda$ (in the sense that the bisector is $\mathbf{x} \cdot (M'\lambda) = Q(\lambda)/2$).
+
+Normals:
+- $(1, -1)$: $M'(1, -1)^T = (3/8, 0)$, direction $(1, 0)$
+- $(0, 1)$: $M'(0, 1)^T = (5/8, 5/8)$, direction $(1, 1)$
+- $(1, -2)$: $M'(1, -2)^T = (-1/4, -5/8)$, direction $(-2, -5)$ or $(2, 5)$... wait, the normal points outward. For the bisector of $(1, -2)$, the constraint is $(-1/4)s + (-5/8)t \leq 1/2$, i.e., $-2s - 5t \leq 4$, i.e., $2s + 5t \geq -4$. Hmm, that doesn't seem right.
+
+Let me redo. The constraint is $\mathbf{x}^T M' \lambda \leq Q(\lambda)/2$. For $\lambda = (1, -2)$:
+$\mathbf{x}^T M' (1, -2)^T \leq Q(1, -2)/2 = 1/2$.
+$M'(1, -2)^T = (1 - 5/4, 5/8 - 5/4) = (-1/4, -5/8)$.
+So $(-1/4)s + (-5/8)t \leq 1/2$, i.e., $-2s - 5t \leq 4$, i.e., $2s + 5t \geq -4$.
+
+The outward normal (pointing away from origin) is $(-1/4, -5/8)$, i.e., direction $(-2, -5)$.
+
+For $\lambda = (-1, 2)$:
+$M'(-1, 2)^T = (1/4, 5/8)$.
+$(1/4)s + (5/8)t \leq 1/2$, i.e., $2s + 5t \leq 4$.
+Outward normal: $(2, 5)$.
+
+So the six outward normals (directions) are:
+- $(1, -1)$ → $(3/8, 0)$ → $(1, 0)$
+- $(-1, 1)$ → $(-3/8, 0)$ → $(-1, 0)$
+- $(0, 1)$ → $(5/8, 5/8)$ → $(1, 1)$
+- $(0, -1)$ → $(-5/8, -5/8)$ → $(-1, -1)$
+- $(1, -2)$ → $(-1/4, -5/8)$ → $(-2, -5)$
+- $(-1, 2)$ → $(1/4, 5/8)$ → $(2, 5)$
+
+Ordering by angle (counterclockwise from positive x-axis):
+- $(1, 0)$: angle 0°
+- $(2, 5)$: angle ≈ 68°
+- $(1, 1)$: angle 45°... 
+
+Hmm wait, $(2, 5)$ has angle $\arctan(5/2) \approx 68°$ and $(1, 1)$ has angle $45°$. So the order is $(1, 0), (1, 1), (2, 5), (-1, 0), (-1, -1), (-2, -5)$.
+
+Wait, that doesn't seem right either. Let me just order by angle:
+- $(1, 0)$: 0°
+- $(1, 1)$: 45°
+- $(2, 5)$: ~68°
+- $(-1, 0)$: 180°
+- $(-1, -1)$: 225°
+- $(-2, -5)$: ~248°
+
+So the facets in counterclockwise order are:
+1. $(1, -1)$: $s \leq 1/2$ (normal $(1, 0)$, 0°)
+2. $(0, 1)$: $s + t \leq 1/2$ (normal $(1, 1)$, 45°)
+3. $(-1, 2)$: $2s + 5t \leq 4$ (normal $(2, 5)$, ~68°)
+4. $(-1, 1)$: $s \geq -1/2$ (normal $(-1, 0)$, 180°)
+5. $(0, -1)$: $s + t \geq -1/2$ (normal $(-1, -1)$, 225°)
+6. $(1, -2)$: $2s + 5t \geq -4$ (normal $(-2, -5)$, ~248°)
+
+Vertices (intersections of consecutive facets):
+1. Facets 1 & 2: $s = 1/2$, $s + t = 1/2$ → $(1/2, 0)$
+2. Facets 2 & 3: $s + t = 1/2$, $2s + 5t = 4$ → $s = 1/2 - t$, $2(1/2 - t) + 5t = 4$, $1 + 3t = 4$, $t = 1$, $s = -1/2$ → $(-1/2, 1)$
+3. Facets 3 & 4: $2s + 5t = 4$, $s = -1/2$ → $-1 + 5t = 4$, $t = 1$ → $(-1/2, 1)$ — same!
+
+So facets 2, 3, and 4 all meet at $(-1/2, 1)$. This means the Voronoi cell is not a hexagon but a quadrilateral!
+
+Let me reconsider. If three facets meet at a single point, then the Voronoi cell has fewer vertices. Let me check if facet 3 is actually needed.
+
+At the point $(-1/2, 1)$: check facet 3: $2(-1/2) + 5(1) = -1 + 5 = 4$. Yes, it's on facet 3.
+
+So the vertices are:
+1. $(1/2, 0)$: facets 1 & 2
+2. $(-1/2, 1)$: facets 2, 3, & 4
+3. $(-1/2, -1)$: facets 4 & 5 (by symmetry: $s = -1/2$, $s + t = -1/2$ → $t = 0$... wait, $-1/2 + t = -1/2$ → $t = 0$. So $(-1/2, 0)$.)
+
+Hmm, let me redo this. Facets 4 & 5: $s = -1/2$, $s + t = -1/2$ → $(-1/2, 0)$.
+
+Facets 5 & 6: $s + t = -1/2$, $2s + 5t = -4$ → $s = -1/2 - t$, $2(-1/2 - t) + 5t = -4$, $-1 + 3t = -4$, $t = -1$, $s = 1/2$ → $(1/2, -1)$.
+
+Facets 6 & 1: $2s + 5t = -4$, $s = 1/2$ → $1 + 5t = -4$, $t = -1$ → $(1/2, -1)$ — same as above!
+
+So the vertices are:
+1. $(1/2, 0)$
+2. $(-1/2, 1)$
+3. $(-1/2, 0)$
+4. $(1/2, -1)$
+
+Wait, but that's only 4 vertices. Let me check: is $(-1/2, 0)$ actually a vertex?
+
+At $(-1/2, 0)$: facet 3: $2(-1/2) + 5(0) = -1 \leq 4$. ✓ (not tight). Facet 6: $2(-1/2) + 5(0) = -1 \geq -4$. ✓ (not tight). So $(-1/2, 0)$ is on facets 4 and 5 only, and it's a proper vertex.
+
+But wait, is the edge from $(-1/2, 1)$ to $(-1/2, 0)$ along $s = -1/2$? Yes. And the edge from $(-1/2, 0)$ to $(1/2, -1)$ along $s + t = -1/2$? Check: $(-1/2) + 0 = -1/2$ ✓, $1/2 + (-1) = -1/2$ ✓.
+
+And the edge from $(1/2, -1)$ to $(1/2, 0)$ along $s = 1/2$? Check: $s = 1/2$ ✓ for both.
+
+And the edge from $(1/2, 0)$ to $(-1/2, 1)$ along $s + t = 1/2$? Check: $1/2 + 0 = 1/2$ ✓, $-1/2 + 1 = 1/2$ ✓.
+
+So the Voronoi cell is a quadrilateral with vertices:
+1. $(1/2, 0)$
+2. $(-1/2, 1)$
+3. $(-1/2, 0)$
+4. $(1/2, -1)$
+
+But wait, I need to check that facets 3 and 6 are actually redundant (i.e., the constraint $2s + 5t \leq 4$ is implied by the other constraints, and similarly for $2s + 5t \geq -4$).
+
+For the quadrilateral with vertices $(1/2, 0)$, $(-1/2, 1)$, $(-1/2, 0)$, $(1/2, -1)$:
+
+Check $2s + 5t \leq 4$ at all vertices:
+- $(1/2, 0)$: $1 \leq 4$ ✓
+- $(-1/2, 1)$: $-1 + 5 = 4 \leq 4$ ✓ (tight)
+- $(-1/2, 0)$: $-1 \leq 4$ ✓
+- $(1/2, -1)$: $1 - 5 = -4 \leq 4$ ✓
+
+Check $2s + 5t \geq -4$ at all vertices:
+- $(1/2, 0)$: $1 \geq -4$ ✓
+- $(-1/2, 1)$: $4 \geq -4$ ✓
+- $(-1/2, 0)$: $-1 \geq -4$ ✓
+- $(1/2, -1)$: $-4 \geq -4$ ✓ (tight)
+
+So facets 3 and 6 are tight at one vertex each but don't form edges. The Voronoi cell is indeed a quadrilateral.
+
+Hmm, but actually, the fact that facet 3 is tight at $(-1/2, 1)$ means that $(-1/2, 1)$ is a vertex where three constraints are tight: $s + t = 1/2$, $s = -1/2$, and $2s + 5t = 4$. In 2D, a vertex is typically where exactly 2 constraints are tight. If 3 are tight, it might be a degenerate case.
+
+Actually, in this case, the three lines $s + t = 1/2$, $s = -1/2$, and $2s + 5t = 4$ all pass through $(-1/2, 1)$. This is a degenerate vertex. The Voronoi cell is still a quadrilateral, but one vertex has an extra constraint touching it.
+
+OK so the Voronoi cell is a quadrilateral with vertices $(1/2, 0)$, $(-1/2, 1)$, $(-1/2, 0)$, $(1/2, -1)$.
+
+Now, the covering radius $C$ is the maximum of $Q(s, t) = s^2 + \frac{5}{4}st + \frac{5}{8}t^2$ over this quadrilateral.
+
+Since $Q$ is a convex function (positive definite quadratic form), its maximum over a convex polytope is attained at a vertex.
+
+$Q(1/2, 0) = 1/4$
+$Q(-1/2, 1) = 1/4 + (5/4)(-1/2)(1) + (5/8)(1) = 1/4 - 5/8 + 5/8 = 1/4$
+$Q(-1/2, 0) = 1/4$
+$Q(1/2, -1) = 1/4 + (5/4)(1/2)(-1) + (5/8)(1) = 1/4 - 5/8 + 5/8 = 1/4$
+
+All four vertices give $Q = 1/4$! So $C = 1/4$.
+
+Wait, that's interesting. Let me double-check.
+
+$Q(s, t) = s^2 + \frac{5}{4}st + \frac{5}{8}t^2$
+
+$Q(1/2, 0) = (1/2)^2 + 0 + 0 = 1/4$. ✓
+
+$Q(-1/2, 1) = (-1/2)^2 + (5/4)(-1/2)(1) + (5/8)(1)^2 = 1/4 - 5/8 + 5/8 = 1/4$. ✓
+
+$Q(-1/2, 0) = 1/4$. ✓
+
+$Q(1/2, -1) = 1/4 + (5/4)(1/2)(-1) + (5/8)(1) = 1/4 - 5/8 + 5/8 = 1/4$. ✓
+
+So $C = 1/4$.
+
+And $B = 5/8$.
+
+Therefore $B + C = 5/8 + 1/4 = 5/8 + 2/8 = 7/8$.
+
+Wait, let me double-check $B$. For part (a), the lattice is $\mathbb{Z}^2$ with $Q(u, v) = u^2 + \frac{1}{2}uv + v^2$.
+
+The Voronoi cell of $\mathbb{Z}^2$ is $[-1/2, 1/2]^2$. The maximum of $Q$ over this square is at a vertex. The vertices are $(\pm 1/2, \pm 1/2)$.
+
+$Q(1/2, 1/2) = 1/4 + 1/8 + 1/4 = 5/8$
+$Q(1/2, -1/2) = 1/4 - 1/8 + 1/4 = 3/8$
+$Q(-1/2, 1/2) = 1/4 - 1/8 + 1/4 = 3/8$
+$Q(-1/2, -1/2) = 1/4 + 1/8 + 1/4 = 5/8$
+
+So $B = 5/8$. ✓
+
+And $C = 1/4$, so $B + C = 5/8 + 1/4 = 7/8$.
+
+Hmm wait, but I should double-check my computation of $C$ more carefully. Let me re-examine the Voronoi cell.
+
+Actually, I need to be more careful. The Voronoi cell of $\mathbb{Z}^2$ with respect to a general quadratic form $Q$ is NOT necessarily $[-1/2, 1/2]^2$. It's $[-1/2, 1/2]^2$ only when $Q$ is the standard Euclidean form. For a general $Q$, the Voronoi cell is different.
+
+Wait, no. The Voronoi cell of $\mathbb{Z}^2$ is always $[-1/2, 1/2]^2$ when using the standard metric. But with a non-standard quadratic form $Q$, the Voronoi cell is different.
+
+Let me reconsider. For part (a), the lattice is $\mathbb{Z}^2$ and we use the quadratic form $Q(u, v) = u^2 + \frac{1}{2}uv + v^2$. The Voronoi cell is:
+$$V = \{(u, v) : Q(u, v) \leq Q(u - m, v - n) \text{ for all } (m, n) \in \mathbb{Z}^2\}$$
+
+This is NOT $[-1/2, 1/2]^2$ in general. I made an error.
+
+Let me redo part (a) properly. The matrix is $M = \begin{pmatrix} 1 & 1/4 \\ 1/4 & 1 \end{pmatrix}$.
+
+The Voronoi cell is defined by $\mathbf{x}^T M \lambda \leq Q(\lambda)/2$ for all $\lambda \in \mathbb{Z}^2 \setminus \{0\}$.
+
+Let me compute $Q$ for small lattice vectors:
+$Q(1, 0) = 1$
+$Q(0, 1) = 1$
+$Q(1, 1) = 1 + 1/2 + 1 = 5/2$
+$Q(1, -1) = 1 - 1/2 + 1 = 3/2$
+
+The bisector for $\lambda = (1, 0)$: $\mathbf{x}^T M (1, 0)^T = 1/2$.
+$M(1, 0)^T = (1, 1/4)$. So $u + v/4 = 1/2$, i.e., $4u + v = 2$.
+
+The bisector for $\lambda = (0, 1)$: $\mathbf{x}^T M (0, 1)^T = 1/2$.
+$M(0, 1)^T = (1/4, 1)$. So $u/4 + v = 1/2$, i.e., $u + 4v = 2$.
+
+The bisector for $\lambda = (1, 1)$: $\mathbf{x}^T M (1, 1)^T = 5/4$.
+$M(1, 1)^T = (5/4, 5/4)$. So $5u/4 + 5v/4 = 5/4$, i.e., $u + v = 1$.
+
+The bisector for $\lambda = (1, -1)$: $\mathbf{x}^T M (1, -1)^T = 3/4$.
+$M(1, -1)^T = (3/4, -3/4)$. So $3u/4 - 3v/4 = 3/4$, i.e., $u - v = 1$.
+
+And the negatives give:
+$4u + v = -2$, $u + 4v = -2$, $u + v = -1$, $u - v = -1$.
+
+Now, which of these are relevant? The relevant vectors are the shortest ones. Let me check:
+
+The bisectors $4u + v = 2$ and $u + 4v = 2$ and $u + v = 1$ and $u - v = 1$ (and their negatives).
+
+Let me find the Voronoi cell vertices. The candidates for relevant vectors are $(1, 0)$, $(0, 1)$, $(1, 1)$, $(1, -1)$.
+
+Outward normals (directions of $M\lambda$):
+- $(1, 0)$: $(1, 1/4)$ → direction $(4, 1)$, angle $\approx 14°$
+- $(0, 1)$: $(1/4, 1)$ → direction $(1, 4)$, angle $\approx 76°$
+- $(1, 1)$: $(5/4, 5/4)$ → direction $(1, 1)$, angle $45°$
+- $(1, -1)$: $(3/4, -3/4)$ → direction $(1, -1)$, angle $-45°$
+
+And their negatives:
+- $(-1, 0)$: $(-4, -1)$, angle $\approx 194°$
+- $(0, -1)$: $(-1, -4)$, angle $\approx 256°$
+- $(-1, -1)$: $(-1, -1)$, angle $225°$
+- $(-1, 1)$: $(-1, 1)$, angle $135°$
+
+Ordering by angle:
+- $(1, -1)$: $-45°$ (or $315°$)
+- $(1, 0)$: $\approx 14°$
+- $(1, 1)$: $45°$
+- $(0, 1)$: $\approx 76°$
+- $(-1, 1)$: $135°$
+- $(-1, 0)$: $\approx 194°$
+- $(-1, -1)$: $225°$
+- $(0, -1)$: $\approx 256°$
+
+That's 8 facets, which would give an octagon. But typically in 2D, the Voronoi cell has at most 6 sides. Some of these must be redundant.
+
+Let me check if $(1, 1)$ is relevant. The bisector is $u + v = 1$. Let me find the intersection of bisectors of $(1, 0)$ and $(0, 1)$: $4u + v = 2$ and $u + 4v = 2$. Solving: $v = 2 - 4u$, $u + 4(2 - 4u) = 2$, $u + 8 - 16u = 2$, $-15u = -6$, $u = 2/5$, $v = 2 - 8/5 = 2/5$. So $(2/5, 2/5)$.
+
+Check $u + v = 4/5 < 1$. So the bisector of $(1, 1)$ is not tight at this vertex. So $(1, 1)$ is not relevant (its bisector doesn't contribute a facet).
+
+Let me check if $(1, -1)$ is relevant. Intersection of bisectors of $(1, 0)$ and $(1, -1)$: $4u + v = 2$ and $u - v = 1$. So $v = u - 1$, $4u + u - 1 = 2$, $5u = 3$, $u = 3/5$, $v = -2/5$. Point: $(3/5, -2/5)$.
+
+Check $u + 4v = 3/5 - 8/5 = -1 \leq 2$. ✓ Check $u + v = 1/5 \leq 1$. ✓
+
+So this is a valid vertex. The relevant vectors are $(1, 0)$, $(0, 1)$, $(1, -1)$, and their negatives. The Voronoi cell is a hexagon.
+
+Let me find all 6 vertices:
+1. $(1, 0)$ ∩ $(1, -1)$: $4u + v = 2$, $u - v = 1$ → $(3/5, -2/5)$
+2. $(1, 0)$ ∩ $(0, 1)$: $4u + v = 2$, $u + 4v = 2$ → $(2/5, 2/5)$
+3. $(0, 1)$ ∩ $(-1, 1)$: $u + 4v = 2$, $-u + v = 1$ → $u = v - 1$, $v - 1 + 4v = 2$, $5v = 3$, $v = 3/5$, $u = -2/5$ → $(-2/5, 3/5)$
+4. $(-1, 0)$ ∩ $(-1, 1)$: $-4u - v = 2$, $-u + v = 1$ → $(-3/5, 2/5)$
+5. $(-1, 0)$ ∩ $(0, -1)$: $-4u - v = 2$, $-u - 4v = 2$ → $(-2/5, -2/5)$
+6. $(0, -1)$ ∩ $(1, -1)$: $-u - 4v = 2$, $u - v = 1$ → $u = v + 1$, $-v - 1 - 4v = 2$, $-5v = 3$, $v = -3/5$, $u = 2/5$ → $(2/5, -3/5)$
+
+So the 6 vertices are:
+1. $(3/5, -2/5)$
+2. $(2/5, 2/5)$
+3. $(-2/5, 3/5)$
+4. $(-3/5, 2/5)$
+5. $(-2/5, -2/5)$
+6. $(2/5, -3/5)$
+
+Now compute $Q(u, v) = u^2 + \frac{1}{2}uv + v^2$ at each:
+
+$Q(3/5, -2/5) = 9/25 + (1/2)(3/5)(-2/5) + 4/25 = 9/25 - 3/25 + 4/25 = 10/25 = 2/5$
+
+$Q(2/5, 2/5) = 4/25 + (1/2)(2/5)(2/5) + 4/25 = 4/25 + 2/25 + 4/25 = 10/25 = 2/5$
+
+$Q(-2/5, 3/5) = 4/25 + (1/2)(-2/5)(3/5) + 9/25 = 4/25 - 3/25 + 9/25 = 10/25 = 2/5$
+
+By symmetry, all vertices give $Q = 2/5$.
+
+So $B = 2/5$ for $a = 1/2$.
+
+Wait, that's different from what I computed before! I was wrong earlier when I assumed the Voronoi cell was $[-1/2, 1/2]^2$. Let me recompute.
+
+$B = 2/5$ and $C = 1/4$, so $B + C = 2/5 + 1/4 = 8/20 + 5/20 = 13/20$.
+
+Hmm, but let me double-check $C$ as well, since I might have made a similar error.
+
+For part (b), I already properly computed the Voronoi cell. Let me re-verify.
+
+In $(s, t)$ coordinates, the lattice is $\mathbb{Z}^2$ and $Q(s, t) = s^2 + \frac{5}{4}st + \frac{5}{8}t^2$.
+
+I found the Voronoi cell to be a quadrilateral with vertices $(1/2, 0)$, $(-1/2, 1)$, $(-1/2, 0)$, $(1/2, -1)$, and $Q = 1/4$ at all vertices.
+
+But wait, I need to double-check that I correctly identified the relevant vectors. Let me re-examine.
+
+The relevant vectors I found were $(1, -1)$, $(0, 1)$, and $(1, -2)$ (and negatives). But I also noted that $(1, 0)$ has its bisector passing through the vertex $(1/2, 0)$ without forming a facet. Let me verify that the Voronoi cell I found is correct by checking all constraints.
+
+The quadrilateral has vertices:
+1. $(1/2, 0)$
+2. $(-1/2, 1)$
+3. $(-1/2, 0)$
+4. $(1/2, -1)$
+
+Let me verify this is the correct Voronoi cell by checking that all lattice vector constraints are satisfied.
+
+For a general lattice vector $(m, n) \in \mathbb{Z}^2$, the constraint is:
+$\mathbf{x}^T M' (m, n)^T \leq Q(m, n)/2$
+
+where $M' = \begin{pmatrix} 1 & 5/8 \\ 5/8 & 5/8 \end{pmatrix}$.
+
+$M'(m, n)^T = (m + 5n/8, 5m/8 + 5n/8)$.
+$Q(m, n) = m^2 + 5mn/4 + 5n^2/8$.
+
+Constraint: $(m + 5n/8)s + (5m/8 + 5n/8)t \leq (m^2 + 5mn/4 + 5n^2/8)/2$.
+
+Let me check a few more lattice vectors to make sure the quadrilateral is correct.
+
+$(2, -1)$: $Q = 4 - 5/2 + 5/8 = 4 - 20/8 + 5/8 = 4 - 15/8 = 17/8$. 
+$M'(2, -1)^T = (2 - 5/8, 10/8 - 5/8) = (11/8, 5/8)$.
+Constraint: $(11/8)s + (5/8)t \leq 17/16$.
+
+At $(1/2, 0)$: $11/16 \leq 17/16$. ✓
+At $(-1/2, 1)$: $-11/16 + 5/8 = -11/16 + 10/16 = -1/16 \leq 17/16$. ✓
+At $(-1/2, 0)$: $-11/16 \leq 17/16$. ✓
+At $(1/2, -1)$: $11/16 - 5/8 = 11/16 - 10/16 = 1/16 \leq 17/16$. ✓
+
+$(2, 0)$: $Q = 4$. $M'(2, 0)^T = (2, 5/4)$. Constraint: $2s + 5t/4 \leq 2$.
+At $(1/2, 0)$: $1 \leq 2$. ✓
+At $(-1/2, 1)$: $-1 + 5/4 = 1/4 \leq 2$. ✓
+
+$(0, 2)$: $Q = 4 \cdot 5/8 = 5/2$. $M'(0, 2)^T = (5/4, 5/4)$. Constraint: $5s/4 + 5t/4 \leq 5/4$, i.e., $s + t \leq 1$.
+At $(1/2, 0)$: $1/2 \leq 1$. ✓
+At $(-1/2, 1)$: $1/2 \leq 1$. ✓
+
+$(1, 1)$: $Q = 1 + 5/4 + 5/8 = 23/8$. $M'(1, 1)^T = (13/8, 10/8) = (13/8, 5/4)$. Constraint: $13s/8 + 5t/4 \leq 23/16$.
+At $(1/2, 0)$: $13/16 \leq 23/16$. ✓
+At $(-1/2, 1)$: $-13/16 + 5/4 = -13/16 + 20/16 = 7/16 \leq 23/16$. ✓
+
+$(2, -3)$: $Q = 4 - 15/2 + 45/8 = 4 - 60/8 + 45/8 = 4 - 15/8 = 17/8$. $M'(2, -3)^T = (2 - 15/8, 10/8 - 15/8) = (1/8, -5/8)$. Constraint: $s/8 - 5t/8 \leq 17/16$.
+At $(1/2, -1)$: $1/16 + 5/8 = 1/16 + 10/16 = 11/16 \leq 17/16$. ✓
+
+OK, the quadrilateral seems correct. All constraints are satisfied.
+
+But wait, I should also check that the quadrilateral is not missing any vertices. Let me verify by checking if any other pair of bisectors intersects at a point inside the quadrilateral that would create a new vertex.
+
+Actually, the way I constructed it, I checked all "short" lattice vectors and found the relevant ones. The Voronoi cell is the intersection of all half-planes, and I've verified that the quadrilateral satisfies all constraints. Since the quadrilateral is the intersection of the four half-planes $s \leq 1/2$, $s + t \leq 1/2$, $s \geq -1/2$, $s + t \geq -1/2$ (and the other constraints are redundant), this is correct.
+
+Wait, actually I need to double-check. The four facets I'm using are:
+1. $s \leq 1/2$ (from $(1, -1)$)
+2. $s + t \leq 1/2$ (from $(0, 1)$)
+3. $s \geq -1/2$ (from $(-1, 1)$)
+4. $s + t \geq -1/2$ (from $(0, -1)$)
+
+But what about the constraints from $(1, -2)$ and $(-1, 2)$? I showed that $2s + 5t \leq 4$ is tight at $(-1/2, 1)$ and $2s + 5t \geq -4$ is tight at $(1/2, -1)$. So these constraints are satisfied but touch the quadrilateral at vertices. They don't cut off any part of the quadrilateral, so they're redundant in the sense that they don't create new facets. But they do confirm that the vertices are correct.
+
+So the Voronoi cell is indeed the quadrilateral with vertices $(1/2, 0)$, $(-1/2, 1)$, $(-1/2, 0)$, $(1/2, -1)$, and $C = 1/4$.
+
+Actually, hold on. Let me reconsider. The quadrilateral defined by $s \leq 1/2$, $s + t \leq 1/2$, $s \geq -1/2$, $s + t \geq -1/2$ has vertices:
+- $s = 1/2$, $s + t = 1/2$: $(1/2, 0)$
+- $s + t = 1/2$, $s = -1/2$: $(-1/2, 1)$
+- $s = -1/2$, $s + t = -1/2$: $(-1/2, 0)$
+- $s + t = -1/2$, $s = 1/2$: $(1/2, -1)$
+
+Yes, this matches. And I've verified that all other lattice vector constraints are satisfied. So $C = 1/4$.
+
+But wait, I should also verify that the constraint from $(1, 0)$ is satisfied. $(1, 0)$: $Q = 1$, $M'(1, 0)^T = (1, 5/8)$. Constraint: $s + 5t/8 \leq 1/2$.
+
+At $(1/2, 0)$: $1/2 \leq 1/2$. Tight!
+At $(-1/2, 1)$: $-1/2 + 5/8 = 1/8 \leq 1/2$. ✓
+At $(-1/2, 0)$: $-1/2 \leq 1/2$. ✓
+At $(1/2, -1)$: $1/2 - 5/8 = -1/8 \leq 1/2$. ✓
+
+So the constraint from $(1, 0)$ is tight at $(1/2, 0)$ but doesn't form a facet (it touches at a single vertex). This is consistent with what I found earlier.
+
+Similarly, $(-1, 0)$: constraint $-s - 5t/8 \leq 1/2$, tight at $(-1/2, 0)$.
+
+OK so everything checks out. Let me also verify $B$ once more.
+
+For part (a), I found the Voronoi cell of $\mathbb{Z}^2$ with $Q(u, v) = u^2 + \frac{1}{2}uv + v^2$ to be a hexagon with vertices at $(3/5, -2/5)$, $(2/5, 2/5)$, $(-2/5, 3/5)$, $(-3/5, 2/5)$, $(-2/5, -2/5)$, $(2/5, -3/5)$, and $B = 2/5$.
+
+Let me verify the relevant vectors. I claimed the relevant vectors are $(1, 0)$, $(0, 1)$, $(1, -1)$ (and negatives). Let me verify that $(1, 1)$ is not relevant.
+
+The bisector of $(1, 1)$ is $u + v = 1$. At the vertex $(2/5, 2/5)$: $u + v = 4/5 < 1$. So the bisector of $(1, 1)$ doesn't touch the Voronoi cell. ✓
+
+Let me also check $(2, -1)$: $Q = 4 - 1 + 1 = 4$. $M(2, -1)^T = (2 - 1/4, 1/2 - 1) = (7/4, -1/2)$. Constraint: $7u/4 - v/2 \leq 2$.
+At $(3/5, -2/5)$: $7(3/5)/4 - (-2/5)/2 = 21/20 + 1/5 = 21/20 + 4/20 = 25/20 = 5/4 \leq 2$. ✓
+
+$(2, 1)$: $Q = 4 + 1 + 1 = 6$. $M(2, 1)^T = (2 + 1/4, 1/2 + 1) = (9/4, 3/2)$. Constraint: $9u/4 + 3v/2 \leq 3$.
+At $(2/5, 2/5)$: $9(2/5)/4 + 3(2/5)/2 = 18/20 + 6/10 = 9/10 + 3/5 = 9/10 + 6/10 = 15/10 = 3/2 \leq 3$. ✓
+
+OK, everything checks out. Let me also verify $Q$ at the vertices more carefully.
+
+$Q(u, v) = u^2 + \frac{1}{2}uv + v^2$
+
+$Q(3/5, -2/5) = (3/5)^2 + (1/2)(3/5)(-2/5) + (-2/5)^2 = 9/25 - 3/25 + 4/25 = 10/25 = 2/5$. ✓
+
+$Q(2/5, 2/5) = 4/25 + 2/25 + 4/25 = 10/25 = 2/5$. ✓
+
+$Q(-2/5, 3/5) = 4/25 + (1/2)(-2/5)(3/5) + 9/25 = 4/25 - 3/25 + 9/25 = 10/25 = 2/5$. ✓
+
+By the central symmetry and the symmetry of the form (swapping $u$ and $v$ changes $Q$ by... $Q(v, u) = v^2 + vu/2 + u^2 = Q(u, v)$, so $Q$ is symmetric in $u, v$), all vertices give $Q = 2/5$.
+
+So $B = 2/5$, $C = 1/4$, $B + C = 2/5 + 1/4 = 8/20 + 5/20 = 13/20$.
+
+Hmm, let me reconsider whether my analysis of part (b) is correct. I want to make sure I haven't made an error in the coordinate transformation.
+
+The lattice $\Lambda$ in part (b) consists of $\mathbb{Z}^2 \cup (\mathbb{Z} + 1/2)^2$. I showed this is the lattice with basis $(1, 0)$ and $(1/2, 1/2)$.
+
+The change of variables: $(u, v) = s(1, 0) + t(1/2, 1/2) = (s + t/2, t/2)$.
+
+So $u = s + t/2$, $v = t/2$. Inversely, $t = 2v$, $s = u - v$.
+
+$Q(u, v) = u^2 + \frac{1}{2}uv + v^2$
+
+$= (s + t/2)^2 + \frac{1}{2}(s + t/2)(t/2) + (t/2)^2$
+
+$= s^2 + st + t^2/4 + \frac{1}{2}(st/2 + t^2/4) + t^2/4$
+
+$= s^2 + st + t^2/4 + st/4 + t^2/8 + t^2/4$
+
+$= s^2 + st(1 + 1/4) + t^2(1/4 + 1/8 + 1/4)$
+
+$= s^2 + \frac{5}{4}st + \frac{5}{8}t^2$
+
+Yes, this matches what I had. ✓
+
+And in $(s, t)$ coordinates, the lattice is $\mathbb{Z}^2$, and I found the Voronoi cell and covering radius $C = 1/4$.
+
+Let me convert back to $(u, v)$ coordinates to double-check. The vertices of the Voronoi cell in $(s, t)$ are:
+1. $(1/2, 0)$ → $(u, v) = (1/2, 0)$
+2. $(-1/2, 1)$ → $(u, v) = (-1/2 + 1/2, 1/2) = (0, 1/2)$
+3. $(-1/2, 0)$ → $(u, v) = (-1/2, 0)$
+4. $(1/2, -1)$ → $(u, v) = (1/2 - 1/2, -1/2) = (0, -1/2)$
+
+So in $(u, v)$ coordinates, the Voronoi cell vertices are $(1/2, 0)$, $(0, 1/2)$, $(-1/2, 0)$, $(0, -1/2)$.
+
+Let me verify: $Q(1/2, 0) = 1/4$. $Q(0, 1/2) = 1/4$. $Q(-1/2, 0) = 1/4$. $Q(0, -1/2) = 1/4$. ✓
+
+So the Voronoi cell in $(u, v)$ is a diamond (rotated square) with vertices at $(\pm 1/2, 0)$ and $(0, \pm 1/2)$. And $C = 1/4$.
+
+This makes sense! The lattice $\Lambda$ is "denser" than $\mathbb{Z}^2$ (it has index... let me check. The determinant of the basis matrix $\begin{pmatrix} 1 & 1/2 \\ 0 & 1/2 \end{pmatrix}$ is $1/2$. So the lattice has covolume $1/2$, compared to $\mathbb{Z}^2$ which has covolume $1$. So $\Lambda$ is twice as dense, and the covering radius is smaller. $C = 1/4 < B = 2/5$. ✓
+
+So $B + C = 2/5 + 1/4 = 8/20 + 5/20 = 13/20$.
+
+Actually, let me reconsider. I want to make sure the Voronoi cell in $(u,v)$ coordinates is correct. The Voronoi cell should be the set of points $(u, v)$ such that $Q(u, v) \leq Q(u - p, v - q)$ for all $(p, q) \in \Lambda$.
+
+The lattice $\Lambda$ in $(u, v)$ has basis $(1, 0)$ and $(1/2, 1/2)$. The lattice points are $(m + n/2, n/2)$ for $m, n \in \mathbb{Z}$, which is $\mathbb{Z}^2 \cup (\mathbb{Z} + 1/2)^2$.
+
+The Voronoi cell is a diamond with vertices $(\pm 1/2, 0)$ and $(0, \pm 1/2)$. Let me verify this directly.
+
+The nearest lattice points to $(1/2, 0)$: 
+- $(0, 0) \in \Lambda$: $Q(1/2, 0) = 1/4$
+- $(1, 0) \in \Lambda$: $Q(-1/2, 0) = 1/4$
+- $(1/2, 1/2) \in \Lambda$: $Q(0, -1/2) = 1/4$
+- $(1/2, -1/2) \in \Lambda$: $Q(0, 1/2) = 1/4$
+
+So $(1/2, 0)$ is equidistant (in $Q$-metric) to four lattice points. This is a deep hole. ✓
+
+$Q(1/2, 0) = 1/4$. ✓
+
+Similarly for $(0, 1/2)$:
+- $(0, 0)$: $Q(0, 1/2) = 1/4$
+- $(0, 1)$: $Q(0, -1/2) = 1/4$
+- $(1/2, 1/2)$: $Q(-1/2, 0) = 1/4$
+- $(-1/2, 1/2)$: $Q(1/2, 0) = 1/4$
+
+✓
+
+Now let me verify that no point in the Voronoi cell has $Q > 1/4$. The Voronoi cell is the diamond $\{(u, v) : |u| + |v| \leq 1/2\}$ (the $\ell^1$ ball of radius $1/2$). Wait, is that right? The vertices are $(\pm 1/2, 0)$ and $(0, \pm 1/2)$, which is the diamond $|u| + |v| \leq 1/2$.
+
+The maximum of $Q(u, v) = u^2 + uv/2 + v^2$ over this diamond. Since $Q$ is convex, the maximum is at a vertex, and we've shown all vertices give $Q = 1/4$. But let me also check a point on an edge, say $(1/4, 1/4)$: $Q = 1/16 + 1/32 + 1/16 = 5/32 < 1/4$. ✓
+
+And the center $(0, 0)$: $Q = 0$. ✓
+
+So $C = 1/4$ is confirmed.
+
+Now let me also double-check $B$ by verifying the Voronoi cell in the original coordinates.
+
+For part (a), the lattice is $\mathbb{Z}^2$ and $Q(u, v) = u^2 + uv/2 + v^2$. The Voronoi cell is a hexagon with vertices $(3/5, -2/5)$, $(2/5, 2/5)$, $(-2/5, 3/5)$, $(-3/5, 2/5)$, $(-2/5, -2/5)$, $(2/5, -3/5)$.
+
+Let me verify that $(3/5, -2/5)$ is a deep hole. The nearest lattice points should be $(0, 0)$, $(1, 0)$, and $(1, -1)$ (or similar).
+
+$Q(3/5, -2/5) = 9/25 - 3/25 + 4/25 = 10/25 = 2/5$.
+$Q(3/5 - 1, -2/5) = Q(-2/5, -2/5) = 4/25 + 2/25 + 4/25 = 10/25 = 2/5$.
+$Q(3/5 - 1, -2/5 + 1) = Q(-2/5, 3/5) = 4/25 - 3/25 + 9/25 = 10/25 = 2/5$.
+$Q(3/5, -2/5 + 1) = Q(3/5, 3/5) = 9/25 + 9/50 + 9/25 = 18/25 + 9/50 = 36/50 + 9/50 = 45/50 = 9/10 > 2/5$.
+
+So $(3/5, -2/5)$ is equidistant to $(0,0)$, $(1, 0)$, and $(1, -1)$, all at $Q$-distance $2/5$. ✓
+
+Let me also check $(2/5, 2/5)$:
+$Q(2/5, 2/5) = 4/25 + 2/25 + 4/25 = 10/25 = 2/5$.
+$Q(2/5 - 1, 2/5) = Q(-3/5, 2/5) = 9/25 - 3/25 + 4/25 = 10/25 = 2/5$.
+$Q(2/5, 2/5 - 1) = Q(2/5, -3/5) = 4/25 - 3/25 + 9/25 = 10/25 = 2/5$.
+
+Equidistant to $(0,0)$, $(1, 0)$, $(0, 1)$. ✓
+
+So $B = 2/5$ is confirmed.
+
+Therefore, $B + C = 2/5 + 1/4 = 8/20 + 5/20 = 13/20$.
+
+Wait, I want to be extra careful. Let me re-examine whether the Voronoi cell for part (a) is correct by checking a few more constraints.
+
+The hexagon has vertices $(3/5, -2/5)$, $(2/5, 2/5)$, $(-2/5, 3/5)$, $(-3/5, 2/5)$, $(-2/5, -2/5)$, $(2/5, -3/5)$.
+
+The facets are:
+- $4u + v = 2$ (from $(1, 0)$): between $(3/5, -2/5)$ and $(2/5, 2/5)$. Check: $4(3/5) + (-2/5) = 12/5 - 2/5 = 10/5 = 2$ ✓, $4(2/5) + 2/5 = 10/5 = 2$ ✓.
+- $u + 4v = 2$ (from $(0, 1)$): between $(2/5, 2/5)$ and $(-2/5, 3/5)$. Check: $2/5 + 8/5 = 10/5 = 2$ ✓, $-2/5 + 12/5 = 10/5 = 2$ ✓.
+- $-u + v = 1$ (from $(-1, 1)$): between $(-2/5, 3/5)$ and $(-3/5, 2/5)$. Check: $2/5 + 3/5 = 1$ ✓, $3/5 + 2/5 = 1$ ✓.
+- $-4u - v = 2$ (from $(-1, 0)$): between $(-3/5, 2/5)$ and $(-2/5, -2/5)$. Check: $12/5 - 2/5 = 2$ ✓, $8/5 + 2/5 = 2$ ✓.
+- $-u - 4v = 2$ (from $(0, -1)$): between $(-2/5, -2/5)$ and $(2/5, -3/5)$. Check: $2/5 + 8/5 = 2$ ✓, $-2/5 + 12/5 = 2$ ✓.
+- $u - v = 1$ (from $(1, -1)$): between $(2/5, -3/5)$ and $(3/5, -2/5)$. Check: $2/5 + 3/5 = 1$ ✓, $3/5 + 2/5 = 1$ ✓.
+
+All facets check out. The Voronoi cell is correct.
+
+Now, I need to verify that no other lattice vector gives a tighter constraint. I already checked $(1, 1)$: its bisector $u + v = 1$ doesn't touch the cell. Let me check $(2, -1)$: $Q = 4 - 1 + 1 = 4$. Bisector: $M(2, -1)^T = (2 - 1/4, 1/2 - 1) = (7/4, -1/2)$. Constraint: $7u/4 - v/2 \leq 2$.
+
+At $(3/5, -2/5)$: $7(3/5)/4 + 1/5 = 21/20 + 4/20 = 25/20 = 5/4 \leq 2$. ✓
+
+$(2, 1)$: $Q = 4 + 1 + 1 = 6$. $M(2, 1)^T = (9/4, 3/2)$. Constraint: $9u/4 + 3v/2 \leq 3$.
+At $(2/5, 2/5)$: $9/10 + 3/5 = 9/10 + 6/10 = 15/10 = 3/2 \leq 3$. ✓
+
+Everything checks out. So the final answer is $B + C = 13/20$.
+
+Actually, let me reconsider the problem statement once more. It says "the smallest real number $B$ such that for any real numbers $x$ and $y$, there exist integers $p, q$ satisfying $Q(x+p, y+q) \leq B$."
+
+This is indeed the covering radius problem. The covering radius $\rho$ of a lattice $\Lambda$ with respect to $Q$ is:
+$$\rho = \sup_{\mathbf{z} \in \mathbb{R}^2} \inf_{\lambda \in \Lambda} Q(\mathbf{z} + \lambda)$$
+
+And this equals the maximum of $Q$ over the Voronoi cell (the set of points closest to the origin). So $B = \rho_{\mathbb{Z}^2, Q}$ and $C = \rho_{\Lambda, Q}$.
+
+I've computed $B = 2/5$ and $C = 1/4$, so $B + C = 13/20$.
+
+Let me also sanity-check with a specific example. Take $(x, y) = (3/5, -2/5)$ (a deep hole for part (a)). The nearest integer points are $(0,0)$, $(1, 0)$, $(1, -1)$, all giving $Q = 2/5$. So we need $B \geq 2/5$. And since the Voronoi cell analysis shows that every point is within $Q$-distance $2/5$ of some lattice point, $B = 2/5$. ✓
+
+For part (b), take $(x, y) = (1/2, 0)$ (a deep hole). The nearest $\Lambda$-points are $(0,0)$, $(1, 0)$, $(1/2, 1/2)$, $(1/2, -1/2)$, all giving $Q = 1/4$. So $C \geq 1/4$. And the Voronoi cell analysis shows $C = 1/4$. ✓
+
+So $B + C = 2/5 + 1/4 = 13/20$.
+
+Let me also verify that $13/20$ is in lowest terms. $\gcd(13, 20) = 1$. Yes, $13/20$ is already in lowest terms.
+
+So the answer is $\boxed{\dfrac{13}{20}}$.
+
+Now let me write up the proof cleanly.
+
+Actually, let me reconsider once more. I want to make sure I haven't made an error in identifying the Voronoi cell for part (a). Let me re-derive it from scratch.
+
+Part (a): Lattice $\mathbb{Z}^2$, quadratic form $Q(u,v) = u^2 + \frac{1}{2}uv + v^2$, matrix $M = \begin{pmatrix} 1 & 1/4 \\ 1/4 & 1 \end{pmatrix}$.
+
+The Voronoi cell is $\{(u,v) : Q(u,v) \leq Q(u-m, v-n) \forall (m,n) \in \mathbb{Z}^2\}$, which is $\{(u,v) : 2\mathbf{x}^T M\lambda \leq Q(\lambda) \forall \lambda \in \mathbb{Z}^2 \setminus \{0\}\}$, i.e., $\mathbf{x}^T M\lambda \leq Q(\lambda)/2$.
+
+The relevant vectors (those whose bisectors form facets) are the minimal vectors of the lattice in the $Q$-metric, plus possibly some others. In 2D, the relevant vectors are exactly the "Voronoi relevant" vectors, which can be found by checking the shortest vectors.
+
+$Q(1,0) = 1, Q(0,1) = 1, Q(1,-1) = 3/2, Q(1,1) = 5/2$.
+
+The three shortest (up to sign) are $(1,0)$, $(0,1)$, $(1,-1)$ with $Q$-norms $1, 1, 3/2$.
+
+For a 2D lattice, the Voronoi cell is either a hexagon (3 pairs of relevant vectors) or a rectangle (2 pairs). With 3 pairs, we get a hexagon.
+
+The bisectors:
+- $(1,0)$: $u + v/4 = 1/2$ → $4u + v = 2$
+- $(0,1)$: $u/4 + v = 1/2$ → $u + 4v = 2$
+- $(1,-1)$: $3u/4 - 3v/4 = 3/4$ → $u - v = 1$
+
+And their negatives. The hexagon has 6 vertices, which I computed as:
+$(3/5, -2/5)$, $(2/5, 2/5)$, $(-2/5, 3/5)$, $(-3/5, 2/5)$, $(-2/5, -2/5)$, $(2/5, -3/5)$.
+
+All give $Q = 2/5$, so $B = 2/5$. ✓
+
+Part (b): Lattice $\Lambda = \mathbb{Z}^2 \cup (\mathbb{Z}+1/2)^2$ with basis $(1,0)$, $(1/2, 1/2)$.
+
+Change of variables: $(u,v) = (s + t/2, t/2)$, so the lattice becomes $\mathbb{Z}^2$ in $(s,t)$ and $Q = s^2 + \frac{5}{4}st + \frac{5}{8}t^2$.
+
+The relevant vectors in $(s,t)$: I need to find the shortest vectors.
+
+$Q(1,0) = 1, Q(0,1) = 5/8, Q(1,-1) = 1 - 5/4 + 5/8 = 3/8, Q(1,1) = 1 + 5/4 + 5/8 = 23/8, Q(1,-2) = 1 - 5/2 + 5/2 = 1, Q(2,-1) = 4 - 5/2 + 5/8 = 17/8$.
+
+Shortest: $(1,-1)$ with $Q = 3/8$, then $(0,1)$ with $Q = 5/8$, then $(1,0)$ and $(1,-2)$ with $Q = 1$.
+
+The bisectors:
+- $(1,-1)$: $s = 1/2$
+- $(0,1)$: $s + t = 1/2$
+- $(1,0)$: $s + 5t/8 = 1/2$ → $8s + 5t = 4$
+- $(1,-2)$: $-s/4 - 5t/8 = 1/2$ → $-2s - 5t = 4$ → $2s + 5t = -4$
+
+I found that the Voronoi cell is a quadrilateral (not a hexagon) because the bisectors of $(1,0)$ and $(1,-2)$ only touch the cell at vertices without forming facets. The four facets are $s = \pm 1/2$ and $s + t = \pm 1/2$.
+
+The vertices are $(1/2, 0)$, $(-1/2, 1)$, $(-1/2, 0)$, $(1/2, -1)$, all with $Q = 1/4$.
+
+In $(u,v)$ coordinates, these are $(1/2, 0)$, $(0, 1/2)$, $(-1/2, 0)$, $(0, -1/2)$ — a diamond.
+
+$C = 1/4$. ✓
+
+$B + C = 2/5 + 1/4 = 13/20$.
+
+I'm confident in this answer. Let me write the proof.
+
+Hmm, actually I realize I should double-check the claim that the Voronoi cell for part (b) is a quadrilateral and not a hexagon. The issue is whether $(1, -2)$ is a relevant vector.
+
+A vector $\lambda$ is Voronoi-relevant if its bisector contributes a facet (a $(d-1)$-dimensional face) to the Voronoi cell. In 2D, this means the bisector line contributes an edge.
+
+I showed that the bisector of $(1, -2)$, which is $2s + 5t = -4$ (or equivalently $2s + 5t \geq -4$), is tight only at the vertex $(1/2, -1)$ and doesn't form an edge. So $(1, -2)$ is NOT Voronoi-relevant. Similarly, $(1, 0)$ is tight only at $(1/2, 0)$ and is not relevant.
+
+So the Voronoi cell has 4 facets (from $(1, -1)$, $(0, 1)$, $(-1, 1)$, $(0, -1)$) and is a quadrilateral. This is correct.
+
+But wait, I should also check: is it possible that some other vector I haven't considered is relevant? For instance, $(2, -3)$: $Q = 4 - 15/2 + 45/8 = 4 - 60/8 + 45/8 = 4 - 15/8 = 17/8$. This is larger than $Q(1, -2) = 1$, so its bisector is even less likely to be relevant. I think I've checked enough.
+
+Actually, for a rigorous proof, I should argue that the Voronoi cell is exactly the quadrilateral I found. The approach is:
+1. Show that the quadrilateral $D = \{(s,t) : |s| \leq 1/2, |s+t| \leq 1/2\}$ is contained in the Voronoi cell (i.e., every point in $D$ satisfies all lattice vector constraints).
+2. Show that $D$ equals the Voronoi cell (i.e., the four constraints $s \leq 1/2$, $s + t \leq 1/2$, $s \geq -1/2$, $s + t \geq -1/2$ are the binding ones).
+
+For step 1, I need to show that for any $(m, n) \in \mathbb{Z}^2 \setminus \{0\}$ and any $(s, t) \in D$:
+$(m + 5n/8)s + (5m/8 + 5n/8)t \leq (m^2 + 5mn/4 + 5n^2/8)/2$
+
+This is a bit tedious to do in full generality. Let me think of a cleaner approach.
+
+Actually, for the proof, I can use the following approach:
+
+**Part (a):** Show that $B = 2/5$ by:
+1. Showing that $B \geq 2/5$: exhibit a point $(x, y)$ such that $\min_{p,q \in \mathbb{Z}} Q(x+p, y+q) = 2/5$.
+2. Showing that $B \leq 2/5$: for any $(x, y)$, there exist $p, q \in \mathbb{Z}$ with $Q(x+p, y+q) \leq 2/5$.
+
+For step 1, take $(x, y) = (3/5, -2/5)$. Check that $Q(3/5, -2/5) = Q(-2/5, -2/5) = Q(-2/5, 3/5) = 2/5$, and these are the three nearest lattice points (corresponding to $(p,q) = (0,0), (1,0), (1,-1)$). Any other lattice point gives a larger $Q$-value. So $\min = 2/5$.
+
+For step 2, I need to show that the Voronoi cell of $\mathbb{Z}^2$ w.r.t. $Q$ is contained in $\{Q \leq 2/5\}$. This follows from the fact that the maximum of $Q$ over the Voronoi cell is $2/5$ (attained at the vertices).
+
+But to make this rigorous, I need to properly establish the Voronoi cell. Let me think about a cleaner way.
+
+Alternative approach: I can use the fact that the covering radius equals the maximum of $Q$ over the fundamental domain, and use the specific structure.
+
+Actually, let me think about this differently. The covering radius of a lattice $\Lambda$ with respect to $Q$ is the maximum of $\min_{\lambda \in \Lambda} Q(\mathbf{x} - \lambda)$ over all $\mathbf{x} \in \mathbb{R}^2$. This is the same as the maximum of $Q$ over the Voronoi cell.
+
+For the proof, I'll establish the Voronoi cell and compute the maximum of $Q$ over it.
+
+Let me write the proof now. I'll be careful and rigorous.
+
+---
+
+**Proof.**
+
+Let $Q(u, v) = u^2 + \frac{1}{2}uv + v^2$ (with $a = 1/2$). The matrix of this quadratic form is $M = \begin{pmatrix} 1 & 1/4 \\ 1/4 & 1 \end{pmatrix}$, which is positive definite since $\det M = 1 - 1/16 = 15/16 > 0$.
+
+**Part (a): Computing $B$.**
+
+$B$ is the covering radius of $\mathbb{Z}^2$ with respect to $Q$, i.e., $B = \max_{\mathbf{x} \in V} Q(\mathbf{x})$ where $V$ is the Voronoi cell of $\mathbb{Z}^2$.
+
+The Voronoi cell is $V = \{\mathbf{x} \in \mathbb{R}^2 : Q(\mathbf{x}) \leq Q(\mathbf{x} - \lambda) \text{ for all } \lambda \in \mathbb{Z}^2\}$, equivalently $\mathbf{x}^T M \lambda \leq Q(\lambda)/2$ for all $\lambda \in \mathbb{Z}^2 \setminus \{0\}$.
+
+The relevant vectors (those defining facets) are $(1, 0)$, $(0, 1)$, $(1, -1)$ and their negatives. [I should verify that $(1, 1)$ is not relevant and that no other vector is relevant.]
+
+The bisectors are:
+- $(1, 0)$: $4u + v = 2$
+- $(0, 1)$: $u + 4v = 2$
+- $(1, -1)$: $u - v = 1$
+and their negatives.
+
+The Voronoi cell is the hexagon with vertices:
+- $V_1 = (3/5, -2/5)$: intersection of $4u + v = 2$ and $u - v = 1$
+- $V_2 = (2/5, 2/5)$: intersection of $4u + v = 2$ and $u + 4v = 2$
+- $V_3 = (-2/5, 3/5)$: intersection of $u + 4v = 2$ and $-u + v = 1$
+- $V_4 = (-3/5, 2/5)$: intersection of $-u + v = 1$ and $-4u - v = 2$
+- $V_5 = (-2/5, -2/5)$: intersection of $-4u - v = 2$ and $-u - 4v = 2$
+- $V_6 = (2/5, -3/5)$: intersection of $-u - 4v = 2$ and $u - v = 1$
+
+Computing $Q$ at each vertex:
+$Q(V_1) = (3/5)^2 + (1/2)(3/5)(-2/5) + (-2/5)^2 = 9/25 - 3/25 + 4/25 = 10/25 = 2/5$
+
+By the symmetry $Q(u, v) = Q(v, u)$ and $Q(-u, -v) = Q(u, v)$, all vertices give $Q = 2/5$.
+
+Since $Q$ is convex, its maximum over the convex hexagon $V$ is attained at a vertex, so $B = 2/5$.
+
+**Part (b): Computing $C$.**
+
+The allowed shifts form the set $\Lambda = \mathbb{Z}^2 \cup (\mathbb{Z} + 1/2)^2$, which is a lattice with basis $\mathbf{b}_1 = (1, 0)$, $\mathbf{b}_2 = (1/2, 1/2)$.
+
+We perform the change of variables $(u, v) = (s + t/2, t/2)$, under which $\Lambda$ becomes $\mathbb{Z}^2$ in $(s, t)$-coordinates, and
+$$Q = \left(s + \frac{t}{2}\right)^2 + \frac{1}{2}\left(s + \frac{t}{2}\right)\frac{t}{2} + \frac{t^2}{4} = s^2 + \frac{5}{4}st + \frac{5}{8}t^2.$$
+
+The matrix of $Q$ in $(s, t)$ is $M' = \begin{pmatrix} 1 & 5/8 \\ 5/8 & 5/8 \end{pmatrix}$.
+
+The relevant vectors for the Voronoi cell of $\mathbb{Z}^2$ in $(s, t)$ are $(1, -1)$, $(0, 1)$, and their negatives. The bisectors are:
+- $(1, -1)$: $M'(1, -1)^T = (3/8, 0)$, so $s = 1/2$
+- $(0, 1)$: $M'(0, 1)^T = (5/8, 5/8)$, so $s + t = 1/2$
+and their negatives $s = -1/2$, $s + t = -1/2$.
+
+The Voronoi cell is the quadrilateral $D = \{(s, t) : |s| \leq 1/2, |s + t| \leq 1/2\}$ with vertices:
+- $(1/2, 0)$, $(-1/2, 1)$, $(-1/2, 0)$, $(1/2, -1)$.
+
+[Need to verify that other vectors like $(1, 0)$, $(1, -2)$, $(1, 1)$ don't contribute facets.]
+
+Computing $Q$ at each vertex:
+$Q(1/2, 0) = 1/4$
+$Q(-1/2, 1) = 1/4 - 5/8 + 5/8 = 1/4$
+$Q(-1/2, 0) = 1/4$
+$Q(1/2, -1) = 1/4 - 5/8 + 5/8 = 1/4$
+
+So $C = 1/4$.
+
+**Conclusion:** $B + C = 2/5 + 1/4 = 8/20 + 5/20 = 13/20$.
+
+---
+
+Now I need to make the proof more rigorous, especially the parts about which vectors are relevant. Let me think about how to do this cleanly.
+
+For part (a), I need to show:
+1. The hexagon I described is contained in the Voronoi cell (all constraints satisfied).
+2. The hexagon equals the Voronoi cell (no other constraints cut it down further).
+3. The maximum of $Q$ over the hexagon is $2/5$.
+
+For (1) and (2), I can argue as follows. The Voronoi cell is the intersection of half-planes $H_\lambda = \{\mathbf{x} : \mathbf{x}^T M \lambda \leq Q(\lambda)/2\}$ for all $\lambda \in \mathbb{Z}^2 \setminus \{0\}$. The hexagon $H$ is the intersection of $H_{(1,0)}$, $H_{(0,1)}$, $H_{(1,-1)}$, and their negatives. I need to show that for any other $\lambda$, $H_\lambda$ contains $H$.
+
+This can be done by checking that the constraint $\mathbf{x}^T M \lambda \leq Q(\lambda)/2$ is satisfied at all 6 vertices of $H$ (since the constraint is linear, if it's satisfied at all vertices of the convex hexagon, it's satisfied everywhere in the hexagon).
+
+So I need to check, for each $\lambda \in \mathbb{Z}^2 \setminus \{0, \pm(1,0), \pm(0,1), \pm(1,-1)\}$, that the constraint is satisfied at all 6 vertices. But there are infinitely many such $\lambda$.
+
+A cleaner approach: I can use the theory of Voronoi cells. In 2D, the relevant vectors are exactly the "strictly Voronoi-relevant" vectors, which can be characterized as follows: $\lambda$ is relevant if and only if $\lambda$ is a "minimal vector" of the lattice in some sense. More precisely, in 2D, the relevant vectors are those $\lambda$ such that $2\lambda$ is not the sum of two other relevant vectors in a non-trivial way.
+
+Actually, the cleanest approach for a proof is probably:
+
+**For the lower bound** ($B \geq 2/5$): Exhibit the point $(3/5, -2/5)$ and show that the three nearest lattice points all give $Q = 2/5$, and all other lattice points give $Q > 2/5$.
+
+**For the upper bound** ($B \leq 2/5$): Show that for any $(x, y) \in \mathbb{R}^2$, there exists $(p, q) \in \mathbb{Z}^2$ with $Q(x+p, y+q) \leq 2/5$. This can be done by showing that the hexagonal Voronoi cell is contained in $\{Q \leq 2/5\}$.
+
+To show the hexagon is the Voronoi cell, I can verify:
+(a) Each vertex of the hexagon is equidistant (in $Q$) to exactly 3 lattice points (the origin and two others), confirming it's a vertex of the Voronoi cell.
+(b) The constraint from any other lattice vector is satisfied at all vertices.
+
+For (b), I can use the following: any $\lambda \in \mathbb{Z}^2$ can be written as $\lambda = a(1,0) + b(0,1) + c(1,-1)$ where... hmm, this doesn't directly work since $(1,0)$, $(0,1)$, $(1,-1)$ generate $\mathbb{Z}^2$ (since $(1,0) - (0,1) + (1,-1) = (2, -2)$... no, they generate $\mathbb{Z}^2$ since $(1,0)$ and $(0,1)$ already do).
+
+Let me think of another approach. I can use the fact that for the Voronoi cell, a vector $\lambda$ is relevant if and only if it cannot be written as $\lambda = \mu + \nu$ where $\mu, \nu$ are lattice vectors with $Q(\mu) < Q(\lambda)$ and $Q(\nu) < Q(\lambda)$. This is the "Voronoi relevance criterion."
+
+Actually, the precise criterion (for a positive definite

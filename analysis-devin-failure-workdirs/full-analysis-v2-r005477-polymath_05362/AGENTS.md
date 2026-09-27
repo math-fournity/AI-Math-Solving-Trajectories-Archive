@@ -1,0 +1,941 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_05362</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Determine the maximum number $ h$ satisfying the following condition: for every $ a\in [0,h]$ and every polynomial $ P(x)$ of degree 99 such that $ P(0)\equal{}P(1)\equal{}0$, there exist $ x_1,x_2\in [0,1]$ such that $ P(x_1)\equal{}P(x_2)$ and $ x_2\minus{}x_1\equal{}a$.
+
+[i]Proposed by F. Petrov, D. Rostovsky, A. Khrabrov[/i]
+
+## Standard Solution
+
+To determine the maximum number \( h \) satisfying the given condition, we need to analyze the behavior of polynomials of degree 99 that vanish at \( x = 0 \) and \( x = 1 \). The goal is to find the largest \( h \) such that for every \( a \in [0, h] \) and every polynomial \( P(x) \) of degree 99 with \( P(0) = P(1) = 0 \), there exist \( x_1, x_2 \in [0, 1] \) such that \( P(x_1) = P(x_2) \) and \( x_2 - x_1 = a \).
+
+1. **Proving that \( h \geq \frac{1}{\lfloor \frac{n-1}{2} \rfloor + 1} \):**
+
+   Suppose there exists an \( r \) such that there are no \( a, b \in [0, 1] \) with \( P(a) = P(b) \) and \( b - a = r \). We will show that the distance between two consecutive roots of \( P(x) \) in \([0, 1]\) is not greater than \( r \).
+
+   Consider the polynomial \( g(x) = P(x) - P(x + r) \). Since \( a, b, b + r, a - r \in [0, 1] \), we have \( g(b) \cdot g(a - r) > 0 \). If it were less than or equal to zero, then \( g(x) \) would have a root in \([0, 1 - r]\), contradicting our assumption. Thus, \( P(b + r) \cdot P(a - r) < 0 \), which means \( a \) and \( b \) are not consecutive roots, leading to a contradiction. This proves that the distance between two consecutive roots of \( P(x) \) in \([0, 1]\) is not greater than \( r \).
+
+   Now, let \( \frac{1}{k + 1} \leq r \leq \frac{1}{k} \) for some \( k \in \mathbb{N} \). Since \( g(x) \) has no roots in \([0, 1 - r]\), assume without loss of generality that \( g(x) > 0 \) for all \( x \in [0, 1 - r] \). For \( m \in \{1, 2, \ldots, k - 1\} \), we have:
+   \[
+   \sum_{i=1}^m g((i-1)r) > 0 \implies P(mr) < 0
+   \]
+   Now, \( P(x) \) has a root in \((0, r)\), but \( P(mr) \cdot P(mr + r) > 0\), which means \( P(x) \) has at least two roots in \((mr, mr + r)\). This implies that \( P(x) \) has at least \( 2 + 1 + 2(k - 1) \) zeros, leading to:
+   \[
+   2k + 1 \leq n \quad \text{if } n \text{ is odd, and } 2k + 2 \leq n \quad \text{if } n \text{ is even}
+   \]
+   This proves that \( h \geq \frac{1}{\lfloor \frac{n-1}{2} \rfloor + 1} \).
+
+2. **Proving that the functional equation \( Q(x + r) - Q(x) = P(x) \) has a polynomial solution for \( Q \):**
+
+   Let the degree of \( P \) be \( n \). From the functional equation, we can determine the allowed values for \( Q(r), Q(2r), \ldots \). There exists a unique polynomial of degree \( n + 1 \) passing through the points \((0, Q(0)), (r, Q(r)), \ldots, ((n + 1)r, Q((n + 1)r))\). Let this polynomial be \( R(x) \).
+
+   We argue that \( R(x) \) satisfies the functional equation. Let \( R(x + r) - R(x) = T(x) \). Then \( T(x) \) is a polynomial of degree \( n \). Since \( T(x) - P(x) \) is also a polynomial of degree at most \( n \) and has at most \( n \) real zeros, it must be zero everywhere. Thus, \( R(x + r) - R(x) = T(x) = P(x) \), and \( R(x) \) satisfies the functional equation.
+
+3. **Considering the case when \( n \) is odd:**
+
+   Let \( n = 2m - 1 \). Let \( q(x) \) be the polynomial solution to the equation \( q(0) = 0 \), \( q(x + \frac{1}{m}) - q(x) = x(x - \frac{m-1}{m}) \left( \prod_{i=1}^{m-2} (x - \frac{i}{m}) \right)^2 \). The solution has the following properties:
+   - The solution has degree \( n \).
+   - \( q(\frac{i}{m}) = 0 \) for \( i = 0, 1, 2, \ldots, m \).
+   - \( q'(\frac{i}{m} + \frac{1}{m}) = q'(\frac{i}{m}) \neq 0 \) for \( i = 0, 1, 2, \ldots, m-2 \).
+
+   Since \( q'(x) \) has the same sign at \( \frac{1}{m} \) and \( \frac{2}{m} \), we have a zero for \( q(x) \) between \( \frac{1}{m} \) and \( \frac{2}{m} \), and similarly for other intervals. This gives us all zeros of \( q(x) \).
+
+4. **Considering the case when \( n \) is even:**
+
+   The argument is similar to the odd case, and we can show that \( h \leq \frac{1}{\lfloor \frac{n-1}{2} \rfloor + 1} \).
+
+Thus, the maximum \( h \) satisfying the given condition is \( \frac{1}{\lfloor \frac{99-1}{2} \rfloor + 1} = \frac{1}{50} \).
+
+The final answer is \( \boxed{\frac{1}{50}} \).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We need to find the maximum $h$ such that for every $a \in [0,h]$ and every polynomial $P(x)$ of degree 99 with $P(0) = P(1) = 0$, there exist $x_1, x_2 \in [0,1]$ with $P(x_1) = P(x_2)$ and $x_2 - x_1 = a$.
+
+First, let me check for answer leaks. The problem text doesn't contain any solutions or answer hints. Good.
+
+Let me think about this problem.
+
+We want: for every $a \in [0,h]$, every degree-99 polynomial $P$ with $P(0)=P(1)=0$ has two equal values at points distance $a$ apart.
+
+Define $Q_a(x) = P(x+a) - P(x)$. We need $Q_a$ to have a zero in $[0, 1-a]$, i.e., there exists $x \in [0, 1-a]$ with $Q_a(x) = 0$.
+
+So the condition is: for every $a \in [0,h]$, every degree-99 polynomial $P$ with $P(0)=P(1)=0$, the function $Q_a(x) = P(x+a) - P(x)$ has a zero in $[0, 1-a]$.
+
+Note $Q_a$ is a polynomial of degree 98 (the leading terms cancel). Also, $\int_0^{1-a} Q_a(x) dx = \int_0^{1-a} [P(x+a) - P(x)] dx = \int_a^1 P(t) dt - \int_0^{1-a} P(x) dx = \int_{1-a}^1 P(t) dt - \int_0^a P(x) dx$... hmm, let me recompute.
+
+Actually $\int_0^{1-a} P(x+a) dx = \int_a^1 P(t) dt$ and $\int_0^{1-a} P(x) dx$. So $\int_0^{1-a} Q_a(x) dx = \int_a^1 P(t) dt - \int_0^{1-a} P(x) dx$.
+
+Hmm, this doesn't simplify nicely in general.
+
+Let me think about the extremal polynomial. The question is about the maximum $h$ such that the property holds for ALL polynomials. So we need to find the polynomial that is "worst" — the one that requires the smallest $a$ to guarantee a repeated value.
+
+Actually, let's think about it differently. For a given $P$, define $f(a) = $ the property that $Q_a$ has a zero in $[0,1-a]$. We want this for all $a \in [0,h]$.
+
+The worst case: there's a polynomial $P$ and a value $a$ such that $Q_a(x) \neq 0$ for all $x \in [0, 1-a]$, i.e., $Q_a$ has constant sign on $[0, 1-a]$.
+
+If $Q_a(x) > 0$ for all $x \in [0, 1-a]$, then $P$ is strictly increasing in steps of $a$ on $[0,1]$. Similarly if $Q_a(x) < 0$.
+
+So we need: for what $a$ can there exist a degree-99 polynomial with $P(0)=P(1)=0$ such that $P(x+a) > P(x)$ for all $x \in [0, 1-a]$ (or all $<$)?
+
+If $P(x+a) > P(x)$ for all $x \in [0,1-a]$, then $P(0) < P(a) < P(2a) < \ldots$. But $P(0) = 0$ and $P(1) = 0$. If $1/a$ is an integer $n$, then $P(0) < P(a) < \ldots < P(1) = 0 = P(0)$, contradiction. So if $a = 1/n$, no such $P$ exists, meaning the property holds for $a = 1/n$.
+
+Actually more carefully: if $a = 1/n$, then $0, a, 2a, \ldots, na = 1$ are in $[0,1]$. $P(0) < P(a) < \ldots < P(1) = 0 = P(0)$, contradiction. So for $a = 1/n$, the property holds.
+
+But we need it for ALL $a \in [0, h]$, not just $a = 1/n$.
+
+The critical $h$ is related to the smallest $a$ for which a "bad" polynomial exists.
+
+Let me think about the extremal case. Consider $P(x) = x(1-x) R(x)$ where $R$ is degree 97. We want $P(x+a) - P(x)$ to have no zero in $[0, 1-a]$.
+
+Actually, let me think about this more carefully using the theory. This is a competition problem (Petrov, Rostovsky, Khrabrov — likely a Russian olympiad problem).
+
+Let me think about the case where $Q_a$ has constant sign. WLOG $Q_a(x) > 0$ on $[0, 1-a]$, meaning $P(x+a) > P(x)$.
+
+The key insight: consider the "chain" $x, x+a, x+2a, \ldots$ until we exceed 1. For the inequality to be consistent with $P(0) = P(1) = 0$, we need some constraints.
+
+Let me think about the continuous version. Consider $g(x) = P(x+a) - P(x)$ as a function. We need $g$ to not vanish on $[0, 1-a]$.
+
+Consider the integral $\int_0^{1-a} g(x) w(x) dx$ for various weight functions. If $g$ has constant sign, this integral has constant sign too.
+
+A natural approach: find a weight function $w$ such that $\int_0^{1-a} [P(x+a) - P(x)] w(x) dx = 0$ for all polynomials $P$ of degree $\leq 99$ with $P(0) = P(1) = 0$. If such $w \geq 0$ exists (and not identically zero), then $g$ can't have constant sign, so $g$ must have a zero.
+
+So we need: $\int_0^{1-a} P(x+a) w(x) dx = \int_0^{1-a} P(x) w(x) dx$ for all such $P$.
+
+$\int_0^{1-a} P(x+a) w(x) dx = \int_a^1 P(t) w(t-a) dt$.
+
+So we need $\int_a^1 P(t) w(t-a) dt = \int_0^{1-a} P(t) w(t) dt$.
+
+The left integral is over $[a, 1]$ and the right over $[0, 1-a]$.
+
+For $P$ with $P(0) = P(1) = 0$, degree $\leq 99$. The space of such $P$ has dimension 98 (degree 99 with 2 constraints, but actually degree exactly 99 with $P(0)=P(1)=0$ gives dimension 98).
+
+Hmm, this is getting complex. Let me think about the structure differently.
+
+We want $\int_a^1 P(t) w(t-a) dt - \int_0^{1-a} P(t) w(t) dt = 0$ for all $P$ with $P(0) = P(1) = 0$, $\deg P \leq 99$.
+
+Equivalently, $\int_0^1 P(t) \phi(t) dt = 0$ for all such $P$, where $\phi(t) = w(t-a) \cdot \mathbf{1}_{[a,1]}(t) - w(t) \cdot \mathbf{1}_{[0,1-a]}(t)$.
+
+Since $P(0) = P(1) = 0$, we can write $P(t) = t(1-t) S(t)$ where $\deg S \leq 97$. Then $\int_0^1 t(1-t) S(t) \phi(t) dt = 0$ for all polynomials $S$ of degree $\leq 97$.
+
+This means $t(1-t) \phi(t)$ is orthogonal to all polynomials of degree $\leq 97$ on $[0,1]$, i.e., $t(1-t)\phi(t)$ acts like a distribution orthogonal to $\mathcal{P}_{97}$. 
+
+If $\phi$ is a nice function, this means $t(1-t)\phi(t)$ has its first 98 moments zero. If $\phi$ is a function (not a distribution), and $t(1-t)\phi(t)$ has 98 zero moments, then... well, a function with 98 zero moments can exist (e.g., orthogonal polynomials). But we need $w \geq 0$.
+
+This approach with a single weight function might not directly give the answer. Let me think differently.
+
+Actually, the standard approach for these problems: the answer is $h = 1/99$ or something related to the degree.
+
+Let me think about the extremal polynomial. Consider $P(x) = x(1-x) \cdot T_{97}(2x-1)$ type construction, or Chebyshev-based.
+
+Actually, let me reconsider. The condition $P(x+a) > P(x)$ for all $x \in [0,1-a]$ with $P(0) = P(1) = 0$.
+
+Think of it as: $P$ is "increasing with step $a$". The constraint $P(0) = P(1) = 0$ with $P$ increasing in steps of $a$ creates tension.
+
+For $a$ slightly less than $1/n$, we can have $P(0) < P(a) < \ldots < P((n-1)a) < P(1) = 0$ where $(n-1)a < 1 < na$, so the last step from $(n-1)a$ to $1$ is less than $a$. We need $P(1) > P((n-1)a)$, i.e., $0 > P((n-1)a)$, but also $P((n-1)a) > P((n-2)a) > \ldots > P(0) = 0$, so $P((n-1)a) > 0$. Contradiction! So for $a$ slightly less than $1/n$... wait, let me redo.
+
+If $a < 1/n$, then $na > 1$, so the chain $0, a, 2a, \ldots$ reaches beyond 1 at step $n$. The points in $[0,1]$ are $0, a, \ldots, ka$ where $ka \leq 1 < (k+1)a$, so $k = \lfloor 1/a \rfloor$. If $a < 1/n$ then $k \geq n$.
+
+Hmm wait. If $a < 1/n$, then $1/a > n$, so $k = \lfloor 1/a \rfloor \geq n$. The chain is $0, a, \ldots, ka$ with $ka \leq 1$. We have $P(0) < P(a) < \ldots < P(ka)$. But $P(1) = 0 = P(0)$. We need to also compare $P(ka)$ with $P(1)$. Since $1 - ka < a$, the point $1$ is within distance $a$ of $ka$, so $P(1) > P(ka)$ is required (since $1 = ka + (1-ka)$ and $1 - ka \in [0, a)$, so $x = ka$ gives $P(x + (1-ka)) = P(1) > P(ka)$... but wait, we need $x + a \leq 1$, i.e., $x \leq 1 - a$. The condition is $P(x+a) > P(x)$ for $x \in [0, 1-a]$. So $x = ka$ requires $ka \leq 1 - a$, i.e., $(k+1)a \leq 1$. If $ka \leq 1 < (k+1)a$, then $ka > 1 - a$, so $x = ka$ is NOT in $[0, 1-a]$. So we can't directly compare $P(ka)$ and $P(1)$.
+
+So the chain gives $P(0) < P(a) < \ldots < P(ka)$ where $k = \lfloor 1/a \rfloor$ and $ka \leq 1 < (k+1)a$, but we can't chain to $P(1)$ directly. So no contradiction from the chain alone when $a$ is not of the form $1/n$.
+
+So the chain argument only gives a contradiction when $a = 1/n$ exactly. For $a$ slightly different from $1/n$, we need a more refined argument using the polynomial structure.
+
+Let me think about this problem from the perspective of the answer. For degree $d$ polynomials with $P(0) = P(1) = 0$, the answer to such problems is often $h = 1/(d)$ or $h = 1/(d-1)$ or related to Chebyshev.
+
+Actually, let me think about small cases first.
+
+**Degree 2, $P(0) = P(1) = 0$:** $P(x) = cx(1-x)$. Then $P(x+a) - P(x) = c[(x+a)(1-x-a) - x(1-x)] = c[x + a - x^2 - 2ax - a^2 - x + x^2] = c[a - 2ax - a^2] = ca(1 - a - 2x)$. This is zero at $x = (1-a)/2 \in [0, 1-a]$. So for degree 2, the property holds for all $a \in [0,1]$, so $h = 1$.
+
+**Degree 3, $P(0) = P(1) = 0$:** $P(x) = x(1-x)(\alpha x + \beta)$. Let me compute $Q_a(x) = P(x+a) - P(x)$.
+
+This is degree 2 in $x$. We need it to have a root in $[0, 1-a]$.
+
+$P(x) = x(1-x)(\alpha x + \beta) = (\alpha x + \beta)(x - x^2) = \alpha x^2 - \alpha x^3 + \beta x - \beta x^2 = -\alpha x^3 + (\alpha - \beta) x^2 + \beta x$.
+
+$P(x+a) = -\alpha(x+a)^3 + (\alpha-\beta)(x+a)^2 + \beta(x+a)$.
+
+$Q_a(x) = P(x+a) - P(x) = -\alpha[(x+a)^3 - x^3] + (\alpha-\beta)[(x+a)^2 - x^2] + \beta a$
+$= -\alpha[3x^2 a + 3x a^2 + a^3] + (\alpha-\beta)[2xa + a^2] + \beta a$
+$= -3\alpha a x^2 - 3\alpha a^2 x - \alpha a^3 + 2(\alpha-\beta) a x + (\alpha-\beta) a^2 + \beta a$
+$= -3\alpha a x^2 + [-3\alpha a^2 + 2(\alpha-\beta)a] x + [-\alpha a^3 + (\alpha-\beta) a^2 + \beta a]$
+
+This is a quadratic in $x$ (if $\alpha \neq 0$). For it to have no root in $[0, 1-a]$, it must be of constant sign there.
+
+At $x = 0$: $Q_a(0) = -\alpha a^3 + (\alpha - \beta) a^2 + \beta a = a[-\alpha a^2 + (\alpha-\beta)a + \beta] = a[-\alpha a^2 + \alpha a - \beta a + \beta] = a[\alpha a(1-a) + \beta(1-a)] = a(1-a)(\alpha a + \beta)$.
+
+At $x = 1-a$: $Q_a(1-a) = P(1) - P(1-a) = 0 - P(1-a) = -P(1-a)$.
+
+So $Q_a(0) = a(1-a)(\alpha a + \beta)$ and $Q_a(1-a) = -P(1-a) = -(1-a) \cdot a \cdot (\alpha(1-a) + \beta) = -a(1-a)(\alpha(1-a) + \beta)$.
+
+For $Q_a$ to have constant sign on $[0, 1-a]$, we need $Q_a(0)$ and $Q_a(1-a)$ to have the same sign.
+
+$Q_a(0) = a(1-a)(\alpha a + \beta)$ and $Q_a(1-a) = -a(1-a)(\alpha(1-a) + \beta)$.
+
+Same sign means $(\alpha a + \beta)$ and $-(\alpha(1-a) + \beta)$ have the same sign, i.e., $(\alpha a + \beta)(\alpha(1-a) + \beta) < 0$.
+
+Let $u = \alpha a + \beta$ and $v = \alpha(1-a) + \beta$. We need $uv < 0$. Note $u + v = \alpha + 2\beta$ and $v - u = \alpha(1 - 2a)$.
+
+$uv < 0$ is possible for many choices. For example, $\alpha = 1, \beta = 0$: $u = a, v = 1-a$, $uv = a(1-a) > 0$ for $a \in (0,1)$. So same sign, meaning $Q_a(0)$ and $Q_a(1-a)$ have opposite signs (because of the minus sign), so $Q_a$ changes sign, so it has a root. Good.
+
+But can we choose $\alpha, \beta$ to make $uv < 0$? Take $\alpha = 1, \beta = -1/2$. Then $u = a - 1/2, v = 1 - a - 1/2 = 1/2 - a$. So $uv = (a - 1/2)(1/2 - a) = -(a-1/2)^2 \leq 0$. It's $< 0$ when $a \neq 1/2$. So for $a \neq 1/2$, $Q_a(0)$ and $Q_a(1-a)$ have the same sign, and $Q_a$ might not have a root.
+
+But wait, $Q_a$ is a quadratic, so even if the endpoints have the same sign, it could still have roots in between (two roots). Let me check more carefully.
+
+With $\alpha = 1, \beta = -1/2$: $P(x) = x(1-x)(x - 1/2)$. This is $P(x) = x(1-x)(x - 1/2)$, which is an odd function around $x = 1/2$ (antisymmetric). $P(1/2) = 0$.
+
+$Q_a(x) = -3a x^2 + [-3a^2 + 2 \cdot (1 - (-1/2)) \cdot a] x + [-a^3 + (3/2) a^2 + (-1/2) a]$
+
+Wait, let me recompute with $\alpha = 1, \beta = -1/2$.
+
+$-3\alpha a = -3a$.
+Coefficient of $x$: $-3\alpha a^2 + 2(\alpha - \beta) a = -3a^2 + 2(3/2) a = -3a^2 + 3a = 3a(1-a)$.
+Constant: $-\alpha a^3 + (\alpha - \beta) a^2 + \beta a = -a^3 + (3/2) a^2 - (1/2) a = -a(a^2 - 3a/2 + 1/2) = -a \cdot \frac{2a^2 - 3a + 1}{2} = -a \cdot \frac{(2a-1)(a-1)}{2} = \frac{a(1-a)(2a-1)}{2}$.
+
+So $Q_a(x) = -3a x^2 + 3a(1-a) x + \frac{a(1-a)(2a-1)}{2}$.
+
+Divide by $a$ (assuming $a > 0$): $-3x^2 + 3(1-a)x + \frac{(1-a)(2a-1)}{2}$.
+
+Discriminant: $9(1-a)^2 + 4 \cdot 3 \cdot \frac{(1-a)(2a-1)}{2} = 9(1-a)^2 + 6(1-a)(2a-1) = 3(1-a)[3(1-a) + 2(2a-1)] = 3(1-a)[3 - 3a + 4a - 2] = 3(1-a)(1+a) = 3(1-a^2)$.
+
+So the discriminant is $3(1 - a^2) > 0$ for $a < 1$. So $Q_a$ always has two real roots for $a \in (0, 1)$. The roots are:
+
+$x = \frac{-3(1-a) \pm \sqrt{3(1-a^2)}}{-6} = \frac{3(1-a) \mp \sqrt{3(1-a^2)}}{6} = \frac{1-a}{2} \mp \frac{\sqrt{3(1-a^2)}}{6}$.
+
+For these roots to be in $[0, 1-a]$: The midpoint is $(1-a)/2$ and the spread is $\frac{\sqrt{3(1-a^2)}}{6}$.
+
+We need at least one root in $[0, 1-a]$. The roots are $\frac{1-a}{2} \pm \frac{\sqrt{3(1-a^2)}}{6}$.
+
+For the larger root to be $\leq 1-a$: $\frac{1-a}{2} + \frac{\sqrt{3(1-a^2)}}{6} \leq 1-a$, i.e., $\frac{\sqrt{3(1-a^2)}}{6} \leq \frac{1-a}{2}$, i.e., $\sqrt{3(1-a^2)} \leq 3(1-a)$, i.e., $3(1-a^2) \leq 9(1-a)^2$, i.e., $3(1+a)(1-a) \leq 9(1-a)^2$, i.e., (for $a < 1$) $3(1+a) \leq 9(1-a)$, i.e., $1+a \leq 3(1-a) = 3 - 3a$, i.e., $4a \leq 2$, i.e., $a \leq 1/2$.
+
+For the smaller root to be $\geq 0$: $\frac{1-a}{2} - \frac{\sqrt{3(1-a^2)}}{6} \geq 0$, i.e., $\frac{1-a}{2} \geq \frac{\sqrt{3(1-a^2)}}{6}$, same condition: $a \leq 1/2$.
+
+So for $a \leq 1/2$, both roots are in $[0, 1-a]$, so $Q_a$ has roots there. For $a > 1/2$, neither root is in $[0, 1-a]$, so $Q_a$ has no root there!
+
+Let me verify: for $a > 1/2$, the roots are outside $[0, 1-a]$. Since $Q_a$ is a downward-opening parabola (coefficient $-3a < 0$), and the roots are outside $[0, 1-a]$, $Q_a$ has constant sign on $[0, 1-a]$. Let's check the sign: at $x = (1-a)/2$ (the midpoint of $[0,1-a]$), $Q_a$ is at its vertex, which is a maximum. The value there is $Q_a((1-a)/2) = -3a \cdot \frac{(1-a)^2}{4} + 3a(1-a) \cdot \frac{1-a}{2} + \frac{a(1-a)(2a-1)}{2} = -\frac{3a(1-a)^2}{4} + \frac{3a(1-a)^2}{2} + \frac{a(1-a)(2a-1)}{2} = \frac{3a(1-a)^2}{4} + \frac{a(1-a)(2a-1)}{2} = \frac{a(1-a)}{4}[3(1-a) + 2(2a-1)] = \frac{a(1-a)}{4}[3 - 3a + 4a - 2] = \frac{a(1-a)(1+a)}{4} > 0$.
+
+So $Q_a > 0$ on $[0, 1-a]$ for $a > 1/2$ with this polynomial. So the property FAILS for $a > 1/2$ with $P(x) = x(1-x)(x - 1/2)$.
+
+And for $a \leq 1/2$, we showed this particular polynomial has roots in $[0, 1-a]$. But we need to check ALL degree-3 polynomials.
+
+So for degree 3, $h = 1/2$? Let me verify that for $a = 1/2$, all degree-3 polynomials with $P(0) = P(1) = 0$ satisfy the property.
+
+For $a = 1/2$, $Q_{1/2}(x) = P(x + 1/2) - P(x)$ is degree 2. We need a root in $[0, 1/2]$.
+
+$Q_{1/2}(0) = P(1/2) - P(0) = P(1/2)$.
+$Q_{1/2}(1/2) = P(1) - P(1/2) = -P(1/2)$.
+
+So $Q_{1/2}(0) = -Q_{1/2}(1/2)$. If $P(1/2) \neq 0$, they have opposite signs, so by IVT there's a root in $(0, 1/2)$. If $P(1/2) = 0$, then $Q_{1/2}(0) = 0$, so $x = 0$ is a root. Either way, the property holds for $a = 1/2$.
+
+So for degree 3, $h = 1/2$. 
+
+Now, the pattern: degree 2 gives $h = 1$, degree 3 gives $h = 1/2$. Let me check degree 4.
+
+Actually, let me think about the general pattern. For degree $d$ with $P(0) = P(1) = 0$:
+
+- Degree 2: $h = 1 = 1/1$
+- Degree 3: $h = 1/2$
+
+Let me guess degree 4: $h = 1/3$? And degree 99: $h = 1/98$? Or maybe $h = 1/99$?
+
+Hmm, let me think about this more carefully.
+
+For degree 3, the extremal polynomial was $P(x) = x(1-x)(x - 1/2)$, which has roots at $0, 1/2, 1$. The "extra" root at $1/2$ is what creates the issue.
+
+For degree $d$, $P(x) = x(1-x) R(x)$ where $R$ has degree $d - 2$. The extremal polynomial likely has $R$ with roots at specific points.
+
+Let me think about degree 4. $P(x) = x(1-x) R(x)$, $\deg R = 2$. 
+
+Actually, let me think about the general theory. The key idea is:
+
+For $a \in [0, h]$, we need $Q_a(x) = P(x+a) - P(x)$ to have a zero in $[0, 1-a]$ for all valid $P$.
+
+$Q_a$ has degree $d - 1 = 98$ (for degree 99). The condition $P(0) = P(1) = 0$ gives constraints.
+
+Let me think about the "moment" approach more carefully. We want to show that for $a \leq h$, $Q_a$ must have a zero in $[0, 1-a]$.
+
+Suppose $Q_a > 0$ on $[0, 1-a]$ (WLOG). Then $\int_0^{1-a} Q_a(x) w(x) dx > 0$ for any non-negative, not identically zero weight $w$.
+
+If we can find $w \geq 0$ such that $\int_0^{1-a} Q_a(x) w(x) dx = 0$ for all valid $P$, then contradiction.
+
+$\int_0^{1-a} [P(x+a) - P(x)] w(x) dx = \int_a^1 P(t) w(t-a) dt - \int_0^{1-a} P(t) w(t) dt$.
+
+$= \int_0^1 P(t) [w(t-a) \mathbf{1}_{t \geq a} - w(t) \mathbf{1}_{t \leq 1-a}] dt$.
+
+Let $\psi(t) = w(t-a) \mathbf{1}_{t \geq a} - w(t) \mathbf{1}_{t \leq 1-a}$.
+
+We need $\int_0^1 P(t) \psi(t) dt = 0$ for all $P$ with $P(0) = P(1) = 0$, $\deg P \leq 99$.
+
+Write $P(t) = t(1-t) S(t)$, $\deg S \leq 97$. Then $\int_0^1 t(1-t) S(t) \psi(t) dt = 0$ for all $S$ of degree $\leq 97$.
+
+This means $t(1-t)\psi(t)$ is orthogonal to all polynomials of degree $\leq 97$ on $[0,1]$.
+
+If $\psi$ is a function (not involving delta functions), then $t(1-t)\psi(t)$ must have its first 98 moments equal to zero. A continuous function with 98 zero moments must change sign at least 98 times (by the theory of orthogonal polynomials / Gaussian quadrature). But $\psi$ is determined by $w$, and we need $w \geq 0$.
+
+Actually, maybe the approach should use a signed measure or a combination of point masses (delta functions) rather than a weight function. Let me think about this differently.
+
+Alternative approach: use a linear combination of point evaluations. If $Q_a > 0$ on $[0, 1-a]$, then $\sum c_i Q_a(x_i) > 0$ for any $c_i > 0$ and $x_i \in [0, 1-a]$. If we can find $c_i > 0$ and $x_i$ such that $\sum c_i Q_a(x_i) = 0$ for all valid $P$, contradiction.
+
+$\sum c_i Q_a(x_i) = \sum c_i [P(x_i + a) - P(x_i)] = \sum c_i P(x_i + a) - \sum c_i P(x_i)$.
+
+This is a linear functional in $P$. We need it to vanish on all $P$ with $P(0) = P(1) = 0$, $\deg P \leq 99$.
+
+The points $x_i + a$ are in $[a, 1]$ and $x_i$ are in $[0, 1-a]$. So we're evaluating $P$ at points in $[0, 1]$ and taking a signed combination.
+
+We need: $\sum c_i P(x_i + a) = \sum c_i P(x_i)$ for all such $P$.
+
+This is like a quadrature identity. The left side evaluates $P$ at points $y_i = x_i + a \in [a, 1]$ with weights $c_i > 0$, and the right side at points $x_i \in [0, 1-a]$ with the same weights $c_i > 0$.
+
+So we need two sets of points $\{y_i\} \subset [a, 1]$ and $\{x_i\} \subset [0, 1-a]$ with $y_i = x_i + a$ and positive weights $c_i$ such that $\sum c_i P(y_i) = \sum c_i P(x_i)$ for all $P$ with $P(0) = P(1) = 0$, $\deg P \leq 99$.
+
+Since $P(0) = P(1) = 0$, $P$ is determined by its values at 98 other points (or equivalently, $P$ has 98 degrees of freedom). So we need the two quadrature formulas to agree on a 98-dimensional space.
+
+If we use $n$ points, we have $n$ positive weights and the $x_i$ are free (and $y_i = x_i + a$). The condition is $n$ equations (well, the quadrature identity is one equation, but it needs to hold for 98 linearly independent $P$'s, giving 98 equations). We have $n$ weights and $n$ positions, so $2n$ free parameters. We need $2n \geq 98$, so $n \geq 49$.
+
+Hmm, this is getting complicated. Let me think about the problem differently.
+
+Let me reconsider the degree-3 case to understand the pattern. For degree 3, $h = 1/2$. The extremal polynomial $P(x) = x(1-x)(x-1/2)$ has roots at $0, 1/2, 1$. The critical $a = 1/2$ is the distance between consecutive roots.
+
+For degree 2, $h = 1$. The polynomial $P(x) = x(1-x)$ has roots at $0, 1$, distance 1.
+
+So the pattern might be: $h$ equals the minimum distance between consecutive roots of the extremal polynomial, and the extremal polynomial has roots at $0, 1/(d-1), 2/(d-1), \ldots, 1$ (equally spaced). For degree $d$, that's $d-1$ intervals, so $h = 1/(d-1)$.
+
+For degree 2: $h = 1/1 = 1$. ✓
+For degree 3: $h = 1/2$. ✓
+For degree 99: $h = 1/98$?
+
+But wait, I should verify this more carefully. Let me check degree 4.
+
+For degree 4, $P(x) = x(1-x) R(x)$, $\deg R = 2$. The conjectured extremal polynomial has roots at $0, 1/3, 2/3, 1$, so $P(x) = x(1-x)(x - 1/3)(x - 2/3)$ (up to scaling). Let me check if for $a > 1/3$, this $P$ has $Q_a$ with no zero in $[0, 1-a]$.
+
+Actually, let me think about this more carefully. The extremal polynomial for degree 3 was $P(x) = x(1-x)(x - 1/2)$, which is the Chebyshev-like polynomial. Note that $x(1-x)(x-1/2) = x(1-x)(x - 1/2)$. On $[0,1]$, let $t = 2x - 1$, then $x = (t+1)/2$, $1-x = (1-t)/2$, $x - 1/2 = t/2$. So $P = \frac{(t+1)(1-t)t}{8} = \frac{t(1-t^2)}{8} = \frac{t - t^3}{8}$. This is related to $T_3(t) = 4t^3 - 3t$, so $t - t^3 = -\frac{1}{4}(4t^3 - 3t) + \frac{1}{4} t = -\frac{1}{4} T_3(t) + \frac{t}{4}$. Hmm, not exactly Chebyshev.
+
+Actually, $U_2(t) = 4t^2 - 1$ (Chebyshev of second kind), and $t \cdot U_2(t) = 4t^3 - t$. So $t - t^3 = -\frac{1}{4}(4t^3 - t) + \frac{3t}{4}$... not quite.
+
+Let me think about it differently. The polynomial $P(x) = x(1-x)(x - 1/2)$ on $[0,1]$ corresponds to $\frac{t(1-t^2)}{8}$ on $[-1,1]$. The function $t(1-t^2) = t - t^3$ has extrema... Let me compute $Q_a$ for this.
+
+Actually, let me just try to verify the degree-4 case computationally... but I can't use tools. Let me think theoretically.
+
+Let me consider the general approach. The extremal polynomial should be the one that is "most monotone-like" in steps of $a$. 
+
+Actually, I think the answer might be $h = 1/99$ rather than $1/98$. Let me reconsider.
+
+For degree $d$ with $P(0) = P(1) = 0$, the polynomial has $d - 1$ roots in total (counting $0$ and $1$), so $d - 2$ "free" roots. Wait, degree $d$ has at most $d$ roots. With $P(0) = P(1) = 0$, two roots are fixed. The remaining $d - 2$ roots are free.
+
+For the degree-3 case, $d = 3$, one free root, placed at $1/2$, giving $h = 1/2$.
+
+Hmm, but the relationship between the root placement and $h$ isn't immediately clear. Let me think again.
+
+In the degree-3 case, the extremal polynomial has roots at $0, 1/2, 1$. The critical $a$ is $1/2$, which is the spacing. For $a > 1/2$, $Q_a$ has no root in $[0, 1-a]$.
+
+Why does $a = 1/2$ work? Because when $a = 1/2$, $Q_{1/2}(0) = P(1/2)$ and $Q_{1/2}(1/2) = -P(1/2)$, so they have opposite signs (or one is zero). This is a special property of $a = 1/2$: the interval $[0, 1-a] = [0, 1/2]$ and the "shifted" interval $[a, 1] = [1/2, 1]$ share the point $1/2$.
+
+More generally, for $a = 1/n$, the intervals $[0, 1-a]$ and $[a, 1]$ overlap at $[a, 1-a] = [1/n, 1 - 1/n]$. And the chain $0, 1/n, 2/n, \ldots, 1$ gives a contradiction as we showed.
+
+But the question is about the maximum $h$ such that the property holds for ALL $a \in [0, h]$, not just $a = 1/n$.
+
+So we need: for every $a \in [0, h]$, the property holds. The property fails for some $a > h$. So $h$ is the infimum of "bad" $a$ values.
+
+From the degree-3 analysis, the property fails for $a > 1/2$ (with the specific polynomial), and holds for $a \leq 1/2$ (for all polynomials). So $h = 1/2$.
+
+Now, for general degree $d$, I expect the extremal polynomial to be related to Chebyshev polynomials, and $h = 1/(d-1)$.
+
+Wait, but let me reconsider. For degree 3, $d - 1 = 2$, $h = 1/2$. For degree 2, $d - 1 = 1$, $h = 1$. So $h = 1/(d-1)$.
+
+For degree 99, $h = 1/98$.
+
+But I need to verify this. Let me think about whether the property holds for all $a \leq 1/(d-1)$ and fails for $a > 1/(d-1)$.
+
+**Failure for $a > 1/(d-1)$:** We need to construct a degree-$d$ polynomial with $P(0) = P(1) = 0$ such that $Q_a$ has no zero in $[0, 1-a]$.
+
+Consider $P(x) = x(1-x) \prod_{k=1}^{d-2} (x - k/(d-1))$. This has roots at $0, 1/(d-1), 2/(d-1), \ldots, (d-2)/(d-1), 1$, equally spaced with gap $1/(d-1)$.
+
+For $a$ slightly larger than $1/(d-1)$, does $Q_a$ have no zero in $[0, 1-a]$?
+
+Hmm, this isn't obvious. Let me think about the degree-3 case more carefully to understand why $a > 1/2$ fails.
+
+For degree 3, $P(x) = x(1-x)(x - 1/2)$. The roots are at $0, 1/2, 1$. The sign of $P$ on $[0,1]$: $P < 0$ on $(0, 1/2)$ and $P > 0$ on $(1/2, 1)$ (since $x(1-x) > 0$ on $(0,1)$ and $x - 1/2$ changes sign at $1/2$).
+
+For $a > 1/2$, $Q_a(x) = P(x+a) - P(x) > 0$ on $[0, 1-a]$. This means $P(x+a) > P(x)$ for all $x \in [0, 1-a]$. Since $x \in [0, 1-a]$ and $x + a \in [a, 1]$, and $a > 1/2$, the intervals $[0, 1-a]$ and $[a, 1]$ are disjoint (since $1 - a < a$). On $[0, 1-a] \subset [0, 1/2)$, $P < 0$, and on $[a, 1] \subset (1/2, 1]$, $P > 0$. So $P(x+a) > 0 > P(x)$, which gives $Q_a > 0$. That's why it works!
+
+So the key is: the extremal polynomial has its "extra" roots dividing $[0,1]$ into regions where $P$ alternates sign, and when $a$ is large enough that $[0, 1-a]$ and $[a, 1]$ fall into different sign regions, $Q_a$ has constant sign.
+
+For degree 3, the root at $1/2$ splits $[0,1]$ into $[0, 1/2]$ (where $P \leq 0$) and $[1/2, 1]$ (where $P \geq 0$). For $a > 1/2$, $[0, 1-a] \subset [0, 1/2)$ and $[a, 1] \subset (1/2, 1]$, so $P$ has different signs, giving $Q_a > 0$.
+
+For $a = 1/2$, $[0, 1-a] = [0, 1/2]$ and $[a, 1] = [1/2, 1]$, they share the point $1/2$ where $P = 0$. So $Q_{1/2}(0) = P(1/2) = 0$, giving a root.
+
+Now for general degree $d$: the extremal polynomial has roots at $0, 1/(d-1), 2/(d-1), \ldots, 1$. The sign of $P$ alternates between consecutive intervals. For $a > 1/(d-1)$, the intervals $[0, 1-a]$ and $[a, 1]$ might fall into regions of the same sign or different signs, depending on the parity.
+
+Wait, but for $a > 1/(d-1)$, we need $P(x+a) - P(x)$ to have constant sign. If $P$ alternates sign, then $P(x+a)$ and $P(x)$ might have the same sign for some $x$ and different signs for others, so $Q_a$ might not have constant sign.
+
+Hmm, so the equally-spaced-roots polynomial might not be the extremal one for all degrees. Let me reconsider.
+
+For degree 3, it worked because there's only one extra root, creating two regions with opposite signs. For higher degrees, the sign pattern is more complex.
+
+Let me reconsider. Maybe the extremal polynomial is not the one with equally spaced roots, but rather a Chebyshev-like polynomial.
+
+Actually, let me think about this problem from a different angle. 
+
+The condition is: for all $a \in [0, h]$, for all degree-99 polynomials $P$ with $P(0) = P(1) = 0$, $Q_a(x) = P(x+a) - P(x)$ has a zero in $[0, 1-a]$.
+
+$Q_a$ is a polynomial of degree 98. The condition $P(0) = P(1) = 0$ translates to conditions on $Q_a$.
+
+Note that $P(0) = 0$ and $P(1) = 0$. Also, $P(x) = P(0) + \int_0^x P'(t) dt$, and $P(1) - P(0) = \int_0^1 P'(t) dt = 0$, so $\int_0^1 P'(t) dt = 0$.
+
+Also, $Q_a(x) = P(x+a) - P(x) = \int_x^{x+a} P'(t) dt$. So $Q_a(x) = \int_0^a P'(x+t) dt$.
+
+The condition $Q_a$ has no zero in $[0, 1-a]$ means $\int_0^a P'(x+t) dt$ has constant sign for $x \in [0, 1-a]$.
+
+Let $f = P'$. Then $f$ is a polynomial of degree 98, and $\int_0^1 f(t) dt = 0$ (since $P(1) - P(0) = 0$). The condition becomes: $F_a(x) := \int_0^a f(x+t) dt = \int_x^{x+a} f(s) ds$ has constant sign on $[0, 1-a]$.
+
+So we need: for every $a \in [0, h]$, every degree-98 polynomial $f$ with $\int_0^1 f = 0$, the function $F_a(x) = \int_x^{x+a} f(s) ds$ has a zero in $[0, 1-a]$.
+
+Equivalently, $F_a$ cannot be strictly positive (or strictly negative) on $[0, 1-a]$.
+
+Note that $\int_0^{1-a} F_a(x) dx = \int_0^{1-a} \int_x^{x+a} f(s) ds \, dx$. Let me compute this.
+
+$\int_0^{1-a} \int_x^{x+a} f(s) ds \, dx = \int_0^{1-a} \int_0^a f(x+t) dt \, dx = \int_0^a \int_0^{1-a} f(x+t) dx \, dt = \int_0^a \int_t^{1-a+t} f(s) ds \, dt$.
+
+$= \int_0^a [\int_0^{1-a+t} f(s) ds - \int_0^t f(s) ds] dt = \int_0^a \int_0^{1-a+t} f(s) ds \, dt - \int_0^a \int_0^t f(s) ds \, dt$.
+
+This is getting complicated. Let me try yet another approach.
+
+Let me think about the problem in terms of the "sliding window" integral. $F_a(x) = \int_x^{x+a} f(s) ds$ is the integral of $f$ over a window of length $a$ starting at $x$. We need this to vanish somewhere in $[0, 1-a]$.
+
+Since $\int_0^1 f = 0$, the total integral is zero. If $F_a$ is always positive on $[0, 1-a]$, that means every window of length $a$ within $[0, 1]$ has positive integral. But the total integral is zero, so the "leftover" parts (the bits not covered, or covered multiple times) must compensate.
+
+Actually, every point $s \in [0, 1]$ is covered by windows starting at $x \in [\max(0, s-a), \min(s, 1-a)]$. The number of windows covering $s$ (in the integral $\int_0^{1-a} F_a(x) dx$) is the length of this interval, which is $\min(s, 1-a) - \max(0, s-a)$. 
+
+For $s \in [0, a]$: coverage is $s - 0 = s$ (wait, $\min(s, 1-a) = s$ if $s \leq 1-a$, and $\max(0, s-a) = 0$ if $s \leq a$). So for $s \in [0, \min(a, 1-a)]$, coverage is $s$.
+
+This is getting complicated for general $a$. Let me focus on the case $a \leq 1/2$ (which is relevant since we expect $h \leq 1/2$ for degree $\geq 3$).
+
+For $a \leq 1/2$: $1 - a \geq a$, so:
+- $s \in [0, a]$: coverage $= s - 0 = s$
+- $s \in [a, 1-a]$: coverage $= s - (s-a) = a$
+- $s \in [1-a, 1]$: coverage $= (1-a) - (s-a) = 1 - s$
+
+So $\int_0^{1-a} F_a(x) dx = \int_0^a s \cdot f(s) ds + a \int_a^{1-a} f(s) ds + \int_{1-a}^1 (1-s) f(s) ds$.
+
+If $F_a > 0$ on $[0, 1-a]$, then $\int_0^{1-a} F_a(x) dx > 0$, so the above is $> 0$.
+
+But we also know $\int_0^1 f(s) ds = 0$, so $\int_a^{1-a} f(s) ds = -\int_0^a f(s) ds - \int_{1-a}^1 f(s) ds$.
+
+Substituting: $\int_0^{1-a} F_a dx = \int_0^a s \cdot f(s) ds - a \int_0^a f(s) ds - a \int_{1-a}^1 f(s) ds + \int_{1-a}^1 (1-s) f(s) ds$.
+
+$= \int_0^a (s - a) f(s) ds + \int_{1-a}^1 (1 - s - a) f(s) ds$.
+
+$= -\int_0^a (a - s) f(s) ds + \int_{1-a}^1 (1 - a - s) f(s) ds$.
+
+$= -\int_0^a (a - s) f(s) ds - \int_{1-a}^1 (s - (1-a)) f(s) ds$.
+
+$= -\int_0^a (a - s) f(s) ds - \int_{1-a}^1 (s - 1 + a) f(s) ds$.
+
+Hmm. So if $F_a > 0$ on $[0, 1-a]$, then $-\int_0^a (a-s) f(s) ds - \int_{1-a}^1 (s - 1 + a) f(s) ds > 0$.
+
+This is a necessary condition, but I'm not sure it directly helps.
+
+Let me try a completely different approach. Let me think about what polynomial $f$ (degree 98, $\int_0^1 f = 0$) can make $F_a(x) = \int_x^{x+a} f(s) ds > 0$ for all $x \in [0, 1-a]$.
+
+$F_a$ is a polynomial of degree 99 in $x$ (since $f$ is degree 98, integrating adds a degree). Wait, $F_a(x) = \int_x^{x+a} f(s) ds = G(x+a) - G(x)$ where $G' = f$, so $G$ is degree 99. Then $F_a = G(x+a) - G(x)$ is degree 98 (leading terms cancel). And $F_a > 0$ on $[0, 1-a]$.
+
+Also, $F_a(0) = G(a) - G(0)$ and $F_a(1-a) = G(1) - G(1-a)$. And $G(1) - G(0) = \int_0^1 f = 0$, so $G(1) = G(0)$. Thus $F_a(0) + F_a(1-a) = G(a) - G(0) + G(1) - G(1-a) = G(a) - G(1-a)$ (since $G(1) = G(0)$).
+
+Hmm, not immediately helpful.
+
+Let me go back to the original formulation with $P$ (degree 99, $P(0) = P(1) = 0$) and $Q_a(x) = P(x+a) - P(x)$ (degree 98).
+
+$Q_a(0) = P(a)$ and $Q_a(1-a) = P(1) - P(1-a) = -P(1-a)$.
+
+If $Q_a > 0$ on $[0, 1-a]$, then $P(a) > 0$ and $-P(1-a) > 0$, i.e., $P(1-a) < 0$.
+
+Also, $P(0) = 0$ and $P(a) > 0$ means $P$ increases from 0 to $a$. And $P(1-a) < 0$ and $P(1) = 0$ means $P$ increases from $1-a$ to $1$.
+
+Now, $Q_a(x) > 0$ means $P(x+a) > P(x)$ for all $x \in [0, 1-a]$. This means $P$ is "increasing with step $a$" on $[0, 1]$.
+
+Consider the sequence $P(0), P(a), P(2a), \ldots$. As long as $ka \leq 1$, we have $P(ka) < P((k+1)a)$ (when $(k+1)a \leq 1$, i.e., $k \leq 1/a - 1$). So $P(0) < P(a) < P(2a) < \ldots < P(\lfloor 1/a \rfloor \cdot a)$.
+
+But $P(0) = 0$ and $P(1) = 0$. If $1/a$ is an integer $n$, then $P(0) < P(a) < \ldots < P(na) = P(1) = 0 = P(0)$, contradiction. So $a = 1/n$ is impossible.
+
+For $a$ not of the form $1/n$, the chain doesn't reach exactly 1, so there's no direct contradiction. But the polynomial structure adds more constraints.
+
+The key insight from the degree-3 case: the extremal $a$ was $1/2 = 1/(d-1)$ where $d = 3$. Let me see if this generalizes.
+
+For degree $d$, the extremal $a$ is $1/(d-1)$. The extremal polynomial has $d - 1$ equally spaced "humps" or something like that.
+
+Actually, let me think about it using the Chebyshev connection. On $[0, 1]$, let $t = 2x - 1 \in [-1, 1]$. The Chebyshev polynomial $T_n(t)$ has $n+1$ extrema with equal magnitude, equally spaced in $t$ (at $t = \cos(k\pi/n)$). But equally spaced in $t$ is not equally spaced in $x$.
+
+Hmm, let me think about the polynomial $P(x) = x(1-x) U_{d-2}(2x-1)$ where $U_{d-2}$ is the Chebyshev polynomial of the second kind. $U_{d-2}(2x-1)$ has $d-2$ zeros at $x = \frac{1 + \cos(k\pi/(d-1))}{2} = \cos^2(k\pi/(2(d-1)))$ for $k = 1, \ldots, d-2$. These are not equally spaced.
+
+Alternatively, consider the polynomial with equally spaced roots: $P(x) = x(1-x) \prod_{k=1}^{d-2} (x - k/(d-1))$. This is related to the Krawtchouk or some discrete orthogonal polynomial.
+
+Actually, let me think about this differently. The polynomial $\prod_{k=0}^{d-1} (x - k/(d-1))$ has equally spaced roots. Up to scaling, this is related to the falling factorial or the Pochhammer symbol.
+
+Let me consider $P(x) = \prod_{k=0}^{d-1} (x - k/(d-1))$ (degree $d$, roots at $0, 1/(d-1), \ldots, 1$). Then $P(0) = 0$ and $P(1) = 0$ (since $1 = (d-1)/(d-1)$ is a root). Good.
+
+For this $P$, what is the behavior of $Q_a(x) = P(x+a) - P(x)$ for $a$ near $1/(d-1)$?
+
+Let me substitute $x = t/(d-1)$, so the roots are at $t = 0, 1, 2, \ldots, d-1$. Then $P(x) = \prod_{k=0}^{d-1} (x - k/(d-1)) = (d-1)^{-d} \prod_{k=0}^{d-1} (t - k) = (d-1)^{-d} \cdot t(t-1)(t-2)\cdots(t-(d-1))$.
+
+Let $R(t) = \prod_{k=0}^{d-1} (t - k) = t(t-1)\cdots(t-(d-1))$. This is the falling factorial $(t)_d$ (in the Pochhammer sense, or rather $t^{\underline{d}}$).
+
+$Q_a(x) = P(x+a) - P(x) = (d-1)^{-d} [R(t + (d-1)a) - R(t)]$ where $t = (d-1)x$.
+
+Let $\alpha = (d-1)a$. Then $Q_a$ corresponds to $R(t + \alpha) - R(t)$, and we need this to have a zero for $t \in [0, (d-1)(1-a)] = [0, (d-1) - \alpha]$.
+
+So the question becomes: for $\alpha = (d-1)a$, does $R(t + \alpha) - R(t)$ have a zero in $[0, (d-1) - \alpha]$?
+
+$R(t) = t(t-1)(t-2)\cdots(t-(d-1))$ has roots at $0, 1, 2, \ldots, d-1$.
+
+$R(t + \alpha) - R(t) > 0$ for $t \in [0, (d-1) - \alpha]$?
+
+For $\alpha = 1$ (i.e., $a = 1/(d-1)$): $R(t+1) - R(t)$. At $t = 0$: $R(1) - R(0) = 0 - 0 = 0$. So $t = 0$ is a root. The property holds.
+
+For $\alpha > 1$ (i.e., $a > 1/(d-1)$): We need $R(t + \alpha) - R(t) > 0$ on $[0, (d-1) - \alpha]$.
+
+$R(t)$ on $[0, d-1]$: it alternates sign between consecutive integers. $R(t) > 0$ on $(0, 1)$ if $d-1$ is even... actually, $R(t) = t(t-1)\cdots(t-(d-1))$, which has $d$ factors. For $t \in (0, 1)$: $t > 0$, $t - 1 < 0$, $t - 2 < 0$, ..., all remaining factors are negative. So sign is $(-1)^{d-1}$ (one positive factor $t$, $d-1$ negative factors). For $t \in (k, k+1)$: $k+1$ factors are positive ($t, t-1, \ldots, t-k$), $d - k - 1$ factors are negative. Sign is $(-1)^{d-k-1}$.
+
+For $\alpha > 1$, the interval $[0, (d-1) - \alpha]$ has length $(d-1) - \alpha < d - 2$. The interval $[\alpha, d-1]$ (where $t + \alpha$ lives) has the same length.
+
+For $R(t + \alpha) - R(t) > 0$, we need $R(t + \alpha) > R(t)$. If $R(t + \alpha)$ and $R(t)$ have different signs, this could go either way. If they have the same sign, we need to compare magnitudes.
+
+This is getting quite involved. Let me try a different approach to determine the answer.
+
+Let me think about the problem using the theory of "Turan-type" inequalities or "equal values" problems.
+
+Actually, I recall that problems of this type (finding the maximum $h$ such that every polynomial of degree $n$ with $P(0) = P(1) = 0$ has two equal values at distance $a$) are related to the "Prouhet-Tarry-Escott" problem or to results by Erdős, Szekeres, and others.
+
+Let me think about the problem more carefully using the approach of signed measures / duality.
+
+We want to show: for $a \leq h$, for every degree-99 polynomial $P$ with $P(0) = P(1) = 0$, $Q_a = P(\cdot + a) - P(\cdot)$ has a zero in $[0, 1-a]$.
+
+Equivalently (contrapositive): there is no degree-99 polynomial $P$ with $P(0) = P(1) = 0$ such that $Q_a > 0$ on $[0, 1-a]$ (or $< 0$).
+
+$Q_a > 0$ on $[0, 1-a]$ means $P(x+a) > P(x)$ for all $x \in [0, 1-a]$.
+
+This is equivalent to: the function $P$ is "strictly increasing under shift by $a$" on $[0, 1]$.
+
+Now, consider the linear functional $L(P) = \sum_{i} c_i P(y_i) - \sum_j d_j P(z_j)$ where $y_i \in [a, 1]$, $z_j \in [0, 1-a]$, $c_i, d_j > 0$. If $L(P) = 0$ for all valid $P$, and if $P(x+a) > P(x)$ on $[0, 1-a]$, then... hmm, this doesn't directly work because the $y_i$ and $z_j$ are not related by shift.
+
+Let me think about it as follows. If $P(x+a) > P(x)$ for $x \in [0, 1-a]$, then for any non-negative measure $\mu$ on $[0, 1-a]$:
+$$\int_0^{1-a} P(x+a) d\mu(x) > \int_0^{1-a} P(x) d\mu(x)$$
+
+i.e., $\int_a^1 P(t) d\mu(t-a) > \int_0^{1-a} P(t) d\mu(t)$.
+
+If we can find $\mu \geq 0$ (not identically zero) such that $\int_a^1 P(t) d\mu(t-a) = \int_0^{1-a} P(t) d\mu(t)$ for all valid $P$, then we have a contradiction.
+
+This means the measure $\nu_1 = \mu(\cdot - a)$ on $[a, 1]$ and $\nu_2 = \mu$ on $[0, 1-a]$ must agree on all degree-99 polynomials with $P(0) = P(1) = 0$.
+
+The condition $P(0) = P(1) = 0$ means $P$ is in the 98-dimensional space $\{P : \deg P \leq 99, P(0) = P(1) = 0\}$. So we need $\nu_1$ and $\nu_2$ to agree on this 98-dimensional space.
+
+Equivalently, $\nu_1 - \nu_2$ (a signed measure on $[0, 1]$) must annihilate all polynomials in this 98-dimensional space. Since $P(0) = P(1) = 0$, we can write $P(t) = t(1-t) S(t)$ with $\deg S \leq 97$. So we need:
+
+$$\int_0^1 t(1-t) S(t) d(\nu_1 - \nu_2)(t) = 0 \quad \forall S, \deg S \leq 97.$$
+
+This means the signed measure $t(1-t) d(\nu_1 - \nu_2)(t)$ annihilates all polynomials of degree $\leq 97$, i.e., its first 98 moments are zero.
+
+Now, $\nu_1$ is supported on $[a, 1]$ and $\nu_2$ on $[0, 1-a]$. The signed measure $\sigma = \nu_1 - \nu_2$ is supported on $[0, 1]$, with $\nu_1$ on $[a, 1]$ and $-\nu_2$ on $[0, 1-a]$.
+
+We need: $t(1-t) d\sigma(t)$ has 98 zero moments, and $\sigma = \nu_1 - \nu_2$ where $\nu_1 \geq 0$ on $[a, 1]$, $\nu_2 \geq 0$ on $[0, 1-a]$, and $\nu_1, \nu_2$ are related by $\nu_1 = \mu(\cdot - a)$, $\nu_2 = \mu$.
+
+The constraint $\nu_1 = \mu(\cdot - a)$ and $\nu_2 = \mu$ means $\nu_1$ is the pushforward of $\nu_2$ under $t \mapsto t + a$. So $\int f d\nu_1 = \int f(t+a) d\nu_2(t)$.
+
+So the condition becomes: $\int_0^{1-a} P(t+a) d\mu(t) = \int_0^{1-a} P(t) d\mu(t)$ for all valid $P$, with $\mu \geq 0$ on $[0, 1-a]$.
+
+This is a quadrature identity: the measure $\mu$ on $[0, 1-a]$ must satisfy $\int P(t+a) d\mu(t) = \int P(t) d\mu(t)$ for all $P$ with $P(0) = P(1) = 0$, $\deg P \leq 99$.
+
+If $\mu$ is a discrete measure with atoms at $x_1, \ldots, x_n \in [0, 1-a]$ with weights $w_1, \ldots, w_n > 0$, then $\sum w_i P(x_i + a) = \sum w_i P(x_i)$ for all valid $P$.
+
+The points $x_i + a \in [a, 1]$ and $x_i \in [0, 1-a]$. We need the "shifted quadrature" to match.
+
+Now, the number of conditions is 98 (dimension of the space of valid $P$). With $n$ atoms, we have $2n$ free parameters ($n$ positions and $n$ weights). So we need $2n \geq 98$, i.e., $n \geq 49$.
+
+But actually, we also need $w_i > 0$ and $x_i \in [0, 1-a]$. The existence of such a quadrature formula is a non-trivial question.
+
+This is related to the theory of Gaussian quadrature and positive quadrature formulas.
+
+Hmm, let me think about this from the perspective of the answer. I suspect the answer is $h = 1/99$ based on the following reasoning:
+
+The polynomial $P$ has degree 99 and $P(0) = P(1) = 0$, so it has 98 free parameters. The function $Q_a$ has degree 98 and needs to have a zero in $[0, 1-a]$. The "worst case" is when $Q_a$ just barely touches zero, which happens when $Q_a$ has a double root at the boundary.
+
+Actually, let me think about it more carefully. The condition that $Q_a$ has no zero in $[0, 1-a]$ is an open condition (in the space of $P$'s). The boundary of this condition is when $Q_a$ has a zero at the boundary of $[0, 1-a]$, i.e., $Q_a(0) = 0$ or $Q_a(1-a) = 0$, or $Q_a$ has a double root in $[0, 1-a]$.
+
+$Q_a(0) = P(a) = 0$ means $a$ is a root of $P$. $Q_a(1-a) = -P(1-a) = 0$ means $1-a$ is a root of $P$.
+
+So the critical $a$ values are related to the roots of the extremal polynomial.
+
+For the extremal polynomial with roots at $0, r_1, r_2, \ldots, r_{d-2}, 1$, the critical $a$ values are $a = r_i$ (from $Q_a(0) = 0$) and $a = 1 - r_i$ (from $Q_a(1-a) = 0$). The smallest positive critical $a$ determines $h$.
+
+For the polynomial with equally spaced roots $0, 1/(d-1), 2/(d-1), \ldots, 1$, the critical $a$ values are $1/(d-1), 2/(d-1), \ldots$ and $1 - 1/(d-1), 1 - 2/(d-1), \ldots$. The smallest is $1/(d-1)$.
+
+But we need to verify that for $a < 1/(d-1)$, the property holds for ALL polynomials, not just this one. And for $a > 1/(d-1)$, there exists a polynomial violating the property.
+
+Let me think about the upper bound (failure for $a > 1/(d-1)$) first.
+
+**Claim:** For $a > 1/(d-1)$, the polynomial $P(x) = \prod_{k=0}^{d-1} (x - k/(d-1))$ satisfies $Q_a > 0$ or $Q_a < 0$ on $[0, 1-a]$.
+
+Using the substitution $t = (d-1)x$, $\alpha = (d-1)a > 1$, we need $R(t+\alpha) - R(t)$ to have constant sign on $[0, (d-1) - \alpha]$, where $R(t) = \prod_{k=0}^{d-1}(t - k)$.
+
+$R(t+\alpha) - R(t)$: Let's think about the sign. For $t \in [0, (d-1) - \alpha]$ and $\alpha > 1$, $t + \alpha \in [\alpha, d-1]$.
+
+Consider $t$ slightly above 0 and $\alpha$ slightly above 1. Then $t \in (0, 1)$ and $t + \alpha \in (1, 2)$. $R(t) = t(t-1)(t-2)\cdots(t-(d-1))$. For $t \in (0,1)$: $t > 0$, $t-1 < 0$, ..., all others negative. Sign $= (-1)^{d-1}$. For $t + \alpha \in (1, 2)$: $(t+\alpha) > 0$, $(t+\alpha-1) > 0$, $(t+\alpha-2) < 0$, ..., rest negative. Sign $= (-1)^{d-2}$.
+
+So $R(t+\alpha)$ has sign $(-1)^{d-2}$ and $R(t)$ has sign $(-1)^{d-1} = -(-1)^{d-2}$. So $R(t+\alpha) - R(t) = (-1)^{d-2}|R(t+\alpha)| - (-1)^{d-1}|R(t)| = (-1)^{d-2}[|R(t+\alpha)| + |R(t)|]$, which has sign $(-1)^{d-2}$.
+
+But this is only for $t \in (0, 1)$ and $t + \alpha \in (1, 2)$. For other ranges of $t$, the signs might differ.
+
+For $t \in (1, 2)$ (if $1 < (d-1) - \alpha$, i.e., $\alpha < d - 2$): $t + \alpha \in (1+\alpha, 2+\alpha) \subset (2, 3)$ (if $\alpha$ slightly > 1). $R(t)$ for $t \in (1,2)$: sign $(-1)^{d-2}$. $R(t+\alpha)$ for $t+\alpha \in (2,3)$: sign $(-1)^{d-3}$. So $R(t+\alpha) - R(t) = (-1)^{d-3}|R(t+\alpha)| - (-1)^{d-2}|R(t)| = (-1)^{d-3}[|R(t+\alpha)| + |R(t)|]$, sign $(-1)^{d-3}$.
+
+This is different from the sign for $t \in (0,1)$, which was $(-1)^{d-2}$. So the sign changes! This means $R(t+\alpha) - R(t)$ does NOT have constant sign on $[0, (d-1)-\alpha]$ in general.
+
+So the equally-spaced-roots polynomial does NOT work as the extremal polynomial for $d \geq 4$. The sign of $Q_a$ changes between different intervals.
+
+This means my conjecture $h = 1/(d-1)$ might be wrong, or the extremal polynomial is different.
+
+Let me reconsider. For degree 3, the equally-spaced polynomial worked because there was only one "interior" interval on each side. For higher degrees, the sign changes, so we need a different polynomial.
+
+Let me think about what polynomial would make $Q_a$ have constant sign. We need $P(x+a) > P(x)$ for all $x \in [0, 1-a]$. This is a strong condition.
+
+One approach: use a polynomial that is "convex-like" with respect to shift by $a$. For instance, if $P$ is concave on $[0, 1]$ with $P(0) = P(1) = 0$, then... no, concavity doesn't directly give $P(x+a) > P(x)$.
+
+Actually, let me think about the problem from the perspective of the number of sign changes of $Q_a$.
+
+$Q_a(x) = P(x+a) - P(x)$ has degree 98. It can have at most 98 zeros. If it has no zero in $[0, 1-a]$, it has constant sign there.
+
+The constraints on $Q_a$ from $P(0) = P(1) = 0$:
+- $Q_a(0) = P(a)$, $Q_a(1-a) = -P(1-a)$.
+- $Q_a(-a) = P(0) - P(-a) = -P(-a)$ (but $-a \notin [0, 1-a]$ in general).
+- $Q_a(1) = P(1+a) - P(1) = P(1+a)$ (outside $[0,1]$).
+
+Also, $\int_0^{1-a} Q_a(x) dx = \int_a^1 P(t) dt - \int_0^{1-a} P(t) dt$.
+
+And $\sum_{k=0}^{n-1} Q_a(ka) = P(na) - P(0) = P(na)$ if $na \leq 1$, or telescoping.
+
+Hmm, let me try a different approach. Let me look at the problem from the perspective of the "finite difference" operator.
+
+$Q_a(x) = P(x+a) - P(x) = \Delta_a P(x)$, the forward difference with step $a$.
+
+The $k$-th forward difference $\Delta_a^k P(x) = \sum_{j=0}^k (-1)^{k-j} \binom{k}{j} P(x + ja)$.
+
+For a polynomial of degree $d$, $\Delta_a^d P$ is a constant (the leading coefficient times $d! \cdot a^d$), and $\Delta_a^{d-1} P$ is linear.
+
+Now, if $\Delta_a P(x) > 0$ on $[0, 1-a]$, what can we say about higher differences?
+
+$\Delta_a P > 0$ on $[0, 1-a]$ means $P$ is "discretely increasing" with step $a$.
+
+Consider the values $P(0), P(a), P(2a), \ldots, P(ka)$ where $k = \lfloor 1/a \rfloor$. We have $P(0) < P(a) < \ldots < P(ka)$. But $P(0) = 0$ and $P(1) = 0$.
+
+If $ka = 1$ (i.e., $a = 1/k$), contradiction. If $ka < 1 < (k+1)a$, then $P(ka) > 0$ (from the chain) and $P(1) = 0$, so $P$ decreases from $P(ka)$ to $P(1) = 0$ over an interval of length $1 - ka < a$. But $\Delta_a P(ka) = P(ka + a) - P(ka)$, and $ka + a > 1$, so this is outside the range where we know $\Delta_a P > 0$.
+
+So the chain argument alone doesn't give a contradiction for $a \neq 1/n$. We need to use the polynomial structure.
+
+Let me think about the problem using the approach of counting zeros with multiplicity.
+
+$Q_a(x) = P(x+a) - P(x)$ has degree 98. If $Q_a$ has no zero in $[0, 1-a]$, then all 98 zeros (counting multiplicity) are outside $[0, 1-a]$, i.e., in $(-\infty, 0) \cup (1-a, \infty)$.
+
+But $Q_a$ also satisfies certain constraints. Let me think about what constraints $P(0) = P(1) = 0$ impose on $Q_a$.
+
+$P(0) = 0$: $Q_a(-a) = P(0) - P(-a) = -P(-a)$. Not directly useful.
+$P(1) = 0$: $Q_a(1-a) = P(1) - P(1-a) = -P(1-a)$. 
+
+Also, $P(x) = P(0) + \int_0^x P'(t) dt = \int_0^x P'(t) dt$, and $P(1) = \int_0^1 P'(t) dt = 0$.
+
+$Q_a(x) = \int_x^{x+a} P'(t) dt$. Let $f = P'$, degree 98, $\int_0^1 f = 0$.
+
+$Q_a(x) = \int_0^a f(x+t) dt$. This is the "moving average" of $f$ over a window of length $a$.
+
+We need: for all $f$ of degree 98 with $\int_0^1 f = 0$, the moving average $M_a(x) = \int_0^a f(x+t) dt$ has a zero in $[0, 1-a]$.
+
+$M_a$ has degree 99 (it's an antiderivative of $f(x+a) - f(x)$... wait, no. $M_a(x) = F(x+a) - F(x)$ where $F' = f$, $F$ is degree 99. So $M_a = Q_a$ has degree 98. Right.
+
+Hmm, I keep going in circles. Let me try to think about the problem for small degrees and find the pattern.
+
+**Degree 2:** $P(x) = cx(1-x)$, $h = 1$.
+**Degree 3:** $P(x) = x(1-x)(\alpha x + \beta)$, $h = 1/2$.
+
+Let me try **degree 4**: $P(x) = x(1-x) R(x)$, $\deg R = 2$. $R(x) = \alpha x^2 + \beta x + \gamma$.
+
+$Q_a(x) = P(x+a) - P(x)$, degree 3. We need a root in $[0, 1-a]$.
+
+For $Q_a$ to have no root in $[0, 1-a]$, the cubic $Q_a$ must have constant sign there. A cubic with constant sign on an interval must have all its roots outside that interval.
+
+Let me try the polynomial $P(x) = x(1-x)(x - 1/3)(x - 2/3)$ and check if $Q_a$ has constant sign for $a > 1/3$.
+
+Using $t = 3x$, $P = (t/3)(1 - t/3)(t/3 - 1/3)(t/3 - 2/3) = \frac{t(3-t)(t-1)(t-2)}{81}$. Let $R(t) = t(t-1)(t-2)(3-t) = -t(t-1)(t-2)(t-3)$. So $P(x) = -R(3x)/81$ where $R(t) = t(t-1)(t-2)(t-3)$.
+
+$Q_a(x) = P(x+a) - P(x) = -\frac{1}{81}[R(3(x+a)) - R(3x)] = -\frac{1}{81}[R(3x + 3a) - R(3x)]$.
+
+Let $\alpha = 3a$, $s = 3x$. We need $R(s + \alpha) - R(s)$ to have constant sign on $s \in [0, 3 - \alpha]$.
+
+$R(t) = t(t-1)(t-2)(t-3)$. Roots at $0, 1, 2, 3$.
+
+For $\alpha > 1$ (i.e., $a > 1/3$), consider $s \in [0, 3 - \alpha]$.
+
+If $\alpha$ is slightly above 1, say $\alpha = 1 + \epsilon$:
+- $s \in [0, 3 - 1 - \epsilon] = [0, 2 - \epsilon]$.
+- $s + \alpha \in [1 + \epsilon, 3]$.
+
+For $s \in (0, 1 - \epsilon)$: $s \in (0, 1)$, $s + \alpha \in (1+\epsilon, 2)$. 
+$R(s)$: $s > 0, s-1 < 0, s-2 < 0, s-3 < 0$. Sign $= (-1)^3 = -1$.
+$R(s+\alpha)$: $s+\alpha \in (1, 2)$, so $s+\alpha > 0, s+\alpha - 1 > 0, s+\alpha - 2 < 0, s+\alpha - 3 < 0$. Sign $= (-1)^2 = +1$.
+$R(s+\alpha) - R(s) = (+)|R(s+\alpha)| - (-)|R(s)| = |R(s+\alpha)| + |R(s)| > 0$.
+
+For $s \in (1 - \epsilon, 1 + \epsilon)$... wait, $s \in [0, 2 - \epsilon]$, and we need to be more careful.
+
+For $s \in (1, 2 - \epsilon)$: $s \in (1, 2)$, $s + \alpha \in (2 + \epsilon, 3)$.
+$R(s)$: $s > 0, s-1 > 0, s-2 < 0, s-3 < 0$. Sign $= (-1)^2 = +1$.
+$R(s+\alpha)$: $s+\alpha \in (2, 3)$, so $s+\alpha > 0, s+\alpha-1 > 0, s+\alpha-2 > 0, s+\alpha-3 < 0$. Sign $= (-1)^1 = -1$.
+$R(s+\alpha) - R(s) = (-)|R(s+\alpha)| - (+)|R(s)| = -|R(s+\alpha)| - |R(s)| < 0$.
+
+So the sign changes! For $s \in (0, 1-\epsilon)$, $R(s+\alpha) - R(s) > 0$, and for $s \in (1, 2-\epsilon)$, $R(s+\alpha) - R(s) < 0$. So $Q_a$ does NOT have constant sign. The equally-spaced polynomial doesn't work for degree 4.
+
+So the extremal polynomial for degree 4 is NOT the one with equally spaced roots. I need to find a different polynomial.
+
+Let me think about what polynomial would work. We need $P(x+a) > P(x)$ for all $x \in [0, 1-a]$, with $P(0) = P(1) = 0$, degree 4.
+
+This means $P$ is "increasing with shift $a$". One way to achieve this: $P$ has a specific shape where shifting by $a$ always gives a higher value.
+
+Consider $P(x) = x(1-x) \cdot [(x - 1/2)^2 - c]$ for some constant $c$. This is degree 4 with $P(0) = P(1) = 0$. The factor $(x-1/2)^2 - c$ has roots at $x = 1/2 \pm \sqrt{c}$.
+
+For $P(x+a) > P(x)$ on $[0, 1-a]$, we need... let me think about what shape $P$ should have.
+
+If $P$ is "U-shaped" on $[0, 1]$ (negative in the middle, zero at endpoints), then for large enough $a$, $P(x+a) > P(x)$ because $x$ is in the "deeper" part and $x+a$ is closer to the endpoint. But $P(0) = P(1) = 0$ and $P < 0$ in between means $P$ is like $-x(1-x)$, which is degree 2. For degree 4, we can have a more complex shape.
+
+Wait, for $P(x+a) > P(x)$ with $P(0) = 0$, we need $P(a) > 0$. But if $P < 0$ on $(0, 1)$ (like $-x(1-x)$), then $P(a) < 0$, contradiction. So $P$ must be positive somewhere.
+
+Hmm, let me reconsider. For $P(x+a) > P(x)$ on $[0, 1-a]$:
+- $P(a) > P(0) = 0$, so $P(a) > 0$.
+- $P(1) > P(1-a)$, so $0 > P(1-a)$, i.e., $P(1-a) < 0$.
+
+So $P$ is positive near $a$ and negative near $1-a$. If $a < 1/2$, then $a < 1-a$, so $P$ goes from positive (at $a$) to negative (at $1-a$). This means $P$ has a zero in $(a, 1-a)$.
+
+For $a > 1/2$, $a > 1-a$, so $P$ is positive at $a$ (which is $> 1/2$) and negative at $1-a$ (which is $< 1/2$). So $P$ has a zero in $(1-a, a)$.
+
+In either case, $P$ has a zero in $(\min(a, 1-a), \max(a, 1-a))$.
+
+For degree 4, $P$ has at most 4 roots, two of which are 0 and 1. So there are at most 2 more roots. The condition above forces at least one root in $(\min(a,1-a), \max(a,1-a))$.
+
+But this doesn't directly give us the answer. Let me think more carefully.
+
+Let me try to find the extremal polynomial for degree 4 by considering the "boundary" case where $Q_a$ just touches zero.
+
+At the critical $a = h$, there exists a polynomial $P$ such that $Q_a$ has a zero in $[0, 1-a]$ but just barely (e.g., a double root). For $a$ slightly above $h$, $Q_a$ has no zero.
+
+The critical case: $Q_a$ has a double root at some point in $[0, 1-a]$, or a root at the boundary.
+
+Case 1: $Q_a(0) = 0$, i.e., $P(a) = 0$. Then $a$ is a root of $P$. Since $P(0) = P(1) = 0$ and $\deg P = 4$, $P$ has roots $0, a, r, 1$ (or $0, a, 1$ with $a$ double, etc.). If $P(x) = cx(1-x)(x-a)(x-r)$, then $Q_a(x) = P(x+a) - P(x)$. At $x = 0$: $Q_a(0) = P(a) = 0$. For $Q_a$ to have no other zero in $(0, 1-a]$, we need $Q_a$ to not change sign, i.e., $x = 0$ is a double root (or $Q_a$ doesn't change sign at $x = 0$).
+
+$Q_a'(0) = P'(a) - P'(0)$. $P'(a) = c \cdot [(1-a)(a-a)(a-r) + \ldots] = 0$ (since $(a-a) = 0$ is a factor). Wait, $P(x) = cx(1-x)(x-a)(x-r)$, so $P'(a) = ca(1-a)(a-r)$ (by product rule, only the term where we differentiate $(x-a)$ survives... no, that's not right. Let me use the product rule properly.
+
+$P(x) = c \cdot x \cdot (1-x) \cdot (x-a) \cdot (x-r)$.
+$P'(x) = c[(1-x)(x-a)(x-r) + x \cdot (-(x-a)(x-r)) + x(1-x)(x-r) + x(1-x)(x-a)]$.
+
+At $x = a$: $P'(a) = c[(1-a) \cdot 0 \cdot (a-r) + a \cdot (-(0)(a-r)) + a(1-a)(a-r) + a(1-a) \cdot 0] = c \cdot a(1-a)(a-r)$.
+
+At $x = 0$: $P'(0) = c[(1)(−a)(−r) + 0 + 0 + 0] = c \cdot ar$.
+
+So $Q_a'(0) = P'(a) - P'(0) = c[a(1-a)(a-r) - ar] = ca[(1-a)(a-r) - r] = ca[(1-a)a - (1-a)r - r] = ca[a(1-a) - r(2-a)]$.
+
+For $x = 0$ to be a double root of $Q_a$, we need $Q_a'(0) = 0$, i.e., $a(1-a) = r(2-a)$, i.e., $r = \frac{a(1-a)}{2-a}$.
+
+Then $P(x) = cx(1-x)(x-a)(x - \frac{a(1-a)}{2-a})$.
+
+We also need $Q_a$ to have no other zero in $(0, 1-a]$. This is a condition on $a$.
+
+This is getting very complicated. Let me try a different approach.
+
+Let me think about the problem using the theory of Chebyshev polynomials and the "alternation" principle.
+
+Actually, let me reconsider the problem. The answer for degree 3 was $h = 1/2$. Let me see if there's a pattern by considering the problem in terms of the number of "humps" of the polynomial.
+
+For degree $d$ with $P(0) = P(1) = 0$, the polynomial $P$ has $d - 2$ "interior" roots and $d - 1$ "humps" (local extrema) in $(0, 1)$ (roughly). The extremal polynomial for the "equal values at distance $a$" problem is the one that is "most spread out" in some sense.
+
+I think the answer might be $h = 1/99$ for degree 99. Let me see if I can argue this.
+
+Actually, wait. Let me reconsider the degree-3 case. $h = 1/2 = 1/(3-1)$. But maybe for degree 4, $h$ is something else.
+
+Let me try to compute the degree-4 case more carefully. I'll try to find the maximum $a$ for which a degree-4 polynomial with $P(0) = P(1) = 0$ can have $Q_a > 0$ on $[0, 1-a]$.
+
+Consider $P(x) = x(1-x) R(x)$ where $R(x) = \alpha x^2 + \beta x + \gamma$, degree 2.
+
+$Q_a(x) = P(x+a) - P(x) = (x+a)(1-x-a) R(x+a) - x(1-x) R(x)$.
+
+This is degree 4 in $x$ (wait, degree 3 since the $x^4$ terms cancel? Let me check: $P$ is degree 4, so $P(x+a) - P(x)$ is degree 3). Yes, degree 3.
+
+For $Q_a$ to have no zero in $[0, 1-a]$, the cubic $Q_a$ must have constant sign there. A cubic with constant sign on an interval must have all real roots outside that interval (or one real root outside and two complex roots).
+
+Let me try a specific form. Consider $P(x) = x(1-x) [(x - 1/2)^2 - c]$ for some $c > 0$. This is symmetric about $x = 1/2$.
+
+$P(x) = x(1-x)(x^2 - x + 1/4 - c) = x(1-x)(x^2 - x + (1/4 - c))$.
+
+Let $c = 1/4 - \delta$ for small $\delta > 0$, so $R(x) = x^2 - x + \delta$. Then $P(x) = x(1-x)(x^2 - x + \delta)$.
+
+Note $x(1-x) = x - x^2 = -(x^2 - x)$. Let $u = x^2 - x = x(x-1)$. Then $P(x) = -u(u + \delta) = -u^2 - \delta u$.
+
+So $P(x) = -(x^2 - x)^2 - \delta(x^2 - x) = -x^2(1-x)^2 - \delta x(1-x) \cdot (-1) = -x^2(1-x)^2 + \delta x(1-x)$.
+
+Wait, let me redo: $u = x^2 - x$, $P = -u(u + \delta) = -u^2 - \delta u$. $u = x(x-1) = -x(1-x)$. So $u^2 = x^2(1-x)^2$ and $-u = x(1-x)$. $P = -x^2(1-x)^2 + \delta x(1-x) = x(1-x)[\delta - x(1-x)]$.
+
+So $P(x) = x(1-x)[\delta - x(1-x)]$. This is a nice form. $P(0) = P(1) = 0$. The factor $\delta - x(1-x)$ has roots when $x(1-x) = \delta$, i.e., $x = \frac{1 \pm \sqrt{1 - 4\delta}}{2}$. For $\delta < 1/4$, these are real and in $(0, 1)$.
+
+$P(x) = x(1-x)[\delta - x(1-x)]$. On $[0, 1]$, $x(1-x) \in [0, 1/4]$. So $P(x) = x(1-x)[\delta - x(1-x)]$. $P > 0$ when $x(1-x) < \delta$ (near the endpoints) and $P < 0$ when $x(1-x) > \delta$ (in the middle).
+
+Now, $Q_a(x) = P(x+a) - P(x) = (x+a)(1-x-a)[\delta - (x+a)(1-x-a)] - x(1-x)[\delta - x(1-x)]$.
+
+Let $g(x) = x(1-x)$ and $P(x) = g(x)[\delta - g(x)] = \delta g(x) - g(x)^2$.
+
+$Q_a(x) = \delta[g(x+a) - g(x)] - [g(x+a)^2 - g(x)^2] = [g(x+a) - g(x)][\delta - g(x+a) - g(x)]$.
+
+So $Q_a(x) = [g(x+a) - g(x)] \cdot [\delta - g(x+a) - g(x)]$.
+
+Now, $g(x+a) - g(x) = (x+a)(1-x-a) - x(1-x) = (x+a)(1-x) - (x+a)a - x(1-x) = (1-x)(x+a-x) - a(x+a) = a(1-x) - a(x+a) = a(1-x-x-a) = a(1 - 2x - a)$.
+
+So $g(x+a) - g(x) = a(1 - 2x - a)$.
+
+And $g(x+a) + g(x) = (x+a)(1-x-a) + x(1-x)$. Let me compute: $(x+a)(1-x-a) = (x+a)(1-x) - a(x+a) = (1-x)(x+a) - ax - a^2 = x + a - x^2 - ax - ax - a^2 = x + a - x^2 - 2ax - a^2$. And $x(1-x) = x - x^2$. Sum: $2x + a - 2x^2 - 2ax - a^2 = -2x^2 + 2x(1-a) + a - a^2 = -2x^2 + 2(1-a)x + a(1-a)$.
+
+So $Q_a(x) = a(1 - 2x - a) \cdot [\delta - (-2x^2 + 2(1-a)x + a(1-a))] = a(1 - 2x - a) \cdot [\delta + 2x^2 - 2(1-a)x - a(1-a)]$.
+
+The first factor $a(1 - 2x - a) = 0$ at $x = (1-a)/2$.
+
+The second factor $2x^2 - 2(1-a)x + \delta - a(1-a) = 0$ has discriminant $4(1-a)^2 - 8(\delta - a(1-a)) = 4(1-a)^2 - 8\delta + 8a(1-a) = 4(1-a)[(1-a) + 2a] - 8\delta = 4(1-a)(1+a) - 8\delta = 4(1 - a^2) - 8\delta$.
+
+Roots: $x = \frac{2(1-a) \pm \sqrt{4(1-a^2) - 8\delta}}{4} = \frac{(1-a) \pm \sqrt{(1-a^2) - 2\delta}}{2}$.
+
+For $Q_a$ to have no zero in $[0, 1-a]$, we need:
+1. $x = (1-a)/2 \notin [0, 1-a]$, which is impossible since $(1-a)/2 \in [0, 1-a]$ for $a \in [0, 1]$. 
+
+Wait, $(1-a)/2$ is always in $[0, 1-a]$ for $a \in [0, 1]$. So the first factor always has a zero in $[0, 1-a]$! This means $Q_a$ always has a zero at $x = (1-a)/2$ for this symmetric polynomial.
+
+So the symmetric polynomial $P(x) = x(1-x)[\delta - x(1-x)]$ always has $Q_a$ vanishing at $x = (1-a)/2$, regardless of $a$ and $\delta$. This is because of the symmetry: $g(x+a) - g(x) = 0$ at $x = (1-a)/2$ (by symmetry of $g$ about $1/2$).
+
+So symmetric polynomials don't work as extremal. We need asymmetric polynomials.
+
+Let me try $P(x) = x(1-x)(x - r)(x - s)$ with $r \neq 1 - s$ (asymmetric).
+
+This is getting very complicated for degree 4. Let me try to think about the general problem differently.
+
+Let me go back to the approach using duality / quadrature. The question is: for what $a$ does there exist a non-negative measure $\mu$ on $[0, 1-a]$ (not identically zero) such that $\int_0^{1-a} P(x+a) d\mu(x) = \int_0^{1-a} P(x) d\mu(x)$ for all degree-99 polynomials $P$ with $P(0) = P(1) = 0$?
+
+If such $\mu$ exists, then $Q_a$ must have a zero (by the argument above). If no such $\mu$ exists, then there might be a $P$ with $Q_a > 0$ on $[0, 1-a]$.
+
+The condition is: $\int_0^{1-a} [P(x+a) - P(x)] d\mu(x) = 0$ for all valid $P$. Since $P(x) = x(1-x) S(x)$ with $\deg S \leq 97$, this becomes:
+
+$\int_0^{1-a} [(x+a)(1-x-a) S(x+a) - x(1-x) S(x)] d\mu(x) = 0$ for all $S$ of degree $\leq 97$.
+
+This is a system of 98 equations (one for each basis element of the space of $S$). The unknowns are the measure $\mu$ (which is infinite-dimensional if we allow continuous measures, or $2n$-dimensional if we use $n$ point masses).
+
+For a discrete measure with $n$ atoms at $x_1, \ldots, x_n \in [0, 1-a]$ with weights $w_1, \ldots, w_n > 0$:
+
+$\sum_{i=1}^n w_i [(x_i+a)(1-x_i-a) S(x_i+a) - x_i(1-x_i) S(x_i)] = 0$ for all $S$, $\deg S \leq 97$.
+
+This is 98 equations in $2n$ unknowns ($x_i$ and $w_i$). For a solution to exist, we need $2n \geq 98$, so $n \geq 49$.
+
+But we also need $w_i > 0$ and $x_i \in [0, 1-a]$. The existence of a positive solution is a non-trivial question.
+
+Actually, I think the right approach is to use the theory of "positive quadrature formulas" or "Marcinkiewicz-type" results.
+
+Let me think about this differently. The condition $\int_0^{1-a} [P(x+a) - P(x)] d\mu(x) = 0$ can be rewritten as:
+
+$\int_a^1 P(t) d\mu(t-a) = \int_0^{1-a} P(t) d\mu(t)$.
+
+This says: the measure $\mu$ shifted by $a$ (giving a measure on $[a, 1]$) and the measure $\mu$ itself (on $[0, 1-a]$) give the same integral for all valid $P$.
+
+Since $P(0) = P(1) = 0$, the values of the measures at $0$ and $1$ don't matter. The condition is that the two measures agree on the 98-dimensional space of polynomials $P$ with $P(0) = P(1) = 0$, $\deg P \leq 99$.
+
+Now, consider the "overlap" region $[a, 1-a]$ (assuming $a \leq 1/2$). Both the shifted measure $\mu(\cdot - a)$ and $\mu$ itself are supported on this region (among others). On $[a, 1-a]$, the condition becomes:
+
+$\int_a^{1-a} P(t) d\mu(t-a) = \int_a^{1-a} P(t) d\mu(t)$ for all valid $P$.
+
+But also, $\mu(\cdot - a)$ has support on $[a, 1]$ and $\mu$ has support on $[0, 1-a]$. On $[0, a)$, only $\mu$ contributes (from the right side). On $(1-a, 1]$, only $\mu(\cdot - a)$ contributes (from the left side).
+
+The condition on $[0, a)$: $\int_0^a P(t) d\mu(t) = 0$ for all valid $P$? No, that's not right. Let me re-examine.
+
+$\int_a^1 P(t) d\mu(t-a) = \int_0^{1-a} P(t) d\mu(t)$.
+
+Split the left integral: $\int_a^{1-a} P(t) d\mu(t-a) + \int_{1-a}^1 P(t) d\mu(t-a) = \int_0^a P(t) d\mu(t) + \int_a^{1-a} P(t) d\mu(t)$.
+
+So: $\int_a^{1-a} P(t) [d\mu(t-a) - d\mu(t)] + \int_{1-a}^1 P(t) d\mu(t-a) - \int_0^a P(t) d\mu(t)

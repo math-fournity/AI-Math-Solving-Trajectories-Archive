@@ -1,0 +1,1902 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   Find \( \lim_{n\to\infty} \cos\left(\frac{\pi}{4}\right) \cos\left(\frac{\pi}{8}\right)\ldots \cos\left(\frac{\pi}{2^n}\right) \).       — 题目文本
+#   Alright, so I need to find the limit as n approaches infinity of the product of cosines starting from π/4 up to π/2^n. Let me write that down properly:
+
+\[
+\lim_{n \to \infty} \cos\left(\frac{\pi}{4}\right) \cos\left(\frac{\pi}{8}\right) \ldots \cos\left(\frac{\pi}{2^n}\right)
+\]
+
+Hmm, okay. So each term in the product is a cosine of an angle that's half of the previous one. Starting at π/4, then π/8, π/16, and so on, until π/2^n. I remember that there are some infinite product formulas involving sines and cosines, maybe I can use one of those?
+
+Wait, I think there's a formula that relates the product of cosines to the sine function. Let me recall. Something like:
+
+\[
+\prod_{k=1}^{\infty} \cos\left(\frac{\theta}{2^k}\right) = \frac{\sin \theta}{\theta}
+\]
+
+Is that right? Let me check for a simple case. If θ = π/2, then the product would be cos(π/4) cos(π/8) cos(π/16)... which is similar to what we have here. According to the formula, that product should be sin(π/2)/(π/2) = 2/π. But wait, in our problem, the first term is cos(π/4), which would correspond to k=2 in the formula, because θ/2^k would start at θ/2^2. If we take θ = π/2, then θ/2^2 = π/8, but our first term is π/4. Hmm, maybe I need to adjust the formula.
+
+Alternatively, perhaps the formula is:
+
+\[
+\prod_{k=1}^{n} \cos\left(\frac{\theta}{2^k}\right) = \frac{\sin \theta}{2^n \sin\left(\frac{\theta}{2^n}\right)}
+\]
+
+Yes, that rings a bell. Let me verify this for a small n. Let's take n=1. Then the left side is cos(θ/2), and the right side is sinθ/(2 sin(θ/2)). Using double-angle identity: sinθ = 2 sin(θ/2) cos(θ/2), so sinθ/(2 sin(θ/2)) = cos(θ/2). That checks out for n=1. How about n=2? Left side: cos(θ/2) cos(θ/4). Right side: sinθ/(4 sin(θ/4)). Let's compute sinθ = 2 sin(θ/2) cos(θ/2), so sinθ/(4 sin(θ/4)) = (2 sin(θ/2) cos(θ/2))/(4 sin(θ/4)) = (sin(θ/2) cos(θ/2))/(2 sin(θ/4)). Then, sin(θ/2) = 2 sin(θ/4) cos(θ/4), so substituting that in: (2 sin(θ/4) cos(θ/4) * cos(θ/2))/(2 sin(θ/4)) ) = cos(θ/4) cos(θ/2). Which is the same as the left side. So yes, the formula seems correct.
+
+Therefore, in general:
+
+\[
+\prod_{k=1}^{n} \cos\left(\frac{\theta}{2^k}\right) = \frac{\sin \theta}{2^n \sin\left(\frac{\theta}{2^n}\right)}
+\]
+
+So if I take the limit as n approaches infinity, what happens? Let's see:
+
+\[
+\lim_{n \to \infty} \frac{\sin \theta}{2^n \sin\left(\frac{\theta}{2^n}\right)}
+\]
+
+As n becomes very large, θ/2^n becomes very small. Remember that for small x, sinx ≈ x. Therefore, sin(θ/2^n) ≈ θ/2^n. So substituting that in, the denominator becomes 2^n * (θ / 2^n) ) = θ. Therefore, the limit becomes sinθ / θ.
+
+Therefore,
+
+\[
+\prod_{k=1}^{\infty} \cos\left(\frac{\theta}{2^k}\right) = \frac{\sin \theta}{\theta}
+\]
+
+So that's the formula. Now, in our problem, the product starts at cos(π/4) which is θ/2^2 where θ would be π. Wait, let's see. Let me check:
+
+If θ = π, then the product would be:
+
+cos(π/2^1) cos(π/2^2) cos(π/2^3) ... = cos(π/2) cos(π/4) cos(π/8) ... but the first term is cos(π/2) which is 0. That's not helpful. Wait, but in our problem, the first term is cos(π/4) = cos(π/2^2). So maybe we need to adjust θ such that the first term is θ/2^2 = π/4. Let's solve for θ:
+
+θ / 2^2 = π/4 ⇒ θ = π/4 * 4 = π. Wait, so θ = π. Then the product would be:
+
+cos(π/2^2) cos(π/2^3) cos(π/2^4) ... up to n terms. But if θ = π, then according to the formula,
+
+\[
+\prod_{k=2}^{\infty} \cos\left(\frac{\pi}{2^k}\right) = \frac{\sin \pi}{\pi} = 0
+\]
+
+But that's not possible because our product starts at k=2 (π/4 = π/2^2) and goes to infinity, but sinπ is zero. Wait, that contradicts. But actually, if θ = π, the formula gives the product from k=1 to infinity of cos(π/2^k) = sinπ / π = 0. But in reality, the product from k=1 of cos(π/2^k) is cos(π/2) cos(π/4) cos(π/8)... and cos(π/2) is 0, so the entire product is zero. But in our problem, the product starts at k=2, so we are missing the first term, which is zero. So actually, the product from k=2 to infinity of cos(π/2^k) would be (product from k=1 to infinity) / cos(π/2) = 0 / 0, which is undefined. Wait, that seems problematic.
+
+But wait, maybe I need to adjust the formula. Let's think again. The formula is for the product starting at k=1, but in our case, we start at k=2. So perhaps we can write the product as:
+
+product from k=2 to n of cos(π/2^k) = product from k=1 to n of cos(π/2^k) / cos(π/2^1) = [sin(π) / (2^n sin(π/2^n))] / cos(π/2)
+
+But sin(π) is zero, so that's 0 divided by something. Hmm, this seems like a dead end.
+
+Alternatively, maybe I need to set θ such that θ/2^k starts at π/4. So θ/2^2 = π/4 ⇒ θ = π. Then, the product from k=2 to n of cos(π/2^k) is the same as the product from k=1 to n-1 of cos(π/2^{k+1}) = product from k=1 to n-1 of cos( (π/2)/2^k ). Let me define θ = π/2. Then:
+
+product from k=1 to m of cos(θ/2^k) = sin(θ) / (2^m sin(θ/2^m))
+
+So here, θ = π/2, and m = n -1. Therefore, the product is sin(π/2) / (2^{n-1} sin(π/(2^{n}))) )
+
+Since sin(π/2) = 1, this becomes 1 / (2^{n-1} sin(π/(2^n)) )
+
+But then, sin(π/(2^n)) ≈ π/(2^n) for large n. Therefore, as n approaches infinity, sin(π/(2^n)) ≈ π/(2^n). Therefore, the product becomes approximately 1 / (2^{n-1} * π / 2^n ) ) = 1 / ( (2^{n-1} * π ) / 2^n ) ) = 1 / (π / 2 ) = 2 / π.
+
+Therefore, the limit as n approaches infinity of product from k=2 to n of cos(π/2^k) is 2/π.
+
+But wait, in the original problem, the product is from k=2 to n, but the first term is cos(π/4), which is θ=π/2, starting from k=1? Wait, perhaps I need to step back.
+
+Wait, original problem: product starts at π/4 = π/2^2, then π/8 = π/2^3, up to π/2^n. So the number of terms is (n - 1) when the upper index is n. Wait, maybe my indices are getting confused.
+
+Let me reindex. Let’s let m = k -1. Then the product cos(π/4) cos(π/8)...cos(π/2^n) can be written as product from m=1 to (n-1) of cos(π/2^{m+1}) = product from m=1 to (n-1) of cos(π/(2^{m+1})). Let’s set m’ = m +1, so m’ goes from 2 to n. Then, the product is product from m’=2 to n of cos(π/2^{m’}).
+
+Alternatively, if we use the formula from k=1 to N of cos(π/2^{k+1}) = product from k=1 to N of cos(π/2^{k+1}) = product from k=2 to N+1 of cos(π/2^k). So if in our problem, the product is up to π/2^n, which would correspond to N+1 = n, so N = n-1.
+
+Therefore, using the formula again with θ such that θ/2^{k} = π/2^{k+1}. So θ = π/2. Then:
+
+product from k=1 to N of cos(θ/2^k) = sinθ/(2^N sin(θ/2^N))
+
+Here θ = π/2, N = n-1. Then:
+
+product from k=1 to n-1 of cos(π/2^{k+1}) = sin(π/2) / (2^{n-1} sin(π/(2^{n})) )
+
+sin(π/2) is 1, so this is 1 / (2^{n-1} sin(π/2^n) )
+
+Therefore, the original product up to cos(π/2^n) is equal to 1 / (2^{n -1} sin(π/2^n) )
+
+Then, the limit as n approaches infinity is the limit of 1 / (2^{n -1} sin(π/2^n) )
+
+Again, sin(π/2^n) ≈ π/2^n for large n. Therefore,
+
+2^{n -1} sin(π/2^n) ≈ 2^{n -1} * π / 2^n = (2^{n -1} / 2^n) ) * π = π / 2
+
+Therefore, the limit becomes 1 / (π / 2 ) = 2 / π.
+
+So the limit is 2/π. Let me verify this with another approach to be sure.
+
+Another method: use induction and recursive relations.
+
+Let’s denote P_n = product_{k=2}^n cos(π / 2^k). Wait, but in the problem, the product starts at π/4 = π/2^2 and goes up to π/2^n. So if we index k from 2 to n, that's (n -1) terms. Alternatively, if we start k=1 with π/4, that might be another way.
+
+Alternatively, let’s use the identity for sin(2x) = 2 sinx cosx. Therefore, cosx = sin(2x)/(2 sinx).
+
+Maybe we can telescope the product.
+
+Let’s write each cosine term as sin(2x)/(2 sinx), so:
+
+cos(π/4) = sin(π/2)/(2 sin(π/4))
+
+cos(π/8) = sin(π/4)/(2 sin(π/8))
+
+...
+
+cos(π/2^n) = sin(π/2^{n-1})/(2 sin(π/2^n))
+
+Therefore, the product becomes:
+
+[sin(π/2)/(2 sin(π/4))] * [sin(π/4)/(2 sin(π/8))] * ... * [sin(π/2^{n-1})/(2 sin(π/2^n))]
+
+Each numerator cancels with the denominator of the next term:
+
+= [sin(π/2) / (2^n)] * [1 / sin(π/2^n)]
+
+Because all the intermediate terms cancel out. So:
+
+Product = sin(π/2) / (2^n sin(π/2^n)) = 1 / (2^n sin(π/2^n))
+
+Which is the same as earlier. Then, taking the limit as n approaches infinity:
+
+lim_{n→∞} 1 / (2^n sin(π/2^n)) = lim_{n→∞} 1 / (2^n * (π/2^n)) ) [since sin(π/2^n) ≈ π/2^n]
+
+= lim_{n→∞} 1 / (π) ) * 2^n / 2^n = 1/π
+
+Wait, hold on, that contradicts the previous result. Wait, what's going on here?
+
+Wait, let's do it step by step.
+
+Product = sin(π/2) / (2^n sin(π/2^n)) = 1 / (2^n sin(π/2^n))
+
+So as n→infty, π/2^n →0, so sin(π/2^n) ≈ π/2^n - (π/2^n)^3/6 + ...
+
+Therefore, sin(π/2^n) ≈ π/2^n for small angles. Therefore, 2^n sin(π/2^n) ≈ 2^n * (π/2^n) = π. Therefore, the limit as n→infty of 1/(2^n sin(π/2^n)) ≈ 1/π.
+
+But this contradicts the previous result where I thought it was 2/π. Wait, so which one is correct? There must be an error here.
+
+Wait, let's check with n=2. If n=2, then the product is cos(π/4). According to the formula, 1/(2^2 sin(π/2^2)) = 1/(4 sin(π/4)) = 1/(4*(√2/2)) )=1/(2√2) ≈ 0.3535. But cos(π/4) = √2/2 ≈0.7071. So 0.7071 vs 1/(2√2)=0.3535. That's not equal. Therefore, the formula must have an error. Wait, this suggests my earlier telescoping was wrong.
+
+Wait, hold on. Let's start again with telescoping.
+
+Suppose P_n = product_{k=2}^n cos(π/2^k). Let's use the identity cosx = sin(2x)/(2 sinx). Then:
+
+cos(π/4) = sin(π/2)/(2 sin(π/4))
+
+cos(π/8) = sin(π/4)/(2 sin(π/8))
+
+...
+
+cos(π/2^n) = sin(π/2^{n-1})/(2 sin(π/2^n))
+
+Therefore, multiplying all together:
+
+P_n = [sin(π/2) / (2 sin(π/4))] * [sin(π/4) / (2 sin(π/8))] * ... * [sin(π/2^{n-1}) / (2 sin(π/2^n))]
+
+Multiplying these, the sin(π/4) in the numerator cancels with the denominator of the next term, and so on. So all intermediate terms cancel, leaving:
+
+P_n = sin(π/2) / (2^{n -1} sin(π/2^n))
+
+Because we start at k=2, which corresponds to π/4, so there are (n -1) terms. Wait, original indexing: product from k=2 to n. So number of terms is n -1. Therefore, number of 2's in the denominator is n -1. Therefore:
+
+P_n = sin(π/2) / (2^{n -1} sin(π/2^n)) = 1 / (2^{n -1} sin(π/2^n))
+
+Therefore, the limit as n→infty is 1 / (2^{n -1} sin(π/2^n)) ≈ 1/(2^{n -1} * π / 2^n) ) = 1/( (2^{n -1} * π) / 2^n ) ) = 1/(π / 2 ) = 2/π.
+
+Ah! So earlier when I thought the limit was 1/π, I had miscalculated the exponent in the denominator. The correct exponent is (n -1), not n. Therefore, 2^{n -1} * (π / 2^n ) = π / 2. Hence, the limit is 2/π.
+
+Therefore, the answer should be 2/π.
+
+Let me verify with n=2 again. If n=2, then P_2 = cos(π/4) = √2/2 ≈0.7071. According to the formula, 1/(2^{2 -1} sin(π/2^2)) = 1/(2 sin(π/4)) = 1/(2*(√2/2)) = 1/√2 ≈0.7071, which matches. For n=3, P_3 = cos(π/4)cos(π/8) ≈0.7071 * 0.9239 ≈0.6533. According to the formula: 1/(2^{3 -1} sin(π/2^3)) = 1/(4 sin(π/8)) ≈1/(4*0.3827)≈1/1.530≈0.653, which matches. So the formula works.
+
+Therefore, taking the limit as n approaches infinity:
+
+lim_{n→∞} 1/(2^{n -1} sin(π/2^n)) = 2/π.
+
+Therefore, the answer is 2/π.
+
+**Final Answer**
+\boxed{\dfrac{2}{\pi}}
+</think>
+
+To find the limit of the product of cosines as \( n \) approaches infinity, we start with the product:
+
+\[
+\lim_{n \to \infty} \cos\left(\frac{\pi}{4}\right) \cos\left(\frac{\pi}{8}\right) \ldots \cos\left(\frac{\pi}{2^n}\right)
+\]
+
+We use the identity for the product of cosines:
+
+\[
+\prod_{k=1}^{n} \cos\left(\frac{\theta}{2^k}\right) = \frac{\sin \theta}{2^n \sin\left(\frac{\theta}{2^n}\right)}
+\]
+
+For our problem, we need to adjust the product to start from \( \cos\left(\frac{\pi}{4}\right) \), which corresponds to \( k = 2 \). We set \( \theta = \frac{\pi}{2} \), so the product becomes:
+
+\[
+\prod_{k=2}^{n} \cos\left(\frac{\pi}{2^k}\right)
+\]
+
+Rewriting the product in terms of the identity, we have:
+
+\[
+\prod_{k=2}^{n} \cos\left(\frac{\pi}{2^k}\right) = \prod_{k=1}^{n-1} \cos\left(\frac{\pi/2}{2^k}\right)
+\]
+
+Using the identity with \( \theta = \frac{\pi}{2} \):
+
+\[
+\prod_{k=1}^{n-1} \cos\left(\frac{\pi/2}{2^k}\right) = \frac{\sin\left(\frac{\pi}{2}\right)}{2^{n-1} \sin\left(\frac{\pi}{2^n}\right)}
+\]
+
+Since \( \sin\left(\frac{\pi}{2}\right) = 1 \), this simplifies to:
+
+\[
+\frac{1}{2^{n-1} \sin\left(\frac{\pi}{2^n}\right)}
+\]
+
+As \( n \to \infty \), \( \frac{\pi}{2^n} \) becomes very small, and we use the approximation \( \sin\left(\frac{\pi}{2^n}\right) \approx \frac{\pi}{2^n} \). Therefore, the expression becomes:
+
+\[
+\frac{1}{2^{n-1} \cdot \frac{\pi}{2^n}} = \frac{1}{\frac{\pi}{2}} = \frac{2}{\pi}
+\]
+
+Thus, the limit is:
+
+\[
+\boxed{\dfrac{2}{\pi}}
+\]  — 标准解答
+#   Let me analyze this problem carefully.
+
+We need to determine whether there exists an entire function $F$ such that:
+1. $F(z) \neq 0$ for all $z \in \mathbb{C}$;
+2. $1/F - 1 \in H^2(\mathbb{C}_+)$, where $H^2(\mathbb{C}_+)$ is the classical Hardy space in the upper half-plane;
+3. $F$ is bounded in every horizontal half-plane $\{z: \text{Im}(z) > \delta\}$.
+
+First, let me check for answer leaks. The problem text is clean — no solutions, no sketches, no formalization notes. Good.
+
+Now let me think about this problem.
+
+Since $F$ is entire and never zero, $F = e^g$ for some entire function $g$. So $1/F = e^{-g}$.
+
+Condition 2: $1/F - 1 = e^{-g} - 1 \in H^2(\mathbb{C}_+)$.
+
+The Hardy space $H^2(\mathbb{C}_+)$ consists of functions analytic in the upper half-plane $\mathbb{C}_+$ with 
+$$\sup_{y > 0} \int_{-\infty}^{\infty} |f(x+iy)|^2 dx < \infty.$$
+
+So $h := e^{-g} - 1 \in H^2(\mathbb{C}_+)$.
+
+This means $e^{-g} = 1 + h$ where $h \in H^2(\mathbb{C}_+)$.
+
+Now, $h \in H^2(\mathbb{C}_+)$ means $h$ is analytic in $\mathbb{C}_+$ and the $H^2$ norm is finite. In particular, $h$ has boundary values $h(x) \in L^2(\mathbb{R})$ a.e., and $\|h\|_{H^2}^2 = \int |h(x)|^2 dx$.
+
+So on the real line (boundary values), $e^{-g(x)} = 1 + h(x)$ where $h \in L^2(\mathbb{R})$.
+
+Condition 3: $F = e^g$ is bounded in every half-plane $\{\text{Im}(z) > \delta\}$ for $\delta > 0$ (I assume $\delta$ can be any real number, but typically $\delta \geq 0$ or any real). Actually, "every horizontal half-plane $\{z: \text{Im}(z) > \delta\}$" — this is for every $\delta \in \mathbb{R}$ presumably. For $\delta < 0$, this includes parts of the lower half-plane too.
+
+Wait, let me reconsider. The condition says $F$ is bounded in every $\{z: \text{Im}(z) > \delta\}$. If $\delta$ ranges over all reals, then in particular for $\delta \to -\infty$, but that's the whole plane. Actually for any fixed $\delta$, the half-plane $\{\text{Im}(z) > \delta\}$ is a proper subset unless $\delta = -\infty$. So for each fixed $\delta \in \mathbb{R}$, $F$ is bounded on $\{\text{Im}(z) > \delta\}$.
+
+Hmm, but if $\delta$ is very negative, $\{\text{Im}(z) > \delta\}$ is almost the whole plane. But it's still a half-plane, and $F$ being bounded on each such half-plane (with bound possibly depending on $\delta$) is the condition.
+
+Actually, this is related to the theory of functions of bounded type, Nevanlinna class, and the Smirnov class.
+
+Let me think about this differently. The key constraint is:
+- $e^{-g} - 1 \in H^2(\mathbb{C}_+)$
+- $e^g$ is bounded on each upper half-plane $\{\text{Im}(z) > \delta\}$.
+
+From condition 2, $e^{-g} = 1 + h$ with $h \in H^2$. On the boundary, $|e^{-g(x)}| = |1 + h(x)|$. Since $h \in L^2$, $h(x) \to 0$ as $|x| \to \infty$ (in some sense), so $|e^{-g(x)}| \to 1$, meaning $\text{Re}(g(x)) \to 0$ as $|x| \to \infty$ along the real axis.
+
+Also, $e^{-g}$ is an entire function with no zeros (since $e^{-g} = 1/F$ and $F$ has no zeros, $1/F$ has no zeros... wait, $1/F$ is entire and never zero, so $1/F = e^{-g}$, yes).
+
+Now, $1/F = e^{-g} = 1 + h$ where $h \in H^2(\mathbb{C}_+)$.
+
+Since $h \in H^2(\mathbb{C}_+)$, $h$ is analytic in $\mathbb{C}_+$ and has $H^2$ boundary values. But $h = e^{-g} - 1$ is actually entire (since $g$ is entire). So $h$ is an entire function that belongs to $H^2(\mathbb{C}_+)$.
+
+What entire functions are in $H^2(\mathbb{C}_+)$? 
+
+An entire function in $H^2(\mathbb{C}_+)$... Let me think. If $h$ is entire and $h \in H^2(\mathbb{C}_+)$, then $h$ has boundary values in $L^2(\mathbb{R})$. But $h$ is entire, so it's determined by its boundary values. 
+
+Actually, there's a classical result: if $h$ is entire and $h \in H^2(\mathbb{C}_+)$, then $h$ must be identically zero. Wait, is that true?
+
+Let me think more carefully. Consider $h(z) = e^{iz}$. This is entire. In the upper half-plane, $|e^{iz}| = e^{-\text{Im}(z)} \leq 1$ for $\text{Im}(z) \geq 0$. But $\int_{-\infty}^{\infty} |e^{ix}|^2 dx = \int_{-\infty}^{\infty} 1 dx = \infty$. So $e^{iz} \notin H^2$.
+
+What about $h(z) = \frac{1}{z+i}$? This is not entire (pole at $z = -i$).
+
+Hmm, what about functions like $h(z) = \frac{\sin z}{z}$? This is entire (removable singularity at 0). Is it in $H^2(\mathbb{C}_+)$? On the real line, $|\sin x / x| \sim 1/|x|$ for large $|x|$, so $|\sin x / x|^2 \sim 1/x^2$, which is integrable. But we also need $\sup_{y>0} \int |\sin(x+iy)/(x+iy)|^2 dx < \infty$. 
+
+Actually, let me reconsider. The Paley-Wiener theorem connects $H^2(\mathbb{C}_+)$ with Fourier transforms of $L^2(0,\infty)$ functions. Specifically, $f \in H^2(\mathbb{C}_+)$ iff $f(z) = \int_0^\infty \hat{f}(t) e^{izt} dt$ for some $\hat{f} \in L^2(0,\infty)$ (with appropriate normalization).
+
+Wait, more precisely: $H^2(\mathbb{C}_+)$ is isometrically isomorphic to $L^2(0,\infty)$ via the Fourier transform. A function $f \in H^2(\mathbb{C}_+)$ iff there exists $\phi \in L^2(0,\infty)$ such that $f(z) = \frac{1}{\sqrt{2\pi}} \int_0^\infty \phi(t) e^{izt} dt$.
+
+So if $h$ is entire and $h \in H^2(\mathbb{C}_+)$, then $h(z) = \int_0^\infty \phi(t) e^{izt} dt$ for some $\phi \in L^2(0,\infty)$. This representation gives an analytic function in $\mathbb{C}_+$, but for it to extend to an entire function, we need the integral to converge for all $z \in \mathbb{C}$, including $\text{Im}(z) < 0$ where $e^{izt} = e^{i(x+iy)t} = e^{ixt} e^{-yt}$ grows exponentially as $t \to \infty$ when $y < 0$.
+
+For the integral to converge for all $z$ with $\text{Im}(z) < 0$, we'd need $\phi(t) e^{-yt}$ to be in $L^1$ for all $y < 0$, which means $\phi$ must decay faster than any exponential, i.e., $\phi$ must have compact support or be super-exponentially decaying.
+
+If $\phi$ has compact support in $[0, A]$, then $h(z) = \int_0^A \phi(t) e^{izt} dt$ is entire (it's a finite Fourier-type integral). And by Paley-Wiener, such functions are exactly the entire functions of exponential type $\leq A$ that are in $L^2$ on the real line.
+
+So entire functions in $H^2(\mathbb{C}_+)$ are exactly the Paley-Wiener functions: entire functions of exponential type that are in $L^2(\mathbb{R})$.
+
+Wait, more precisely, by the Paley-Wiener theorem, the entire functions in $H^2(\mathbb{C}_+)$ are precisely those of the form $h(z) = \int_0^A \phi(t) e^{izt} dt$ where $\phi \in L^2(0,A)$ for some $A > 0$ (or $A = \infty$ with appropriate decay). These are entire functions of exponential type at most $A$ whose restriction to $\mathbb{R}$ is in $L^2$.
+
+Actually, let me be more careful. The Paley-Wiener theorem says: $h$ is an entire function of exponential type $\leq A$ with $h|_{\mathbb{R}} \in L^2$ if and only if $h(z) = \int_{-A}^{A} \phi(t) e^{izt} dt$ for some $\phi \in L^2(-A,A)$.
+
+But for $H^2(\mathbb{C}_+)$, we need the Fourier transform to be supported in $[0,\infty)$. So $h \in H^2(\mathbb{C}_+)$ and $h$ entire means $h(z) = \int_0^A \phi(t) e^{izt} dt$ with $\phi \in L^2(0,A)$.
+
+So $h$ is an entire function of exponential type $\leq A$ (for some $A$), with $h|_\mathbb{R} \in L^2$, and the Fourier transform supported in $[0, A]$.
+
+Now, $e^{-g} = 1 + h$ where $h$ is such a Paley-Wiener function.
+
+So $e^{-g(z)} = 1 + h(z)$ where $h$ is entire of exponential type.
+
+Taking logarithms: $-g(z) = \log(1 + h(z))$ (choosing a branch, which is possible since $1 + h(z) = e^{-g(z)} \neq 0$ for all $z$).
+
+So $g(z) = -\log(1 + h(z))$, and this must be entire. Since $1 + h(z) \neq 0$ for all $z$ (because $e^{-g}$ has no zeros), $\log(1 + h(z))$ is well-defined as an entire function (the composition of $\log$ with a non-vanishing entire function gives an entire function, since we can define $\log(1+h(z)) = \int_0^z \frac{h'(\zeta)}{1+h(\zeta)} d\zeta$ which is path-independent because $1+h$ has no zeros).
+
+So $g(z) = -\log(1 + h(z))$ is entire, and $F(z) = e^{g(z)} = \frac{1}{1+h(z)}$.
+
+Now condition 3: $F(z) = \frac{1}{1+h(z)}$ is bounded in every half-plane $\{\text{Im}(z) > \delta\}$.
+
+Since $h$ is of exponential type, $h(z)$ grows at most like $e^{A|z|}$ in some directions. In the upper half-plane, $h(z) = \int_0^A \phi(t) e^{izt} dt$. For $z = x + iy$ with $y > 0$, $|e^{izt}| = e^{-yt} \leq 1$, so $|h(z)| \leq \int_0^A |\phi(t)| e^{-yt} dt \leq \|\phi\|_{L^1} \leq \sqrt{A} \|\phi\|_{L^2}$.
+
+So $h$ is bounded in the upper half-plane $\mathbb{C}_+$! In fact, $|h(z)| \leq \|\phi\|_{L^1}$ for $\text{Im}(z) \geq 0$.
+
+Therefore $1 + h(z)$ is bounded in $\mathbb{C}_+$, and $F(z) = 1/(1+h(z))$. For $F$ to be bounded in $\{\text{Im}(z) > \delta\}$ for $\delta \geq 0$, we need $1/(1+h(z))$ to be bounded, i.e., $|1 + h(z)| \geq c > 0$ in $\{\text{Im}(z) > \delta\}$.
+
+But we also need condition 3 for $\delta < 0$, i.e., in half-planes that extend into the lower half-plane.
+
+In the lower half-plane, $h(z) = \int_0^A \phi(t) e^{izt} dt$ with $z = x + iy$, $y < 0$, so $|e^{izt}| = e^{-yt} = e^{|y|t}$, which grows. So $|h(z)|$ can grow exponentially in the lower half-plane.
+
+So $F(z) = 1/(1+h(z))$ — in the lower half-plane, $h(z)$ can be large, so $F(z)$ can be small, which is fine for boundedness. The issue is whether $F$ can be unbounded, i.e., whether $1 + h(z)$ can be close to 0 in the lower half-plane.
+
+Wait, but $1 + h(z) = e^{-g(z)} \neq 0$ for all $z$, so $F(z) = e^{g(z)}$ is well-defined and never zero. The question is whether $F$ is bounded in each half-plane $\{\text{Im}(z) > \delta\}$.
+
+For $\delta \geq 0$: $h$ is bounded in $\mathbb{C}_+$, and $1 + h(z) \neq 0$, so $|1 + h(z)|$ achieves a positive minimum on the closure... wait, not necessarily on the closure, but $h$ is bounded and analytic in $\mathbb{C}_+$, and $1 + h \neq 0$ in $\mathbb{C}_+$. Actually $1 + h \neq 0$ everywhere (it's entire and never zero). So in $\{\text{Im}(z) > \delta\}$ for $\delta > 0$, $h$ is bounded (say $|h| \leq M$), and $1 + h \neq 0$. But does $|1 + h|$ have a positive lower bound?
+
+Not necessarily! Consider $h(z) = -1 + e^{-z^2}$... no wait, that doesn't work because $h$ must be a Paley-Wiener function.
+
+Hmm, let me think about this differently. The question is: does such an $F$ exist? Let me consider whether $F \equiv 1$ works. If $F \equiv 1$, then $1/F - 1 = 0 \in H^2$, and $F$ is bounded everywhere. And $F \neq 0$ everywhere. So $F \equiv 1$ satisfies all three conditions!
+
+Wait, that seems too easy. Let me re-read the problem.
+
+"Determine whether there exists an entire function $F$ such that:
+1. $F(z) \neq 0$ for all $z \in \mathbb{C}$;
+2. $1/F - 1 \in H^2(\mathbb{C}_+)$;
+3. $F$ is bounded in every horizontal half-plane $\{z: \text{Im}(z) > \delta\}$."
+
+If $F \equiv 1$, then:
+1. $F(z) = 1 \neq 0$ ✓
+2. $1/F - 1 = 1 - 1 = 0 \in H^2$ ✓ (the zero function is in $H^2$)
+3. $F$ is bounded (constant) ✓
+
+So the answer is yes, such a function exists, and $F \equiv 1$ is an example.
+
+But this seems too trivial. Maybe I'm misunderstanding the problem. Perhaps the problem is asking for a non-trivial $F$, or perhaps condition 2 means something different.
+
+Let me re-read: "$1/F - 1 \in H^2(\mathbb{C}_+)$". Maybe this means $1/(F-1) \in H^2$? That is, $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$?
+
+Hmm, the notation "$1/F - 1$" is ambiguous. It could mean:
+- $(1/F) - 1$, i.e., $\frac{1}{F} - 1$
+- $1/(F-1)$, i.e., $\frac{1}{F-1}$
+
+If it means $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$, then the problem is more interesting.
+
+With $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$:
+- $F \neq 0$ everywhere (so $F$ has no zeros)
+- $1/(F-1) \in H^2(\mathbb{C}_+)$ (so $F \neq 1$ in $\mathbb{C}_+$, and $1/(F-1)$ is in $H^2$)
+- $F$ bounded in each upper half-plane
+
+If $F \equiv 1$, then $F - 1 = 0$, so $1/(F-1)$ is undefined. So $F \equiv 1$ doesn't work in this interpretation.
+
+If $F \equiv c$ for some constant $c \neq 0, 1$, then $1/(F-1) = 1/(c-1)$ is a non-zero constant. Is a non-zero constant in $H^2(\mathbb{C}_+)$? No! A non-zero constant $c_0$ has $\int_{-\infty}^{\infty} |c_0|^2 dx = \infty$, so it's not in $H^2$.
+
+So with this interpretation, constant functions don't work (except $F \equiv 1$ which makes $1/(F-1)$ undefined).
+
+Hmm, but actually, re-reading the problem again: "$1/F - 1 \in H^2(\mathbb{C}_+)$". In standard mathematical notation, $1/F - 1$ most naturally reads as $\frac{1}{F} - 1$. But given that the trivial answer works, maybe the intended reading is $\frac{1}{F-1}$.
+
+Actually, wait. Let me reconsider. Perhaps the problem is from a context where they want a nontrivial answer, and the notation $1/F - 1$ means $\frac{1}{F} - 1$. But then $F \equiv 1$ is a trivial solution. Maybe the problem is asking whether a non-constant such function exists? Or maybe the problem is indeed asking about existence and the answer is "yes, trivially"?
+
+Hmm, but the problem says "Provide a justification for your answer." This suggests there's something to justify, which wouldn't be the case if the answer were trivially yes.
+
+Let me reconsider the interpretation $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$.
+
+Actually, I think there might be another interpretation. In some contexts, particularly in the theory of meromorphic functions and Hardy spaces, the notation might be about the function $\frac{1}{F} - 1$ but with additional implicit constraints that make it nontrivial.
+
+Actually, wait. Let me reconsider. Perhaps the problem is more subtle than I think. Let me re-read condition 3: "$F$ is bounded in every horizontal half-plane $\{z: \text{Im}(z) > \delta\}$."
+
+If $\delta$ ranges over all real numbers, then for $\delta \to -\infty$, the half-plane approaches the whole plane. But for each fixed $\delta$, it's a half-plane. The condition is that for each $\delta$, $F$ is bounded on $\{\text{Im}(z) > \delta\}$. This is a growth condition on $F$ in the lower half-plane direction — it says $F$ doesn't grow too fast as $\text{Im}(z) \to -\infty$.
+
+Actually, for an entire function, being bounded on each half-plane $\{\text{Im}(z) > \delta\}$ is a condition on the growth in the lower half-plane. In the upper half-plane, $F$ is bounded on $\mathbb{C}_+$ itself (taking $\delta = 0$). For $\delta < 0$, we need $F$ bounded on the larger region including part of the lower half-plane.
+
+Hmm, but with $F \equiv 1$, all conditions are trivially satisfied (with the $\frac{1}{F} - 1$ interpretation). So either:
+1. The answer is trivially yes (and the problem is testing whether students overthink it), or
+2. The intended interpretation is $\frac{1}{F-1} \in H^2$.
+
+Let me consider interpretation 2 more carefully: $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$.
+
+With this interpretation:
+- $F$ entire, $F \neq 0$ everywhere
+- $G := \frac{1}{F-1} \in H^2(\mathbb{C}_+)$, so $G$ is analytic in $\mathbb{C}_+$, $F \neq 1$ in $\mathbb{C}_+$
+- $F$ bounded in each $\{\text{Im}(z) > \delta\}$
+
+From $G \in H^2(\mathbb{C}_+)$, $F = 1 + 1/G$ in $\mathbb{C}_+$. Since $G \in H^2$, $G$ has boundary values $G(x) \in L^2(\mathbb{R})$, and $G(x) \to 0$ as $|x| \to \infty$ (in some sense). So $F(x) = 1 + 1/G(x) \to \infty$ as $|x| \to \infty$ on the real line. But $F$ is bounded on $\{\text{Im}(z) > 0\}$ (condition 3 with $\delta = 0$). 
+
+Wait, but $F$ is bounded on $\mathbb{C}_+$ and $F(x) = 1 + 1/G(x)$ where $G \in H^2$. If $F$ is bounded on $\mathbb{C}_+$, say $|F| \leq M$, then $|1/G| = |F - 1| \leq M + 1$, so $|G| \geq 1/(M+1)$ on the boundary. But $G \in H^2$ means $G(x) \in L^2(\mathbb{R})$, which means $G(x) \to 0$ in some average sense as $|x| \to \infty$. If $|G(x)| \geq c > 0$ a.e., then $\int |G(x)|^2 dx \geq c^2 \cdot \infty = \infty$, contradicting $G \in H^2$.
+
+Wait, that's a great argument! Let me make it precise.
+
+If $F$ is bounded on $\overline{\mathbb{C}_+}$ (or even just on $\mathbb{C}_+$ with bounded boundary values), then $|F(x)| \leq M$ a.e. on $\mathbb{R}$ (by Fatou's theorem or just the boundedness). Then $|G(x)| = |1/(F(x) - 1)| \geq 1/(M+1)$ a.e. (assuming $|F| \leq M$). But $G \in H^2$ requires $G(x) \in L^2(\mathbb{R})$, and if $|G(x)| \geq c > 0$ a.e., then $\int |G|^2 = \infty$. Contradiction!
+
+But wait, we need to be more careful. $F$ is bounded on $\{\text{Im}(z) > \delta\}$ for each $\delta$. For $\delta = 0$, $F$ is bounded on $\mathbb{C}_+$. But does this imply $F$ has bounded boundary values?
+
+$F$ is entire, hence continuous, hence bounded on $\overline{\mathbb{C}_+ \cap \{|z| \leq R\}}$ for each $R$. But on $\mathbb{C}_+$, $F$ is bounded by some $M$. Since $F$ is continuous (entire), $|F(x)| \leq M$ for $x \in \mathbb{R}$ as well (taking the limit from above). So yes, $|F(x)| \leq M$ for all $x \in \mathbb{R}$.
+
+Then $|G(x)| = 1/|F(x) - 1|$. Since $|F(x)| \leq M$, we have $|F(x) - 1| \leq M + 1$, so $|G(x)| \geq 1/(M+1)$. 
+
+But also, $F \neq 0$ everywhere, and $F \neq 1$ in $\mathbb{C}_+$ (since $G = 1/(F-1)$ is analytic there). On the real line, could $F(x) = 1$ for some $x$? If $F(x_0) = 1$ for some $x_0 \in \mathbb{R}$, then $G$ would have a singularity at $x_0$ on the boundary. But $G \in H^2$ has $L^2$ boundary values, so $G(x_0)$ would need to be finite a.e. Actually, $F$ is entire and $F \neq 1$ in $\mathbb{C}_+$, but $F$ could equal 1 at points on $\mathbb{R}$. However, if $F(x_0) = 1$ for some real $x_0$, then $1/(F-1)$ has a pole at $x_0$, and the boundary values of $G$ wouldn't be in $L^2$ near $x_0$ (they'd blow up like $1/|x - x_0|$ or worse). 
+
+Actually, let me be more careful. If $F(x_0) = 1$ and $F$ is entire, then near $x_0$, $F(z) - 1 = a_k(z - x_0)^k + \ldots$ for some $k \geq 1$. Then $G(z) = 1/(F(z) - 1) \sim 1/(a_k(z-x_0)^k)$ near $x_0$ from within $\mathbb{C}_+$. The boundary values $|G(x)| \sim C/|x - x_0|^k$, which is in $L^2$ near $x_0$ only if $k < 1/2$, i.e., never (since $k \geq 1$). So $F(x) \neq 1$ for all $x \in \mathbb{R}$.
+
+So $F \neq 1$ on all of $\mathbb{R}$, and $|F(x)| \leq M$ on $\mathbb{R}$. Then $|F(x) - 1| \geq c > 0$ for some $c$? Not necessarily — $|F(x) - 1|$ could approach 0 as $|x| \to \infty$.
+
+Hmm, so the argument isn't as clean as I thought. Let me reconsider.
+
+$F$ is entire, bounded on $\mathbb{C}_+$ by $M$, $F \neq 0$ everywhere, $F \neq 1$ on $\mathbb{R} \cup \mathbb{C}_+$.
+
+$G = 1/(F-1) \in H^2(\mathbb{C}_+)$. On the boundary, $G(x) = 1/(F(x) - 1) \in L^2(\mathbb{R})$.
+
+$|F(x)| \leq M$ for all $x \in \mathbb{R}$. So $|F(x) - 1| \leq M + 1$, giving $|G(x)| \geq 1/(M+1)$.
+
+But $G \in L^2(\mathbb{R})$ and $|G(x)| \geq 1/(M+1) > 0$ for all $x$... This means $\int_{-\infty}^{\infty} |G(x)|^2 dx \geq \int_{-\infty}^{\infty} \frac{1}{(M+1)^2} dx = \infty$.
+
+This contradicts $G \in H^2(\mathbb{C}_+)$! 
+
+So with the interpretation $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$, no such $F$ exists.
+
+But wait, I need to double-check that $|F(x)| \leq M$ on $\mathbb{R}$. $F$ is bounded on $\mathbb{C}_+$ (condition 3 with $\delta = 0$). Since $F$ is entire (hence continuous), and $\mathbb{R} = \partial \mathbb{C}_+$, we have $|F(x)| = \lim_{y \to 0^+} |F(x + iy)| \leq M$ for all $x \in \mathbb{R}$. Yes, this is correct.
+
+So the argument is:
+1. $F$ bounded on $\mathbb{C}_+$ implies $|F(x)| \leq M$ on $\mathbb{R}$ (by continuity of $F$).
+2. $F \neq 1$ on $\mathbb{R}$ (otherwise $G = 1/(F-1)$ wouldn't have $L^2$ boundary values).
+3. $|G(x)| = 1/|F(x) - 1| \geq 1/(M+1) > 0$ for all $x \in \mathbb{R}$.
+4. But $G \in H^2$ requires $G(x) \in L^2(\mathbb{R})$, contradicting $|G(x)| \geq c > 0$.
+5. Therefore no such $F$ exists.
+
+Hmm wait, but I assumed the interpretation is $\frac{1}{F-1} \in H^2$. With the other interpretation $\frac{1}{F} - 1 \in H^2$, the answer is trivially yes ($F \equiv 1$).
+
+Let me reconsider the problem statement. "$1/F - 1 \in H^2(\mathbb{C}_+)$". 
+
+In standard order of operations, $1/F - 1 = (1/F) - 1 = \frac{1}{F} - 1$. But this gives a trivial answer.
+
+Hmm, but maybe the problem is not trivial even with $\frac{1}{F} - 1 \in H^2$. Maybe the problem is asking whether a non-constant such function exists? Or maybe the conditions are more restrictive than I think.
+
+Wait, let me re-read: "Determine whether there exists an entire function $F$..." — this is asking about existence. If $F \equiv 1$ works, the answer is yes. But that's too trivial for a problem that says "provide a justification."
+
+Let me reconsider. Maybe the problem means something slightly different. Perhaps condition 2 is $1/F - 1 \in H^2$ where $H^2$ is the Hardy space, and the function $1/F - 1$ is not identically zero? Or perhaps there's an implicit requirement that $F$ is non-constant?
+
+Actually, I think the most likely intended interpretation, given the mathematical depth required, is $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$. This makes the problem non-trivial and the answer is "no such $F$ exists."
+
+But actually, let me reconsider once more. Maybe the problem is indeed $\frac{1}{F} - 1 \in H^2$ and the answer is "yes, $F \equiv 1$ works" but the problem is testing whether students can see this. But that seems unlikely for a problem that asks for "justification."
+
+Alternatively, maybe the problem is asking about $H^2$ in a different sense, or maybe condition 3 is more restrictive.
+
+Actually, let me reconsider condition 3. "F is bounded in every horizontal half-plane $\{z: \text{Im}(z) > \delta\}$." If $\delta$ ranges over all real numbers, then for $\delta = -1$, $F$ is bounded on $\{\text{Im}(z) > -1\}$, which includes a strip of the lower half-plane. For $\delta = -100$, $F$ is bounded on $\{\text{Im}(z) > -100\}$. As $\delta \to -\infty$, the half-plane approaches $\mathbb{C}$, but for each fixed $\delta$, it's a proper half-plane.
+
+For $F \equiv 1$, this is trivially satisfied. So with the $\frac{1}{F} - 1$ interpretation, the answer is yes.
+
+Hmm, let me think about whether the problem might have a different intent. Maybe the problem is from a specific context where $H^2(\mathbb{C}_+)$ refers to something slightly different, or where the conditions are meant to be more restrictive.
+
+Actually, you know what, let me just consider both interpretations and see which gives a more interesting problem.
+
+**Interpretation 1: $\frac{1}{F} - 1 \in H^2(\mathbb{C}_+)$**
+
+$F \equiv 1$ works trivially. Answer: Yes.
+
+But maybe the problem wants a nontrivial $F$? Let's see if a non-constant $F$ exists.
+
+$F = e^g$ for some entire $g$ (since $F \neq 0$). $\frac{1}{F} - 1 = e^{-g} - 1 \in H^2(\mathbb{C}_+)$.
+
+Let $h = e^{-g} - 1 \in H^2(\mathbb{C}_+)$. Then $e^{-g} = 1 + h$, so $F = 1/(1+h)$.
+
+$h$ is entire (since $g$ is entire) and $h \in H^2(\mathbb{C}_+)$. As I discussed, $h$ must be a Paley-Wiener type function: $h(z) = \int_0^A \phi(t) e^{izt} dt$ for some $\phi \in L^2(0,A)$.
+
+$F = 1/(1+h)$ must be entire, so $1 + h \neq 0$ everywhere. And $F$ must be bounded in each half-plane $\{\text{Im}(z) > \delta\}$.
+
+In $\mathbb{C}_+$, $|h(z)| \leq \|\phi\|_{L^1}$ (bounded), so $|1 + h(z)| \leq 1 + \|\phi\|_{L^1}$, and $|F(z)| \geq 1/(1 + \|\phi\|_{L^1})$. But we need $F$ bounded, i.e., $|F(z)| \leq C$. Since $1 + h \neq 0$ in $\mathbb{C}_+$ and $h$ is bounded, we need $|1 + h(z)| \geq c > 0$ in $\mathbb{C}_+$ (or in each half-plane).
+
+Hmm, this is getting complex. For the upper half-plane, since $h$ is bounded and $1 + h \neq 0$, the minimum of $|1 + h|$ on $\overline{\mathbb{C}_+}$... well, $h$ is bounded on $\mathbb{C}_+$ but the domain is unbounded, so we can't directly say the minimum is achieved.
+
+Actually, let me think about a specific example. Take $h(z) = \epsilon e^{iz}$ for small $\epsilon > 0$. This is entire, of exponential type 1, and $h \in H^2(\mathbb{C}_+)$? Let's check: $|h(x+iy)| = \epsilon e^{-y}$ for $y > 0$. $\int_{-\infty}^{\infty} |h(x+iy)|^2 dx = \epsilon^2 e^{-2y} \int dx = \infty$. So $h \notin H^2$! Because $|h(x)| = \epsilon$ is constant, not in $L^2$.
+
+OK so $e^{iz}$ is not in $H^2$. What about $h(z) = \epsilon \frac{\sin z}{z}$? This is entire, $|\sin x / x| \sim 1/|x|$ for large $|x|$, so $|h(x)|^2 \sim \epsilon^2/x^2 \in L^2$. And in $\mathbb{C}_+$, $|\sin(x+iy)/(x+iy)|$... $\sin(x+iy) = \sin x \cosh y + i \cos x \sinh y$, so $|\sin(x+iy)|^2 = \sin^2 x \cosh^2 y + \cos^2 x \sinh^2 y = \sin^2 x + \sinh^2 y$. And $|x+iy|^2 = x^2 + y^2$. So $|h(x+iy)|^2 = \epsilon^2 \frac{\sin^2 x + \sinh^2 y}{x^2 + y^2}$.
+
+$\int_{-\infty}^{\infty} |h(x+iy)|^2 dx = \epsilon^2 \int_{-\infty}^{\infty} \frac{\sin^2 x + \sinh^2 y}{x^2 + y^2} dx$.
+
+The $\sinh^2 y / (x^2 + y^2)$ part: $\int \frac{\sinh^2 y}{x^2 + y^2} dx = \sinh^2 y \cdot \frac{\pi}{|y|}$ (for $y \neq 0$). As $y \to \infty$, $\sinh^2 y / y \to \infty$, so this blows up. So $h \notin H^2(\mathbb{C}_+)$.
+
+Hmm. So $\sin z / z$ is not in $H^2(\mathbb{C}_+)$ either.
+
+Let me think about what entire functions are actually in $H^2(\mathbb{C}_+)$. By the Paley-Wiener theorem, $h \in H^2(\mathbb{C}_+)$ iff $h(z) = \int_0^\infty \phi(t) e^{izt} dt$ for some $\phi \in L^2(0,\infty)$. For $h$ to be entire, we need this integral to converge for all $z \in \mathbb{C}$, which requires $\phi$ to decay super-exponentially (or have compact support).
+
+If $\phi$ has compact support in $[0, A]$, then $h(z) = \int_0^A \phi(t) e^{izt} dt$ is entire of exponential type $A$. In $\mathbb{C}_+$, $|h(z)| \leq \int_0^A |\phi(t)| e^{-yt} dt \leq \|\phi\|_{L^1}$. On the real line, $h(x) = \int_0^A \phi(t) e^{ixt} dt \in L^2$ (by Plancherel, $\|h\|_{L^2} = \sqrt{2\pi} \|\phi\|_{L^2}$).
+
+So a concrete example: $\phi(t) = \mathbf{1}_{[0,1]}(t)$. Then $h(z) = \int_0^1 e^{izt} dt = \frac{e^{iz} - 1}{iz}$. This is entire (removable singularity at $z = 0$), and $h \in H^2(\mathbb{C}_+)$.
+
+Now, $F = 1/(1 + h) = 1/(1 + \frac{e^{iz}-1}{iz}) = \frac{iz}{iz + e^{iz} - 1}$.
+
+For $F$ to be entire, we need $iz + e^{iz} - 1 \neq 0$ for all $z$. Let me check: at $z = 0$, $iz + e^{iz} - 1 = 0 + 1 - 1 = 0$. So $z = 0$ is a zero of the denominator! 
+
+$iz + e^{iz} - 1$ near $z = 0$: $e^{iz} = 1 + iz - z^2/2 + \ldots$, so $iz + e^{iz} - 1 = iz + iz - z^2/2 + \ldots = 2iz - z^2/2 + \ldots$ So $z = 0$ is a simple zero. Then $F = iz/(iz + e^{iz} - 1)$ has a removable singularity at $z = 0$ (since $iz$ also has a simple zero there), and $F(0) = \lim_{z \to 0} \frac{iz}{2iz - z^2/2 + \ldots} = \frac{1}{2}$.
+
+But we need $iz + e^{iz} - 1 \neq 0$ for all $z \neq 0$ (and the zero at $z = 0$ is handled by the numerator). Actually, we need $F$ to be entire and $F \neq 0$ everywhere. $F = iz/(iz + e^{iz} - 1)$. $F = 0$ when $iz = 0$, i.e., $z = 0$. But $F(0) = 1/2 \neq 0$ (removable singularity). So $F \neq 0$ when the numerator $iz \neq 0$, i.e., $z \neq 0$, and at $z = 0$, $F(0) = 1/2 \neq 0$. So $F \neq 0$ everywhere? Wait, $F(z) = 0$ iff $iz = 0$ and the denominator $\neq 0$, or... no. $F(z) = iz/(iz + e^{iz} - 1)$. $F(z) = 0$ iff $iz = 0$ (and denominator $\neq 0$), i.e., $z = 0$. But at $z = 0$, both numerator and denominator are 0, and the limit is $1/2$. So $F$ is never 0. Good.
+
+But we also need $iz + e^{iz} - 1 \neq 0$ for $z \neq 0$. Is this true? Let $w = iz$, so we need $w + e^w - 1 \neq 0$ for $w \neq 0$. $f(w) = w + e^w - 1$. $f(0) = 0$, $f'(w) = 1 + e^w > 0$ for all real $w$. For complex $w$, $f(w) = 0$ means $e^w = 1 - w$. 
+
+Let me check: $w = -1$: $e^{-1} = 0.368$, $1 - (-1) = 2$. Not equal. $w = 2$: $e^2 = 7.389$, $1 - 2 = -1$. Not equal. For real $w > 0$: $e^w > 1 > 1 - w$ when $w > 0$ (since $e^w > 1$ and $1 - w < 1$). For real $w < 0$: $e^w < 1$ and $1 - w > 1$, so $e^w < 1 - w$. So no real zeros except $w = 0$.
+
+For complex $w$: $e^w = 1 - w$. Let $w = a + bi$. $e^a(\cos b + i \sin b) = (1-a) - bi$. So $e^a \cos b = 1 - a$ and $e^a \sin b = -b$.
+
+From the second equation: $e^a \sin b = -b$. If $b = 0$, then $\sin b = 0$ and $-b = 0$, so $b = 0$ works, giving $e^a = 1 - a$, which we showed only has $a = 0$.
+
+If $b \neq 0$: $e^a = -b/\sin b$. For this to be positive, we need $-b/\sin b > 0$, i.e., $b$ and $\sin b$ have opposite signs. This happens when $b \in (-\pi, 0)$ (since $\sin b < 0$ there, $-b > 0$) or $b \in (0, \pi)$ (since $\sin b > 0$ there, $-b < 0$... wait, $-b < 0$ and $\sin b > 0$, so $-b/\sin b < 0$, not valid). Hmm, let me redo: $e^a = -b/\sin b > 0$ requires $-b$ and $\sin b$ same sign. If $b > 0$ and $\sin b > 0$ (i.e., $b \in (0, \pi)$): $-b < 0$, $\sin b > 0$, so $-b/\sin b < 0$. Not valid. If $b < 0$ and $\sin b < 0$ (i.e., $b \in (-\pi, 0)$): $-b > 0$, $\sin b < 0$, so $-b/\sin b < 0$. Not valid. If $b > 0$ and $\sin b < 0$ (i.e., $b \in (\pi, 2\pi)$): $-b < 0$, $\sin b < 0$, so $-b/\sin b > 0$. Valid. $a = \ln(-b/\sin b)$.
+
+Then from the first equation: $e^a \cos b = 1 - a$, i.e., $(-b/\sin b) \cos b = 1 - \ln(-b/\sin b)$, i.e., $-b \cot b = 1 - \ln(-b/\sin b)$.
+
+This is a transcendental equation that might have solutions. Let me check numerically for $b \in (\pi, 2\pi)$, say $b = 3\pi/2 \approx 4.712$: $\sin(3\pi/2) = -1$, $-b/\sin b = 4.712$, $a = \ln(4.712) \approx 1.55$. $-b \cot b = -4.712 \cdot \cos(3\pi/2)/\sin(3\pi/2) = -4.712 \cdot 0/(-1) = 0$. $1 - a = 1 - 1.55 = -0.55$. So $0 \neq -0.55$. Not a solution.
+
+This is getting complicated. The point is that $w + e^w - 1$ might have complex zeros other than $w = 0$, which would make $F$ have poles (not entire). So this particular choice of $h$ might not work.
+
+This is getting quite involved. Let me step back and think about the problem more carefully.
+
+Actually, I realize I should think about which interpretation is correct. Let me re-read the problem one more time.
+
+"1/F - 1 ∈ H²(ℂ₊)"
+
+In LaTeX, this would typically be written as $\frac{1}{F} - 1$ or $\frac{1}{F-1}$. The way it's written, "$1/F - 1$", with the division having higher precedence, reads as $(1/F) - 1 = \frac{1}{F} - 1$.
+
+But if the answer is trivially "yes, $F = 1$", then the problem is not interesting. So either:
+1. The problem is indeed trivial and tests basic understanding, or
+2. The intended meaning is $\frac{1}{F-1}$, or
+3. There's an additional implicit constraint I'm missing.
+
+Hmm, actually, maybe the problem is asking for a non-constant $F$, or maybe there's a context where $F \equiv 1$ is excluded. But the problem as stated doesn't say "non-constant."
+
+Wait, actually, let me reconsider. Maybe the problem is more subtle than I think even with $\frac{1}{F} - 1 \in H^2$. Let me re-examine.
+
+If $F \equiv 1$, then $\frac{1}{F} - 1 = 0 \in H^2$. This works. But maybe the problem is from a context where they want to know if a nontrivial outer function or something exists.
+
+Actually, I just realized something. Let me reconsider the problem. Perhaps the conditions are meant to be satisfied simultaneously in a nontrivial way, and the question is whether such $F$ exists with all three conditions. The trivial solution $F \equiv 1$ does satisfy all three, so the answer would be "yes."
+
+But actually, I think the problem might be intended to be nontrivial. Let me consider the interpretation $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$ more carefully, as it leads to a more interesting problem.
+
+With $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$:
+
+**Claim: No such $F$ exists.**
+
+**Proof:** Suppose such $F$ exists. Since $F$ is entire and $F \neq 0$, and $F$ is bounded on $\mathbb{C}_+$ (condition 3 with $\delta = 0$), let $|F(z)| \leq M$ for $z \in \mathbb{C}_+$.
+
+Since $F$ is entire (hence continuous), $|F(x)| \leq M$ for all $x \in \mathbb{R}$.
+
+Let $G = \frac{1}{F-1} \in H^2(\mathbb{C}_+)$. Then $G$ has boundary values $G(x) \in L^2(\mathbb{R})$.
+
+Since $F$ is entire and $G = 1/(F-1)$ is analytic in $\mathbb{C}_+$, $F \neq 1$ in $\mathbb{C}_+$. Also, $F \neq 1$ on $\mathbb{R}$: if $F(x_0) = 1$ for some $x_0 \in \mathbb{R}$, then since $F$ is entire, $F(z) - 1 = c(z - x_0)^k + \ldots$ near $x_0$ with $k \geq 1$, and $|G(z)| \sim C/|z - x_0|^k$ as $z \to x_0$ from $\mathbb{C}_+$, so $|G(x)| \sim C/|x - x_0|^k \notin L^2$ near $x_0$ (since $k \geq 1$). This contradicts $G \in H^2$.
+
+So $F(x) \neq 1$ for all $x \in \mathbb{R}$, and $|F(x)| \leq M$. Therefore $|F(x) - 1| \leq M + 1$ for all $x$, giving $|G(x)| = 1/|F(x) - 1| \geq 1/(M+1) > 0$ for all $x \in \mathbb{R}$.
+
+But $G \in H^2(\mathbb{C}_+)$ implies $G(x) \in L^2(\mathbb{R})$, and $|G(x)| \geq 1/(M+1) > 0$ implies $\int |G(x)|^2 dx \geq \frac{1}{(M+1)^2} \int dx = \infty$, contradiction.
+
+Therefore, no such $F$ exists. $\blacksquare$
+
+This is a clean, elegant proof. I think this is the intended interpretation and answer.
+
+But wait, I should double-check: is it possible that $F(x) - 1$ could be 0 at some points but $G$ still in $H^2$? I argued no, but let me be more careful.
+
+If $F(x_0) = 1$ for some $x_0 \in \mathbb{R}$, then $F(z) - 1$ has a zero at $z = x_0$ of some order $k \geq 1$. Near $x_0$, $F(z) - 1 \sim c(z - x_0)^k$, so $G(z) = 1/(F(z) - 1) \sim 1/(c(z - x_0)^k)$. The boundary values $|G(x)| \sim 1/(|c| |x - x_0|^k)$, and $\int_{x_0 - \epsilon}^{x_0 + \epsilon} |G(x)|^2 dx \sim \int \frac{dx}{|x - x_0|^{2k}} = \infty$ for $k \geq 1$. So indeed $G \notin L^2$ near $x_0$, contradiction.
+
+Actually, I realize there's a subtlety. $G \in H^2(\mathbb{C}_+)$ means $G$ is analytic in $\mathbb{C}_+$ and $\sup_{y > 0} \int |G(x+iy)|^2 dx < \infty$. The boundary values exist a.e. and are in $L^2$. But if $F(x_0) = 1$ for some $x_0$, then $G$ has a singularity at $x_0$ on the boundary. The $H^2$ function $G$ is analytic in $\mathbb{C}_+$ but might not extend continuously to the boundary. However, the boundary values are in $L^2$, and if $G$ blows up like $1/|z - x_0|^k$ near $x_0$, the boundary values won't be in $L^2$.
+
+More precisely, if $F(x_0) = 1$, then for $z = x_0 + iy$ with $y > 0$ small, $|G(z)| = 1/|F(z) - 1| \sim 1/(|c| y^k)$. Then $\int_{x_0 - \epsilon}^{x_0 + \epsilon} |G(x + iy)|^2 dx$ — hmm, this is an integral over $x$ for fixed $y$. Let me think again.
+
+For $z = x + iy$ near $x_0 + i \cdot 0$, $F(z) - 1 \approx c(z - x_0)^k = c(x - x_0 + iy)^k$. So $|G(x + iy)|^2 \approx 1/(|c|^2 |x - x_0 + iy|^{2k}) = 1/(|c|^2 ((x - x_0)^2 + y^2)^k)$.
+
+$\int_{-\infty}^{\infty} |G(x+iy)|^2 dx \geq \int_{x_0 - 1}^{x_0 + 1} \frac{dx}{|c|^2 ((x-x_0)^2 + y^2)^k}$.
+
+For $y$ small, this integral is approximately $\int_{-1}^{1} \frac{du}{|c|^2 (u^2 + y^2)^k}$. For $k = 1$: $\int_{-1}^{1} \frac{du}{u^2 + y^2} = \frac{2 \arctan(1/y)}{y} \to \infty$ as $y \to 0$. So $\sup_{y > 0} \int |G(x+iy)|^2 dx = \infty$, contradicting $G \in H^2$.
+
+For $k \geq 2$, it's even worse. So indeed $F(x) \neq 1$ for all $x \in \mathbb{R}$.
+
+Great, so the proof is solid.
+
+Now, let me also verify: the condition that $F$ is bounded on $\mathbb{C}_+$ (from condition 3 with $\delta = 0$) and $F$ is entire (hence continuous) gives $|F(x)| \leq M$ on $\mathbb{R}$. This is because for any $x_0 \in \mathbb{R}$, $F(x_0) = \lim_{y \to 0^+} F(x_0 + iy)$ (by continuity), and $|F(x_0 + iy)| \leq M$ for all $y > 0$, so $|F(x_0)| \leq M$.
+
+So the proof works. Let me also consider: do we even need condition 1 ($F \neq 0$)? In the proof above, I didn't use it. Let me check... The proof only uses:
+- $F$ entire (for continuity and analyticity)
+- $1/(F-1) \in H^2(\mathbb{C}_+)$ (the key condition)
+- $F$ bounded on $\mathbb{C}_+$ (from condition 3)
+
+Condition 1 ($F \neq 0$) is not used. So the non-existence holds even without condition 1. That's fine — it just means the conditions are more than enough.
+
+Actually wait, I should be more careful. The problem says $F \neq 0$ everywhere. With the interpretation $\frac{1}{F-1} \in H^2$, the condition $F \neq 0$ is separate from $F \neq 1$. The proof shows no such $F$ exists regardless of whether $F \neq 0$.
+
+Hmm, but now I'm second-guessing the interpretation. Let me think about which interpretation is more natural and leads to a better problem.
+
+With $\frac{1}{F} - 1 \in H^2$: trivial answer (yes, $F = 1$).
+With $\frac{1}{F-1} \in H^2$: nontrivial answer (no, impossible).
+
+The problem asks to "determine whether there exists" and "provide a justification," which suggests a nontrivial answer. So I'll go with $\frac{1}{F-1} \in H^2$.
+
+But actually, hold on. Let me reconsider the first interpretation more carefully. With $\frac{1}{F} - 1 \in H^2$, maybe the problem is asking whether a non-constant $F$ exists? Or maybe the problem is from a context where $F = 1$ is considered trivial and they want to know if there are others?
+
+Actually, I just thought of something. With $\frac{1}{F} - 1 \in H^2$, even though $F = 1$ works, maybe the problem is testing whether students can determine that $F = 1$ is the ONLY solution? That would also be an interesting problem.
+
+Let me explore this. With $\frac{1}{F} - 1 \in H^2$:
+
+$F = e^g$ (entire, no zeros), $h = e^{-g} - 1 \in H^2(\mathbb{C}_+)$, $h$ entire.
+
+$h \in H^2(\mathbb{C}_+)$ and $h$ entire means $h$ is a Paley-Wiener function: $h(z) = \int_0^A \phi(t) e^{izt} dt$.
+
+$F = 1/(1+h)$ must be entire, so $1 + h \neq 0$ everywhere.
+
+$F$ bounded in each $\{\text{Im}(z) > \delta\}$.
+
+In $\mathbb{C}_+$: $|h(z)| \leq \|\phi\|_{L^1}$, so $|1 + h(z)| \leq 1 + \|\phi\|_{L^1}$, and since $1 + h \neq 0$ in $\mathbb{C}_+$, we need $|1 + h(z)| \geq c > 0$ for $F$ to be bounded. But $h$ is bounded in $\mathbb{C}_+$ and $1 + h \neq 0$, so... hmm, $1/(1+h)$ is bounded in $\mathbb{C}_+$ iff $|1+h|$ is bounded away from 0 in $\mathbb{C}_+$. Since $h$ is bounded and analytic in $\mathbb{C}_+$, and $1 + h \neq 0$ in $\mathbb{C}_+$, is $|1 + h|$ bounded away from 0?
+
+Not necessarily. $h$ could approach $-1$ at the boundary or at infinity. For example, if $h(x) \to -1$ as $x \to \infty$ along $\mathbb{R}$, then $|1 + h(x)| \to 0$, and $F(x) = 1/(1+h(x)) \to \infty$. But $F$ is bounded on $\mathbb{C}_+$, so $|F(x)| \leq M$, meaning $|1 + h(x)| \geq 1/M$. So $h(x) \not\to -1$.
+
+Actually, since $F$ is bounded on $\mathbb{C}_+$ and $F$ is entire (continuous), $|F(x)| \leq M$ on $\mathbb{R}$. So $|1 + h(x)| = |1/F(x)| \geq 1/M$ on $\mathbb{R}$. Also $|1 + h(x)| = 1/|F(x)| \leq ?$... well, $|F(x)| \leq M$ gives $|1 + h(x)| \geq 1/M$, and $F \neq 0$ gives $|1 + h(x)| > 0$ (which we already knew).
+
+Hmm, also $|F(x)| \leq M$ gives $|1/F(x)| \geq 1/M$, i.e., $|1 + h(x)| \geq 1/M$. And $|1 + h(x)| = |e^{-g(x)}| = e^{-\text{Re}(g(x))}$, so $\text{Re}(g(x)) \leq \log M$ on $\mathbb{R}$.
+
+Also, $|F(x)| \leq M$ means $|e^{g(x)}| \leq M$, so $\text{Re}(g(x)) \leq \log M$.
+
+And $|1/F(x)| = |1 + h(x)| \leq 1 + |h(x)|$. Since $h \in L^2(\mathbb{R})$, $|h(x)| \to 0$ as $|x| \to \infty$ (in some sense), so $|1 + h(x)| \to 1$, meaning $|F(x)| \to 1$ as $|x| \to \infty$. So $\text{Re}(g(x)) \to 0$ as $|x| \to \infty$.
+
+Now, $F = e^g$ is bounded on $\mathbb{C}_+$, so $\text{Re}(g(z)) \leq \log M$ for $z \in \mathbb{C}_+$. And $F$ is bounded on each $\{\text{Im}(z) > \delta\}$, so $\text{Re}(g(z)) \leq C_\delta$ for $\text{Im}(z) > \delta$.
+
+For $\delta < 0$, this gives a bound on $\text{Re}(g)$ in a region extending into the lower half-plane.
+
+Now, $g$ is entire and $\text{Re}(g(x)) \to 0$ as $|x| \to \infty$ on $\mathbb{R}$. Also, $\text{Re}(g(z)) \leq C_\delta$ for $\text{Im}(z) > \delta$.
+
+Hmm, this is getting complicated. Let me think about whether $g$ must be constant.
+
+Actually, $h = e^{-g} - 1$ is a Paley-Wiener function (entire, in $H^2(\mathbb{C}_+)$). So $h$ is of exponential type. Then $e^{-g} = 1 + h$ is also of exponential type (since $h$ is). So $g = -\log(1 + h)$, and $g$ is entire.
+
+The growth of $g$: since $1 + h$ is of exponential type and never zero, $\log(1 + h)$ is entire. What's the growth of $\log(1 + h)$?
+
+If $h$ is of exponential type $A$, then $1 + h$ is of exponential type $A$. Since $1 + h \neq 0$, $\log(1 + h)$ is entire. The growth of $\log(1 + h)$: $|\log(1 + h(z))| \leq C + \log|1 + h(z)|$ roughly, but this isn't quite right for complex logarithm.
+
+Actually, $\log(1 + h(z)) = \int_0^z \frac{h'(\zeta)}{1 + h(\zeta)} d\zeta$. The growth depends on $h'/(1+h)$.
+
+This is getting quite involved. Let me try a different approach.
+
+Let me consider the problem from the perspective of the Smirnov class and outer functions.
+
+Actually, let me try to determine if $F \equiv 1$ is the only solution with the $\frac{1}{F} - 1$ interpretation.
+
+$F = 1/(1+h)$ where $h$ is a Paley-Wiener function (entire, $H^2(\mathbb{C}_+)$), $1 + h \neq 0$ everywhere, and $F$ bounded in each half-plane.
+
+$F$ bounded in $\mathbb{C}_+$: $|1/(1+h(z))| \leq M$ for $\text{Im}(z) > 0$. Since $|h(z)| \leq C$ in $\mathbb{C}_+$ (Paley-Wiener functions are bounded in $\mathbb{C}_+$), $|1 + h(z)| \leq 1 + C$, so $|F(z)| \geq 1/(1+C)$. The condition $|F| \leq M$ means $|1 + h(z)| \geq 1/M$.
+
+$F$ bounded in $\{\text{Im}(z) > \delta\}$ for $\delta < 0$: In the lower half-plane, $h(z)$ can grow exponentially. $|h(z)| \leq \int_0^A |\phi(t)| e^{|y|t} dt \leq \|\phi\|_{L^1} e^{A|y|}$ for $y = \text{Im}(z) < 0$. So $|1 + h(z)|$ can be as large as $e^{A|y|}$, making $|F(z)|$ as small as $e^{-A|y|}$. That's fine for boundedness (small is OK). The issue is if $|1 + h(z)|$ can be close to 0, making $|F|$ large.
+
+So the question is: can $1 + h(z) = 0$ for some $z$ in the lower half-plane? We need $1 + h \neq 0$ everywhere (for $F$ to be entire). And even if $1 + h \neq 0$, $|1 + h|$ could be very small, making $|F|$ very large.
+
+For $F$ to be bounded in $\{\text{Im}(z) > \delta\}$, we need $|1 + h(z)| \geq c_\delta > 0$ for $\text{Im}(z) > \delta$.
+
+Hmm, this is a strong condition. In the lower half-plane, $h$ grows exponentially, so $1 + h$ is dominated by $h$ for large $|y|$, and $|1 + h| \approx |h|$ which is large. So the issue is in the region near the real axis in the lower half-plane.
+
+This is getting very complicated. Let me try to think about whether there's a simple argument.
+
+Actually, let me reconsider the problem. I think the most natural and interesting interpretation is $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$, and the answer is "no such $F$ exists" with the clean proof I outlined above.
+
+Let me also consider: maybe the problem is stated in a way where $1/F - 1$ means $\frac{1}{F} - 1$ but the problem is still nontrivial because maybe $F \equiv 1$ is excluded by some implicit convention, or maybe the problem is asking about the existence of nontrivial solutions.
+
+You know what, I think I should just go with the interpretation that makes the problem nontrivial and interesting. The interpretation $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$ gives a clean, elegant proof of non-existence. Let me go with that.
+
+Actually, wait. Let me reconsider one more time. The problem says "$1/F - 1 \in H^2(\mathbb{C}_+)$". In many analysis texts, especially in the context of Hardy spaces and function theory, this notation would indeed mean $\frac{1}{F} - 1$. But the trivial solution $F = 1$ makes the problem uninteresting.
+
+Hmm, but maybe the problem is from a competition or exam where the "trick" is that the answer is yes and $F = 1$ works, and students might overthink it. But the problem says "provide a justification," which could just mean "explain why your answer is correct."
+
+Actually, let me reconsider. With $\frac{1}{F} - 1 \in H^2$, maybe the problem is asking whether a non-constant $F$ exists, and the answer is no (only $F = 1$ works). That would also be interesting.
+
+Let me try to prove that $F = 1$ is the only solution with $\frac{1}{F} - 1 \in H^2$.
+
+$F = e^g$, $h = e^{-g} - 1 \in H^2(\mathbb{C}_+)$, $h$ entire, $1 + h \neq 0$ everywhere, $F$ bounded in each half-plane.
+
+$F$ bounded in $\mathbb{C}_+$: $|e^{g(z)}| \leq M$ for $\text{Im}(z) > 0$, so $\text{Re}(g(z)) \leq \log M$.
+$F$ bounded in $\{\text{Im}(z) > \delta\}$ for $\delta < 0$: $\text{Re}(g(z)) \leq C_\delta$ for $\text{Im}(z) > \delta$.
+
+$1/F = e^{-g} = 1 + h$, $h \in H^2(\mathbb{C}_+)$.
+
+On $\mathbb{R}$: $|h(x)| = |e^{-g(x)} - 1| \in L^2(\mathbb{R})$. Since $|F(x)| \leq M$ (from boundedness on $\mathbb{C}_+$ and continuity), $|e^{-g(x)}| = 1/|F(x)| \geq 1/M$, so $|1 + h(x)| \geq 1/M$, meaning $|h(x)| \geq |1 + h(x)| - 1 \geq 1/M - 1$... wait, that's $|h(x)| \geq |1 + h(x)| - 1 \geq 1/M - 1$, which could be negative. Let me use the triangle inequality differently: $|h(x)| = |e^{-g(x)} - 1| \leq |e^{-g(x)}| + 1 = 1/|F(x)| + 1 \leq 1/\inf|F| + 1$. But I don't have a lower bound on $|F(x)|$ from the given conditions (other than $F \neq 0$).
+
+Hmm wait, I do have $|F(x)| \leq M$ and $F(x) \neq 0$. But $|F(x)|$ could be very small, making $|1/F(x)|$ very large, and $|h(x)| = |1/F(x) - 1|$ could be large. But $h \in L^2(\mathbb{R})$, so $|h(x)|$ can't be too large on average.
+
+Also, $|h(x)| = |1/F(x) - 1| \in L^2$ and $|F(x)| \leq M$. Since $F(x) \neq 0$, $1/F(x)$ is well-defined. $|1/F(x) - 1| \in L^2$ means $1/F(x) \to 1$ as $|x| \to \infty$ in $L^2$ sense, so $F(x) \to 1$ as $|x| \to \infty$ (in some sense).
+
+Now, $F$ is entire, bounded on $\mathbb{C}_+$, and $F(x) \to 1$ as $|x| \to \infty$. By the Phragmén-Lindelöf principle or similar, can we conclude $F \equiv 1$?
+
+Actually, $F$ is bounded on $\mathbb{C}_+$ and $F(x) \to 1$ as $|x| \to \infty$ on $\mathbb{R}$. But $F$ is also bounded on each $\{\text{Im}(z) > \delta\}$. 
+
+Hmm, let me think about this using the Poisson integral. Since $F$ is bounded and analytic in $\mathbb{C}_+$, it has boundary values $F(x) \in L^\infty(\mathbb{R})$, and $F$ can be recovered from its boundary values via the Poisson integral (if $F$ is in $H^\infty(\mathbb{C}_+)$).
+
+Actually, $F$ is bounded and analytic in $\mathbb{C}_+$, so $F \in H^\infty(\mathbb{C}_+)$. The boundary values $F(x) \in L^\infty(\mathbb{R})$. And $1/F(x) - 1 \in L^2(\mathbb{R})$.
+
+Since $F \in H^\infty(\mathbb{C}_+)$, $F$ is determined by its boundary values. But $F$ is also entire, so it's determined by its values on $\mathbb{R}$ (which is a set with a limit point). So $F$ is the unique entire function that agrees with the $H^\infty$ function on $\mathbb{C}_+$.
+
+Now, $1/F - 1 \in H^2(\mathbb{C}_+)$. Since $F \in H^\infty(\mathbb{C}_+)$ and $F \neq 0$ in $\mathbb{C}_+$ (actually $F \neq 0$ everywhere), $1/F \in H^\infty(\mathbb{C}_+)$ as well (if $|F| \geq c > 0$ in $\mathbb{C}_+$). 
+
+Wait, do we know $|F| \geq c > 0$ in $\mathbb{C}_+$? $F$ is bounded on $\mathbb{C}_+$ and $F \neq 0$ in $\mathbb{C}_+$. But $|F|$ could approach 0. However, $1/F - 1 \in H^2$ means $1/F$ is in $H^2$ (since $1 = 1/F - (1/F - 1)$... no, $1/F = 1 + (1/F - 1) = 1 + h$ where $h \in H^2$; but $1 \notin H^2$, so $1/F \notin H^2$ unless... hmm, $H^2$ is a vector space, so $1/F = 1 + h$ with $h \in H^2$ means $1/F \in H^2$ iff $1 \in H^2$, which is false. So $1/F \notin H^2$ in general.
+
+But $1/F$ is analytic and bounded in $\mathbb{C}_+$ (since $F$ is bounded away from 0... wait, is it?). Hmm, I need to be more careful.
+
+$F$ is bounded on $\mathbb{C}_+$ and $F \neq 0$ in $\mathbb{C}_+$. Is $1/F$ bounded on $\mathbb{C}_+$? Not necessarily — $|F|$ could approach 0. But $1/F - 1 \in H^2$ means $1/F = 1 + h$ with $h \in H^2$, so $|1/F(z)| \leq 1 + |h(z)|$. In $\mathbb{C}_+$, $|h(z)| \leq \|h\|_{H^2} / \sqrt{2\pi \text{Im}(z)}$ (by the pointwise estimate for $H^2$ functions). Wait, actually for $H^2(\mathbb{C}_+)$, the pointwise bound is $|h(z)| \leq \frac{\|h\|_{H^2}}{\sqrt{2 \text{Im}(z)}}$ (or something like that). So $|1/F(z)| \leq 1 + C/\sqrt{\text{Im}(z)}$, which is bounded for $\text{Im}(z) \geq \epsilon > 0$ but blows up as $\text{Im}(z) \to 0$.
+
+So $1/F$ is not necessarily bounded on $\mathbb{C}_+$, but it's in some sense "close to 1" since $h \in H^2$.
+
+OK this is getting really complicated. Let me try a different approach.
+
+Let me use the fact that $h = 1/F - 1$ is entire and in $H^2(\mathbb{C}_+)$. As I discussed, $h$ is a Paley-Wiener function: $h(z) = \int_0^A \phi(t) e^{izt} dt$ for some $\phi \in L^2(0, A)$.
+
+$F = 1/(1+h)$ is entire, so $1 + h \neq 0$ everywhere. $F$ is bounded on each $\{\text{Im}(z) > \delta\}$.
+
+In $\mathbb{C}_+$: $|h(z)| \leq \|\phi\|_{L^1} =: C_0$. So $|1 + h(z)| \leq 1 + C_0$ and $|1 + h(z)| \geq 1 - C_0$ (if $C_0 < 1$) or $\geq 0$ (if $C_0 \geq 1$). For $F$ to be bounded on $\mathbb{C}_+$, we need $|1 + h(z)| \geq c > 0$ in $\mathbb{C}_+$. If $C_0 < 1$, then $|1 + h(z)| \geq 1 - C_0 > 0$, so $|F(z)| \leq 1/(1 - C_0)$. Good.
+
+For $\delta < 0$: In $\{\text{Im}(z) > \delta\}$, $|h(z)| \leq \int_0^A |\phi(t)| e^{-\text{Im}(z) t} dt \leq \|\phi\|_{L^1} e^{A|\delta|}$ (for $\text{Im}(z) > \delta$, $-\text{Im}(z) < |\delta|$, so $e^{-\text{Im}(z) t} \leq e^{|\delta| A}$). So $|h(z)| \leq C_0 e^{A|\delta|}$ in $\{\text{Im}(z) > \delta\}$. Then $|1 + h(z)| \leq 1 + C_0 e^{A|\delta|}$, and if $C_0 e^{A|\delta|} < 1$, $|1 + h(z)| \geq 1 - C_0 e^{A|\delta|} > 0$, so $|F| \leq 1/(1 - C_0 e^{A|\delta|})$.
+
+But for large $|\delta|$, $C_0 e^{A|\delta|}$ could be $> 1$, and then we can't bound $|F|$ this way. However, we need $F$ bounded on each half-plane, with the bound possibly depending on $\delta$.
+
+Hmm, but even if $|h|$ is large, $|1 + h| \geq |h| - 1$, so $|F| = 1/|1+h| \leq 1/(|h| - 1)$ when $|h| > 1$. So $|F|$ is bounded when $|h|$ is large. The issue is when $|1 + h|$ is small, i.e., when $h$ is close to $-1$.
+
+So the question is: can $h(z)$ be close to $-1$ for $z$ in the lower half-plane? Since $1 + h \neq 0$ everywhere, $h(z) \neq -1$ for all $z$. But $h$ could get arbitrarily close to $-1$.
+
+For $F$ to be bounded on $\{\text{Im}(z) > \delta\}$, we need $|1 + h(z)| \geq c_\delta > 0$ for $\text{Im}(z) > \delta$. This is a strong condition.
+
+Hmm, this is really getting into the weeds. Let me try to think about this problem from a higher level.
+
+Actually, I think the key insight might be simpler. Let me reconsider.
+
+With $\frac{1}{F} - 1 \in H^2(\mathbb{C}_+)$ and $F$ bounded on $\mathbb{C}_+$:
+
+$F \in H^\infty(\mathbb{C}_+)$ (bounded analytic in $\mathbb{C}_+$). $1/F - 1 \in H^2(\mathbb{C}_+)$.
+
+Since $F \in H^\infty$ and $F \neq 0$ in $\mathbb{C}_+$, is $1/F \in H^\infty$? Only if $|F| \geq c > 0$ in $\mathbb{C}_+$. We have $1/F = 1 + h$ with $h \in H^2$. For $z \in \mathbb{C}_+$ with $\text{Im}(z) = y > 0$, $|h(z)| \leq \frac{\|h\|_{H^2}}{\sqrt{2y}}$ (Cauchy-Schwarz with the Poisson kernel). So $|1/F(z)| \leq 1 + \frac{\|h\|_{H^2}}{\sqrt{2y}}$. This is finite for each $y > 0$ but blows up as $y \to 0$. So $1/F$ is not in $H^\infty$ in general.
+
+But $1/F$ is in $H^2$? $1/F = 1 + h$, and $1 \notin H^2$, $h \in H^2$, so $1/F \notin H^2$ (since $H^2$ is a vector space and $1 \notin H^2$). So $1/F \notin H^2$.
+
+Hmm, but $1/F - 1 = h \in H^2$. So $1/F$ is "in $H^2$ up to a constant." This is the affine $H^2$ space $1 + H^2$.
+
+OK, I think I need to approach this differently. Let me consider the boundary values.
+
+On $\mathbb{R}$: $F(x) \in L^\infty(\mathbb{R})$ (since $F$ is bounded on $\mathbb{C}_+$ and continuous), $F(x) \neq 0$ for all $x$, and $1/F(x) - 1 \in L^2(\mathbb{R})$.
+
+$1/F(x) - 1 \in L^2$ means $1/F(x) \to 1$ in $L^2$ sense, so $F(x) \to 1$ in measure as $|x| \to \infty$.
+
+Now, $F$ is entire and bounded on $\mathbb{C}_+$. Also, $F$ is bounded on each $\{\text{Im}(z) > \delta\}$.
+
+Consider $F$ on the real line: $F(x) \to 1$ as $|x| \to \infty$ (in $L^2$ sense for $1/F - 1$). And $|F(x)| \leq M$.
+
+Now, $F$ is entire. Can we use the growth conditions to show $F$ is constant?
+
+$F$ is bounded on $\mathbb{C}_+$ and $F(x) \to 1$ as $|x| \to \infty$. By a Phragmén-Lindelöf type argument, if $F$ is bounded on $\mathbb{C}_+$ and approaches 1 on the boundary at infinity, then... hmm, this doesn't directly give $F \equiv 1$ because $F$ could be non-constant but still approach 1 at infinity.
+
+For example, $F(z) = 1 + \epsilon e^{iz}$ for small $\epsilon$. This is entire, bounded on $\mathbb{C}_+$ ($|F(z)| \leq 1 + \epsilon$ for $\text{Im}(z) \geq 0$), and $F(x) = 1 + \epsilon e^{ix}$ which doesn't converge to 1 as $|x| \to \infty$ (it oscillates). So $1/F(x) - 1 = 1/(1 + \epsilon e^{ix}) - 1 = \frac{-\epsilon e^{ix}}{1 + \epsilon e^{ix}}$. For small $\epsilon$, this is approximately $-\epsilon e^{ix}$, which is not in $L^2$ (constant modulus). So this doesn't work.
+
+What about $F(z) = 1 + h(z)$ where $h$ is a Paley-Wiener function? Then $1/F - 1 = 1/(1+h) - 1 = -h/(1+h)$. For this to be in $H^2$, we need $h/(1+h) \in H^2$. If $h$ is small (say $|h| \leq \epsilon < 1$ in $\mathbb{C}_+$), then $h/(1+h) \approx h$, and $h \in H^2$, so $h/(1+h) \in H^2$ (roughly). But we need to be more careful.
+
+Actually, $1/F - 1 = -h/(1+h)$ where $h = F - 1$... no wait, I defined $h = 1/F - 1$ earlier. Let me redo.
+
+If $F = 1 + k$ where $k$ is a Paley-Wiener function, then $1/F - 1 = 1/(1+k) - 1 = -k/(1+k)$. For this to be in $H^2$, we need $k/(1+k) \in H^2$.
+
+If $k$ is small in $\mathbb{C}_+$ (say $|k(z)| \leq \epsilon < 1/2$), then $|k/(1+k)| \leq 2|k|$, and if $k \in H^2$, then $k/(1+k) \in H^2$.
+
+But $k = F - 1$ is entire. Is $k \in H^2$? $k$ is a Paley-Wiener function iff $k \in H^2(\mathbb{C}_+)$ and $k$ is entire. So if $k$ is a Paley-Wiener function with $|k| \leq \epsilon$ in $\mathbb{C}_+$, and $1 + k \neq 0$ everywhere, and $F = 1 + k$ is bounded in each half-plane...
+
+$F = 1 + k$ is bounded in $\mathbb{C}_+$: $|F| \leq 1 + \epsilon$. ✓
+$F$ bounded in $\{\text{Im}(z) > \delta\}$ for $\delta < 0$: $|k(z)| \leq C e^{A|\delta|}$ in this region, so $|F(z)| \leq 1 + C e^{A|\delta|}$. ✓ (bounded, with bound depending on $\delta$).
+
+Wait, but we also need $F \neq 0$ everywhere, i.e., $1 + k \neq 0$, i.e., $k \neq -1$ everywhere. And $1/F - 1 = -k/(1+k) \in H^2$.
+
+So the question reduces to: does there exist a non-zero Paley-Wiener function $k$ such that:
+- $k \neq -1$ everywhere
+- $-k/(1+k) \in H^2(\mathbb{C}_+)$
+- $|k|$ is small enough in $\mathbb{C}_+$ (for $1/F$ to be well-behaved)
+
+If $|k(z)| \leq \epsilon < 1$ in $\mathbb{C}_+$, then $1 + k \neq 0$ in $\mathbb{C}_+$ (since $|k| < 1$). And $k/(1+k) \in H^2$ since $|k/(1+k)| \leq |k|/(1-\epsilon)$ and $k \in H^2$.
+
+But we also need $k \neq -1$ in the lower half-plane. In the lower half-plane, $|k(z)|$ can grow, so $k(z) = -1$ is possible. We need to choose $k$ such that $k(z) \neq -1$ for all $z$.
+
+For example, take $k(z) = \epsilon \frac{\sin z}{z}$... but we showed $\sin z / z \notin H^2(\mathbb{C}_+)$. 
+
+Take $k(z) = \epsilon \int_0^1 e^{izt} dt = \epsilon \frac{e^{iz} - 1}{iz}$. This is a Paley-Wiener function. In $\mathbb{C}_+$, $|k(z)| \leq \epsilon \int_0^1 e^{-yt} dt \leq \epsilon$. So $|k| \leq \epsilon$ in $\mathbb{C}_+$.
+
+$k(z) = -1$ means $\epsilon \frac{e^{iz} - 1}{iz} = -1$, i.e., $\epsilon(e^{iz} - 1) = -iz$, i.e., $\epsilon e^{iz} = \epsilon - iz$. For $z = x + iy$ with $y < 0$: $|\epsilon e^{iz}| = \epsilon e^{-y} = \epsilon e^{|y|}$, and $|\epsilon - iz| = |\epsilon - ix + y| = \sqrt{(\epsilon + y)^2 + x^2}$. 
+
+For large $|y|$ (deep in lower half-plane), $|\epsilon e^{iz}| = \epsilon e^{|y|}$ grows exponentially, while $|\epsilon - iz| = \sqrt{(\epsilon + y)^2 + x^2} \leq \epsilon + |y| + |x|$ grows linearly. So for large $|y|$, $|\epsilon e^{iz}| \gg |\epsilon - iz|$, so $k(z) \neq -1$ for large $|y|$.
+
+But for moderate $|y|$, there might be solutions. This is hard to check in general.
+
+Let me try a specific small $\epsilon$. Take $\epsilon = 0.01$. Then $k(z) = 0.01 \frac{e^{iz} - 1}{iz}$. We need $k(z) \neq -1$ for all $z$, i.e., $0.01(e^{iz} - 1) \neq -iz$, i.e., $e^{iz} \neq 1 - 100iz$.
+
+For $z = -i$ (i.e., $z = 0 - i$): $e^{i(-i)} = e^1 = e \approx 2.718$. $1 - 100i(-i) = 1 - 100 = -99$. $2.718 \neq -99$. OK.
+
+For $z = -100i$: $e^{i(-100i)} = e^{100}$, huge. $1 - 100i(-100i) = 1 - 10000 = -9999$. $e^{100} \gg 9999$. OK.
+
+For $z = -0.01i$: $e^{i(-0.01i)} = e^{0.01} \approx 1.01$. $1 - 100i(-0.01i) = 1 - 1 = 0$. $1.01 \neq 0$. OK but close.
+
+For $z$ near $-0.01i$: Let $z = -0.01i + w$ for small $w$. $e^{iz} = e^{i(-0.01i + w)} = e^{0.01 + iw} = e^{0.01} e^{iw} \approx 1.01(1 + iw)$. $1 - 100iz = 1 - 100i(-0.01i + w) = 1 - 1 + 100iw = 100iw$. So we need $1.01(1 + iw) \neq 100iw$, i.e., $1.01 + 1.01iw \neq 100iw$, i.e., $1.01 \neq 98.99 iw$, i.e., $w \neq 1.01/(98.99 i) = -1.01i/98.99 \approx -0.0102i$. So at $z \approx -0.01i - 0.0102i = -0.0202i$, we might have $k(z) = -1$.
+
+Let me check: $z = -0.0202i$. $e^{iz} = e^{i(-0.0202i)} = e^{0.0202} \approx 1.0204$. $1 - 100iz = 1 - 100i(-0.0202i) = 1 - 100(0.0202) = 1 - 2.02 = -1.02$. $1.0204 \neq -1.02$. Not equal.
+
+Hmm, let me be more careful. $k(z) = -1$ means $\epsilon \frac{e^{iz}-1}{iz} = -1$. With $\epsilon = 0.01$: $0.01 \frac{e^{iz}-1}{iz} = -1$, so $\frac{e^{iz}-1}{iz} = -100$, so $e^{iz} - 1 = -100iz$, so $e^{iz} = 1 - 100iz$.
+
+Let $w = iz$, so $e^w = 1 - 100w/(-i) = 1 + 100w/i = 1 - 100iw$. Hmm, let me redo: $z = -iw$ (so $w = iz$), $e^w = 1 - 100i(-iw) = 1 - 100w$. So $e^w = 1 - 100w$.
+
+For real $w$: $e^w = 1 - 100w$. At $w = 0$: $1 = 1$. ✓ (but this gives $z = 0$, and $k(0) = \epsilon \cdot \lim_{z \to 0} \frac{e^{iz}-1}{iz} = \epsilon \cdot 1 = 0.01 \neq -1$). Wait, $k(0) = 0.01$, not $-1$. Let me recheck.
+
+$k(z) = \epsilon \frac{e^{iz}-1}{iz}$. At $z = 0$: $k(0) = \epsilon \cdot 1 = \epsilon = 0.01$ (using L'Hôpital or Taylor). So $k(0) = 0.01 \neq -1$.
+
+$k(z) = -1$ means $\epsilon \frac{e^{iz}-1}{iz} = -1$. At $z = 0$, LHS $= 0.01 \neq -1$. So $z = 0$ is not a solution.
+
+$e^w = 1 - 100w$ where $w = iz$. At $w = 0$: $1 = 1$. But this corresponds to $0.01 \cdot 1 = -1$? No. Let me recheck.
+
+$k(z) = -1$: $\epsilon \frac{e^{iz}-1}{iz} = -1$. Let $w = iz$. Then $\epsilon \frac{e^w - 1}{w} = -1$ (since $iz = w$... wait, $iz = w$ so $z = w/i = -iw$, and $iz = i(-iw) = w$. Yes.). So $\epsilon \frac{e^w - 1}{w} = -1$, i.e., $e^w - 1 = -w/\epsilon = -100w$, i.e., $e^w = 1 - 100w$.
+
+At $w = 0$: $e^0 = 1$ and $1 - 0 = 1$. So $w = 0$ is a solution of $e^w = 1 - 100w$. But $k(0) = \epsilon \cdot \frac{e^0 - 1}{0} = \epsilon \cdot 1 = 0.01$ (by L'Hôpital). And we need $k = -1$, not $k = 0.01$. 
+
+The issue is that $w = 0$ is a removable singularity of $(e^w - 1)/w$, and the value there is 1, not $-1/\epsilon = -100$. So $w = 0$ satisfies $e^w = 1 - 100w$ but doesn't give $k = -1$ because the equation $e^w - 1 = -100w$ is satisfied trivially at $w = 0$ (both sides are 0), but $(e^w - 1)/w = -100$ requires the derivative to be $-100$, while actually $(e^w - 1)/w|_{w=0} = 1 \neq -100$.
+
+So $w = 0$ is a solution of $e^w = 1 - 100w$ but doesn't give $k = -1$. We need non-zero solutions of $e^w = 1 - 100w$.
+
+For real $w > 0$: $e^w > 1$ and $1 - 100w < 1$, and for $w > 0.01$, $1 - 100w < 0 < e^w$. So no positive real solution (other than $w = 0$).
+
+For real $w < 0$: $e^w < 1$ and $1 - 100w > 1$. So $e^w < 1 < 1 - 100w$. No negative real solution.
+
+For complex $w = a + bi$ with $b \neq 0$: $e^a \cos b + i e^a \sin b = (1 - 100a) - 100bi$.
+
+$e^a \sin b = -100b$ and $e^a \cos b = 1 - 100a$.
+
+From the first: $e^a = -100b/\sin b$ (need $-b/\sin b > 0$). From the second: $(-100b/\sin b) \cos b = 1 - 100a$, so $-100b \cot b = 1 - 100a$, and $a = \ln(-100b/\sin b)$.
+
+So $-100b \cot b = 1 - 100 \ln(-100b/\sin b)$.
+
+This is a transcendental equation. For $b$ near $\pi$ (where $\sin b$ is near 0): $\sin b \approx \pi - b$ for $b$ near $\pi$, $\cot b \approx -1/(\pi - b)$. $-100b \cdot (-1/(\pi - b)) = 100b/(\pi - b)$. And $-100b/\sin b \approx -100b/(-(b - \pi)) = 100b/(b - \pi)$. For $b$ slightly less than $\pi$: $b - \pi < 0$, so $100b/(b-\pi) < 0$, not valid (need $e^a > 0$). For $b$ slightly greater than $\pi$: $\sin b < 0$ (since $\pi < b < 2\pi$), $-b < 0$, $-b/\sin b = -b/(\text{negative}) > 0$. OK.
+
+For $b$ slightly greater than $\pi$: $\sin b \approx -(b - \pi)$, $\cot b \approx -1/(b-\pi)$. $-100b \cot b \approx 100b/(b-\pi) \to +\infty$. $-100b/\sin b \approx 100b/(b-\pi) \to +\infty$, so $a = \ln(100b/(b-\pi)) \to +\infty$. $1 - 100a \to -\infty$. So $100b/(b-\pi) \to +\infty$ and $1 - 100a \to -\infty$. These could match for some $b$.
+
+This is getting very complicated. The point is that for generic $\epsilon$, the equation $k(z) = -1$ might or might not have solutions. For the problem, we need to find $k$ such that $k \neq -1$ everywhere, which is a nontrivial constraint.
+
+OK, I think I've been going down a rabbit hole. Let me step back and think about what the problem is really asking.
+
+Given the problem statement and the fact that it asks to "determine whether there exists" and "provide a justification," I believe the intended interpretation is $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$, and the answer is **no, such $F$ does not exist**, with the clean proof I outlined.
+
+Let me also consider: maybe the problem means $\frac{1}{F} - 1 \in H^2$ and the answer is "yes, $F = 1$ works" but they also want to know if nontrivial solutions exist. But the problem just says "determine whether there exists," so if $F = 1$ works, the answer is yes.
+
+Hmm, but actually, re-reading the problem once more: "Determine whether there exists an entire function $F$ such that: 1. $F(z) \neq 0$...; 2. $1/F - 1 \in H^2$...; 3. $F$ is bounded..."
+
+If the answer is trivially "yes, $F = 1$," then condition 1 ($F \neq 0$) is trivially satisfied, condition 2 ($0 \in H^2$) is trivially satisfied, and condition 3 is trivially satisfied. The problem would be trivial and not worth asking.
+
+So I'm now fairly confident the intended interpretation is $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$, making the problem nontrivial with the answer "no."
+
+Actually, wait. Let me reconsider one more time. Maybe the problem is $\frac{1}{F} - 1 \in H^2$ but they want a non-constant $F$, and the answer is that only $F = 1$ works (so no non-constant $F$ exists). This would also be nontrivial.
+
+Hmm, but the problem doesn't say "non-constant." It just says "determine whether there exists an entire function $F$."
+
+OK, I'll go with the interpretation $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$ and prove non-existence. This gives the most interesting and clean problem.
+
+Actually, let me reconsider one final time. I just want to make sure my proof is correct for the $\frac{1}{F-1}$ interpretation.
+
+**Proof (for $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$):**
+
+Suppose such $F$ exists.
+
+Step 1: $F$ is bounded on $\mathbb{C}_+$ (condition 3 with $\delta = 0$). Say $|F(z)| \leq M$ for $\text{Im}(z) > 0$.
+
+Step 2: $F$ is entire, hence continuous. So $|F(x)| = \lim_{y \to 0^+} |F(x+iy)| \leq M$ for all $x \in \mathbb{R}$.
+
+Step 3: Let $G = \frac{1}{F-1} \in H^2(\mathbb{C}_+)$. Then $G$ is analytic in $\mathbb{C}_+$, so $F \neq 1$ in $\mathbb{C}_+$.
+
+Step 4: $F \neq 1$ on $\mathbb{R}$. Suppose $F(x_0) = 1$ for some $x_0 \in \mathbb{R}$. Since $F$ is entire, $F(z) - 1 = a_k(z - x_0)^k + \ldots$ with $k \geq 1$ and $a_k \neq 0$. Then $|G(x+iy)| = 1/|F(x+iy) - 1| \sim 1/(|a_k| |x - x_0 + iy|^k)$ for $z$ near $x_0$. For $y > 0$:
+$$\int_{x_0-1}^{x_0+1} |G(x+iy)|^2 dx \gtrsim \int_{-1}^{1} \frac{du}{(u^2 + y^2)^k}.$$
+For $k = 1$: $\int_{-1}^{1} \frac{du}{u^2 + y^2} = \frac{2\arctan(1/y)}{y} \to \infty$ as $y \to 0^+$. For $k \geq 2$: even more divergent. So $\sup_{y > 0} \int |G(x+iy)|^2 dx = \infty$, contradicting $G \in H^2$.
+
+Step 5: Since $F(x) \neq 1$ for all $x \in \mathbb{R}$ and $|F(x)| \leq M$, we have $|F(x) - 1| \leq |F(x)| + 1 \leq M + 1$, so $|G(x)| = 1/|F(x) - 1| \geq 1/(M+1) > 0$ for all $x \in \mathbb{R}$.
+
+Step 6: But $G \in H^2(\mathbb{C}_+)$ implies $G(x) \in L^2(\mathbb{R})$ (boundary values). Since $|G(x)| \geq 1/(M+        — AI历史解题过程（thinking）
+#   deepmath_103k_00004397         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>deepmath_103k_00004397</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Find \( \lim_{n\to\infty} \cos\left(\frac{\pi}{4}\right) \cos\left(\frac{\pi}{8}\right)\ldots \cos\left(\frac{\pi}{2^n}\right) \).
+
+## Standard Solution
+
+Alright, so I need to find the limit as n approaches infinity of the product of cosines starting from π/4 up to π/2^n. Let me write that down properly:
+
+\[
+\lim_{n \to \infty} \cos\left(\frac{\pi}{4}\right) \cos\left(\frac{\pi}{8}\right) \ldots \cos\left(\frac{\pi}{2^n}\right)
+\]
+
+Hmm, okay. So each term in the product is a cosine of an angle that's half of the previous one. Starting at π/4, then π/8, π/16, and so on, until π/2^n. I remember that there are some infinite product formulas involving sines and cosines, maybe I can use one of those?
+
+Wait, I think there's a formula that relates the product of cosines to the sine function. Let me recall. Something like:
+
+\[
+\prod_{k=1}^{\infty} \cos\left(\frac{\theta}{2^k}\right) = \frac{\sin \theta}{\theta}
+\]
+
+Is that right? Let me check for a simple case. If θ = π/2, then the product would be cos(π/4) cos(π/8) cos(π/16)... which is similar to what we have here. According to the formula, that product should be sin(π/2)/(π/2) = 2/π. But wait, in our problem, the first term is cos(π/4), which would correspond to k=2 in the formula, because θ/2^k would start at θ/2^2. If we take θ = π/2, then θ/2^2 = π/8, but our first term is π/4. Hmm, maybe I need to adjust the formula.
+
+Alternatively, perhaps the formula is:
+
+\[
+\prod_{k=1}^{n} \cos\left(\frac{\theta}{2^k}\right) = \frac{\sin \theta}{2^n \sin\left(\frac{\theta}{2^n}\right)}
+\]
+
+Yes, that rings a bell. Let me verify this for a small n. Let's take n=1. Then the left side is cos(θ/2), and the right side is sinθ/(2 sin(θ/2)). Using double-angle identity: sinθ = 2 sin(θ/2) cos(θ/2), so sinθ/(2 sin(θ/2)) = cos(θ/2). That checks out for n=1. How about n=2? Left side: cos(θ/2) cos(θ/4). Right side: sinθ/(4 sin(θ/4)). Let's compute sinθ = 2 sin(θ/2) cos(θ/2), so sinθ/(4 sin(θ/4)) = (2 sin(θ/2) cos(θ/2))/(4 sin(θ/4)) = (sin(θ/2) cos(θ/2))/(2 sin(θ/4)). Then, sin(θ/2) = 2 sin(θ/4) cos(θ/4), so substituting that in: (2 sin(θ/4) cos(θ/4) * cos(θ/2))/(2 sin(θ/4)) ) = cos(θ/4) cos(θ/2). Which is the same as the left side. So yes, the formula seems correct.
+
+Therefore, in general:
+
+\[
+\prod_{k=1}^{n} \cos\left(\frac{\theta}{2^k}\right) = \frac{\sin \theta}{2^n \sin\left(\frac{\theta}{2^n}\right)}
+\]
+
+So if I take the limit as n approaches infinity, what happens? Let's see:
+
+\[
+\lim_{n \to \infty} \frac{\sin \theta}{2^n \sin\left(\frac{\theta}{2^n}\right)}
+\]
+
+As n becomes very large, θ/2^n becomes very small. Remember that for small x, sinx ≈ x. Therefore, sin(θ/2^n) ≈ θ/2^n. So substituting that in, the denominator becomes 2^n * (θ / 2^n) ) = θ. Therefore, the limit becomes sinθ / θ.
+
+Therefore,
+
+\[
+\prod_{k=1}^{\infty} \cos\left(\frac{\theta}{2^k}\right) = \frac{\sin \theta}{\theta}
+\]
+
+So that's the formula. Now, in our problem, the product starts at cos(π/4) which is θ/2^2 where θ would be π. Wait, let's see. Let me check:
+
+If θ = π, then the product would be:
+
+cos(π/2^1) cos(π/2^2) cos(π/2^3) ... = cos(π/2) cos(π/4) cos(π/8) ... but the first term is cos(π/2) which is 0. That's not helpful. Wait, but in our problem, the first term is cos(π/4) = cos(π/2^2). So maybe we need to adjust θ such that the first term is θ/2^2 = π/4. Let's solve for θ:
+
+θ / 2^2 = π/4 ⇒ θ = π/4 * 4 = π. Wait, so θ = π. Then the product would be:
+
+cos(π/2^2) cos(π/2^3) cos(π/2^4) ... up to n terms. But if θ = π, then according to the formula,
+
+\[
+\prod_{k=2}^{\infty} \cos\left(\frac{\pi}{2^k}\right) = \frac{\sin \pi}{\pi} = 0
+\]
+
+But that's not possible because our product starts at k=2 (π/4 = π/2^2) and goes to infinity, but sinπ is zero. Wait, that contradicts. But actually, if θ = π, the formula gives the product from k=1 to infinity of cos(π/2^k) = sinπ / π = 0. But in reality, the product from k=1 of cos(π/2^k) is cos(π/2) cos(π/4) cos(π/8)... and cos(π/2) is 0, so the entire product is zero. But in our problem, the product starts at k=2, so we are missing the first term, which is zero. So actually, the product from k=2 to infinity of cos(π/2^k) would be (product from k=1 to infinity) / cos(π/2) = 0 / 0, which is undefined. Wait, that seems problematic.
+
+But wait, maybe I need to adjust the formula. Let's think again. The formula is for the product starting at k=1, but in our case, we start at k=2. So perhaps we can write the product as:
+
+product from k=2 to n of cos(π/2^k) = product from k=1 to n of cos(π/2^k) / cos(π/2^1) = [sin(π) / (2^n sin(π/2^n))] / cos(π/2)
+
+But sin(π) is zero, so that's 0 divided by something. Hmm, this seems like a dead end.
+
+Alternatively, maybe I need to set θ such that θ/2^k starts at π/4. So θ/2^2 = π/4 ⇒ θ = π. Then, the product from k=2 to n of cos(π/2^k) is the same as the product from k=1 to n-1 of cos(π/2^{k+1}) = product from k=1 to n-1 of cos( (π/2)/2^k ). Let me define θ = π/2. Then:
+
+product from k=1 to m of cos(θ/2^k) = sin(θ) / (2^m sin(θ/2^m))
+
+So here, θ = π/2, and m = n -1. Therefore, the product is sin(π/2) / (2^{n-1} sin(π/(2^{n}))) )
+
+Since sin(π/2) = 1, this becomes 1 / (2^{n-1} sin(π/(2^n)) )
+
+But then, sin(π/(2^n)) ≈ π/(2^n) for large n. Therefore, as n approaches infinity, sin(π/(2^n)) ≈ π/(2^n). Therefore, the product becomes approximately 1 / (2^{n-1} * π / 2^n ) ) = 1 / ( (2^{n-1} * π ) / 2^n ) ) = 1 / (π / 2 ) = 2 / π.
+
+Therefore, the limit as n approaches infinity of product from k=2 to n of cos(π/2^k) is 2/π.
+
+But wait, in the original problem, the product is from k=2 to n, but the first term is cos(π/4), which is θ=π/2, starting from k=1? Wait, perhaps I need to step back.
+
+Wait, original problem: product starts at π/4 = π/2^2, then π/8 = π/2^3, up to π/2^n. So the number of terms is (n - 1) when the upper index is n. Wait, maybe my indices are getting confused.
+
+Let me reindex. Let’s let m = k -1. Then the product cos(π/4) cos(π/8)...cos(π/2^n) can be written as product from m=1 to (n-1) of cos(π/2^{m+1}) = product from m=1 to (n-1) of cos(π/(2^{m+1})). Let’s set m’ = m +1, so m’ goes from 2 to n. Then, the product is product from m’=2 to n of cos(π/2^{m’}).
+
+Alternatively, if we use the formula from k=1 to N of cos(π/2^{k+1}) = product from k=1 to N of cos(π/2^{k+1}) = product from k=2 to N+1 of cos(π/2^k). So if in our problem, the product is up to π/2^n, which would correspond to N+1 = n, so N = n-1.
+
+Therefore, using the formula again with θ such that θ/2^{k} = π/2^{k+1}. So θ = π/2. Then:
+
+product from k=1 to N of cos(θ/2^k) = sinθ/(2^N sin(θ/2^N))
+
+Here θ = π/2, N = n-1. Then:
+
+product from k=1 to n-1 of cos(π/2^{k+1}) = sin(π/2) / (2^{n-1} sin(π/(2^{n})) )
+
+sin(π/2) is 1, so this is 1 / (2^{n-1} sin(π/2^n) )
+
+Therefore, the original product up to cos(π/2^n) is equal to 1 / (2^{n -1} sin(π/2^n) )
+
+Then, the limit as n approaches infinity is the limit of 1 / (2^{n -1} sin(π/2^n) )
+
+Again, sin(π/2^n) ≈ π/2^n for large n. Therefore,
+
+2^{n -1} sin(π/2^n) ≈ 2^{n -1} * π / 2^n = (2^{n -1} / 2^n) ) * π = π / 2
+
+Therefore, the limit becomes 1 / (π / 2 ) = 2 / π.
+
+So the limit is 2/π. Let me verify this with another approach to be sure.
+
+Another method: use induction and recursive relations.
+
+Let’s denote P_n = product_{k=2}^n cos(π / 2^k). Wait, but in the problem, the product starts at π/4 = π/2^2 and goes up to π/2^n. So if we index k from 2 to n, that's (n -1) terms. Alternatively, if we start k=1 with π/4, that might be another way.
+
+Alternatively, let’s use the identity for sin(2x) = 2 sinx cosx. Therefore, cosx = sin(2x)/(2 sinx).
+
+Maybe we can telescope the product.
+
+Let’s write each cosine term as sin(2x)/(2 sinx), so:
+
+cos(π/4) = sin(π/2)/(2 sin(π/4))
+
+cos(π/8) = sin(π/4)/(2 sin(π/8))
+
+...
+
+cos(π/2^n) = sin(π/2^{n-1})/(2 sin(π/2^n))
+
+Therefore, the product becomes:
+
+[sin(π/2)/(2 sin(π/4))] * [sin(π/4)/(2 sin(π/8))] * ... * [sin(π/2^{n-1})/(2 sin(π/2^n))]
+
+Each numerator cancels with the denominator of the next term:
+
+= [sin(π/2) / (2^n)] * [1 / sin(π/2^n)]
+
+Because all the intermediate terms cancel out. So:
+
+Product = sin(π/2) / (2^n sin(π/2^n)) = 1 / (2^n sin(π/2^n))
+
+Which is the same as earlier. Then, taking the limit as n approaches infinity:
+
+lim_{n→∞} 1 / (2^n sin(π/2^n)) = lim_{n→∞} 1 / (2^n * (π/2^n)) ) [since sin(π/2^n) ≈ π/2^n]
+
+= lim_{n→∞} 1 / (π) ) * 2^n / 2^n = 1/π
+
+Wait, hold on, that contradicts the previous result. Wait, what's going on here?
+
+Wait, let's do it step by step.
+
+Product = sin(π/2) / (2^n sin(π/2^n)) = 1 / (2^n sin(π/2^n))
+
+So as n→infty, π/2^n →0, so sin(π/2^n) ≈ π/2^n - (π/2^n)^3/6 + ...
+
+Therefore, sin(π/2^n) ≈ π/2^n for small angles. Therefore, 2^n sin(π/2^n) ≈ 2^n * (π/2^n) = π. Therefore, the limit as n→infty of 1/(2^n sin(π/2^n)) ≈ 1/π.
+
+But this contradicts the previous result where I thought it was 2/π. Wait, so which one is correct? There must be an error here.
+
+Wait, let's check with n=2. If n=2, then the product is cos(π/4). According to the formula, 1/(2^2 sin(π/2^2)) = 1/(4 sin(π/4)) = 1/(4*(√2/2)) )=1/(2√2) ≈ 0.3535. But cos(π/4) = √2/2 ≈0.7071. So 0.7071 vs 1/(2√2)=0.3535. That's not equal. Therefore, the formula must have an error. Wait, this suggests my earlier telescoping was wrong.
+
+Wait, hold on. Let's start again with telescoping.
+
+Suppose P_n = product_{k=2}^n cos(π/2^k). Let's use the identity cosx = sin(2x)/(2 sinx). Then:
+
+cos(π/4) = sin(π/2)/(2 sin(π/4))
+
+cos(π/8) = sin(π/4)/(2 sin(π/8))
+
+...
+
+cos(π/2^n) = sin(π/2^{n-1})/(2 sin(π/2^n))
+
+Therefore, multiplying all together:
+
+P_n = [sin(π/2) / (2 sin(π/4))] * [sin(π/4) / (2 sin(π/8))] * ... * [sin(π/2^{n-1}) / (2 sin(π/2^n))]
+
+Multiplying these, the sin(π/4) in the numerator cancels with the denominator of the next term, and so on. So all intermediate terms cancel, leaving:
+
+P_n = sin(π/2) / (2^{n -1} sin(π/2^n))
+
+Because we start at k=2, which corresponds to π/4, so there are (n -1) terms. Wait, original indexing: product from k=2 to n. So number of terms is n -1. Therefore, number of 2's in the denominator is n -1. Therefore:
+
+P_n = sin(π/2) / (2^{n -1} sin(π/2^n)) = 1 / (2^{n -1} sin(π/2^n))
+
+Therefore, the limit as n→infty is 1 / (2^{n -1} sin(π/2^n)) ≈ 1/(2^{n -1} * π / 2^n) ) = 1/( (2^{n -1} * π) / 2^n ) ) = 1/(π / 2 ) = 2/π.
+
+Ah! So earlier when I thought the limit was 1/π, I had miscalculated the exponent in the denominator. The correct exponent is (n -1), not n. Therefore, 2^{n -1} * (π / 2^n ) = π / 2. Hence, the limit is 2/π.
+
+Therefore, the answer should be 2/π.
+
+Let me verify with n=2 again. If n=2, then P_2 = cos(π/4) = √2/2 ≈0.7071. According to the formula, 1/(2^{2 -1} sin(π/2^2)) = 1/(2 sin(π/4)) = 1/(2*(√2/2)) = 1/√2 ≈0.7071, which matches. For n=3, P_3 = cos(π/4)cos(π/8) ≈0.7071 * 0.9239 ≈0.6533. According to the formula: 1/(2^{3 -1} sin(π/2^3)) = 1/(4 sin(π/8)) ≈1/(4*0.3827)≈1/1.530≈0.653, which matches. So the formula works.
+
+Therefore, taking the limit as n approaches infinity:
+
+lim_{n→∞} 1/(2^{n -1} sin(π/2^n)) = 2/π.
+
+Therefore, the answer is 2/π.
+
+**Final Answer**
+\boxed{\dfrac{2}{\pi}}
+</think>
+
+To find the limit of the product of cosines as \( n \) approaches infinity, we start with the product:
+
+\[
+\lim_{n \to \infty} \cos\left(\frac{\pi}{4}\right) \cos\left(\frac{\pi}{8}\right) \ldots \cos\left(\frac{\pi}{2^n}\right)
+\]
+
+We use the identity for the product of cosines:
+
+\[
+\prod_{k=1}^{n} \cos\left(\frac{\theta}{2^k}\right) = \frac{\sin \theta}{2^n \sin\left(\frac{\theta}{2^n}\right)}
+\]
+
+For our problem, we need to adjust the product to start from \( \cos\left(\frac{\pi}{4}\right) \), which corresponds to \( k = 2 \). We set \( \theta = \frac{\pi}{2} \), so the product becomes:
+
+\[
+\prod_{k=2}^{n} \cos\left(\frac{\pi}{2^k}\right)
+\]
+
+Rewriting the product in terms of the identity, we have:
+
+\[
+\prod_{k=2}^{n} \cos\left(\frac{\pi}{2^k}\right) = \prod_{k=1}^{n-1} \cos\left(\frac{\pi/2}{2^k}\right)
+\]
+
+Using the identity with \( \theta = \frac{\pi}{2} \):
+
+\[
+\prod_{k=1}^{n-1} \cos\left(\frac{\pi/2}{2^k}\right) = \frac{\sin\left(\frac{\pi}{2}\right)}{2^{n-1} \sin\left(\frac{\pi}{2^n}\right)}
+\]
+
+Since \( \sin\left(\frac{\pi}{2}\right) = 1 \), this simplifies to:
+
+\[
+\frac{1}{2^{n-1} \sin\left(\frac{\pi}{2^n}\right)}
+\]
+
+As \( n \to \infty \), \( \frac{\pi}{2^n} \) becomes very small, and we use the approximation \( \sin\left(\frac{\pi}{2^n}\right) \approx \frac{\pi}{2^n} \). Therefore, the expression becomes:
+
+\[
+\frac{1}{2^{n-1} \cdot \frac{\pi}{2^n}} = \frac{1}{\frac{\pi}{2}} = \frac{2}{\pi}
+\]
+
+Thus, the limit is:
+
+\[
+\boxed{\dfrac{2}{\pi}}
+\]
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We need to determine whether there exists an entire function $F$ such that:
+1. $F(z) \neq 0$ for all $z \in \mathbb{C}$;
+2. $1/F - 1 \in H^2(\mathbb{C}_+)$, where $H^2(\mathbb{C}_+)$ is the classical Hardy space in the upper half-plane;
+3. $F$ is bounded in every horizontal half-plane $\{z: \text{Im}(z) > \delta\}$.
+
+First, let me check for answer leaks. The problem text is clean — no solutions, no sketches, no formalization notes. Good.
+
+Now let me think about this problem.
+
+Since $F$ is entire and never zero, $F = e^g$ for some entire function $g$. So $1/F = e^{-g}$.
+
+Condition 2: $1/F - 1 = e^{-g} - 1 \in H^2(\mathbb{C}_+)$.
+
+The Hardy space $H^2(\mathbb{C}_+)$ consists of functions analytic in the upper half-plane $\mathbb{C}_+$ with 
+$$\sup_{y > 0} \int_{-\infty}^{\infty} |f(x+iy)|^2 dx < \infty.$$
+
+So $h := e^{-g} - 1 \in H^2(\mathbb{C}_+)$.
+
+This means $e^{-g} = 1 + h$ where $h \in H^2(\mathbb{C}_+)$.
+
+Now, $h \in H^2(\mathbb{C}_+)$ means $h$ is analytic in $\mathbb{C}_+$ and the $H^2$ norm is finite. In particular, $h$ has boundary values $h(x) \in L^2(\mathbb{R})$ a.e., and $\|h\|_{H^2}^2 = \int |h(x)|^2 dx$.
+
+So on the real line (boundary values), $e^{-g(x)} = 1 + h(x)$ where $h \in L^2(\mathbb{R})$.
+
+Condition 3: $F = e^g$ is bounded in every half-plane $\{\text{Im}(z) > \delta\}$ for $\delta > 0$ (I assume $\delta$ can be any real number, but typically $\delta \geq 0$ or any real). Actually, "every horizontal half-plane $\{z: \text{Im}(z) > \delta\}$" — this is for every $\delta \in \mathbb{R}$ presumably. For $\delta < 0$, this includes parts of the lower half-plane too.
+
+Wait, let me reconsider. The condition says $F$ is bounded in every $\{z: \text{Im}(z) > \delta\}$. If $\delta$ ranges over all reals, then in particular for $\delta \to -\infty$, but that's the whole plane. Actually for any fixed $\delta$, the half-plane $\{\text{Im}(z) > \delta\}$ is a proper subset unless $\delta = -\infty$. So for each fixed $\delta \in \mathbb{R}$, $F$ is bounded on $\{\text{Im}(z) > \delta\}$.
+
+Hmm, but if $\delta$ is very negative, $\{\text{Im}(z) > \delta\}$ is almost the whole plane. But it's still a half-plane, and $F$ being bounded on each such half-plane (with bound possibly depending on $\delta$) is the condition.
+
+Actually, this is related to the theory of functions of bounded type, Nevanlinna class, and the Smirnov class.
+
+Let me think about this differently. The key constraint is:
+- $e^{-g} - 1 \in H^2(\mathbb{C}_+)$
+- $e^g$ is bounded on each upper half-plane $\{\text{Im}(z) > \delta\}$.
+
+From condition 2, $e^{-g} = 1 + h$ with $h \in H^2$. On the boundary, $|e^{-g(x)}| = |1 + h(x)|$. Since $h \in L^2$, $h(x) \to 0$ as $|x| \to \infty$ (in some sense), so $|e^{-g(x)}| \to 1$, meaning $\text{Re}(g(x)) \to 0$ as $|x| \to \infty$ along the real axis.
+
+Also, $e^{-g}$ is an entire function with no zeros (since $e^{-g} = 1/F$ and $F$ has no zeros, $1/F$ has no zeros... wait, $1/F$ is entire and never zero, so $1/F = e^{-g}$, yes).
+
+Now, $1/F = e^{-g} = 1 + h$ where $h \in H^2(\mathbb{C}_+)$.
+
+Since $h \in H^2(\mathbb{C}_+)$, $h$ is analytic in $\mathbb{C}_+$ and has $H^2$ boundary values. But $h = e^{-g} - 1$ is actually entire (since $g$ is entire). So $h$ is an entire function that belongs to $H^2(\mathbb{C}_+)$.
+
+What entire functions are in $H^2(\mathbb{C}_+)$? 
+
+An entire function in $H^2(\mathbb{C}_+)$... Let me think. If $h$ is entire and $h \in H^2(\mathbb{C}_+)$, then $h$ has boundary values in $L^2(\mathbb{R})$. But $h$ is entire, so it's determined by its boundary values. 
+
+Actually, there's a classical result: if $h$ is entire and $h \in H^2(\mathbb{C}_+)$, then $h$ must be identically zero. Wait, is that true?
+
+Let me think more carefully. Consider $h(z) = e^{iz}$. This is entire. In the upper half-plane, $|e^{iz}| = e^{-\text{Im}(z)} \leq 1$ for $\text{Im}(z) \geq 0$. But $\int_{-\infty}^{\infty} |e^{ix}|^2 dx = \int_{-\infty}^{\infty} 1 dx = \infty$. So $e^{iz} \notin H^2$.
+
+What about $h(z) = \frac{1}{z+i}$? This is not entire (pole at $z = -i$).
+
+Hmm, what about functions like $h(z) = \frac{\sin z}{z}$? This is entire (removable singularity at 0). Is it in $H^2(\mathbb{C}_+)$? On the real line, $|\sin x / x| \sim 1/|x|$ for large $|x|$, so $|\sin x / x|^2 \sim 1/x^2$, which is integrable. But we also need $\sup_{y>0} \int |\sin(x+iy)/(x+iy)|^2 dx < \infty$. 
+
+Actually, let me reconsider. The Paley-Wiener theorem connects $H^2(\mathbb{C}_+)$ with Fourier transforms of $L^2(0,\infty)$ functions. Specifically, $f \in H^2(\mathbb{C}_+)$ iff $f(z) = \int_0^\infty \hat{f}(t) e^{izt} dt$ for some $\hat{f} \in L^2(0,\infty)$ (with appropriate normalization).
+
+Wait, more precisely: $H^2(\mathbb{C}_+)$ is isometrically isomorphic to $L^2(0,\infty)$ via the Fourier transform. A function $f \in H^2(\mathbb{C}_+)$ iff there exists $\phi \in L^2(0,\infty)$ such that $f(z) = \frac{1}{\sqrt{2\pi}} \int_0^\infty \phi(t) e^{izt} dt$.
+
+So if $h$ is entire and $h \in H^2(\mathbb{C}_+)$, then $h(z) = \int_0^\infty \phi(t) e^{izt} dt$ for some $\phi \in L^2(0,\infty)$. This representation gives an analytic function in $\mathbb{C}_+$, but for it to extend to an entire function, we need the integral to converge for all $z \in \mathbb{C}$, including $\text{Im}(z) < 0$ where $e^{izt} = e^{i(x+iy)t} = e^{ixt} e^{-yt}$ grows exponentially as $t \to \infty$ when $y < 0$.
+
+For the integral to converge for all $z$ with $\text{Im}(z) < 0$, we'd need $\phi(t) e^{-yt}$ to be in $L^1$ for all $y < 0$, which means $\phi$ must decay faster than any exponential, i.e., $\phi$ must have compact support or be super-exponentially decaying.
+
+If $\phi$ has compact support in $[0, A]$, then $h(z) = \int_0^A \phi(t) e^{izt} dt$ is entire (it's a finite Fourier-type integral). And by Paley-Wiener, such functions are exactly the entire functions of exponential type $\leq A$ that are in $L^2$ on the real line.
+
+So entire functions in $H^2(\mathbb{C}_+)$ are exactly the Paley-Wiener functions: entire functions of exponential type that are in $L^2(\mathbb{R})$.
+
+Wait, more precisely, by the Paley-Wiener theorem, the entire functions in $H^2(\mathbb{C}_+)$ are precisely those of the form $h(z) = \int_0^A \phi(t) e^{izt} dt$ where $\phi \in L^2(0,A)$ for some $A > 0$ (or $A = \infty$ with appropriate decay). These are entire functions of exponential type at most $A$ whose restriction to $\mathbb{R}$ is in $L^2$.
+
+Actually, let me be more careful. The Paley-Wiener theorem says: $h$ is an entire function of exponential type $\leq A$ with $h|_{\mathbb{R}} \in L^2$ if and only if $h(z) = \int_{-A}^{A} \phi(t) e^{izt} dt$ for some $\phi \in L^2(-A,A)$.
+
+But for $H^2(\mathbb{C}_+)$, we need the Fourier transform to be supported in $[0,\infty)$. So $h \in H^2(\mathbb{C}_+)$ and $h$ entire means $h(z) = \int_0^A \phi(t) e^{izt} dt$ with $\phi \in L^2(0,A)$.
+
+So $h$ is an entire function of exponential type $\leq A$ (for some $A$), with $h|_\mathbb{R} \in L^2$, and the Fourier transform supported in $[0, A]$.
+
+Now, $e^{-g} = 1 + h$ where $h$ is such a Paley-Wiener function.
+
+So $e^{-g(z)} = 1 + h(z)$ where $h$ is entire of exponential type.
+
+Taking logarithms: $-g(z) = \log(1 + h(z))$ (choosing a branch, which is possible since $1 + h(z) = e^{-g(z)} \neq 0$ for all $z$).
+
+So $g(z) = -\log(1 + h(z))$, and this must be entire. Since $1 + h(z) \neq 0$ for all $z$ (because $e^{-g}$ has no zeros), $\log(1 + h(z))$ is well-defined as an entire function (the composition of $\log$ with a non-vanishing entire function gives an entire function, since we can define $\log(1+h(z)) = \int_0^z \frac{h'(\zeta)}{1+h(\zeta)} d\zeta$ which is path-independent because $1+h$ has no zeros).
+
+So $g(z) = -\log(1 + h(z))$ is entire, and $F(z) = e^{g(z)} = \frac{1}{1+h(z)}$.
+
+Now condition 3: $F(z) = \frac{1}{1+h(z)}$ is bounded in every half-plane $\{\text{Im}(z) > \delta\}$.
+
+Since $h$ is of exponential type, $h(z)$ grows at most like $e^{A|z|}$ in some directions. In the upper half-plane, $h(z) = \int_0^A \phi(t) e^{izt} dt$. For $z = x + iy$ with $y > 0$, $|e^{izt}| = e^{-yt} \leq 1$, so $|h(z)| \leq \int_0^A |\phi(t)| e^{-yt} dt \leq \|\phi\|_{L^1} \leq \sqrt{A} \|\phi\|_{L^2}$.
+
+So $h$ is bounded in the upper half-plane $\mathbb{C}_+$! In fact, $|h(z)| \leq \|\phi\|_{L^1}$ for $\text{Im}(z) \geq 0$.
+
+Therefore $1 + h(z)$ is bounded in $\mathbb{C}_+$, and $F(z) = 1/(1+h(z))$. For $F$ to be bounded in $\{\text{Im}(z) > \delta\}$ for $\delta \geq 0$, we need $1/(1+h(z))$ to be bounded, i.e., $|1 + h(z)| \geq c > 0$ in $\{\text{Im}(z) > \delta\}$.
+
+But we also need condition 3 for $\delta < 0$, i.e., in half-planes that extend into the lower half-plane.
+
+In the lower half-plane, $h(z) = \int_0^A \phi(t) e^{izt} dt$ with $z = x + iy$, $y < 0$, so $|e^{izt}| = e^{-yt} = e^{|y|t}$, which grows. So $|h(z)|$ can grow exponentially in the lower half-plane.
+
+So $F(z) = 1/(1+h(z))$ — in the lower half-plane, $h(z)$ can be large, so $F(z)$ can be small, which is fine for boundedness. The issue is whether $F$ can be unbounded, i.e., whether $1 + h(z)$ can be close to 0 in the lower half-plane.
+
+Wait, but $1 + h(z) = e^{-g(z)} \neq 0$ for all $z$, so $F(z) = e^{g(z)}$ is well-defined and never zero. The question is whether $F$ is bounded in each half-plane $\{\text{Im}(z) > \delta\}$.
+
+For $\delta \geq 0$: $h$ is bounded in $\mathbb{C}_+$, and $1 + h(z) \neq 0$, so $|1 + h(z)|$ achieves a positive minimum on the closure... wait, not necessarily on the closure, but $h$ is bounded and analytic in $\mathbb{C}_+$, and $1 + h \neq 0$ in $\mathbb{C}_+$. Actually $1 + h \neq 0$ everywhere (it's entire and never zero). So in $\{\text{Im}(z) > \delta\}$ for $\delta > 0$, $h$ is bounded (say $|h| \leq M$), and $1 + h \neq 0$. But does $|1 + h|$ have a positive lower bound?
+
+Not necessarily! Consider $h(z) = -1 + e^{-z^2}$... no wait, that doesn't work because $h$ must be a Paley-Wiener function.
+
+Hmm, let me think about this differently. The question is: does such an $F$ exist? Let me consider whether $F \equiv 1$ works. If $F \equiv 1$, then $1/F - 1 = 0 \in H^2$, and $F$ is bounded everywhere. And $F \neq 0$ everywhere. So $F \equiv 1$ satisfies all three conditions!
+
+Wait, that seems too easy. Let me re-read the problem.
+
+"Determine whether there exists an entire function $F$ such that:
+1. $F(z) \neq 0$ for all $z \in \mathbb{C}$;
+2. $1/F - 1 \in H^2(\mathbb{C}_+)$;
+3. $F$ is bounded in every horizontal half-plane $\{z: \text{Im}(z) > \delta\}$."
+
+If $F \equiv 1$, then:
+1. $F(z) = 1 \neq 0$ ✓
+2. $1/F - 1 = 1 - 1 = 0 \in H^2$ ✓ (the zero function is in $H^2$)
+3. $F$ is bounded (constant) ✓
+
+So the answer is yes, such a function exists, and $F \equiv 1$ is an example.
+
+But this seems too trivial. Maybe I'm misunderstanding the problem. Perhaps the problem is asking for a non-trivial $F$, or perhaps condition 2 means something different.
+
+Let me re-read: "$1/F - 1 \in H^2(\mathbb{C}_+)$". Maybe this means $1/(F-1) \in H^2$? That is, $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$?
+
+Hmm, the notation "$1/F - 1$" is ambiguous. It could mean:
+- $(1/F) - 1$, i.e., $\frac{1}{F} - 1$
+- $1/(F-1)$, i.e., $\frac{1}{F-1}$
+
+If it means $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$, then the problem is more interesting.
+
+With $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$:
+- $F \neq 0$ everywhere (so $F$ has no zeros)
+- $1/(F-1) \in H^2(\mathbb{C}_+)$ (so $F \neq 1$ in $\mathbb{C}_+$, and $1/(F-1)$ is in $H^2$)
+- $F$ bounded in each upper half-plane
+
+If $F \equiv 1$, then $F - 1 = 0$, so $1/(F-1)$ is undefined. So $F \equiv 1$ doesn't work in this interpretation.
+
+If $F \equiv c$ for some constant $c \neq 0, 1$, then $1/(F-1) = 1/(c-1)$ is a non-zero constant. Is a non-zero constant in $H^2(\mathbb{C}_+)$? No! A non-zero constant $c_0$ has $\int_{-\infty}^{\infty} |c_0|^2 dx = \infty$, so it's not in $H^2$.
+
+So with this interpretation, constant functions don't work (except $F \equiv 1$ which makes $1/(F-1)$ undefined).
+
+Hmm, but actually, re-reading the problem again: "$1/F - 1 \in H^2(\mathbb{C}_+)$". In standard mathematical notation, $1/F - 1$ most naturally reads as $\frac{1}{F} - 1$. But given that the trivial answer works, maybe the intended reading is $\frac{1}{F-1}$.
+
+Actually, wait. Let me reconsider. Perhaps the problem is from a context where they want a nontrivial answer, and the notation $1/F - 1$ means $\frac{1}{F} - 1$. But then $F \equiv 1$ is a trivial solution. Maybe the problem is asking whether a non-constant such function exists? Or maybe the problem is indeed asking about existence and the answer is "yes, trivially"?
+
+Hmm, but the problem says "Provide a justification for your answer." This suggests there's something to justify, which wouldn't be the case if the answer were trivially yes.
+
+Let me reconsider the interpretation $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$.
+
+Actually, I think there might be another interpretation. In some contexts, particularly in the theory of meromorphic functions and Hardy spaces, the notation might be about the function $\frac{1}{F} - 1$ but with additional implicit constraints that make it nontrivial.
+
+Actually, wait. Let me reconsider. Perhaps the problem is more subtle than I think. Let me re-read condition 3: "$F$ is bounded in every horizontal half-plane $\{z: \text{Im}(z) > \delta\}$."
+
+If $\delta$ ranges over all real numbers, then for $\delta \to -\infty$, the half-plane approaches the whole plane. But for each fixed $\delta$, it's a half-plane. The condition is that for each $\delta$, $F$ is bounded on $\{\text{Im}(z) > \delta\}$. This is a growth condition on $F$ in the lower half-plane direction — it says $F$ doesn't grow too fast as $\text{Im}(z) \to -\infty$.
+
+Actually, for an entire function, being bounded on each half-plane $\{\text{Im}(z) > \delta\}$ is a condition on the growth in the lower half-plane. In the upper half-plane, $F$ is bounded on $\mathbb{C}_+$ itself (taking $\delta = 0$). For $\delta < 0$, we need $F$ bounded on the larger region including part of the lower half-plane.
+
+Hmm, but with $F \equiv 1$, all conditions are trivially satisfied (with the $\frac{1}{F} - 1$ interpretation). So either:
+1. The answer is trivially yes (and the problem is testing whether students overthink it), or
+2. The intended interpretation is $\frac{1}{F-1} \in H^2$.
+
+Let me consider interpretation 2 more carefully: $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$.
+
+With this interpretation:
+- $F$ entire, $F \neq 0$ everywhere
+- $G := \frac{1}{F-1} \in H^2(\mathbb{C}_+)$, so $G$ is analytic in $\mathbb{C}_+$, $F \neq 1$ in $\mathbb{C}_+$
+- $F$ bounded in each $\{\text{Im}(z) > \delta\}$
+
+From $G \in H^2(\mathbb{C}_+)$, $F = 1 + 1/G$ in $\mathbb{C}_+$. Since $G \in H^2$, $G$ has boundary values $G(x) \in L^2(\mathbb{R})$, and $G(x) \to 0$ as $|x| \to \infty$ (in some sense). So $F(x) = 1 + 1/G(x) \to \infty$ as $|x| \to \infty$ on the real line. But $F$ is bounded on $\{\text{Im}(z) > 0\}$ (condition 3 with $\delta = 0$). 
+
+Wait, but $F$ is bounded on $\mathbb{C}_+$ and $F(x) = 1 + 1/G(x)$ where $G \in H^2$. If $F$ is bounded on $\mathbb{C}_+$, say $|F| \leq M$, then $|1/G| = |F - 1| \leq M + 1$, so $|G| \geq 1/(M+1)$ on the boundary. But $G \in H^2$ means $G(x) \in L^2(\mathbb{R})$, which means $G(x) \to 0$ in some average sense as $|x| \to \infty$. If $|G(x)| \geq c > 0$ a.e., then $\int |G(x)|^2 dx \geq c^2 \cdot \infty = \infty$, contradicting $G \in H^2$.
+
+Wait, that's a great argument! Let me make it precise.
+
+If $F$ is bounded on $\overline{\mathbb{C}_+}$ (or even just on $\mathbb{C}_+$ with bounded boundary values), then $|F(x)| \leq M$ a.e. on $\mathbb{R}$ (by Fatou's theorem or just the boundedness). Then $|G(x)| = |1/(F(x) - 1)| \geq 1/(M+1)$ a.e. (assuming $|F| \leq M$). But $G \in H^2$ requires $G(x) \in L^2(\mathbb{R})$, and if $|G(x)| \geq c > 0$ a.e., then $\int |G|^2 = \infty$. Contradiction!
+
+But wait, we need to be more careful. $F$ is bounded on $\{\text{Im}(z) > \delta\}$ for each $\delta$. For $\delta = 0$, $F$ is bounded on $\mathbb{C}_+$. But does this imply $F$ has bounded boundary values?
+
+$F$ is entire, hence continuous, hence bounded on $\overline{\mathbb{C}_+ \cap \{|z| \leq R\}}$ for each $R$. But on $\mathbb{C}_+$, $F$ is bounded by some $M$. Since $F$ is continuous (entire), $|F(x)| \leq M$ for $x \in \mathbb{R}$ as well (taking the limit from above). So yes, $|F(x)| \leq M$ for all $x \in \mathbb{R}$.
+
+Then $|G(x)| = 1/|F(x) - 1|$. Since $|F(x)| \leq M$, we have $|F(x) - 1| \leq M + 1$, so $|G(x)| \geq 1/(M+1)$. 
+
+But also, $F \neq 0$ everywhere, and $F \neq 1$ in $\mathbb{C}_+$ (since $G = 1/(F-1)$ is analytic there). On the real line, could $F(x) = 1$ for some $x$? If $F(x_0) = 1$ for some $x_0 \in \mathbb{R}$, then $G$ would have a singularity at $x_0$ on the boundary. But $G \in H^2$ has $L^2$ boundary values, so $G(x_0)$ would need to be finite a.e. Actually, $F$ is entire and $F \neq 1$ in $\mathbb{C}_+$, but $F$ could equal 1 at points on $\mathbb{R}$. However, if $F(x_0) = 1$ for some real $x_0$, then $1/(F-1)$ has a pole at $x_0$, and the boundary values of $G$ wouldn't be in $L^2$ near $x_0$ (they'd blow up like $1/|x - x_0|$ or worse). 
+
+Actually, let me be more careful. If $F(x_0) = 1$ and $F$ is entire, then near $x_0$, $F(z) - 1 = a_k(z - x_0)^k + \ldots$ for some $k \geq 1$. Then $G(z) = 1/(F(z) - 1) \sim 1/(a_k(z-x_0)^k)$ near $x_0$ from within $\mathbb{C}_+$. The boundary values $|G(x)| \sim C/|x - x_0|^k$, which is in $L^2$ near $x_0$ only if $k < 1/2$, i.e., never (since $k \geq 1$). So $F(x) \neq 1$ for all $x \in \mathbb{R}$.
+
+So $F \neq 1$ on all of $\mathbb{R}$, and $|F(x)| \leq M$ on $\mathbb{R}$. Then $|F(x) - 1| \geq c > 0$ for some $c$? Not necessarily — $|F(x) - 1|$ could approach 0 as $|x| \to \infty$.
+
+Hmm, so the argument isn't as clean as I thought. Let me reconsider.
+
+$F$ is entire, bounded on $\mathbb{C}_+$ by $M$, $F \neq 0$ everywhere, $F \neq 1$ on $\mathbb{R} \cup \mathbb{C}_+$.
+
+$G = 1/(F-1) \in H^2(\mathbb{C}_+)$. On the boundary, $G(x) = 1/(F(x) - 1) \in L^2(\mathbb{R})$.
+
+$|F(x)| \leq M$ for all $x \in \mathbb{R}$. So $|F(x) - 1| \leq M + 1$, giving $|G(x)| \geq 1/(M+1)$.
+
+But $G \in L^2(\mathbb{R})$ and $|G(x)| \geq 1/(M+1) > 0$ for all $x$... This means $\int_{-\infty}^{\infty} |G(x)|^2 dx \geq \int_{-\infty}^{\infty} \frac{1}{(M+1)^2} dx = \infty$.
+
+This contradicts $G \in H^2(\mathbb{C}_+)$! 
+
+So with the interpretation $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$, no such $F$ exists.
+
+But wait, I need to double-check that $|F(x)| \leq M$ on $\mathbb{R}$. $F$ is bounded on $\mathbb{C}_+$ (condition 3 with $\delta = 0$). Since $F$ is entire (hence continuous), and $\mathbb{R} = \partial \mathbb{C}_+$, we have $|F(x)| = \lim_{y \to 0^+} |F(x + iy)| \leq M$ for all $x \in \mathbb{R}$. Yes, this is correct.
+
+So the argument is:
+1. $F$ bounded on $\mathbb{C}_+$ implies $|F(x)| \leq M$ on $\mathbb{R}$ (by continuity of $F$).
+2. $F \neq 1$ on $\mathbb{R}$ (otherwise $G = 1/(F-1)$ wouldn't have $L^2$ boundary values).
+3. $|G(x)| = 1/|F(x) - 1| \geq 1/(M+1) > 0$ for all $x \in \mathbb{R}$.
+4. But $G \in H^2$ requires $G(x) \in L^2(\mathbb{R})$, contradicting $|G(x)| \geq c > 0$.
+5. Therefore no such $F$ exists.
+
+Hmm wait, but I assumed the interpretation is $\frac{1}{F-1} \in H^2$. With the other interpretation $\frac{1}{F} - 1 \in H^2$, the answer is trivially yes ($F \equiv 1$).
+
+Let me reconsider the problem statement. "$1/F - 1 \in H^2(\mathbb{C}_+)$". 
+
+In standard order of operations, $1/F - 1 = (1/F) - 1 = \frac{1}{F} - 1$. But this gives a trivial answer.
+
+Hmm, but maybe the problem is not trivial even with $\frac{1}{F} - 1 \in H^2$. Maybe the problem is asking whether a non-constant such function exists? Or maybe the conditions are more restrictive than I think.
+
+Wait, let me re-read: "Determine whether there exists an entire function $F$..." — this is asking about existence. If $F \equiv 1$ works, the answer is yes. But that's too trivial for a problem that says "provide a justification."
+
+Let me reconsider. Maybe the problem means something slightly different. Perhaps condition 2 is $1/F - 1 \in H^2$ where $H^2$ is the Hardy space, and the function $1/F - 1$ is not identically zero? Or perhaps there's an implicit requirement that $F$ is non-constant?
+
+Actually, I think the most likely intended interpretation, given the mathematical depth required, is $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$. This makes the problem non-trivial and the answer is "no such $F$ exists."
+
+But actually, let me reconsider once more. Maybe the problem is indeed $\frac{1}{F} - 1 \in H^2$ and the answer is "yes, $F \equiv 1$ works" but the problem is testing whether students can see this. But that seems unlikely for a problem that asks for "justification."
+
+Alternatively, maybe the problem is asking about $H^2$ in a different sense, or maybe condition 3 is more restrictive.
+
+Actually, let me reconsider condition 3. "F is bounded in every horizontal half-plane $\{z: \text{Im}(z) > \delta\}$." If $\delta$ ranges over all real numbers, then for $\delta = -1$, $F$ is bounded on $\{\text{Im}(z) > -1\}$, which includes a strip of the lower half-plane. For $\delta = -100$, $F$ is bounded on $\{\text{Im}(z) > -100\}$. As $\delta \to -\infty$, the half-plane approaches $\mathbb{C}$, but for each fixed $\delta$, it's a proper half-plane.
+
+For $F \equiv 1$, this is trivially satisfied. So with the $\frac{1}{F} - 1$ interpretation, the answer is yes.
+
+Hmm, let me think about whether the problem might have a different intent. Maybe the problem is from a specific context where $H^2(\mathbb{C}_+)$ refers to something slightly different, or where the conditions are meant to be more restrictive.
+
+Actually, you know what, let me just consider both interpretations and see which gives a more interesting problem.
+
+**Interpretation 1: $\frac{1}{F} - 1 \in H^2(\mathbb{C}_+)$**
+
+$F \equiv 1$ works trivially. Answer: Yes.
+
+But maybe the problem wants a nontrivial $F$? Let's see if a non-constant $F$ exists.
+
+$F = e^g$ for some entire $g$ (since $F \neq 0$). $\frac{1}{F} - 1 = e^{-g} - 1 \in H^2(\mathbb{C}_+)$.
+
+Let $h = e^{-g} - 1 \in H^2(\mathbb{C}_+)$. Then $e^{-g} = 1 + h$, so $F = 1/(1+h)$.
+
+$h$ is entire (since $g$ is entire) and $h \in H^2(\mathbb{C}_+)$. As I discussed, $h$ must be a Paley-Wiener type function: $h(z) = \int_0^A \phi(t) e^{izt} dt$ for some $\phi \in L^2(0,A)$.
+
+$F = 1/(1+h)$ must be entire, so $1 + h \neq 0$ everywhere. And $F$ must be bounded in each half-plane $\{\text{Im}(z) > \delta\}$.
+
+In $\mathbb{C}_+$, $|h(z)| \leq \|\phi\|_{L^1}$ (bounded), so $|1 + h(z)| \leq 1 + \|\phi\|_{L^1}$, and $|F(z)| \geq 1/(1 + \|\phi\|_{L^1})$. But we need $F$ bounded, i.e., $|F(z)| \leq C$. Since $1 + h \neq 0$ in $\mathbb{C}_+$ and $h$ is bounded, we need $|1 + h(z)| \geq c > 0$ in $\mathbb{C}_+$ (or in each half-plane).
+
+Hmm, this is getting complex. For the upper half-plane, since $h$ is bounded and $1 + h \neq 0$, the minimum of $|1 + h|$ on $\overline{\mathbb{C}_+}$... well, $h$ is bounded on $\mathbb{C}_+$ but the domain is unbounded, so we can't directly say the minimum is achieved.
+
+Actually, let me think about a specific example. Take $h(z) = \epsilon e^{iz}$ for small $\epsilon > 0$. This is entire, of exponential type 1, and $h \in H^2(\mathbb{C}_+)$? Let's check: $|h(x+iy)| = \epsilon e^{-y}$ for $y > 0$. $\int_{-\infty}^{\infty} |h(x+iy)|^2 dx = \epsilon^2 e^{-2y} \int dx = \infty$. So $h \notin H^2$! Because $|h(x)| = \epsilon$ is constant, not in $L^2$.
+
+OK so $e^{iz}$ is not in $H^2$. What about $h(z) = \epsilon \frac{\sin z}{z}$? This is entire, $|\sin x / x| \sim 1/|x|$ for large $|x|$, so $|h(x)|^2 \sim \epsilon^2/x^2 \in L^2$. And in $\mathbb{C}_+$, $|\sin(x+iy)/(x+iy)|$... $\sin(x+iy) = \sin x \cosh y + i \cos x \sinh y$, so $|\sin(x+iy)|^2 = \sin^2 x \cosh^2 y + \cos^2 x \sinh^2 y = \sin^2 x + \sinh^2 y$. And $|x+iy|^2 = x^2 + y^2$. So $|h(x+iy)|^2 = \epsilon^2 \frac{\sin^2 x + \sinh^2 y}{x^2 + y^2}$.
+
+$\int_{-\infty}^{\infty} |h(x+iy)|^2 dx = \epsilon^2 \int_{-\infty}^{\infty} \frac{\sin^2 x + \sinh^2 y}{x^2 + y^2} dx$.
+
+The $\sinh^2 y / (x^2 + y^2)$ part: $\int \frac{\sinh^2 y}{x^2 + y^2} dx = \sinh^2 y \cdot \frac{\pi}{|y|}$ (for $y \neq 0$). As $y \to \infty$, $\sinh^2 y / y \to \infty$, so this blows up. So $h \notin H^2(\mathbb{C}_+)$.
+
+Hmm. So $\sin z / z$ is not in $H^2(\mathbb{C}_+)$ either.
+
+Let me think about what entire functions are actually in $H^2(\mathbb{C}_+)$. By the Paley-Wiener theorem, $h \in H^2(\mathbb{C}_+)$ iff $h(z) = \int_0^\infty \phi(t) e^{izt} dt$ for some $\phi \in L^2(0,\infty)$. For $h$ to be entire, we need this integral to converge for all $z \in \mathbb{C}$, which requires $\phi$ to decay super-exponentially (or have compact support).
+
+If $\phi$ has compact support in $[0, A]$, then $h(z) = \int_0^A \phi(t) e^{izt} dt$ is entire of exponential type $A$. In $\mathbb{C}_+$, $|h(z)| \leq \int_0^A |\phi(t)| e^{-yt} dt \leq \|\phi\|_{L^1}$. On the real line, $h(x) = \int_0^A \phi(t) e^{ixt} dt \in L^2$ (by Plancherel, $\|h\|_{L^2} = \sqrt{2\pi} \|\phi\|_{L^2}$).
+
+So a concrete example: $\phi(t) = \mathbf{1}_{[0,1]}(t)$. Then $h(z) = \int_0^1 e^{izt} dt = \frac{e^{iz} - 1}{iz}$. This is entire (removable singularity at $z = 0$), and $h \in H^2(\mathbb{C}_+)$.
+
+Now, $F = 1/(1 + h) = 1/(1 + \frac{e^{iz}-1}{iz}) = \frac{iz}{iz + e^{iz} - 1}$.
+
+For $F$ to be entire, we need $iz + e^{iz} - 1 \neq 0$ for all $z$. Let me check: at $z = 0$, $iz + e^{iz} - 1 = 0 + 1 - 1 = 0$. So $z = 0$ is a zero of the denominator! 
+
+$iz + e^{iz} - 1$ near $z = 0$: $e^{iz} = 1 + iz - z^2/2 + \ldots$, so $iz + e^{iz} - 1 = iz + iz - z^2/2 + \ldots = 2iz - z^2/2 + \ldots$ So $z = 0$ is a simple zero. Then $F = iz/(iz + e^{iz} - 1)$ has a removable singularity at $z = 0$ (since $iz$ also has a simple zero there), and $F(0) = \lim_{z \to 0} \frac{iz}{2iz - z^2/2 + \ldots} = \frac{1}{2}$.
+
+But we need $iz + e^{iz} - 1 \neq 0$ for all $z \neq 0$ (and the zero at $z = 0$ is handled by the numerator). Actually, we need $F$ to be entire and $F \neq 0$ everywhere. $F = iz/(iz + e^{iz} - 1)$. $F = 0$ when $iz = 0$, i.e., $z = 0$. But $F(0) = 1/2 \neq 0$ (removable singularity). So $F \neq 0$ when the numerator $iz \neq 0$, i.e., $z \neq 0$, and at $z = 0$, $F(0) = 1/2 \neq 0$. So $F \neq 0$ everywhere? Wait, $F(z) = 0$ iff $iz = 0$ and the denominator $\neq 0$, or... no. $F(z) = iz/(iz + e^{iz} - 1)$. $F(z) = 0$ iff $iz = 0$ (and denominator $\neq 0$), i.e., $z = 0$. But at $z = 0$, both numerator and denominator are 0, and the limit is $1/2$. So $F$ is never 0. Good.
+
+But we also need $iz + e^{iz} - 1 \neq 0$ for $z \neq 0$. Is this true? Let $w = iz$, so we need $w + e^w - 1 \neq 0$ for $w \neq 0$. $f(w) = w + e^w - 1$. $f(0) = 0$, $f'(w) = 1 + e^w > 0$ for all real $w$. For complex $w$, $f(w) = 0$ means $e^w = 1 - w$. 
+
+Let me check: $w = -1$: $e^{-1} = 0.368$, $1 - (-1) = 2$. Not equal. $w = 2$: $e^2 = 7.389$, $1 - 2 = -1$. Not equal. For real $w > 0$: $e^w > 1 > 1 - w$ when $w > 0$ (since $e^w > 1$ and $1 - w < 1$). For real $w < 0$: $e^w < 1$ and $1 - w > 1$, so $e^w < 1 - w$. So no real zeros except $w = 0$.
+
+For complex $w$: $e^w = 1 - w$. Let $w = a + bi$. $e^a(\cos b + i \sin b) = (1-a) - bi$. So $e^a \cos b = 1 - a$ and $e^a \sin b = -b$.
+
+From the second equation: $e^a \sin b = -b$. If $b = 0$, then $\sin b = 0$ and $-b = 0$, so $b = 0$ works, giving $e^a = 1 - a$, which we showed only has $a = 0$.
+
+If $b \neq 0$: $e^a = -b/\sin b$. For this to be positive, we need $-b/\sin b > 0$, i.e., $b$ and $\sin b$ have opposite signs. This happens when $b \in (-\pi, 0)$ (since $\sin b < 0$ there, $-b > 0$) or $b \in (0, \pi)$ (since $\sin b > 0$ there, $-b < 0$... wait, $-b < 0$ and $\sin b > 0$, so $-b/\sin b < 0$, not valid). Hmm, let me redo: $e^a = -b/\sin b > 0$ requires $-b$ and $\sin b$ same sign. If $b > 0$ and $\sin b > 0$ (i.e., $b \in (0, \pi)$): $-b < 0$, $\sin b > 0$, so $-b/\sin b < 0$. Not valid. If $b < 0$ and $\sin b < 0$ (i.e., $b \in (-\pi, 0)$): $-b > 0$, $\sin b < 0$, so $-b/\sin b < 0$. Not valid. If $b > 0$ and $\sin b < 0$ (i.e., $b \in (\pi, 2\pi)$): $-b < 0$, $\sin b < 0$, so $-b/\sin b > 0$. Valid. $a = \ln(-b/\sin b)$.
+
+Then from the first equation: $e^a \cos b = 1 - a$, i.e., $(-b/\sin b) \cos b = 1 - \ln(-b/\sin b)$, i.e., $-b \cot b = 1 - \ln(-b/\sin b)$.
+
+This is a transcendental equation that might have solutions. Let me check numerically for $b \in (\pi, 2\pi)$, say $b = 3\pi/2 \approx 4.712$: $\sin(3\pi/2) = -1$, $-b/\sin b = 4.712$, $a = \ln(4.712) \approx 1.55$. $-b \cot b = -4.712 \cdot \cos(3\pi/2)/\sin(3\pi/2) = -4.712 \cdot 0/(-1) = 0$. $1 - a = 1 - 1.55 = -0.55$. So $0 \neq -0.55$. Not a solution.
+
+This is getting complicated. The point is that $w + e^w - 1$ might have complex zeros other than $w = 0$, which would make $F$ have poles (not entire). So this particular choice of $h$ might not work.
+
+This is getting quite involved. Let me step back and think about the problem more carefully.
+
+Actually, I realize I should think about which interpretation is correct. Let me re-read the problem one more time.
+
+"1/F - 1 ∈ H²(ℂ₊)"
+
+In LaTeX, this would typically be written as $\frac{1}{F} - 1$ or $\frac{1}{F-1}$. The way it's written, "$1/F - 1$", with the division having higher precedence, reads as $(1/F) - 1 = \frac{1}{F} - 1$.
+
+But if the answer is trivially "yes, $F = 1$", then the problem is not interesting. So either:
+1. The problem is indeed trivial and tests basic understanding, or
+2. The intended meaning is $\frac{1}{F-1}$, or
+3. There's an additional implicit constraint I'm missing.
+
+Hmm, actually, maybe the problem is asking for a non-constant $F$, or maybe there's a context where $F \equiv 1$ is excluded. But the problem as stated doesn't say "non-constant."
+
+Wait, actually, let me reconsider. Maybe the problem is more subtle than I think even with $\frac{1}{F} - 1 \in H^2$. Let me re-examine.
+
+If $F \equiv 1$, then $\frac{1}{F} - 1 = 0 \in H^2$. This works. But maybe the problem is from a context where they want to know if a nontrivial outer function or something exists.
+
+Actually, I just realized something. Let me reconsider the problem. Perhaps the conditions are meant to be satisfied simultaneously in a nontrivial way, and the question is whether such $F$ exists with all three conditions. The trivial solution $F \equiv 1$ does satisfy all three, so the answer would be "yes."
+
+But actually, I think the problem might be intended to be nontrivial. Let me consider the interpretation $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$ more carefully, as it leads to a more interesting problem.
+
+With $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$:
+
+**Claim: No such $F$ exists.**
+
+**Proof:** Suppose such $F$ exists. Since $F$ is entire and $F \neq 0$, and $F$ is bounded on $\mathbb{C}_+$ (condition 3 with $\delta = 0$), let $|F(z)| \leq M$ for $z \in \mathbb{C}_+$.
+
+Since $F$ is entire (hence continuous), $|F(x)| \leq M$ for all $x \in \mathbb{R}$.
+
+Let $G = \frac{1}{F-1} \in H^2(\mathbb{C}_+)$. Then $G$ has boundary values $G(x) \in L^2(\mathbb{R})$.
+
+Since $F$ is entire and $G = 1/(F-1)$ is analytic in $\mathbb{C}_+$, $F \neq 1$ in $\mathbb{C}_+$. Also, $F \neq 1$ on $\mathbb{R}$: if $F(x_0) = 1$ for some $x_0 \in \mathbb{R}$, then since $F$ is entire, $F(z) - 1 = c(z - x_0)^k + \ldots$ near $x_0$ with $k \geq 1$, and $|G(z)| \sim C/|z - x_0|^k$ as $z \to x_0$ from $\mathbb{C}_+$, so $|G(x)| \sim C/|x - x_0|^k \notin L^2$ near $x_0$ (since $k \geq 1$). This contradicts $G \in H^2$.
+
+So $F(x) \neq 1$ for all $x \in \mathbb{R}$, and $|F(x)| \leq M$. Therefore $|F(x) - 1| \leq M + 1$ for all $x$, giving $|G(x)| = 1/|F(x) - 1| \geq 1/(M+1) > 0$ for all $x \in \mathbb{R}$.
+
+But $G \in H^2(\mathbb{C}_+)$ implies $G(x) \in L^2(\mathbb{R})$, and $|G(x)| \geq 1/(M+1) > 0$ implies $\int |G(x)|^2 dx \geq \frac{1}{(M+1)^2} \int dx = \infty$, contradiction.
+
+Therefore, no such $F$ exists. $\blacksquare$
+
+This is a clean, elegant proof. I think this is the intended interpretation and answer.
+
+But wait, I should double-check: is it possible that $F(x) - 1$ could be 0 at some points but $G$ still in $H^2$? I argued no, but let me be more careful.
+
+If $F(x_0) = 1$ for some $x_0 \in \mathbb{R}$, then $F(z) - 1$ has a zero at $z = x_0$ of some order $k \geq 1$. Near $x_0$, $F(z) - 1 \sim c(z - x_0)^k$, so $G(z) = 1/(F(z) - 1) \sim 1/(c(z - x_0)^k)$. The boundary values $|G(x)| \sim 1/(|c| |x - x_0|^k)$, and $\int_{x_0 - \epsilon}^{x_0 + \epsilon} |G(x)|^2 dx \sim \int \frac{dx}{|x - x_0|^{2k}} = \infty$ for $k \geq 1$. So indeed $G \notin L^2$ near $x_0$, contradiction.
+
+Actually, I realize there's a subtlety. $G \in H^2(\mathbb{C}_+)$ means $G$ is analytic in $\mathbb{C}_+$ and $\sup_{y > 0} \int |G(x+iy)|^2 dx < \infty$. The boundary values exist a.e. and are in $L^2$. But if $F(x_0) = 1$ for some $x_0$, then $G$ has a singularity at $x_0$ on the boundary. The $H^2$ function $G$ is analytic in $\mathbb{C}_+$ but might not extend continuously to the boundary. However, the boundary values are in $L^2$, and if $G$ blows up like $1/|z - x_0|^k$ near $x_0$, the boundary values won't be in $L^2$.
+
+More precisely, if $F(x_0) = 1$, then for $z = x_0 + iy$ with $y > 0$ small, $|G(z)| = 1/|F(z) - 1| \sim 1/(|c| y^k)$. Then $\int_{x_0 - \epsilon}^{x_0 + \epsilon} |G(x + iy)|^2 dx$ — hmm, this is an integral over $x$ for fixed $y$. Let me think again.
+
+For $z = x + iy$ near $x_0 + i \cdot 0$, $F(z) - 1 \approx c(z - x_0)^k = c(x - x_0 + iy)^k$. So $|G(x + iy)|^2 \approx 1/(|c|^2 |x - x_0 + iy|^{2k}) = 1/(|c|^2 ((x - x_0)^2 + y^2)^k)$.
+
+$\int_{-\infty}^{\infty} |G(x+iy)|^2 dx \geq \int_{x_0 - 1}^{x_0 + 1} \frac{dx}{|c|^2 ((x-x_0)^2 + y^2)^k}$.
+
+For $y$ small, this integral is approximately $\int_{-1}^{1} \frac{du}{|c|^2 (u^2 + y^2)^k}$. For $k = 1$: $\int_{-1}^{1} \frac{du}{u^2 + y^2} = \frac{2 \arctan(1/y)}{y} \to \infty$ as $y \to 0$. So $\sup_{y > 0} \int |G(x+iy)|^2 dx = \infty$, contradicting $G \in H^2$.
+
+For $k \geq 2$, it's even worse. So indeed $F(x) \neq 1$ for all $x \in \mathbb{R}$.
+
+Great, so the proof is solid.
+
+Now, let me also verify: the condition that $F$ is bounded on $\mathbb{C}_+$ (from condition 3 with $\delta = 0$) and $F$ is entire (hence continuous) gives $|F(x)| \leq M$ on $\mathbb{R}$. This is because for any $x_0 \in \mathbb{R}$, $F(x_0) = \lim_{y \to 0^+} F(x_0 + iy)$ (by continuity), and $|F(x_0 + iy)| \leq M$ for all $y > 0$, so $|F(x_0)| \leq M$.
+
+So the proof works. Let me also consider: do we even need condition 1 ($F \neq 0$)? In the proof above, I didn't use it. Let me check... The proof only uses:
+- $F$ entire (for continuity and analyticity)
+- $1/(F-1) \in H^2(\mathbb{C}_+)$ (the key condition)
+- $F$ bounded on $\mathbb{C}_+$ (from condition 3)
+
+Condition 1 ($F \neq 0$) is not used. So the non-existence holds even without condition 1. That's fine — it just means the conditions are more than enough.
+
+Actually wait, I should be more careful. The problem says $F \neq 0$ everywhere. With the interpretation $\frac{1}{F-1} \in H^2$, the condition $F \neq 0$ is separate from $F \neq 1$. The proof shows no such $F$ exists regardless of whether $F \neq 0$.
+
+Hmm, but now I'm second-guessing the interpretation. Let me think about which interpretation is more natural and leads to a better problem.
+
+With $\frac{1}{F} - 1 \in H^2$: trivial answer (yes, $F = 1$).
+With $\frac{1}{F-1} \in H^2$: nontrivial answer (no, impossible).
+
+The problem asks to "determine whether there exists" and "provide a justification," which suggests a nontrivial answer. So I'll go with $\frac{1}{F-1} \in H^2$.
+
+But actually, hold on. Let me reconsider the first interpretation more carefully. With $\frac{1}{F} - 1 \in H^2$, maybe the problem is asking whether a non-constant $F$ exists? Or maybe the problem is from a context where $F = 1$ is considered trivial and they want to know if there are others?
+
+Actually, I just thought of something. With $\frac{1}{F} - 1 \in H^2$, even though $F = 1$ works, maybe the problem is testing whether students can determine that $F = 1$ is the ONLY solution? That would also be an interesting problem.
+
+Let me explore this. With $\frac{1}{F} - 1 \in H^2$:
+
+$F = e^g$ (entire, no zeros), $h = e^{-g} - 1 \in H^2(\mathbb{C}_+)$, $h$ entire.
+
+$h \in H^2(\mathbb{C}_+)$ and $h$ entire means $h$ is a Paley-Wiener function: $h(z) = \int_0^A \phi(t) e^{izt} dt$.
+
+$F = 1/(1+h)$ must be entire, so $1 + h \neq 0$ everywhere.
+
+$F$ bounded in each $\{\text{Im}(z) > \delta\}$.
+
+In $\mathbb{C}_+$: $|h(z)| \leq \|\phi\|_{L^1}$, so $|1 + h(z)| \leq 1 + \|\phi\|_{L^1}$, and since $1 + h \neq 0$ in $\mathbb{C}_+$, we need $|1 + h(z)| \geq c > 0$ for $F$ to be bounded. But $h$ is bounded in $\mathbb{C}_+$ and $1 + h \neq 0$, so... hmm, $1/(1+h)$ is bounded in $\mathbb{C}_+$ iff $|1+h|$ is bounded away from 0 in $\mathbb{C}_+$. Since $h$ is bounded and analytic in $\mathbb{C}_+$, and $1 + h \neq 0$ in $\mathbb{C}_+$, is $|1 + h|$ bounded away from 0?
+
+Not necessarily. $h$ could approach $-1$ at the boundary or at infinity. For example, if $h(x) \to -1$ as $x \to \infty$ along $\mathbb{R}$, then $|1 + h(x)| \to 0$, and $F(x) = 1/(1+h(x)) \to \infty$. But $F$ is bounded on $\mathbb{C}_+$, so $|F(x)| \leq M$, meaning $|1 + h(x)| \geq 1/M$. So $h(x) \not\to -1$.
+
+Actually, since $F$ is bounded on $\mathbb{C}_+$ and $F$ is entire (continuous), $|F(x)| \leq M$ on $\mathbb{R}$. So $|1 + h(x)| = |1/F(x)| \geq 1/M$ on $\mathbb{R}$. Also $|1 + h(x)| = 1/|F(x)| \leq ?$... well, $|F(x)| \leq M$ gives $|1 + h(x)| \geq 1/M$, and $F \neq 0$ gives $|1 + h(x)| > 0$ (which we already knew).
+
+Hmm, also $|F(x)| \leq M$ gives $|1/F(x)| \geq 1/M$, i.e., $|1 + h(x)| \geq 1/M$. And $|1 + h(x)| = |e^{-g(x)}| = e^{-\text{Re}(g(x))}$, so $\text{Re}(g(x)) \leq \log M$ on $\mathbb{R}$.
+
+Also, $|F(x)| \leq M$ means $|e^{g(x)}| \leq M$, so $\text{Re}(g(x)) \leq \log M$.
+
+And $|1/F(x)| = |1 + h(x)| \leq 1 + |h(x)|$. Since $h \in L^2(\mathbb{R})$, $|h(x)| \to 0$ as $|x| \to \infty$ (in some sense), so $|1 + h(x)| \to 1$, meaning $|F(x)| \to 1$ as $|x| \to \infty$. So $\text{Re}(g(x)) \to 0$ as $|x| \to \infty$.
+
+Now, $F = e^g$ is bounded on $\mathbb{C}_+$, so $\text{Re}(g(z)) \leq \log M$ for $z \in \mathbb{C}_+$. And $F$ is bounded on each $\{\text{Im}(z) > \delta\}$, so $\text{Re}(g(z)) \leq C_\delta$ for $\text{Im}(z) > \delta$.
+
+For $\delta < 0$, this gives a bound on $\text{Re}(g)$ in a region extending into the lower half-plane.
+
+Now, $g$ is entire and $\text{Re}(g(x)) \to 0$ as $|x| \to \infty$ on $\mathbb{R}$. Also, $\text{Re}(g(z)) \leq C_\delta$ for $\text{Im}(z) > \delta$.
+
+Hmm, this is getting complicated. Let me think about whether $g$ must be constant.
+
+Actually, $h = e^{-g} - 1$ is a Paley-Wiener function (entire, in $H^2(\mathbb{C}_+)$). So $h$ is of exponential type. Then $e^{-g} = 1 + h$ is also of exponential type (since $h$ is). So $g = -\log(1 + h)$, and $g$ is entire.
+
+The growth of $g$: since $1 + h$ is of exponential type and never zero, $\log(1 + h)$ is entire. What's the growth of $\log(1 + h)$?
+
+If $h$ is of exponential type $A$, then $1 + h$ is of exponential type $A$. Since $1 + h \neq 0$, $\log(1 + h)$ is entire. The growth of $\log(1 + h)$: $|\log(1 + h(z))| \leq C + \log|1 + h(z)|$ roughly, but this isn't quite right for complex logarithm.
+
+Actually, $\log(1 + h(z)) = \int_0^z \frac{h'(\zeta)}{1 + h(\zeta)} d\zeta$. The growth depends on $h'/(1+h)$.
+
+This is getting quite involved. Let me try a different approach.
+
+Let me consider the problem from the perspective of the Smirnov class and outer functions.
+
+Actually, let me try to determine if $F \equiv 1$ is the only solution with the $\frac{1}{F} - 1$ interpretation.
+
+$F = 1/(1+h)$ where $h$ is a Paley-Wiener function (entire, $H^2(\mathbb{C}_+)$), $1 + h \neq 0$ everywhere, and $F$ bounded in each half-plane.
+
+$F$ bounded in $\mathbb{C}_+$: $|1/(1+h(z))| \leq M$ for $\text{Im}(z) > 0$. Since $|h(z)| \leq C$ in $\mathbb{C}_+$ (Paley-Wiener functions are bounded in $\mathbb{C}_+$), $|1 + h(z)| \leq 1 + C$, so $|F(z)| \geq 1/(1+C)$. The condition $|F| \leq M$ means $|1 + h(z)| \geq 1/M$.
+
+$F$ bounded in $\{\text{Im}(z) > \delta\}$ for $\delta < 0$: In the lower half-plane, $h(z)$ can grow exponentially. $|h(z)| \leq \int_0^A |\phi(t)| e^{|y|t} dt \leq \|\phi\|_{L^1} e^{A|y|}$ for $y = \text{Im}(z) < 0$. So $|1 + h(z)|$ can be as large as $e^{A|y|}$, making $|F(z)|$ as small as $e^{-A|y|}$. That's fine for boundedness (small is OK). The issue is if $|1 + h(z)|$ can be close to 0, making $|F|$ large.
+
+So the question is: can $1 + h(z) = 0$ for some $z$ in the lower half-plane? We need $1 + h \neq 0$ everywhere (for $F$ to be entire). And even if $1 + h \neq 0$, $|1 + h|$ could be very small, making $|F|$ very large.
+
+For $F$ to be bounded in $\{\text{Im}(z) > \delta\}$, we need $|1 + h(z)| \geq c_\delta > 0$ for $\text{Im}(z) > \delta$.
+
+Hmm, this is a strong condition. In the lower half-plane, $h$ grows exponentially, so $1 + h$ is dominated by $h$ for large $|y|$, and $|1 + h| \approx |h|$ which is large. So the issue is in the region near the real axis in the lower half-plane.
+
+This is getting very complicated. Let me try to think about whether there's a simple argument.
+
+Actually, let me reconsider the problem. I think the most natural and interesting interpretation is $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$, and the answer is "no such $F$ exists" with the clean proof I outlined above.
+
+Let me also consider: maybe the problem is stated in a way where $1/F - 1$ means $\frac{1}{F} - 1$ but the problem is still nontrivial because maybe $F \equiv 1$ is excluded by some implicit convention, or maybe the problem is asking about the existence of nontrivial solutions.
+
+You know what, I think I should just go with the interpretation that makes the problem nontrivial and interesting. The interpretation $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$ gives a clean, elegant proof of non-existence. Let me go with that.
+
+Actually, wait. Let me reconsider one more time. The problem says "$1/F - 1 \in H^2(\mathbb{C}_+)$". In many analysis texts, especially in the context of Hardy spaces and function theory, this notation would indeed mean $\frac{1}{F} - 1$. But the trivial solution $F = 1$ makes the problem uninteresting.
+
+Hmm, but maybe the problem is from a competition or exam where the "trick" is that the answer is yes and $F = 1$ works, and students might overthink it. But the problem says "provide a justification," which could just mean "explain why your answer is correct."
+
+Actually, let me reconsider. With $\frac{1}{F} - 1 \in H^2$, maybe the problem is asking whether a non-constant $F$ exists, and the answer is no (only $F = 1$ works). That would also be interesting.
+
+Let me try to prove that $F = 1$ is the only solution with $\frac{1}{F} - 1 \in H^2$.
+
+$F = e^g$, $h = e^{-g} - 1 \in H^2(\mathbb{C}_+)$, $h$ entire, $1 + h \neq 0$ everywhere, $F$ bounded in each half-plane.
+
+$F$ bounded in $\mathbb{C}_+$: $|e^{g(z)}| \leq M$ for $\text{Im}(z) > 0$, so $\text{Re}(g(z)) \leq \log M$.
+$F$ bounded in $\{\text{Im}(z) > \delta\}$ for $\delta < 0$: $\text{Re}(g(z)) \leq C_\delta$ for $\text{Im}(z) > \delta$.
+
+$1/F = e^{-g} = 1 + h$, $h \in H^2(\mathbb{C}_+)$.
+
+On $\mathbb{R}$: $|h(x)| = |e^{-g(x)} - 1| \in L^2(\mathbb{R})$. Since $|F(x)| \leq M$ (from boundedness on $\mathbb{C}_+$ and continuity), $|e^{-g(x)}| = 1/|F(x)| \geq 1/M$, so $|1 + h(x)| \geq 1/M$, meaning $|h(x)| \geq |1 + h(x)| - 1 \geq 1/M - 1$... wait, that's $|h(x)| \geq |1 + h(x)| - 1 \geq 1/M - 1$, which could be negative. Let me use the triangle inequality differently: $|h(x)| = |e^{-g(x)} - 1| \leq |e^{-g(x)}| + 1 = 1/|F(x)| + 1 \leq 1/\inf|F| + 1$. But I don't have a lower bound on $|F(x)|$ from the given conditions (other than $F \neq 0$).
+
+Hmm wait, I do have $|F(x)| \leq M$ and $F(x) \neq 0$. But $|F(x)|$ could be very small, making $|1/F(x)|$ very large, and $|h(x)| = |1/F(x) - 1|$ could be large. But $h \in L^2(\mathbb{R})$, so $|h(x)|$ can't be too large on average.
+
+Also, $|h(x)| = |1/F(x) - 1| \in L^2$ and $|F(x)| \leq M$. Since $F(x) \neq 0$, $1/F(x)$ is well-defined. $|1/F(x) - 1| \in L^2$ means $1/F(x) \to 1$ as $|x| \to \infty$ in $L^2$ sense, so $F(x) \to 1$ as $|x| \to \infty$ (in some sense).
+
+Now, $F$ is entire, bounded on $\mathbb{C}_+$, and $F(x) \to 1$ as $|x| \to \infty$. By the Phragmén-Lindelöf principle or similar, can we conclude $F \equiv 1$?
+
+Actually, $F$ is bounded on $\mathbb{C}_+$ and $F(x) \to 1$ as $|x| \to \infty$ on $\mathbb{R}$. But $F$ is also bounded on each $\{\text{Im}(z) > \delta\}$. 
+
+Hmm, let me think about this using the Poisson integral. Since $F$ is bounded and analytic in $\mathbb{C}_+$, it has boundary values $F(x) \in L^\infty(\mathbb{R})$, and $F$ can be recovered from its boundary values via the Poisson integral (if $F$ is in $H^\infty(\mathbb{C}_+)$).
+
+Actually, $F$ is bounded and analytic in $\mathbb{C}_+$, so $F \in H^\infty(\mathbb{C}_+)$. The boundary values $F(x) \in L^\infty(\mathbb{R})$. And $1/F(x) - 1 \in L^2(\mathbb{R})$.
+
+Since $F \in H^\infty(\mathbb{C}_+)$, $F$ is determined by its boundary values. But $F$ is also entire, so it's determined by its values on $\mathbb{R}$ (which is a set with a limit point). So $F$ is the unique entire function that agrees with the $H^\infty$ function on $\mathbb{C}_+$.
+
+Now, $1/F - 1 \in H^2(\mathbb{C}_+)$. Since $F \in H^\infty(\mathbb{C}_+)$ and $F \neq 0$ in $\mathbb{C}_+$ (actually $F \neq 0$ everywhere), $1/F \in H^\infty(\mathbb{C}_+)$ as well (if $|F| \geq c > 0$ in $\mathbb{C}_+$). 
+
+Wait, do we know $|F| \geq c > 0$ in $\mathbb{C}_+$? $F$ is bounded on $\mathbb{C}_+$ and $F \neq 0$ in $\mathbb{C}_+$. But $|F|$ could approach 0. However, $1/F - 1 \in H^2$ means $1/F$ is in $H^2$ (since $1 = 1/F - (1/F - 1)$... no, $1/F = 1 + (1/F - 1) = 1 + h$ where $h \in H^2$; but $1 \notin H^2$, so $1/F \notin H^2$ unless... hmm, $H^2$ is a vector space, so $1/F = 1 + h$ with $h \in H^2$ means $1/F \in H^2$ iff $1 \in H^2$, which is false. So $1/F \notin H^2$ in general.
+
+But $1/F$ is analytic and bounded in $\mathbb{C}_+$ (since $F$ is bounded away from 0... wait, is it?). Hmm, I need to be more careful.
+
+$F$ is bounded on $\mathbb{C}_+$ and $F \neq 0$ in $\mathbb{C}_+$. Is $1/F$ bounded on $\mathbb{C}_+$? Not necessarily — $|F|$ could approach 0. But $1/F - 1 \in H^2$ means $1/F = 1 + h$ with $h \in H^2$, so $|1/F(z)| \leq 1 + |h(z)|$. In $\mathbb{C}_+$, $|h(z)| \leq \|h\|_{H^2} / \sqrt{2\pi \text{Im}(z)}$ (by the pointwise estimate for $H^2$ functions). Wait, actually for $H^2(\mathbb{C}_+)$, the pointwise bound is $|h(z)| \leq \frac{\|h\|_{H^2}}{\sqrt{2 \text{Im}(z)}}$ (or something like that). So $|1/F(z)| \leq 1 + C/\sqrt{\text{Im}(z)}$, which is bounded for $\text{Im}(z) \geq \epsilon > 0$ but blows up as $\text{Im}(z) \to 0$.
+
+So $1/F$ is not necessarily bounded on $\mathbb{C}_+$, but it's in some sense "close to 1" since $h \in H^2$.
+
+OK this is getting really complicated. Let me try a different approach.
+
+Let me use the fact that $h = 1/F - 1$ is entire and in $H^2(\mathbb{C}_+)$. As I discussed, $h$ is a Paley-Wiener function: $h(z) = \int_0^A \phi(t) e^{izt} dt$ for some $\phi \in L^2(0, A)$.
+
+$F = 1/(1+h)$ is entire, so $1 + h \neq 0$ everywhere. $F$ is bounded on each $\{\text{Im}(z) > \delta\}$.
+
+In $\mathbb{C}_+$: $|h(z)| \leq \|\phi\|_{L^1} =: C_0$. So $|1 + h(z)| \leq 1 + C_0$ and $|1 + h(z)| \geq 1 - C_0$ (if $C_0 < 1$) or $\geq 0$ (if $C_0 \geq 1$). For $F$ to be bounded on $\mathbb{C}_+$, we need $|1 + h(z)| \geq c > 0$ in $\mathbb{C}_+$. If $C_0 < 1$, then $|1 + h(z)| \geq 1 - C_0 > 0$, so $|F(z)| \leq 1/(1 - C_0)$. Good.
+
+For $\delta < 0$: In $\{\text{Im}(z) > \delta\}$, $|h(z)| \leq \int_0^A |\phi(t)| e^{-\text{Im}(z) t} dt \leq \|\phi\|_{L^1} e^{A|\delta|}$ (for $\text{Im}(z) > \delta$, $-\text{Im}(z) < |\delta|$, so $e^{-\text{Im}(z) t} \leq e^{|\delta| A}$). So $|h(z)| \leq C_0 e^{A|\delta|}$ in $\{\text{Im}(z) > \delta\}$. Then $|1 + h(z)| \leq 1 + C_0 e^{A|\delta|}$, and if $C_0 e^{A|\delta|} < 1$, $|1 + h(z)| \geq 1 - C_0 e^{A|\delta|} > 0$, so $|F| \leq 1/(1 - C_0 e^{A|\delta|})$.
+
+But for large $|\delta|$, $C_0 e^{A|\delta|}$ could be $> 1$, and then we can't bound $|F|$ this way. However, we need $F$ bounded on each half-plane, with the bound possibly depending on $\delta$.
+
+Hmm, but even if $|h|$ is large, $|1 + h| \geq |h| - 1$, so $|F| = 1/|1+h| \leq 1/(|h| - 1)$ when $|h| > 1$. So $|F|$ is bounded when $|h|$ is large. The issue is when $|1 + h|$ is small, i.e., when $h$ is close to $-1$.
+
+So the question is: can $h(z)$ be close to $-1$ for $z$ in the lower half-plane? Since $1 + h \neq 0$ everywhere, $h(z) \neq -1$ for all $z$. But $h$ could get arbitrarily close to $-1$.
+
+For $F$ to be bounded on $\{\text{Im}(z) > \delta\}$, we need $|1 + h(z)| \geq c_\delta > 0$ for $\text{Im}(z) > \delta$. This is a strong condition.
+
+Hmm, this is really getting into the weeds. Let me try to think about this problem from a higher level.
+
+Actually, I think the key insight might be simpler. Let me reconsider.
+
+With $\frac{1}{F} - 1 \in H^2(\mathbb{C}_+)$ and $F$ bounded on $\mathbb{C}_+$:
+
+$F \in H^\infty(\mathbb{C}_+)$ (bounded analytic in $\mathbb{C}_+$). $1/F - 1 \in H^2(\mathbb{C}_+)$.
+
+Since $F \in H^\infty$ and $F \neq 0$ in $\mathbb{C}_+$, is $1/F \in H^\infty$? Only if $|F| \geq c > 0$ in $\mathbb{C}_+$. We have $1/F = 1 + h$ with $h \in H^2$. For $z \in \mathbb{C}_+$ with $\text{Im}(z) = y > 0$, $|h(z)| \leq \frac{\|h\|_{H^2}}{\sqrt{2y}}$ (Cauchy-Schwarz with the Poisson kernel). So $|1/F(z)| \leq 1 + \frac{\|h\|_{H^2}}{\sqrt{2y}}$. This is finite for each $y > 0$ but blows up as $y \to 0$. So $1/F$ is not in $H^\infty$ in general.
+
+But $1/F$ is in $H^2$? $1/F = 1 + h$, and $1 \notin H^2$, $h \in H^2$, so $1/F \notin H^2$ (since $H^2$ is a vector space and $1 \notin H^2$). So $1/F \notin H^2$.
+
+Hmm, but $1/F - 1 = h \in H^2$. So $1/F$ is "in $H^2$ up to a constant." This is the affine $H^2$ space $1 + H^2$.
+
+OK, I think I need to approach this differently. Let me consider the boundary values.
+
+On $\mathbb{R}$: $F(x) \in L^\infty(\mathbb{R})$ (since $F$ is bounded on $\mathbb{C}_+$ and continuous), $F(x) \neq 0$ for all $x$, and $1/F(x) - 1 \in L^2(\mathbb{R})$.
+
+$1/F(x) - 1 \in L^2$ means $1/F(x) \to 1$ in $L^2$ sense, so $F(x) \to 1$ in measure as $|x| \to \infty$.
+
+Now, $F$ is entire and bounded on $\mathbb{C}_+$. Also, $F$ is bounded on each $\{\text{Im}(z) > \delta\}$.
+
+Consider $F$ on the real line: $F(x) \to 1$ as $|x| \to \infty$ (in $L^2$ sense for $1/F - 1$). And $|F(x)| \leq M$.
+
+Now, $F$ is entire. Can we use the growth conditions to show $F$ is constant?
+
+$F$ is bounded on $\mathbb{C}_+$ and $F(x) \to 1$ as $|x| \to \infty$. By a Phragmén-Lindelöf type argument, if $F$ is bounded on $\mathbb{C}_+$ and approaches 1 on the boundary at infinity, then... hmm, this doesn't directly give $F \equiv 1$ because $F$ could be non-constant but still approach 1 at infinity.
+
+For example, $F(z) = 1 + \epsilon e^{iz}$ for small $\epsilon$. This is entire, bounded on $\mathbb{C}_+$ ($|F(z)| \leq 1 + \epsilon$ for $\text{Im}(z) \geq 0$), and $F(x) = 1 + \epsilon e^{ix}$ which doesn't converge to 1 as $|x| \to \infty$ (it oscillates). So $1/F(x) - 1 = 1/(1 + \epsilon e^{ix}) - 1 = \frac{-\epsilon e^{ix}}{1 + \epsilon e^{ix}}$. For small $\epsilon$, this is approximately $-\epsilon e^{ix}$, which is not in $L^2$ (constant modulus). So this doesn't work.
+
+What about $F(z) = 1 + h(z)$ where $h$ is a Paley-Wiener function? Then $1/F - 1 = 1/(1+h) - 1 = -h/(1+h)$. For this to be in $H^2$, we need $h/(1+h) \in H^2$. If $h$ is small (say $|h| \leq \epsilon < 1$ in $\mathbb{C}_+$), then $h/(1+h) \approx h$, and $h \in H^2$, so $h/(1+h) \in H^2$ (roughly). But we need to be more careful.
+
+Actually, $1/F - 1 = -h/(1+h)$ where $h = F - 1$... no wait, I defined $h = 1/F - 1$ earlier. Let me redo.
+
+If $F = 1 + k$ where $k$ is a Paley-Wiener function, then $1/F - 1 = 1/(1+k) - 1 = -k/(1+k)$. For this to be in $H^2$, we need $k/(1+k) \in H^2$.
+
+If $k$ is small in $\mathbb{C}_+$ (say $|k(z)| \leq \epsilon < 1/2$), then $|k/(1+k)| \leq 2|k|$, and if $k \in H^2$, then $k/(1+k) \in H^2$.
+
+But $k = F - 1$ is entire. Is $k \in H^2$? $k$ is a Paley-Wiener function iff $k \in H^2(\mathbb{C}_+)$ and $k$ is entire. So if $k$ is a Paley-Wiener function with $|k| \leq \epsilon$ in $\mathbb{C}_+$, and $1 + k \neq 0$ everywhere, and $F = 1 + k$ is bounded in each half-plane...
+
+$F = 1 + k$ is bounded in $\mathbb{C}_+$: $|F| \leq 1 + \epsilon$. ✓
+$F$ bounded in $\{\text{Im}(z) > \delta\}$ for $\delta < 0$: $|k(z)| \leq C e^{A|\delta|}$ in this region, so $|F(z)| \leq 1 + C e^{A|\delta|}$. ✓ (bounded, with bound depending on $\delta$).
+
+Wait, but we also need $F \neq 0$ everywhere, i.e., $1 + k \neq 0$, i.e., $k \neq -1$ everywhere. And $1/F - 1 = -k/(1+k) \in H^2$.
+
+So the question reduces to: does there exist a non-zero Paley-Wiener function $k$ such that:
+- $k \neq -1$ everywhere
+- $-k/(1+k) \in H^2(\mathbb{C}_+)$
+- $|k|$ is small enough in $\mathbb{C}_+$ (for $1/F$ to be well-behaved)
+
+If $|k(z)| \leq \epsilon < 1$ in $\mathbb{C}_+$, then $1 + k \neq 0$ in $\mathbb{C}_+$ (since $|k| < 1$). And $k/(1+k) \in H^2$ since $|k/(1+k)| \leq |k|/(1-\epsilon)$ and $k \in H^2$.
+
+But we also need $k \neq -1$ in the lower half-plane. In the lower half-plane, $|k(z)|$ can grow, so $k(z) = -1$ is possible. We need to choose $k$ such that $k(z) \neq -1$ for all $z$.
+
+For example, take $k(z) = \epsilon \frac{\sin z}{z}$... but we showed $\sin z / z \notin H^2(\mathbb{C}_+)$. 
+
+Take $k(z) = \epsilon \int_0^1 e^{izt} dt = \epsilon \frac{e^{iz} - 1}{iz}$. This is a Paley-Wiener function. In $\mathbb{C}_+$, $|k(z)| \leq \epsilon \int_0^1 e^{-yt} dt \leq \epsilon$. So $|k| \leq \epsilon$ in $\mathbb{C}_+$.
+
+$k(z) = -1$ means $\epsilon \frac{e^{iz} - 1}{iz} = -1$, i.e., $\epsilon(e^{iz} - 1) = -iz$, i.e., $\epsilon e^{iz} = \epsilon - iz$. For $z = x + iy$ with $y < 0$: $|\epsilon e^{iz}| = \epsilon e^{-y} = \epsilon e^{|y|}$, and $|\epsilon - iz| = |\epsilon - ix + y| = \sqrt{(\epsilon + y)^2 + x^2}$. 
+
+For large $|y|$ (deep in lower half-plane), $|\epsilon e^{iz}| = \epsilon e^{|y|}$ grows exponentially, while $|\epsilon - iz| = \sqrt{(\epsilon + y)^2 + x^2} \leq \epsilon + |y| + |x|$ grows linearly. So for large $|y|$, $|\epsilon e^{iz}| \gg |\epsilon - iz|$, so $k(z) \neq -1$ for large $|y|$.
+
+But for moderate $|y|$, there might be solutions. This is hard to check in general.
+
+Let me try a specific small $\epsilon$. Take $\epsilon = 0.01$. Then $k(z) = 0.01 \frac{e^{iz} - 1}{iz}$. We need $k(z) \neq -1$ for all $z$, i.e., $0.01(e^{iz} - 1) \neq -iz$, i.e., $e^{iz} \neq 1 - 100iz$.
+
+For $z = -i$ (i.e., $z = 0 - i$): $e^{i(-i)} = e^1 = e \approx 2.718$. $1 - 100i(-i) = 1 - 100 = -99$. $2.718 \neq -99$. OK.
+
+For $z = -100i$: $e^{i(-100i)} = e^{100}$, huge. $1 - 100i(-100i) = 1 - 10000 = -9999$. $e^{100} \gg 9999$. OK.
+
+For $z = -0.01i$: $e^{i(-0.01i)} = e^{0.01} \approx 1.01$. $1 - 100i(-0.01i) = 1 - 1 = 0$. $1.01 \neq 0$. OK but close.
+
+For $z$ near $-0.01i$: Let $z = -0.01i + w$ for small $w$. $e^{iz} = e^{i(-0.01i + w)} = e^{0.01 + iw} = e^{0.01} e^{iw} \approx 1.01(1 + iw)$. $1 - 100iz = 1 - 100i(-0.01i + w) = 1 - 1 + 100iw = 100iw$. So we need $1.01(1 + iw) \neq 100iw$, i.e., $1.01 + 1.01iw \neq 100iw$, i.e., $1.01 \neq 98.99 iw$, i.e., $w \neq 1.01/(98.99 i) = -1.01i/98.99 \approx -0.0102i$. So at $z \approx -0.01i - 0.0102i = -0.0202i$, we might have $k(z) = -1$.
+
+Let me check: $z = -0.0202i$. $e^{iz} = e^{i(-0.0202i)} = e^{0.0202} \approx 1.0204$. $1 - 100iz = 1 - 100i(-0.0202i) = 1 - 100(0.0202) = 1 - 2.02 = -1.02$. $1.0204 \neq -1.02$. Not equal.
+
+Hmm, let me be more careful. $k(z) = -1$ means $\epsilon \frac{e^{iz}-1}{iz} = -1$. With $\epsilon = 0.01$: $0.01 \frac{e^{iz}-1}{iz} = -1$, so $\frac{e^{iz}-1}{iz} = -100$, so $e^{iz} - 1 = -100iz$, so $e^{iz} = 1 - 100iz$.
+
+Let $w = iz$, so $e^w = 1 - 100w/(-i) = 1 + 100w/i = 1 - 100iw$. Hmm, let me redo: $z = -iw$ (so $w = iz$), $e^w = 1 - 100i(-iw) = 1 - 100w$. So $e^w = 1 - 100w$.
+
+For real $w$: $e^w = 1 - 100w$. At $w = 0$: $1 = 1$. ✓ (but this gives $z = 0$, and $k(0) = \epsilon \cdot \lim_{z \to 0} \frac{e^{iz}-1}{iz} = \epsilon \cdot 1 = 0.01 \neq -1$). Wait, $k(0) = 0.01$, not $-1$. Let me recheck.
+
+$k(z) = \epsilon \frac{e^{iz}-1}{iz}$. At $z = 0$: $k(0) = \epsilon \cdot 1 = \epsilon = 0.01$ (using L'Hôpital or Taylor). So $k(0) = 0.01 \neq -1$.
+
+$k(z) = -1$ means $\epsilon \frac{e^{iz}-1}{iz} = -1$. At $z = 0$, LHS $= 0.01 \neq -1$. So $z = 0$ is not a solution.
+
+$e^w = 1 - 100w$ where $w = iz$. At $w = 0$: $1 = 1$. But this corresponds to $0.01 \cdot 1 = -1$? No. Let me recheck.
+
+$k(z) = -1$: $\epsilon \frac{e^{iz}-1}{iz} = -1$. Let $w = iz$. Then $\epsilon \frac{e^w - 1}{w} = -1$ (since $iz = w$... wait, $iz = w$ so $z = w/i = -iw$, and $iz = i(-iw) = w$. Yes.). So $\epsilon \frac{e^w - 1}{w} = -1$, i.e., $e^w - 1 = -w/\epsilon = -100w$, i.e., $e^w = 1 - 100w$.
+
+At $w = 0$: $e^0 = 1$ and $1 - 0 = 1$. So $w = 0$ is a solution of $e^w = 1 - 100w$. But $k(0) = \epsilon \cdot \frac{e^0 - 1}{0} = \epsilon \cdot 1 = 0.01$ (by L'Hôpital). And we need $k = -1$, not $k = 0.01$. 
+
+The issue is that $w = 0$ is a removable singularity of $(e^w - 1)/w$, and the value there is 1, not $-1/\epsilon = -100$. So $w = 0$ satisfies $e^w = 1 - 100w$ but doesn't give $k = -1$ because the equation $e^w - 1 = -100w$ is satisfied trivially at $w = 0$ (both sides are 0), but $(e^w - 1)/w = -100$ requires the derivative to be $-100$, while actually $(e^w - 1)/w|_{w=0} = 1 \neq -100$.
+
+So $w = 0$ is a solution of $e^w = 1 - 100w$ but doesn't give $k = -1$. We need non-zero solutions of $e^w = 1 - 100w$.
+
+For real $w > 0$: $e^w > 1$ and $1 - 100w < 1$, and for $w > 0.01$, $1 - 100w < 0 < e^w$. So no positive real solution (other than $w = 0$).
+
+For real $w < 0$: $e^w < 1$ and $1 - 100w > 1$. So $e^w < 1 < 1 - 100w$. No negative real solution.
+
+For complex $w = a + bi$ with $b \neq 0$: $e^a \cos b + i e^a \sin b = (1 - 100a) - 100bi$.
+
+$e^a \sin b = -100b$ and $e^a \cos b = 1 - 100a$.
+
+From the first: $e^a = -100b/\sin b$ (need $-b/\sin b > 0$). From the second: $(-100b/\sin b) \cos b = 1 - 100a$, so $-100b \cot b = 1 - 100a$, and $a = \ln(-100b/\sin b)$.
+
+So $-100b \cot b = 1 - 100 \ln(-100b/\sin b)$.
+
+This is a transcendental equation. For $b$ near $\pi$ (where $\sin b$ is near 0): $\sin b \approx \pi - b$ for $b$ near $\pi$, $\cot b \approx -1/(\pi - b)$. $-100b \cdot (-1/(\pi - b)) = 100b/(\pi - b)$. And $-100b/\sin b \approx -100b/(-(b - \pi)) = 100b/(b - \pi)$. For $b$ slightly less than $\pi$: $b - \pi < 0$, so $100b/(b-\pi) < 0$, not valid (need $e^a > 0$). For $b$ slightly greater than $\pi$: $\sin b < 0$ (since $\pi < b < 2\pi$), $-b < 0$, $-b/\sin b = -b/(\text{negative}) > 0$. OK.
+
+For $b$ slightly greater than $\pi$: $\sin b \approx -(b - \pi)$, $\cot b \approx -1/(b-\pi)$. $-100b \cot b \approx 100b/(b-\pi) \to +\infty$. $-100b/\sin b \approx 100b/(b-\pi) \to +\infty$, so $a = \ln(100b/(b-\pi)) \to +\infty$. $1 - 100a \to -\infty$. So $100b/(b-\pi) \to +\infty$ and $1 - 100a \to -\infty$. These could match for some $b$.
+
+This is getting very complicated. The point is that for generic $\epsilon$, the equation $k(z) = -1$ might or might not have solutions. For the problem, we need to find $k$ such that $k \neq -1$ everywhere, which is a nontrivial constraint.
+
+OK, I think I've been going down a rabbit hole. Let me step back and think about what the problem is really asking.
+
+Given the problem statement and the fact that it asks to "determine whether there exists" and "provide a justification," I believe the intended interpretation is $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$, and the answer is **no, such $F$ does not exist**, with the clean proof I outlined.
+
+Let me also consider: maybe the problem means $\frac{1}{F} - 1 \in H^2$ and the answer is "yes, $F = 1$ works" but they also want to know if nontrivial solutions exist. But the problem just says "determine whether there exists," so if $F = 1$ works, the answer is yes.
+
+Hmm, but actually, re-reading the problem once more: "Determine whether there exists an entire function $F$ such that: 1. $F(z) \neq 0$...; 2. $1/F - 1 \in H^2$...; 3. $F$ is bounded..."
+
+If the answer is trivially "yes, $F = 1$," then condition 1 ($F \neq 0$) is trivially satisfied, condition 2 ($0 \in H^2$) is trivially satisfied, and condition 3 is trivially satisfied. The problem would be trivial and not worth asking.
+
+So I'm now fairly confident the intended interpretation is $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$, making the problem nontrivial with the answer "no."
+
+Actually, wait. Let me reconsider one more time. Maybe the problem is $\frac{1}{F} - 1 \in H^2$ but they want a non-constant $F$, and the answer is that only $F = 1$ works (so no non-constant $F$ exists). This would also be nontrivial.
+
+Hmm, but the problem doesn't say "non-constant." It just says "determine whether there exists an entire function $F$."
+
+OK, I'll go with the interpretation $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$ and prove non-existence. This gives the most interesting and clean problem.
+
+Actually, let me reconsider one final time. I just want to make sure my proof is correct for the $\frac{1}{F-1}$ interpretation.
+
+**Proof (for $\frac{1}{F-1} \in H^2(\mathbb{C}_+)$):**
+
+Suppose such $F$ exists.
+
+Step 1: $F$ is bounded on $\mathbb{C}_+$ (condition 3 with $\delta = 0$). Say $|F(z)| \leq M$ for $\text{Im}(z) > 0$.
+
+Step 2: $F$ is entire, hence continuous. So $|F(x)| = \lim_{y \to 0^+} |F(x+iy)| \leq M$ for all $x \in \mathbb{R}$.
+
+Step 3: Let $G = \frac{1}{F-1} \in H^2(\mathbb{C}_+)$. Then $G$ is analytic in $\mathbb{C}_+$, so $F \neq 1$ in $\mathbb{C}_+$.
+
+Step 4: $F \neq 1$ on $\mathbb{R}$. Suppose $F(x_0) = 1$ for some $x_0 \in \mathbb{R}$. Since $F$ is entire, $F(z) - 1 = a_k(z - x_0)^k + \ldots$ with $k \geq 1$ and $a_k \neq 0$. Then $|G(x+iy)| = 1/|F(x+iy) - 1| \sim 1/(|a_k| |x - x_0 + iy|^k)$ for $z$ near $x_0$. For $y > 0$:
+$$\int_{x_0-1}^{x_0+1} |G(x+iy)|^2 dx \gtrsim \int_{-1}^{1} \frac{du}{(u^2 + y^2)^k}.$$
+For $k = 1$: $\int_{-1}^{1} \frac{du}{u^2 + y^2} = \frac{2\arctan(1/y)}{y} \to \infty$ as $y \to 0^+$. For $k \geq 2$: even more divergent. So $\sup_{y > 0} \int |G(x+iy)|^2 dx = \infty$, contradicting $G \in H^2$.
+
+Step 5: Since $F(x) \neq 1$ for all $x \in \mathbb{R}$ and $|F(x)| \leq M$, we have $|F(x) - 1| \leq |F(x)| + 1 \leq M + 1$, so $|G(x)| = 1/|F(x) - 1| \geq 1/(M+1) > 0$ for all $x \in \mathbb{R}$.
+
+Step 6: But $G \in H^2(\mathbb{C}_+)$ implies $G(x) \in L^2(\mathbb{R})$ (boundary values). Since $|G(x)| \geq 1/(M+

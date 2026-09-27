@@ -1,0 +1,914 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_05790</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Find the maximum possible value of $K$ such that for any positive value $k \leq K$, the inequality
+$$25\left(abc\right)^k\leq1+3(a+b+c)+5(ab+bc+ca)$$
+holds true for all $a,b,c\geq0$ satisfying
+$$5(ab+ac+bc)\leq 4(a+b+c)+3.$$
+Report the value of $100K$.
+
+## Standard Solution
+
+The original solution determines the maximum value for $k$ by analyzing the symmetric case $a=b=c=t$. 
+The constraint simplifies to $15t^2 \leq 12t + 3$, which implies $t \in [0, 1]$.
+The inequality becomes $f(t) = \frac{25t^{3k}}{1 + 9t + 15t^2} \leq 1$. 
+Taking the derivative at the boundary point $t=1$ gives the condition for $k$. 
+Setting the derivative of $g(t) = 3k \ln t - \ln(1 + 9t + 15t^2)$ to be non-positive at $t=1$:
+$g'(1) = 3k - \frac{9 + 30(1)}{1 + 9(1) + 15(1)} = 3k - \frac{39}{25} \leq 0$.
+This yields $k \leq \frac{13}{25}$. 
+Thus, $K = \frac{13}{25}$ and $100K = 100 \times \frac{13}{25} = 52$.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We need to find the maximum value of $K$ such that for any positive value $k \leq K$, the inequality
+$$25(abc)^k \leq 1 + 3(a+b+c) + 5(ab+bc+ca)$$
+holds for all $a,b,c \geq 0$ satisfying
+$$5(ab+ac+bc) \leq 4(a+b+c) + 3.$$
+
+Let me denote $s = a+b+c$, $p = ab+bc+ca$, $q = abc$.
+
+The constraint is $5p \leq 4s + 3$.
+The inequality to satisfy is $25q^k \leq 1 + 3s + 5p$.
+
+We want the maximum $K$ such that for all $k \in (0, K]$, the inequality holds for all feasible $(a,b,c)$.
+
+Since we need it for ALL $k \leq K$, and $q = abc \geq 0$, we need to think about when $q > 1$ vs $q \leq 1$.
+
+If $q \leq 1$, then $q^k$ is decreasing in $k$, so the hardest case is $k = K$ (largest $k$ gives largest $q^k$ when... wait, if $q \leq 1$, $q^k$ decreases as $k$ increases, so the hardest is smallest $k$, i.e., $k \to 0^+$, where $q^k \to 1$. Actually wait, if $q < 1$, $q^k \to 1$ as $k \to 0$ and $q^k \to 0$ as $k \to \infty$. So for $q < 1$, larger $k$ makes LHS smaller, easier. For $q = 1$, $q^k = 1$ always. For $q > 1$, $q^k$ increases with $k$, so larger $k$ is harder.
+
+So the binding constraint comes from cases where $q = abc$ is maximized relative to the RHS.
+
+Actually, let me think about this differently. We need: for all $k \in (0, K]$, for all feasible $(a,b,c)$: $25 q^k \leq 1 + 3s + 5p$.
+
+For a fixed $(a,b,c)$ with $q = abc$:
+- If $q \leq 1$: $q^k \leq 1$ for $k > 0$, and $q^k$ is maximized as $k \to 0^+$. So the binding constraint at $k \to 0$ gives $25 \leq 1 + 3s + 5p$. But we need this for all $k \in (0, K]$, and for $q < 1$, the maximum of $q^k$ on $(0, K]$ is at $k \to 0^+$, which approaches 1. So we need $25 \leq 1 + 3s + 5p$ for all feasible points. Hmm, but that's a very strong condition. Let me check if it holds.
+
+Actually wait. If $q < 1$, then for any $k > 0$, $q^k < 1$, so $25 q^k < 25$. We need $25 q^k \leq 1 + 3s + 5p$. The worst case over $k \in (0, K]$ is at $k \to 0^+$, giving $25 \cdot 1 = 25 \leq 1 + 3s + 5p$. But this must hold for ALL feasible $(a,b,c)$, including those with $q < 1$.
+
+Hmm, but actually the problem says "for any positive value $k \leq K$". So we need it for all $k \in (0, K]$. For a point with $q < 1$, the LHS $25 q^k$ approaches 25 as $k \to 0^+$. So we need $1 + 3s + 5p \geq 25$ for all feasible points? That seems very restrictive.
+
+Wait, let me reconsider. Let me check: is $1 + 3s + 5p \geq 25$ always true under the constraint $5p \leq 4s + 3$?
+
+At $a = b = c = 0$: $s = 0, p = 0$, so $1 + 0 + 0 = 1 < 25$. And $q = 0$, so $25 \cdot 0^k = 0 \leq 1$. OK so at the origin, $q = 0$ and $0^k = 0$ for $k > 0$, so it's fine.
+
+The issue is when $q$ is small but positive. As $q \to 0^+$, $q^k \to 0$ for any fixed $k > 0$. So the constraint $25 q^k \leq 1 + 3s + 5p$ is automatically satisfied when $q$ is very small.
+
+The binding cases are where $q$ is large. Let me think about what the maximum of $q = abc$ is under the constraint.
+
+By AM-GM, $abc \leq (s/3)^3$ when $a = b = c$. And the constraint $5p \leq 4s + 3$ with $a = b = c = t$ gives $5 \cdot 3t^2 \leq 4 \cdot 3t + 3$, i.e., $15t^2 \leq 12t + 3$, i.e., $5t^2 \leq 4t + 1$, i.e., $5t^2 - 4t - 1 \leq 0$. Roots: $t = \frac{4 \pm \sqrt{16 + 20}}{10} = \frac{4 \pm 6}{10}$. So $t = 1$ or $t = -1/5$. So $t \in [0, 1]$ (since $t \geq 0$).
+
+At $t = 1$: $a = b = c = 1$, $s = 3, p = 3, q = 1$. Constraint: $15 \leq 12 + 3 = 15$. ✓ (equality). RHS: $1 + 9 + 15 = 25$. LHS: $25 \cdot 1^k = 25$. So equality holds for all $k$.
+
+At $t = 1$, we have $q = 1$ and $25 q^k = 25 = 1 + 3s + 5p$. So this is always tight regardless of $k$.
+
+Now, the question is: are there feasible points where $q > 1$? If so, then for those points, $q^k$ grows with $k$, and we need $25 q^k \leq 1 + 3s + 5p$, which gives an upper bound on $k$.
+
+Can $q = abc > 1$ under the constraint $5p \leq 4s + 3$?
+
+Let me try $a = b = c = t$ with $t$ slightly more than 1. Then $5 \cdot 3t^2 = 15t^2$ and $4 \cdot 3t + 3 = 12t + 3$. At $t = 1$, $15 = 15$. For $t > 1$, $15t^2 > 12t + 3$, so the constraint is violated. So with $a = b = c$, we can't have $q > 1$.
+
+But what about non-symmetric points? Let me try $a = b = t, c = 0$. Then $q = 0$, not helpful.
+
+Let me try $a$ large, $b = c$ small. Let $b = c = \epsilon$, $a = A$. Then $s = A + 2\epsilon$, $p = 2A\epsilon + \epsilon^2$, $q = A\epsilon^2$.
+
+Constraint: $5(2A\epsilon + \epsilon^2) \leq 4(A + 2\epsilon) + 3$, i.e., $10A\epsilon + 5\epsilon^2 \leq 4A + 8\epsilon + 3$.
+
+$q = A\epsilon^2$. To maximize $q$, we want $A$ large and $\epsilon$ not too small.
+
+From the constraint: $A(10\epsilon - 4) \leq 8\epsilon + 3 - 5\epsilon^2$. If $10\epsilon > 4$, i.e., $\epsilon > 0.4$, then $A \leq \frac{8\epsilon + 3 - 5\epsilon^2}{10\epsilon - 4}$.
+
+$q = A\epsilon^2 \leq \frac{(8\epsilon + 3 - 5\epsilon^2)\epsilon^2}{10\epsilon - 4}$.
+
+Let me maximize $f(\epsilon) = \frac{(8\epsilon + 3 - 5\epsilon^2)\epsilon^2}{10\epsilon - 4}$ for $\epsilon > 0.4$.
+
+Also need $8\epsilon + 3 - 5\epsilon^2 > 0$, i.e., $5\epsilon^2 - 8\epsilon - 3 < 0$, i.e., $\epsilon < \frac{8 + \sqrt{64 + 60}}{10} = \frac{8 + \sqrt{124}}{10} \approx \frac{8 + 11.14}{10} \approx 1.914$.
+
+Let me compute $f(\epsilon)$ at some values.
+
+At $\epsilon = 1$: $f(1) = \frac{(8 + 3 - 5) \cdot 1}{10 - 4} = \frac{6}{6} = 1$. So $q \leq 1$.
+
+At $\epsilon = 0.5$: $f(0.5) = \frac{(4 + 3 - 1.25) \cdot 0.25}{5 - 4} = \frac{5.75 \cdot 0.25}{1} = 1.4375$. So $q$ can be up to about 1.4375!
+
+So yes, $q > 1$ is possible. Let me verify: at $\epsilon = 0.5$, $A = \frac{8(0.5) + 3 - 5(0.25)}{10(0.5) - 4} = \frac{4 + 3 - 1.25}{1} = 5.75$. So $a = 5.75, b = c = 0.5$.
+
+Check constraint: $p = 2(5.75)(0.5) + 0.25 = 5.75 + 0.25 = 6$. $5p = 30$. $4s + 3 = 4(5.75 + 1) + 3 = 4(6.75) + 3 = 27 + 3 = 30$. ✓
+
+$q = 5.75 \cdot 0.25 = 1.4375$.
+
+RHS: $1 + 3(6.75) + 5(6) = 1 + 20.25 + 30 = 51.25$.
+
+LHS: $25 \cdot (1.4375)^k$.
+
+We need $25 \cdot (1.4375)^k \leq 51.25$, i.e., $(1.4375)^k \leq 2.05$, i.e., $k \leq \frac{\ln 2.05}{\ln 1.4375}$.
+
+$\ln 2.05 \approx 0.7178$, $\ln 1.4375 \approx 0.3629$. So $k \leq 1.978$.
+
+Hmm, but this is just one point. The actual $K$ is the minimum over all feasible points of the maximum $k$ allowed.
+
+Let me think more carefully. For a feasible point with $q > 1$, the constraint is $25 q^k \leq 1 + 3s + 5p$, i.e., $k \leq \frac{\ln\left(\frac{1+3s+5p}{25}\right)}{\ln q}$.
+
+For $q = 1$, it's always satisfied (equality at the symmetric point).
+
+For $q < 1$, $q^k < 1$ for $k > 0$, and we need $25 q^k \leq 1 + 3s + 5p$. Since $q^k \leq 1$, we need $25 \leq 1 + 3s + 5p$... no wait, $q^k < 1$ so $25 q^k < 25$. We need $25 q^k \leq 1 + 3s + 5p$. The worst case is $k \to 0^+$ where $q^k \to 1$, but for any fixed $k > 0$, $q^k < 1$.
+
+Actually, the problem says "for any positive value $k \leq K$". So $k$ ranges over $(0, K]$. For a point with $q < 1$, as $k \to 0^+$, $q^k \to 1$, so $25 q^k \to 25$. We need $25 \leq 1 + 3s + 5p$ for all such points... but that's not necessarily true.
+
+Hmm wait, but $k$ must be positive. So $k \in (0, K]$. For $q < 1$, $q^k$ is a decreasing function of $k$, so the supremum over $k \in (0, K]$ is $\lim_{k \to 0^+} q^k = 1$. But this supremum is not achieved. So we need $25 q^k \leq 1 + 3s + 5p$ for all $k \in (0, K]$, which means $25 \cdot \sup_{k \in (0,K]} q^k \leq 1 + 3s + 5p$... but the sup is 1 (not achieved), so we need $25 \leq 1 + 3s + 5p$? No, we need $25 q^k \leq 1 + 3s + 5p$ for all $k \in (0, K]$. Since $q^k < 1$ for all $k > 0$ (when $q < 1$), we need $25 q^k \leq 1 + 3s + 5p$ for all $k \in (0, K]$. The LHS is at most $25 q^{0^+} = 25$ but never reaches 25. So we need $1 + 3s + 5p \geq 25 q^k$ for all $k \in (0, K]$. If $1 + 3s + 5p < 25$, then for small enough $k$, $q^k$ is close enough to 1 that $25 q^k > 1 + 3s + 5p$. So we'd need $1 + 3s + 5p \geq 25$.
+
+But wait, at $a = b = c = 0$: $1 + 0 + 0 = 1 < 25$, and $q = 0$, $q^k = 0$ for $k > 0$, so $0 \leq 1$. Fine.
+
+At a point with small $q > 0$ but $1 + 3s + 5p < 25$: e.g., $a = b = c = 0.1$. $s = 0.3, p = 0.03, q = 0.001$. Constraint: $5(0.03) = 0.15 \leq 4(0.3) + 3 = 4.2$. ✓. RHS = $1 + 0.9 + 0.15 = 2.05$. LHS = $25 \cdot (0.001)^k$. For small $k$, $(0.001)^k \approx 1$ when $k$ is very small. E.g., $k = 0.001$: $(0.001)^{0.001} = e^{0.001 \ln 0.001} = e^{0.001 \cdot (-6.908)} = e^{-0.006908} \approx 0.9931$. So LHS $\approx 24.83 > 2.05$. 
+
+So the inequality FAILS at $a = b = c = 0.1$ for $k = 0.001$!
+
+This means $K$ must be such that for all $k \leq K$, the inequality holds. But for $k$ very small, it fails at many points. So... $K$ must be 0? That can't be right since the problem asks for $100K$.
+
+Wait, let me re-read the problem. "Find the maximum possible value of $K$ such that for any positive value $k \leq K$, the inequality holds true for all $a,b,c \geq 0$..."
+
+Hmm, so we need: $\exists K > 0$ such that $\forall k \in (0, K], \forall (a,b,c) \text{ feasible}: 25(abc)^k \leq 1 + 3(a+b+c) + 5(ab+bc+ca)$.
+
+But as I showed, for $k$ very small, at $a = b = c = 0.1$, LHS $\approx 25$ and RHS $= 2.05$. So the inequality fails for small $k$.
+
+This means there's NO positive $K$ for which the inequality holds for all $k \in (0, K]$... unless I'm misunderstanding the problem.
+
+Wait, maybe I need to reconsider. Let me re-read: "for any positive value $k \leq K$". Maybe this means: find the maximum $K$ such that for all $k$ with $0 < k \leq K$, the inequality holds for all feasible $(a,b,c)$.
+
+But as shown, for small $k$, the inequality fails. So the set of valid $k$ is not an interval starting from 0. 
+
+Hmm, unless the problem means something different. Let me re-read once more.
+
+"Find the maximum possible value of $K$ such that for any positive value $k \leq K$, the inequality $25(abc)^k \leq 1 + 3(a+b+c) + 5(ab+bc+ca)$ holds true for all $a,b,c \geq 0$ satisfying $5(ab+ac+bc) \leq 4(a+b+c) + 3$."
+
+OK so I think the issue is that for $q < 1$, small $k$ makes $q^k$ close to 1, which is bad. For $q > 1$, large $k$ makes $q^k$ large, which is also bad. So the valid range of $k$ might be a bounded interval, and we want the maximum $K$ such that $(0, K]$ is contained in the valid set.
+
+But the valid set isn't an interval starting from 0, since small $k$ fails. So the maximum $K$ such that $(0, K]$ is valid would be... 0? That doesn't make sense.
+
+Let me reconsider. Maybe I made an error. Let me recheck the case $a = b = c = 0.1$.
+
+$a = b = c = 0.1$: $abc = 0.001$. $(abc)^k = 0.001^k$. For $k = 1$: $0.001$. LHS = $25 \cdot 0.001 = 0.025$. RHS = $1 + 3(0.3) + 5(0.03) = 1 + 0.9 + 0.15 = 2.05$. So $0.025 \leq 2.05$. ✓
+
+For $k = 0.01$: $0.001^{0.01} = e^{0.01 \cdot \ln 0.001} = e^{0.01 \cdot (-6.908)} = e^{-0.06908} \approx 0.9332$. LHS = $25 \cdot 0.9332 = 23.33$. RHS = $2.05$. So $23.33 > 2.05$. ✗
+
+So indeed for small $k$, the inequality fails. This means the problem as stated would have $K = 0$, which doesn't make sense for "report $100K$".
+
+Let me reconsider the problem. Maybe I'm misreading it. Perhaps it's: find the maximum $K$ such that there EXISTS a positive $k \leq K$ for which... no, it says "for any positive value $k \leq K$".
+
+Or maybe the problem is asking: find the maximum $K$ such that the inequality holds for $k = K$ (i.e., the supremum of $k$ values for which the inequality holds for all feasible $(a,b,c)$)? The phrasing "for any positive value $k \leq K$" would then mean "for any $k$ in the valid range up to $K$", but that's a stretch.
+
+Actually, wait. Let me reconsider. Maybe the problem is: find the maximum $K$ such that for all $k$ with $0 < k \leq K$, the inequality holds. If the set of valid $k$ is an interval $[k_0, K]$ or similar, then the maximum $K$ such that $(0, K] \subseteq \text{valid}$ would require $(0, K]$ to be entirely valid, which fails for small $k$.
+
+Unless... the problem intends $k \geq K$? Or $K \leq k$? Let me re-read.
+
+"Find the maximum possible value of $K$ such that for any positive value $k \leq K$..."
+
+Hmm, or maybe I should interpret it as: the maximum $K$ such that for any $k \leq K$ (where $k$ is positive), the inequality holds. If for $k$ small enough it fails, then maybe the answer is that $K$ is the infimum of the "bad" $k$ values? But the bad $k$ values include all small $k$...
+
+Wait, actually, maybe I need to reconsider. Perhaps the problem is that the inequality should hold for all $a, b, c \geq 0$ (not just those satisfying the constraint) when $k \leq K$, and the constraint defines when the inequality is "interesting"? No, re-reading, the constraint is clearly a condition on $a, b, c$.
+
+Let me try another interpretation: maybe $K$ is the maximum value such that for $k = K$, the inequality holds for all feasible $(a,b,c)$. And the "for any positive value $k \leq K$" is saying that the inequality holds for all $k$ in $(0, K]$, meaning it holds for $k = K$ and all smaller positive $k$. But as I showed, it doesn't hold for small $k$...
+
+Unless the problem has a different structure than I think. Let me reconsider whether the inequality actually does hold for small $k$.
+
+For $k \to 0^+$: $(abc)^k \to 1$ if $abc > 0$, and $(abc)^k = 0$ if $abc = 0$. So LHS $\to 25$ if $abc > 0$ and LHS $= 0$ if $abc = 0$.
+
+So for $k$ very small, the inequality becomes approximately $25 \leq 1 + 3s + 5p$ for all feasible $(a,b,c)$ with $abc > 0$.
+
+Is $1 + 3s + 5p \geq 25$ for all feasible $(a,b,c)$ with $abc > 0$? At $a = b = c = 0.1$, $1 + 0.9 + 0.15 = 2.05 < 25$. So no.
+
+So the problem as literally stated seems to have no positive $K$. There must be something I'm missing.
+
+Let me re-read the problem statement very carefully once more.
+
+"Find the maximum possible value of $K$ such that for any positive value $k \leq K$, the inequality $25(abc)^k \leq 1 + 3(a+b+c) + 5(ab+bc+ca)$ holds true for all $a,b,c \geq 0$ satisfying $5(ab+ac+bc) \leq 4(a+b+c) + 3$."
+
+Hmm, what if the problem means: find the maximum $K$ such that for any positive $k$ with $k \leq K$, there exist $a, b, c \geq 0$ satisfying the constraint such that the inequality holds? No, "for all" is clear.
+
+Or what if it's: find the maximum $K$ such that the inequality $25(abc)^K \leq 1 + 3(a+b+c) + 5(ab+bc+ca)$ holds for all feasible $(a,b,c)$? And the "for any positive value $k \leq K$" is just saying that if it holds for $K$, it holds for all smaller $k$ (which would be true if $abc \leq 1$ for all feasible points, but we showed $abc$ can be $> 1$).
+
+Actually, wait. Let me reconsider. If $abc \leq 1$ for all feasible points, then $(abc)^k$ is decreasing in $k$, so if the inequality holds for $k = K$, it holds for all $k \leq K$. But we showed $abc$ can be $> 1$ (up to about 1.4375). So for points with $abc > 1$, $(abc)^k$ is increasing in $k$, and the inequality gets harder for larger $k$.
+
+For points with $abc < 1$, $(abc)^k$ is decreasing in $k$, so the inequality gets easier for larger $k$. The hardest case for these points is $k \to 0^+$.
+
+For points with $abc = 1$, $(abc)^k = 1$ for all $k$.
+
+So the valid set of $k$ is: $\{k > 0 : 25(abc)^k \leq 1 + 3s + 5p \text{ for all feasible } (a,b,c)\}$.
+
+For $abc < 1$ points: need $25(abc)^k \leq 1 + 3s + 5p$. Since $(abc)^k$ decreases in $k$, this is hardest for small $k$. For $k$ large enough, $(abc)^k$ is small enough.
+
+For $abc > 1$ points: need $25(abc)^k \leq 1 + 3s + 5p$. Since $(abc)^k$ increases in $k$, this is hardest for large $k$.
+
+So the valid set is an interval $[k_{\min}, k_{\max}]$ (roughly), and the problem asks for the maximum $K$ such that $(0, K] \subseteq \text{valid set}$. But since the valid set doesn't include small $k$, this would be $K = 0$.
+
+I'm confused. Let me try yet another interpretation: maybe the problem is asking for the maximum $K$ such that for $k = K$, the inequality holds for all feasible $(a,b,c)$. The phrase "for any positive value $k \leq K$" might be a red herring or might mean "for the specific value $k = K$ where $K$ is positive."
+
+Actually, you know what, let me try the interpretation that $K$ is the maximum $k$ such that the inequality holds for all feasible $(a,b,c)$. This is the most natural competition interpretation. The "for any positive value $k \leq K$" might be saying that the answer is the maximum $k$ (and it happens that the inequality also holds for all $k' \leq k$, which would be the case if... hmm, it wouldn't be the case due to the small $k$ issue).
+
+OK let me try yet another interpretation. What if the problem is:
+
+"Find the maximum $K$ such that for any positive $k \leq K$, the inequality holds for all feasible $(a,b,c)$."
+
+And the intended meaning is that the set of $k > 0$ for which the inequality holds for all feasible $(a,b,c)$ is exactly $(0, K]$, and we want $K$.
+
+For this to work, we'd need the inequality to hold for all small $k > 0$. But we showed it doesn't. Unless I made a computational error.
+
+Let me recheck: $a = b = c = 0.1$, $k = 0.01$.
+
+$abc = 0.001$. $(0.001)^{0.01}$. 
+
+$\ln(0.001) = -6.9078$. $0.01 \times (-6.9078) = -0.069078$. $e^{-0.069078} = 0.9333$.
+
+$25 \times 0.9333 = 23.33$.
+
+$1 + 3(0.3) + 5(0.03) = 1 + 0.9 + 0.15 = 2.05$.
+
+$23.33 > 2.05$. So the inequality fails.
+
+So the inequality does NOT hold for small $k$. This means either:
+1. The problem has a different interpretation than what I think.
+2. The answer is $K = 0$ and $100K = 0$.
+3. I'm making an error somewhere.
+
+Actually, wait. Let me reconsider. What if the problem means: "Find the maximum $K$ such that for any positive value $k \leq K$, [there exist $a,b,c$ satisfying the constraint such that] the inequality holds." No, "for all" is explicit.
+
+Or: "Find the maximum $K$ such that for $k = K$, the inequality holds for all feasible $(a,b,c)$, and moreover this is true for all $0 < k \leq K$." But it's not true for small $k$.
+
+Hmm, let me try the interpretation that the problem is asking for the maximum $k$ (call it $K$) such that the inequality holds for all feasible $(a,b,c)$, ignoring the "for any $k \leq K$" part. This is a common competition problem structure.
+
+Under this interpretation, $K = \inf_{(a,b,c) \text{ feasible}, abc > 1} \frac{\ln\left(\frac{1+3s+5p}{25}\right)}{\ln(abc)}$.
+
+And for $abc \leq 1$ points, the inequality $25(abc)^K \leq 1 + 3s + 5p$ needs to hold too. For $abc < 1$, $(abc)^K < 1$, so $25(abc)^K < 25$. We need $25(abc)^K \leq 1 + 3s + 5p$. This might or might not hold depending on $K$ and the point.
+
+Actually, for $abc < 1$ and $K$ not too small, $(abc)^K$ could be very small, making the inequality easy. The binding constraint is from $abc > 1$ points (where larger $K$ is harder) and possibly from $abc$ close to 1 points.
+
+Let me pursue this interpretation and find the maximum $k$ such that $25(abc)^k \leq 1 + 3s + 5p$ for all feasible $(a,b,c)$.
+
+At the symmetric point $a = b = c = 1$: $25 \cdot 1 = 25 = 1 + 9 + 15$. Equality for all $k$. So this point doesn't constrain $k$.
+
+For points with $abc > 1$: we need $k \leq \frac{\ln\left(\frac{1+3s+5p}{25}\right)}{\ln(abc)}$.
+
+For points with $abc < 1$: we need $k \geq \frac{\ln\left(\frac{1+3s+5p}{25}\right)}{\ln(abc)}$ (note: $\ln(abc) < 0$, so the direction flips). If $1 + 3s + 5p \geq 25$, then $\ln\left(\frac{1+3s+5p}{25}\right) \geq 0$ and dividing by $\ln(abc) < 0$ gives a negative number, so $k \geq \text{negative}$, which is always true for $k > 0$. If $1 + 3s + 5p < 25$, then $\ln\left(\frac{1+3s+5p}{25}\right) < 0$ and dividing by $\ln(abc) < 0$ gives a positive number, so $k \geq \text{some positive number}$.
+
+So for $abc < 1$ points with $1 + 3s + 5p < 25$, we get a LOWER bound on $k$. For $abc > 1$ points, we get an UPPER bound on $k$.
+
+The valid set of $k$ is $[k_{\min}, k_{\max}]$ where:
+- $k_{\min} = \sup_{abc < 1, 1+3s+5p < 25} \frac{\ln\left(\frac{1+3s+5p}{25}\right)}{\ln(abc)}$
+- $k_{\max} = \inf_{abc > 1} \frac{\ln\left(\frac{1+3s+5p}{25}\right)}{\ln(abc)}$
+
+And the problem asks for the maximum $K$ such that $(0, K] \subseteq [k_{\min}, k_{\max}]$. This requires $k_{\min} \leq 0$, i.e., $k_{\min} = 0$ (since $k > 0$). But we showed $k_{\min} > 0$ (from the $a = b = c = 0.1$ example).
+
+So under this interpretation too, $K = 0$.
+
+I'm stuck. Let me try to reconsider the problem. Maybe the constraint is $5(ab+ac+bc) \geq 4(a+b+c) + 3$ instead of $\leq$? Let me re-read.
+
+"$5(ab+ac+bc)\leq 4(a+b+c)+3.$"
+
+It's $\leq$. Hmm.
+
+Or maybe the inequality is $25(abc)^k \geq 1 + 3(a+b+c) + 5(ab+bc+ca)$? No, it's $\leq$.
+
+Let me try a different approach. What if the problem is well-posed and the answer is indeed a positive number, and my analysis of the small $k$ case is wrong because I'm not considering that the constraint limits how small $abc$ can be while $1 + 3s + 5p$ is also small?
+
+Actually wait. The constraint is $5p \leq 4s + 3$. This doesn't prevent $s$ and $p$ from being small. At $a = b = c = 0.1$, the constraint is satisfied ($0.15 \leq 4.2$). And $1 + 3s + 5p = 2.05 < 25$. So for small $k$, the inequality fails.
+
+Unless... the problem means something like: find the maximum $K$ such that for all $k$ with $K \leq k$ (i.e., $k \geq K$), the inequality holds? That would make more sense, as larger $k$ helps for $abc < 1$ points but hurts for $abc > 1$ points. But the problem says $k \leq K$.
+
+Or maybe: find the maximum $K$ such that there exists $k \leq K$ for which the inequality holds for all feasible $(a,b,c)$? That would be asking for the supremum of valid $k$ values, which is $k_{\max}$.
+
+I think the most likely intended interpretation, despite the confusing wording, is: find the maximum $k$ such that the inequality holds for all feasible $(a,b,c)$. Let me compute this.
+
+$K = \inf_{(a,b,c) \text{ feasible}, abc > 1} \frac{\ln\left(\frac{1+3s+5p}{25}\right)}{\ln(abc)}$
+
+And we also need to check that for this $K$, the inequality holds for $abc \leq 1$ points too.
+
+Let me use the parametrization $a = b = t, c = $ something, or use Lagrange multipliers.
+
+Actually, let me think about this more carefully using the substitution approach. Let me use $b = c$ by symmetry (the problem is symmetric in $a, b, c$).
+
+Let $b = c = x, a = y$. Then $s = y + 2x$, $p = 2xy + x^2$, $q = x^2 y$.
+
+Constraint: $5(2xy + x^2) \leq 4(y + 2x) + 3$, i.e., $10xy + 5x^2 \leq 4y + 8x + 3$.
+
+RHS of inequality: $1 + 3(y + 2x) + 5(2xy + x^2) = 1 + 3y + 6x + 10xy + 5x^2$.
+
+Note that the RHS equals $1 + 3y + 6x + (4y + 8x + 3) + (10xy + 5x^2 - 4y - 8x - 3)$. Hmm, that's not clean.
+
+Actually, $1 + 3s + 5p = 1 + 3(y+2x) + 5(2xy+x^2) = 1 + 3y + 6x + 10xy + 5x^2$.
+
+And the constraint says $10xy + 5x^2 \leq 4y + 8x + 3$.
+
+So $1 + 3s + 5p \leq 1 + 3y + 6x + 4y + 8x + 3 = 4 + 7y + 14x$.
+
+Also, $1 + 3s + 5p = 1 + 3s + 5p$. And $5p \leq 4s + 3$, so $1 + 3s + 5p \leq 1 + 3s + 4s + 3 = 4 + 7s$.
+
+So the RHS $\leq 4 + 7s$. And we need $25 q^k \leq 4 + 7s$ (as a necessary condition, since the actual RHS could be less).
+
+Hmm, this isn't leading anywhere clean. Let me try a different approach.
+
+Let me use the substitution from the constraint. The constraint $5p \leq 4s + 3$ can be written as $5p - 4s \leq 3$.
+
+Note that $1 + 3s + 5p = 1 + 3s + 5p$. And $5p \leq 4s + 3$, so $1 + 3s + 5p \leq 1 + 3s + 4s + 3 = 4 + 7s$.
+
+Also, $1 + 3s + 5p = (5p - 4s) + 7s + 1 \leq 3 + 7s + 1 = 4 + 7s$.
+
+And $1 + 3s + 5p = 1 + 3s + 5p$. We can also write $1 + 3s + 5p = (1 - 5p + 4s) + (10p - 4s + 3) - 3 + 3s$... this is getting messy.
+
+Let me try to use the constraint more directly. Let $t = 5p - 4s \leq 3$. Then $5p = 4s + t$ and $1 + 3s + 5p = 1 + 3s + 4s + t = 1 + 7s + t$.
+
+So the inequality becomes $25 q^k \leq 1 + 7s + t$ where $t \leq 3$.
+
+We want to maximize $q$ subject to $5p = 4s + t$ (with $t \leq 3$) and the relationship between $s, p, q$ for non-negative reals.
+
+By Newton's inequalities / Maclaurin's inequalities: $p \leq s^2/3$ and $q \leq (s/3)^3$ (with equality when $a = b = c$). Also $q \leq \frac{s \cdot p}{9}$... wait, that's not right. Actually, $p^2 \geq 3sq$ (Schur's or Newton's inequality), so $q \leq p^2/(3s)$ (when $s > 0$).
+
+Let me use $q \leq p^2/(3s)$ (Newton's inequality: $e_2^2 \geq 3 e_1 e_3 / \binom{3}{1}$... actually the correct form is $\frac{e_2}{\binom{3}{2}} \geq \left(\frac{e_3}{\binom{3}{3}}\right)^{2/3} \left(\frac{e_1}{\binom{3}{1}}\right)^{1/3}$... let me just use the known inequality.
+
+For non-negative reals $a, b, c$ with $e_1 = s, e_2 = p, e_3 = q$:
+- $p \leq s^2/3$ (AM-QM or Maclaurin)
+- $q \leq s^3/27$ (AM-GM)
+- $p^2 \geq 3sq$ (this is $\binom{3}{2}^2 e_2^2 \geq \binom{3}{1}\binom{3}{3} e_1 e_3 \cdot 3$, i.e., $9p^2 \geq 9sq$, i.e., $p^2 \geq sq$... hmm let me be more careful.)
+
+Newton's inequalities: $e_k^2 \geq e_{k-1} e_{k+1} \cdot \frac{\binom{n}{k}^2}{\binom{n}{k-1}\binom{n}{k+1}}$.
+
+For $n = 3, k = 2$: $e_2^2 \geq e_1 e_3 \cdot \frac{\binom{3}{2}^2}{\binom{3}{1}\binom{3}{3}} = e_1 e_3 \cdot \frac{9}{3 \cdot 1} = 3 e_1 e_3$.
+
+So $p^2 \geq 3sq$, i.e., $q \leq \frac{p^2}{3s}$ (for $s > 0$).
+
+With $5p = 4s + t$ (where $0 \leq t \leq 3$), $p = (4s + t)/5$.
+
+$q \leq \frac{(4s+t)^2}{75s}$.
+
+We want to maximize $q$ over $s > 0$ and $0 \leq t \leq 3$.
+
+$\frac{(4s+t)^2}{75s}$. For fixed $t$, take derivative w.r.t. $s$:
+
+$\frac{d}{ds} \frac{(4s+t)^2}{75s} = \frac{2(4s+t) \cdot 4 \cdot 75s - (4s+t)^2 \cdot 75}{75^2 s^2} = \frac{75(4s+t)[8s - (4s+t)]}{75^2 s^2} = \frac{(4s+t)(4s - t)}{75 s^2}$.
+
+Setting to zero: $4s = t$ (since $4s + t > 0$). So $s = t/4$.
+
+At $s = t/4$: $q \leq \frac{(t + t)^2}{75 \cdot t/4} = \frac{4t^2}{75t/4} = \frac{16t}{75}$.
+
+This is maximized at $t = 3$: $q \leq \frac{48}{75} = \frac{16}{25} = 0.64$.
+
+Wait, but we showed earlier that $q$ can be 1.4375! So the Newton inequality bound is not tight here, because we also need $p \leq s^2/3$.
+
+Let me check: at $s = t/4 = 3/4$, $p = (4 \cdot 3/4 + 3)/5 = (3 + 3)/5 = 6/5 = 1.2$. And $s^2/3 = (9/16)/3 = 3/16 = 0.1875$. But $p = 1.2 > 0.1875$! So the constraint $p \leq s^2/3$ is violated. This means $s = t/4$ is not feasible.
+
+So the Newton inequality $q \leq p^2/(3s)$ is necessary but not sufficient; we also need $p \leq s^2/3$.
+
+The correct approach is to use the full set of constraints. For non-negative reals, the elementary symmetric polynomials satisfy:
+- $p \leq s^2/3$
+- $q \leq s^3/27$
+- $p^2 \geq 3sq$
+
+And the constraint $5p \leq 4s + 3$.
+
+Let me go back to the direct approach. With $b = c = x, a = y$:
+
+Constraint: $10xy + 5x^2 \leq 4y + 8x + 3$, i.e., $y(10x - 4) \leq 8x + 3 - 5x^2$.
+
+If $x > 2/5$: $y \leq \frac{8x + 3 - 5x^2}{10x - 4}$.
+
+$q = x^2 y \leq \frac{x^2(8x + 3 - 5x^2)}{10x - 4}$.
+
+RHS $= 1 + 3y + 6x + 10xy + 5x^2$. With $y = \frac{8x + 3 - 5x^2}{10x - 4}$ (max $y$):
+
+$10xy + 5x^2 = 4y + 8x + 3$ (constraint is tight).
+
+So RHS $= 1 + 3y + 6x + 4y + 8x + 3 = 4 + 7y + 14x$.
+
+With $y = \frac{8x + 3 - 5x^2}{10x - 4}$:
+
+RHS $= 4 + 7 \cdot \frac{8x + 3 - 5x^2}{10x - 4} + 14x = 4 + \frac{7(8x + 3 - 5x^2) + 14x(10x - 4)}{10x - 4} = 4 + \frac{56x + 21 - 35x^2 + 140x^2 - 56x}{10x - 4} = 4 + \frac{105x^2 + 21}{10x - 4} = 4 + \frac{21(5x^2 + 1)}{10x - 4}$.
+
+And $q = \frac{x^2(8x + 3 - 5x^2)}{10x - 4}$.
+
+We need $25 q^k \leq \text{RHS}$, i.e., $25 \left(\frac{x^2(8x + 3 - 5x^2)}{10x - 4}\right)^k \leq 4 + \frac{21(5x^2 + 1)}{10x - 4}$.
+
+Let me denote $f(x) = \frac{x^2(8x + 3 - 5x^2)}{10x - 4}$ (this is $q$) and $g(x) = 4 + \frac{21(5x^2 + 1)}{10x - 4}$ (this is the RHS).
+
+We need $25 f(x)^k \leq g(x)$ for all $x > 2/5$ with $8x + 3 - 5x^2 > 0$ (i.e., $x < \frac{8 + \sqrt{124}}{10} \approx 1.914$).
+
+For $f(x) > 1$: $k \leq \frac{\ln(g(x)/25)}{\ln(f(x))}$.
+
+For $f(x) = 1$: need $g(x) \geq 25$.
+
+For $f(x) < 1$: $k \geq \frac{\ln(g(x)/25)}{\ln(f(x))}$ (lower bound, if $g(x) < 25$).
+
+Let me compute $f$ and $g$ at various $x$:
+
+At $x = 1$ (i.e., $b = c = 1, a = 1$): $f(1) = \frac{1 \cdot (8 + 3 - 5)}{10 - 4} = \frac{6}{6} = 1$. $g(1) = 4 + \frac{21 \cdot 6}{6} = 4 + 21 = 25$. So $f = 1, g = 25$. Equality.
+
+At $x = 0.5$: $f(0.5) = \frac{0.25 \cdot (4 + 3 - 1.25)}{5 - 4} = \frac{0.25 \cdot 5.75}{1} = 1.4375$. $g(0.5) = 4 + \frac{21 \cdot (1.25 + 1)}{1} = 4 + \frac{21 \cdot 2.25}{1} = 4 + 47.25 = 51.25$.
+
+$k \leq \frac{\ln(51.25/25)}{\ln(1.4375)} = \frac{\ln(2.05)}{\ln(1.4375)}$.
+
+$\ln(2.05) = 0.71784$, $\ln(1.4375) = 0.36292$. $k \leq 1.9783$.
+
+At $x = 0.6$: $f(0.6) = \frac{0.36 \cdot (4.8 + 3 - 1.8)}{6 - 4} = \frac{0.36 \cdot 6}{2} = \frac{2.16}{2} = 1.08$. $g(0.6) = 4 + \frac{21 \cdot (1.8 + 1)}{2} = 4 + \frac{21 \cdot 2.8}{2} = 4 + 29.4 = 33.4$.
+
+$k \leq \frac{\ln(33.4/25)}{\ln(1.08)} = \frac{\ln(1.336)}{\ln(1.08)} = \frac{0.2902}{0.0770} = 3.769$.
+
+At $x = 0.7$: $f(0.7) = \frac{0.49 \cdot (5.6 + 3 - 2.45)}{7 - 4} = \frac{0.49 \cdot 6.15}{3} = \frac{3.0135}{3} = 1.0045$. $g(0.7) = 4 + \frac{21 \cdot (2.45 + 1)}{3} = 4 + \frac{21 \cdot 3.45}{3} = 4 + 24.15 = 28.15$.
+
+$k \leq \frac{\ln(28.15/25)}{\ln(1.0045)} = \frac{\ln(1.126)}{\ln(1.0045)} = \frac{0.1187}{0.00449} = 26.43$.
+
+At $x = 0.8$: $f(0.8) = \frac{0.64 \cdot (6.4 + 3 - 3.2)}{8 - 4} = \frac{0.64 \cdot 6.2}{4} = \frac{3.968}{4} = 0.992$. So $f < 1$ here.
+
+$g(0.8) = 4 + \frac{21 \cdot (3.2 + 1)}{4} = 4 + \frac{21 \cdot 4.2}{4} = 4 + 22.05 = 26.05$.
+
+Since $f < 1$ and $g > 25$: $\ln(g/25) > 0$, $\ln(f) < 0$, so the ratio is negative, meaning no lower bound on $k$. So this point is fine for all $k > 0$.
+
+At $x = 0.75$: $f(0.75) = \frac{0.5625 \cdot (6 + 3 - 2.8125)}{7.5 - 4} = \frac{0.5625 \cdot 6.1875}{3.5} = \frac{3.4805}{3.5} = 0.9944$. $f < 1$.
+
+$g(0.75) = 4 + \frac{21 \cdot (2.8125 + 1)}{3.5} = 4 + \frac{21 \cdot 3.8125}{3.5} = 4 + 22.875 = 26.875$. $g > 25$. Fine.
+
+So it seems like $f(x) > 1$ only for $x$ in some range around $0.5$ to $0.7$, and the binding constraint comes from $x$ around $0.5$.
+
+Let me find where $f(x) = 1$ exactly. $f(x) = \frac{x^2(8x + 3 - 5x^2)}{10x - 4} = 1$.
+
+$x^2(8x + 3 - 5x^2) = 10x - 4$
+
+$8x^3 + 3x^2 - 5x^4 = 10x - 4$
+
+$5x^4 - 8x^3 - 3x^2 + 10x - 4 = 0$.
+
+Let me check $x = 1$: $5 - 8 - 3 + 10 - 4 = 0$. ✓ So $x = 1$ is a root.
+
+Factor out $(x - 1)$: $5x^4 - 8x^3 - 3x^2 + 10x - 4 = (x-1)(5x^3 - 3x^2 - 6x + 4)$.
+
+Check $x = 1$ again: $5 - 3 - 6 + 4 = 0$. ✓ So $(x-1)$ again.
+
+$(x-1)^2(5x^2 + 2x - 4)$. Let me verify: $(x-1)(5x^3 - 3x^2 - 6x + 4)$. Divide $5x^3 - 3x^2 - 6x + 4$ by $(x-1)$: $5x^2 + 2x - 4$. Check: $(x-1)(5x^2 + 2x - 4) = 5x^3 + 2x^2 - 4x - 5x^2 - 2x + 4 = 5x^3 - 3x^2 - 6x + 4$. ✓
+
+So $f(x) = 1$ when $x = 1$ (double root) or $5x^2 + 2x - 4 = 0$, i.e., $x = \frac{-2 \pm \sqrt{4 + 80}}{10} = \frac{-2 \pm \sqrt{84}}{10} = \frac{-2 \pm 2\sqrt{21}}{10} = \frac{-1 \pm \sqrt{21}}{5}$.
+
+$\sqrt{21} \approx 4.583$. So $x = \frac{-1 + 4.583}{5} = \frac{3.583}{5} = 0.7166$ or $x = \frac{-1 - 4.583}{5} < 0$ (rejected).
+
+So $f(x) = 1$ at $x = 1$ (double root) and $x = \frac{-1 + \sqrt{21}}{5} \approx 0.7166$.
+
+For $x \in (0.4, 0.7166)$: $f(x) > 1$ (since $f(0.5) = 1.4375 > 1$).
+For $x \in (0.7166, 1)$: $f(x) < 1$ (since $f(0.8) = 0.992 < 1$).
+For $x = 1$: $f = 1$.
+For $x > 1$: let me check $f(1.5) = \frac{2.25 \cdot (12 + 3 - 11.25)}{15 - 4} = \frac{2.25 \cdot 3.75}{11} = \frac{8.4375}{11} = 0.7670 < 1$.
+
+So $f(x) > 1$ only for $x \in (2/5, \frac{-1+\sqrt{21}}{5})$.
+
+Now, for $x$ in this range, the upper bound on $k$ is $h(x) = \frac{\ln(g(x)/25)}{\ln(f(x))}$.
+
+We need $K = \inf_{x \in (2/5, (-1+\sqrt{21})/5)} h(x)$.
+
+Let me compute $h$ at more points:
+
+At $x = 0.45$: $f(0.45) = \frac{0.2025 \cdot (3.6 + 3 - 1.0125)}{4.5 - 4} = \frac{0.2025 \cdot 5.5875}{0.5} = \frac{1.1314}{0.5} = 2.2628$. $g(0.45) = 4 + \frac{21 \cdot (1.0125 + 1)}{0.5} = 4 + \frac{21 \cdot 2.0125}{0.5} = 4 + 84.525 = 88.525$.
+
+$h(0.45) = \frac{\ln(88.525/25)}{\ln(2.2628)} = \frac{\ln(3.541)}{\ln(2.2628)} = \frac{1.2645}{0.8163} = 1.5492$.
+
+At $x = 0.42$: $f(0.42) = \frac{0.1764 \cdot (3.36 + 3 - 0.882)}{4.2 - 4} = \frac{0.1764 \cdot 5.478}{0.2} = \frac{0.9664}{0.2} = 4.832$. $g(0.42) = 4 + \frac{21 \cdot (0.882 + 1)}{0.2} = 4 + \frac{21 \cdot 1.882}{0.2} = 4 + 197.61 = 201.61$.
+
+$h(0.42) = \frac{\ln(201.61/25)}{\ln(4.832)} = \frac{\ln(8.0644)}{\ln(4.832)} = \frac{2.0877}{1.5751} = 1.3254$.
+
+As $x \to 2/5^+$: $10x - 4 \to 0^+$, so $f(x) \to +\infty$ and $g(x) \to +\infty$. Let me check the ratio.
+
+$f(x) = \frac{x^2(8x + 3 - 5x^2)}{10x - 4}$, $g(x) = 4 + \frac{21(5x^2 + 1)}{10x - 4}$.
+
+As $x \to 2/5^+$: $f(x) \approx \frac{(2/5)^2 \cdot (8 \cdot 2/5 + 3 - 5 \cdot 4/25)}{10x - 4} = \frac{(4/25)(16/5 + 3 - 4/5)}{10x - 4} = \frac{(4/25)(16/5 + 15/5 - 4/5)}{10x - 4} = \frac{(4/25)(27/5)}{10x - 4} = \frac{108/125}{10x - 4}$.
+
+$g(x) \approx \frac{21(5 \cdot 4/25 + 1)}{10x - 4} = \frac{21(4/5 + 1)}{10x - 4} = \frac{21 \cdot 9/5}{10x - 4} = \frac{189/5}{10x - 4}$.
+
+So $h(x) \to \frac{\ln(g/25)}{\ln(f)} \to \frac{\ln\left(\frac{189/5}{25(10x-4)}\right)}{\ln\left(\frac{108/125}{10x-4}\right)}$.
+
+As $x \to 2/5^+$, both $f$ and $g/25$ go to $+\infty$, so $h \to \frac{\ln(g/25)}{\ln f}$. Since both are $\sim C/(10x-4)$, $\ln f \sim -\ln(10x-4) + \text{const}$ and $\ln(g/25) \sim -\ln(10x-4) + \text{const}$. So $h \to 1$ as $x \to 2/5^+$.
+
+More precisely, $h \to \frac{-\ln(10x-4) + \ln(189/125)}{-\ln(10x-4) + \ln(108/125)}$. As $x \to 2/5^+$, $-\ln(10x-4) \to +\infty$, so $h \to 1$.
+
+So $h(x) \to 1$ as $x \to 2/5^+$. And $h(0.42) \approx 1.33$, $h(0.45) \approx 1.55$, $h(0.5) \approx 1.98$.
+
+So the infimum seems to be approached as $x \to 2/5^+$, giving $h \to 1$.
+
+But wait, does $h$ actually approach 1 from above? Let me check more carefully.
+
+$h(x) = \frac{\ln(g(x)/25)}{\ln(f(x))}$ where $f(x) = \frac{A(x)}{10x-4}$, $g(x) = 4 + \frac{B(x)}{10x-4}$, with $A(x) = x^2(8x+3-5x^2)$ and $B(x) = 21(5x^2+1)$.
+
+As $x \to 2/5^+$: $A(2/5) = (4/25)(16/5 + 3 - 4/5) = (4/25)(27/5) = 108/125$. $B(2/5) = 21(4/5 + 1) = 21 \cdot 9/5 = 189/5$.
+
+$f \sim \frac{108/125}{\epsilon}$, $g/25 \sim \frac{189/125}{\epsilon}$ (where $\epsilon = 10x - 4 \to 0^+$).
+
+$h = \frac{\ln(189/125) - \ln\epsilon}{\ln(108/125) - \ln\epsilon}$.
+
+$\ln(189/125) = \ln(1.512) = 0.4132$. $\ln(108/125) = \ln(0.864) = -0.1460$.
+
+$h = \frac{0.4132 - \ln\epsilon}{-0.1460 - \ln\epsilon} = \frac{0.4132 + |\ln\epsilon|}{|\ln\epsilon| - 0.1460}$.
+
+As $\epsilon \to 0^+$, $|\ln\epsilon| \to \infty$, $h \to 1$.
+
+For finite $\epsilon$: $h = \frac{0.4132 + t}{t - 0.1460}$ where $t = |\ln\epsilon| \to \infty$.
+
+$h = 1 + \frac{0.4132 + 0.1460}{t - 0.1460} = 1 + \frac{0.5592}{t - 0.1460}$.
+
+So $h > 1$ and $h \to 1^+$ as $t \to \infty$ (i.e., $x \to 2/5^+$).
+
+So the infimum of $h(x)$ is 1, but it's not achieved. So $K = 1$?
+
+But wait, we also need to check: for $k = 1$, does the inequality hold for ALL feasible $(a,b,c)$, not just the symmetric $b = c$ case?
+
+Also, I need to check the lower bound from $abc < 1$ points. For $k = 1$, we need $25 abc \leq 1 + 3s + 5p$ for all feasible $(a,b,c)$.
+
+At $a = b = c = 0.1$: $25 \cdot 0.001 = 0.025 \leq 2.05$. ✓
+
+At $a = b = c = 1$: $25 \leq 25$. ✓ (equality)
+
+At $a = 5.75, b = c = 0.5$: $25 \cdot 1.4375 = 35.9375 \leq 51.25$. ✓
+
+What about other points? Let me check $a = 0, b = 1, c = 1$: $abc = 0$, LHS = 0. ✓
+
+$a = 0, b = c = t$: $abc = 0$. ✓
+
+$a = 10, b = c = \epsilon$ small: constraint $10 \cdot 10\epsilon + 5\epsilon^2 \leq 4(10 + 2\epsilon) + 3$, i.e., $100\epsilon + 5\epsilon^2 \leq 43 + 8\epsilon$, i.e., $5\epsilon^2 + 92\epsilon - 43 \leq 0$. $\epsilon \leq \frac{-92 + \sqrt{8464 + 860}}{10} = \frac{-92 + \sqrt{9324}}{10} \approx \frac{-92 + 96.56}{10} \approx 0.456$.
+
+At $\epsilon = 0.456$: $abc = 10 \cdot 0.456^2 = 10 \cdot 0.2079 = 2.079$. $25 \cdot 2.079 = 51.98$. $1 + 3(10.912) + 5(10 \cdot 0.456 \cdot 2 + 0.2079) = 1 + 32.736 + 5(9.12 + 0.2079) = 1 + 32.736 + 46.64 = 80.38$. ✓
+
+Hmm, let me check more carefully whether $K = 1$ works, i.e., $25abc \leq 1 + 3(a+b+c) + 5(ab+bc+ca)$ for all feasible $(a,b,c)$.
+
+This is equivalent to $25abc \leq 1 + 3s + 5p$ subject to $5p \leq 4s + 3$.
+
+Let me try to prove this. We have $1 + 3s + 5p \geq 1 + 3s + 5p$ (trivially). We need $25abc \leq 1 + 3s + 5p$.
+
+Using $5p \leq 4s + 3$: $1 + 3s + 5p \leq 4 + 7s$. But we need a lower bound on $1 + 3s + 5p$, not an upper bound.
+
+Hmm, the constraint gives an upper bound on $p$, which gives an upper bound on the RHS. That's the wrong direction. We need to show $25q \leq 1 + 3s + 5p$ for all feasible points.
+
+Actually, the constraint limits how large $q$ can be (since $q$ is related to $p$ and $s$). So even though the RHS is also bounded, $q$ is bounded more.
+
+Let me try to prove $25abc \leq 1 + 3(a+b+c) + 5(ab+bc+ca)$ when $5(ab+bc+ca) \leq 4(a+b+c) + 3$.
+
+Let $u = a+b+c, v = ab+bc+ca, w = abc$. We need $25w \leq 1 + 3u + 5v$ given $5v \leq 4u + 3$.
+
+By Schur's inequality: $u^3 + 9w \geq 4uv$ (for non-negative reals). So $w \geq \frac{4uv - u^3}{9}$ (when $4v > u^2$) or $w \geq 0$ (when $4v \leq u^2$).
+
+Actually Schur's gives $u^3 + 9w \geq 4uv$, i.e., $9w \geq 4uv - u^3$. This is a lower bound on $w$, not upper bound. We need an upper bound on $w$.
+
+By AM-GM: $w \leq (u/3)^3 = u^3/27$.
+
+Also, $w \leq v^2/(3u)$ (Newton's inequality, as before).
+
+So $25w \leq 25 \min(u^3/27, v^2/(3u))$.
+
+We need $25w \leq 1 + 3u + 5v$.
+
+Using $w \leq u^3/27$: $25u^3/27 \leq 1 + 3u + 5v$. Since $v \geq 0$, $1 + 3u + 5v \geq 1 + 3u$. So we need $25u^3/27 \leq 1 + 3u + 5v$, but this might not hold just from $25u^3/27 \leq 1 + 3u$.
+
+At $u = 3$ (i.e., $a = b = c = 1$): $25 \cdot 27/27 = 25 \leq 1 + 9 + 15 = 25$. Equality.
+
+Hmm, let me try a different approach. Let me try to use the constraint directly.
+
+$5v \leq 4u + 3 \Rightarrow v \leq (4u + 3)/5$.
+
+We need $25w \leq 1 + 3u + 5v$.
+
+The worst case is when $w$ is as large as possible and $1 + 3u + 5v$ is as small as possible. But $w$ and $v$ are related.
+
+For fixed $u$ and $v$, $w$ is maximized when two of the variables are equal (by the theory of symmetric functions). So WLOG $b = c$.
+
+With $b = c = x, a = y$: $u = y + 2x, v = 2xy + x^2, w = x^2 y$.
+
+Constraint: $5(2xy + x^2) \leq 4(y + 2x) + 3$.
+
+We need $25x^2 y \leq 1 + 3(y + 2x) + 5(2xy + x^2) = 1 + 3y + 6x + 10xy + 5x^2$.
+
+Using the constraint (at equality): $10xy + 5x^2 = 4y + 8x + 3$.
+
+So RHS $= 1 + 3y + 6x + 4y + 8x + 3 = 4 + 7y + 14x$.
+
+We need $25x^2 y \leq 4 + 7y + 14x$, i.e., $y(25x^2 - 7) \leq 4 + 14x$.
+
+If $25x^2 > 7$, i.e., $x > \sqrt{7}/5 \approx 0.529$: $y \leq \frac{4 + 14x}{25x^2 - 7}$.
+
+From the constraint: $y \leq \frac{8x + 3 - 5x^2}{10x - 4}$ (for $x > 2/5$).
+
+So we need $\frac{8x + 3 - 5x^2}{10x - 4} \leq \frac{4 + 14x}{25x^2 - 7}$ (when both are positive).
+
+$(8x + 3 - 5x^2)(25x^2 - 7) \leq (4 + 14x)(10x - 4)$.
+
+Let me expand both sides.
+
+LHS: $(8x + 3 - 5x^2)(25x^2 - 7) = -125x^4 + 200x^3 + 75x^2 - 56x - 21 + 35x^2 = -125x^4 + 200x^3 + 110x^2 - 56x - 21$.
+
+Wait let me redo: $(8x + 3 - 5x^2)(25x^2 - 7)$:
+$= 8x \cdot 25x^2 + 3 \cdot 25x^2 - 5x^2 \cdot 25x^2 - 8x \cdot 7 - 3 \cdot 7 + 5x^2 \cdot 7$
+$= 200x^3 + 75x^2 - 125x^4 - 56x - 21 + 35x^2$
+$= -125x^4 + 200x^3 + 110x^2 - 56x - 21$.
+
+RHS: $(4 + 14x)(10x - 4) = 40x - 16 + 140x^2 - 56x = 140x^2 - 16x - 16$.
+
+So we need: $-125x^4 + 200x^3 + 110x^2 - 56x - 21 \leq 140x^2 - 16x - 16$.
+
+$-125x^4 + 200x^3 - 30x^2 - 40x - 5 \leq 0$.
+
+$125x^4 - 200x^3 + 30x^2 + 40x + 5 \geq 0$.
+
+$5(25x^4 - 40x^3 + 6x^2 + 8x + 1) \geq 0$.
+
+$25x^4 - 40x^3 + 6x^2 + 8x + 1 \geq 0$.
+
+Let me check at $x = 1$: $25 - 40 + 6 + 8 + 1 = 0$. So $x = 1$ is a root.
+
+Factor: $25x^4 - 40x^3 + 6x^2 + 8x + 1 = (x-1)(25x^3 - 15x^2 - 9x - 1)$.
+
+Check $x = 1$: $25 - 15 - 9 - 1 = 0$. So $(x-1)$ again.
+
+$(x-1)^2(25x^2 + 10x + 1) = (x-1)^2(5x+1)^2$.
+
+Let me verify: $(x-1)^2(5x+1)^2 = (x^2 - 2x + 1)(25x^2 + 10x + 1) = 25x^4 + 10x^3 + x^2 - 50x^3 - 20x^2 - 2x + 25x^2 + 10x + 1 = 25x^4 - 40x^3 + 6x^2 + 8x + 1$. ✓
+
+So $25x^4 - 40x^3 + 6x^2 + 8x + 1 = (x-1)^2(5x+1)^2 \geq 0$.
+
+This is always $\geq 0$! And equals 0 only at $x = 1$ (and $x = -1/5$, which is irrelevant).
+
+So the inequality $25x^2 y \leq 4 + 7y + 14x$ holds whenever the constraint is tight and $b = c$. And by the theory of symmetric functions, the maximum of $w$ for given $u, v$ is achieved when two variables are equal, so this covers the worst case.
+
+Wait, but I need to be more careful. I showed that when $25x^2 > 7$ (i.e., $x > \sqrt{7}/5$), the constraint $y \leq \frac{4+14x}{25x^2-7}$ is implied by the original constraint $y \leq \frac{8x+3-5x^2}{10x-4}$, because $(x-1)^2(5x+1)^2 \geq 0$.
+
+But what about when $25x^2 \leq 7$, i.e., $x \leq \sqrt{7}/5 \approx 0.529$? In this case, $25x^2 - 7 \leq 0$, so $y(25x^2 - 7) \leq 0 \leq 4 + 14x$ (since $y \geq 0$ and $4 + 14x > 0$). So the inequality $25x^2 y \leq 4 + 7y + 14x$ is automatically satisfied.
+
+So for all $x > 2/5$ (with the constraint at equality), $25x^2 y \leq 4 + 7y + 14x$ holds. And when the constraint is not tight (i.e., $5p < 4s + 3$), the RHS $1 + 3s + 5p$ is smaller... wait, no. If the constraint is not tight, $5p < 4s + 3$, so $1 + 3s + 5p < 4 + 7s$. But we need $25w \leq 1 + 3s + 5p$, and we showed $25w \leq 4 + 7s$ (when constraint is tight). If the constraint is not tight, $1 + 3s + 5p < 4 + 7s$, so we can't directly conclude.
+
+Hmm, but actually, if the constraint is not tight, we can increase $a, b,$ or $c$ to make it tight, which would increase $w$ and also increase $1 + 3s + 5p$. The question is whether the ratio $w / (1 + 3s + 5p)$ is maximized when the constraint is tight.
+
+Actually, let me think about it differently. For a fixed direction $(a:b:c)$, scaling $(a,b,c) \to (ta, tb, tc)$, the constraint becomes $5t^2 p_0 \leq 4t s_0 + 3$ where $s_0, p_0$ are for the unscaled variables. The LHS of the inequality is $25 t^3 w_0$ and the RHS is $1 + 3t s_0 + 5t^2 p_0$.
+
+As $t$ increases, the constraint $5t^2 p_0 \leq 4t s_0 + 3$ eventually becomes binding. The LHS $25 t^3 w_0$ grows as $t^3$ while the RHS grows as $t^2$ (dominated by $5t^2 p_0$). So for large $t$, the inequality would fail if the constraint allowed it. But the constraint prevents $t$ from being too large.
+
+The maximum $t$ is determined by $5t^2 p_0 = 4t s_0 + 3$. At this $t$, the ratio $25 t^3 w_0 / (1 + 3t s_0 + 5t^2 p_0)$ is maximized (roughly, since the LHS grows faster).
+
+So the worst case is indeed at the boundary of the constraint. Good.
+
+But I also need to handle the case where not all variables are equal. I used $b = c$ which covers the case when two are equal. But what if the maximum of $w / (1 + 3s + 5p)$ is achieved at a point where all three are distinct?
+
+By the method of Lagrange multipliers or by the theory of symmetric optimization, the extremum of a symmetric function subject to a symmetric constraint is achieved when at least two variables are equal (or at the boundary where one variable is 0). So checking $b = c$ (and permutations) and boundary cases ($c = 0$) should suffice.
+
+When $c = 0$: $w = 0$, so $25w = 0 \leq 1 + 3s + 5p$. ✓
+
+So we've shown that $25abc \leq 1 + 3(a+b+c) + 5(ab+bc+ca)$ for all feasible $(a,b,c)$, with equality at $a = b = c = 1$.
+
+This means $k = 1$ works. Now, does $k > 1$ work? We showed that $h(x) \to 1^+$ as $x \to 2/5^+$, so for any $k > 1$, there exist feasible points (with $b = c$ close to $2/5$ and $a$ large) where the inequality fails.
+
+Wait, but I need to verify this more carefully. The infimum of $h(x)$ over $x \in (2/5, (-1+\sqrt{21})/5)$ is 1 (approached but not achieved). So for any $k > 1$, there exists $x$ close enough to $2/5$ such that $h(x) < k$, meaning the inequality fails.
+
+But we also need to check: for $k = 1$, does the inequality hold for ALL feasible points, including those with $abc < 1$? We showed $25abc \leq 1 + 3s + 5p$ for all feasible points. For $abc < 1$, $(abc)^1 = abc < 1$, so $25(abc)^1 = 25abc \leq 1 + 3s + 5p$. ✓
+
+And for $abc = 1$ (at $a = b = c = 1$): $25 \leq 25$. ✓
+
+So $k = 1$ works, and $k > 1$ doesn't work. Therefore $K = 1$ and $100K = 100$.
+
+But wait, I need to also verify that the problem is asking for what I think it's asking. The problem says "for any positive value $k \leq K$". If $K = 1$, then we need the inequality to hold for all $k \in (0, 1]$. But we showed that for small $k$ (like $k = 0.01$), the inequality fails at $a = b = c = 0.1$.
+
+So there's a contradiction. Either:
+1. The problem is asking for the maximum $k$ (not the maximum $K$ such that all $k \leq K$ work), or
+2. I'm making an error.
+
+Let me reconsider. Maybe the problem is indeed asking: "find the maximum $K$ such that for $k = K$, the inequality holds for all feasible $(a,b,c)$." The phrase "for any positive value $k \leq K$" might be a way of saying "for all $k$ up to $K$", but perhaps the problem-setter intended that the inequality is monotone in $k$ (which it would be if $abc \leq 1$ for all feasible points, but that's not the case).
+
+Actually, wait. Let me reconsider whether $abc \leq 1$ for all feasible points. We found $abc = 1.4375 > 1$ at $a = 5.75, b = c = 0.5$. So $abc > 1$ is possible.
+
+Hmm, but maybe the problem-setter made an error, or maybe the intended interpretation is different. In competition math, this type of problem usually asks for the maximum $k$ such that the inequality holds for all feasible points. The "for any positive value $k \leq K$" might be intended to mean "for $k = K$" with the understanding that if it holds for $K$, it holds for smaller $k$ (which would be true if $abc \leq 1$ always, but it's not).
+
+Alternatively, maybe the problem is: find the maximum $K$ such that for all $k \in (0, K]$, the inequality holds. And the answer is $K = 1$ because... hmm, but it doesn't hold for small $k$.
+
+Let me reconsider. Maybe I need to check: for $k \leq 1$, does the inequality hold? For $abc > 1$: $(abc)^k \leq (abc)^1 = abc$ (since $k \leq 1$ and $abc > 1$). So $25(abc)^k \leq 25abc \leq 1 + 3s + 5p$. ✓
+
+For $abc = 1$: $(abc)^k = 1$, so $25 \leq 1 + 3s + 5p$. At $a = b = c = 1$: $25 = 25$. ✓
+
+For $abc < 1$: $(abc)^k \geq (abc)^1 = abc$ (since $k \leq 1$ and $abc < 1$, raising to a smaller power gives a larger result). So $25(abc)^k \geq 25abc$. But we need $25(abc)^k \leq 1 + 3s + 5p$. Since $(abc)^k$ could be much larger than $abc$ (when $k$ is small), this might fail.
+
+For example, $a = b = c = 0.1, k = 0.01$: $25 \cdot 0.001^{0.01} = 25 \cdot 0.9333 = 23.33 > 2.05$. Fails!
+
+So for $k < 1$, the inequality can fail at points with $abc < 1$. This means $K = 1$ doesn't work under the interpretation "for all $k \in (0, K]$".
+
+But $K = 1$ does work under the interpretation "for $k = K = 1$, the inequality holds for all feasible points".
+
+I think the problem must be asking for the latter interpretation, despite the confusing wording. Or perhaps the problem means: "find the maximum $K$ such that for any $k \leq K$ [where $k$ is in the valid range], the inequality holds." In other words, $K$ is the supremum of the set of $k$ values for which the inequality holds for all feasible $(a,b,c)$.
+
+Under this interpretation, the set of valid $k$ is $\{k > 0 : 25(abc)^k \leq 1 + 3s + 5p \text{ for all feasible } (a,b,c)\}$.
+
+For $abc > 1$ points: $k \leq h(x)$ for the relevant $x$. The infimum of $h(x)$ is 1.
+For $abc < 1$ points with $1 + 3s + 5p < 25$: $k \geq$ some lower bound.
+For $abc < 1$ points with $1 + 3s + 5p \geq 25$: no constraint on $k$.
+
+The valid set is $[k_{\min}, k_{\max}]$ where $k_{\max} = 1$ (from the $abc > 1$ analysis) and $k_{\min}$ is some positive number (from the $abc < 1$ analysis).
+
+The maximum $K$ such that "for any positive $k \leq K$, the inequality holds" would be $K = k_{\min}$ if we interpret it as $(0, K] \subseteq \text{valid set}$. But $k_{\min} > 0$ and the valid set is $[k_{\min}, 1]$, so $(0, K] \subseteq [k_{\min}, 1]$ requires $K \leq k_{\min}$... wait no, $(0, K] \subseteq [k_{\min}, 1]$ requires $K \leq 1$ and $0 \geq k_{\min}$, which is impossible since $k_{\min} > 0$.
+
+Hmm. I think the problem is just asking for $k_{\max} = 1$, i.e., the maximum $k$ for which the inequality holds for all feasible points. The wording "for any positive value $k \leq K$" is perhaps meant to say "the inequality holds for $k = K$ and $K$ is the maximum such value" or perhaps the problem-setter assumed $abc \leq 1$ always (which would make the inequality monotone in $k$).
+
+Actually, wait. Let me reconsider. Maybe the problem-setter's intent is: "Find the maximum $K$ such that for any positive $k$ with $k \leq K$, the inequality holds for all feasible $(a,b,c)$." And the answer is supposed to be $K = 1$, with the understanding that for $k \leq 1$ and $abc \leq 1$, $(abc)^k \leq 1 \leq (1+3s+5p)/25$... but that's not true since $1 + 3s + 5p$ can be less than 25.
+
+Hmm, but actually, wait. Let me reconsider whether $1 + 3s + 5p \geq 25$ for all feasible points with $abc > 0$... no, we showed it's 2.05 at $a = b = c = 0.1$.
+
+OK, I think there might be an issue with the problem statement, or I'm overthinking it. Let me just go with $K = 1$ and $100K = 100$.
+
+Actually, let me reconsider the problem once more. Perhaps the problem is asking: find the maximum $K$ such that for all $k$ with $0 < k \leq K$, the inequality holds for all feasible $(a,b,c)$. And the answer is that no such positive $K$ exists, so $K = 0$ and $100K = 0$.
+
+But that seems like a strange competition problem. Let me try the interpretation that the problem is asking for the maximum $k$ such that the inequality holds for all feasible $(a,b,c)$, and the "for any positive value $k \leq K$" is just saying "for all $k$ in the range $(0, K]$" where the problem-setter implicitly assumes this range is valid.
+
+Given the competition context, I'll go with $K = 1$ and $100K = 100$.
+
+But let me double-check by trying $k$ slightly above 1. At $x = 0.42$ (i.e., $b = c = 0.42, a = y$):
+
+$y = \frac{8(0.42) + 3 - 5(0.42)^2}{10(0.42) - 4} = \frac{3.36 + 3 - 0.882}{0.2} = \frac{5.478}{0.2} = 27.39$.
+
+$abc = 0.42^2 \cdot 27.39 = 0.1764 \cdot 27.39 = 4.832$.
+
+$25 \cdot 4.832^k$. For $k = 1$: $25 \cdot 4.832 = 120.8$. RHS $= 201.61$. $120.8 \leq 201.61$. ✓
+
+For $k = 1.33$: $25 \cdot 4.832^{1.33} = 25 \cdot e^{1.33 \cdot 1.5751} = 25 \cdot e^{2.095} = 25 \cdot 8.125 = 203.1$. RHS $= 201.61$. $203.1 > 201.61$. ✗
+
+So at $k = 1.33$, the inequality fails at this point. And $h(0.42) \approx 1.33$, consistent.
+
+For $k = 1.01$: $25 \cdot 4.832^{1.01} = 25 \cdot e^{1.01 \cdot 1.5751} = 25 \cdot e^{1.5909} = 25 \cdot 4.908 = 122.7$. RHS $= 201.61$. ✓
+
+But at $x$ closer to $2/5$: $x = 0.401$: $y = \frac{8(0.401) + 3 - 5(0.401)^2}{10(0.401) - 4} = \frac{3.208 + 3 - 0.804}{0.01} = \frac{5.404}{0.01} = 540.4$.
+
+$abc = 0.401^2 \cdot 540.4 = 0.1608 \cdot 540.4 = 86.9$.
+
+$g = 4 + \frac{21(5 \cdot 0.1608 + 1)}{0.01} = 4 + \frac{21 \cdot 1.804}{0.01} = 4 + 3788.4 = 3792.4$.
+
+$h = \frac{\ln(3792.4/25)}{\ln(86.9)} = \frac{\ln(151.7)}{\ln(86.9)} = \frac{5.022}{4.464} = 1.125$.
+
+For $k = 1.01$: $25 \cdot 86.9^{1.01} = 25 \cdot e^{1.01 \cdot 4.464} = 25 \cdot e^{4.509} = 25 \cdot 90.9 = 2272$. RHS $= 3792.4$. ✓
+
+For $k = 1.125$: $25 \cdot 86.9^{1.125} = 25 \cdot e^{1.125 \cdot 4.464} = 25 \cdot e^{5.022} = 25 \cdot 151.7 = 3792.5$. RHS $= 3792.4$. Barely fails. ✓ (consistent with $h \approx 1.125$)
+
+As $x \to 2/5^+$, $h \to 1^+$, so for any $k > 1$, we can find $x$ close enough to $2/5$ such that $h(x) < k$, and the inequality fails.
+
+So the maximum $k$ for which the inequality holds for all feasible $(a,b,c)$ is $k = 1$.
+
+Now I need to also verify that $k = 1$ works for non-symmetric cases (not just $b = c$). I proved above that $25abc \leq 1 + 3s + 5p$ for all feasible $(a,b,c)$ using the factorization $(x-1)^2(5x+1)^2 \geq 0$. But that proof was for the case $b = c$. Let me argue that the general case follows.
+
+The key insight: for the inequality $25w \leq 1 + 3s + 5v$ subject to $5v \leq 4s + 3$, the worst case (maximizing $25w - (1 + 3s + 5v)$) is achieved when two variables are equal. This is because:
+
+1. The constraint and the inequality are symmetric in $a, b, c$.
+2. By the method of Lagrange multipliers, at an interior extremum, the gradients must be proportional, which for symmetric functions typically requires at least two variables to be equal.
+3. On the boundary (one variable = 0), $w = 0$ and the inequality is trivially satisfied.
+
+So the worst case is indeed $b = c$, and we've shown the inequality holds there. Therefore $k = 1$ works for all feasible $(a,b,c)$.
+
+Actually, let me be more rigorous. I want to show that for any feasible $(a, b, c)$ with $5v = 4s + 3$ (constraint tight), $25w \leq 1 + 3s + 5v = 4 + 7s$.
+
+We need $25w \leq 4 + 7s$ subject to $5v = 4s + 3$ and $a, b, c \geq 0$.
+
+By Schur's inequality and the constraint, we can bound $w$ in terms of $s$.
+
+From $v = (4s+3)/5$ and Newton's inequality $v \leq s^2/3$: $(4s+3)/5 \leq s^2/3$, i.e., $3(4s+3) \leq 5s^2$, i.e., $5s^2 - 12s - 9 \geq 0$, i.e., $s \geq \frac{12 + \sqrt{144 + 180}}{10} = \frac{12 + \sqrt{324}}{10} = \frac{12 + 18}{10} = 3$.
+
+So $s \geq 3$ (when the constraint is tight). At $s = 3$, $v = 3$, and by AM-GM $w \leq (s/3)^3 = 1$, so $25w \leq 25 = 4 + 21 = 4 + 7 \cdot 3$. Equality at $a = b = c = 1$.
+
+For $s > 3$: we need $25w \leq 4 + 7s$. We know $w \leq v^2/(3s) = (4s+3)^2/(75s)$ (Newton's inequality).
+
+$25w \leq 25 \cdot \frac{(4s+3)^2}{75s} = \frac{(4s+3)^2}{3s}$.
+
+We need $\frac{(4s+3)^2}{3s} \leq 4 + 7s$, i.e., $(4s+3)^2 \leq 3s(4 + 7s) = 12s + 21s^2$.
+
+$16s^2 + 24s + 9 \leq 21s^2 + 12s$.
+
+$5s^2 - 12s - 9 \geq 0$.
+
+Which is exactly $s \geq 3$! So for $s \geq 3$, $\frac{(4s+3)^2}{3s} \leq 4 + 7s$, and since $w \leq \frac{(4s+3)^2}{75s}$, we get $25w \leq \frac{(4s+3)^2}{3s} \leq 4 + 7s$.
+
+But wait, Newton's inequality $w \leq v^2/(3s)$ is not always tight. It's tight when two variables are equal. And we need $v \leq s^2/3$ as well (which gives $s \geq 3$). So the chain of inequalities is:
+
+$25w \leq \frac{(4s+3)^2}{3s} \leq 4 + 7s = 1 + 3s + 5v$ (when $5v = 4s + 3$).
+
+The first inequality is Newton's ($w \leq v^2/(3s)$ with $v = (4s+3)/5$), and the second is $5s^2 - 12s - 9 \geq 0$ (i.e., $s \geq 3$).
+
+But we need $s \geq 3$ for the constraint to be feasible (from $v \leq s^2/3$ and $v = (4s+3)/5$). So both inequalities hold, and we get $25w \leq 1 + 3s + 5v$.
+
+This is a clean proof! And it works for all feasible $(a,b,c)$ with the constraint tight, not just $b = c$.
+
+For the constraint not tight ($5v < 4s + 3$): We can increase variables to make it tight. More precisely, for any feasible $(a,b,c)$ with $5v < 4s + 3$, consider scaling $(a,b,c) \to (ta, tb, tc)$ for $t > 1$. The constraint becomes $5t^2 v \leq 4ts + 3$. At $t = 1$, $5v < 4s + 3$, so we can increase $t$ until $5t^2 v = 4ts + 3$ (assuming $v > 0$; if $v = 0$, then $w = 0$ and the inequality is trivial).
+
+At this $t = t^*$, the constraint is tight, and $25(t^*)^3 w \leq 1 + 3t^* s + 5(t^*)^2 v$ (by what we proved). Since $t^* > 1$ and $w \geq 0$, $25w \leq 25(t^*)^3 w \leq 1 + 3t^* s + 5(t^*)^2 v$. But we need $25w \leq 1 + 3s + 5v$, and $1 + 3t^* s + 5(t^*)^2 v > 1 + 3s + 5v$ (since $t^* > 1$). So this doesn't directly help.
+
+Hmm, let me think differently. For the constraint not tight, $1 + 3s + 5v < 4 + 7s$. We need $25w \leq 1 + 3s + 5v$. But $w$ could be anything...
+
+Actually, for the constraint not tight, we have more "room" but also $w$ could be smaller. The point is that the maximum of $25w / (1 + 3s + 5v)$ over all feasible $(a,b,c)$ is achieved when the constraint is tight. This is because if we fix the "shape" (ratios $a:b:c$) and scale, the constraint becomes tight at the maximum scale, and at that point $25w / (1 + 3s + 5v)$ is maximized (since $w$ grows as $t^3$ while $1 + 3s + 5v$ grows as $t^2$).
+
+More rigorously: for fixed $(a_0, b_0, c_0)$ with $s_0, v_0, w_0 > 0$, scaling by $t$: $25 t^3 w_0 / (1 + 3t s_0 + 5t^2 v_0)$. The derivative w.r.t. $t$ is:
+
+$\frac{75 t^2 w_0 (1 + 3ts_0 + 5t^2 v_0) - 25 t^3 w_0 (3s_0 + 10t v_0)}{(1 + 3ts_0 + 5t^2 v_0)^2}$
+
+$= \frac{25 t^2 w_0 [3(1 + 3ts_0 + 5t^2 v_0) - t(3s_0 + 10t v_0)]}{(...)^2}$
+
+$= \frac{25 t^2 w_0 [3 + 9ts_0 + 15t^2 v_0 - 3ts_0 - 10t^2 v_0]}{(...)^2}$
+
+$= \frac{25 t^2 w_0 [3 + 6ts_0 + 5t^2 v_0]}{(...)^2}$
+
+This is always positive! So the ratio $25w / (1 + 3s + 5v)$ is strictly increasing in $t$. Therefore, the maximum is achieved at the largest $t$ allowed by the constraint, i.e., when $5t^2 v_0 = 4ts_0 + 3$ (constraint tight).
+
+So the worst case is always at the constraint boundary, and we've shown $25w \leq 1 + 3s + 5v$ there. Therefore $k = 1$ works for all feasible $(a,b,c)$.
+
+And for $k > 1$, the inequality fails (as shown by the $h(x) \to 1^+$ analysis).
+
+Therefore $K = 1$ and $100K = 100$.
+
+Wait, but I should also handle the case $v_0 = 0$ (i.e., at least two of $a, b, c$ are 0). If $v = 0$, then $w = 0$, and $25 \cdot 0 = 0 \leq 1 + 3s$. ✓
+
+And the case $w_0 = 0$ (at least one of $a, b, c$ is 0): $25 \cdot 0 = 0 \leq$ RHS. ✓
+
+So the proof is complete. Let me also verify the claim that $k > 1$ fails more rigorously.
+
+For $k > 1$, consider $b = c = x, a = y$ with $x = 2/5 + \epsilon$ for small $\epsilon > 0$, and $y = \frac{8x + 3 - 5x^2}{10x - 4}$ (constraint tight).
+
+As $\epsilon \to 0^+$: $y \to \frac{108/125}{10\epsilon} \to \infty$, $w = x^2 y \to \frac{108/125}{10\epsilon} \cdot (2/5)^2 = \frac{108/125 \cdot 4/25}{10\epsilon} = \frac{432/3125}{10\epsilon} = \frac{432}{31250\epsilon}$.
+
+$1 + 3s + 5v = 4 + 7s = 4 + 7(y + 2x) \approx 7y \approx \frac{7 \cdot 108/125}{10\epsilon} = \frac{756/125}{10\epsilon} = \frac{756}{1250\epsilon}$.
+
+$h = \frac{\ln((4 + 7s)/25)}{\ln(w)} \approx \frac{\ln(756/(1250 \cdot 25 \epsilon))}{\ln(432/(31250\epsilon))} = \frac{\ln(756/31250) - \ln\epsilon}{\ln(432/31250) - \ln\epsilon}$.
+
+$756/31250 = 0.024192$, $\ln(0.024192) = -3.722$.
+$432/31250 = 0.013824$, $\ln(0.013824) = -4.279$.
+
+$h \approx \frac{-3.722 - \ln\epsilon}{-4.279 - \ln\epsilon} = \frac{|\ln\epsilon| + 3.722}{|\ln\epsilon| + 4.279} \to 1$ as $\epsilon \to 0$.
+
+And $h > 1$ since $3.722 < 4.279$ (numerator < denominator when $|\ln\epsilon|$ is large... wait, $|\ln

@@ -1,0 +1,1934 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   In an $11 \times 11$ table with all cells initially colored white, we can select any four white cells that form the vertices of a square with sides parallel to the table's sides and then color two cells on the diagonal in black. What is the maximum number of cells that can be colored black using this process?       — 题目文本
+#   To solve the problem of maximizing the number of black cells in an \(11 \times 11\) table where we can select any four white cells forming a square with sides parallel to the table and color two diagonal cells black, we can use the following approach:
+
+1. **Understanding the Problem**:
+   - Each operation involves selecting a square of any size (with sides parallel to the table) and coloring two diagonally opposite cells black.
+   - The goal is to maximize the number of black cells without overlapping operations on the same cells.
+
+2. **Key Insight**:
+   - By pairing each cell \((i, j)\) where \(i \neq j\) with its mirror image \((j, i)\) across the main diagonal, we can form a square.
+   - The square formed by \((i, i)\), \((i, j)\), \((j, i)\), and \((j, j)\) allows us to color \((i, j)\) and \((j, i)\) black.
+   - This avoids coloring any cells on the main diagonal \((i, i)\) and \((j, j)\).
+
+3. **Strategy**:
+   - For each pair of cells \((i, j)\) and \((j, i)\) where \(i < j\), we can perform an operation on the square formed by these cells and their main diagonal counterparts.
+   - This operation colors the off-diagonal cells \((i, j)\) and \((j, i)\) without affecting the main diagonal cells.
+
+4. **Calculation**:
+   - The number of such pairs \((i, j)\) where \(i \neq j\) in an \(11 \times 11\) grid is \(\frac{11 \times 10}{2} = 55\) pairs.
+   - Each pair contributes 2 black cells, leading to \(55 \times 2 = 110\) black cells.
+   - The main diagonal cells remain uncolored, leaving \(11\) cells white.
+
+Therefore, the maximum number of black cells that can be achieved is \(\boxed{110}\).  — 标准解答
+#   Let me solve this problem. We have an 11×11 table, all cells white. We can select any four white cells forming vertices of a square with sides parallel to the table's sides, then color two cells on the diagonal in black. We want to maximize black cells.
+
+Wait, let me re-read. We select four white cells forming vertices of a square (sides parallel to table sides), then color two cells on the diagonal in black. So we pick a square, and color two opposite corners (a diagonal) black.
+
+The constraint is that all four cells must be white when we select them. After coloring two diagonal cells black, those two become black. The other two corners remain white.
+
+So each operation: pick an axis-aligned square whose four corners are all white, color two opposite corners black.
+
+We want to maximize the number of black cells.
+
+Let me think about this carefully. Each operation colors exactly 2 cells black (that were white). The constraint is that all 4 corners of the square are white at the time of operation.
+
+Let me think about what configurations are achievable.
+
+First, let's think about small cases and the structure.
+
+Let me index cells by (i,j) with 0 ≤ i,j ≤ 10.
+
+A square with sides parallel to the table has corners (i,j), (i+d, j), (i, j+d), (i+d, j+d) for some d ≥ 1, with all coordinates in range.
+
+When we perform an operation, we need all four corners white, and we color two diagonal corners black. The two diagonals are either {(i,j),(i+d,j+d)} or {(i+d,j),(i,j+d)}.
+
+So each operation requires 4 white cells in a square pattern, and turns 2 of them black.
+
+The question: what's the maximum number of black cells?
+
+Total cells = 121. Each operation uses 4 white cells and produces 2 black. So if we do k operations, we get 2k black cells, but we need 4k cells to have been white (and they get consumed - 2 become black, 2 stay white but can be reused).
+
+Wait, the 2 cells that stay white can be reused in future operations. So it's not that simple.
+
+Let me think about it differently. Let's think about which cells can be black.
+
+Actually, let me think about necessary conditions. Consider the coloring. Let me think about a potential function or invariant.
+
+Let me think about parity. Assign to cell (i,j) the value (-1)^{i+j}. A square with corners (i,j), (i+d,j), (i,j+d), (i+d,j+d). The diagonal {(i,j),(i+d,j+d)} has both cells with the same parity of i+j (since (i+d)+(j+d) = i+j+2d, same parity). The other diagonal {(i+d,j),(i,j+d)} has (i+d)+j = i+j+d and i+(j+d) = i+j+d, same parity. So both cells on a diagonal have the same parity.
+
+So when we color a diagonal black, both black cells have the same parity of i+j.
+
+Hmm, let me think about the count of cells with even i+j vs odd i+j. In an 11×11 grid, cells with even i+j: let me count. i+j even means i,j same parity. Number of even i: 6 (0,2,4,6,8,10), odd i: 5. Same for j. Even i+j = 6*6 + 5*5 = 36+25 = 61. Odd i+j = 6*5 + 5*6 = 30+30 = 60.
+
+Each operation colors 2 cells of the same parity black. So if we color e even-parity cells and o odd-parity cells black, e and o are both even (since each operation contributes 2 to one of them). Total black = e + o, with e even, o even.
+
+So total black is even. Maximum even ≤ 121 is 120. But can we achieve 120? That seems too high. Let me think more carefully.
+
+Actually wait, we need to think about whether 120 is achievable or if there are stronger constraints.
+
+Let me think about a stronger invariant. Consider a weighting. Let me think about the problem more carefully.
+
+Let me consider the constraint that all 4 corners must be white. This is a significant constraint.
+
+Let me think about it as: we need to find a sequence of operations. Let me think about what the final configuration looks like - a set of black cells B such that there exists an ordering where we can build it up.
+
+Actually, let me think about necessary conditions on the final black set.
+
+Alternative approach: think backwards. Start from the final configuration (some black cells, rest white). Reverse operation: two black cells that are diagonal corners of a square, and the other two corners are white. We un-color the two black cells (make them white). We want to reverse until all white. So the question becomes: what's the maximum number of black cells such that we can reduce to all-white by repeatedly finding two black cells that are diagonal corners of an axis-aligned square with the other two corners white, and making those two black cells white?
+
+Hmm, this is equivalent but maybe not easier.
+
+Let me think about small grids first.
+
+1×1: no squares possible. Answer 0.
+2×2: one square (the whole thing). Color 2 diagonal cells. Answer 2.
+3×3: squares of size 1 (unit squares) and size 2 (the whole 3×3). 
+
+For 3×3, let me think. We can do the size-2 square: corners (0,0),(0,2),(2,0),(2,2). Color (0,0),(2,2) black. Now we have those 2 black. Can we do more? We need 4 white cells forming a square. Unit squares: e.g., (0,0),(0,1),(1,0),(1,1) - but (0,0) is black. (0,1),(0,2),(1,1),(1,2) - (0,2) is white, ok all white? (0,1)W,(0,2)W,(1,1)W,(1,2)W - yes. Color (0,1),(1,2) or (0,2),(1,1). Say color (0,2),(1,1) black. Now black: (0,0),(2,2),(0,2),(1,1). Continue: find 4 white in a square. (1,0),(1,1)...(1,1) black. (2,0),(2,1),(1,0)... need square. (1,0),(2,0),(1,1),(2,1): (1,1) black. (2,1),(2,2)...(2,2) black. (1,2),(2,2)...black. Hmm. What about (1,0),(1,1),(2,0),(2,1) - (1,1) black. 
+
+Let me try different choices. After first move coloring (0,0),(2,2) black:
+Try unit square (0,1),(0,2),(1,1),(1,2), color (0,1),(1,2) black. Black: (0,0),(2,2),(0,1),(1,2).
+Now (0,2),(1,1) white. Try square (1,0),(1,1),(2,0),(2,1): all white? (1,0)W,(1,1)W,(2,0)W,(2,1)W - yes. Color (1,0),(2,1) black. Black: (0,0),(2,2),(0,1),(1,2),(1,0),(2,1). That's 6 black. 
+Now remaining white: (0,2),(1,1),(2,0). Can we do more? Need 4 white in a square. Only 3 white left. No. So 6 for 3×3? But 6 is even, and 9 cells. Let me see if 8 is possible.
+
+For 8 black, only 1 white. We'd need an operation coloring 2 black, but that requires 4 white. With only 1 white, impossible to do the last operation. Actually to get 8 black we need 4 operations (8 = 2*4), using... let me think if it's possible. Actually with 8 black and 1 white, the last operation turned 2 white→black, so before last operation we had 3 white. The operation needs 4 white. Contradiction. So 8 impossible. 
+
+What about getting 6 a different way, or is 6 the max for 3×3? Let me check if 6 is achievable (I found it above) and whether more is possible. We showed 8 impossible. 7 is odd, impossible (total must be even). So max for 3×3 is 6.
+
+Hmm wait, but actually let me reconsider. Is 6 really the answer for 3×3, or can we do better with a different strategy? We need total even, so 6 or 8. 8 impossible (shown). So 6. But wait, I should double-check 6 is actually achievable - I found a sequence above. Let me verify: 
+1. Square (0,0),(0,2),(2,0),(2,2), color (0,0),(2,2). Black: {(0,0),(2,2)}.
+2. Square (0,1),(0,2),(1,1),(1,2), color (0,1),(1,2). Black: {(0,0),(2,2),(0,1),(1,2)}.
+3. Square (1,0),(1,1),(2,0),(2,1), color (1,0),(2,1). Black: {(0,0),(2,2),(0,1),(1,2),(1,0),(2,1)}.
+White remaining: (0,2),(1,1),(2,0). Yes, 6 black. 
+
+Now for the 11×11 problem. Let me think about the general structure.
+
+Key insight: each operation requires 4 white cells in a square and produces 2 black. The "cost" is that we need 4 white but only 2 get consumed (become black), 2 remain white.
+
+Let me think about it as: we want to maximize black cells. If we end with b black cells and w white cells (b+w=121), the last operation needed 4 white cells before it, producing 2 black. Before last op: b-2 black, w+2 white. So w+2 ≥ 4, i.e., w ≥ 2. So at most 119 black? No wait, w ≥ 2 means b ≤ 119. But b must be even, so b ≤ 118.
+
+Hmm, but that's just from the last step. Let me think more carefully about the cumulative constraint.
+
+Actually, let me think about it more carefully. Let's say we do k operations. Each operation i requires 4 white cells. After all operations, 2k cells are black. The question is whether 2k cells can be black with 121 - 2k white.
+
+The constraint is more subtle. Let me think about a lower bound on white cells needed.
+
+Consider the process. At each step, we need 4 white cells forming a square. We turn 2 black. So the number of white cells decreases by 2 each step. Starting from 121 white, after k steps we have 121 - 2k white. We need at each step that there exist 4 white cells forming a square. The binding constraint is the last step: we need 4 white cells forming a square. After the last step, 121 - 2k white remain, and before the last step, 121 - 2(k-1) = 121 - 2k + 2 white. We need 4 of those to form a square.
+
+So we need: at the step before last, there are 121 - 2k + 2 ≥ 4 white cells forming a square. So 121 - 2k ≥ 2, i.e., k ≤ 59.5, so k ≤ 59, giving 2k ≤ 118 black.
+
+But this is just a necessary condition from counting. The real constraint is structural - we need 4 white cells forming a square at each step.
+
+But actually, the counting argument gives b ≤ 118 (since we need at least 2 white cells remaining, and actually we need 4 white forming a square before the last move, meaning at least 4 white before last move, so at least 2 white after). But we also need those 4 white to form a square, which is a stronger condition.
+
+Hmm, but actually the constraint is even stronger. Let me reconsider.
+
+Wait, I realize the constraint isn't just about the last move. Let me think about whether 118 is achievable or if there's a stronger bound.
+
+Let me think about a coloring/weighting argument.
+
+Consider assigning weights to cells. Let me think about the "diagonal" structure.
+
+Alternative: think about rows and columns. 
+
+Let me think about a different invariant. Consider the sum over all black cells of some function.
+
+Actually, let me think about this problem differently. Let me consider the constraint on the final white cells. The final white cells W must be such that we can "build up" the black cells. 
+
+Let me think about necessary conditions on W (the white cells in the final configuration).
+
+Claim: In the final configuration, consider any axis-aligned square. If 3 corners are black and 1 is white, that's fine. But actually, let me think about what constraints the process imposes.
+
+Hmm, let me think about it backwards again. In the reverse process, we start with the final config and repeatedly: find 2 black cells that are diagonal corners of a square with the other 2 corners white, and make those 2 black cells white. We need to reach all-white.
+
+So the final white set W must be such that the black set B = complement can be reduced to empty by this reverse operation. 
+
+In the reverse process, each step removes 2 black cells (makes them white) and requires the other 2 corners to be white. So we're growing the white set by 2 each step, and each step requires finding 2 black cells that are diagonal corners of a square whose other 2 corners are already white.
+
+This is like: starting from W, we can add 2 cells at a time if they are diagonal corners of a square whose other 2 corners are in the current white set. We want to grow W to cover everything.
+
+So the question is: what's the smallest W (white set) from which we can grow to cover all 121 cells, where each growth step adds 2 diagonal corners of a square whose other 2 corners are already in W?
+
+This is a cleaner formulation. We want the minimum "generating set" W such that by repeatedly adding diagonal pairs (of squares whose other diagonal is already present), we can fill the grid.
+
+Let me think about what structures can be generated.
+
+If we have cells (i,j) and (i+d, j+d) in W (a diagonal), we can add (i+d, j) and (i, j+d) (the other diagonal). Or vice versa: if (i+d,j) and (i,j+d) are in W, we can add (i,j) and (i+d,j+d).
+
+So the operation is: if two cells forming a diagonal of a square are in W, we can add the other diagonal.
+
+This is related to the concept of "additive closure" or something. Let me think in terms of coordinates.
+
+Cell (i,j). Two cells (a,b) and (c,d) form a diagonal of an axis-aligned square iff |a-c| = |b-d| and the midpoint is the same... no. (a,b) and (c,d) are diagonal corners of an axis-aligned square iff |a-c| = |b-d| (the side lengths are equal) and a≠c, b≠d. The other two corners are (a,d) and (c,b).
+
+So: if (a,b) and (c,d) are in W with |a-c| = |b-d|, a≠c, b≠d, then we can add (a,d) and (c,b).
+
+Let me think of this in terms of a transformation. If we have (a,b) and (c,d) in W where a-c = d-b (i.e., a+b = c+d, same anti-diagonal) or a-c = b-d (i.e., a-b = c-d, same diagonal)... 
+
+Wait: |a-c| = |b-d|. Case 1: a-c = b-d, i.e., a-b = c-d (same "diagonal" a-b = const). Case 2: a-c = d-b, i.e., a+b = c+d (same "anti-diagonal" a+b = const).
+
+Case 1: (a,b) and (c,d) with a-b = c-d. Other corners: (a,d) and (c,b). Check: a-d and c-b. a-d = a - (b - (a-c)) ... let me just compute. If a-b = c-d = k, then d = c - k, b = a - k. Other corners: (a, c-k) and (c, a-k). Diagonal of these: a - (c-k) = a - c + k and c - (a-k) = c - a + k. These aren't equal unless... hmm. Let me re-examine.
+
+Actually the two cells (a,b) and (c,d) are diagonal corners, and (a,d),(c,b) are the other diagonal. For (a,d) and (c,b) to also be diagonal corners of the same square, we need |a-c| = |d-b|, which is the same condition. Good.
+
+So in Case 1 (a-b = c-d, same diagonal): the other two corners (a,d) and (c,b) have a-d = a-(c-k) = a-c+k and c-b = c-(a-k) = c-a+k = -(a-c)+k. So a-d = -(c-b), meaning (a,d) and (c,b) are on the same anti-diagonal (a+d = c+b). Indeed a+d = a + c - k and c + b = c + a - k. Yes, a+d = c+b. So they're on the same anti-diagonal.
+
+In Case 2 (a+b = c+d, same anti-diagonal): other corners (a,d) and (c,b). a+d and c+b. a + d = a + (a+b-c) = 2a+b-c... hmm let me just check a-d vs c-b. a - d = a - (a+b-c) = c - b. So a-d = c-b, meaning (a,d) and (c,b) are on the same diagonal.
+
+So the operation is:
+- If two cells on the same diagonal (a-b = const) are in W, we can add two cells on the corresponding anti-diagonal.
+- If two cells on the same anti-diagonal (a+b = const) are in W, we can add two cells on the corresponding diagonal.
+
+More precisely: if (a,b) and (c,d) are on the same diagonal (a-b = c-d = k), with a ≠ c, then we add (a,d) and (c,b), which are on the anti-diagonal a+d = c+b = m (some value). The relationship: m = a + d = a + (c - k) = a + c - k. And the original cells have a + b = a + (a - k) = 2a - k and c + d = c + (c - k) = 2c - k. So the anti-diagonal of the new cells is m = a + c - k, which is the average of the two anti-diagonals of the original cells: ((2a-k) + (2c-k))/2 = a + c - k. Yes.
+
+This is getting complex. Let me think about it differently.
+
+Let me think about which cells can be generated from a small set.
+
+Consider the "diagonal" value D(i,j) = i - j and "anti-diagonal" value S(i,j) = i + j.
+
+A cell is determined by (D, S) with D + S = 2i (even) and S - D = 2j (even). So D and S have the same parity, and i = (D+S)/2, j = (S-D)/2, with 0 ≤ i,j ≤ 10.
+
+The operation: given two cells on the same D (diagonal), say (D, S1) and (D, S2), we can add two cells (D', S') and (D'', S'') where... the other corners. Original cells: (a,b) with D=a-b, S1=a+b; (c,d) with D=c-d=a-b, S2=c+d. Other corners: (a,d) with D'=a-d, S'=a+d; (c,b) with D''=c-b, S''=c+b.
+
+D' = a - d = a - (c - (a-b)) = a - c + a - b = 2a - c - b. Hmm. Since D = a - b = c - d, we have d = c - D, b = a - D. So D' = a - d = a - c + D. D'' = c - b = c - a + D = -(a-c) + D. So D' + D'' = 2D and D' = D + (a-c), D'' = D - (a-c). S' = a + d = a + c - D. S'' = c + b = c + a - D = S'. So S' = S'' = a + c - D.
+
+So the two new cells have the same S value (= a+c-D) and D values D ± (a-c), which are symmetric around D. And the original cells had S values S1 = 2a - D, S2 = 2c - D, so a+c-D = (S1+S2)/2. And a - c = (S1 - S2)/2.
+
+So: given two cells on diagonal D with S-values S1, S2 (same parity as D), we can add two cells on anti-diagonal S = (S1+S2)/2 with D-values D ± (S1-S2)/2.
+
+This is a kind of "reflection" or "rotation" operation. It's like rotating 90 degrees around the center of the square.
+
+Hmm, this is getting complicated. Let me think about the problem from a higher level.
+
+Let me think about the answer for small cases and try to find a pattern.
+
+1×1: 0
+2×2: 2
+3×3: 6 (found above)
+
+Let me compute 4×4.
+
+Actually, let me think about this more carefully using the reverse process. We want the minimum white set W that generates all cells.
+
+For the reverse process, starting from W, we can add pairs. Let me think about what's the minimum generating set.
+
+Key observation: the operation preserves something. Let me think about parity of i and j separately.
+
+Cell (i,j). Consider the four parity classes: (i mod 2, j mod 2) ∈ {(0,0),(0,1),(1,0),(1,1)}.
+
+A square with corners (a,b),(a+d,b),(a,b+d),(a+d,b+d). The parities:
+- (a,b): (a%2, b%2)
+- (a+d,b): (a%2 ⊕ d%2, b%2) -- wait let me use (a+d)%2, b%2
+- (a,b+d): a%2, (b+d)%2
+- (a+d,b+d): (a+d)%2, (b+d)%2
+
+If d is even: all four corners have the same parity class (a%2, b%2).
+If d is odd: the four corners are (a%2,b%2), (1-a%2, b%2), (a%2, 1-b%2), (1-a%2, 1-b%2) — all four parity classes.
+
+When d is even, the diagonal we color has both cells in the same parity class (since (a,b) and (a+d,b+d) have same parity, and (a+d,b) and (a,b+d) have same parity which is also (a%2, b%2) when d even... wait no. (a+d,b) with d even: (a%2, b%2). (a,b+d): (a%2, b%2). So all four in same class. Both diagonals are in the same class.
+
+When d is odd: diagonal 1 = {(a,b),(a+d,b+d)}: parities (a%2,b%2) and (1-a%2,1-b%2) — two different classes. Diagonal 2 = {(a+d,b),(a,b+d)}: parities (1-a%2,b%2) and (a%2,1-b%2) — two different classes.
+
+So when d is odd, coloring a diagonal adds 2 cells from 2 different parity classes (specifically, either {(0,0),(1,1)} or {(0,1),(1,0)}).
+
+When d is even, coloring a diagonal adds 2 cells from the same parity class.
+
+In the reverse process (growing white set), when d is even, we add 2 cells of the same parity class. When d is odd, we add 2 cells from classes {(0,0),(1,1)} or {(0,1),(1,0)}.
+
+Hmm, let me think about the parity class counts.
+
+In 11×11 grid:
+- (0,0): i even, j even: 6×6 = 36
+- (0,1): i even, j odd: 6×5 = 30
+- (1,0): i odd, j even: 5×6 = 30
+- (1,1): i odd, j odd: 5×5 = 25
+
+Total: 36+30+30+25 = 121. ✓
+
+Now, in the reverse process, we start with W (white) and grow. Each step adds 2 cells. The operations:
+- d even: add 2 cells of same class.
+- d odd: add 2 cells, one from {(0,0) or (1,1)} and one from the other, OR one from {(0,1)} and one from {(1,0)}.
+
+Wait, let me re-examine. d odd: diagonal 1 = {(a,b),(a+d,b+d)} which is classes (a%2,b%2) and (1-a%2,1-b%2). If (a%2,b%2) = (0,0), then the pair is {(0,0),(1,1)}. If (a%2,b%2) = (0,1), pair is {(0,1),(1,0)}. Etc.
+
+So d-odd operations always pair a cell from {(0,0),(1,1)} with another from the same set, or a cell from {(0,1),(1,0)} with another from the same set. Specifically:
+- Diagonal type A: pairs (0,0) with (1,1) [or vice versa]
+- Diagonal type B: pairs (0,1) with (1,0) [or vice versa]
+
+And d-even operations add 2 cells from the same class.
+
+So in the reverse process, let's track the four classes. Let w00, w01, w10, w11 be the number of white cells in each class. Initially these are the counts in W. Each step:
+- d even, class (0,0): w00 += 2
+- d even, class (0,1): w01 += 2
+- d even, class (1,0): w10 += 2
+- d even, class (1,1): w11 += 2
+- d odd, type A: w00 += 1, w11 += 1
+- d odd, type B: w01 += 1, w10 += 1
+
+We need to reach w00=36, w01=30, w10=30, w11=25.
+
+The initial values are the W counts. The changes: w00 and w11 change by the same amount (from type A ops) plus even amounts (from d-even ops on their respective classes). Similarly w01 and w10 change by the same amount (from type B) plus even amounts.
+
+Let me define:
+- a = number of type A (d-odd) operations
+- b = number of type B (d-odd) operations
+- e00, e01, e10, e11 = number of d-even operations for each class
+
+Then:
+w00_final = w00_init + 2*e00 + a = 36
+w01_final = w01_init + 2*e01 + b = 30
+w10_final = w10_init + 2*e10 + b = 30
+w11_final = w11_init + 2*e11 + a = 25
+
+From these:
+w00_init + a ≡ 36 (mod 2) → w00_init + a even
+w11_init + a ≡ 25 (mod 2) → w11_init + a odd
+w01_init + b ≡ 30 (mod 2) → w01_init + b even
+w10_init + b ≡ 30 (mod 2) → w10_init + b even
+
+From w00_init + a even and w11_init + a odd: w00_init and w11_init have different parities. So w00_init ≢ w11_init (mod 2).
+
+Similarly w01_init ≡ w10_init (mod 2) (both even or both odd with b).
+
+So necessary conditions on W:
+- w00_init and w11_init have different parities (one even, one odd)
+- w01_init and w10_init have the same parity
+
+Also, we need w00_init + a ≤ 36, w11_init + a ≤ 25 (a ≤ 25 - w11_init and a ≤ 36 - w00_init), and a ≥ 0. Similarly for b.
+
+We want to minimize |W| = w00_init + w01_init + w10_init + w11_init.
+
+From the equations:
+a = 36 - w00_init - 2*e00 = 25 - w11_init - 2*e11
+So 36 - w00_init ≡ 25 - w11_init (mod 2), i.e., w00_init - w11_init ≡ 11 (mod 2), i.e., w00_init - w11_init is odd. Consistent with different parities.
+
+Also a ≥ 0: w00_init ≤ 36, w11_init ≤ 25. And a = 36 - w00_init - 2*e00 ≥ 0, so a ≤ 36 - w00_init and a has same parity as 36 - w00_init.
+
+To minimize |W|, we want a and b to be as large as possible (so initial counts small) but a ≤ min(36 - w00_init, 25 - w11_init) and the parity works out.
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+We want to minimize |W|. The total cells is 121. Black = 121 - |W|. We want to maximize black = minimize |W|.
+
+From the parity constraints:
+- w00_init and w11_init different parity
+- w01_init and w10_init same parity
+
+Also, we need a ≥ 0 and b ≥ 0, which means:
+- w00_init ≤ 36 and w11_init ≤ 25 (trivially true since those are the max counts)
+- Actually we need a = 36 - w00_init - 2*e00 ≥ 0 for some non-negative integer e00, and similarly a = 25 - w11_init - 2*e11 ≥ 0. So a can range from 0 to min(36 - w00_init, 25 - w11_init) with the right parity. As long as min(36 - w00_init, 25 - w11_init) ≥ 0 and there exists a value of a with the right parity in range, it works.
+
+The parity of a: a ≡ 36 - w00_init (mod 2) and a ≡ 25 - w11_init (mod 2). These are consistent iff w00_init - w11_init ≡ 11 (mod 2) ≡ 1 (mod 2), i.e., different parities. ✓ (already required)
+
+So the constraints are just the parity constraints and that w00_init ≤ 36, w11_init ≤ 25, w01_init ≤ 30, w10_init ≤ 30 (all trivially true).
+
+Wait, but I also need a ≤ 25 - w11_init (since e11 ≥ 0) and a ≤ 36 - w00_init (since e00 ≥ 0). And a ≥ 0. So we need a to exist with 0 ≤ a ≤ min(36 - w00_init, 25 - w11_init) and correct parity. This requires min(36 - w00_init, 25 - w11_init) ≥ 0 (trivially true) and if the min is 0, then a = 0 must have the right parity, i.e., 36 - w00_init is even (equivalently w00_init even) and 25 - w11_init is even (w11_init odd). Hmm, this could be a constraint.
+
+But actually, these are just parity/counting constraints. The real question is whether the operations can actually be performed geometrically (i.e., the required squares exist with the right cells). The counting argument gives necessary conditions but may not be sufficient.
+
+Let me step back and think about whether there's a cleaner approach.
+
+Let me reconsider. The counting/parity argument gives necessary conditions. Let me find the minimum |W| from these necessary conditions, then check if it's achievable.
+
+To minimize |W| = w00 + w01 + w10 + w11:
+- w00, w11 different parity
+- w01, w10 same parity
+- Need a to exist: 0 ≤ a ≤ min(36 - w00, 25 - w11), a ≡ 36 - w00 (mod 2)
+- Need b to exist: 0 ≤ b ≤ min(30 - w01, 30 - w10), b ≡ 30 - w01 (mod 2)
+
+For a to exist: min(36 - w00, 25 - w11) ≥ 0 (trivially true) and if min = 0, need 36 - w00 even (when 36 - w00 = 0, i.e., w00 = 36) — actually if min(36-w00, 25-w11) = 0, then a = 0, and we need a ≡ 36 - w00 (mod 2), so 36 - w00 even, i.e., w00 even. If w00 = 36 (even), fine. If 25 - w11 = 0, i.e., w11 = 25 (odd), then a = 0, need 36 - w00 even. 
+
+Hmm, to truly minimize, let me think about what the minimum |W| could be.
+
+If we could have |W| = 2 (one cell in two classes), but we need 4 classes represented... actually no, we could have |W| = 1 if that one cell can generate everything. But can a single cell generate anything? With one cell, we can't do any operation (need 2 cells on a diagonal). So |W| ≥ 2.
+
+With |W| = 2: two cells. They need to be on the same diagonal or anti-diagonal to perform an operation. If they are, we can add 2 more cells (the other diagonal of the square). Then we have 4 cells, and can potentially continue.
+
+But the parity constraints: with |W| = 2, say w00 = 1, w11 = 1 (different parity ✓), w01 = 0, w10 = 0 (same parity ✓). Then a = 36 - 1 - 2*e00 = 35 - 2*e00, and also a = 25 - 1 - 2*e11 = 24 - 2*e11. So a ≡ 35 (mod 2) = 1 and a ≡ 24 (mod 2) = 0. Contradiction! So this doesn't work.
+
+Wait, I think I need to recheck. a ≡ 36 - w00 (mod 2) = 36 - 1 = 35 ≡ 1 (mod 2). a ≡ 25 - w11 (mod 2) = 25 - 1 = 24 ≡ 0 (mod 2). 1 ≠ 0, contradiction. So w00=1, w11=1 doesn't work.
+
+What about w00=1, w11=0? Different parity ✓. a ≡ 36-1=35≡1, a ≡ 25-0=25≡1. Consistent! a = 1, 3, 5, ... up to min(35, 25) = 25. So a can be 1, 3, ..., 25. With a = 25: e00 = (36-1-25)/2 = 5, e11 = (25-0-25)/2 = 0. OK.
+
+And w01=0, w10=0: b ≡ 30-0=30≡0, b ≡ 30-0=30≡0. Consistent. b = 0, 2, ..., 30. With b = 30: e01 = 0, e10 = 0.
+
+So |W| = 1 (just w00=1) satisfies the counting constraints! With a=25, b=30, e00=5, e11=0, e01=0, e10=0.
+
+Total operations in reverse: a + b + e00 + e01 + e10 + e11 = 25 + 30 + 5 + 0 + 0 + 0 = 60. Each adds 2 cells. 1 + 120 = 121. ✓
+
+So from counting, |W| = 1 might suffice, giving 120 black cells. But wait, we showed earlier that we need at least 2 white remaining (from the last forward step needing 4 white). Let me recheck.
+
+Oh wait, I think the issue is that the counting argument is necessary but the geometric/structural constraints are much stronger. A single cell cannot generate all 121 cells through these operations, because you need at least 2 cells to perform any operation.
+
+With |W| = 1, we can't do any reverse operation (need 2 cells on a diagonal). So |W| = 1 is not achievable. The counting argument is too weak.
+
+So I need to think about the actual geometric constraints.
+
+Let me reconsider. With |W| = 2, we need the 2 cells to be on the same diagonal or anti-diagonal. Then we can add 2 cells. With 4 cells, we can potentially do more.
+
+Let me think about what sets of cells can be generated from 2 initial cells.
+
+Actually, let me think about this problem differently. Let me consider the structure more carefully.
+
+Let me think about the "diagonal graph" or some algebraic structure.
+
+Alternative approach: Let me think about the problem in terms of the coordinates modulo something.
+
+Consider the values i mod 2 and j mod 2 (parity classes) — we already did this. Let me think about i mod 3 or something.
+
+Hmm, let me think about a cleaner invariant.
+
+Let me consider the following: assign to each cell (i,j) a weight w(i,j) = α^i · β^j for some α, β. When we perform an operation on square with corners (a,b), (a+d,b), (a,b+d), (a+d,b+d), coloring diagonal {(a,b),(a+d,b+d)}:
+
+The sum of weights of the 4 corners: α^a β^b + α^{a+d} β^b + α^a β^{b+d} + α^{a+d} β^{b+d} = α^a β^b (1 + α^d + β^d + α^d β^d) = α^a β^b (1+α^d)(1+β^d).
+
+The sum of weights of the colored diagonal: α^a β^b + α^{a+d} β^{b+d} = α^a β^b (1 + α^d β^d).
+
+The sum of weights of the other diagonal: α^{a+d} β^b + α^a β^{b+d} = α^a β^b (α^d + β^d).
+
+If we choose α, β such that (1+α^d)(1+β^d) = 0 for all d, that would give an invariant of 0, not useful. 
+
+Let me think about what invariant we can extract. The key is: we color 2 of the 4 corners. The 4 corners have total weight W4 = α^a β^b(1+α^d)(1+β^d). The colored diagonal has weight Wd = α^a β^b(1 + α^d β^d) or α^a β^b(α^d + β^d).
+
+If we want an invariant involving the black cells, we need to relate the black cell weights to something.
+
+Hmm, let me think about this differently. 
+
+Let me consider the sum S = Σ_{black cells} (-1)^{i+j} or some variant. Actually, we showed both cells on a diagonal have the same parity of i+j. So each operation adds 2 to either the even-parity or odd-parity black count. Not immediately an invariant.
+
+Let me think about a different weight. Consider w(i,j) = (-1)^i. The 4 corners of a square: (-1)^a + (-1)^{a+d} + (-1)^a + (-1)^{a+d} = 2((-1)^a + (-1)^{a+d}). If d is odd, this is 0. If d is even, this is 4(-1)^a.
+
+The diagonal {(a,b),(a+d,b+d)}: (-1)^a + (-1)^{a+d}. If d odd: 0. If d even: 2(-1)^a.
+The other diagonal {(a+d,b),(a,b+d)}: (-1)^{a+d} + (-1)^a. Same thing.
+
+So for w(i,j) = (-1)^i, both diagonals have the same weight. Not useful for distinguishing.
+
+Let me try w(i,j) = (-1)^j. Same issue by symmetry.
+
+Let me try w(i,j) = (-1)^{i+j}. Diagonal 1: (-1)^{a+b} + (-1)^{a+d+b+d} = (-1)^{a+b}(1 + (-1)^{2d}) = 2(-1)^{a+b}. Diagonal 2: (-1)^{a+d+b} + (-1)^{a+b+d} = 2(-1)^{a+b+d}. If d even: 2(-1)^{a+b}. If d odd: -2(-1)^{a+b}.
+
+So the two diagonals have weights 2(-1)^{a+b} and 2(-1)^{a+b+d}. When d is even, they're equal. When d is odd, they're opposite.
+
+The total weight of 4 corners: 2(-1)^{a+b} + 2(-1)^{a+b+d} = 2(-1)^{a+b}(1 + (-1)^d). If d odd: 0. If d even: 4(-1)^{a+b}.
+
+So when d is odd, the total weight of the 4 corners is 0, and we color one diagonal (weight 2(-1)^{a+b}) or the other (weight -2(-1)^{a+b}). The sum of weights of colored cells is ±2(-1)^{a+b}, and the sum of weights of uncolored is ∓2(-1)^{a+b}.
+
+When d is even, total weight is 4(-1)^{a+b}, and both diagonals have weight 2(-1)^{a+b}. We color one diagonal (weight 2(-1)^{a+b}), uncolored has weight 2(-1)^{a+b}.
+
+Hmm, this doesn't immediately give an invariant on the black set alone.
+
+Let me think about the sum over ALL cells of w(i,j) times (indicator of black). Initially 0 (all white). After each operation, we add the weight of the colored diagonal.
+
+For d even: add 2(-1)^{a+b}. For d odd: add ±2(-1)^{a+b}.
+
+This doesn't seem to lead to a clean invariant.
+
+Let me try a completely different approach. Let me think about the problem computationally for small cases and find a pattern.
+
+n=1: 0
+n=2: 2
+n=3: 6
+
+Let me think about n=4. 4×4 grid, 16 cells.
+
+Let me try to find the maximum for n=4 by thinking about it.
+
+Actually, let me think about the reverse process more carefully. We want the minimum generating set W.
+
+Let me think about what cells can generate what. 
+
+Consider two cells on the same diagonal D = i - j = k. Say (i1, j1) and (i2, j2) with i1 - j1 = i2 - j2 = k. The operation adds (i1, j2) and (i2, j1). Note (i1, j2) has D = i1 - j2 and (i2, j1) has D = i2 - j1. And i1 - j2 = i1 - (i2 - k) = i1 - i2 + k. i2 - j1 = i2 - (i1 - k) = i2 - i1 + k = -(i1 - i2) + k. So the new D values are k ± (i1 - i2), symmetric around k. And the new S values: i1 + j2 = i1 + i2 - k and i2 + j1 = i2 + i1 - k, same S = i1 + i2 - k.
+
+So from two cells on diagonal k with S-values s1, s2, we get two cells on anti-diagonal (s1+s2)/2 with D-values k ± (s1-s2)/2.
+
+This is exactly a 90-degree rotation around the center of the square! The center is at ((i1+i2)/2, (j1+j2)/2). Rotating (i1,j1) by 90° around this center gives... let me check. Center = ((i1+i2)/2, (j1+j2)/2). Rotating (i1, j1) by 90° clockwise: (cx + (j1 - cy), cy - (i1 - cx)) = (cx + j1 - cy, cy - i1 + cx). cx = (i1+i2)/2, cy = (j1+j2)/2. = ((i1+i2)/2 + j1 - (j1+j2)/2, (j1+j2)/2 - i1 + (i1+i2)/2) = ((i1+i2+j1-j1-j2+j2... hmm let me just compute directly.
+
+cx + (j1 - cy) = (i1+i2)/2 + j1 - (j1+j2)/2 = (i1+i2)/2 + (j1-j2)/2 = (i1+i2+j1-j2)/2.
+cy - (i1 - cx) = (j1+j2)/2 - i1 + (i1+i2)/2 = (j1+j2)/2 + (i2-i1)/2 = (i2-i1+j1+j2)/2.
+
+So the rotated cell is ((i1+i2+j1-j2)/2, (i2-i1+j1+j2)/2). For this to be a valid cell, we need the coordinates to be integers, which requires i1+i2+j1-j2 and i2-i1+j1+j2 to be even. Since i1-j1 = i2-j2 = k, we have j1 = i1 - k, j2 = i2 - k. Then i1+i2+j1-j2 = i1+i2+(i1-k)-(i2-k) = 2i1. Even. ✓. And i2-i1+j1+j2 = i2-i1+(i1-k)+(i2-k) = 2i2-2k. Even. ✓.
+
+The rotated cell: (i1, (i2-i1+j1+j2)/2) = (i1, (2i2-2k)/2) = (i1, i2-k) = (i1, j2). ✓ That's one of the new cells.
+
+So the operation is a 90° rotation of the two diagonal cells around the square's center, producing the other two corners.
+
+This is a nice geometric interpretation but I'm not sure it directly helps.
+
+Let me think about the problem in terms of a different algebraic structure. 
+
+Consider representing each cell (i,j) as a complex number z = i + ji (where i is the imaginary unit). Then the four corners of a square are z, z+d, z+di, z+d+di (where d is real). The diagonals are {z, z+d+di} and {z+d, z+di}. 
+
+The operation: given two cells on a diagonal, add the other two. In complex number terms, if we have z1 and z2 on a diagonal, the other two are obtained by rotating. Specifically, if z1 and z2 are diagonal corners, the center is (z1+z2)/2, and the other corners are (z1+z2)/2 ± i(z1-z2)/2.
+
+So the other corners are: c + i(z1-z2)/2 and c - i(z1-z2)/2 where c = (z1+z2)/2. These are (z1+z2)/2 + i(z1-z2)/2 and (z1+z2)/2 - i(z1-z2)/2.
+
+Let me verify: z1 = a+bi, z2 = (a+d)+(b+d)i. c = (2a+d)/2 + (2b+d)/2 i = (a+d/2) + (b+d/2)i. z1-z2 = -d - di. i(z1-z2)/2 = i(-d-di)/2 = (-di + d)/2 = (d-di)/2 = d/2 - d/2 i. So c + i(z1-z2)/2 = (a+d/2+d/2) + (b+d/2-d/2)i = (a+d) + bi. That's (a+d, b). ✓. And c - i(z1-z2)/2 = (a+d/2-d/2) + (b+d/2+d/2)i = a + (b+d)i. That's (a, b+d). ✓.
+
+So in complex number terms, the operation is: given z1, z2 (diagonal corners), produce (z1+z2)/2 ± i(z1-z2)/2.
+
+Note: (z1+z2)/2 + i(z1-z2)/2 = z1(1+i)/2 + z2(1-i)/2. And (z1+z2)/2 - i(z1-z2)/2 = z1(1-i)/2 + z2(1+i)/2.
+
+So the new cells are linear combinations of z1, z2 with coefficients (1±i)/2. 
+
+If we think of the grid as a subset of Z[i] (Gaussian integers), the operation takes two Gaussian integers on a diagonal and produces two more.
+
+Hmm, let me think about this in terms of the lattice. The cells are {a + bi : 0 ≤ a,b ≤ 10, a,b ∈ Z}. 
+
+The operation: from z1, z2 (with z1-z2 having equal real and imaginary parts, i.e., z1-z2 = d(1+i) or d(1-i) for some integer d), produce z1(1+i)/2 + z2(1-i)/2 and z1(1-i)/2 + z2(1+i)/2.
+
+Note that (1+i)/2 and (1-i)/2 are not Gaussian integers, but the results are integers because of the constraint on z1-z2.
+
+Let me think about the sublattice structure. Consider the lattice generated by 1 and i (the Gaussian integers). The operation involves multiplication by (1±i)/2, which relates to the sublattice (1+i)Z[i].
+
+Actually, (1+i)/2 * z = z/2 + iz/2. For this to be a Gaussian integer, we need z to be in (1+i)Z[i]... hmm, not exactly.
+
+Let me think about it modulo 2. In Z[i]/(2), note that 2 = -i(1+i)^2, so (2) = (1+i)^2 up to units. The prime 1+i divides 2.
+
+Cells mod (1+i): two cells are congruent mod (1+i) iff their difference is divisible by (1+i), i.e., a+bi ≡ 0 mod (1+i) iff a ≡ b (mod 2) (since a+bi = (a-b) + b(1+i), and (1+i) | (a+bi) iff (1+i) | (a-b), iff a-b even, iff a ≡ b mod 2).
+
+So the residue mod (1+i) is determined by (a-b) mod 2, i.e., the parity of a-b = i-j. This is the same as the parity of i+j (since i-j ≡ i+j mod 2). So there are 2 residue classes mod (1+i): even i+j and odd i+j.
+
+Hmm, this connects to our earlier parity observation.
+
+Let me think about higher powers of (1+i). Mod (1+i)^2 = (2i) = (2) (up to units), so mod 2. The residue mod 2 is determined by (i mod 2, j mod 2), giving 4 classes. This is our parity class analysis.
+
+Let me think about mod (1+i)^3. (1+i)^2 = 2i, (1+i)^3 = 2i(1+i) = 2i - 2. So mod (1+i)^3 is mod (2i-2), i.e., mod 2(1-i) = 2(1-i). Hmm, |2(1-i)|^2 = 8, so there are 8 residue classes mod (1+i)^3.
+
+Actually, |(1+i)^k|^2 = 2^k, so there are 2^k residue classes mod (1+i)^k.
+
+The operation: z_new = z1(1+i)/2 + z2(1-i)/2. Note (1+i)/2 = 1/(1-i) and (1-i)/2 = 1/(1+i). So z_new = z1/(1-i) + z2/(1+i). 
+
+Hmm, z_new = z1 * (1+i)/2 + z2 * (1-i)/2. Let me think about z_new mod (1+i)^k for various k.
+
+z1(1+i)/2: since (1+i)/2 has (1+i)-adic valuation -1 (it's (1+i)/(1+i)^2 = 1/(1+i)), this is z1/(1+i). So z1(1+i)/2 has valuation v(z1) - 1 where v is the (1+i)-adic valuation.
+
+This is getting into p-adic analysis which might be overkill. Let me try a different approach.
+
+Let me go back to thinking about the problem computationally. Let me consider the structure for general n×n and try to find the answer for 11×11.
+
+Let me reconsider the reverse process. We want the minimum W that generates all cells. 
+
+Let me think about what happens with the diagonal/anti-diagonal structure.
+
+Define D(i,j) = i-j and S(i,j) = i+j. A cell is (D, S) with D ≡ S (mod 2) and |D| ≤ 10, 0 ≤ S ≤ 20, and the cell is valid (0 ≤ i,j ≤ 10).
+
+The operation in (D,S) space: from two cells (D, S1) and (D, S2) on the same D, produce (D + (S1-S2)/2, (S1+S2)/2) and (D - (S1-S2)/2, (S1+S2)/2). These are on the same S = (S1+S2)/2.
+
+Or from two cells (D1, S) and (D2, S) on the same S, produce ((D1+D2)/2, S + (D1-D2)/2) and ((D1+D2)/2, S - (D1-D2)/2). These are on the same D = (D1+D2)/2.
+
+So the operation swaps between "same D" and "same S", taking averages and differences.
+
+This looks like a discrete version of a rotation, and it reminds me of the structure of the dihedral group or the Euclidean algorithm.
+
+Let me think about it as follows. Consider the transformation on (D, S) pairs. If we have two points on the same D-line, we get two points on a new S-line, and vice versa. The new S is the average of the old S values, and the new D values are symmetric around the old D.
+
+This is exactly the structure of a "reflection" in the (D, S) plane. If we think of (D, S) as coordinates, having two points (D, S1) and (D, S2), the new points are obtained by reflecting across the midpoint.
+
+Actually, I think this operation generates a group, and the question is about the orbit structure.
+
+Let me think about it differently. Consider the "value" V(i,j) = i + j*(some base) or think of cells as elements of a group.
+
+Actually, let me consider the following. Map each cell (i,j) to the Gaussian integer z = i + ji. The operation takes z1, z2 on a diagonal (z1 - z2 = d(1+i) or d(1-i)) and produces z1' = z1(1+i)/2 + z2(1-i)/2 and z2' = z1(1-i)/2 + z2(1+i)/2.
+
+Note z1' + z2' = z1 + z2 and z1' - z2' = i(z1 - z2). So the operation preserves the sum and rotates the difference by 90°.
+
+So if we have a set of Gaussian integers W, and two of them z1, z2 with z1 - z2 ∈ (1+i)Z (i.e., on a diagonal), we can add z1' and z2' where z1'+z2' = z1+z2 and z1'-z2' = i(z1-z2).
+
+Since z1-z2 ∈ (1+i)Z, we have i(z1-z2) ∈ i(1+i)Z = (i-1)Z = (1-i)Z. And z1'-z2' ∈ (1-i)Z, so z1', z2' are on an anti-diagonal. Makes sense.
+
+Now, the key question: what is the orbit of a small set under this operation?
+
+Let me think about the "sum" invariant. The operation preserves z1+z2 (the sum of the two cells being operated on). But different operations involve different pairs, so there's no global sum invariant.
+
+Let me think about the centroid. The center of the square is (z1+z2)/2, which is preserved. So each operation is centered at some point, and the four corners are symmetric around it.
+
+Hmm, let me think about the problem from the perspective of: what is the minimum number of white cells such that the rest can be "paired up" into diagonal pairs of squares?
+
+Actually, I wonder if the answer is related to n^2 - n or something like that. Let me compute small cases more carefully.
+
+n=1: 0. n^2 - n = 0. ✓
+n=2: 2. n^2 - n = 2. ✓
+n=3: 6. n^2 - n = 6. ✓
+
+Interesting! Let me check n=4. If the pattern is n^2 - n, then 16 - 4 = 12.
+
+Let me verify n=4 by trying to construct 12 black cells (4 white) or prove it's the max.
+
+For n=4, can we achieve 12 black (4 white)? We need 4 white cells that generate all 16 cells.
+
+Let me try. Place white cells at (0,0), (0,3), (3,0), (3,3) — the four corners.
+
+From (0,0) and (3,3): same diagonal D=0, S=0 and S=6. New cells: D = 0 ± (0-6)/2 = 0 ± (-3) = 3 or -3, S = 3. So (D,S) = (3,3) → (i,j) = (3,0) and (D,S) = (-3,3) → (i,j) = (0,3). But those are already white! So this operation doesn't add new cells.
+
+Hmm. Let me try different white cells.
+
+Let me try (0,0), (1,1), (2,2), (3,3) — the main diagonal. From (0,0) and (2,2): D=0, S=0 and S=4. New: D = 0 ± (-2) = ±2, S = 2. (D,S)=(2,2) → (2,0); (D,S)=(-2,2) → (0,2). Add (2,0) and (0,2).
+
+From (1,1) and (3,3): D=0, S=2 and S=6. New: D = 0 ± (-2) = ±2, S = 4. (2,4) → (3,1); (-2,4) → (1,3). Add (3,1) and (1,3).
+
+From (0,0) and (1,1): D=0, S=0 and S=2. New: D = 0 ± (-1) = ±1, S = 1. (1,1) → (1,0); (-1,1) → (0,1). Add (1,0) and (0,1).
+
+From (2,2) and (3,3): D=0, S=4 and S=6. New: D = ±1, S = 5. (1,5) → (3,2); (-1,5) → (2,3). Add (3,2) and (2,3).
+
+Now we have: (0,0),(1,1),(2,2),(3,3),(2,0),(0,2),(3,1),(1,3),(1,0),(0,1),(3,2),(2,3). That's 12 cells. Missing: (0,3),(3,0),(1,2),(2,1).
+
+From (0,1) and (1,0): same S=1, D=-1 and D=1. New: D = 0, S = 1 ± 1 = 0 or 2. (0,0) already have; (0,2) already have. No new.
+
+From (0,2) and (2,0): same S=2, D=-2 and D=2. New: D=0, S = 2 ± 2 = 0 or 4. (0,0) have; (0,4) → (2,2) have. No new.
+
+From (1,3) and (3,1): same S=4, D=-2 and D=2. New: D=0, S = 4 ± 2 = 2 or 6. (0,2) → (1,1) have; (0,6) → (3,3) have. No new.
+
+From (1,0) and (0,1): same S=1, D=1 and D=-1. New: D=0, S = 1 ± 1 = 0 or 2. Already have.
+
+Hmm, we're stuck at 12. The missing cells are (0,3),(3,0),(1,2),(2,1). Note these are on the anti-diagonal i+j=3.
+
+From (0,2) and (2,0): we tried, gives nothing new.
+From (0,1) and (1,0): gives nothing new.
+From (1,3) and (3,1): gives nothing new.
+From (2,3) and (3,2): same S=5, D=-1 and D=1. New: D=0, S = 5 ± 1 = 4 or 6. (0,4)→(2,2) have; (0,6)→(3,3) have. Nothing new.
+
+What about using cells on the same D? (0,0) D=0 and (0,2) D=-2 — different D. 
+
+Let me look for two cells on the same D among our 12 cells that could generate a missing cell.
+
+Missing: (0,3) D=-3, (3,0) D=3, (1,2) D=-1, (2,1) D=1.
+
+To generate (0,3) D=-3, S=3 and (3,0) D=3, S=3: these are on the same S=3. We need two cells on the same D that produce S=3. From two cells (D, S1), (D, S2) on same D, we get S = (S1+S2)/2. So we need (S1+S2)/2 = 3, i.e., S1+S2 = 6. And the new D = D ± (S1-S2)/2 = ±3. So D ± (S1-S2)/2 = ±3, meaning (S1-S2)/2 = |3-D| or |3+D|... 
+
+We need D + (S1-S2)/2 = 3 and D - (S1-S2)/2 = -3 (or vice versa). So D = 0 and (S1-S2)/2 = 3, i.e., S1-S2 = 6. So we need two cells on D=0 with S values differing by 6 and summing to 6. S1+S2=6, S1-S2=6 → S1=6, S2=0. Cells (D,S) = (0,6) = (3,3) and (0,0) = (0,0). Both in our set! So from (0,0) and (3,3), we get (D,S) = (3,3) = (3,0) and (-3,3) = (0,3). 
+
+Wait, I computed this before and said they're already white. Let me recheck. (0,0) and (3,3): D=0, S1=0, S2=6. New S = 3, new D = 0 ± 3 = 3 or -3. (D,S) = (3,3) → i = (3+3)/2 = 3, j = (3-3)/2 = 0. So (3,0). And (D,S) = (-3,3) → i = 0, j = 3. So (0,3). 
+
+But (3,0) and (0,3) are NOT in our current set of 12! I made an error earlier. Let me recheck. Our 12 cells are: (0,0),(1,1),(2,2),(3,3),(2,0),(0,2),(3,1),(1,3),(1,0),(0,1),(3,2),(2,3). (3,0) and (0,3) are not among these. So we CAN add them!
+
+Great, so from (0,0) and (3,3), we add (3,0) and (0,3). Now we have 14 cells. Missing: (1,2) and (2,1).
+
+(1,2) D=-1, S=3. (2,1) D=1, S=3. Same S=3. To generate: need two cells on same D with S1+S2=6, D ± (S1-S2)/2 = ±1. So D = 0, (S1-S2)/2 = 1, S1-S2 = 2, S1+S2 = 6 → S1=4, S2=2. Cells (0,4)=(2,2) and (0,2)=(1,1). Both in our set! From (1,1) and (2,2): D=0, S1=2, S2=4. New S=3, D = ±1. (1,3)→(2,1) and (-1,3)→(1,2). 
+
+So we add (2,1) and (1,2). Now all 16 cells! 
+
+So for n=4, starting from 4 white cells (the main diagonal), we can generate all 16 cells. So 12 black is achievable. But can we do better (14 black, 2 white)?
+
+With 2 white cells, we need them to generate all 16. Let's see if that's possible.
+
+With 2 cells, say (0,0) and (3,3) (D=0, S=0 and S=6). Operation: add (3,0) and (0,3). Now 4 cells: (0,0),(3,3),(3,0),(0,3). These are the 4 corners.
+
+From (0,0) and (0,3): same D=0? (0,0) D=0, (0,3) D=-3. No. Same S? (0,0) S=0, (0,3) S=3. No.
+
+From (0,0) and (3,0): D=0 and D=3. S=0 and S=3. Not same D or S.
+
+From (3,3) and (3,0): D=0 and D=3. S=6 and S=3. Not same.
+
+From (3,3) and (0,3): D=0 and D=-3. S=6 and S=3. Not same.
+
+From (0,0) and (3,3): already did this.
+From (3,0) and (0,3): D=3 and D=-3. S=3 and S=3. Same S=3! New: D = (3+(-3))/2 = 0, S = 3 ± (3-(-3))/2 = 3 ± 3 = 0 or 6. (0,0) and (0,6)=(3,3). Already have.
+
+So from the 4 corners, we can't generate any new cells! The 4 corners are closed under the operation. So 2 white cells (that are opposite corners) generate only 4 cells, not 16.
+
+What if the 2 white cells are different, say (0,0) and (1,1)? D=0, S=0 and S=2. Operation: add (1,0) and (0,1). Now 4 cells: (0,0),(1,1),(1,0),(0,1). These form a 2×2 block.
+
+From (0,0) and (1,1): done. From (1,0) and (0,1): S=1, D=1 and D=-1. New: D=0, S = 1 ± 1 = 0 or 2. (0,0) and (0,2)=(1,1). Already have.
+
+From (0,0) and (1,0): D=0, D=1. Not same. S=0, S=1. Not same.
+From (0,0) and (0,1): D=0, D=-1. Not same. S=0, S=1. Not same.
+From (1,1) and (1,0): D=0, D=1. Not same. S=2, S=1. Not same.
+From (1,1) and (0,1): D=0, D=-1. Not same. S=2, S=1. Not same.
+
+So the 2×2 block is also closed. Can't generate more.
+
+What about (0,0) and (2,2)? D=0, S=0 and S=4. Add (2,0) and (0,2). 4 cells: (0,0),(2,2),(2,0),(0,2). 
+
+From (0,0) and (2,2): done. From (2,0) and (0,2): S=2, D=2 and D=-2. New: D=0, S = 2 ± 2 = 0 or 4. Already have.
+From (0,0) and (2,0): D=0, D=2. Not same D. S=0, S=2. Not same S.
+Etc. Closed again.
+
+What about (0,0) and (1,2)? D=0, D=-1. Not same D. S=0, S=3. Not same S. Can't even do one operation!
+
+So 2 white cells can generate at most 4 cells (when they're on a diagonal), and those 4 are closed. So 2 white is not enough for n=4.
+
+What about 3 white cells? We need 3 cells to generate 16. But each operation adds 2, so 3 → 5 → 7 → ... → 15 → 17. We can never reach 16 from 3 (since 3 is odd and we add 2 each time, we get odd numbers). So 3 white can generate at most 15 cells, not 16. But we need all 16 to be generated (all non-white cells become black). Wait, no — in the reverse process, we need to generate ALL cells from W. So |W| must have the same parity as 121 (for 11×11) or 16 (for 4×4). 16 is even, so |W| must be even. 3 is odd, doesn't work. So |W| ∈ {2, 4, 6, ...}.
+
+We showed |W|=2 doesn't work for n=4. |W|=4 works (the diagonal). So the minimum is 4, giving 12 black. This matches n^2 - n = 12.
+
+Hmm wait, but I should check: is it possible that a different set of 2 white cells generates more than 4? I showed that diagonal pairs generate 4 (closed) and non-diagonal pairs generate 0 (can't even start). So 2 white → at most 4 generated. Not enough for 16.
+
+So for n=4, answer is 12 = 4^2 - 4. 
+
+Let me check n=5. If the pattern holds, answer = 25 - 5 = 20.
+
+For n=5, can we achieve 20 black (5 white)? We need 5 white cells generating all 25. But 5 is odd, and 25 is odd, and we add 2 each time: 5 → 7 → 9 → ... → 25. 5 + 2k = 25 → k = 10. So 10 operations, possible parity-wise.
+
+Hmm, but for n=3, the answer was 6 = 9 - 3. 3 white cells, 3 is odd, 9 is odd. 3 + 2k = 9 → k = 3. So 3 operations. Let me verify: we found 6 black for n=3, so 3 white. ✓.
+
+For n=5, if the pattern is n^2 - n = 20, we need 5 white cells. Let me see if the main diagonal (0,0),(1,1),(2,2),(3,3),(4,4) works.
+
+From (0,0) and (4,4): D=0, S=0,8. New: D=±4, S=4. (4,0) and (0,4). 
+From (0,0) and (2,2): D=0, S=0,4. New: D=±2, S=2. (2,0) and (0,2).
+From (2,2) and (4,4): D=0, S=4,8. New: D=±2, S=6. (4,2) and (2,4).
+From (0,0) and (1,1): D=0, S=0,2. New: D=±1, S=1. (1,0) and (0,1).
+From (1,1) and (2,2): D=0, S=2,4. New: D=±1, S=3. (2,1) and (1,2).
+From (2,2) and (3,3): D=0, S=4,6. New: D=±1, S=5. (3,2) and (2,3).
+From (3,3) and (4,4): D=0, S=6,8. New: D=±1, S=7. (4,3) and (3,4).
+From (0,0) and (3,3): D=0, S=0,6. New: D=±3, S=3. (3,0) and (0,3).
+From (1,1) and (4,4): D=0, S=2,8. New: D=±3, S=5. (4,1) and (1,4).
+From (1,1) and (3,3): D=0, S=2,6. New: D=±2, S=4. (3,1) and (1,3). Wait, (D,S)=(2,4)→(3,1) and (-2,4)→(1,3).
+
+Let me collect all generated cells. From the main diagonal and these operations:
+Main: (0,0),(1,1),(2,2),(3,3),(4,4)
+From (0,0)-(4,4): (4,0),(0,4)
+From (0,0)-(2,2): (2,0),(0,2)
+From (2,2)-(4,4): (4,2),(2,4)
+From (0,0)-(1,1): (1,0),(0,1)
+From (1,1)-(2,2): (2,1),(1,2)
+From (2,2)-(3,3): (3,2),(2,3)
+From (3,3)-(4,4): (4,3),(3,4)
+From (0,0)-(3,3): (3,0),(0,3)
+From (1,1)-(4,4): (4,1),(1,4)
+From (1,1)-(3,3): (3,1),(1,3)
+
+Let me list all: 
+(0,0),(1,1),(2,2),(3,3),(4,4),
+(4,0),(0,4),(2,0),(0,2),(4,2),(2,4),
+(1,0),(0,1),(2,1),(1,2),(3,2),(2,3),(4,3),(3,4),
+(3,0),(0,3),(4,1),(1,4),(3,1),(1,3)
+
+That's 5 + 6 + 8 + 6 = 25. Let me count: 5 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 2 = 5 + 18 = 23. Hmm, let me recount.
+
+Operations listed: 10 operations, each adding 2 cells = 20 new cells. 5 + 20 = 25. ✓
+
+So all 25 cells are generated! So for n=5, 5 white cells (main diagonal) suffice, giving 20 black = 25 - 5. ✓
+
+Now the pattern n^2 - n seems to hold for n = 1,2,3,4,5. Let me check if it could be n^2 - n for n=11, giving 121 - 11 = 110.
+
+But wait, I need to also verify that we can't do better. For n=4, we showed |W|=2 doesn't work, so 4 is minimal. For n=3, |W|=2 generates at most 4 < 9, so 3 is minimal (and |W| must be odd for n=3 since 9 is odd). Actually for n=3, |W| must be odd (same parity as 9), so |W| ∈ {1,3,5,7,9}. |W|=1 can't generate anything. |W|=3 works. So min is 3, giving 6. ✓
+
+For n=5, |W| must be odd. |W|=1: can't generate. |W|=3: can 3 cells generate 25? 3 + 2k = 25 → k = 11. Possible parity-wise. But can 3 cells generate all 25? 
+
+Let me think. With 3 cells, we need at least 2 on the same diagonal or anti-diagonal to start. Say (0,0),(2,2),(4,4) on D=0. From (0,0),(4,4): add (4,0),(0,4). From (0,0),(2,2): add (2,0),(0,2). From (2,2),(4,4): add (4,2),(2,4). Now 9 cells: (0,0),(2,2),(4,4),(4,0),(0,4),(2,0),(0,2),(4,2),(2,4).
+
+These are all cells with both coordinates even. Can we generate odd-coordinate cells? From (0,0) and (2,0): D=0, D=2. Not same. S=0, S=2. Not same. From (0,0) and (0,2): D=0, D=-2. Not same. S=0, S=2. Not same. From (2,0) and (0,2): S=2, D=2 and D=-2. Same S! New: D=0, S = 2 ± 2 = 0 or 4. (0,0) and (0,4)=(2,2). Already have.
+
+From (2,0) and (4,2): D=2, D=2. Same D! S=2, S=6. New: D = 2 ± (2-6)/2 = 2 ± (-2) = 0 or 4, S = 4. (0,4)=(2,2) and (4,4). Already have.
+
+It seems like cells with both coordinates even only generate cells with both coordinates even. This is because the operation preserves the parity structure in some sense.
+
+Actually, let me think about this. If all cells have even coordinates, then D = i-j is even and S = i+j is even. The operation: from (D, S1), (D, S2) with D, S1, S2 all even, we get (D ± (S1-S2)/2, (S1+S2)/2). (S1-S2)/2 is even/2... S1, S2 even, so S1-S2 even, (S1-S2)/2 integer. But is it even? Not necessarily. E.g., S1=0, S2=4: (S1-S2)/2 = -2, even. S1=2, S2=4: (S1-S2)/2 = -1, odd!
+
+So from (2,2) D=0, S=4 and (4,4) D=0, S=8: (S1-S2)/2 = -2, even. New D = ±2, S = 6. (2,6)=(4,2) and (-2,6)=(2,4). Both even coordinates.
+
+From (0,0) D=0, S=0 and (2,2) D=0, S=4: (S1-S2)/2 = -2, even. New D = ±2, S=2. Even coords.
+
+From (0,0) and (4,4): (S1-S2)/2 = -4, even. New D = ±4, S=4. Even.
+
+Hmm, what about from (2,0) D=2, S=2 and (4,0) D=4, S=4? Not same D or S.
+
+From (0,2) D=-2, S=2 and (2,4) D=-2, S=6: same D=-2. (S1-S2)/2 = -2. New D = -2 ± (-2) = -4 or 0, S = 4. (-4,4)=(0,4) and (0,4)=(2,2). Already have.
+
+It seems like with all-even-coordinate cells, we can only generate all-even-coordinate cells. The reason: if D and S are both even, then (S1+S2)/2 is even (sum of two evens divided by 2 is even iff sum is divisible by 4... no). S1, S2 even: S1+S2 even, (S1+S2)/2 integer. Is it even? S1=2, S2=6: sum=8, /2=4, even. S1=0, S2=4: sum=4, /2=2, even. S1=2, S2=4: sum=6, /2=3, odd! 
+
+So (S1+S2)/2 can be odd. Then the new S is odd, and new D = D ± (S1-S2)/2. D is even, (S1-S2)/2 = (2-4)/2 = -1, odd. So new D = even ± odd = odd. New cell has D odd, S odd → i = (D+S)/2 = (odd+odd)/2 = even, j = (S-D)/2 = (odd-odd)/2 = even. So still even coordinates!
+
+Wait: D odd, S odd. i = (D+S)/2. D+S = odd+odd = even, so i is integer. Is it even? D=1, S=3: i=2, even. D=3, S=5: i=4, even. D=1, S=1: i=1, odd! 
+
+Hmm, so it depends. D=1, S=1: i=1, j=0. That has odd i. So it's possible to get odd coordinates.
+
+But wait, do we actually have S1=2, S2=4 with same D in our set? Our cells with D=0: (0,0) S=0, (2,2) S=4, (4,4) S=8. S values 0, 4, 8. From (0,0) and (2,2): S1=0, S2=4, (S1+S2)/2=2, (S1-S2)/2=-2. New S=2 (even), D=±2 (even). From (2,2) and (4,4): S1=4, S2=8, avg=6, diff/2=-2. New S=6, D=±2. Even. From (0,0) and (4,4): avg=4, diff/2=-4. New S=4, D=±4. Even.
+
+Our cells with D=2: (2,0) S=2, (4,2) S=6. From these: avg=4, diff/2=-2. New S=4, D=0 or 4. (0,4)=(2,2) and (4,4). Already have.
+
+Our cells with D=-2: (0,2) S=2, (2,4) S=6. Same as above by symmetry.
+
+Our cells with D=4: (4,0) S=4. Only one, can't operate.
+Our cells with D=-4: (0,4) S=4. Only one.
+
+So indeed, with the 3 cells (0,0),(2,2),(4,4), we only generate 9 cells (all even-coordinate cells). We can't reach odd-coordinate cells.
+
+So |W|=3 is not enough for n=5 (if W is the main diagonal with step 2). What if we choose different 3 cells?
+
+Let me try (0,0), (1,1), (4,4). D=0 for all. S = 0, 2, 8.
+From (0,0),(1,1): avg S=1, diff/2=-1. New D=±1, S=1. (1,1)→(1,0) and (-1,1)→(0,1).
+From (0,0),(4,4): avg S=4, diff/2=-4. New D=±4, S=4. (4,0) and (0,4).
+From (1,1),(4,4): avg S=5, diff/2=-3. New D=±3, S=5. (4,1) and (1,4).
+
+Now we have: (0,0),(1,1),(4,4),(1,0),(0,1),(4,0),(0,4),(4,1),(1,4). 9 cells.
+
+From (1,0) D=1, S=1 and (4,1) D=3, S=5: not same D or S.
+From (0,1) D=-1, S=1 and (1,4) D=-3, S=5: not same.
+From (1,0) D=1, S=1 and (0,1) D=-1, S=1: same S=1! avg D=0, diff/2=(1-(-1))/2=1. New D=0, S=1±1=0 or 2. (0,0) and (0,2)=(1,1). Already have.
+From (4,0) D=4, S=4 and (0,4) D=-4, S=4: same S=4. avg D=0, diff/2=4. New D=0, S=4±4=0 or 8. (0,0) and (0,8)=(4,4). Already have.
+From (4,1) D=3, S=5 and (1,4) D=-3, S=5: same S=5. avg D=0, diff/2=3. New D=0, S=5±3=2 or 8. (0,2)=(1,1) and (0,8)=(4,4). Already have.
+From (1,0) D=1, S=1 and (4,0) D=4, S=4: not same.
+From (0,1) D=-1, S=1 and (0,4) D=-4, S=4: not same.
+From (1,0) D=1, S=1 and (1,4) D=-3, S=5: not same.
+From (0,1) D=-1, S=1 and (4,1) D=3, S=5: not same.
+From (4,0) D=4, S=4 and (4,1) D=3, S=5: not same.
+From (0,4) D=-4, S=4 and (1,4) D=-3, S=5: not same.
+From (1,0) D=1, S=1 and (0,4) D=-4, S=4: not same.
+From (0,1) D=-1, S=1 and (4,0) D=4, S=4: not same.
+From (4,0) D=4, S=4 and (1,4) D=-3, S=5: not same.
+From (0,4) D=-4, S=4 and (4,1) D=3, S=5: not same.
+
+From (0,0) D=0, S=0 and (1,0) D=1, S=1: not same.
+From (1,1) D=0, S=2 and (1,0) D=1, S=1: not same.
+From (1,1) D=0, S=2 and (0,1) D=-1, S=1: not same.
+From (4,4) D=0, S=8 and (4,0) D=4, S=4: not same.
+From (4,4) D=0, S=8 and (0,4) D=-4, S=4: not same.
+
+From (0,0) D=0, S=0 and (0,4) D=-4, S=4: not same D, not same S.
+From (4,4) D=0, S=8 and (4,0) D=4, S=4: not same.
+
+From (1,1) D=0, S=2 and (4,1) D=3, S=5: not same.
+From (1,1) D=0, S=2 and (1,4) D=-3, S=5: not same.
+
+From (0,0) D=0, S=0 and (4,1) D=3, S=5: not same.
+From (4,4) D=0, S=8 and (0,1) D=-1, S=1: not same.
+
+From (1,0) D=1, S=1 and (4,4) D=0, S=8: not same.
+From (0,1) D=-1, S=1 and (0,0) D=0, S=0: not same.
+
+Hmm, also:
+From (1,0) D=1, S=1 and (4,1) D=3, S=5: D=1,3 not same; S=1,5 not same.
+From (0,1) D=-1, S=1 and (1,4) D=-3, S=5: D=-1,-3 not same; S=1,5 not same.
+
+From (0,0) D=0, S=0 and (4,4) D=0, S=8: same D=0! Already did: gives (4,0),(0,4).
+
+From (1,1) D=0, S=2 and (4,4) D=0, S=8: same D=0! avg S=5, diff/2=-3. New D=±3, S=5. (3,5)→(4,1) and (-3,5)→(1,4). Already have.
+
+From (0,0) D=0, S=0 and (1,1) D=0, S=2: same D=0. Already did: gives (1,0),(0,1).
+
+So we're stuck at 9 cells. Can't generate more from (0,0),(1,1),(4,4).
+
+It seems like 3 cells on the same diagonal generate a limited set. The issue is that we need cells on different diagonals to make progress.
+
+Let me try 3 cells not all on the same diagonal. (0,0), (2,2), (0,2). 
+(0,0) D=0, S=0. (2,2) D=0, S=4. (0,2) D=-2, S=2.
+
+From (0,0),(2,2): same D=0. Add (2,0) D=2,S=2 and (0,2) D=-2,S=2. (0,2) already have. Add (2,0).
+Now: (0,0),(2,2),(0,2),(2,0). 4 cells.
+
+From (0,2),(2,0): same S=2, D=-2,2. avg D=0, diff/2=-2. New D=0, S=2±2=0 or 4. (0,0) and (0,4)=(2,2). Already have.
+
+From (0,0),(0,2): D=0,-2 not same. S=0,2 not same.
+From (0,0),(2,0): D=0,2 not same. S=0,2 not same.
+From (2,2),(0,2): D=0,-2 not same. S=4,2 not same.
+From (2,2),(2,0): D=0,2 not same. S=4,2 not same.
+
+Stuck at 4. Not good.
+
+Let me try (0,0), (1,1), (2,0). 
+(0,0) D=0,S=0. (1,1) D=0,S=2. (2,0) D=2,S=2.
+From (0,0),(1,1): same D=0. Add (1,0) D=1,S=1 and (0,1) D=-1,S=1.
+From (1,1),(2,0): D=0,2 not same. S=2,2 same! avg D=1, diff/2=(0-2)/2=-1. New D=1±(-1)=0 or 2, S=2±... wait. 
+
+Hold on. For same S: from (D1, S), (D2, S), produce ((D1+D2)/2, S + (D1-D2)/2) and ((D1+D2)/2, S - (D1-D2)/2).
+
+(1,1) D=0, S=2. (2,0) D=2, S=2. Same S=2. avg D = 1, diff/2 = (0-2)/2 = -1. New: D=1, S = 2+(-1) = 1 and D=1, S = 2-(-1) = 3. (1,1)→(1,0) and (1,3)→(2,1). 
+
+So add (1,0) and (2,1). Now: (0,0),(1,1),(2,0),(1,0),(0,1),(2,1). 6 cells.
+
+From (0,0),(1,0): D=0,1 not same. S=0,1 not same.
+From (0,0),(0,1): D=0,-1 not same. S=0,1 not same.
+From (1,1),(1,0): D=0,1 not same. S=2,1 not same.
+From (1,1),(0,1): D=0,-1 not same. S=2,1 not same.
+From (2,0),(1,0): D=2,1 not same. S=2,1 not same.
+From (2,0),(0,1): D=2,-1 not same. S=2,1 not same.
+From (2,0),(2,1): D=2,1 not same. S=2,3 not same.
+From (1,0),(0,1): D=1,-1 not same. S=1,1 same! avg D=0, diff/2=1. New D=0, S=1±1=0 or 2. (0,0) and (0,2)=(1,1). Already have.
+From (1,0),(2,1): D=1,1 same! S=1,3. avg S=2, diff/2=-1. New D=1±(-1)=0 or 2, S=2. (0,2)=(1,1) and (2,2). Add (2,2)!
+From (0,1),(2,1): D=-1,1 not same. S=1,3 not same.
+From (0,1),(1,0): already did.
+From (0,1),(2,0): already did.
+From (2,1),(1,0): already did.
+
+So from (1,0),(2,1) we add (2,2). Now 7 cells: (0,0),(1,1),(2,0),(1,0),(0,1),(2,1),(2,2).
+
+From (2,2) D=0, S=4 and (0,0) D=0, S=0: same D=0. avg S=2, diff/2=2. New D=±2, S=2. (2,0) and (0,2). (2,0) have, add (0,2).
+From (2,2) D=0, S=4 and (1,1) D=0, S=2: same D=0. avg S=3, diff/2=1. New D=±1, S=3. (1,3)→(2,1) have, (-1,3)→(1,2). Add (1,2).
+From (2,2) D=0, S=4 and (2,0) D=2, S=2: not same D. S=4,2 not same.
+From (2,2) D=0, S=4 and (1,0) D=1, S=1: not same.
+From (2,2) D=0, S=4 and (0,1) D=-1, S=1: not same.
+From (2,2) D=0, S=4 and (2,1) D=1, S=3: not same.
+From (2,2) D=0, S=4 and (1,2) D=-1, S=3: not same.
+From (2,2) D=0, S=4 and (0,2) D=-2, S=2: not same D. S=4,2 not same.
+
+Now 9 cells: (0,0),(1,1),(2,0),(1,0),(0,1),(2,1),(2,2),(0,2),(1,2).
+
+From (0,2) D=-2, S=2 and (2,0) D=2, S=2: same S=2. avg D=0, diff/2=-2. New D=0, S=2±2=0 or 4. (0,0) and (0,4)=(2,2). Already have.
+From (0,2) D=-2, S=2 and (1,2) D=-1, S=3: not same.
+From (1,2) D=-1, S=3 and (2,1) D=1, S=3: same S=3. avg D=0, diff/2=-1. New D=0, S=3±1=2 or 4. (0,2)=(1,1) and (0,4)=(2,2). Already have.
+From (1,2) D=-1, S=3 and (0,1) D=-1, S=1: same D=-1. avg S=2, diff/2=1. New D=-1±1=0 or -2, S=2. (0,2)=(1,1) and (-2,2)=(0,2). Already have.
+From (0,2) D=-2, S=2 and (0,0) D=0, S=0: not same.
+From (1,2) D=-1, S=3 and (1,0) D=1, S=1: not same D. S=3,1 not same.
+From (1,2) D=-1, S=3 and (1,1) D=0, S=2: not same.
+From (0,2) D=-2, S=2 and (2,2) D=0, S=4: not same.
+From (0,2) D=-2, S=2 and (2,1) D=1, S=3: not same.
+From (0,2) D=-2, S=2 and (1,0) D=1, S=1: not same.
+From (0,2) D=-2, S=2 and (0,1) D=-1, S=1: not same.
+
+Hmm, seems stuck at 9. These 9 cells are all cells in the 3×3 subgrid (0..2, 0..2). Makes sense — we started with cells in that subgrid and the operations stay within it.
+
+To get out, we need a cell with coordinate ≥ 3. Our initial 3 cells (0,0),(1,1),(2,0) are all in the 3×3 subgrid, so we can never escape it.
+
+So for n=5, we need white cells that "span" the whole grid. The main diagonal (0,0),(1,1),(2,2),(3,3),(4,4) works and has 5 cells. Can we do with fewer?
+
+We need |W| odd (same parity as 25). |W|=1: impossible. |W|=3: we need 3 cells that generate all 25. 
+
+The issue is that 3 cells need to span the grid. Let me think about what "span" means. 
+
+If we have cells at (0,0), (a,a), (4,4) on the main diagonal with 0 < a < 4, we generate cells with D=0 and S = 0, 2a, 8, and combinations. From (0,0),(a,a): D=±a, S=a. From (a,a),(4,4): D=±(4-a), S=a+4. From (0,0),(4,4): D=±4, S=4.
+
+For a=1: D values 0, ±1, ±3, ±4. S values 0, 1, 2, 4, 5, 8. 
+For a=2: D values 0, ±2, ±4. S values 0, 2, 4, 6, 8. All even → only even-coordinate cells.
+For a=3: D values 0, ±1, ±3, ±4. S values 0, 3, 4, 6, 8. 
+
+Let me try a=1: (0,0),(1,1),(4,4). We already tried this and got stuck at 9 cells.
+
+The problem is that from 3 cells on D=0, we get cells on various D lines, but then to continue we need pairs on the same D or same S, and the generated cells might not form such pairs that lead outside the generated set.
+
+Let me try a different configuration: (0,0), (2,2), (4,0). 
+(0,0) D=0,S=0. (2,2) D=0,S=4. (4,0) D=4,S=4.
+From (0,0),(2,2): same D=0. Add (2,0) D=2,S=2 and (0,2) D=-2,S=2.
+From (2,2),(4,0): D=0,4 not same. S=4,4 same! avg D=2, diff/2=(0-4)/2=-2. New D=2±(-2)=0 or 4, S=4±(-2)=2 or 6. (0,2)=(1,1) and (4,6)=(5,1)... wait, (D,S)=(0,2)→(1,1) and (4,6)→(5,1). But 5 > 4, out of range for n=5! 
+
+Hmm, (D,S) = (4,6): i = (4+6)/2 = 5, j = (6-4)/2 = 1. (5,1) is out of the 5×5 grid (0..4). So this operation is invalid — the generated cell is outside the grid!
+
+This is an important point. The operation must produce cells within the grid. So not all diagonal pairs lead to valid operations.
+
+OK so this complicates things. Let me reconsider.
+
+For n=5, (2,2) and (4,0): S=4 for both. The square has corners (2,2),(4,0),(2,0),(4,2) — wait, let me recheck. (2,2) and (4,0) are on the same anti-diagonal S=4. The other corners: (D,S) = (0,2)→(1,1) and (4,6)→(5,1). (1,1) is in grid, (5,1) is not. So the square would be (2,2),(4,0),(1,1),(5,1) — but (5,1) is outside. So this is not a valid square in the 5×5 grid.
+
+Actually wait. Let me recompute. (2,2) and (4,0): these are anti-diagonal corners (same S=4). The other corners of the square are (2,0) and (4,2). Let me verify: the square has corners (2,0),(4,0),(2,2),(4,2). Diagonals: {(2,0),(4,2)} and {(2,2),(4,0)}. Yes, (2,2) and (4,0) are on one diagonal, (2,0) and (4,2) on the other. Both (2,0) and (4,2) are in the 5×5 grid. So the operation IS valid.
+
+I made an error in my (D,S) computation. Let me redo. (2,2) D=0, S=4. (4,0) D=4, S=4. Same S=4. The formula: from (D1,S),(D2,S), produce ((D1+D2)/2, S+(D1-D2)/2) and ((D1+D2)/2, S-(D1-D2)/2).
+
+D1=0, D2=4, S=4. (D1+D2)/2 = 2. (D1-D2)/2 = -2. New: (2, 4+(-2)) = (2, 2) and (2, 4-(-2)) = (2, 6).
+
+(D,S)=(2,2)→(2,0). (D,S)=(2,6)→(4,2). Both in grid! Great.
+
+So from (2,2),(4,0): add (2,0) and (4,2). 
+
+Let me redo the whole thing with (0,0),(2,2),(4,0):
+From (0,0),(2,2): add (2,0) D=2,S=2 and (0,2) D=-2,S=2.
+From (2,2),(4,0): add (2,0) and (4,2) D=2,S=6. (2,0) already, add (4,2).
+From (0,0),(4,0): D=0,4 not same. S=0,4 not same. Can't operate.
+
+Now have: (0,0),(2,2),(4,0),(2,0),(0,2),(4,2). 6 cells.
+
+From (2,0) D=2,S=2 and (4,2) D=2,S=6: same D=2. avg S=4, diff/2=-2. New D=2±(-2)=0 or         — AI历史解题过程（thinking）
+#   polymath_03346         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_03346</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+In an $11 \times 11$ table with all cells initially colored white, we can select any four white cells that form the vertices of a square with sides parallel to the table's sides and then color two cells on the diagonal in black. What is the maximum number of cells that can be colored black using this process?
+
+## Standard Solution
+
+To solve the problem of maximizing the number of black cells in an \(11 \times 11\) table where we can select any four white cells forming a square with sides parallel to the table and color two diagonal cells black, we can use the following approach:
+
+1. **Understanding the Problem**:
+   - Each operation involves selecting a square of any size (with sides parallel to the table) and coloring two diagonally opposite cells black.
+   - The goal is to maximize the number of black cells without overlapping operations on the same cells.
+
+2. **Key Insight**:
+   - By pairing each cell \((i, j)\) where \(i \neq j\) with its mirror image \((j, i)\) across the main diagonal, we can form a square.
+   - The square formed by \((i, i)\), \((i, j)\), \((j, i)\), and \((j, j)\) allows us to color \((i, j)\) and \((j, i)\) black.
+   - This avoids coloring any cells on the main diagonal \((i, i)\) and \((j, j)\).
+
+3. **Strategy**:
+   - For each pair of cells \((i, j)\) and \((j, i)\) where \(i < j\), we can perform an operation on the square formed by these cells and their main diagonal counterparts.
+   - This operation colors the off-diagonal cells \((i, j)\) and \((j, i)\) without affecting the main diagonal cells.
+
+4. **Calculation**:
+   - The number of such pairs \((i, j)\) where \(i \neq j\) in an \(11 \times 11\) grid is \(\frac{11 \times 10}{2} = 55\) pairs.
+   - Each pair contributes 2 black cells, leading to \(55 \times 2 = 110\) black cells.
+   - The main diagonal cells remain uncolored, leaving \(11\) cells white.
+
+Therefore, the maximum number of black cells that can be achieved is \(\boxed{110}\).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. We have an 11×11 table, all cells white. We can select any four white cells forming vertices of a square with sides parallel to the table's sides, then color two cells on the diagonal in black. We want to maximize black cells.
+
+Wait, let me re-read. We select four white cells forming vertices of a square (sides parallel to table sides), then color two cells on the diagonal in black. So we pick a square, and color two opposite corners (a diagonal) black.
+
+The constraint is that all four cells must be white when we select them. After coloring two diagonal cells black, those two become black. The other two corners remain white.
+
+So each operation: pick an axis-aligned square whose four corners are all white, color two opposite corners black.
+
+We want to maximize the number of black cells.
+
+Let me think about this carefully. Each operation colors exactly 2 cells black (that were white). The constraint is that all 4 corners of the square are white at the time of operation.
+
+Let me think about what configurations are achievable.
+
+First, let's think about small cases and the structure.
+
+Let me index cells by (i,j) with 0 ≤ i,j ≤ 10.
+
+A square with sides parallel to the table has corners (i,j), (i+d, j), (i, j+d), (i+d, j+d) for some d ≥ 1, with all coordinates in range.
+
+When we perform an operation, we need all four corners white, and we color two diagonal corners black. The two diagonals are either {(i,j),(i+d,j+d)} or {(i+d,j),(i,j+d)}.
+
+So each operation requires 4 white cells in a square pattern, and turns 2 of them black.
+
+The question: what's the maximum number of black cells?
+
+Total cells = 121. Each operation uses 4 white cells and produces 2 black. So if we do k operations, we get 2k black cells, but we need 4k cells to have been white (and they get consumed - 2 become black, 2 stay white but can be reused).
+
+Wait, the 2 cells that stay white can be reused in future operations. So it's not that simple.
+
+Let me think about it differently. Let's think about which cells can be black.
+
+Actually, let me think about necessary conditions. Consider the coloring. Let me think about a potential function or invariant.
+
+Let me think about parity. Assign to cell (i,j) the value (-1)^{i+j}. A square with corners (i,j), (i+d,j), (i,j+d), (i+d,j+d). The diagonal {(i,j),(i+d,j+d)} has both cells with the same parity of i+j (since (i+d)+(j+d) = i+j+2d, same parity). The other diagonal {(i+d,j),(i,j+d)} has (i+d)+j = i+j+d and i+(j+d) = i+j+d, same parity. So both cells on a diagonal have the same parity.
+
+So when we color a diagonal black, both black cells have the same parity of i+j.
+
+Hmm, let me think about the count of cells with even i+j vs odd i+j. In an 11×11 grid, cells with even i+j: let me count. i+j even means i,j same parity. Number of even i: 6 (0,2,4,6,8,10), odd i: 5. Same for j. Even i+j = 6*6 + 5*5 = 36+25 = 61. Odd i+j = 6*5 + 5*6 = 30+30 = 60.
+
+Each operation colors 2 cells of the same parity black. So if we color e even-parity cells and o odd-parity cells black, e and o are both even (since each operation contributes 2 to one of them). Total black = e + o, with e even, o even.
+
+So total black is even. Maximum even ≤ 121 is 120. But can we achieve 120? That seems too high. Let me think more carefully.
+
+Actually wait, we need to think about whether 120 is achievable or if there are stronger constraints.
+
+Let me think about a stronger invariant. Consider a weighting. Let me think about the problem more carefully.
+
+Let me consider the constraint that all 4 corners must be white. This is a significant constraint.
+
+Let me think about it as: we need to find a sequence of operations. Let me think about what the final configuration looks like - a set of black cells B such that there exists an ordering where we can build it up.
+
+Actually, let me think about necessary conditions on the final black set.
+
+Alternative approach: think backwards. Start from the final configuration (some black cells, rest white). Reverse operation: two black cells that are diagonal corners of a square, and the other two corners are white. We un-color the two black cells (make them white). We want to reverse until all white. So the question becomes: what's the maximum number of black cells such that we can reduce to all-white by repeatedly finding two black cells that are diagonal corners of an axis-aligned square with the other two corners white, and making those two black cells white?
+
+Hmm, this is equivalent but maybe not easier.
+
+Let me think about small grids first.
+
+1×1: no squares possible. Answer 0.
+2×2: one square (the whole thing). Color 2 diagonal cells. Answer 2.
+3×3: squares of size 1 (unit squares) and size 2 (the whole 3×3). 
+
+For 3×3, let me think. We can do the size-2 square: corners (0,0),(0,2),(2,0),(2,2). Color (0,0),(2,2) black. Now we have those 2 black. Can we do more? We need 4 white cells forming a square. Unit squares: e.g., (0,0),(0,1),(1,0),(1,1) - but (0,0) is black. (0,1),(0,2),(1,1),(1,2) - (0,2) is white, ok all white? (0,1)W,(0,2)W,(1,1)W,(1,2)W - yes. Color (0,1),(1,2) or (0,2),(1,1). Say color (0,2),(1,1) black. Now black: (0,0),(2,2),(0,2),(1,1). Continue: find 4 white in a square. (1,0),(1,1)...(1,1) black. (2,0),(2,1),(1,0)... need square. (1,0),(2,0),(1,1),(2,1): (1,1) black. (2,1),(2,2)...(2,2) black. (1,2),(2,2)...black. Hmm. What about (1,0),(1,1),(2,0),(2,1) - (1,1) black. 
+
+Let me try different choices. After first move coloring (0,0),(2,2) black:
+Try unit square (0,1),(0,2),(1,1),(1,2), color (0,1),(1,2) black. Black: (0,0),(2,2),(0,1),(1,2).
+Now (0,2),(1,1) white. Try square (1,0),(1,1),(2,0),(2,1): all white? (1,0)W,(1,1)W,(2,0)W,(2,1)W - yes. Color (1,0),(2,1) black. Black: (0,0),(2,2),(0,1),(1,2),(1,0),(2,1). That's 6 black. 
+Now remaining white: (0,2),(1,1),(2,0). Can we do more? Need 4 white in a square. Only 3 white left. No. So 6 for 3×3? But 6 is even, and 9 cells. Let me see if 8 is possible.
+
+For 8 black, only 1 white. We'd need an operation coloring 2 black, but that requires 4 white. With only 1 white, impossible to do the last operation. Actually to get 8 black we need 4 operations (8 = 2*4), using... let me think if it's possible. Actually with 8 black and 1 white, the last operation turned 2 white→black, so before last operation we had 3 white. The operation needs 4 white. Contradiction. So 8 impossible. 
+
+What about getting 6 a different way, or is 6 the max for 3×3? Let me check if 6 is achievable (I found it above) and whether more is possible. We showed 8 impossible. 7 is odd, impossible (total must be even). So max for 3×3 is 6.
+
+Hmm wait, but actually let me reconsider. Is 6 really the answer for 3×3, or can we do better with a different strategy? We need total even, so 6 or 8. 8 impossible (shown). So 6. But wait, I should double-check 6 is actually achievable - I found a sequence above. Let me verify: 
+1. Square (0,0),(0,2),(2,0),(2,2), color (0,0),(2,2). Black: {(0,0),(2,2)}.
+2. Square (0,1),(0,2),(1,1),(1,2), color (0,1),(1,2). Black: {(0,0),(2,2),(0,1),(1,2)}.
+3. Square (1,0),(1,1),(2,0),(2,1), color (1,0),(2,1). Black: {(0,0),(2,2),(0,1),(1,2),(1,0),(2,1)}.
+White remaining: (0,2),(1,1),(2,0). Yes, 6 black. 
+
+Now for the 11×11 problem. Let me think about the general structure.
+
+Key insight: each operation requires 4 white cells in a square and produces 2 black. The "cost" is that we need 4 white but only 2 get consumed (become black), 2 remain white.
+
+Let me think about it as: we want to maximize black cells. If we end with b black cells and w white cells (b+w=121), the last operation needed 4 white cells before it, producing 2 black. Before last op: b-2 black, w+2 white. So w+2 ≥ 4, i.e., w ≥ 2. So at most 119 black? No wait, w ≥ 2 means b ≤ 119. But b must be even, so b ≤ 118.
+
+Hmm, but that's just from the last step. Let me think more carefully about the cumulative constraint.
+
+Actually, let me think about it more carefully. Let's say we do k operations. Each operation i requires 4 white cells. After all operations, 2k cells are black. The question is whether 2k cells can be black with 121 - 2k white.
+
+The constraint is more subtle. Let me think about a lower bound on white cells needed.
+
+Consider the process. At each step, we need 4 white cells forming a square. We turn 2 black. So the number of white cells decreases by 2 each step. Starting from 121 white, after k steps we have 121 - 2k white. We need at each step that there exist 4 white cells forming a square. The binding constraint is the last step: we need 4 white cells forming a square. After the last step, 121 - 2k white remain, and before the last step, 121 - 2(k-1) = 121 - 2k + 2 white. We need 4 of those to form a square.
+
+So we need: at the step before last, there are 121 - 2k + 2 ≥ 4 white cells forming a square. So 121 - 2k ≥ 2, i.e., k ≤ 59.5, so k ≤ 59, giving 2k ≤ 118 black.
+
+But this is just a necessary condition from counting. The real constraint is structural - we need 4 white cells forming a square at each step.
+
+But actually, the counting argument gives b ≤ 118 (since we need at least 2 white cells remaining, and actually we need 4 white forming a square before the last move, meaning at least 4 white before last move, so at least 2 white after). But we also need those 4 white to form a square, which is a stronger condition.
+
+Hmm, but actually the constraint is even stronger. Let me reconsider.
+
+Wait, I realize the constraint isn't just about the last move. Let me think about whether 118 is achievable or if there's a stronger bound.
+
+Let me think about a coloring/weighting argument.
+
+Consider assigning weights to cells. Let me think about the "diagonal" structure.
+
+Alternative: think about rows and columns. 
+
+Let me think about a different invariant. Consider the sum over all black cells of some function.
+
+Actually, let me think about this problem differently. Let me consider the constraint on the final white cells. The final white cells W must be such that we can "build up" the black cells. 
+
+Let me think about necessary conditions on W (the white cells in the final configuration).
+
+Claim: In the final configuration, consider any axis-aligned square. If 3 corners are black and 1 is white, that's fine. But actually, let me think about what constraints the process imposes.
+
+Hmm, let me think about it backwards again. In the reverse process, we start with the final config and repeatedly: find 2 black cells that are diagonal corners of a square with the other 2 corners white, and make those 2 black cells white. We need to reach all-white.
+
+So the final white set W must be such that the black set B = complement can be reduced to empty by this reverse operation. 
+
+In the reverse process, each step removes 2 black cells (makes them white) and requires the other 2 corners to be white. So we're growing the white set by 2 each step, and each step requires finding 2 black cells that are diagonal corners of a square whose other 2 corners are already white.
+
+This is like: starting from W, we can add 2 cells at a time if they are diagonal corners of a square whose other 2 corners are in the current white set. We want to grow W to cover everything.
+
+So the question is: what's the smallest W (white set) from which we can grow to cover all 121 cells, where each growth step adds 2 diagonal corners of a square whose other 2 corners are already in W?
+
+This is a cleaner formulation. We want the minimum "generating set" W such that by repeatedly adding diagonal pairs (of squares whose other diagonal is already present), we can fill the grid.
+
+Let me think about what structures can be generated.
+
+If we have cells (i,j) and (i+d, j+d) in W (a diagonal), we can add (i+d, j) and (i, j+d) (the other diagonal). Or vice versa: if (i+d,j) and (i,j+d) are in W, we can add (i,j) and (i+d,j+d).
+
+So the operation is: if two cells forming a diagonal of a square are in W, we can add the other diagonal.
+
+This is related to the concept of "additive closure" or something. Let me think in terms of coordinates.
+
+Cell (i,j). Two cells (a,b) and (c,d) form a diagonal of an axis-aligned square iff |a-c| = |b-d| and the midpoint is the same... no. (a,b) and (c,d) are diagonal corners of an axis-aligned square iff |a-c| = |b-d| (the side lengths are equal) and a≠c, b≠d. The other two corners are (a,d) and (c,b).
+
+So: if (a,b) and (c,d) are in W with |a-c| = |b-d|, a≠c, b≠d, then we can add (a,d) and (c,b).
+
+Let me think of this in terms of a transformation. If we have (a,b) and (c,d) in W where a-c = d-b (i.e., a+b = c+d, same anti-diagonal) or a-c = b-d (i.e., a-b = c-d, same diagonal)... 
+
+Wait: |a-c| = |b-d|. Case 1: a-c = b-d, i.e., a-b = c-d (same "diagonal" a-b = const). Case 2: a-c = d-b, i.e., a+b = c+d (same "anti-diagonal" a+b = const).
+
+Case 1: (a,b) and (c,d) with a-b = c-d. Other corners: (a,d) and (c,b). Check: a-d and c-b. a-d = a - (b - (a-c)) ... let me just compute. If a-b = c-d = k, then d = c - k, b = a - k. Other corners: (a, c-k) and (c, a-k). Diagonal of these: a - (c-k) = a - c + k and c - (a-k) = c - a + k. These aren't equal unless... hmm. Let me re-examine.
+
+Actually the two cells (a,b) and (c,d) are diagonal corners, and (a,d),(c,b) are the other diagonal. For (a,d) and (c,b) to also be diagonal corners of the same square, we need |a-c| = |d-b|, which is the same condition. Good.
+
+So in Case 1 (a-b = c-d, same diagonal): the other two corners (a,d) and (c,b) have a-d = a-(c-k) = a-c+k and c-b = c-(a-k) = c-a+k = -(a-c)+k. So a-d = -(c-b), meaning (a,d) and (c,b) are on the same anti-diagonal (a+d = c+b). Indeed a+d = a + c - k and c + b = c + a - k. Yes, a+d = c+b. So they're on the same anti-diagonal.
+
+In Case 2 (a+b = c+d, same anti-diagonal): other corners (a,d) and (c,b). a+d and c+b. a + d = a + (a+b-c) = 2a+b-c... hmm let me just check a-d vs c-b. a - d = a - (a+b-c) = c - b. So a-d = c-b, meaning (a,d) and (c,b) are on the same diagonal.
+
+So the operation is:
+- If two cells on the same diagonal (a-b = const) are in W, we can add two cells on the corresponding anti-diagonal.
+- If two cells on the same anti-diagonal (a+b = const) are in W, we can add two cells on the corresponding diagonal.
+
+More precisely: if (a,b) and (c,d) are on the same diagonal (a-b = c-d = k), with a ≠ c, then we add (a,d) and (c,b), which are on the anti-diagonal a+d = c+b = m (some value). The relationship: m = a + d = a + (c - k) = a + c - k. And the original cells have a + b = a + (a - k) = 2a - k and c + d = c + (c - k) = 2c - k. So the anti-diagonal of the new cells is m = a + c - k, which is the average of the two anti-diagonals of the original cells: ((2a-k) + (2c-k))/2 = a + c - k. Yes.
+
+This is getting complex. Let me think about it differently.
+
+Let me think about which cells can be generated from a small set.
+
+Consider the "diagonal" value D(i,j) = i - j and "anti-diagonal" value S(i,j) = i + j.
+
+A cell is determined by (D, S) with D + S = 2i (even) and S - D = 2j (even). So D and S have the same parity, and i = (D+S)/2, j = (S-D)/2, with 0 ≤ i,j ≤ 10.
+
+The operation: given two cells on the same D (diagonal), say (D, S1) and (D, S2), we can add two cells (D', S') and (D'', S'') where... the other corners. Original cells: (a,b) with D=a-b, S1=a+b; (c,d) with D=c-d=a-b, S2=c+d. Other corners: (a,d) with D'=a-d, S'=a+d; (c,b) with D''=c-b, S''=c+b.
+
+D' = a - d = a - (c - (a-b)) = a - c + a - b = 2a - c - b. Hmm. Since D = a - b = c - d, we have d = c - D, b = a - D. So D' = a - d = a - c + D. D'' = c - b = c - a + D = -(a-c) + D. So D' + D'' = 2D and D' = D + (a-c), D'' = D - (a-c). S' = a + d = a + c - D. S'' = c + b = c + a - D = S'. So S' = S'' = a + c - D.
+
+So the two new cells have the same S value (= a+c-D) and D values D ± (a-c), which are symmetric around D. And the original cells had S values S1 = 2a - D, S2 = 2c - D, so a+c-D = (S1+S2)/2. And a - c = (S1 - S2)/2.
+
+So: given two cells on diagonal D with S-values S1, S2 (same parity as D), we can add two cells on anti-diagonal S = (S1+S2)/2 with D-values D ± (S1-S2)/2.
+
+This is a kind of "reflection" or "rotation" operation. It's like rotating 90 degrees around the center of the square.
+
+Hmm, this is getting complicated. Let me think about the problem from a higher level.
+
+Let me think about the answer for small cases and try to find a pattern.
+
+1×1: 0
+2×2: 2
+3×3: 6 (found above)
+
+Let me compute 4×4.
+
+Actually, let me think about this more carefully using the reverse process. We want the minimum white set W that generates all cells.
+
+For the reverse process, starting from W, we can add pairs. Let me think about what's the minimum generating set.
+
+Key observation: the operation preserves something. Let me think about parity of i and j separately.
+
+Cell (i,j). Consider the four parity classes: (i mod 2, j mod 2) ∈ {(0,0),(0,1),(1,0),(1,1)}.
+
+A square with corners (a,b),(a+d,b),(a,b+d),(a+d,b+d). The parities:
+- (a,b): (a%2, b%2)
+- (a+d,b): (a%2 ⊕ d%2, b%2) -- wait let me use (a+d)%2, b%2
+- (a,b+d): a%2, (b+d)%2
+- (a+d,b+d): (a+d)%2, (b+d)%2
+
+If d is even: all four corners have the same parity class (a%2, b%2).
+If d is odd: the four corners are (a%2,b%2), (1-a%2, b%2), (a%2, 1-b%2), (1-a%2, 1-b%2) — all four parity classes.
+
+When d is even, the diagonal we color has both cells in the same parity class (since (a,b) and (a+d,b+d) have same parity, and (a+d,b) and (a,b+d) have same parity which is also (a%2, b%2) when d even... wait no. (a+d,b) with d even: (a%2, b%2). (a,b+d): (a%2, b%2). So all four in same class. Both diagonals are in the same class.
+
+When d is odd: diagonal 1 = {(a,b),(a+d,b+d)}: parities (a%2,b%2) and (1-a%2,1-b%2) — two different classes. Diagonal 2 = {(a+d,b),(a,b+d)}: parities (1-a%2,b%2) and (a%2,1-b%2) — two different classes.
+
+So when d is odd, coloring a diagonal adds 2 cells from 2 different parity classes (specifically, either {(0,0),(1,1)} or {(0,1),(1,0)}).
+
+When d is even, coloring a diagonal adds 2 cells from the same parity class.
+
+In the reverse process (growing white set), when d is even, we add 2 cells of the same parity class. When d is odd, we add 2 cells from classes {(0,0),(1,1)} or {(0,1),(1,0)}.
+
+Hmm, let me think about the parity class counts.
+
+In 11×11 grid:
+- (0,0): i even, j even: 6×6 = 36
+- (0,1): i even, j odd: 6×5 = 30
+- (1,0): i odd, j even: 5×6 = 30
+- (1,1): i odd, j odd: 5×5 = 25
+
+Total: 36+30+30+25 = 121. ✓
+
+Now, in the reverse process, we start with W (white) and grow. Each step adds 2 cells. The operations:
+- d even: add 2 cells of same class.
+- d odd: add 2 cells, one from {(0,0) or (1,1)} and one from the other, OR one from {(0,1)} and one from {(1,0)}.
+
+Wait, let me re-examine. d odd: diagonal 1 = {(a,b),(a+d,b+d)} which is classes (a%2,b%2) and (1-a%2,1-b%2). If (a%2,b%2) = (0,0), then the pair is {(0,0),(1,1)}. If (a%2,b%2) = (0,1), pair is {(0,1),(1,0)}. Etc.
+
+So d-odd operations always pair a cell from {(0,0),(1,1)} with another from the same set, or a cell from {(0,1),(1,0)} with another from the same set. Specifically:
+- Diagonal type A: pairs (0,0) with (1,1) [or vice versa]
+- Diagonal type B: pairs (0,1) with (1,0) [or vice versa]
+
+And d-even operations add 2 cells from the same class.
+
+So in the reverse process, let's track the four classes. Let w00, w01, w10, w11 be the number of white cells in each class. Initially these are the counts in W. Each step:
+- d even, class (0,0): w00 += 2
+- d even, class (0,1): w01 += 2
+- d even, class (1,0): w10 += 2
+- d even, class (1,1): w11 += 2
+- d odd, type A: w00 += 1, w11 += 1
+- d odd, type B: w01 += 1, w10 += 1
+
+We need to reach w00=36, w01=30, w10=30, w11=25.
+
+The initial values are the W counts. The changes: w00 and w11 change by the same amount (from type A ops) plus even amounts (from d-even ops on their respective classes). Similarly w01 and w10 change by the same amount (from type B) plus even amounts.
+
+Let me define:
+- a = number of type A (d-odd) operations
+- b = number of type B (d-odd) operations
+- e00, e01, e10, e11 = number of d-even operations for each class
+
+Then:
+w00_final = w00_init + 2*e00 + a = 36
+w01_final = w01_init + 2*e01 + b = 30
+w10_final = w10_init + 2*e10 + b = 30
+w11_final = w11_init + 2*e11 + a = 25
+
+From these:
+w00_init + a ≡ 36 (mod 2) → w00_init + a even
+w11_init + a ≡ 25 (mod 2) → w11_init + a odd
+w01_init + b ≡ 30 (mod 2) → w01_init + b even
+w10_init + b ≡ 30 (mod 2) → w10_init + b even
+
+From w00_init + a even and w11_init + a odd: w00_init and w11_init have different parities. So w00_init ≢ w11_init (mod 2).
+
+Similarly w01_init ≡ w10_init (mod 2) (both even or both odd with b).
+
+So necessary conditions on W:
+- w00_init and w11_init have different parities (one even, one odd)
+- w01_init and w10_init have the same parity
+
+Also, we need w00_init + a ≤ 36, w11_init + a ≤ 25 (a ≤ 25 - w11_init and a ≤ 36 - w00_init), and a ≥ 0. Similarly for b.
+
+We want to minimize |W| = w00_init + w01_init + w10_init + w11_init.
+
+From the equations:
+a = 36 - w00_init - 2*e00 = 25 - w11_init - 2*e11
+So 36 - w00_init ≡ 25 - w11_init (mod 2), i.e., w00_init - w11_init ≡ 11 (mod 2), i.e., w00_init - w11_init is odd. Consistent with different parities.
+
+Also a ≥ 0: w00_init ≤ 36, w11_init ≤ 25. And a = 36 - w00_init - 2*e00 ≥ 0, so a ≤ 36 - w00_init and a has same parity as 36 - w00_init.
+
+To minimize |W|, we want a and b to be as large as possible (so initial counts small) but a ≤ min(36 - w00_init, 25 - w11_init) and the parity works out.
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+We want to minimize |W|. The total cells is 121. Black = 121 - |W|. We want to maximize black = minimize |W|.
+
+From the parity constraints:
+- w00_init and w11_init different parity
+- w01_init and w10_init same parity
+
+Also, we need a ≥ 0 and b ≥ 0, which means:
+- w00_init ≤ 36 and w11_init ≤ 25 (trivially true since those are the max counts)
+- Actually we need a = 36 - w00_init - 2*e00 ≥ 0 for some non-negative integer e00, and similarly a = 25 - w11_init - 2*e11 ≥ 0. So a can range from 0 to min(36 - w00_init, 25 - w11_init) with the right parity. As long as min(36 - w00_init, 25 - w11_init) ≥ 0 and there exists a value of a with the right parity in range, it works.
+
+The parity of a: a ≡ 36 - w00_init (mod 2) and a ≡ 25 - w11_init (mod 2). These are consistent iff w00_init - w11_init ≡ 11 (mod 2) ≡ 1 (mod 2), i.e., different parities. ✓ (already required)
+
+So the constraints are just the parity constraints and that w00_init ≤ 36, w11_init ≤ 25, w01_init ≤ 30, w10_init ≤ 30 (all trivially true).
+
+Wait, but I also need a ≤ 25 - w11_init (since e11 ≥ 0) and a ≤ 36 - w00_init (since e00 ≥ 0). And a ≥ 0. So we need a to exist with 0 ≤ a ≤ min(36 - w00_init, 25 - w11_init) and correct parity. This requires min(36 - w00_init, 25 - w11_init) ≥ 0 (trivially true) and if the min is 0, then a = 0 must have the right parity, i.e., 36 - w00_init is even (equivalently w00_init even) and 25 - w11_init is even (w11_init odd). Hmm, this could be a constraint.
+
+But actually, these are just parity/counting constraints. The real question is whether the operations can actually be performed geometrically (i.e., the required squares exist with the right cells). The counting argument gives necessary conditions but may not be sufficient.
+
+Let me step back and think about whether there's a cleaner approach.
+
+Let me reconsider. The counting/parity argument gives necessary conditions. Let me find the minimum |W| from these necessary conditions, then check if it's achievable.
+
+To minimize |W| = w00 + w01 + w10 + w11:
+- w00, w11 different parity
+- w01, w10 same parity
+- Need a to exist: 0 ≤ a ≤ min(36 - w00, 25 - w11), a ≡ 36 - w00 (mod 2)
+- Need b to exist: 0 ≤ b ≤ min(30 - w01, 30 - w10), b ≡ 30 - w01 (mod 2)
+
+For a to exist: min(36 - w00, 25 - w11) ≥ 0 (trivially true) and if min = 0, need 36 - w00 even (when 36 - w00 = 0, i.e., w00 = 36) — actually if min(36-w00, 25-w11) = 0, then a = 0, and we need a ≡ 36 - w00 (mod 2), so 36 - w00 even, i.e., w00 even. If w00 = 36 (even), fine. If 25 - w11 = 0, i.e., w11 = 25 (odd), then a = 0, need 36 - w00 even. 
+
+Hmm, to truly minimize, let me think about what the minimum |W| could be.
+
+If we could have |W| = 2 (one cell in two classes), but we need 4 classes represented... actually no, we could have |W| = 1 if that one cell can generate everything. But can a single cell generate anything? With one cell, we can't do any operation (need 2 cells on a diagonal). So |W| ≥ 2.
+
+With |W| = 2: two cells. They need to be on the same diagonal or anti-diagonal to perform an operation. If they are, we can add 2 more cells (the other diagonal of the square). Then we have 4 cells, and can potentially continue.
+
+But the parity constraints: with |W| = 2, say w00 = 1, w11 = 1 (different parity ✓), w01 = 0, w10 = 0 (same parity ✓). Then a = 36 - 1 - 2*e00 = 35 - 2*e00, and also a = 25 - 1 - 2*e11 = 24 - 2*e11. So a ≡ 35 (mod 2) = 1 and a ≡ 24 (mod 2) = 0. Contradiction! So this doesn't work.
+
+Wait, I think I need to recheck. a ≡ 36 - w00 (mod 2) = 36 - 1 = 35 ≡ 1 (mod 2). a ≡ 25 - w11 (mod 2) = 25 - 1 = 24 ≡ 0 (mod 2). 1 ≠ 0, contradiction. So w00=1, w11=1 doesn't work.
+
+What about w00=1, w11=0? Different parity ✓. a ≡ 36-1=35≡1, a ≡ 25-0=25≡1. Consistent! a = 1, 3, 5, ... up to min(35, 25) = 25. So a can be 1, 3, ..., 25. With a = 25: e00 = (36-1-25)/2 = 5, e11 = (25-0-25)/2 = 0. OK.
+
+And w01=0, w10=0: b ≡ 30-0=30≡0, b ≡ 30-0=30≡0. Consistent. b = 0, 2, ..., 30. With b = 30: e01 = 0, e10 = 0.
+
+So |W| = 1 (just w00=1) satisfies the counting constraints! With a=25, b=30, e00=5, e11=0, e01=0, e10=0.
+
+Total operations in reverse: a + b + e00 + e01 + e10 + e11 = 25 + 30 + 5 + 0 + 0 + 0 = 60. Each adds 2 cells. 1 + 120 = 121. ✓
+
+So from counting, |W| = 1 might suffice, giving 120 black cells. But wait, we showed earlier that we need at least 2 white remaining (from the last forward step needing 4 white). Let me recheck.
+
+Oh wait, I think the issue is that the counting argument is necessary but the geometric/structural constraints are much stronger. A single cell cannot generate all 121 cells through these operations, because you need at least 2 cells to perform any operation.
+
+With |W| = 1, we can't do any reverse operation (need 2 cells on a diagonal). So |W| = 1 is not achievable. The counting argument is too weak.
+
+So I need to think about the actual geometric constraints.
+
+Let me reconsider. With |W| = 2, we need the 2 cells to be on the same diagonal or anti-diagonal. Then we can add 2 cells. With 4 cells, we can potentially do more.
+
+Let me think about what sets of cells can be generated from 2 initial cells.
+
+Actually, let me think about this problem differently. Let me consider the structure more carefully.
+
+Let me think about the "diagonal graph" or some algebraic structure.
+
+Alternative approach: Let me think about the problem in terms of the coordinates modulo something.
+
+Consider the values i mod 2 and j mod 2 (parity classes) — we already did this. Let me think about i mod 3 or something.
+
+Hmm, let me think about a cleaner invariant.
+
+Let me consider the following: assign to each cell (i,j) a weight w(i,j) = α^i · β^j for some α, β. When we perform an operation on square with corners (a,b), (a+d,b), (a,b+d), (a+d,b+d), coloring diagonal {(a,b),(a+d,b+d)}:
+
+The sum of weights of the 4 corners: α^a β^b + α^{a+d} β^b + α^a β^{b+d} + α^{a+d} β^{b+d} = α^a β^b (1 + α^d + β^d + α^d β^d) = α^a β^b (1+α^d)(1+β^d).
+
+The sum of weights of the colored diagonal: α^a β^b + α^{a+d} β^{b+d} = α^a β^b (1 + α^d β^d).
+
+The sum of weights of the other diagonal: α^{a+d} β^b + α^a β^{b+d} = α^a β^b (α^d + β^d).
+
+If we choose α, β such that (1+α^d)(1+β^d) = 0 for all d, that would give an invariant of 0, not useful. 
+
+Let me think about what invariant we can extract. The key is: we color 2 of the 4 corners. The 4 corners have total weight W4 = α^a β^b(1+α^d)(1+β^d). The colored diagonal has weight Wd = α^a β^b(1 + α^d β^d) or α^a β^b(α^d + β^d).
+
+If we want an invariant involving the black cells, we need to relate the black cell weights to something.
+
+Hmm, let me think about this differently. 
+
+Let me consider the sum S = Σ_{black cells} (-1)^{i+j} or some variant. Actually, we showed both cells on a diagonal have the same parity of i+j. So each operation adds 2 to either the even-parity or odd-parity black count. Not immediately an invariant.
+
+Let me think about a different weight. Consider w(i,j) = (-1)^i. The 4 corners of a square: (-1)^a + (-1)^{a+d} + (-1)^a + (-1)^{a+d} = 2((-1)^a + (-1)^{a+d}). If d is odd, this is 0. If d is even, this is 4(-1)^a.
+
+The diagonal {(a,b),(a+d,b+d)}: (-1)^a + (-1)^{a+d}. If d odd: 0. If d even: 2(-1)^a.
+The other diagonal {(a+d,b),(a,b+d)}: (-1)^{a+d} + (-1)^a. Same thing.
+
+So for w(i,j) = (-1)^i, both diagonals have the same weight. Not useful for distinguishing.
+
+Let me try w(i,j) = (-1)^j. Same issue by symmetry.
+
+Let me try w(i,j) = (-1)^{i+j}. Diagonal 1: (-1)^{a+b} + (-1)^{a+d+b+d} = (-1)^{a+b}(1 + (-1)^{2d}) = 2(-1)^{a+b}. Diagonal 2: (-1)^{a+d+b} + (-1)^{a+b+d} = 2(-1)^{a+b+d}. If d even: 2(-1)^{a+b}. If d odd: -2(-1)^{a+b}.
+
+So the two diagonals have weights 2(-1)^{a+b} and 2(-1)^{a+b+d}. When d is even, they're equal. When d is odd, they're opposite.
+
+The total weight of 4 corners: 2(-1)^{a+b} + 2(-1)^{a+b+d} = 2(-1)^{a+b}(1 + (-1)^d). If d odd: 0. If d even: 4(-1)^{a+b}.
+
+So when d is odd, the total weight of the 4 corners is 0, and we color one diagonal (weight 2(-1)^{a+b}) or the other (weight -2(-1)^{a+b}). The sum of weights of colored cells is ±2(-1)^{a+b}, and the sum of weights of uncolored is ∓2(-1)^{a+b}.
+
+When d is even, total weight is 4(-1)^{a+b}, and both diagonals have weight 2(-1)^{a+b}. We color one diagonal (weight 2(-1)^{a+b}), uncolored has weight 2(-1)^{a+b}.
+
+Hmm, this doesn't immediately give an invariant on the black set alone.
+
+Let me think about the sum over ALL cells of w(i,j) times (indicator of black). Initially 0 (all white). After each operation, we add the weight of the colored diagonal.
+
+For d even: add 2(-1)^{a+b}. For d odd: add ±2(-1)^{a+b}.
+
+This doesn't seem to lead to a clean invariant.
+
+Let me try a completely different approach. Let me think about the problem computationally for small cases and find a pattern.
+
+n=1: 0
+n=2: 2
+n=3: 6
+
+Let me think about n=4. 4×4 grid, 16 cells.
+
+Let me try to find the maximum for n=4 by thinking about it.
+
+Actually, let me think about the reverse process more carefully. We want the minimum generating set W.
+
+Let me think about what cells can generate what. 
+
+Consider two cells on the same diagonal D = i - j = k. Say (i1, j1) and (i2, j2) with i1 - j1 = i2 - j2 = k. The operation adds (i1, j2) and (i2, j1). Note (i1, j2) has D = i1 - j2 and (i2, j1) has D = i2 - j1. And i1 - j2 = i1 - (i2 - k) = i1 - i2 + k. i2 - j1 = i2 - (i1 - k) = i2 - i1 + k = -(i1 - i2) + k. So the new D values are k ± (i1 - i2), symmetric around k. And the new S values: i1 + j2 = i1 + i2 - k and i2 + j1 = i2 + i1 - k, same S = i1 + i2 - k.
+
+So from two cells on diagonal k with S-values s1, s2, we get two cells on anti-diagonal (s1+s2)/2 with D-values k ± (s1-s2)/2.
+
+This is exactly a 90-degree rotation around the center of the square! The center is at ((i1+i2)/2, (j1+j2)/2). Rotating (i1,j1) by 90° around this center gives... let me check. Center = ((i1+i2)/2, (j1+j2)/2). Rotating (i1, j1) by 90° clockwise: (cx + (j1 - cy), cy - (i1 - cx)) = (cx + j1 - cy, cy - i1 + cx). cx = (i1+i2)/2, cy = (j1+j2)/2. = ((i1+i2)/2 + j1 - (j1+j2)/2, (j1+j2)/2 - i1 + (i1+i2)/2) = ((i1+i2+j1-j1-j2+j2... hmm let me just compute directly.
+
+cx + (j1 - cy) = (i1+i2)/2 + j1 - (j1+j2)/2 = (i1+i2)/2 + (j1-j2)/2 = (i1+i2+j1-j2)/2.
+cy - (i1 - cx) = (j1+j2)/2 - i1 + (i1+i2)/2 = (j1+j2)/2 + (i2-i1)/2 = (i2-i1+j1+j2)/2.
+
+So the rotated cell is ((i1+i2+j1-j2)/2, (i2-i1+j1+j2)/2). For this to be a valid cell, we need the coordinates to be integers, which requires i1+i2+j1-j2 and i2-i1+j1+j2 to be even. Since i1-j1 = i2-j2 = k, we have j1 = i1 - k, j2 = i2 - k. Then i1+i2+j1-j2 = i1+i2+(i1-k)-(i2-k) = 2i1. Even. ✓. And i2-i1+j1+j2 = i2-i1+(i1-k)+(i2-k) = 2i2-2k. Even. ✓.
+
+The rotated cell: (i1, (i2-i1+j1+j2)/2) = (i1, (2i2-2k)/2) = (i1, i2-k) = (i1, j2). ✓ That's one of the new cells.
+
+So the operation is a 90° rotation of the two diagonal cells around the square's center, producing the other two corners.
+
+This is a nice geometric interpretation but I'm not sure it directly helps.
+
+Let me think about the problem in terms of a different algebraic structure. 
+
+Consider representing each cell (i,j) as a complex number z = i + ji (where i is the imaginary unit). Then the four corners of a square are z, z+d, z+di, z+d+di (where d is real). The diagonals are {z, z+d+di} and {z+d, z+di}. 
+
+The operation: given two cells on a diagonal, add the other two. In complex number terms, if we have z1 and z2 on a diagonal, the other two are obtained by rotating. Specifically, if z1 and z2 are diagonal corners, the center is (z1+z2)/2, and the other corners are (z1+z2)/2 ± i(z1-z2)/2.
+
+So the other corners are: c + i(z1-z2)/2 and c - i(z1-z2)/2 where c = (z1+z2)/2. These are (z1+z2)/2 + i(z1-z2)/2 and (z1+z2)/2 - i(z1-z2)/2.
+
+Let me verify: z1 = a+bi, z2 = (a+d)+(b+d)i. c = (2a+d)/2 + (2b+d)/2 i = (a+d/2) + (b+d/2)i. z1-z2 = -d - di. i(z1-z2)/2 = i(-d-di)/2 = (-di + d)/2 = (d-di)/2 = d/2 - d/2 i. So c + i(z1-z2)/2 = (a+d/2+d/2) + (b+d/2-d/2)i = (a+d) + bi. That's (a+d, b). ✓. And c - i(z1-z2)/2 = (a+d/2-d/2) + (b+d/2+d/2)i = a + (b+d)i. That's (a, b+d). ✓.
+
+So in complex number terms, the operation is: given z1, z2 (diagonal corners), produce (z1+z2)/2 ± i(z1-z2)/2.
+
+Note: (z1+z2)/2 + i(z1-z2)/2 = z1(1+i)/2 + z2(1-i)/2. And (z1+z2)/2 - i(z1-z2)/2 = z1(1-i)/2 + z2(1+i)/2.
+
+So the new cells are linear combinations of z1, z2 with coefficients (1±i)/2. 
+
+If we think of the grid as a subset of Z[i] (Gaussian integers), the operation takes two Gaussian integers on a diagonal and produces two more.
+
+Hmm, let me think about this in terms of the lattice. The cells are {a + bi : 0 ≤ a,b ≤ 10, a,b ∈ Z}. 
+
+The operation: from z1, z2 (with z1-z2 having equal real and imaginary parts, i.e., z1-z2 = d(1+i) or d(1-i) for some integer d), produce z1(1+i)/2 + z2(1-i)/2 and z1(1-i)/2 + z2(1+i)/2.
+
+Note that (1+i)/2 and (1-i)/2 are not Gaussian integers, but the results are integers because of the constraint on z1-z2.
+
+Let me think about the sublattice structure. Consider the lattice generated by 1 and i (the Gaussian integers). The operation involves multiplication by (1±i)/2, which relates to the sublattice (1+i)Z[i].
+
+Actually, (1+i)/2 * z = z/2 + iz/2. For this to be a Gaussian integer, we need z to be in (1+i)Z[i]... hmm, not exactly.
+
+Let me think about it modulo 2. In Z[i]/(2), note that 2 = -i(1+i)^2, so (2) = (1+i)^2 up to units. The prime 1+i divides 2.
+
+Cells mod (1+i): two cells are congruent mod (1+i) iff their difference is divisible by (1+i), i.e., a+bi ≡ 0 mod (1+i) iff a ≡ b (mod 2) (since a+bi = (a-b) + b(1+i), and (1+i) | (a+bi) iff (1+i) | (a-b), iff a-b even, iff a ≡ b mod 2).
+
+So the residue mod (1+i) is determined by (a-b) mod 2, i.e., the parity of a-b = i-j. This is the same as the parity of i+j (since i-j ≡ i+j mod 2). So there are 2 residue classes mod (1+i): even i+j and odd i+j.
+
+Hmm, this connects to our earlier parity observation.
+
+Let me think about higher powers of (1+i). Mod (1+i)^2 = (2i) = (2) (up to units), so mod 2. The residue mod 2 is determined by (i mod 2, j mod 2), giving 4 classes. This is our parity class analysis.
+
+Let me think about mod (1+i)^3. (1+i)^2 = 2i, (1+i)^3 = 2i(1+i) = 2i - 2. So mod (1+i)^3 is mod (2i-2), i.e., mod 2(1-i) = 2(1-i). Hmm, |2(1-i)|^2 = 8, so there are 8 residue classes mod (1+i)^3.
+
+Actually, |(1+i)^k|^2 = 2^k, so there are 2^k residue classes mod (1+i)^k.
+
+The operation: z_new = z1(1+i)/2 + z2(1-i)/2. Note (1+i)/2 = 1/(1-i) and (1-i)/2 = 1/(1+i). So z_new = z1/(1-i) + z2/(1+i). 
+
+Hmm, z_new = z1 * (1+i)/2 + z2 * (1-i)/2. Let me think about z_new mod (1+i)^k for various k.
+
+z1(1+i)/2: since (1+i)/2 has (1+i)-adic valuation -1 (it's (1+i)/(1+i)^2 = 1/(1+i)), this is z1/(1+i). So z1(1+i)/2 has valuation v(z1) - 1 where v is the (1+i)-adic valuation.
+
+This is getting into p-adic analysis which might be overkill. Let me try a different approach.
+
+Let me go back to thinking about the problem computationally. Let me consider the structure for general n×n and try to find the answer for 11×11.
+
+Let me reconsider the reverse process. We want the minimum W that generates all cells. 
+
+Let me think about what happens with the diagonal/anti-diagonal structure.
+
+Define D(i,j) = i-j and S(i,j) = i+j. A cell is (D, S) with D ≡ S (mod 2) and |D| ≤ 10, 0 ≤ S ≤ 20, and the cell is valid (0 ≤ i,j ≤ 10).
+
+The operation in (D,S) space: from two cells (D, S1) and (D, S2) on the same D, produce (D + (S1-S2)/2, (S1+S2)/2) and (D - (S1-S2)/2, (S1+S2)/2). These are on the same S = (S1+S2)/2.
+
+Or from two cells (D1, S) and (D2, S) on the same S, produce ((D1+D2)/2, S + (D1-D2)/2) and ((D1+D2)/2, S - (D1-D2)/2). These are on the same D = (D1+D2)/2.
+
+So the operation swaps between "same D" and "same S", taking averages and differences.
+
+This looks like a discrete version of a rotation, and it reminds me of the structure of the dihedral group or the Euclidean algorithm.
+
+Let me think about it as follows. Consider the transformation on (D, S) pairs. If we have two points on the same D-line, we get two points on a new S-line, and vice versa. The new S is the average of the old S values, and the new D values are symmetric around the old D.
+
+This is exactly the structure of a "reflection" in the (D, S) plane. If we think of (D, S) as coordinates, having two points (D, S1) and (D, S2), the new points are obtained by reflecting across the midpoint.
+
+Actually, I think this operation generates a group, and the question is about the orbit structure.
+
+Let me think about it differently. Consider the "value" V(i,j) = i + j*(some base) or think of cells as elements of a group.
+
+Actually, let me consider the following. Map each cell (i,j) to the Gaussian integer z = i + ji. The operation takes z1, z2 on a diagonal (z1 - z2 = d(1+i) or d(1-i)) and produces z1' = z1(1+i)/2 + z2(1-i)/2 and z2' = z1(1-i)/2 + z2(1+i)/2.
+
+Note z1' + z2' = z1 + z2 and z1' - z2' = i(z1 - z2). So the operation preserves the sum and rotates the difference by 90°.
+
+So if we have a set of Gaussian integers W, and two of them z1, z2 with z1 - z2 ∈ (1+i)Z (i.e., on a diagonal), we can add z1' and z2' where z1'+z2' = z1+z2 and z1'-z2' = i(z1-z2).
+
+Since z1-z2 ∈ (1+i)Z, we have i(z1-z2) ∈ i(1+i)Z = (i-1)Z = (1-i)Z. And z1'-z2' ∈ (1-i)Z, so z1', z2' are on an anti-diagonal. Makes sense.
+
+Now, the key question: what is the orbit of a small set under this operation?
+
+Let me think about the "sum" invariant. The operation preserves z1+z2 (the sum of the two cells being operated on). But different operations involve different pairs, so there's no global sum invariant.
+
+Let me think about the centroid. The center of the square is (z1+z2)/2, which is preserved. So each operation is centered at some point, and the four corners are symmetric around it.
+
+Hmm, let me think about the problem from the perspective of: what is the minimum number of white cells such that the rest can be "paired up" into diagonal pairs of squares?
+
+Actually, I wonder if the answer is related to n^2 - n or something like that. Let me compute small cases more carefully.
+
+n=1: 0. n^2 - n = 0. ✓
+n=2: 2. n^2 - n = 2. ✓
+n=3: 6. n^2 - n = 6. ✓
+
+Interesting! Let me check n=4. If the pattern is n^2 - n, then 16 - 4 = 12.
+
+Let me verify n=4 by trying to construct 12 black cells (4 white) or prove it's the max.
+
+For n=4, can we achieve 12 black (4 white)? We need 4 white cells that generate all 16 cells.
+
+Let me try. Place white cells at (0,0), (0,3), (3,0), (3,3) — the four corners.
+
+From (0,0) and (3,3): same diagonal D=0, S=0 and S=6. New cells: D = 0 ± (0-6)/2 = 0 ± (-3) = 3 or -3, S = 3. So (D,S) = (3,3) → (i,j) = (3,0) and (D,S) = (-3,3) → (i,j) = (0,3). But those are already white! So this operation doesn't add new cells.
+
+Hmm. Let me try different white cells.
+
+Let me try (0,0), (1,1), (2,2), (3,3) — the main diagonal. From (0,0) and (2,2): D=0, S=0 and S=4. New: D = 0 ± (-2) = ±2, S = 2. (D,S)=(2,2) → (2,0); (D,S)=(-2,2) → (0,2). Add (2,0) and (0,2).
+
+From (1,1) and (3,3): D=0, S=2 and S=6. New: D = 0 ± (-2) = ±2, S = 4. (2,4) → (3,1); (-2,4) → (1,3). Add (3,1) and (1,3).
+
+From (0,0) and (1,1): D=0, S=0 and S=2. New: D = 0 ± (-1) = ±1, S = 1. (1,1) → (1,0); (-1,1) → (0,1). Add (1,0) and (0,1).
+
+From (2,2) and (3,3): D=0, S=4 and S=6. New: D = ±1, S = 5. (1,5) → (3,2); (-1,5) → (2,3). Add (3,2) and (2,3).
+
+Now we have: (0,0),(1,1),(2,2),(3,3),(2,0),(0,2),(3,1),(1,3),(1,0),(0,1),(3,2),(2,3). That's 12 cells. Missing: (0,3),(3,0),(1,2),(2,1).
+
+From (0,1) and (1,0): same S=1, D=-1 and D=1. New: D = 0, S = 1 ± 1 = 0 or 2. (0,0) already have; (0,2) already have. No new.
+
+From (0,2) and (2,0): same S=2, D=-2 and D=2. New: D=0, S = 2 ± 2 = 0 or 4. (0,0) have; (0,4) → (2,2) have. No new.
+
+From (1,3) and (3,1): same S=4, D=-2 and D=2. New: D=0, S = 4 ± 2 = 2 or 6. (0,2) → (1,1) have; (0,6) → (3,3) have. No new.
+
+From (1,0) and (0,1): same S=1, D=1 and D=-1. New: D=0, S = 1 ± 1 = 0 or 2. Already have.
+
+Hmm, we're stuck at 12. The missing cells are (0,3),(3,0),(1,2),(2,1). Note these are on the anti-diagonal i+j=3.
+
+From (0,2) and (2,0): we tried, gives nothing new.
+From (0,1) and (1,0): gives nothing new.
+From (1,3) and (3,1): gives nothing new.
+From (2,3) and (3,2): same S=5, D=-1 and D=1. New: D=0, S = 5 ± 1 = 4 or 6. (0,4)→(2,2) have; (0,6)→(3,3) have. Nothing new.
+
+What about using cells on the same D? (0,0) D=0 and (0,2) D=-2 — different D. 
+
+Let me look for two cells on the same D among our 12 cells that could generate a missing cell.
+
+Missing: (0,3) D=-3, (3,0) D=3, (1,2) D=-1, (2,1) D=1.
+
+To generate (0,3) D=-3, S=3 and (3,0) D=3, S=3: these are on the same S=3. We need two cells on the same D that produce S=3. From two cells (D, S1), (D, S2) on same D, we get S = (S1+S2)/2. So we need (S1+S2)/2 = 3, i.e., S1+S2 = 6. And the new D = D ± (S1-S2)/2 = ±3. So D ± (S1-S2)/2 = ±3, meaning (S1-S2)/2 = |3-D| or |3+D|... 
+
+We need D + (S1-S2)/2 = 3 and D - (S1-S2)/2 = -3 (or vice versa). So D = 0 and (S1-S2)/2 = 3, i.e., S1-S2 = 6. So we need two cells on D=0 with S values differing by 6 and summing to 6. S1+S2=6, S1-S2=6 → S1=6, S2=0. Cells (D,S) = (0,6) = (3,3) and (0,0) = (0,0). Both in our set! So from (0,0) and (3,3), we get (D,S) = (3,3) = (3,0) and (-3,3) = (0,3). 
+
+Wait, I computed this before and said they're already white. Let me recheck. (0,0) and (3,3): D=0, S1=0, S2=6. New S = 3, new D = 0 ± 3 = 3 or -3. (D,S) = (3,3) → i = (3+3)/2 = 3, j = (3-3)/2 = 0. So (3,0). And (D,S) = (-3,3) → i = 0, j = 3. So (0,3). 
+
+But (3,0) and (0,3) are NOT in our current set of 12! I made an error earlier. Let me recheck. Our 12 cells are: (0,0),(1,1),(2,2),(3,3),(2,0),(0,2),(3,1),(1,3),(1,0),(0,1),(3,2),(2,3). (3,0) and (0,3) are not among these. So we CAN add them!
+
+Great, so from (0,0) and (3,3), we add (3,0) and (0,3). Now we have 14 cells. Missing: (1,2) and (2,1).
+
+(1,2) D=-1, S=3. (2,1) D=1, S=3. Same S=3. To generate: need two cells on same D with S1+S2=6, D ± (S1-S2)/2 = ±1. So D = 0, (S1-S2)/2 = 1, S1-S2 = 2, S1+S2 = 6 → S1=4, S2=2. Cells (0,4)=(2,2) and (0,2)=(1,1). Both in our set! From (1,1) and (2,2): D=0, S1=2, S2=4. New S=3, D = ±1. (1,3)→(2,1) and (-1,3)→(1,2). 
+
+So we add (2,1) and (1,2). Now all 16 cells! 
+
+So for n=4, starting from 4 white cells (the main diagonal), we can generate all 16 cells. So 12 black is achievable. But can we do better (14 black, 2 white)?
+
+With 2 white cells, we need them to generate all 16. Let's see if that's possible.
+
+With 2 cells, say (0,0) and (3,3) (D=0, S=0 and S=6). Operation: add (3,0) and (0,3). Now 4 cells: (0,0),(3,3),(3,0),(0,3). These are the 4 corners.
+
+From (0,0) and (0,3): same D=0? (0,0) D=0, (0,3) D=-3. No. Same S? (0,0) S=0, (0,3) S=3. No.
+
+From (0,0) and (3,0): D=0 and D=3. S=0 and S=3. Not same D or S.
+
+From (3,3) and (3,0): D=0 and D=3. S=6 and S=3. Not same.
+
+From (3,3) and (0,3): D=0 and D=-3. S=6 and S=3. Not same.
+
+From (0,0) and (3,3): already did this.
+From (3,0) and (0,3): D=3 and D=-3. S=3 and S=3. Same S=3! New: D = (3+(-3))/2 = 0, S = 3 ± (3-(-3))/2 = 3 ± 3 = 0 or 6. (0,0) and (0,6)=(3,3). Already have.
+
+So from the 4 corners, we can't generate any new cells! The 4 corners are closed under the operation. So 2 white cells (that are opposite corners) generate only 4 cells, not 16.
+
+What if the 2 white cells are different, say (0,0) and (1,1)? D=0, S=0 and S=2. Operation: add (1,0) and (0,1). Now 4 cells: (0,0),(1,1),(1,0),(0,1). These form a 2×2 block.
+
+From (0,0) and (1,1): done. From (1,0) and (0,1): S=1, D=1 and D=-1. New: D=0, S = 1 ± 1 = 0 or 2. (0,0) and (0,2)=(1,1). Already have.
+
+From (0,0) and (1,0): D=0, D=1. Not same. S=0, S=1. Not same.
+From (0,0) and (0,1): D=0, D=-1. Not same. S=0, S=1. Not same.
+From (1,1) and (1,0): D=0, D=1. Not same. S=2, S=1. Not same.
+From (1,1) and (0,1): D=0, D=-1. Not same. S=2, S=1. Not same.
+
+So the 2×2 block is also closed. Can't generate more.
+
+What about (0,0) and (2,2)? D=0, S=0 and S=4. Add (2,0) and (0,2). 4 cells: (0,0),(2,2),(2,0),(0,2). 
+
+From (0,0) and (2,2): done. From (2,0) and (0,2): S=2, D=2 and D=-2. New: D=0, S = 2 ± 2 = 0 or 4. Already have.
+From (0,0) and (2,0): D=0, D=2. Not same D. S=0, S=2. Not same S.
+Etc. Closed again.
+
+What about (0,0) and (1,2)? D=0, D=-1. Not same D. S=0, S=3. Not same S. Can't even do one operation!
+
+So 2 white cells can generate at most 4 cells (when they're on a diagonal), and those 4 are closed. So 2 white is not enough for n=4.
+
+What about 3 white cells? We need 3 cells to generate 16. But each operation adds 2, so 3 → 5 → 7 → ... → 15 → 17. We can never reach 16 from 3 (since 3 is odd and we add 2 each time, we get odd numbers). So 3 white can generate at most 15 cells, not 16. But we need all 16 to be generated (all non-white cells become black). Wait, no — in the reverse process, we need to generate ALL cells from W. So |W| must have the same parity as 121 (for 11×11) or 16 (for 4×4). 16 is even, so |W| must be even. 3 is odd, doesn't work. So |W| ∈ {2, 4, 6, ...}.
+
+We showed |W|=2 doesn't work for n=4. |W|=4 works (the diagonal). So the minimum is 4, giving 12 black. This matches n^2 - n = 12.
+
+Hmm wait, but I should check: is it possible that a different set of 2 white cells generates more than 4? I showed that diagonal pairs generate 4 (closed) and non-diagonal pairs generate 0 (can't even start). So 2 white → at most 4 generated. Not enough for 16.
+
+So for n=4, answer is 12 = 4^2 - 4. 
+
+Let me check n=5. If the pattern holds, answer = 25 - 5 = 20.
+
+For n=5, can we achieve 20 black (5 white)? We need 5 white cells generating all 25. But 5 is odd, and 25 is odd, and we add 2 each time: 5 → 7 → 9 → ... → 25. 5 + 2k = 25 → k = 10. So 10 operations, possible parity-wise.
+
+Hmm, but for n=3, the answer was 6 = 9 - 3. 3 white cells, 3 is odd, 9 is odd. 3 + 2k = 9 → k = 3. So 3 operations. Let me verify: we found 6 black for n=3, so 3 white. ✓.
+
+For n=5, if the pattern is n^2 - n = 20, we need 5 white cells. Let me see if the main diagonal (0,0),(1,1),(2,2),(3,3),(4,4) works.
+
+From (0,0) and (4,4): D=0, S=0,8. New: D=±4, S=4. (4,0) and (0,4). 
+From (0,0) and (2,2): D=0, S=0,4. New: D=±2, S=2. (2,0) and (0,2).
+From (2,2) and (4,4): D=0, S=4,8. New: D=±2, S=6. (4,2) and (2,4).
+From (0,0) and (1,1): D=0, S=0,2. New: D=±1, S=1. (1,0) and (0,1).
+From (1,1) and (2,2): D=0, S=2,4. New: D=±1, S=3. (2,1) and (1,2).
+From (2,2) and (3,3): D=0, S=4,6. New: D=±1, S=5. (3,2) and (2,3).
+From (3,3) and (4,4): D=0, S=6,8. New: D=±1, S=7. (4,3) and (3,4).
+From (0,0) and (3,3): D=0, S=0,6. New: D=±3, S=3. (3,0) and (0,3).
+From (1,1) and (4,4): D=0, S=2,8. New: D=±3, S=5. (4,1) and (1,4).
+From (1,1) and (3,3): D=0, S=2,6. New: D=±2, S=4. (3,1) and (1,3). Wait, (D,S)=(2,4)→(3,1) and (-2,4)→(1,3).
+
+Let me collect all generated cells. From the main diagonal and these operations:
+Main: (0,0),(1,1),(2,2),(3,3),(4,4)
+From (0,0)-(4,4): (4,0),(0,4)
+From (0,0)-(2,2): (2,0),(0,2)
+From (2,2)-(4,4): (4,2),(2,4)
+From (0,0)-(1,1): (1,0),(0,1)
+From (1,1)-(2,2): (2,1),(1,2)
+From (2,2)-(3,3): (3,2),(2,3)
+From (3,3)-(4,4): (4,3),(3,4)
+From (0,0)-(3,3): (3,0),(0,3)
+From (1,1)-(4,4): (4,1),(1,4)
+From (1,1)-(3,3): (3,1),(1,3)
+
+Let me list all: 
+(0,0),(1,1),(2,2),(3,3),(4,4),
+(4,0),(0,4),(2,0),(0,2),(4,2),(2,4),
+(1,0),(0,1),(2,1),(1,2),(3,2),(2,3),(4,3),(3,4),
+(3,0),(0,3),(4,1),(1,4),(3,1),(1,3)
+
+That's 5 + 6 + 8 + 6 = 25. Let me count: 5 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 2 = 5 + 18 = 23. Hmm, let me recount.
+
+Operations listed: 10 operations, each adding 2 cells = 20 new cells. 5 + 20 = 25. ✓
+
+So all 25 cells are generated! So for n=5, 5 white cells (main diagonal) suffice, giving 20 black = 25 - 5. ✓
+
+Now the pattern n^2 - n seems to hold for n = 1,2,3,4,5. Let me check if it could be n^2 - n for n=11, giving 121 - 11 = 110.
+
+But wait, I need to also verify that we can't do better. For n=4, we showed |W|=2 doesn't work, so 4 is minimal. For n=3, |W|=2 generates at most 4 < 9, so 3 is minimal (and |W| must be odd for n=3 since 9 is odd). Actually for n=3, |W| must be odd (same parity as 9), so |W| ∈ {1,3,5,7,9}. |W|=1 can't generate anything. |W|=3 works. So min is 3, giving 6. ✓
+
+For n=5, |W| must be odd. |W|=1: can't generate. |W|=3: can 3 cells generate 25? 3 + 2k = 25 → k = 11. Possible parity-wise. But can 3 cells generate all 25? 
+
+Let me think. With 3 cells, we need at least 2 on the same diagonal or anti-diagonal to start. Say (0,0),(2,2),(4,4) on D=0. From (0,0),(4,4): add (4,0),(0,4). From (0,0),(2,2): add (2,0),(0,2). From (2,2),(4,4): add (4,2),(2,4). Now 9 cells: (0,0),(2,2),(4,4),(4,0),(0,4),(2,0),(0,2),(4,2),(2,4).
+
+These are all cells with both coordinates even. Can we generate odd-coordinate cells? From (0,0) and (2,0): D=0, D=2. Not same. S=0, S=2. Not same. From (0,0) and (0,2): D=0, D=-2. Not same. S=0, S=2. Not same. From (2,0) and (0,2): S=2, D=2 and D=-2. Same S! New: D=0, S = 2 ± 2 = 0 or 4. (0,0) and (0,4)=(2,2). Already have.
+
+From (2,0) and (4,2): D=2, D=2. Same D! S=2, S=6. New: D = 2 ± (2-6)/2 = 2 ± (-2) = 0 or 4, S = 4. (0,4)=(2,2) and (4,4). Already have.
+
+It seems like cells with both coordinates even only generate cells with both coordinates even. This is because the operation preserves the parity structure in some sense.
+
+Actually, let me think about this. If all cells have even coordinates, then D = i-j is even and S = i+j is even. The operation: from (D, S1), (D, S2) with D, S1, S2 all even, we get (D ± (S1-S2)/2, (S1+S2)/2). (S1-S2)/2 is even/2... S1, S2 even, so S1-S2 even, (S1-S2)/2 integer. But is it even? Not necessarily. E.g., S1=0, S2=4: (S1-S2)/2 = -2, even. S1=2, S2=4: (S1-S2)/2 = -1, odd!
+
+So from (2,2) D=0, S=4 and (4,4) D=0, S=8: (S1-S2)/2 = -2, even. New D = ±2, S = 6. (2,6)=(4,2) and (-2,6)=(2,4). Both even coordinates.
+
+From (0,0) D=0, S=0 and (2,2) D=0, S=4: (S1-S2)/2 = -2, even. New D = ±2, S=2. Even coords.
+
+From (0,0) and (4,4): (S1-S2)/2 = -4, even. New D = ±4, S=4. Even.
+
+Hmm, what about from (2,0) D=2, S=2 and (4,0) D=4, S=4? Not same D or S.
+
+From (0,2) D=-2, S=2 and (2,4) D=-2, S=6: same D=-2. (S1-S2)/2 = -2. New D = -2 ± (-2) = -4 or 0, S = 4. (-4,4)=(0,4) and (0,4)=(2,2). Already have.
+
+It seems like with all-even-coordinate cells, we can only generate all-even-coordinate cells. The reason: if D and S are both even, then (S1+S2)/2 is even (sum of two evens divided by 2 is even iff sum is divisible by 4... no). S1, S2 even: S1+S2 even, (S1+S2)/2 integer. Is it even? S1=2, S2=6: sum=8, /2=4, even. S1=0, S2=4: sum=4, /2=2, even. S1=2, S2=4: sum=6, /2=3, odd! 
+
+So (S1+S2)/2 can be odd. Then the new S is odd, and new D = D ± (S1-S2)/2. D is even, (S1-S2)/2 = (2-4)/2 = -1, odd. So new D = even ± odd = odd. New cell has D odd, S odd → i = (D+S)/2 = (odd+odd)/2 = even, j = (S-D)/2 = (odd-odd)/2 = even. So still even coordinates!
+
+Wait: D odd, S odd. i = (D+S)/2. D+S = odd+odd = even, so i is integer. Is it even? D=1, S=3: i=2, even. D=3, S=5: i=4, even. D=1, S=1: i=1, odd! 
+
+Hmm, so it depends. D=1, S=1: i=1, j=0. That has odd i. So it's possible to get odd coordinates.
+
+But wait, do we actually have S1=2, S2=4 with same D in our set? Our cells with D=0: (0,0) S=0, (2,2) S=4, (4,4) S=8. S values 0, 4, 8. From (0,0) and (2,2): S1=0, S2=4, (S1+S2)/2=2, (S1-S2)/2=-2. New S=2 (even), D=±2 (even). From (2,2) and (4,4): S1=4, S2=8, avg=6, diff/2=-2. New S=6, D=±2. Even. From (0,0) and (4,4): avg=4, diff/2=-4. New S=4, D=±4. Even.
+
+Our cells with D=2: (2,0) S=2, (4,2) S=6. From these: avg=4, diff/2=-2. New S=4, D=0 or 4. (0,4)=(2,2) and (4,4). Already have.
+
+Our cells with D=-2: (0,2) S=2, (2,4) S=6. Same as above by symmetry.
+
+Our cells with D=4: (4,0) S=4. Only one, can't operate.
+Our cells with D=-4: (0,4) S=4. Only one.
+
+So indeed, with the 3 cells (0,0),(2,2),(4,4), we only generate 9 cells (all even-coordinate cells). We can't reach odd-coordinate cells.
+
+So |W|=3 is not enough for n=5 (if W is the main diagonal with step 2). What if we choose different 3 cells?
+
+Let me try (0,0), (1,1), (4,4). D=0 for all. S = 0, 2, 8.
+From (0,0),(1,1): avg S=1, diff/2=-1. New D=±1, S=1. (1,1)→(1,0) and (-1,1)→(0,1).
+From (0,0),(4,4): avg S=4, diff/2=-4. New D=±4, S=4. (4,0) and (0,4).
+From (1,1),(4,4): avg S=5, diff/2=-3. New D=±3, S=5. (4,1) and (1,4).
+
+Now we have: (0,0),(1,1),(4,4),(1,0),(0,1),(4,0),(0,4),(4,1),(1,4). 9 cells.
+
+From (1,0) D=1, S=1 and (4,1) D=3, S=5: not same D or S.
+From (0,1) D=-1, S=1 and (1,4) D=-3, S=5: not same.
+From (1,0) D=1, S=1 and (0,1) D=-1, S=1: same S=1! avg D=0, diff/2=(1-(-1))/2=1. New D=0, S=1±1=0 or 2. (0,0) and (0,2)=(1,1). Already have.
+From (4,0) D=4, S=4 and (0,4) D=-4, S=4: same S=4. avg D=0, diff/2=4. New D=0, S=4±4=0 or 8. (0,0) and (0,8)=(4,4). Already have.
+From (4,1) D=3, S=5 and (1,4) D=-3, S=5: same S=5. avg D=0, diff/2=3. New D=0, S=5±3=2 or 8. (0,2)=(1,1) and (0,8)=(4,4). Already have.
+From (1,0) D=1, S=1 and (4,0) D=4, S=4: not same.
+From (0,1) D=-1, S=1 and (0,4) D=-4, S=4: not same.
+From (1,0) D=1, S=1 and (1,4) D=-3, S=5: not same.
+From (0,1) D=-1, S=1 and (4,1) D=3, S=5: not same.
+From (4,0) D=4, S=4 and (4,1) D=3, S=5: not same.
+From (0,4) D=-4, S=4 and (1,4) D=-3, S=5: not same.
+From (1,0) D=1, S=1 and (0,4) D=-4, S=4: not same.
+From (0,1) D=-1, S=1 and (4,0) D=4, S=4: not same.
+From (4,0) D=4, S=4 and (1,4) D=-3, S=5: not same.
+From (0,4) D=-4, S=4 and (4,1) D=3, S=5: not same.
+
+From (0,0) D=0, S=0 and (1,0) D=1, S=1: not same.
+From (1,1) D=0, S=2 and (1,0) D=1, S=1: not same.
+From (1,1) D=0, S=2 and (0,1) D=-1, S=1: not same.
+From (4,4) D=0, S=8 and (4,0) D=4, S=4: not same.
+From (4,4) D=0, S=8 and (0,4) D=-4, S=4: not same.
+
+From (0,0) D=0, S=0 and (0,4) D=-4, S=4: not same D, not same S.
+From (4,4) D=0, S=8 and (4,0) D=4, S=4: not same.
+
+From (1,1) D=0, S=2 and (4,1) D=3, S=5: not same.
+From (1,1) D=0, S=2 and (1,4) D=-3, S=5: not same.
+
+From (0,0) D=0, S=0 and (4,1) D=3, S=5: not same.
+From (4,4) D=0, S=8 and (0,1) D=-1, S=1: not same.
+
+From (1,0) D=1, S=1 and (4,4) D=0, S=8: not same.
+From (0,1) D=-1, S=1 and (0,0) D=0, S=0: not same.
+
+Hmm, also:
+From (1,0) D=1, S=1 and (4,1) D=3, S=5: D=1,3 not same; S=1,5 not same.
+From (0,1) D=-1, S=1 and (1,4) D=-3, S=5: D=-1,-3 not same; S=1,5 not same.
+
+From (0,0) D=0, S=0 and (4,4) D=0, S=8: same D=0! Already did: gives (4,0),(0,4).
+
+From (1,1) D=0, S=2 and (4,4) D=0, S=8: same D=0! avg S=5, diff/2=-3. New D=±3, S=5. (3,5)→(4,1) and (-3,5)→(1,4). Already have.
+
+From (0,0) D=0, S=0 and (1,1) D=0, S=2: same D=0. Already did: gives (1,0),(0,1).
+
+So we're stuck at 9 cells. Can't generate more from (0,0),(1,1),(4,4).
+
+It seems like 3 cells on the same diagonal generate a limited set. The issue is that we need cells on different diagonals to make progress.
+
+Let me try 3 cells not all on the same diagonal. (0,0), (2,2), (0,2). 
+(0,0) D=0, S=0. (2,2) D=0, S=4. (0,2) D=-2, S=2.
+
+From (0,0),(2,2): same D=0. Add (2,0) D=2,S=2 and (0,2) D=-2,S=2. (0,2) already have. Add (2,0).
+Now: (0,0),(2,2),(0,2),(2,0). 4 cells.
+
+From (0,2),(2,0): same S=2, D=-2,2. avg D=0, diff/2=-2. New D=0, S=2±2=0 or 4. (0,0) and (0,4)=(2,2). Already have.
+
+From (0,0),(0,2): D=0,-2 not same. S=0,2 not same.
+From (0,0),(2,0): D=0,2 not same. S=0,2 not same.
+From (2,2),(0,2): D=0,-2 not same. S=4,2 not same.
+From (2,2),(2,0): D=0,2 not same. S=4,2 not same.
+
+Stuck at 4. Not good.
+
+Let me try (0,0), (1,1), (2,0). 
+(0,0) D=0,S=0. (1,1) D=0,S=2. (2,0) D=2,S=2.
+From (0,0),(1,1): same D=0. Add (1,0) D=1,S=1 and (0,1) D=-1,S=1.
+From (1,1),(2,0): D=0,2 not same. S=2,2 same! avg D=1, diff/2=(0-2)/2=-1. New D=1±(-1)=0 or 2, S=2±... wait. 
+
+Hold on. For same S: from (D1, S), (D2, S), produce ((D1+D2)/2, S + (D1-D2)/2) and ((D1+D2)/2, S - (D1-D2)/2).
+
+(1,1) D=0, S=2. (2,0) D=2, S=2. Same S=2. avg D = 1, diff/2 = (0-2)/2 = -1. New: D=1, S = 2+(-1) = 1 and D=1, S = 2-(-1) = 3. (1,1)→(1,0) and (1,3)→(2,1). 
+
+So add (1,0) and (2,1). Now: (0,0),(1,1),(2,0),(1,0),(0,1),(2,1). 6 cells.
+
+From (0,0),(1,0): D=0,1 not same. S=0,1 not same.
+From (0,0),(0,1): D=0,-1 not same. S=0,1 not same.
+From (1,1),(1,0): D=0,1 not same. S=2,1 not same.
+From (1,1),(0,1): D=0,-1 not same. S=2,1 not same.
+From (2,0),(1,0): D=2,1 not same. S=2,1 not same.
+From (2,0),(0,1): D=2,-1 not same. S=2,1 not same.
+From (2,0),(2,1): D=2,1 not same. S=2,3 not same.
+From (1,0),(0,1): D=1,-1 not same. S=1,1 same! avg D=0, diff/2=1. New D=0, S=1±1=0 or 2. (0,0) and (0,2)=(1,1). Already have.
+From (1,0),(2,1): D=1,1 same! S=1,3. avg S=2, diff/2=-1. New D=1±(-1)=0 or 2, S=2. (0,2)=(1,1) and (2,2). Add (2,2)!
+From (0,1),(2,1): D=-1,1 not same. S=1,3 not same.
+From (0,1),(1,0): already did.
+From (0,1),(2,0): already did.
+From (2,1),(1,0): already did.
+
+So from (1,0),(2,1) we add (2,2). Now 7 cells: (0,0),(1,1),(2,0),(1,0),(0,1),(2,1),(2,2).
+
+From (2,2) D=0, S=4 and (0,0) D=0, S=0: same D=0. avg S=2, diff/2=2. New D=±2, S=2. (2,0) and (0,2). (2,0) have, add (0,2).
+From (2,2) D=0, S=4 and (1,1) D=0, S=2: same D=0. avg S=3, diff/2=1. New D=±1, S=3. (1,3)→(2,1) have, (-1,3)→(1,2). Add (1,2).
+From (2,2) D=0, S=4 and (2,0) D=2, S=2: not same D. S=4,2 not same.
+From (2,2) D=0, S=4 and (1,0) D=1, S=1: not same.
+From (2,2) D=0, S=4 and (0,1) D=-1, S=1: not same.
+From (2,2) D=0, S=4 and (2,1) D=1, S=3: not same.
+From (2,2) D=0, S=4 and (1,2) D=-1, S=3: not same.
+From (2,2) D=0, S=4 and (0,2) D=-2, S=2: not same D. S=4,2 not same.
+
+Now 9 cells: (0,0),(1,1),(2,0),(1,0),(0,1),(2,1),(2,2),(0,2),(1,2).
+
+From (0,2) D=-2, S=2 and (2,0) D=2, S=2: same S=2. avg D=0, diff/2=-2. New D=0, S=2±2=0 or 4. (0,0) and (0,4)=(2,2). Already have.
+From (0,2) D=-2, S=2 and (1,2) D=-1, S=3: not same.
+From (1,2) D=-1, S=3 and (2,1) D=1, S=3: same S=3. avg D=0, diff/2=-1. New D=0, S=3±1=2 or 4. (0,2)=(1,1) and (0,4)=(2,2). Already have.
+From (1,2) D=-1, S=3 and (0,1) D=-1, S=1: same D=-1. avg S=2, diff/2=1. New D=-1±1=0 or -2, S=2. (0,2)=(1,1) and (-2,2)=(0,2). Already have.
+From (0,2) D=-2, S=2 and (0,0) D=0, S=0: not same.
+From (1,2) D=-1, S=3 and (1,0) D=1, S=1: not same D. S=3,1 not same.
+From (1,2) D=-1, S=3 and (1,1) D=0, S=2: not same.
+From (0,2) D=-2, S=2 and (2,2) D=0, S=4: not same.
+From (0,2) D=-2, S=2 and (2,1) D=1, S=3: not same.
+From (0,2) D=-2, S=2 and (1,0) D=1, S=1: not same.
+From (0,2) D=-2, S=2 and (0,1) D=-1, S=1: not same.
+
+Hmm, seems stuck at 9. These 9 cells are all cells in the 3×3 subgrid (0..2, 0..2). Makes sense — we started with cells in that subgrid and the operations stay within it.
+
+To get out, we need a cell with coordinate ≥ 3. Our initial 3 cells (0,0),(1,1),(2,0) are all in the 3×3 subgrid, so we can never escape it.
+
+So for n=5, we need white cells that "span" the whole grid. The main diagonal (0,0),(1,1),(2,2),(3,3),(4,4) works and has 5 cells. Can we do with fewer?
+
+We need |W| odd (same parity as 25). |W|=1: impossible. |W|=3: we need 3 cells that generate all 25. 
+
+The issue is that 3 cells need to span the grid. Let me think about what "span" means. 
+
+If we have cells at (0,0), (a,a), (4,4) on the main diagonal with 0 < a < 4, we generate cells with D=0 and S = 0, 2a, 8, and combinations. From (0,0),(a,a): D=±a, S=a. From (a,a),(4,4): D=±(4-a), S=a+4. From (0,0),(4,4): D=±4, S=4.
+
+For a=1: D values 0, ±1, ±3, ±4. S values 0, 1, 2, 4, 5, 8. 
+For a=2: D values 0, ±2, ±4. S values 0, 2, 4, 6, 8. All even → only even-coordinate cells.
+For a=3: D values 0, ±1, ±3, ±4. S values 0, 3, 4, 6, 8. 
+
+Let me try a=1: (0,0),(1,1),(4,4). We already tried this and got stuck at 9 cells.
+
+The problem is that from 3 cells on D=0, we get cells on various D lines, but then to continue we need pairs on the same D or same S, and the generated cells might not form such pairs that lead outside the generated set.
+
+Let me try a different configuration: (0,0), (2,2), (4,0). 
+(0,0) D=0,S=0. (2,2) D=0,S=4. (4,0) D=4,S=4.
+From (0,0),(2,2): same D=0. Add (2,0) D=2,S=2 and (0,2) D=-2,S=2.
+From (2,2),(4,0): D=0,4 not same. S=4,4 same! avg D=2, diff/2=(0-4)/2=-2. New D=2±(-2)=0 or 4, S=4±(-2)=2 or 6. (0,2)=(1,1) and (4,6)=(5,1)... wait, (D,S)=(0,2)→(1,1) and (4,6)→(5,1). But 5 > 4, out of range for n=5! 
+
+Hmm, (D,S) = (4,6): i = (4+6)/2 = 5, j = (6-4)/2 = 1. (5,1) is out of the 5×5 grid (0..4). So this operation is invalid — the generated cell is outside the grid!
+
+This is an important point. The operation must produce cells within the grid. So not all diagonal pairs lead to valid operations.
+
+OK so this complicates things. Let me reconsider.
+
+For n=5, (2,2) and (4,0): S=4 for both. The square has corners (2,2),(4,0),(2,0),(4,2) — wait, let me recheck. (2,2) and (4,0) are on the same anti-diagonal S=4. The other corners: (D,S) = (0,2)→(1,1) and (4,6)→(5,1). (1,1) is in grid, (5,1) is not. So the square would be (2,2),(4,0),(1,1),(5,1) — but (5,1) is outside. So this is not a valid square in the 5×5 grid.
+
+Actually wait. Let me recompute. (2,2) and (4,0): these are anti-diagonal corners (same S=4). The other corners of the square are (2,0) and (4,2). Let me verify: the square has corners (2,0),(4,0),(2,2),(4,2). Diagonals: {(2,0),(4,2)} and {(2,2),(4,0)}. Yes, (2,2) and (4,0) are on one diagonal, (2,0) and (4,2) on the other. Both (2,0) and (4,2) are in the 5×5 grid. So the operation IS valid.
+
+I made an error in my (D,S) computation. Let me redo. (2,2) D=0, S=4. (4,0) D=4, S=4. Same S=4. The formula: from (D1,S),(D2,S), produce ((D1+D2)/2, S+(D1-D2)/2) and ((D1+D2)/2, S-(D1-D2)/2).
+
+D1=0, D2=4, S=4. (D1+D2)/2 = 2. (D1-D2)/2 = -2. New: (2, 4+(-2)) = (2, 2) and (2, 4-(-2)) = (2, 6).
+
+(D,S)=(2,2)→(2,0). (D,S)=(2,6)→(4,2). Both in grid! Great.
+
+So from (2,2),(4,0): add (2,0) and (4,2). 
+
+Let me redo the whole thing with (0,0),(2,2),(4,0):
+From (0,0),(2,2): add (2,0) D=2,S=2 and (0,2) D=-2,S=2.
+From (2,2),(4,0): add (2,0) and (4,2) D=2,S=6. (2,0) already, add (4,2).
+From (0,0),(4,0): D=0,4 not same. S=0,4 not same. Can't operate.
+
+Now have: (0,0),(2,2),(4,0),(2,0),(0,2),(4,2). 6 cells.
+
+From (2,0) D=2,S=2 and (4,2) D=2,S=6: same D=2. avg S=4, diff/2=-2. New D=2±(-2)=0 or 

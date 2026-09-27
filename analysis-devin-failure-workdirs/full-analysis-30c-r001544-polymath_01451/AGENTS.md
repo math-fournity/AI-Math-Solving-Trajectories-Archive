@@ -1,0 +1,1782 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   41st IMO 2000 shortlist Problem G7 Ten gangsters are standing in a field. The distance between each pair of gangsters is different. When the clock strikes, each gangster shoots the nearest gangster dead. What is the largest number of gangsters that can survive? Solution       — 题目文本
+#   : 7. Obviously at least two gangsters die: someone must get shot, but he must shoot someone else. It is easy to arrange for just four to die. Take four roughly in a circle around a fifth. All four shoot the gangster in the center, and he shoots one of those in the circle. So two out of the five die. Arrange the other five similarly, some distance away. However, with a little care, we can reduce that to three gangsters dying, by arranging that the two central gangsters both shoot the same gangster. Consider the situation below. The lh circle is slightly smaller than the rh circle. The angles 142, 243, 7 10 8, 9 10 8 are slightly greater than 60 o . The distance 56 is the same as the radius of the larger circle. Thus 1, 2, 3 and 5 shoot 4; 4, 6 and 10 shoot 5; 7, 8 and 9 shoot 10. So 4, 5, 10 die and the others survive. So we have to show that we cannot have just two gangsters die. It is surprisingly difficult. We cannot have six gangsters all shooting the same person. For suppose A, B, C, D, E, F all shoot O. Suppose ∠AOB ≤ 60 o . Since OA and OB are assumed to be unequal, angles OAB and OBA are unequal. Hence at least one of them > 60 o . Suppose it is ∠OAB. Then ∠OAB > ∠AOB, then OB > BA, so B should shoot A not O. Contradiction. Similarly, if ∠OBA > 60 o . So ∠OAB > 60 o . Similarly, each of the other angles BOC, COD, DOE, EOF, FOA must be > 60 o . But the sum of the six angles is 360 o . Contradiction. So at most 5 gangsters can shoot the same person. So assume that it is possible to arrange 10 gangsters so that only two die. Let A and B be the two closest gangsters. Then they must shoot each other. So we have to show that every other gangster shoots A or B. Since at most 5 gangsters can shoot the same person, 4 of the others must shoot A and 4 must shoot B. Using the result in the previous paragraph if C is the next gangster anticlockwise from B who shoots A and C' the next gangster clockwise then, the ∠CAC'  AC). Similarly ∠GBA = a + ∠ADB  ∠HAB + ∠GBA > 180 o . Similarly, ∠ECD = d + ∠CAD > 2d (since CD > CA) and ∠FDC = c + ∠DBC > 2c, so 2c + 2d < ∠ECD + ∠FDC < 180 o . Hence c + d < a + b. Contradiction, since they are obviously equal. 41st IMO shortlist 2000 © John Scholes jscholes@kalva.demon.co.uk 10 Oct 2002  — 标准解答
+#   The problem is the classic IMO 2000 shortlist G7 problem about gangsters shooting nearest neighbors. Let me think about this carefully.
+
+Ten gangsters, all pairwise distances distinct. Each shoots nearest. Max survivors.
+
+Let me think about the structure. Each gangster shoots exactly one other (their nearest neighbor). So we have a directed graph where each vertex has out-degree 1 (pointing to nearest neighbor). The survivors are those not shot by anyone, i.e., vertices with in-degree 0.
+
+We want to maximize the number of vertices with in-degree 0.
+
+Total in-degree = 10 (since total out-degree = 10). So if k vertices have in-degree 0, the remaining 10-k vertices have total in-degree 10, so average in-degree among non-survivors is 10/(10-k).
+
+Key constraint: nearest neighbor graph. If A's nearest is B, then B's nearest could be A or someone else.
+
+Important fact: In nearest-neighbor graph, no cycles of length ≥ 3. Actually, let me think. Can there be a directed cycle of length ≥ 3? If A→B→C→A (each points to next as nearest). Then d(A,B) < d(A,C) (B is A's nearest, not C). d(B,C) < d(B,A) (C is B's nearest). d(C,A) < d(C,B) (A is C's nearest). So d(A,B) < d(A,C), d(B,C) < d(A,B), d(C,A) < d(B,C). So d(C,A) < d(B,C) < d(A,B) < d(A,C). But d(A,C) = d(C,A). Contradiction. So no directed cycles of length ≥ 3.
+
+So the directed graph consists of: each component has a 2-cycle (mutual nearest neighbors) at its "center", with trees feeding into the 2-cycle.
+
+Wait, actually each component of a functional graph (out-degree 1) has exactly one cycle. Since cycles of length ≥ 3 are impossible, every cycle is a 2-cycle (mutual nearest neighbors).
+
+So the graph decomposes into components, each containing exactly one 2-cycle, with directed trees feeding into the two vertices of the 2-cycle.
+
+Now, a vertex survives iff in-degree 0. We want to maximize survivors.
+
+In a component with the 2-cycle (A,B) where A↔B, both A and B have in-degree ≥ 1 (they shoot each other, so each gets shot by the other). So A and B are NOT survivors.
+
+The other vertices in the component: some may have in-degree 0 (survivors), some in-degree ≥ 1.
+
+To maximize survivors, we want as many vertices as possible with in-degree 0, meaning we want the in-degree to be concentrated.
+
+Each component has a 2-cycle (2 non-survivors guaranteed). If we have c components, at least 2c vertices are non-survivors (the 2-cycle vertices). So survivors ≤ 10 - 2c.
+
+To maximize survivors, minimize c. Minimum c = 1, giving survivors ≤ 8.
+
+But can we achieve 8 survivors with 1 component? That means 1 two-cycle (2 vertices A,B mutual nearest), and 8 other vertices all pointing into the tree, with each of the 8 having in-degree 0. But total in-degree = 10, and the 2-cycle vertices A,B each have in-degree ≥ 1. The 8 others have in-degree 0. So total in-degree from non-survivors = 10, distributed among A and B and... wait, only A and B have in-degree ≥ 1? That's 10 in-degree on 2 vertices. A gets shot by B (1) plus some of the 8. B gets shot by A (1) plus some of the 8. Total: 2 + (number of 8 that point to A or B) = 10, so all 8 point to A or B. But wait, that means each of the 8 points to either A or B as their nearest. And none of the 8 is shot by anyone (in-degree 0).
+
+Hmm, but is this geometrically realizable? We need 8 points all having A or B as nearest, and none of them being nearest to each other.
+
+Actually wait, let me reconsider. If all 8 point to A or B, and none has in-degree > 0, that means no two of the 8 are mutual nearest, and no one of the 8 is the nearest of another of the 8.
+
+Let me think about whether 8 is achievable.
+
+Place A and B close together (mutual nearest). Place 8 other points far from each other but each closer to A or B than to any other point.
+
+Hmm, but the 8 points need to be far apart from each other (so none is another's nearest), yet each close to A or B.
+
+Consider: A and B at distance ε. Place 8 points on a large circle around the midpoint of AB, far apart. Each point's nearest is either A or B (since A,B are close to center, and points are far apart on circle). 
+
+Wait, but if points are on a large circle of radius R, the distance between adjacent points on the circle is ~2R sin(π/8) ≈ 0.765R. The distance from a point to A (near center) is ~R. So R > 0.765R, meaning the nearest neighbor of a circle point is an adjacent circle point, not A or B. That doesn't work.
+
+We need each of the 8 points to be closer to A/B than to any other of the 8 points. So the 8 points must be spread out such that pairwise distances among them are large, but each is close to A or B.
+
+If A and B are at the center, points around them... the issue is that if 8 points are all near center, they're close to each other.
+
+Alternative: put 4 points very close to A (but farther than ε from A, and closer to A than to each other), and 4 points very close to B.
+
+Points close to A: place them at distance δ from A where ε << δ. They need to be closer to A than to each other. If 4 points are at distance δ from A in different directions, pairwise distance ~δ√2 (for orthogonal) or up to 2δ. We need δ < pairwise distance, i.e., δ < ~δ√2, which is true. But also they need A as nearest, so δ < distance to B = ~ε... no wait, distance to B is approximately ε (if A,B close) plus... no. If point P is at distance δ from A, and B is at distance ε from A, then distance from P to B is between |δ-ε| and δ+ε. If P is on the opposite side of A from B, distance to B ≈ δ + ε > δ, good. If P is on the same side as B, distance to B ≈ δ - ε < δ, bad—then B would be P's nearest, not A.
+
+So place the 4 points near A on the opposite side from B. Then their distance to B ≈ δ + ε > δ = distance to A. Good. And pairwise distances among the 4 points: if they're at distance δ from A spread in a cone away from B, pairwise distances are at least ~δ (if spread enough). We need δ < pairwise distance. If 4 points at distance δ from A, directions spread over a cone, the minimum pairwise distance could be small if the cone is narrow. Let's spread them widely.
+
+Actually, let me place A at origin, B at (ε, 0). Place 4 points at distance δ from A, at angles 90°, 120°, 180°, 240° (away from B which is at 0°). Hmm, angles 90 to 240 span 150°. Pairwise distances: between 90° and 120° points: 2δ sin(15°) ≈ 0.52δ < δ. Bad—these two points are closer to each other (0.52δ) than to A (δ). So they'd shoot each other.
+
+We need pairwise distances > δ. Points at distance δ from A: pairwise distance = 2δ sin(θ/2) where θ is angular separation. Need 2 sin(θ/2) > 1, i.e., θ > 60°. With 4 points, need total angular spread > 3×60° = 180°. We have a half-plane (180°) available on the opposite side from B. Exactly 180° with 4 points at 60° apart: angles 0°+180°=180°... let's say angles 180°, 240°, 300°, 360°(=0°). But 0° is towards B. Hmm.
+
+Actually the constraint is that the points must be on the side away from B. The "away from B" half-plane is angles (90°, 270°). That's 180°. With 4 points needing 60° separation, we need 180° exactly. Place at 90°, 150°, 210°, 270°. Separations: 60° each. Pairwise distance = 2δ sin(30°) = δ. Exactly δ, not > δ. We need strictly greater (distances are all distinct, and nearest must be A). So we need > 60° separation, but we only have 180° for 4 points. 3 gaps of >60° = >180°. Doesn't fit.
+
+So we can fit at most 3 points near A (on the away side) with pairwise distance > δ. With 3 points: 2 gaps of >60° = >120°, fits in 180°. 
+
+Hmm, so 3 near A, 3 near B, total 6. That gives 6 survivors, not 8.
+
+Wait, but maybe I'm being too restrictive. Let me reconsider. The points don't all have to be at the same distance δ from A. They can be at different distances.
+
+Let me reconsider. We want points P1,...,P8 such that:
+- Each Pi's nearest neighbor is A or B.
+- No Pi is the nearest neighbor of any Pj (so all Pi have in-degree 0).
+
+Actually, the condition "no Pi is nearest of any Pj" is automatically satisfied if every Pj's nearest is A or B. So we just need: for each Pi, the nearest among {A, B, all other Pj} is A or B.
+
+So for each Pi: d(Pi, A) < d(Pi, Pj) for all j≠i, OR d(Pi, B) < d(Pi, Pj) for all j≠i (and also < d(Pi, the other of A,B)).
+
+Let me think of it as: each Pi is "assigned" to A or B (whichever is nearer), and must be closer to its assigned center than to all other points.
+
+Let me think about how many points can be assigned to A. Points assigned to A: d(Pi, A) < d(Pi, B) and d(Pi, A) < d(Pi, Pj) for all j.
+
+The condition d(Pi, A) < d(Pi, Pj) for all Pj (including those assigned to B).
+
+This is like a packing problem. Let me think about it differently.
+
+Consider the Voronoi-like condition. Actually, let's think about it as: the points assigned to A must all lie in the region where A is the nearest among {A, B, all other points}.
+
+Let me consider a simpler approach. Place A and B very close (distance ε). Place points at various distances.
+
+For points assigned to A (on the far side from B): Let me place them at distances δ1 < δ2 < ... from A, along different directions. 
+
+A point at distance δk from A: needs δk < distance to all other Pj. If other points are at distance ≥ δk from it... 
+
+Hmm, let me think about the known answer. I recall this problem; the answer is 5. Let me verify.
+
+Actually, let me reconsider. I think the answer to this classic problem is 5. Let me think about why 8 doesn't work and what the real bound is.
+
+Let me reconsider the structure. We established: the graph decomposes into components, each with a 2-cycle. If c components, at least 2c non-survivors. But there can be more non-survivors (tree vertices that get shot).
+
+With c=1: at least 2 non-survivors, at most 8 survivors. But can we achieve 8?
+
+The issue is geometric. Let me think about an upper bound.
+
+Key lemma: Consider the shortest distance among all pairs. Say d(A,B) is the smallest. Then A and B are mutual nearest neighbors (each is the other's nearest). So A↔B is a 2-cycle, both die. Now remove A, B. Among remaining 8, the shortest distance pair (C,D) are mutual nearest among the 8... but wait, C's nearest overall might be A or B, not D.
+
+Hmm, that's the issue. C and D might shoot A or B instead of each other.
+
+Let me think again. Let me consider the "shooting" graph. Each vertex shoots its nearest. 
+
+Claim: The number of survivors ≤ 5.
+
+Let me think about why. 
+
+Consider the 2-cycle structure. With 1 component (1 two-cycle), we have 2 non-survivors from the cycle, and 8 others. For 8 survivors, all 8 others must have in-degree 0, meaning they all shoot into A or B (or into the tree, but if any shoots into another non-cycle vertex, that vertex has in-degree ≥ 1 and is not a survivor).
+
+Wait, if all 8 shoot A or B directly, then A and B have high in-degree, and the 8 have in-degree 0. That's 8 survivors. The question is whether this is geometrically realizable.
+
+Let me think more carefully about the geometric constraint.
+
+For a point P to have A as its nearest neighbor: d(P,A) < d(P, X) for all other points X (including B and all other P's).
+
+So if P1 and P2 both have A as nearest: d(P1, A) < d(P1, P2) and d(P2, A) < d(P1, P2). 
+
+This means both P1 and P2 are closer to A than to each other. 
+
+How many points can be closer to A than to each other? This is related to the "kissing number" / packing on a sphere.
+
+If all points are at distance r from A, then pairwise distance > r means angular separation > 60°. On a circle (2D), max 5 points with pairwise angular separation > 60°? No: 360/60 = 6, but need strictly > 60°, so max 5. Wait, 6 points at exactly 60° give pairwise distance = r (not > r). With strict inequality, max 5 on a circle at distance r.
+
+But points can be at different distances! A point farther from A can coexist with points closer to A.
+
+Let me think: points P1 at distance r1, P2 at distance r2 from A, with r1 < r2. Condition: d(P1,P2) > r1 and d(P2, P1) > r2... wait no. d(P1, A) = r1 < d(P1, P2) and d(P2, A) = r2 < d(P2, P1) = d(P1,P2). So d(P1,P2) > max(r1, r2) = r2.
+
+So the pairwise distance must exceed the larger of the two distances to A. That's even more restrictive for the farther point.
+
+Hmm, so having points at different distances doesn't obviously help. Let me think about the maximum number of points that can all have A as their nearest neighbor.
+
+This is exactly the question: what is the maximum number of points that can be placed such that A is the nearest neighbor of each? In 2D, this is related to the kissing number. 
+
+If A is the nearest neighbor of P1, ..., Pk, then for each pair, d(Pi, Pj) > max(d(Pi, A), d(Pj, A)). 
+
+Consider the angles at A. For Pi and Pj at distances ri, rj from A with angle θ between them: d(Pi,Pj)² = ri² + rj² - 2 ri rj cos θ. Need this > max(ri, rj)².
+
+WLOG ri ≤ rj. Need ri² + rj² - 2ri rj cos θ > rj², i.e., ri² > 2ri rj cos θ, i.e., ri > 2rj cos θ, i.e., cos θ < ri/(2rj) ≤ 1/2. So θ > 60° (when ri = rj), and θ can be smaller when ri << rj (cos θ < ri/(2rj) → 0, so θ → 90°).
+
+Wait, when ri << rj: cos θ < ri/(2rj) ≈ 0, so θ > 90°. That's more restrictive, not less!
+
+When ri = rj: θ > 60°. When ri < rj: θ > arccos(ri/(2rj)) > 60°. So equal distances are the best case, allowing 60° separation.
+
+So the maximum number of points with A as nearest neighbor, all at the same distance, is 5 (since 6 would need exactly 60° which gives equality, not strict). Actually, we need all pairwise distances distinct, so we can't have them all at exactly 60°. With 5 points, we can have separations slightly more than 72°... wait, 5 points on a circle: 360/5 = 72° > 60°. So 5 points at equal distance r from A, separated by 72°, have pairwise distance 2r sin(36°) ≈ 1.18r > r. 
+
+So up to 5 points can have A as nearest neighbor. Can we do 6? 6 points at equal distance: 60° separation, pairwise distance = r, not > r. With unequal distances, the constraint is worse. So max 5 points can have A as their nearest neighbor.
+
+Wait, but I should be more careful. With unequal distances, maybe we can do better in some configurations? Let me reconsider.
+
+We need: for all pairs (i,j), d(Pi, Pj) > max(ri, rj) where ri = d(Pi, A).
+
+Consider the angular separation needed. For ri ≤ rj: need θij > arccos(ri/(2rj)). Since ri/(2rj) ≤ 1/2, arccos ≥ 60°. The minimum angular separation is 60° (achieved when ri = rj). 
+
+So for any configuration, all pairwise angular separations (as seen from A) must be > 60°. The maximum number of points with all pairwise angular separations > 60° around a point is 5 (since 6 × 60° = 360°, and we need strict inequality).
+
+Therefore, at most 5 points can have A as their nearest neighbor.
+
+Similarly, at most 5 can have B as nearest neighbor. So total points shooting A or B: at most 10. But we have 8 non-cycle vertices. So potentially all 8 could shoot A or B (5 to A, 3 to B, say). But wait, we also need A and B to shoot each other.
+
+Hold on. A shoots B (nearest) and B shoots A. The 8 others shoot A or B. For the 8 to all be survivors (in-degree 0), no one shoots any of the 8. Since everyone shoots either A or B, the 8 all have in-degree 0. 
+
+So we need: 8 points, each having A or B as nearest, with at most 5 assigned to A and at most 5 to B. 5+5 = 10 ≥ 8, so this is feasible in terms of the counting bound.
+
+But we also need the geometric realization. Let me try to construct it.
+
+Place A at origin, B at (ε, 0) for small ε > 0. 
+
+5 points assigned to A: at distance r from A, at angles 90°, 162°, 234°, 306°, 18° (i.e., spread on the side away from B). Wait, B is at angle 0°. Points at angles 90°, 162°, 234°, 306°, 378°=18°. The point at 18° is close to B's direction. Its distance to B: d² = r² + ε² - 2rε cos(18°) ≈ r² - 2rε cos(18°). For this to be > r (so A is nearer than B), we need r² + ε² - 2rε cos18° > r²... wait, we need d(P, A) = r < d(P, B). d(P,B)² = r² + ε² - 2rε cos(18°). Need r² < r² + ε² - 2rε cos18°, i.e., 0 < ε² - 2rε cos18°, i.e., ε > 2r cos18°. But ε is small and r is large, so this fails. The point at 18° would be closer to B than to A.
+
+So I should place the 5 points assigned to A at angles away from B. Let's use angles 108°, 180°, 252°, 324°, 36°. Hmm, 36° is still close to 0°. 
+
+The issue: points assigned to A must be in the half-plane away from B (roughly angles 90° to 270°), but we need 5 points with >60° separation in this 180° range. 5 points need 4 gaps of >60° = >240° > 180°. Doesn't fit!
+
+So we can't fit 5 points assigned to A in the half-plane away from B. We can fit at most 3 (2 gaps of >60° = >120° < 180°, and 3 gaps... 3 points need 2 gaps, but we also need the "end" gaps). Actually, 3 points in 180°: 2 gaps between them. If each gap > 60°, total > 120°, fits in 180°. But we also need the angular distance from the first point to the boundary (90°) and last to boundary (270°) to be... actually the boundary isn't a hard constraint; it's that points near 90° or 270° might be closer to B.
+
+Let me reconsider. The condition for P (assigned to A) is d(P,A) < d(P,B), which means P is in the half-plane closer to A (the perpendicular bisector of AB, on A's side). So P must be on A's side of the perpendicular bisector of AB. If A=(0,0), B=(ε,0), the bisector is x = ε/2. So P must have x < ε/2, i.e., roughly the left half-plane.
+
+So points assigned to A are in the half-plane x < ε/2, and need pairwise angular separation > 60° as seen from A. In a half-plane (180°), max 3 points with >60° separation (since 3 points need 2 internal gaps > 60° each = > 120°, and the remaining 60° is split between the two end gaps, which is fine as long as end gaps ≥ 0).
+
+Wait, actually I need to be more careful. 3 points in a 180° arc: the arc from 90° to 270°. Place them at 90°+α, 180°, 270°-α for small α. Gaps: (180° - 90° - α) = 90° - α, (270° - α - 180°) = 90° - α, and the middle gap 0°... no. Let me place 3 points at angles θ1 < θ2 < θ3 in [90°, 270°]. Gaps: θ2-θ1, θ3-θ2, and we need both > 60°. Also θ3 - θ1 ≤ 180°. So θ3 - θ1 = (θ2-θ1) + (θ3-θ2) > 120°. And θ3 - θ1 ≤ 180°. Feasible: e.g., θ1=95°, θ2=180°, θ3=265°. Gaps: 85°, 85°. Both > 60°. 
+
+Can we fit 4? 4 points in [90°, 270°]: 3 gaps, each > 60°, total > 180°. But the range is 180°. 3 gaps > 180° > 180° range. Doesn't fit. So max 3 points assigned to A.
+
+Similarly, max 3 assigned to B. Total: 3 + 3 = 6 points shooting A or B. So with 1 component, at most 6 non-cycle vertices can shoot A or B, giving at most 6 survivors.
+
+But wait, can some of the 8 non-cycle vertices shoot each other (into the tree) and still be survivors? No—if Pi shoots Pj, then Pj has in-degree ≥ 1, so Pj is not a survivor. For all 8 to be survivors, all 8 must have in-degree 0, so all 8 must shoot A or B. But we showed at most 6 can shoot A or B. So with 1 component, at most 6 survivors.
+
+Hmm wait, but I need to double-check: can a non-cycle vertex shoot another non-cycle vertex that is in the tree? If P1 shoots P2, and P2 shoots A, then P2 has in-degree ≥ 1 (from P1), so P2 is not a survivor. P1 has in-degree 0 (if no one shoots P1), so P1 is a survivor. So in a tree structure, only the "leaves" (in-degree 0 vertices) are survivors.
+
+So the number of survivors = number of vertices with in-degree 0 = number of leaves in the forest of trees feeding into the 2-cycles.
+
+Let me reconsider the problem more carefully with the component structure.
+
+With c components (c two-cycles), we have 2c vertices in cycles (all non-survivors). The remaining 10 - 2c vertices form trees feeding into the cycles. Survivors = leaves of these trees (in-degree 0 vertices).
+
+To maximize survivors, we want to maximize leaves. 
+
+In a single component with 2-cycle (A,B) and 8 other vertices forming a tree: the tree is a directed tree with edges pointing towards A or B. The leaves (in-degree 0) are the survivors. 
+
+A tree on 8+2 = 10 vertices rooted at a 2-cycle: the maximum number of leaves in a tree on n vertices is n-1 (a star), but here the structure is constrained.
+
+Actually, let me think about it as: we have a forest of rooted trees (roots are the 2-cycle vertices). Each tree is an arborescence pointing towards the root. The leaves are vertices with no children (in-degree 0 in the shooting graph, i.e., no one points to them).
+
+Wait, I need to be careful about direction. In the shooting graph, edges point from shooter to target. A vertex with in-degree 0 is not shot = survivor. A vertex with in-degree 0 is a "source" in the graph. In the tree feeding into the cycle, the sources are the leaves farthest from the cycle.
+
+For a tree on m vertices (directed towards root), the number of sources (leaves) can be up to m-1 (star: all point to root, root is the only non-leaf). But here the root is a cycle vertex.
+
+Let me reconsider. With 1 component: 2-cycle (A,B), and 8 tree vertices. The 8 tree vertices form directed trees rooted at A and B (edges point towards A or B). 
+
+If all 8 point directly to A or B (star structure), then all 8 are leaves (in-degree 0), 8 survivors. But we showed at most 6 can point to A or B directly (3 to A, 3 to B). So at most 6 can be direct children.
+
+What about multi-level trees? Some vertices point to other tree vertices. E.g., P1 points to A, P2 points to P1. Then P1 has in-degree ≥ 1 (from P2), so P1 is not a survivor. P2 has in-degree 0, survivor. So multi-level trees reduce survivors.
+
+So the star structure (all direct children of A or B) maximizes survivors, and we showed at most 6 direct children. So with 1 component, max 6 survivors.
+
+Now let's check c = 2: 2 two-cycles, 4 cycle vertices (non-survivors), 6 tree vertices. Each cycle has 2 vertices, say (A1,B1) and (A2,B2). Tree vertices point to cycle vertices. Max direct children of each cycle vertex: 3 (by the same half-plane argument, but now the constraint is different because there are other points around).
+
+Hmm wait, the "max 3 assigned to one center" argument was specific to the geometry with A and B close together. With 2 components, the geometry is different. Let me reconsider.
+
+Actually, the key constraint is: for a vertex V that is a cycle vertex, how many vertices can have V as their nearest neighbor? We showed this is at most 5 (angular separation > 60° around V). But if V is in a 2-cycle with W (W is V's nearest), then points assigned to V must be closer to V than to W, restricting to a half-plane, giving at most 3.
+
+But with 2 components, the cycle vertices are not necessarily close to each other. Let me reconsider.
+
+For a 2-cycle (A,B): A and B are mutual nearest. d(A,B) is the nearest distance for both. Points assigned to A must be closer to A than to B (and closer to A than to all other points). The half-plane constraint applies: assigned-to-A points are in A's half of the perpendicular bisector of AB. Max 3 such points (as argued). Similarly max 3 for B. So each 2-cycle can have at most 6 direct children, giving at most 6 survivors from that component's tree.
+
+With c = 2: 2 components, each with at most 6 tree vertices as survivors. But total tree vertices = 10 - 4 = 6. So at most 6 survivors. Same as c = 1.
+
+Hmm, but with c = 2, we have 4 non-survivor cycle vertices and 6 tree vertices. If all 6 tree vertices are direct children (leaves), 6 survivors. But can we achieve 6? Each component has 3 tree vertices (say), each cycle vertex gets at most 3 children. 3 tree vertices per component, 2 cycle vertices per component: e.g., 3 assigned to one cycle vertex, 0 to other. But max 3 per vertex. So 3 per component is fine. 2 components × 3 = 6 survivors. 
+
+But wait, with c = 2, we need 2 separate 2-cycles. The 4 cycle vertices and 6 tree vertices all need to be placed so that the nearest neighbor relationships work out. This might be harder geometrically.
+
+Let me reconsider. Maybe the answer is 5, not 6. Let me think about whether 6 is achievable.
+
+Let me try to construct a configuration with 6 survivors.
+
+1 component: A, B mutual nearest (d(A,B) = ε, very small). 6 points P1,...,P6, 3 assigned to A, 3 assigned to B, all direct children, all survivors. Plus 2 more points... wait, 10 gangsters total. 2 in cycle + 6 direct children = 8. We need 2 more. Those 2 must also be placed. If they're also direct children, that's 8 children, but we can only have 6. So the other 2 must be non-survivors (they get shot or they shoot someone who then has in-degree ≥ 1).
+
+Wait, I think I miscounted. 10 gangsters. With 1 component: 2 cycle + 8 tree. Max 6 direct children (survivors). The other 2 tree vertices must be in multi-level trees, making them non-survivors (or making their parents non-survivors). So max survivors = 6.
+
+But can we actually achieve 6? We need 6 direct children (3 to A, 3 to B) and 2 additional points that are non-survivors. The 2 additional points could, e.g., point to one of the direct children (making that child a non-survivor, reducing survivors to 5). Or point to A or B (but then they'd be 7th and 8th direct children, exceeding the limit of 6).
+
+Hmm, so the 2 extra points can't be direct children of A or B (limit 6). They must shoot someone else. If they shoot a direct child, that child becomes non-survivor. So we lose 1 or 2 survivors. 
+
+If both extra points shoot the same direct child: that child has in-degree 2, non-survivor. The 2 extra points have in-degree 0 (if no one shoots them), so they're survivors. Net: 6 - 1 + 2 = 7? Wait, no. Let me recount.
+
+10 vertices: A, B (cycle, non-survivors), P1-P6 (direct children of A/B, would be survivors), Q1, Q2 (extra).
+
+If Q1 and Q2 both shoot P1: P1 has in-degree 2 (from Q1, Q2), non-survivor. Q1, Q2 have in-degree 0, survivors. P2-P6 have in-degree 0, survivors. Total survivors: Q1, Q2, P2, P3, P4, P5, P6 = 7.
+
+But wait, can Q1 and Q2 have P1 as nearest? Q1's nearest is P1, meaning d(Q1, P1) < d(Q1, A), d(Q1, B), d(Q1, all other P's), d(Q1, Q2). And Q2's nearest is P1 similarly. And P1's nearest is A (so d(P1, A) < d(P1, Q1), d(P1, Q2)). 
+
+Also, Q1 and Q2 must not be nearest to each other (they both shoot P1, so that's fine as long as d(Q1,P1) < d(Q1,Q2) and d(Q2,P1) < d(Q2,Q1)).
+
+And no one shoots Q1 or Q2 (they're survivors). Since everyone shoots their nearest: A shoots B, B shoots A, P1-P6 shoot A or B, Q1 and Q2 shoot P1. So Q1 and Q2 have in-degree 0. Good.
+
+But we need: d(Q1, P1) < d(Q1, A) and d(Q1, P1) < d(Q1, B) and d(Q1, P1) < d(Q1, Pi) for i=2..6 and d(Q1, P1) < d(Q1, Q2).
+
+This means Q1 is very close to P1 (closer than to A, B, or any other point). Similarly Q2 very close to P1. But then d(Q1, Q2) is small (both close to P1), and we need d(Q1, P1) < d(Q1, Q2) and d(Q2, P1) < d(Q2, Q1). 
+
+If Q1 and Q2 are both very close to P1, then d(Q1, Q2) ≈ d(Q1, P1) + d(Q2, P1) (if on opposite sides) or |d(Q1,P1) - d(Q2,P1)| (if on same side). If on opposite sides: d(Q1,Q2) ≈ d(Q1,P1) + d(Q2,P1) > d(Q1,P1) and > d(Q2,P1). Good. If on same side: d(Q1,Q2) = |d(Q1,P1) - d(Q2,P1)|, which is less than max(d(Q1,P1), d(Q2,P1)). Bad for the farther one.
+
+So place Q1 and Q2 on opposite sides of P1, very close to P1. Then both have P1 as nearest, and d(Q1,Q2) > d(Q1,P1), d(Q2,P1). 
+
+But we also need P1's nearest to be A (not Q1 or Q2). So d(P1, A) < d(P1, Q1) and d(P1, A) < d(P1, Q2). So Q1 and Q2 are farther from P1 than A is from P1. But Q1's nearest is P1, so d(Q1, P1) < d(Q1, A). 
+
+Let d(P1, A) = r. Then d(P1, Q1) > r (since P1's nearest is A, not Q1). And d(Q1, P1) < d(Q1, A). 
+
+d(Q1, A) ≤ d(Q1, P1) + d(P1, A) = d(Q1, P1) + r (triangle inequality). So d(Q1, P1) < d(Q1, A) ≤ d(Q1, P1) + r. This is consistent.
+
+More precisely, if Q1 is on the ray from A through P1, beyond P1: d(Q1, A) = d(Q1, P1) + r. Then d(Q1, P1) < d(Q1, A) = d(Q1, P1) + r. ✓. And d(P1, Q1) = d(Q1, P1) > r = d(P1, A). ✓ (P1's nearest is A). 
+
+And Q1 needs d(Q1, P1) < d(Q1, B). d(Q1, B) ≈ d(Q1, A) = d(Q1, P1) + r (since B ≈ A). So d(Q1, P1) < d(Q1, P1) + r. ✓.
+
+And Q1 needs d(Q1, P1) < d(Q1, Pi) for i ≥ 2. Since Pi are at distance ~r from A and Q1 is at distance ~r + d(Q1,P1) from A, d(Q1, Pi) ≈ d(Q1, P1) (roughly, depends on angles). Hmm, this could be close. Need to be careful.
+
+This is getting complicated. Let me step back and think about the problem from a higher level.
+
+I recall that the answer to this problem is 5. Let me try to prove that the maximum is 5.
+
+Upper bound: at most 5 survivors.
+
+Let me think about a cleaner argument. 
+
+Consider the shooting graph. Each vertex has out-degree 1. Decompose into components, each with a 2-cycle. 
+
+Claim: In each component, the number of survivors ≤ (number of vertices in component - 2) / 2 + 1... no, let me think differently.
+
+Alternative approach: Consider the "nearest neighbor" relation. 
+
+Key observation: If we look at the 5 shortest distances among all pairs, can we say something?
+
+Hmm, let me think about it differently.
+
+Let me consider the graph where we draw an edge between each pair of mutual nearest neighbors. Actually, the 2-cycles are exactly the mutual nearest neighbor pairs.
+
+Another approach: Consider the graph G where we connect each gangster to the one they shoot. This is a functional graph. Survivors = vertices with in-degree 0.
+
+Let me think about the constraint from geometry more carefully.
+
+Lemma: No vertex can have in-degree ≥ 6.
+
+Proof: If V is shot by P1,...,Pk (each Pi's nearest is V), then all Pi are at distance > d(Pi, V) from each other (each Pi is closer to V than to any other Pj). As argued, the angular separation between any two Pi as seen from V is > 60°, so k ≤ 5.
+
+So in-degree ≤ 5 for every vertex.
+
+Now, total in-degree = 10. If s vertices survive (in-degree 0), the remaining 10-s vertices have total in-degree 10, with each ≤ 5. So 10 ≤ 5(10-s), giving 10-s ≥ 2, s ≤ 8. That's weak.
+
+Let me get a better bound. 
+
+The 2-cycle vertices: each is shot by the other (in-degree ≥ 1). Can a 2-cycle vertex have in-degree 5? That means 4 others shoot it plus its partner. The 4 others must be in the half-plane (closer to it than its partner), with >60° separation. Max 3 in a half-plane. So in-degree of a 2-cycle vertex ≤ 1 + 3 = 4.
+
+Hmm, let me reconsider. A 2-cycle vertex V (paired with W): W shoots V (in-degree ≥ 1 from W). Others shooting V must be closer to V than to W, so in V's half-plane. Max 3 such others. So in-degree(V) ≤ 4.
+
+Now, with c components: 2c cycle vertices, each with in-degree between 1 and 4. Non-cycle vertices: 10 - 2c, each with in-degree between 0 and 5.
+
+Total in-degree = 10 = (sum of in-degrees of cycle vertices) + (sum of in-degrees of non-cycle vertices).
+
+Survivors = non-cycle vertices with in-degree 0. Let s = survivors. Non-survivors among non-cycle = (10 - 2c) - s, each with in-degree ≥ 1.
+
+10 = (in-degree of cycle vertices) + (in-degree of non-cycle non-survivors) + 0.
+
+Cycle vertices: total in-degree ≥ 2c (each ≥ 1), ≤ 8c (each ≤ 4)... wait, ≤ 4 each, so ≤ 8c. But also total in-degree = 10.
+
+10 ≥ 2c + (10 - 2c - s) [cycle in-degree ≥ 2c, non-cycle non-survivors ≥ 1 each, count = 10-2c-s].
+10 ≥ 2c + 10 - 2c - s = 10 - s.
+So s ≥ 0. Useless.
+
+Upper bound on s: 
+10 = (cycle in-degree) + (non-cycle non-survivor in-degree) ≤ 4·2c + 5·(10-2c-s) + 0... 
+
+wait, non-cycle non-survivors have in-degree ≥ 1 and ≤ 5. To maximize s, we want to minimize the in-degree "used up" by non-survivors. 
+
+10 = (cycle in-degree) + (non-cycle non-survivor in-degree).
+To maximize s = (10-2c) - (non-cycle non-survivors), we want to minimize non-cycle non-survivors, i.e., put as much in-degree as possible on cycle vertices.
+
+Cycle in-degree ≤ 4·2c = 8c. Non-cycle non-survivor in-degree ≥ 1·(non-cycle non-survivors) = (10-2c-s).
+
+10 ≤ 8c + 5·(10-2c-s)... no, I want:
+
+10 = cycle_in + noncycle_nonsurv_in.
+cycle_in ≤ 8c.
+noncycle_nonsurv_in ≥ (10 - 2c - s) [each ≥ 1].
+
+So 10 ≥ 2c + (10 - 2c - s) → s ≥ 0. And 10 ≤ 8c + 5(10-2c-s) → 10 ≤ 8c + 50 - 10c - 5s → 5s ≤ 40 - 2c → s ≤ (40-2c)/5 = 8 - 2c/5.
+
+For c=1: s ≤ 8 - 0.4 = 7.6, so s ≤ 7.
+For c=2: s ≤ 8 - 0.8 = 7.2, so s ≤ 7.
+
+Hmm, still not tight enough. Let me get better bounds on in-degree.
+
+Let me reconsider. For a 2-cycle vertex V paired with W: in-degree(V) ≤ 1 + 3 = 4. But can it really be 4? That needs 3 points in V's half-plane with >60° separation, all having V as nearest. We showed max 3 in a half-plane. But those 3 also need to be closer to V than to ALL other points (not just W). With other points around, this might be harder. But in the best case, 3 is achievable, so in-degree 4 is possible.
+
+For a non-cycle vertex U with in-degree k: U is shot by k vertices, each having U as nearest. U itself shoots someone (its nearest). The k vertices shooting U must have >60° angular separation around U, so k ≤ 5. But additionally, U shoots its nearest, say V. The k vertices must be closer to U than to V... no, they just need U as their nearest. U's nearest is V, which is a separate constraint.
+
+Actually, the k vertices shooting U need U as nearest, so they're closer to U than to everyone else including V. But U is closer to V than to any of the k vertices (since V is U's nearest). So d(U,V) < d(U, Pi) for all Pi shooting U. The Pi are at distance > d(U,V) from U. The angular separation constraint still gives k ≤ 5. But can we also say something about the half-plane? The Pi must be closer to U than to V: d(Pi, U) < d(Pi, V). Since d(U,V) < d(U, Pi), V is closer to U than Pi is. The condition d(Pi,U) < d(Pi,V) means Pi is on U's side of the perpendicular bisector of UV. So Pi are in a half-plane, giving k ≤ 3.
+
+So non-cycle vertices also have in-degree ≤ 3? Wait, that's only if U shoots V and the Pi must be closer to U than to V. But Pi's nearest is U, so d(Pi, U) < d(Pi, V). Yes, Pi is closer to U than to V. So Pi is in U's half of the bisector of UV. Half-plane → max 3.
+
+So actually, every vertex has in-degree ≤ 3? No wait: a 2-cycle vertex V is shot by W (its partner) plus others. W is not in the half-plane constraint (W is the partner). The others (shooting V, with V as nearest) must be closer to V than to W, so in V's half-plane, max 3. Plus W. So in-degree(V) ≤ 4.
+
+For a non-cycle vertex U: U shoots V (nearest). Everyone shooting U has U as nearest, so they're closer to U than to V, in U's half-plane. Max 3. But also, is V shooting U? If V shoots U, then V is one of the shooters, but V is U's nearest, so d(U,V) < d(U, anyone). And V shoots U means U is V's nearest. Then V is closer to U than to anyone else. V is at distance d(U,V) from U. The other shooters of U are at distance > d(U,V) (since V is U's nearest). And they must be closer to U than to V, so in U's half-plane. V itself: is V in the half-plane? V is on the perpendicular bisector... no, V is at distance d(U,V) from U and 0 from V. V is not shooting U from the half-plane; V is a special case.
+
+Hmm, I think I need to be more careful. Let me reconsider.
+
+If U is a non-cycle vertex, U shoots V (V is U's nearest). Who shoots U? Some set S of vertices. Each s ∈ S has U as nearest. 
+
+Case 1: V ∈ S (V shoots U, so U and V are mutual nearest, forming a 2-cycle). But we said U is non-cycle. Contradiction. So V ∉ S.
+
+Case 2: V ∉ S. Then all shooters of U are non-partner vertices. Each shooter s has d(s, U) < d(s, V) (since U is s's nearest, not V). So s is in U's half-plane w.r.t. V. Max 3 such shooters. So in-degree(U) ≤ 3 for non-cycle U.
+
+Wait, but what if U is a cycle vertex? Then U's partner W shoots U, and W is not constrained to the half-plane (W is the closest to U). Other shooters of U must be closer to U than to W, so in U's half-plane, max 3. So in-degree(U) ≤ 1 + 3 = 4 for cycle vertices.
+
+And for non-cycle vertices: in-degree ≤ 3.
+
+Now: total in-degree = 10. Cycle vertices (2c of them): in-degree ≥ 1 each, ≤ 4 each. Non-cycle vertices (10-2c of them): in-degree ≥ 0, ≤ 3.
+
+Survivors s = non-cycle vertices with in-degree 0.
+
+10 = (cycle in-degree sum) + (non-cycle in-degree sum).
+Cycle in-degree sum: ≥ 2c, ≤ 8c.
+Non-cycle in-degree sum: from (10-2c-s) non-survivors, each ≥ 1, ≤ 3. So ≥ (10-2c-s), ≤ 3(10-2c-s).
+
+To maximize s: minimize non-cycle non-survivors. 
+10 = cycle_sum + noncycle_sum ≥ 2c + (10-2c-s).
+→ 10 ≥ 10 - s → s ≥ 0. (weak)
+
+10 = cycle_sum + noncycle_sum ≤ 8c + 3(10-2c-s).
+→ 10 ≤ 8c + 30 - 6c - 3s = 2c + 30 - 3s.
+→ 3s ≤ 2c + 20.
+→ s ≤ (2c + 20)/3.
+
+c=1: s ≤ 22/3 ≈ 7.33, so s ≤ 7.
+c=2: s ≤ 24/3 = 8, so s ≤ 8.
+c=3: s ≤ 26/3 ≈ 8.67, so s ≤ 8.
+
+Hmm, this is getting worse with more components. That doesn't seem right. The issue is that more components means more cycle vertices (non-survivors), but the formula allows more in-degree capacity.
+
+Let me also use the constraint: non-cycle non-survivors ≥ 0, and cycle in-degree sum ≤ 8c but also cycle in-degree sum ≤ 10 (total). And non-cycle in-degree sum ≤ 3(10-2c).
+
+Actually, let me think about it differently. Let me use the constraint that non-cycle non-survivors ≥ 1 (if there are non-cycle vertices that aren't survivors).
+
+Actually, let me try a different approach. Let me think about what constrains the number of survivors directly.
+
+Alternative approach using the half-plane / angular argument more carefully.
+
+Let me define: a "survivor" is a vertex with in-degree 0. Each survivor shoots someone. 
+
+Consider the survivors S1, ..., Ss. Each Si shoots its nearest neighbor. The nearest neighbor of Si is some vertex (could be another survivor? No—if Si shoots Sj, then Sj has in-degree ≥ 1, so Sj is not a survivor). So each survivor shoots a non-survivor.
+
+Now, each non-survivor is shot by at least one vertex. The non-survivors are shot by survivors and non-survivors.
+
+Let me think about the bipartite structure. Survivors shoot non-survivors. Non-survivors shoot non-survivors (or cycle partners).
+
+Hmm, this is getting complex. Let me try yet another approach.
+
+Let me think about pairs. Consider the shortest distance pair (A, B). They form a 2-cycle, both die. Remove them. Now consider the remaining 8. The shortest distance among remaining 8: say (C, D). Are C and D mutual nearest among the remaining 8? Yes, but their overall nearest might be A or B. 
+
+If C's overall nearest is A (or B), then C shoots A (or B), not D. So C and D don't necessarily form a 2-cycle.
+
+This approach doesn't directly work because of interference from A, B.
+
+Let me go back to the in-degree approach and try to tighten it.
+
+I'll use the fact that each non-cycle vertex has in-degree ≤ 3, and each cycle vertex has in-degree ≤ 4, plus the structural constraint that the graph is a functional graph with only 2-cycles.
+
+Let me think about it component by component.
+
+In a component with the 2-cycle (A, B) and t tree vertices (t = component size - 2):
+- A has in-degree 1 (from B) + (children of A in tree) ≤ 4, so at most 3 children.
+- B has in-degree 1 (from A) + (children of B in tree) ≤ 4, so at most 3 children.
+- Each non-cycle vertex has in-degree ≤ 3, so at most 3 children.
+
+The tree is a directed tree (arborescence) pointing towards A or B. The survivors in this component are the leaves (in-degree 0 vertices).
+
+In a rooted tree where each node has at most 3 children (for non-cycle) or 3 children (for cycle roots A, B), what's the maximum number of leaves?
+
+Actually, the constraint is on in-degree, which corresponds to the number of children in the tree (since in-degree = number of shooters = number of children in the tree pointing towards root). Wait, I need to be careful about the direction.
+
+In the shooting graph, edges point from shooter to target. The tree has edges pointing towards the root (cycle). So if P shoots Q, the edge is P→Q, and Q is closer to the root. The "children" of Q (vertices pointing to Q) are the ones farther from the root. In-degree of Q = number of children of Q in the tree.
+
+So in-degree ≤ 3 for non-cycle, ≤ 4 for cycle (but 1 is from partner, so 3 tree children).
+
+The number of leaves (in-degree 0) in a tree where each internal node has at most 3 children:
+
+For a tree with n nodes and each internal node having at most 3 children: max leaves = ? 
+
+If all internal nodes have exactly 3 children: L leaves, I internal nodes, n = L + I, and L = 3I - (something)... actually for a rooted tree: L = 1 + sum over internal nodes of (children - 1). With each internal node having 3 children: L = 1 + 2I. And n = L + I = 1 + 3I, so I = (n-1)/3, L = 1 + 2(n-1)/3 = (3 + 2n - 2)/3 = (2n+1)/3.
+
+But here we have two roots (A and B), each with at most 3 tree children. And the tree has t = n - 2 non-root vertices (n = t + 2 total in component).
+
+Hmm, let me think of it as two separate trees rooted at A and B (the tree vertices split into those pointing eventually to A and those to B). Say tA vertices in A's tree, tB in B's tree, tA + tB = t.
+
+A has at most 3 tree children. B has at most 3 tree children. Each non-root vertex has at most 3 children.
+
+For A's tree (tA vertices + root A): max leaves = 1 + 2·(internal nodes among tA + A). If A has 3 children and all internal nodes have 3 children: leaves = 1 + 2·I where I = (tA + 1 - 1)/3... 
+
+Actually, let me just think of it as a tree with tA non-root vertices and root A, where root has ≤ 3 children and each non-root has ≤ 3 children. Max leaves:
+
+Total nodes = tA + 1 (including root A). Each internal node has ≤ 3 children. 
+L = leaves, I = internal nodes (including root if it has children). 
+L + I = tA + 1.
+L = 1 + sum_{internal} (deg - 1) where deg = number of children. With all deg = 3: L = 1 + 2I.
+So L + I = tA + 1, L = 1 + 2I → 1 + 2I + I = tA + 1 → 3I = tA → I = tA/3, L = 1 + 2tA/3.
+
+For this to be integer, tA must be divisible by 3. Max leaves ≈ 1 + 2tA/3.
+
+Similarly for B's tree: max leaves ≈ 1 + 2tB/3.
+
+But wait, the root A is not a leaf (it has in-degree ≥ 1 from B, and it's a cycle vertex, not a survivor). The leaves of A's tree that are survivors are the non-root leaves. Root A is not a survivor (it's in the cycle). So survivors from A's tree = leaves among the tA non-root vertices.
+
+Hmm, let me reclarify. In A's tree (rooted at A, with edges pointing towards A):
+- A is the root (not a survivor, it's a cycle vertex).
+- The tA non-root vertices form a tree. Leaves of this tree (vertices with no children, i.e., in-degree 0) are survivors.
+
+If A has 3 children, and each internal non-root vertex has 3 children:
+Let the tree have tA non-root vertices. Internal non-root vertices: I'. Root A: 1 internal node (with 3 children).
+L + I' = tA (non-root vertices).
+Total children = 3 (from A) + 3I' (from internal non-root) = 3 + 3I'.
+Also, total children = tA (each non-root vertex is a child of exactly one node).
+So 3 + 3I' = tA → I' = (tA - 3)/3.
+L = tA - I' = tA - (tA-3)/3 = (3tA - tA + 3)/3 = (2tA + 3)/3.
+
+Survivors from A's tree = L = (2tA + 3)/3 (when tA ≥ 3 and divisible appropriately).
+
+Similarly from B's tree: (2tB + 3)/3.
+
+Total survivors = (2tA + 3)/3 + (2tB + 3)/3 = (2(tA+tB) + 6)/3 = (2t + 6)/3.
+
+With 1 component: t = 8. Survivors ≤ (16 + 6)/3 = 22/3 ≈ 7.33, so ≤ 7.
+
+But this assumes all internal nodes have exactly 3 children, which requires tA, tB to be right. Let's see: tA + tB = 8. To maximize (2tA+3)/3 + (2tB+3)/3 = (2·8+6)/3 = 22/3. So ≤ 7.
+
+But we also need tA ≥ 3 and tB ≥ 3 for the root to have 3 children (otherwise the root has fewer children). If tA < 3, root A has at most tA children, and the tree is smaller.
+
+If tA = 3: I' = 0, L = 3. All 3 are leaves. Survivors = 3.
+If tA = 6: I' = 1, L = 5. Survivors = 5.
+If tA = 4: I' = 1/3, not integer. So we can't have all internal nodes with 3 children. Best: A has 3 children, one of which has 1 child. L = 3 (leaves of A) - 1 (the one that has a child) + 1 (the new leaf) = 3. Or A has 2 children, one with 3 children: L = 2 - 1 + 3 = 4. Hmm, let me recalculate.
+
+For tA = 4: A has 3 children (c1, c2, c3), one of them (say c1) has 1 child (d1). Leaves: c2, c3, d1 = 3. Or A has 2 children (c1, c2), c1 has 3 children (d1,d2,d3) but wait c1 can have at most 3 children. Wait, but c1 is a non-root vertex, so it can have at most 3 children. But we only have 4 non-root vertices total. A has 2 children (c1, c2), c1 has 2 children (d1, d2). That's 2 + 2 = 4 non-root. Leaves: c2, d1, d2 = 3. Or A has 1 child c1, c1 has 3 children (d1,d2,d3). 1 + 3 = 4. Leaves: d1, d2, d3 = 3. 
+
+Hmm, for tA = 4, max leaves = 3? Let me check: A has 3 children (c1, c2, c3), c1 has 1 child (d1). Non-root: c1, c2, c3, d1 = 4. ✓. Leaves (in-degree 0): c2, c3, d1 = 3. 
+
+Can we do 4? A has 3 children, all leaves: 3 non-root, but we need 4. So one must have a child. That child is a leaf, but the parent is no longer a leaf. Net: 3 - 1 + 1 = 3. So max 3 for tA = 4.
+
+For tA = 5: A has 3 children (c1,c2,c3), c1 has 2 children (d1,d2). Non-root: 3 + 2 = 5. Leaves: c2, c3, d1, d2 = 4. Or A has 3 children, c1 has 1 child d1, d1 has 1 child e1. Non-root: 3 + 1 + 1 = 5. Leaves: c2, c3, e1 = 3. Worse. Best: 4.
+
+For tA = 6: A has 3 children, two of them have 3 children each? No, 3 + 3 + 3 = 9 > 6. A has 3 children (c1,c2,c3), c1 has 3 children (d1,d2,d3). Non-root: 3 + 3 = 6. Leaves: c2, c3, d1, d2, d3 = 5. ✓.
+
+For tA = 7: A has 3 children, c1 has 3 children, c2 has 1 child. Non-root: 3 + 3 + 1 = 7. Leaves: c3, d1, d2, d3, (c2's child) = 5. Or A has 3 children, c1 has 4 children? No, max 3. A has 3 children, c1 has 3, c2 has 1: 3+3+1 = 7. Leaves: c3 + 3 from c1's children + 1 from c2's child = 5. Can we get 6? A has 3 children, c1 has 2, c2 has 2: 3 + 2 + 2 = 7. Leaves: c3 + 2 + 2 = 5. Hmm, still 5. 
+
+A has 3 children (c1,c2,c3), c1 has 3 children (d1,d2,d3), d1 has 1 child (e1). 3 + 3 + 1 = 7. Leaves: c2, c3, d2, d3, e1 = 5. 
+
+Seems like for tA = 7, max leaves = 5. Let me verify with formula: (2·7 + 3)/3 = 17/3 ≈ 5.67, floor = 5. ✓.
+
+For tA = 8: (2·8+3)/3 = 19/3 ≈ 6.33, floor = 6. Let me verify: A has 3 children, c1 has 3, c2 has 2: 3+3+2 = 8. Leaves: c3 + 3 + 2 = 6. ✓.
+
+OK so the formula for max leaves in A's tree with tA non-root vertices is floor((2tA + 3)/3) for tA ≥ 1 (and 0 for tA = 0). Actually for tA = 0: 0 leaves. For tA = 1: A has 1 child, 1 leaf. (2+3)/3 = 5/3, floor = 1. ✓. tA = 2: A has 2 children, 2 leaves. (4+3)/3 = 7/3, floor = 2. ✓. tA = 3: 3 leaves. (6+3)/3 = 3. ✓.
+
+So max survivors from 1 component with t = tA + tB = 8:
+Maximize floor((2tA+3)/3) + floor((2tB+3)/3) subject to tA + tB = 8, tA, tB ≥ 0.
+
+Let me compute:
+- tA=0, tB=8: 0 + 6 = 6
+- tA=1, tB=7: 1 + 5 = 6
+- tA=2, tB=6: 2 + 5 = 7
+- tA=3, tB=5: 3 + 4 = 7
+- tA=4, tB=4: 3 + 3 = 6
+- tA=5, tB=3: 4 + 3 = 7
+- tA=6, tB=2: 5 + 2 = 7
+- tA=7, tB=1: 5 + 1 = 6
+- tA=8, tB=0: 6 + 0 = 6
+
+Max = 7 (at tA=2,tB=6 or tA=3,tB=5 or tA=5,tB=3 or tA=6,tB=2).
+
+So with 1 component, max survivors ≤ 7. But this is just the tree structure bound. We also need geometric realizability.
+
+Now with c = 2: 4 cycle vertices, 6 tree vertices. Each component has t1 + t2 = 6 tree vertices (split between 2 components). Each component has 2 cycle vertices with at most 3 tree children each.
+
+For component i with ti tree vertices: max survivors = floor((2ti+6)/3) (using the same formula with 2 roots, each with ≤ 3 children, total tree vertices ti).
+
+Wait, I need to redo this. For a component with 2-cycle (A,B) and ti tree vertices split into tAi and tBi (trees rooted at A and B):
+Max survivors = floor((2tAi+3)/3) + floor((2tBi+3)/3), tAi + tBi = ti.
+
+Maximize over tAi: same as before, max = floor((2ti+6)/3) (achieved when split optimally).
+
+For c=2, t1 + t2 = 6:
+- t1=0, t2=6: 0 + 6 = 6 (floor((0+6)/3)=2, floor((12+6)/3)=6, total 8? Wait let me recalculate.
+
+Hmm, I think I need to be more careful. For a component with ti tree vertices, the max survivors is:
+max over tAi + tBi = ti of [floor((2tAi+3)/3) + floor((2tBi+3)/3)].
+
+For ti = 0: 0.
+For ti = 1: tAi=1,tBi=0: 1+0=1. Or 0+1: 0+1=1. Max=1.
+For ti = 2: 1+1: 1+1=2. Or 2+0: 2+0=2. Max=2.
+For ti = 3: 3+0: 3+0=3. Or 2+1: 2+1=3. Or 0+3: 0+3=3. Max=3.
+For ti = 4: 3+1: 3+1=4. Or 2+2: 2+2=4. Max=4.
+For ti = 5: 3+2: 3+2=5. Or 5+0: 4+0=4. Max=5.
+For ti = 6: 3+3: 3+3=6. Or 6+0: 6+0=6. Or 5+1: 4+1=5. Max=6.
+
+So for c=2, t1+t2=6: max survivors = max over splits of f(t1)+f(t2) where f(t) = max leaves for t tree vertices.
+f(0)+f(6) = 0+6 = 6.
+f(1)+f(5) = 1+5 = 6.
+f(2)+f(4) = 2+4 = 6.
+f(3)+f(3) = 3+3 = 6.
+Max = 6.
+
+For c=3: 6 cycle vertices, 4 tree vertices. f values: f(0)+f(0)+f(4)=4, f(0)+f(1)+f(3)=4, f(0)+f(2)+f(2)=4, f(1)+f(1)+f(2)=4. Max=4.
+
+For c=4: 8 cycle, 2 tree. Max = 2.
+For c=5: 10 cycle, 0 tree. 0 survivors.
+
+So the tree-structure bound gives:
+c=1: 7
+c=2: 6
+c=3: 4
+c=4: 2
+c=5: 0
+
+Max over all c: 7 (with c=1).
+
+But we need to check geometric realizability. The tree structure bound of 7 for c=1 might not be achievable geometrically.
+
+Let me think about whether 7 is achievable. With c=1, tA=3, tB=5 (or similar), we need:
+- A, B mutual nearest (2-cycle).
+- 3 points in A's half-plane, each with A as nearest, forming a tree (all 3 direct children of A, all leaves).
+- 5 points in B's half-plane, forming a tree with 4 leaves (e.g., B has 3 children, one of which has 2 children: 3+2=5, leaves = 2+2=4).
+
+Wait, tB=5: max leaves = 5 (from f(5)=5, achieved with tBi=3, tBj=2: 3+2=5). Hmm wait, f(5) = 5 means 5 leaves from 5 tree vertices. That means all 5 are leaves, i.e., all 5 are direct children of B. But B can have at most 3 direct children! 
+
+I think I made an error. Let me recalculate f(t) for a single root.
+
+For root B with tB tree vertices, B has at most 3 children. Max leaves:
+
+tB = 0: 0
+tB = 1: 1 (B has 1 child, a leaf)
+tB = 2: 2 (B has 2 children, both leaves)
+tB = 3: 3 (B has 3 children, all leaves)
+tB = 4: B has 3 children, one has 1 child. Leaves: 2 + 1 = 3. Or B has 2 children, one has 2 children: 1 + 2 = 3. Max = 3.
+tB = 5: B has 3 children, one has 2 children: 2 + 2 = 4. Or B has 3 children, two have 1 child each: 1 + 1 + 1 = 3. Max = 4.
+
+Wait, I think I was confusing the two-root case. Let me redo this carefully.
+
+For a component with 2-cycle (A,B) and t tree vertices:
+- Tree vertices split into A's subtree (tA vertices) and B's subtree (tB vertices), tA + tB = t.
+- A has at most 3 tree children (in-degree ≤ 4, with 1 from B).
+- B has at most 3 tree children.
+- Each non-cycle vertex has at most 3 children (in-degree ≤ 3).
+
+For A's subtree with tA vertices (rooted at A, A has ≤ 3 children, others ≤ 3 children):
+Max leaves g(tA):
+tA=0: 0
+tA=1: 1
+tA=2: 2
+tA=3: 3
+tA=4: 3 (as computed)
+tA=5: 4 (B has 3 children, one has 2 children: leaves = 2+2=4)
+
+Wait, I'm computing for root A now. A has ≤ 3 children.
+tA=5: A has 3 children (c1,c2,c3), c1 has 2 children (d1,d2). Total: 3+2=5. Leaves: c2,c3,d1,d2 = 4. ✓.
+tA=6: A has 3 children, c1 has 3 children. 3+3=6. Leaves: c2,c3,d1,d2,d3 = 5. ✓.
+tA=7: A has 3 children, c1 has 3, c2 has 1. 3+3+1=7. Leaves: c3,d1,d2,d3,(c2's child) = 5. Or A has 3, c1 has 2, c2 has 2: 3+2+2=7. Leaves: c3 + 2 + 2 = 5. Max = 5.
+tA=8: A has 3, c1 has 3, c2 has 2: 3+3+2=8. Leaves: c3 + 3 + 2 = 6. ✓.
+
+So g(tA) = floor((2tA+3)/3) for tA ≥ 1, and 0 for tA = 0. Let me verify:
+g(1) = floor(5/3) = 1 ✓
+g(2) = floor(7/3) = 2 ✓
+g(3) = floor(9/3) = 3 ✓
+g(4) = floor(11/3) = 3 ✓
+g(5) = floor(13/3) = 4 ✓
+g(6) = floor(15/3) = 5 ✓
+g(7) = floor(17/3) = 5 ✓
+g(8) = floor(19/3) = 6 ✓
+
+For a component with t tree vertices: f(t) = max over tA+tB=t of g(tA) + g(tB).
+
+f(0) = 0
+f(1) = g(1)+g(0) = 1
+f(2) = g(2)+g(0) = 2, or g(1)+g(1) = 2. = 2
+f(3) = g(3)+g(0) = 3, or g(2)+g(1) = 3. = 3
+f(4) = g(3)+g(1) = 4, or g(4)+g(0) = 3, or g(2)+g(2) = 4. = 4
+f(5) = g(3)+g(2) = 5, or g(5)+g(0) = 4, or g(4)+g(1) = 4. = 5
+f(6) = g(3)+g(3) = 6, or g(6)+g(0) = 5, or g(5)+g(1) = 5, or g(4)+g(2) = 5. = 6
+f(7) = g(3)+g(4) = 6, or g(6)+g(1) = 6, or g(5)+g(2) = 6, or g(7)+g(0) = 5. = 6
+f(8) = g(3)+g(5) = 7, or g(6)+g(2) = 7, or g(8)+g(0) = 6, or g(4)+g(4) = 6, or g(7)+g(1) = 6. = 7
+
+So f(8) = 7, achieved at tA=3, tB=5 (g(3)+g(5)=3+4=7) or tA=6, tB=2 (g(6)+g(2)=5+2=7) or tA=2, tB=6 (g(2)+g(6)=2+5=7) or tA=5, tB=3 (g(5)+g(3)=4+3=7).
+
+So the tree structure allows 7 survivors with 1 component. But is this geometrically realizable?
+
+Let me try tA=3, tB=5. A has 3 direct children (all leaves), B has 3 direct children, one of which has 2 children (leaves). Survivors: 3 (A's children) + 2 (B's other children) + 2 (grandchildren) = 7.
+
+For this to work geometrically:
+1. A, B mutual nearest.
+2. 3 points in A's half-plane, each with A as nearest. (Feasible: 3 points at >60° separation in 180° half-plane.)
+3. 3 points in B's half-plane, each with B as nearest. (Feasible similarly.)
+4. One of B's children (call it C) has 2 children (D, E), each with C as nearest. D and E must be closer to C than to anyone else. C's nearest is B.
+
+For D and E to have C as nearest: d(D,C) < d(D, anyone), d(E,C) < d(E, anyone). And C's nearest is B: d(C,B) < d(C, D), d(C, E).
+
+So C is at distance r from B (B is C's nearest). D and E are at distance > r from C (since C's nearest is B, not D or E). And D, E are closer to C than to B: d(D,C) < d(D,B). Since D is on C's side of the bisector of CB... 
+
+D is at distance > r from C, and d(D,C) < d(D,B). d(D,B) ≤ d(D,C) + d(C,B) = d(D,C) + r. So d(D,C) < d(D,C) + r, always true. But we need d(D,C) < d(D,B), which means D is closer to C than to B. If D is on the ray from B through C, beyond C: d(D,B) = d(D,C) + r > d(D,C). ✓. And d(D,C) > r (C's nearest is B). And d(D,C) < d(D, all other points).
+
+Also, D and E must have >60° angular separation as seen from C (both have C as nearest). And they must be in C's half-plane w.r.t. B (closer to C than to B). So max 3, we need 2. Feasible.
+
+But we also need D and E to be closer to C than to A, to all of A's children, to all of B's other children, and to each other. This requires careful placement.
+
+This seems geometrically complex but potentially feasible. Let me think about whether there's a fundamental obstruction.
+
+Actually, let me reconsider. The key question is: can a non-cycle vertex C (which is B's child) have 2 children D, E of its own? 
+
+C's nearest is B. D and E's nearest is C. D and E must be closer to C than to B, and closer to C than to all other points.
+
+The constraint: D and E are in the region {X : d(X,C) < d(X,B) and d(X,C) < d(X, all other points)}. This is the intersection of half-planes (Voronoi-like). 
+
+The main constraint is d(X,C) < d(X,B), which is C's half of the bisector of BC. Since C is at distance r from B, this half-plane is the one not containing B. D and E must be in this half-plane, at distance > r from C (so C's nearest is B), and with >60° separation as seen from C. In a half-plane (180°), 2 points with >60° separation: easily feasible.
+
+But D and E also need to be closer to C than to A's children and B's other children. If we place everything far apart, this should work.
+
+Let me try to construct a concrete configuration.
+
+Place B at origin, A at (ε, 0) for small ε > 0. A and B are mutual nearest.
+
+B's children: 3 points in B's half-plane (x < ε/2, roughly x < 0), at distance R from B, at angles 100°, 180°, 260° (separated by 80° each, all in left half-plane). Call them C (at 180°), F (at 100°), G (at 260°).
+
+C's children: D and E, placed near C (at distance r from C, where r > d(C,B) = R... wait, no. C's nearest is B, so d(C,B) = R < d(C, D), d(C, E). So D and E are at distance > R from C. And D, E's nearest is C, so d(D,C) < d(D, B) = d(D,C) + R (if on ray from B through C beyond C). 
+
+Place D and E on the ray from B through C, beyond C. C is at (−R, 0). D at (−R − r1, 0), E at (−R − r1 − r2, 0)? But then D and E are collinear with C, and d(D,E) = r2, d(D,C) = r1. We need d(D,C) < d(D,E), so r1 < r2. And d(E,C) = r1 + r2, d(E,D) = r2. Need d(E,D) < d(E,C)? No, E's nearest is C, so d(E,C) < d(E,D): r1+r2 < r2, impossible. 
+
+So collinear doesn't work. Place D and E on opposite sides of the ray from B through C, beyond C. D at angle 150° from C (i.e., up-left from C), E at angle 210° from C (down-left from C). Both at distance r from C, with r > R (so C's nearest is B at distance R, not D or E at distance r). 
+
+d(D,E) = 2r sin(30°) = r (angle between them is 60°). Need d(D,C) = r < d(D,E) = r. Not strict. Use angle 70°: d(D,E) = 2r sin(35°) ≈ 1.15r > r. ✓.
+
+d(D,B): D is at C + r·(cos150°, sin150°) = (−R − r cos30°, r sin30°) = (−R − 0.87r, 0.5r). d(D,B) = √((R + 0.87r)² + (0.5r)²) = √(R² + 1.74Rr + 0.76r² + 0.25r²) = √(R² + 1.74Rr + r²). Since r > R, this is ≈ √(r² + 1.74Rr + R²) > r = d(D,C). ✓ (D is closer to C than to B).
+
+d(D,A): A is at (ε, 0) ≈ (0,0) = B. So d(D,A) ≈ d(D,B) > d(D,C). ✓.
+
+d(D,F): F is at angle 100° from B, distance R. F = (R cos100°, R sin100°) ≈ (−0.17R, 0.98R). D ≈ (−R − 0.87r, 0.5r). d(D,F) ≈ √((R + 0.87r − 0.17R)² + (0.5r − 0.98R)²) = √((0.83R + 0.87r)² + (0.5r − 0.98R)²). With r >> R: ≈ √((0.87r)² + (0.5r)²) = √(0.76r² + 0.25r²) = √(1.01r²) ≈ r. So d(D,F) ≈ r ≈ d(D,C). This is too close! We need d(D,C) < d(D,F) strictly.
+
+Hmm, the problem is that F is at distance R from B, and D is at distance ~r from C (which is at distance R from B). So d(D,F) is roughly on the order of r, similar to d(D,C). We need to ensure d(D,C) < d(D,F).
+
+To fix this: make r much smaller than R? But we need r > R (C's nearest is B at distance R, and D is at distance r from C, so r > R). Contradiction! We need r > R but also d(D,C) = r < d(D,F). If F is at distance R from B and D is at distance r from C (C at distance R from B), then d(D,F) depends on the geometry. If D is far from F (on the opposite side), d(D,F) could be ~2R + r, which is > r. Let me reconsider.
+
+D is at C + r·(direction away from F). C is at (−R, 0). F is at (−0.17R, 0.98R), which is upper-left. To place D away from F, put D below C: D at (−R − r cos30°, −r sin30°) = (−R − 0.87r, −0.5r). E at (−R − 0.87r, 0.5r) (above C but still away from F if F is far enough... hmm, E at (−R − 0.87r, 0.5r) and F at (−0.17R, 0.98R). d(E,F) = √((R + 0.87r − 0.17R)² + (0.5r − 0.98R)²) = √((0.83R + 0.87r)² + (0.5r − 0.98R)²).
+
+With r = 2R: √((0.83R + 1.74R)² + (R − 0.98R)²) = √((2.57R)² + (0.02R)²) ≈ 2.57R. And d(E,C) = r = 2R. So d(E,C) = 2R < d(E,F) ≈ 2.57R. ✓!
+
+And d(D,F): D at (−R − 1.74R, −R) = (−2.74R, −R). F at (−0.17R, 0.98R). d(D,F) = √((2.57R)² + (1.98R)²) = √(6.6R² + 3.9R²) = √(10.5R²) ≈ 3.24R. d(D,C) = 2R < 3.24R. ✓.
+
+d(D,G): G at angle 260° from B, distance R. G = (R cos260°, R sin260°) = (−0.17R, −0.98R). D at (−2.74R, −R). d(D,G) = √((2.57R)² + (0.02R)²) ≈ 2.57R. d(D,C) = 2R < 2.57R. ✓.
+
+d(D,E): D at (−2.74R, −R), E at (−2.74R, R). d(D,E) = 2R. d(D,C) = 2R. Equal! Not strictly less. Problem.
+
+The angle between D and E as seen from C: D at angle 210° from C, E at angle 150° from C. Angle = 60°. d(D,E) = 2r sin(30°) = r = 2R. And d(D,C) = r = 2R. So d(D,E) = d(D,C). We need strict inequality. Use a wider angle, say 80°: D at 220°, E at 140°. d(D,E) = 2r sin(40°) ≈ 1.29r = 2.58R > 2R = d(D,C). ✓.
+
+Let me recompute with D at 220° from C, E at 140° from C, both at distance r = 2R from C.
+C = (−R, 0).
+D = C + 2R(cos220°, sin220°) = (−R + 2R(−0.766), 2R(−0.643)) = (−R − 1.53R, −1.29R) = (−2.53R, −1.29R).
+E = C + 2R(cos140°, sin140°) = (−R + 2R(−0.766), 2R(0.643)) = (−2.53R, 1.29R).
+
+d(D,C) = 2R. d(E,C) = 2R. d(D,E) = 2·1.29R = 2.58R. ✓ (> 2R).
+
+d(D,B) = √((2.53R)² + (1.29R)²) = √(6.4 + 1.66)R = √8.06 R ≈ 2.84R > 2R. ✓.
+d(E,B) = same ≈ 2.84R > 2R. ✓.
+
+d(D,F): F = (−0.17R, 0.98R). d(D,F) = √((2.53−0.17)²R² + (1.29+0.98)²R²) = √(2.36² + 2.27²)R = √(5.57+5.15)R = √10.72 R ≈ 3.27R > 2R. ✓.
+d(E,F) = √((2.53−0.17)² + (1.29−0.98)²)R = √(2.36² + 0.31²)R = √(5.57+0.096)R ≈ 2.38R > 2R. ✓.
+d(D,G): G = (−0.17R, −0.98R). d(D,G) = √((2.53−0.17)² + (1.29−0.98)²)R ≈ 2.38R > 2R. ✓.
+d(E,G) = √((2.53−0.17)² + (1.29+0.98)²)R ≈ 3.27R > 2R. ✓.
+
+Now A's children: 3 points in A's half-plane (x > ε/2, roughly right side), at distance R from A, at angles -80°, 0°, 80° from A (i.e., to the right of A). Wait, A is at (ε, 0) ≈ (0, 0). A's half-plane is x > ε/2, so to the right. Place A's children at angles -80°, 0°, 80° from A, at distance R. But angle 0° is along positive x-axis, away from B. 
+
+A's children: P1 at A + R(cos(-80°), sin(-80°)) = (ε + 0.17R, −0.98R).
+P2 at A + R(1, 0) = (ε + R, 0).
+P3 at A + R(cos80°, sin80°) = (ε + 0.17R, 0.98R).
+
+Check: d(Pi, A) = R. d(Pi, B) ≈ R (since A ≈ B). We need d(Pi, A) < d(Pi, B). d(Pi, B) = d(Pi, A) + ε (roughly, if Pi is on the far side from B). Actually, d(Pi, B)² = d(Pi, A)² + ε² − 2·d(Pi,A)·ε·cos(angle). For P2 (angle 0°, away from B): d(P2, B) = R + ε > R = d(P2, A). ✓. For P1 (angle -80°): cos(-80°) = 0.17. d(P1, B)² = R² + ε² − 2Rε·0.17 ≈ R² − 0.34Rε. So d(P1, B) ≈ R − 0.17ε < R. Bad! P1 is closer to B than to A.
+
+So I need A's children at angles more than 90° from the direction to B. B is at angle 180° from A (A is at (ε,0), B at (0,0), so B is to the left of A). A's children should be to the right, at angles within ±90° of 0° (the direction away from B). Angles -80°, 0°, 80° are within ±90°, but the issue is the distance to B.
+
+d(P1, B)² = R² + ε² − 2Rε cos(80°) where the angle is between the direction A→P1 and A→B. A→B is direction 180°. A→P1 is direction -80° = 280°. Angle between them = 180° - 280° = -100°, or 100°. cos(100°) = -0.17. So d(P1, B)² = R² + ε² + 2Rε·0.17 ≈ R² + 0.34Rε > R². So d(P1, B) > R = d(P1, A). ✓!
+
+I made an error before. Let me redo. A is at (ε, 0), B at (0, 0). Direction from A to B is 180° (pointing left). A's children are at angles -80°, 0°, 80° from A (pointing right-ish). The angle between A→P1 (direction -80°) and A→B (direction 180°) is 180° - (-80°) = 260°, or equivalently 100°. cos(100°) < 0. So d(P1, B)² = R² + ε² - 2Rε cos(100°) = R² + ε² + 2Rε·0.17 > R². ✓.
+
+Great, so all A's children are closer to A than to B. Now check pairwise distances among A's children:
+d(P1, P2) = distance between (ε+0.17R, -0.98R) and (ε+R, 0) = √((0.83R)² + (0.98R)²) = √(0.69 + 0.96)R = √1.65 R ≈ 1.28R > R. ✓.
+d(P2, P3) = same ≈ 1.28R > R. ✓.
+d(P1, P3) = distance between (ε+0.17R, -0.98R) and (ε+0.17R, 0.98R) = 1.96R > R. ✓.
+
+So all A's children have A as nearest. ✓.
+
+Now check that D and E are closer to C than to A's children:
+d(D, P1): D = (-2.53R, -1.29R), P1 = (ε+0.17R, -0.98R) ≈ (0.17R, -0.98R). d = √((2.53+0.17)² + (1.29-0.98)²)R = √(2.7² + 0.31²)R = √(7.29+0.096)R ≈ 2.72R > 2R = d(D,C). ✓.
+d(D, P2): P2 ≈ (R, 0). d = √((2.53+R)² + (1.29R)²)... wait, D = (-2.53R, -1.29R), P2 = (R, 0) (approx, ignoring ε). d = √((3.53R)² + (1.29R)²) = √(12.46 + 1.66)R ≈ 3.76R > 2R. ✓.
+d(D, P3): P3 ≈ (0.17R, 0.98R). d = √((2.7R)² + (2.27R)²) = √(7.29+5.15)R ≈ 3.53R > 2R. ✓.
+d(E, P1): E = (-2.53R, 1.29R), P1 ≈ (0.17R, -0.98R). d = √((2.7R)² + (2.27R)²) ≈ 3.53R > 2R. ✓.
+d(E, P2): d = √((3.53R)² + (1.29R)²) ≈ 3.76R > 2R. ✓.
+d(E, P3): d = √((2.7R)² + (0.31R)²) ≈ 2.72R > 2R. ✓.
+
+Now check that A's children are closer to A than to D, E, C, F, G:
+d(P1, C): P1 ≈ (0.17R, -0.98R), C = (-R, 0). d = √((1.17R)² + (0.98R)²) = √(1.37+0.96)R ≈ 1.53R > R = d(P1, A). ✓.
+d(P1, F): P1 ≈ (0.17R, -0.98R), F ≈ (-0.17R, 0.98R). d = √((0.34R)² + (1.96R)²) = √(0.12+3.84)R ≈ 1.99R > R. ✓.
+d(P1, G): G ≈ (-0.17R, -0.98R). d = √((0.34R)² + 0) = 0.34R < R. ✗!!! 
+
+P1 is at (ε + 0.17R, -0.98R) and G is at (-0.17R, -0.98R). They're at the same y-coordinate and close in x. d(P1, G) ≈ 0.34R < R = d(P1, A). So P1's nearest is G, not A!
+
+This is a problem. A's children and B's children are at similar distances from the center and can be close to each other.
+
+I need to place A's children and B's children so they're far from each other. Since A's children are to the right and B's to the left, they should be far apart. But P1 (A's child at angle -80°) and G (B's child at angle 260° = -100°) are both in the lower region and close.
+
+The issue is that A's children span angles -80° to 80° (right side) and B's children span 100° to 260° (left side). P1 at -80° and G at 260° = -100° are both near the bottom, separated by only 20° in angle. At distance R from center, they're close.
+
+To fix: increase angular separation. Use A's children at angles -60°, 0°, 60° and B's children at 120°, 180°, 240°. Then the closest pair between the groups: A's child at 60° and B's child at 120°, separated by 60°. At distance R: d = 2R sin(30°) = R. Equal to d(Pi, A) = R. Not strictly greater. Problem.
+
+With angles -50°, 0°, 50° for A and 130°, 180°, 230° for B: closest pair at 50° and 130°, separated by 80°. d = 2R sin(40°) ≈ 1.29R > R. ✓. But A's children at -50°, 0°, 50°: separation 50° < 60°. d(P1, P2) = 2R sin(25°) ≈ 0.85R < R. ✗. A's children are too close to each other.
+
+The fundamental issue: A's children need >60° separation among themselves, B's children need >60° among themselves, and A's and B's children need to be far from each other. With 3 children each in half-planes, the half-planes are 180° each, and 3 children need 2 gaps > 60° = > 120° in 180°. That leaves 60° of slack. But the boundary between A's and B's half-planes is at 90° and 270°, and children near the boundary can be close.
+
+Let me use different distances. Place A's children at distance RA and B's children at distance RB, with RA ≠ RB. Then even if they're at similar angles, the distance between them is larger.
+
+Actually, a simpler fix: place A's children much closer to A (small RA) and B's children farther (large RB), or vice versa. Then A's children are close to A and far from B's children.
+
+Let RA = R, RB = 3R. A's children at distance R from A, B's children at distance 3R from B.
+
+A's children: at angles -60°, 0°, 60° from A, distance R. Pairwise: 2R sin(30°) = R. Not > R. Need > 60°. Use -70°, 0°, 70°: 2R sin(35°) ≈ 1.15R > R. ✓. But angle 70° from A, and A is at (ε, 0): the child at 70° is at (ε + R cos70°, R sin70°) = (ε + 0.34R, 0.94R). Distance to B at (0,0): √((0.34R)² + (0.94R)²) = √(0.12 + 0.88)R = R. Equal to d(P, A) = R. Need strict inequality. Barely fails.
+
+Use angles -80°, 0°, 80°: pairwise 2R sin(40°) ≈ 1.29R > R. ✓. Child at 80°: (ε + 0.17R, 0.98R). d to B: √((0.17R)² + (0.98R)²) = √(0.03+0.96)R ≈ R. Again ≈ R. The issue is that at 80° from A (which is at (ε,0)), the child is almost at distance R from B too.
+
+The perpendicular bisector of AB is at x = ε/2. A's children must be at x > ε/2. Child at angle 80° from A: x = ε + R cos80° = ε + 0.17R. This is > ε/2 for R > 0. ✓. But d(child, B) vs d(child, A): 
+
+d²(child, B) = (ε + R cos80°)² + (R sin80°)² = ε² + 2εR cos80° + R² = R² + ε² + 0.35εR.
+d²(child, A) = R².
+So d(child, B) > d(child, A). ✓ (barely, by ε² + 0.35εR).
+
+OK so it works but the margin is small. The real issue is the distance between A's children and B's children.
+
+B's children at distance 3R from B, at angles 100°, 180°, 260°. 
+B's child at 100°: (3R cos100°, 3R sin100°) = (-0.52R, 2.95R).
+A's child at 80°: (ε + 0.17R, 0.98R) ≈ (0.17R, 0.98R).
+d = √((0.17+0.52)²R² + (0.98-2.95)²R²) = √(0.48² + 1.97²)R = √(0.23+3.88)R ≈ 2.03R > R = d(A's child, A). ✓.
+
+B's child at 260°: (3R cos260°, 3R sin260°) = (-0.52R, -2.95R).
+A's child at -80°: (0.17R, -0.98R).
+d = √((0.69)² + (1.97)²)R ≈ 2.09R > R. ✓.
+
+B's child at 100°: (-0.52R, 2.95R). A's child at 0°: (R, 0). d = √((1.52)² + (2.95)²)R ≈ 3.32R > R. ✓.
+
+B's children pairwise: at 3R, angles 100°, 180°, 260°. Separations 80°. d = 2·3R sin(40°) ≈ 3.86R > 3R. ✓.
+
+B's children vs B: d = 3R. d(B's child, A) ≈ 3R (since A ≈ B). Need d(child, B) < d(child, A). Same perpendicular bisector argument: child is at x < 0 (left side), so closer to B. ✓.
+
+Now C (B's child at 180°): C = (-3R, 0). C's children D, E at distance r from C, with r > 3R (C's nearest is B at 3R). Let r = 6R.
+
+D at angle 220° from C, distance 6R: D = (-3R + 6R cos220°, 6R sin220°) = (-3R - 4.6R, -3.86R) = (-7.6R, -3.86R).
+E at angle 140° from C, distance 6R: E = (-3R - 4.6R, 3.86R) = (-7.6R, 3.86R).
+
+d(D,C) = 6R. d(E,C) = 6R. d(D,E) = 2·3.86R = 7.72R > 6R. ✓.
+
+d(D,B) = √((7.6R)² + (3.86R)²) = √(57.76 + 14.9)R = √72.66 R ≈ 8.52R > 6R. ✓.
+d(E,B) = same ≈ 8.52R > 6R. ✓.
+
+d(D, F) where F = B's child at 100° = (-0.52R, 2.95R): d = √((7.6-0.52)² + (3.86+2.95)²)R = √(7.08² + 6.81²)R = √(50.1+46.4)R ≈ 9.83R > 6R. ✓.
+d(D, G) where G = (-0.52R, -2.95R): d = √((7.08)² + (0.91)²)R ≈ 7.14R > 6R. ✓.
+d(E, F): d = √((7.08)² + (0.91)²)R ≈ 7.14R > 6R. ✓.
+d(E, G): d = √((7.08)² + (6.81)²)R ≈ 9.83R > 6R. ✓.
+
+d(D, A's children): A's child at 0° = (R, 0). d(D, (R,0)) = √((8.6)² + (3.86)²)R ≈ 9.43R > 6R. ✓. (All A's children are even farther.)
+
+d(C, D) = 6R, d(C, B) = 3R. C's nearest is B (3R < 6R). ✓.
+d(C, F) = d between (-3R, 0) and (-0.52R, 2.95R) = √((2.48)² + (2.95)²)R = √(6.15+8.7)R ≈ 3.85R > 3R = d(C,B). ✓.
+d(C, G) = same ≈ 3.85R > 3R. ✓.
+d(C, A) ≈ 3R + ε ≈ 3R. d(C, A) = √((3R+ε)² + 0) ≈ 3R + ε > 3R = d(C,B). ✓ (barely).
+d(C, A's children): A's child at 0° = (R, 0). d = 4R > 3R. ✓.
+
+Now I also need to check that F and G (B's other        — AI历史解题过程（thinking）
+#   polymath_01451         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_01451</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+41st IMO 2000 shortlist Problem G7 Ten gangsters are standing in a field. The distance between each pair of gangsters is different. When the clock strikes, each gangster shoots the nearest gangster dead. What is the largest number of gangsters that can survive? Solution
+
+## Standard Solution
+
+: 7. Obviously at least two gangsters die: someone must get shot, but he must shoot someone else. It is easy to arrange for just four to die. Take four roughly in a circle around a fifth. All four shoot the gangster in the center, and he shoots one of those in the circle. So two out of the five die. Arrange the other five similarly, some distance away. However, with a little care, we can reduce that to three gangsters dying, by arranging that the two central gangsters both shoot the same gangster. Consider the situation below. The lh circle is slightly smaller than the rh circle. The angles 142, 243, 7 10 8, 9 10 8 are slightly greater than 60 o . The distance 56 is the same as the radius of the larger circle. Thus 1, 2, 3 and 5 shoot 4; 4, 6 and 10 shoot 5; 7, 8 and 9 shoot 10. So 4, 5, 10 die and the others survive. So we have to show that we cannot have just two gangsters die. It is surprisingly difficult. We cannot have six gangsters all shooting the same person. For suppose A, B, C, D, E, F all shoot O. Suppose ∠AOB ≤ 60 o . Since OA and OB are assumed to be unequal, angles OAB and OBA are unequal. Hence at least one of them > 60 o . Suppose it is ∠OAB. Then ∠OAB > ∠AOB, then OB > BA, so B should shoot A not O. Contradiction. Similarly, if ∠OBA > 60 o . So ∠OAB > 60 o . Similarly, each of the other angles BOC, COD, DOE, EOF, FOA must be > 60 o . But the sum of the six angles is 360 o . Contradiction. So at most 5 gangsters can shoot the same person. So assume that it is possible to arrange 10 gangsters so that only two die. Let A and B be the two closest gangsters. Then they must shoot each other. So we have to show that every other gangster shoots A or B. Since at most 5 gangsters can shoot the same person, 4 of the others must shoot A and 4 must shoot B. Using the result in the previous paragraph if C is the next gangster anticlockwise from B who shoots A and C' the next gangster clockwise then, the ∠CAC'  AC). Similarly ∠GBA = a + ∠ADB  ∠HAB + ∠GBA > 180 o . Similarly, ∠ECD = d + ∠CAD > 2d (since CD > CA) and ∠FDC = c + ∠DBC > 2c, so 2c + 2d < ∠ECD + ∠FDC < 180 o . Hence c + d < a + b. Contradiction, since they are obviously equal. 41st IMO shortlist 2000 © John Scholes jscholes@kalva.demon.co.uk 10 Oct 2002
+
+## AI's Thinking (Attempted Solution Process)
+
+The problem is the classic IMO 2000 shortlist G7 problem about gangsters shooting nearest neighbors. Let me think about this carefully.
+
+Ten gangsters, all pairwise distances distinct. Each shoots nearest. Max survivors.
+
+Let me think about the structure. Each gangster shoots exactly one other (their nearest neighbor). So we have a directed graph where each vertex has out-degree 1 (pointing to nearest neighbor). The survivors are those not shot by anyone, i.e., vertices with in-degree 0.
+
+We want to maximize the number of vertices with in-degree 0.
+
+Total in-degree = 10 (since total out-degree = 10). So if k vertices have in-degree 0, the remaining 10-k vertices have total in-degree 10, so average in-degree among non-survivors is 10/(10-k).
+
+Key constraint: nearest neighbor graph. If A's nearest is B, then B's nearest could be A or someone else.
+
+Important fact: In nearest-neighbor graph, no cycles of length ≥ 3. Actually, let me think. Can there be a directed cycle of length ≥ 3? If A→B→C→A (each points to next as nearest). Then d(A,B) < d(A,C) (B is A's nearest, not C). d(B,C) < d(B,A) (C is B's nearest). d(C,A) < d(C,B) (A is C's nearest). So d(A,B) < d(A,C), d(B,C) < d(A,B), d(C,A) < d(B,C). So d(C,A) < d(B,C) < d(A,B) < d(A,C). But d(A,C) = d(C,A). Contradiction. So no directed cycles of length ≥ 3.
+
+So the directed graph consists of: each component has a 2-cycle (mutual nearest neighbors) at its "center", with trees feeding into the 2-cycle.
+
+Wait, actually each component of a functional graph (out-degree 1) has exactly one cycle. Since cycles of length ≥ 3 are impossible, every cycle is a 2-cycle (mutual nearest neighbors).
+
+So the graph decomposes into components, each containing exactly one 2-cycle, with directed trees feeding into the two vertices of the 2-cycle.
+
+Now, a vertex survives iff in-degree 0. We want to maximize survivors.
+
+In a component with the 2-cycle (A,B) where A↔B, both A and B have in-degree ≥ 1 (they shoot each other, so each gets shot by the other). So A and B are NOT survivors.
+
+The other vertices in the component: some may have in-degree 0 (survivors), some in-degree ≥ 1.
+
+To maximize survivors, we want as many vertices as possible with in-degree 0, meaning we want the in-degree to be concentrated.
+
+Each component has a 2-cycle (2 non-survivors guaranteed). If we have c components, at least 2c vertices are non-survivors (the 2-cycle vertices). So survivors ≤ 10 - 2c.
+
+To maximize survivors, minimize c. Minimum c = 1, giving survivors ≤ 8.
+
+But can we achieve 8 survivors with 1 component? That means 1 two-cycle (2 vertices A,B mutual nearest), and 8 other vertices all pointing into the tree, with each of the 8 having in-degree 0. But total in-degree = 10, and the 2-cycle vertices A,B each have in-degree ≥ 1. The 8 others have in-degree 0. So total in-degree from non-survivors = 10, distributed among A and B and... wait, only A and B have in-degree ≥ 1? That's 10 in-degree on 2 vertices. A gets shot by B (1) plus some of the 8. B gets shot by A (1) plus some of the 8. Total: 2 + (number of 8 that point to A or B) = 10, so all 8 point to A or B. But wait, that means each of the 8 points to either A or B as their nearest. And none of the 8 is shot by anyone (in-degree 0).
+
+Hmm, but is this geometrically realizable? We need 8 points all having A or B as nearest, and none of them being nearest to each other.
+
+Actually wait, let me reconsider. If all 8 point to A or B, and none has in-degree > 0, that means no two of the 8 are mutual nearest, and no one of the 8 is the nearest of another of the 8.
+
+Let me think about whether 8 is achievable.
+
+Place A and B close together (mutual nearest). Place 8 other points far from each other but each closer to A or B than to any other point.
+
+Hmm, but the 8 points need to be far apart from each other (so none is another's nearest), yet each close to A or B.
+
+Consider: A and B at distance ε. Place 8 points on a large circle around the midpoint of AB, far apart. Each point's nearest is either A or B (since A,B are close to center, and points are far apart on circle). 
+
+Wait, but if points are on a large circle of radius R, the distance between adjacent points on the circle is ~2R sin(π/8) ≈ 0.765R. The distance from a point to A (near center) is ~R. So R > 0.765R, meaning the nearest neighbor of a circle point is an adjacent circle point, not A or B. That doesn't work.
+
+We need each of the 8 points to be closer to A/B than to any other of the 8 points. So the 8 points must be spread out such that pairwise distances among them are large, but each is close to A or B.
+
+If A and B are at the center, points around them... the issue is that if 8 points are all near center, they're close to each other.
+
+Alternative: put 4 points very close to A (but farther than ε from A, and closer to A than to each other), and 4 points very close to B.
+
+Points close to A: place them at distance δ from A where ε << δ. They need to be closer to A than to each other. If 4 points are at distance δ from A in different directions, pairwise distance ~δ√2 (for orthogonal) or up to 2δ. We need δ < pairwise distance, i.e., δ < ~δ√2, which is true. But also they need A as nearest, so δ < distance to B = ~ε... no wait, distance to B is approximately ε (if A,B close) plus... no. If point P is at distance δ from A, and B is at distance ε from A, then distance from P to B is between |δ-ε| and δ+ε. If P is on the opposite side of A from B, distance to B ≈ δ + ε > δ, good. If P is on the same side as B, distance to B ≈ δ - ε < δ, bad—then B would be P's nearest, not A.
+
+So place the 4 points near A on the opposite side from B. Then their distance to B ≈ δ + ε > δ = distance to A. Good. And pairwise distances among the 4 points: if they're at distance δ from A spread in a cone away from B, pairwise distances are at least ~δ (if spread enough). We need δ < pairwise distance. If 4 points at distance δ from A, directions spread over a cone, the minimum pairwise distance could be small if the cone is narrow. Let's spread them widely.
+
+Actually, let me place A at origin, B at (ε, 0). Place 4 points at distance δ from A, at angles 90°, 120°, 180°, 240° (away from B which is at 0°). Hmm, angles 90 to 240 span 150°. Pairwise distances: between 90° and 120° points: 2δ sin(15°) ≈ 0.52δ < δ. Bad—these two points are closer to each other (0.52δ) than to A (δ). So they'd shoot each other.
+
+We need pairwise distances > δ. Points at distance δ from A: pairwise distance = 2δ sin(θ/2) where θ is angular separation. Need 2 sin(θ/2) > 1, i.e., θ > 60°. With 4 points, need total angular spread > 3×60° = 180°. We have a half-plane (180°) available on the opposite side from B. Exactly 180° with 4 points at 60° apart: angles 0°+180°=180°... let's say angles 180°, 240°, 300°, 360°(=0°). But 0° is towards B. Hmm.
+
+Actually the constraint is that the points must be on the side away from B. The "away from B" half-plane is angles (90°, 270°). That's 180°. With 4 points needing 60° separation, we need 180° exactly. Place at 90°, 150°, 210°, 270°. Separations: 60° each. Pairwise distance = 2δ sin(30°) = δ. Exactly δ, not > δ. We need strictly greater (distances are all distinct, and nearest must be A). So we need > 60° separation, but we only have 180° for 4 points. 3 gaps of >60° = >180°. Doesn't fit.
+
+So we can fit at most 3 points near A (on the away side) with pairwise distance > δ. With 3 points: 2 gaps of >60° = >120°, fits in 180°. 
+
+Hmm, so 3 near A, 3 near B, total 6. That gives 6 survivors, not 8.
+
+Wait, but maybe I'm being too restrictive. Let me reconsider. The points don't all have to be at the same distance δ from A. They can be at different distances.
+
+Let me reconsider. We want points P1,...,P8 such that:
+- Each Pi's nearest neighbor is A or B.
+- No Pi is the nearest neighbor of any Pj (so all Pi have in-degree 0).
+
+Actually, the condition "no Pi is nearest of any Pj" is automatically satisfied if every Pj's nearest is A or B. So we just need: for each Pi, the nearest among {A, B, all other Pj} is A or B.
+
+So for each Pi: d(Pi, A) < d(Pi, Pj) for all j≠i, OR d(Pi, B) < d(Pi, Pj) for all j≠i (and also < d(Pi, the other of A,B)).
+
+Let me think of it as: each Pi is "assigned" to A or B (whichever is nearer), and must be closer to its assigned center than to all other points.
+
+Let me think about how many points can be assigned to A. Points assigned to A: d(Pi, A) < d(Pi, B) and d(Pi, A) < d(Pi, Pj) for all j.
+
+The condition d(Pi, A) < d(Pi, Pj) for all Pj (including those assigned to B).
+
+This is like a packing problem. Let me think about it differently.
+
+Consider the Voronoi-like condition. Actually, let's think about it as: the points assigned to A must all lie in the region where A is the nearest among {A, B, all other points}.
+
+Let me consider a simpler approach. Place A and B very close (distance ε). Place points at various distances.
+
+For points assigned to A (on the far side from B): Let me place them at distances δ1 < δ2 < ... from A, along different directions. 
+
+A point at distance δk from A: needs δk < distance to all other Pj. If other points are at distance ≥ δk from it... 
+
+Hmm, let me think about the known answer. I recall this problem; the answer is 5. Let me verify.
+
+Actually, let me reconsider. I think the answer to this classic problem is 5. Let me think about why 8 doesn't work and what the real bound is.
+
+Let me reconsider the structure. We established: the graph decomposes into components, each with a 2-cycle. If c components, at least 2c non-survivors. But there can be more non-survivors (tree vertices that get shot).
+
+With c=1: at least 2 non-survivors, at most 8 survivors. But can we achieve 8?
+
+The issue is geometric. Let me think about an upper bound.
+
+Key lemma: Consider the shortest distance among all pairs. Say d(A,B) is the smallest. Then A and B are mutual nearest neighbors (each is the other's nearest). So A↔B is a 2-cycle, both die. Now remove A, B. Among remaining 8, the shortest distance pair (C,D) are mutual nearest among the 8... but wait, C's nearest overall might be A or B, not D.
+
+Hmm, that's the issue. C and D might shoot A or B instead of each other.
+
+Let me think again. Let me consider the "shooting" graph. Each vertex shoots its nearest. 
+
+Claim: The number of survivors ≤ 5.
+
+Let me think about why. 
+
+Consider the 2-cycle structure. With 1 component (1 two-cycle), we have 2 non-survivors from the cycle, and 8 others. For 8 survivors, all 8 others must have in-degree 0, meaning they all shoot into A or B (or into the tree, but if any shoots into another non-cycle vertex, that vertex has in-degree ≥ 1 and is not a survivor).
+
+Wait, if all 8 shoot A or B directly, then A and B have high in-degree, and the 8 have in-degree 0. That's 8 survivors. The question is whether this is geometrically realizable.
+
+Let me think more carefully about the geometric constraint.
+
+For a point P to have A as its nearest neighbor: d(P,A) < d(P, X) for all other points X (including B and all other P's).
+
+So if P1 and P2 both have A as nearest: d(P1, A) < d(P1, P2) and d(P2, A) < d(P1, P2). 
+
+This means both P1 and P2 are closer to A than to each other. 
+
+How many points can be closer to A than to each other? This is related to the "kissing number" / packing on a sphere.
+
+If all points are at distance r from A, then pairwise distance > r means angular separation > 60°. On a circle (2D), max 5 points with pairwise angular separation > 60°? No: 360/60 = 6, but need strictly > 60°, so max 5. Wait, 6 points at exactly 60° give pairwise distance = r (not > r). With strict inequality, max 5 on a circle at distance r.
+
+But points can be at different distances! A point farther from A can coexist with points closer to A.
+
+Let me think: points P1 at distance r1, P2 at distance r2 from A, with r1 < r2. Condition: d(P1,P2) > r1 and d(P2, P1) > r2... wait no. d(P1, A) = r1 < d(P1, P2) and d(P2, A) = r2 < d(P2, P1) = d(P1,P2). So d(P1,P2) > max(r1, r2) = r2.
+
+So the pairwise distance must exceed the larger of the two distances to A. That's even more restrictive for the farther point.
+
+Hmm, so having points at different distances doesn't obviously help. Let me think about the maximum number of points that can all have A as their nearest neighbor.
+
+This is exactly the question: what is the maximum number of points that can be placed such that A is the nearest neighbor of each? In 2D, this is related to the kissing number. 
+
+If A is the nearest neighbor of P1, ..., Pk, then for each pair, d(Pi, Pj) > max(d(Pi, A), d(Pj, A)). 
+
+Consider the angles at A. For Pi and Pj at distances ri, rj from A with angle θ between them: d(Pi,Pj)² = ri² + rj² - 2 ri rj cos θ. Need this > max(ri, rj)².
+
+WLOG ri ≤ rj. Need ri² + rj² - 2ri rj cos θ > rj², i.e., ri² > 2ri rj cos θ, i.e., ri > 2rj cos θ, i.e., cos θ < ri/(2rj) ≤ 1/2. So θ > 60° (when ri = rj), and θ can be smaller when ri << rj (cos θ < ri/(2rj) → 0, so θ → 90°).
+
+Wait, when ri << rj: cos θ < ri/(2rj) ≈ 0, so θ > 90°. That's more restrictive, not less!
+
+When ri = rj: θ > 60°. When ri < rj: θ > arccos(ri/(2rj)) > 60°. So equal distances are the best case, allowing 60° separation.
+
+So the maximum number of points with A as nearest neighbor, all at the same distance, is 5 (since 6 would need exactly 60° which gives equality, not strict). Actually, we need all pairwise distances distinct, so we can't have them all at exactly 60°. With 5 points, we can have separations slightly more than 72°... wait, 5 points on a circle: 360/5 = 72° > 60°. So 5 points at equal distance r from A, separated by 72°, have pairwise distance 2r sin(36°) ≈ 1.18r > r. 
+
+So up to 5 points can have A as nearest neighbor. Can we do 6? 6 points at equal distance: 60° separation, pairwise distance = r, not > r. With unequal distances, the constraint is worse. So max 5 points can have A as their nearest neighbor.
+
+Wait, but I should be more careful. With unequal distances, maybe we can do better in some configurations? Let me reconsider.
+
+We need: for all pairs (i,j), d(Pi, Pj) > max(ri, rj) where ri = d(Pi, A).
+
+Consider the angular separation needed. For ri ≤ rj: need θij > arccos(ri/(2rj)). Since ri/(2rj) ≤ 1/2, arccos ≥ 60°. The minimum angular separation is 60° (achieved when ri = rj). 
+
+So for any configuration, all pairwise angular separations (as seen from A) must be > 60°. The maximum number of points with all pairwise angular separations > 60° around a point is 5 (since 6 × 60° = 360°, and we need strict inequality).
+
+Therefore, at most 5 points can have A as their nearest neighbor.
+
+Similarly, at most 5 can have B as nearest neighbor. So total points shooting A or B: at most 10. But we have 8 non-cycle vertices. So potentially all 8 could shoot A or B (5 to A, 3 to B, say). But wait, we also need A and B to shoot each other.
+
+Hold on. A shoots B (nearest) and B shoots A. The 8 others shoot A or B. For the 8 to all be survivors (in-degree 0), no one shoots any of the 8. Since everyone shoots either A or B, the 8 all have in-degree 0. 
+
+So we need: 8 points, each having A or B as nearest, with at most 5 assigned to A and at most 5 to B. 5+5 = 10 ≥ 8, so this is feasible in terms of the counting bound.
+
+But we also need the geometric realization. Let me try to construct it.
+
+Place A at origin, B at (ε, 0) for small ε > 0. 
+
+5 points assigned to A: at distance r from A, at angles 90°, 162°, 234°, 306°, 18° (i.e., spread on the side away from B). Wait, B is at angle 0°. Points at angles 90°, 162°, 234°, 306°, 378°=18°. The point at 18° is close to B's direction. Its distance to B: d² = r² + ε² - 2rε cos(18°) ≈ r² - 2rε cos(18°). For this to be > r (so A is nearer than B), we need r² + ε² - 2rε cos18° > r²... wait, we need d(P, A) = r < d(P, B). d(P,B)² = r² + ε² - 2rε cos(18°). Need r² < r² + ε² - 2rε cos18°, i.e., 0 < ε² - 2rε cos18°, i.e., ε > 2r cos18°. But ε is small and r is large, so this fails. The point at 18° would be closer to B than to A.
+
+So I should place the 5 points assigned to A at angles away from B. Let's use angles 108°, 180°, 252°, 324°, 36°. Hmm, 36° is still close to 0°. 
+
+The issue: points assigned to A must be in the half-plane away from B (roughly angles 90° to 270°), but we need 5 points with >60° separation in this 180° range. 5 points need 4 gaps of >60° = >240° > 180°. Doesn't fit!
+
+So we can't fit 5 points assigned to A in the half-plane away from B. We can fit at most 3 (2 gaps of >60° = >120° < 180°, and 3 gaps... 3 points need 2 gaps, but we also need the "end" gaps). Actually, 3 points in 180°: 2 gaps between them. If each gap > 60°, total > 120°, fits in 180°. But we also need the angular distance from the first point to the boundary (90°) and last to boundary (270°) to be... actually the boundary isn't a hard constraint; it's that points near 90° or 270° might be closer to B.
+
+Let me reconsider. The condition for P (assigned to A) is d(P,A) < d(P,B), which means P is in the half-plane closer to A (the perpendicular bisector of AB, on A's side). So P must be on A's side of the perpendicular bisector of AB. If A=(0,0), B=(ε,0), the bisector is x = ε/2. So P must have x < ε/2, i.e., roughly the left half-plane.
+
+So points assigned to A are in the half-plane x < ε/2, and need pairwise angular separation > 60° as seen from A. In a half-plane (180°), max 3 points with >60° separation (since 3 points need 2 internal gaps > 60° each = > 120°, and the remaining 60° is split between the two end gaps, which is fine as long as end gaps ≥ 0).
+
+Wait, actually I need to be more careful. 3 points in a 180° arc: the arc from 90° to 270°. Place them at 90°+α, 180°, 270°-α for small α. Gaps: (180° - 90° - α) = 90° - α, (270° - α - 180°) = 90° - α, and the middle gap 0°... no. Let me place 3 points at angles θ1 < θ2 < θ3 in [90°, 270°]. Gaps: θ2-θ1, θ3-θ2, and we need both > 60°. Also θ3 - θ1 ≤ 180°. So θ3 - θ1 = (θ2-θ1) + (θ3-θ2) > 120°. And θ3 - θ1 ≤ 180°. Feasible: e.g., θ1=95°, θ2=180°, θ3=265°. Gaps: 85°, 85°. Both > 60°. 
+
+Can we fit 4? 4 points in [90°, 270°]: 3 gaps, each > 60°, total > 180°. But the range is 180°. 3 gaps > 180° > 180° range. Doesn't fit. So max 3 points assigned to A.
+
+Similarly, max 3 assigned to B. Total: 3 + 3 = 6 points shooting A or B. So with 1 component, at most 6 non-cycle vertices can shoot A or B, giving at most 6 survivors.
+
+But wait, can some of the 8 non-cycle vertices shoot each other (into the tree) and still be survivors? No—if Pi shoots Pj, then Pj has in-degree ≥ 1, so Pj is not a survivor. For all 8 to be survivors, all 8 must have in-degree 0, so all 8 must shoot A or B. But we showed at most 6 can shoot A or B. So with 1 component, at most 6 survivors.
+
+Hmm wait, but I need to double-check: can a non-cycle vertex shoot another non-cycle vertex that is in the tree? If P1 shoots P2, and P2 shoots A, then P2 has in-degree ≥ 1 (from P1), so P2 is not a survivor. P1 has in-degree 0 (if no one shoots P1), so P1 is a survivor. So in a tree structure, only the "leaves" (in-degree 0 vertices) are survivors.
+
+So the number of survivors = number of vertices with in-degree 0 = number of leaves in the forest of trees feeding into the 2-cycles.
+
+Let me reconsider the problem more carefully with the component structure.
+
+With c components (c two-cycles), we have 2c vertices in cycles (all non-survivors). The remaining 10 - 2c vertices form trees feeding into the cycles. Survivors = leaves of these trees (in-degree 0 vertices).
+
+To maximize survivors, we want to maximize leaves. 
+
+In a single component with 2-cycle (A,B) and 8 other vertices forming a tree: the tree is a directed tree with edges pointing towards A or B. The leaves (in-degree 0) are the survivors. 
+
+A tree on 8+2 = 10 vertices rooted at a 2-cycle: the maximum number of leaves in a tree on n vertices is n-1 (a star), but here the structure is constrained.
+
+Actually, let me think about it as: we have a forest of rooted trees (roots are the 2-cycle vertices). Each tree is an arborescence pointing towards the root. The leaves are vertices with no children (in-degree 0 in the shooting graph, i.e., no one points to them).
+
+Wait, I need to be careful about direction. In the shooting graph, edges point from shooter to target. A vertex with in-degree 0 is not shot = survivor. A vertex with in-degree 0 is a "source" in the graph. In the tree feeding into the cycle, the sources are the leaves farthest from the cycle.
+
+For a tree on m vertices (directed towards root), the number of sources (leaves) can be up to m-1 (star: all point to root, root is the only non-leaf). But here the root is a cycle vertex.
+
+Let me reconsider. With 1 component: 2-cycle (A,B), and 8 tree vertices. The 8 tree vertices form directed trees rooted at A and B (edges point towards A or B). 
+
+If all 8 point directly to A or B (star structure), then all 8 are leaves (in-degree 0), 8 survivors. But we showed at most 6 can point to A or B directly (3 to A, 3 to B). So at most 6 can be direct children.
+
+What about multi-level trees? Some vertices point to other tree vertices. E.g., P1 points to A, P2 points to P1. Then P1 has in-degree ≥ 1 (from P2), so P1 is not a survivor. P2 has in-degree 0, survivor. So multi-level trees reduce survivors.
+
+So the star structure (all direct children of A or B) maximizes survivors, and we showed at most 6 direct children. So with 1 component, max 6 survivors.
+
+Now let's check c = 2: 2 two-cycles, 4 cycle vertices (non-survivors), 6 tree vertices. Each cycle has 2 vertices, say (A1,B1) and (A2,B2). Tree vertices point to cycle vertices. Max direct children of each cycle vertex: 3 (by the same half-plane argument, but now the constraint is different because there are other points around).
+
+Hmm wait, the "max 3 assigned to one center" argument was specific to the geometry with A and B close together. With 2 components, the geometry is different. Let me reconsider.
+
+Actually, the key constraint is: for a vertex V that is a cycle vertex, how many vertices can have V as their nearest neighbor? We showed this is at most 5 (angular separation > 60° around V). But if V is in a 2-cycle with W (W is V's nearest), then points assigned to V must be closer to V than to W, restricting to a half-plane, giving at most 3.
+
+But with 2 components, the cycle vertices are not necessarily close to each other. Let me reconsider.
+
+For a 2-cycle (A,B): A and B are mutual nearest. d(A,B) is the nearest distance for both. Points assigned to A must be closer to A than to B (and closer to A than to all other points). The half-plane constraint applies: assigned-to-A points are in A's half of the perpendicular bisector of AB. Max 3 such points (as argued). Similarly max 3 for B. So each 2-cycle can have at most 6 direct children, giving at most 6 survivors from that component's tree.
+
+With c = 2: 2 components, each with at most 6 tree vertices as survivors. But total tree vertices = 10 - 4 = 6. So at most 6 survivors. Same as c = 1.
+
+Hmm, but with c = 2, we have 4 non-survivor cycle vertices and 6 tree vertices. If all 6 tree vertices are direct children (leaves), 6 survivors. But can we achieve 6? Each component has 3 tree vertices (say), each cycle vertex gets at most 3 children. 3 tree vertices per component, 2 cycle vertices per component: e.g., 3 assigned to one cycle vertex, 0 to other. But max 3 per vertex. So 3 per component is fine. 2 components × 3 = 6 survivors. 
+
+But wait, with c = 2, we need 2 separate 2-cycles. The 4 cycle vertices and 6 tree vertices all need to be placed so that the nearest neighbor relationships work out. This might be harder geometrically.
+
+Let me reconsider. Maybe the answer is 5, not 6. Let me think about whether 6 is achievable.
+
+Let me try to construct a configuration with 6 survivors.
+
+1 component: A, B mutual nearest (d(A,B) = ε, very small). 6 points P1,...,P6, 3 assigned to A, 3 assigned to B, all direct children, all survivors. Plus 2 more points... wait, 10 gangsters total. 2 in cycle + 6 direct children = 8. We need 2 more. Those 2 must also be placed. If they're also direct children, that's 8 children, but we can only have 6. So the other 2 must be non-survivors (they get shot or they shoot someone who then has in-degree ≥ 1).
+
+Wait, I think I miscounted. 10 gangsters. With 1 component: 2 cycle + 8 tree. Max 6 direct children (survivors). The other 2 tree vertices must be in multi-level trees, making them non-survivors (or making their parents non-survivors). So max survivors = 6.
+
+But can we actually achieve 6? We need 6 direct children (3 to A, 3 to B) and 2 additional points that are non-survivors. The 2 additional points could, e.g., point to one of the direct children (making that child a non-survivor, reducing survivors to 5). Or point to A or B (but then they'd be 7th and 8th direct children, exceeding the limit of 6).
+
+Hmm, so the 2 extra points can't be direct children of A or B (limit 6). They must shoot someone else. If they shoot a direct child, that child becomes non-survivor. So we lose 1 or 2 survivors. 
+
+If both extra points shoot the same direct child: that child has in-degree 2, non-survivor. The 2 extra points have in-degree 0 (if no one shoots them), so they're survivors. Net: 6 - 1 + 2 = 7? Wait, no. Let me recount.
+
+10 vertices: A, B (cycle, non-survivors), P1-P6 (direct children of A/B, would be survivors), Q1, Q2 (extra).
+
+If Q1 and Q2 both shoot P1: P1 has in-degree 2 (from Q1, Q2), non-survivor. Q1, Q2 have in-degree 0, survivors. P2-P6 have in-degree 0, survivors. Total survivors: Q1, Q2, P2, P3, P4, P5, P6 = 7.
+
+But wait, can Q1 and Q2 have P1 as nearest? Q1's nearest is P1, meaning d(Q1, P1) < d(Q1, A), d(Q1, B), d(Q1, all other P's), d(Q1, Q2). And Q2's nearest is P1 similarly. And P1's nearest is A (so d(P1, A) < d(P1, Q1), d(P1, Q2)). 
+
+Also, Q1 and Q2 must not be nearest to each other (they both shoot P1, so that's fine as long as d(Q1,P1) < d(Q1,Q2) and d(Q2,P1) < d(Q2,Q1)).
+
+And no one shoots Q1 or Q2 (they're survivors). Since everyone shoots their nearest: A shoots B, B shoots A, P1-P6 shoot A or B, Q1 and Q2 shoot P1. So Q1 and Q2 have in-degree 0. Good.
+
+But we need: d(Q1, P1) < d(Q1, A) and d(Q1, P1) < d(Q1, B) and d(Q1, P1) < d(Q1, Pi) for i=2..6 and d(Q1, P1) < d(Q1, Q2).
+
+This means Q1 is very close to P1 (closer than to A, B, or any other point). Similarly Q2 very close to P1. But then d(Q1, Q2) is small (both close to P1), and we need d(Q1, P1) < d(Q1, Q2) and d(Q2, P1) < d(Q2, Q1). 
+
+If Q1 and Q2 are both very close to P1, then d(Q1, Q2) ≈ d(Q1, P1) + d(Q2, P1) (if on opposite sides) or |d(Q1,P1) - d(Q2,P1)| (if on same side). If on opposite sides: d(Q1,Q2) ≈ d(Q1,P1) + d(Q2,P1) > d(Q1,P1) and > d(Q2,P1). Good. If on same side: d(Q1,Q2) = |d(Q1,P1) - d(Q2,P1)|, which is less than max(d(Q1,P1), d(Q2,P1)). Bad for the farther one.
+
+So place Q1 and Q2 on opposite sides of P1, very close to P1. Then both have P1 as nearest, and d(Q1,Q2) > d(Q1,P1), d(Q2,P1). 
+
+But we also need P1's nearest to be A (not Q1 or Q2). So d(P1, A) < d(P1, Q1) and d(P1, A) < d(P1, Q2). So Q1 and Q2 are farther from P1 than A is from P1. But Q1's nearest is P1, so d(Q1, P1) < d(Q1, A). 
+
+Let d(P1, A) = r. Then d(P1, Q1) > r (since P1's nearest is A, not Q1). And d(Q1, P1) < d(Q1, A). 
+
+d(Q1, A) ≤ d(Q1, P1) + d(P1, A) = d(Q1, P1) + r (triangle inequality). So d(Q1, P1) < d(Q1, A) ≤ d(Q1, P1) + r. This is consistent.
+
+More precisely, if Q1 is on the ray from A through P1, beyond P1: d(Q1, A) = d(Q1, P1) + r. Then d(Q1, P1) < d(Q1, A) = d(Q1, P1) + r. ✓. And d(P1, Q1) = d(Q1, P1) > r = d(P1, A). ✓ (P1's nearest is A). 
+
+And Q1 needs d(Q1, P1) < d(Q1, B). d(Q1, B) ≈ d(Q1, A) = d(Q1, P1) + r (since B ≈ A). So d(Q1, P1) < d(Q1, P1) + r. ✓.
+
+And Q1 needs d(Q1, P1) < d(Q1, Pi) for i ≥ 2. Since Pi are at distance ~r from A and Q1 is at distance ~r + d(Q1,P1) from A, d(Q1, Pi) ≈ d(Q1, P1) (roughly, depends on angles). Hmm, this could be close. Need to be careful.
+
+This is getting complicated. Let me step back and think about the problem from a higher level.
+
+I recall that the answer to this problem is 5. Let me try to prove that the maximum is 5.
+
+Upper bound: at most 5 survivors.
+
+Let me think about a cleaner argument. 
+
+Consider the shooting graph. Each vertex has out-degree 1. Decompose into components, each with a 2-cycle. 
+
+Claim: In each component, the number of survivors ≤ (number of vertices in component - 2) / 2 + 1... no, let me think differently.
+
+Alternative approach: Consider the "nearest neighbor" relation. 
+
+Key observation: If we look at the 5 shortest distances among all pairs, can we say something?
+
+Hmm, let me think about it differently.
+
+Let me consider the graph where we draw an edge between each pair of mutual nearest neighbors. Actually, the 2-cycles are exactly the mutual nearest neighbor pairs.
+
+Another approach: Consider the graph G where we connect each gangster to the one they shoot. This is a functional graph. Survivors = vertices with in-degree 0.
+
+Let me think about the constraint from geometry more carefully.
+
+Lemma: No vertex can have in-degree ≥ 6.
+
+Proof: If V is shot by P1,...,Pk (each Pi's nearest is V), then all Pi are at distance > d(Pi, V) from each other (each Pi is closer to V than to any other Pj). As argued, the angular separation between any two Pi as seen from V is > 60°, so k ≤ 5.
+
+So in-degree ≤ 5 for every vertex.
+
+Now, total in-degree = 10. If s vertices survive (in-degree 0), the remaining 10-s vertices have total in-degree 10, with each ≤ 5. So 10 ≤ 5(10-s), giving 10-s ≥ 2, s ≤ 8. That's weak.
+
+Let me get a better bound. 
+
+The 2-cycle vertices: each is shot by the other (in-degree ≥ 1). Can a 2-cycle vertex have in-degree 5? That means 4 others shoot it plus its partner. The 4 others must be in the half-plane (closer to it than its partner), with >60° separation. Max 3 in a half-plane. So in-degree of a 2-cycle vertex ≤ 1 + 3 = 4.
+
+Hmm, let me reconsider. A 2-cycle vertex V (paired with W): W shoots V (in-degree ≥ 1 from W). Others shooting V must be closer to V than to W, so in V's half-plane. Max 3 such others. So in-degree(V) ≤ 4.
+
+Now, with c components: 2c cycle vertices, each with in-degree between 1 and 4. Non-cycle vertices: 10 - 2c, each with in-degree between 0 and 5.
+
+Total in-degree = 10 = (sum of in-degrees of cycle vertices) + (sum of in-degrees of non-cycle vertices).
+
+Survivors = non-cycle vertices with in-degree 0. Let s = survivors. Non-survivors among non-cycle = (10 - 2c) - s, each with in-degree ≥ 1.
+
+10 = (in-degree of cycle vertices) + (in-degree of non-cycle non-survivors) + 0.
+
+Cycle vertices: total in-degree ≥ 2c (each ≥ 1), ≤ 8c (each ≤ 4)... wait, ≤ 4 each, so ≤ 8c. But also total in-degree = 10.
+
+10 ≥ 2c + (10 - 2c - s) [cycle in-degree ≥ 2c, non-cycle non-survivors ≥ 1 each, count = 10-2c-s].
+10 ≥ 2c + 10 - 2c - s = 10 - s.
+So s ≥ 0. Useless.
+
+Upper bound on s: 
+10 = (cycle in-degree) + (non-cycle non-survivor in-degree) ≤ 4·2c + 5·(10-2c-s) + 0... 
+
+wait, non-cycle non-survivors have in-degree ≥ 1 and ≤ 5. To maximize s, we want to minimize the in-degree "used up" by non-survivors. 
+
+10 = (cycle in-degree) + (non-cycle non-survivor in-degree).
+To maximize s = (10-2c) - (non-cycle non-survivors), we want to minimize non-cycle non-survivors, i.e., put as much in-degree as possible on cycle vertices.
+
+Cycle in-degree ≤ 4·2c = 8c. Non-cycle non-survivor in-degree ≥ 1·(non-cycle non-survivors) = (10-2c-s).
+
+10 ≤ 8c + 5·(10-2c-s)... no, I want:
+
+10 = cycle_in + noncycle_nonsurv_in.
+cycle_in ≤ 8c.
+noncycle_nonsurv_in ≥ (10 - 2c - s) [each ≥ 1].
+
+So 10 ≥ 2c + (10 - 2c - s) → s ≥ 0. And 10 ≤ 8c + 5(10-2c-s) → 10 ≤ 8c + 50 - 10c - 5s → 5s ≤ 40 - 2c → s ≤ (40-2c)/5 = 8 - 2c/5.
+
+For c=1: s ≤ 8 - 0.4 = 7.6, so s ≤ 7.
+For c=2: s ≤ 8 - 0.8 = 7.2, so s ≤ 7.
+
+Hmm, still not tight enough. Let me get better bounds on in-degree.
+
+Let me reconsider. For a 2-cycle vertex V paired with W: in-degree(V) ≤ 1 + 3 = 4. But can it really be 4? That needs 3 points in V's half-plane with >60° separation, all having V as nearest. We showed max 3 in a half-plane. But those 3 also need to be closer to V than to ALL other points (not just W). With other points around, this might be harder. But in the best case, 3 is achievable, so in-degree 4 is possible.
+
+For a non-cycle vertex U with in-degree k: U is shot by k vertices, each having U as nearest. U itself shoots someone (its nearest). The k vertices shooting U must have >60° angular separation around U, so k ≤ 5. But additionally, U shoots its nearest, say V. The k vertices must be closer to U than to V... no, they just need U as their nearest. U's nearest is V, which is a separate constraint.
+
+Actually, the k vertices shooting U need U as nearest, so they're closer to U than to everyone else including V. But U is closer to V than to any of the k vertices (since V is U's nearest). So d(U,V) < d(U, Pi) for all Pi shooting U. The Pi are at distance > d(U,V) from U. The angular separation constraint still gives k ≤ 5. But can we also say something about the half-plane? The Pi must be closer to U than to V: d(Pi, U) < d(Pi, V). Since d(U,V) < d(U, Pi), V is closer to U than Pi is. The condition d(Pi,U) < d(Pi,V) means Pi is on U's side of the perpendicular bisector of UV. So Pi are in a half-plane, giving k ≤ 3.
+
+So non-cycle vertices also have in-degree ≤ 3? Wait, that's only if U shoots V and the Pi must be closer to U than to V. But Pi's nearest is U, so d(Pi, U) < d(Pi, V). Yes, Pi is closer to U than to V. So Pi is in U's half of the bisector of UV. Half-plane → max 3.
+
+So actually, every vertex has in-degree ≤ 3? No wait: a 2-cycle vertex V is shot by W (its partner) plus others. W is not in the half-plane constraint (W is the partner). The others (shooting V, with V as nearest) must be closer to V than to W, so in V's half-plane, max 3. Plus W. So in-degree(V) ≤ 4.
+
+For a non-cycle vertex U: U shoots V (nearest). Everyone shooting U has U as nearest, so they're closer to U than to V, in U's half-plane. Max 3. But also, is V shooting U? If V shoots U, then V is one of the shooters, but V is U's nearest, so d(U,V) < d(U, anyone). And V shoots U means U is V's nearest. Then V is closer to U than to anyone else. V is at distance d(U,V) from U. The other shooters of U are at distance > d(U,V) (since V is U's nearest). And they must be closer to U than to V, so in U's half-plane. V itself: is V in the half-plane? V is on the perpendicular bisector... no, V is at distance d(U,V) from U and 0 from V. V is not shooting U from the half-plane; V is a special case.
+
+Hmm, I think I need to be more careful. Let me reconsider.
+
+If U is a non-cycle vertex, U shoots V (V is U's nearest). Who shoots U? Some set S of vertices. Each s ∈ S has U as nearest. 
+
+Case 1: V ∈ S (V shoots U, so U and V are mutual nearest, forming a 2-cycle). But we said U is non-cycle. Contradiction. So V ∉ S.
+
+Case 2: V ∉ S. Then all shooters of U are non-partner vertices. Each shooter s has d(s, U) < d(s, V) (since U is s's nearest, not V). So s is in U's half-plane w.r.t. V. Max 3 such shooters. So in-degree(U) ≤ 3 for non-cycle U.
+
+Wait, but what if U is a cycle vertex? Then U's partner W shoots U, and W is not constrained to the half-plane (W is the closest to U). Other shooters of U must be closer to U than to W, so in U's half-plane, max 3. So in-degree(U) ≤ 1 + 3 = 4 for cycle vertices.
+
+And for non-cycle vertices: in-degree ≤ 3.
+
+Now: total in-degree = 10. Cycle vertices (2c of them): in-degree ≥ 1 each, ≤ 4 each. Non-cycle vertices (10-2c of them): in-degree ≥ 0, ≤ 3.
+
+Survivors s = non-cycle vertices with in-degree 0.
+
+10 = (cycle in-degree sum) + (non-cycle in-degree sum).
+Cycle in-degree sum: ≥ 2c, ≤ 8c.
+Non-cycle in-degree sum: from (10-2c-s) non-survivors, each ≥ 1, ≤ 3. So ≥ (10-2c-s), ≤ 3(10-2c-s).
+
+To maximize s: minimize non-cycle non-survivors. 
+10 = cycle_sum + noncycle_sum ≥ 2c + (10-2c-s).
+→ 10 ≥ 10 - s → s ≥ 0. (weak)
+
+10 = cycle_sum + noncycle_sum ≤ 8c + 3(10-2c-s).
+→ 10 ≤ 8c + 30 - 6c - 3s = 2c + 30 - 3s.
+→ 3s ≤ 2c + 20.
+→ s ≤ (2c + 20)/3.
+
+c=1: s ≤ 22/3 ≈ 7.33, so s ≤ 7.
+c=2: s ≤ 24/3 = 8, so s ≤ 8.
+c=3: s ≤ 26/3 ≈ 8.67, so s ≤ 8.
+
+Hmm, this is getting worse with more components. That doesn't seem right. The issue is that more components means more cycle vertices (non-survivors), but the formula allows more in-degree capacity.
+
+Let me also use the constraint: non-cycle non-survivors ≥ 0, and cycle in-degree sum ≤ 8c but also cycle in-degree sum ≤ 10 (total). And non-cycle in-degree sum ≤ 3(10-2c).
+
+Actually, let me think about it differently. Let me use the constraint that non-cycle non-survivors ≥ 1 (if there are non-cycle vertices that aren't survivors).
+
+Actually, let me try a different approach. Let me think about what constrains the number of survivors directly.
+
+Alternative approach using the half-plane / angular argument more carefully.
+
+Let me define: a "survivor" is a vertex with in-degree 0. Each survivor shoots someone. 
+
+Consider the survivors S1, ..., Ss. Each Si shoots its nearest neighbor. The nearest neighbor of Si is some vertex (could be another survivor? No—if Si shoots Sj, then Sj has in-degree ≥ 1, so Sj is not a survivor). So each survivor shoots a non-survivor.
+
+Now, each non-survivor is shot by at least one vertex. The non-survivors are shot by survivors and non-survivors.
+
+Let me think about the bipartite structure. Survivors shoot non-survivors. Non-survivors shoot non-survivors (or cycle partners).
+
+Hmm, this is getting complex. Let me try yet another approach.
+
+Let me think about pairs. Consider the shortest distance pair (A, B). They form a 2-cycle, both die. Remove them. Now consider the remaining 8. The shortest distance among remaining 8: say (C, D). Are C and D mutual nearest among the remaining 8? Yes, but their overall nearest might be A or B. 
+
+If C's overall nearest is A (or B), then C shoots A (or B), not D. So C and D don't necessarily form a 2-cycle.
+
+This approach doesn't directly work because of interference from A, B.
+
+Let me go back to the in-degree approach and try to tighten it.
+
+I'll use the fact that each non-cycle vertex has in-degree ≤ 3, and each cycle vertex has in-degree ≤ 4, plus the structural constraint that the graph is a functional graph with only 2-cycles.
+
+Let me think about it component by component.
+
+In a component with the 2-cycle (A, B) and t tree vertices (t = component size - 2):
+- A has in-degree 1 (from B) + (children of A in tree) ≤ 4, so at most 3 children.
+- B has in-degree 1 (from A) + (children of B in tree) ≤ 4, so at most 3 children.
+- Each non-cycle vertex has in-degree ≤ 3, so at most 3 children.
+
+The tree is a directed tree (arborescence) pointing towards A or B. The survivors in this component are the leaves (in-degree 0 vertices).
+
+In a rooted tree where each node has at most 3 children (for non-cycle) or 3 children (for cycle roots A, B), what's the maximum number of leaves?
+
+Actually, the constraint is on in-degree, which corresponds to the number of children in the tree (since in-degree = number of shooters = number of children in the tree pointing towards root). Wait, I need to be careful about the direction.
+
+In the shooting graph, edges point from shooter to target. The tree has edges pointing towards the root (cycle). So if P shoots Q, the edge is P→Q, and Q is closer to the root. The "children" of Q (vertices pointing to Q) are the ones farther from the root. In-degree of Q = number of children of Q in the tree.
+
+So in-degree ≤ 3 for non-cycle, ≤ 4 for cycle (but 1 is from partner, so 3 tree children).
+
+The number of leaves (in-degree 0) in a tree where each internal node has at most 3 children:
+
+For a tree with n nodes and each internal node having at most 3 children: max leaves = ? 
+
+If all internal nodes have exactly 3 children: L leaves, I internal nodes, n = L + I, and L = 3I - (something)... actually for a rooted tree: L = 1 + sum over internal nodes of (children - 1). With each internal node having 3 children: L = 1 + 2I. And n = L + I = 1 + 3I, so I = (n-1)/3, L = 1 + 2(n-1)/3 = (3 + 2n - 2)/3 = (2n+1)/3.
+
+But here we have two roots (A and B), each with at most 3 tree children. And the tree has t = n - 2 non-root vertices (n = t + 2 total in component).
+
+Hmm, let me think of it as two separate trees rooted at A and B (the tree vertices split into those pointing eventually to A and those to B). Say tA vertices in A's tree, tB in B's tree, tA + tB = t.
+
+A has at most 3 tree children. B has at most 3 tree children. Each non-root vertex has at most 3 children.
+
+For A's tree (tA vertices + root A): max leaves = 1 + 2·(internal nodes among tA + A). If A has 3 children and all internal nodes have 3 children: leaves = 1 + 2·I where I = (tA + 1 - 1)/3... 
+
+Actually, let me just think of it as a tree with tA non-root vertices and root A, where root has ≤ 3 children and each non-root has ≤ 3 children. Max leaves:
+
+Total nodes = tA + 1 (including root A). Each internal node has ≤ 3 children. 
+L = leaves, I = internal nodes (including root if it has children). 
+L + I = tA + 1.
+L = 1 + sum_{internal} (deg - 1) where deg = number of children. With all deg = 3: L = 1 + 2I.
+So L + I = tA + 1, L = 1 + 2I → 1 + 2I + I = tA + 1 → 3I = tA → I = tA/3, L = 1 + 2tA/3.
+
+For this to be integer, tA must be divisible by 3. Max leaves ≈ 1 + 2tA/3.
+
+Similarly for B's tree: max leaves ≈ 1 + 2tB/3.
+
+But wait, the root A is not a leaf (it has in-degree ≥ 1 from B, and it's a cycle vertex, not a survivor). The leaves of A's tree that are survivors are the non-root leaves. Root A is not a survivor (it's in the cycle). So survivors from A's tree = leaves among the tA non-root vertices.
+
+Hmm, let me reclarify. In A's tree (rooted at A, with edges pointing towards A):
+- A is the root (not a survivor, it's a cycle vertex).
+- The tA non-root vertices form a tree. Leaves of this tree (vertices with no children, i.e., in-degree 0) are survivors.
+
+If A has 3 children, and each internal non-root vertex has 3 children:
+Let the tree have tA non-root vertices. Internal non-root vertices: I'. Root A: 1 internal node (with 3 children).
+L + I' = tA (non-root vertices).
+Total children = 3 (from A) + 3I' (from internal non-root) = 3 + 3I'.
+Also, total children = tA (each non-root vertex is a child of exactly one node).
+So 3 + 3I' = tA → I' = (tA - 3)/3.
+L = tA - I' = tA - (tA-3)/3 = (3tA - tA + 3)/3 = (2tA + 3)/3.
+
+Survivors from A's tree = L = (2tA + 3)/3 (when tA ≥ 3 and divisible appropriately).
+
+Similarly from B's tree: (2tB + 3)/3.
+
+Total survivors = (2tA + 3)/3 + (2tB + 3)/3 = (2(tA+tB) + 6)/3 = (2t + 6)/3.
+
+With 1 component: t = 8. Survivors ≤ (16 + 6)/3 = 22/3 ≈ 7.33, so ≤ 7.
+
+But this assumes all internal nodes have exactly 3 children, which requires tA, tB to be right. Let's see: tA + tB = 8. To maximize (2tA+3)/3 + (2tB+3)/3 = (2·8+6)/3 = 22/3. So ≤ 7.
+
+But we also need tA ≥ 3 and tB ≥ 3 for the root to have 3 children (otherwise the root has fewer children). If tA < 3, root A has at most tA children, and the tree is smaller.
+
+If tA = 3: I' = 0, L = 3. All 3 are leaves. Survivors = 3.
+If tA = 6: I' = 1, L = 5. Survivors = 5.
+If tA = 4: I' = 1/3, not integer. So we can't have all internal nodes with 3 children. Best: A has 3 children, one of which has 1 child. L = 3 (leaves of A) - 1 (the one that has a child) + 1 (the new leaf) = 3. Or A has 2 children, one with 3 children: L = 2 - 1 + 3 = 4. Hmm, let me recalculate.
+
+For tA = 4: A has 3 children (c1, c2, c3), one of them (say c1) has 1 child (d1). Leaves: c2, c3, d1 = 3. Or A has 2 children (c1, c2), c1 has 3 children (d1,d2,d3) but wait c1 can have at most 3 children. Wait, but c1 is a non-root vertex, so it can have at most 3 children. But we only have 4 non-root vertices total. A has 2 children (c1, c2), c1 has 2 children (d1, d2). That's 2 + 2 = 4 non-root. Leaves: c2, d1, d2 = 3. Or A has 1 child c1, c1 has 3 children (d1,d2,d3). 1 + 3 = 4. Leaves: d1, d2, d3 = 3. 
+
+Hmm, for tA = 4, max leaves = 3? Let me check: A has 3 children (c1, c2, c3), c1 has 1 child (d1). Non-root: c1, c2, c3, d1 = 4. ✓. Leaves (in-degree 0): c2, c3, d1 = 3. 
+
+Can we do 4? A has 3 children, all leaves: 3 non-root, but we need 4. So one must have a child. That child is a leaf, but the parent is no longer a leaf. Net: 3 - 1 + 1 = 3. So max 3 for tA = 4.
+
+For tA = 5: A has 3 children (c1,c2,c3), c1 has 2 children (d1,d2). Non-root: 3 + 2 = 5. Leaves: c2, c3, d1, d2 = 4. Or A has 3 children, c1 has 1 child d1, d1 has 1 child e1. Non-root: 3 + 1 + 1 = 5. Leaves: c2, c3, e1 = 3. Worse. Best: 4.
+
+For tA = 6: A has 3 children, two of them have 3 children each? No, 3 + 3 + 3 = 9 > 6. A has 3 children (c1,c2,c3), c1 has 3 children (d1,d2,d3). Non-root: 3 + 3 = 6. Leaves: c2, c3, d1, d2, d3 = 5. ✓.
+
+For tA = 7: A has 3 children, c1 has 3 children, c2 has 1 child. Non-root: 3 + 3 + 1 = 7. Leaves: c3, d1, d2, d3, (c2's child) = 5. Or A has 3 children, c1 has 4 children? No, max 3. A has 3 children, c1 has 3, c2 has 1: 3+3+1 = 7. Leaves: c3 + 3 from c1's children + 1 from c2's child = 5. Can we get 6? A has 3 children, c1 has 2, c2 has 2: 3 + 2 + 2 = 7. Leaves: c3 + 2 + 2 = 5. Hmm, still 5. 
+
+A has 3 children (c1,c2,c3), c1 has 3 children (d1,d2,d3), d1 has 1 child (e1). 3 + 3 + 1 = 7. Leaves: c2, c3, d2, d3, e1 = 5. 
+
+Seems like for tA = 7, max leaves = 5. Let me verify with formula: (2·7 + 3)/3 = 17/3 ≈ 5.67, floor = 5. ✓.
+
+For tA = 8: (2·8+3)/3 = 19/3 ≈ 6.33, floor = 6. Let me verify: A has 3 children, c1 has 3, c2 has 2: 3+3+2 = 8. Leaves: c3 + 3 + 2 = 6. ✓.
+
+OK so the formula for max leaves in A's tree with tA non-root vertices is floor((2tA + 3)/3) for tA ≥ 1 (and 0 for tA = 0). Actually for tA = 0: 0 leaves. For tA = 1: A has 1 child, 1 leaf. (2+3)/3 = 5/3, floor = 1. ✓. tA = 2: A has 2 children, 2 leaves. (4+3)/3 = 7/3, floor = 2. ✓. tA = 3: 3 leaves. (6+3)/3 = 3. ✓.
+
+So max survivors from 1 component with t = tA + tB = 8:
+Maximize floor((2tA+3)/3) + floor((2tB+3)/3) subject to tA + tB = 8, tA, tB ≥ 0.
+
+Let me compute:
+- tA=0, tB=8: 0 + 6 = 6
+- tA=1, tB=7: 1 + 5 = 6
+- tA=2, tB=6: 2 + 5 = 7
+- tA=3, tB=5: 3 + 4 = 7
+- tA=4, tB=4: 3 + 3 = 6
+- tA=5, tB=3: 4 + 3 = 7
+- tA=6, tB=2: 5 + 2 = 7
+- tA=7, tB=1: 5 + 1 = 6
+- tA=8, tB=0: 6 + 0 = 6
+
+Max = 7 (at tA=2,tB=6 or tA=3,tB=5 or tA=5,tB=3 or tA=6,tB=2).
+
+So with 1 component, max survivors ≤ 7. But this is just the tree structure bound. We also need geometric realizability.
+
+Now with c = 2: 4 cycle vertices, 6 tree vertices. Each component has t1 + t2 = 6 tree vertices (split between 2 components). Each component has 2 cycle vertices with at most 3 tree children each.
+
+For component i with ti tree vertices: max survivors = floor((2ti+6)/3) (using the same formula with 2 roots, each with ≤ 3 children, total tree vertices ti).
+
+Wait, I need to redo this. For a component with 2-cycle (A,B) and ti tree vertices split into tAi and tBi (trees rooted at A and B):
+Max survivors = floor((2tAi+3)/3) + floor((2tBi+3)/3), tAi + tBi = ti.
+
+Maximize over tAi: same as before, max = floor((2ti+6)/3) (achieved when split optimally).
+
+For c=2, t1 + t2 = 6:
+- t1=0, t2=6: 0 + 6 = 6 (floor((0+6)/3)=2, floor((12+6)/3)=6, total 8? Wait let me recalculate.
+
+Hmm, I think I need to be more careful. For a component with ti tree vertices, the max survivors is:
+max over tAi + tBi = ti of [floor((2tAi+3)/3) + floor((2tBi+3)/3)].
+
+For ti = 0: 0.
+For ti = 1: tAi=1,tBi=0: 1+0=1. Or 0+1: 0+1=1. Max=1.
+For ti = 2: 1+1: 1+1=2. Or 2+0: 2+0=2. Max=2.
+For ti = 3: 3+0: 3+0=3. Or 2+1: 2+1=3. Or 0+3: 0+3=3. Max=3.
+For ti = 4: 3+1: 3+1=4. Or 2+2: 2+2=4. Max=4.
+For ti = 5: 3+2: 3+2=5. Or 5+0: 4+0=4. Max=5.
+For ti = 6: 3+3: 3+3=6. Or 6+0: 6+0=6. Or 5+1: 4+1=5. Max=6.
+
+So for c=2, t1+t2=6: max survivors = max over splits of f(t1)+f(t2) where f(t) = max leaves for t tree vertices.
+f(0)+f(6) = 0+6 = 6.
+f(1)+f(5) = 1+5 = 6.
+f(2)+f(4) = 2+4 = 6.
+f(3)+f(3) = 3+3 = 6.
+Max = 6.
+
+For c=3: 6 cycle vertices, 4 tree vertices. f values: f(0)+f(0)+f(4)=4, f(0)+f(1)+f(3)=4, f(0)+f(2)+f(2)=4, f(1)+f(1)+f(2)=4. Max=4.
+
+For c=4: 8 cycle, 2 tree. Max = 2.
+For c=5: 10 cycle, 0 tree. 0 survivors.
+
+So the tree-structure bound gives:
+c=1: 7
+c=2: 6
+c=3: 4
+c=4: 2
+c=5: 0
+
+Max over all c: 7 (with c=1).
+
+But we need to check geometric realizability. The tree structure bound of 7 for c=1 might not be achievable geometrically.
+
+Let me think about whether 7 is achievable. With c=1, tA=3, tB=5 (or similar), we need:
+- A, B mutual nearest (2-cycle).
+- 3 points in A's half-plane, each with A as nearest, forming a tree (all 3 direct children of A, all leaves).
+- 5 points in B's half-plane, forming a tree with 4 leaves (e.g., B has 3 children, one of which has 2 children: 3+2=5, leaves = 2+2=4).
+
+Wait, tB=5: max leaves = 5 (from f(5)=5, achieved with tBi=3, tBj=2: 3+2=5). Hmm wait, f(5) = 5 means 5 leaves from 5 tree vertices. That means all 5 are leaves, i.e., all 5 are direct children of B. But B can have at most 3 direct children! 
+
+I think I made an error. Let me recalculate f(t) for a single root.
+
+For root B with tB tree vertices, B has at most 3 children. Max leaves:
+
+tB = 0: 0
+tB = 1: 1 (B has 1 child, a leaf)
+tB = 2: 2 (B has 2 children, both leaves)
+tB = 3: 3 (B has 3 children, all leaves)
+tB = 4: B has 3 children, one has 1 child. Leaves: 2 + 1 = 3. Or B has 2 children, one has 2 children: 1 + 2 = 3. Max = 3.
+tB = 5: B has 3 children, one has 2 children: 2 + 2 = 4. Or B has 3 children, two have 1 child each: 1 + 1 + 1 = 3. Max = 4.
+
+Wait, I think I was confusing the two-root case. Let me redo this carefully.
+
+For a component with 2-cycle (A,B) and t tree vertices:
+- Tree vertices split into A's subtree (tA vertices) and B's subtree (tB vertices), tA + tB = t.
+- A has at most 3 tree children (in-degree ≤ 4, with 1 from B).
+- B has at most 3 tree children.
+- Each non-cycle vertex has at most 3 children (in-degree ≤ 3).
+
+For A's subtree with tA vertices (rooted at A, A has ≤ 3 children, others ≤ 3 children):
+Max leaves g(tA):
+tA=0: 0
+tA=1: 1
+tA=2: 2
+tA=3: 3
+tA=4: 3 (as computed)
+tA=5: 4 (B has 3 children, one has 2 children: leaves = 2+2=4)
+
+Wait, I'm computing for root A now. A has ≤ 3 children.
+tA=5: A has 3 children (c1,c2,c3), c1 has 2 children (d1,d2). Total: 3+2=5. Leaves: c2,c3,d1,d2 = 4. ✓.
+tA=6: A has 3 children, c1 has 3 children. 3+3=6. Leaves: c2,c3,d1,d2,d3 = 5. ✓.
+tA=7: A has 3 children, c1 has 3, c2 has 1. 3+3+1=7. Leaves: c3,d1,d2,d3,(c2's child) = 5. Or A has 3, c1 has 2, c2 has 2: 3+2+2=7. Leaves: c3 + 2 + 2 = 5. Max = 5.
+tA=8: A has 3, c1 has 3, c2 has 2: 3+3+2=8. Leaves: c3 + 3 + 2 = 6. ✓.
+
+So g(tA) = floor((2tA+3)/3) for tA ≥ 1, and 0 for tA = 0. Let me verify:
+g(1) = floor(5/3) = 1 ✓
+g(2) = floor(7/3) = 2 ✓
+g(3) = floor(9/3) = 3 ✓
+g(4) = floor(11/3) = 3 ✓
+g(5) = floor(13/3) = 4 ✓
+g(6) = floor(15/3) = 5 ✓
+g(7) = floor(17/3) = 5 ✓
+g(8) = floor(19/3) = 6 ✓
+
+For a component with t tree vertices: f(t) = max over tA+tB=t of g(tA) + g(tB).
+
+f(0) = 0
+f(1) = g(1)+g(0) = 1
+f(2) = g(2)+g(0) = 2, or g(1)+g(1) = 2. = 2
+f(3) = g(3)+g(0) = 3, or g(2)+g(1) = 3. = 3
+f(4) = g(3)+g(1) = 4, or g(4)+g(0) = 3, or g(2)+g(2) = 4. = 4
+f(5) = g(3)+g(2) = 5, or g(5)+g(0) = 4, or g(4)+g(1) = 4. = 5
+f(6) = g(3)+g(3) = 6, or g(6)+g(0) = 5, or g(5)+g(1) = 5, or g(4)+g(2) = 5. = 6
+f(7) = g(3)+g(4) = 6, or g(6)+g(1) = 6, or g(5)+g(2) = 6, or g(7)+g(0) = 5. = 6
+f(8) = g(3)+g(5) = 7, or g(6)+g(2) = 7, or g(8)+g(0) = 6, or g(4)+g(4) = 6, or g(7)+g(1) = 6. = 7
+
+So f(8) = 7, achieved at tA=3, tB=5 (g(3)+g(5)=3+4=7) or tA=6, tB=2 (g(6)+g(2)=5+2=7) or tA=2, tB=6 (g(2)+g(6)=2+5=7) or tA=5, tB=3 (g(5)+g(3)=4+3=7).
+
+So the tree structure allows 7 survivors with 1 component. But is this geometrically realizable?
+
+Let me try tA=3, tB=5. A has 3 direct children (all leaves), B has 3 direct children, one of which has 2 children (leaves). Survivors: 3 (A's children) + 2 (B's other children) + 2 (grandchildren) = 7.
+
+For this to work geometrically:
+1. A, B mutual nearest.
+2. 3 points in A's half-plane, each with A as nearest. (Feasible: 3 points at >60° separation in 180° half-plane.)
+3. 3 points in B's half-plane, each with B as nearest. (Feasible similarly.)
+4. One of B's children (call it C) has 2 children (D, E), each with C as nearest. D and E must be closer to C than to anyone else. C's nearest is B.
+
+For D and E to have C as nearest: d(D,C) < d(D, anyone), d(E,C) < d(E, anyone). And C's nearest is B: d(C,B) < d(C, D), d(C, E).
+
+So C is at distance r from B (B is C's nearest). D and E are at distance > r from C (since C's nearest is B, not D or E). And D, E are closer to C than to B: d(D,C) < d(D,B). Since D is on C's side of the bisector of CB... 
+
+D is at distance > r from C, and d(D,C) < d(D,B). d(D,B) ≤ d(D,C) + d(C,B) = d(D,C) + r. So d(D,C) < d(D,C) + r, always true. But we need d(D,C) < d(D,B), which means D is closer to C than to B. If D is on the ray from B through C, beyond C: d(D,B) = d(D,C) + r > d(D,C). ✓. And d(D,C) > r (C's nearest is B). And d(D,C) < d(D, all other points).
+
+Also, D and E must have >60° angular separation as seen from C (both have C as nearest). And they must be in C's half-plane w.r.t. B (closer to C than to B). So max 3, we need 2. Feasible.
+
+But we also need D and E to be closer to C than to A, to all of A's children, to all of B's other children, and to each other. This requires careful placement.
+
+This seems geometrically complex but potentially feasible. Let me think about whether there's a fundamental obstruction.
+
+Actually, let me reconsider. The key question is: can a non-cycle vertex C (which is B's child) have 2 children D, E of its own? 
+
+C's nearest is B. D and E's nearest is C. D and E must be closer to C than to B, and closer to C than to all other points.
+
+The constraint: D and E are in the region {X : d(X,C) < d(X,B) and d(X,C) < d(X, all other points)}. This is the intersection of half-planes (Voronoi-like). 
+
+The main constraint is d(X,C) < d(X,B), which is C's half of the bisector of BC. Since C is at distance r from B, this half-plane is the one not containing B. D and E must be in this half-plane, at distance > r from C (so C's nearest is B), and with >60° separation as seen from C. In a half-plane (180°), 2 points with >60° separation: easily feasible.
+
+But D and E also need to be closer to C than to A's children and B's other children. If we place everything far apart, this should work.
+
+Let me try to construct a concrete configuration.
+
+Place B at origin, A at (ε, 0) for small ε > 0. A and B are mutual nearest.
+
+B's children: 3 points in B's half-plane (x < ε/2, roughly x < 0), at distance R from B, at angles 100°, 180°, 260° (separated by 80° each, all in left half-plane). Call them C (at 180°), F (at 100°), G (at 260°).
+
+C's children: D and E, placed near C (at distance r from C, where r > d(C,B) = R... wait, no. C's nearest is B, so d(C,B) = R < d(C, D), d(C, E). So D and E are at distance > R from C. And D, E's nearest is C, so d(D,C) < d(D, B) = d(D,C) + R (if on ray from B through C beyond C). 
+
+Place D and E on the ray from B through C, beyond C. C is at (−R, 0). D at (−R − r1, 0), E at (−R − r1 − r2, 0)? But then D and E are collinear with C, and d(D,E) = r2, d(D,C) = r1. We need d(D,C) < d(D,E), so r1 < r2. And d(E,C) = r1 + r2, d(E,D) = r2. Need d(E,D) < d(E,C)? No, E's nearest is C, so d(E,C) < d(E,D): r1+r2 < r2, impossible. 
+
+So collinear doesn't work. Place D and E on opposite sides of the ray from B through C, beyond C. D at angle 150° from C (i.e., up-left from C), E at angle 210° from C (down-left from C). Both at distance r from C, with r > R (so C's nearest is B at distance R, not D or E at distance r). 
+
+d(D,E) = 2r sin(30°) = r (angle between them is 60°). Need d(D,C) = r < d(D,E) = r. Not strict. Use angle 70°: d(D,E) = 2r sin(35°) ≈ 1.15r > r. ✓.
+
+d(D,B): D is at C + r·(cos150°, sin150°) = (−R − r cos30°, r sin30°) = (−R − 0.87r, 0.5r). d(D,B) = √((R + 0.87r)² + (0.5r)²) = √(R² + 1.74Rr + 0.76r² + 0.25r²) = √(R² + 1.74Rr + r²). Since r > R, this is ≈ √(r² + 1.74Rr + R²) > r = d(D,C). ✓ (D is closer to C than to B).
+
+d(D,A): A is at (ε, 0) ≈ (0,0) = B. So d(D,A) ≈ d(D,B) > d(D,C). ✓.
+
+d(D,F): F is at angle 100° from B, distance R. F = (R cos100°, R sin100°) ≈ (−0.17R, 0.98R). D ≈ (−R − 0.87r, 0.5r). d(D,F) ≈ √((R + 0.87r − 0.17R)² + (0.5r − 0.98R)²) = √((0.83R + 0.87r)² + (0.5r − 0.98R)²). With r >> R: ≈ √((0.87r)² + (0.5r)²) = √(0.76r² + 0.25r²) = √(1.01r²) ≈ r. So d(D,F) ≈ r ≈ d(D,C). This is too close! We need d(D,C) < d(D,F) strictly.
+
+Hmm, the problem is that F is at distance R from B, and D is at distance ~r from C (which is at distance R from B). So d(D,F) is roughly on the order of r, similar to d(D,C). We need to ensure d(D,C) < d(D,F).
+
+To fix this: make r much smaller than R? But we need r > R (C's nearest is B at distance R, and D is at distance r from C, so r > R). Contradiction! We need r > R but also d(D,C) = r < d(D,F). If F is at distance R from B and D is at distance r from C (C at distance R from B), then d(D,F) depends on the geometry. If D is far from F (on the opposite side), d(D,F) could be ~2R + r, which is > r. Let me reconsider.
+
+D is at C + r·(direction away from F). C is at (−R, 0). F is at (−0.17R, 0.98R), which is upper-left. To place D away from F, put D below C: D at (−R − r cos30°, −r sin30°) = (−R − 0.87r, −0.5r). E at (−R − 0.87r, 0.5r) (above C but still away from F if F is far enough... hmm, E at (−R − 0.87r, 0.5r) and F at (−0.17R, 0.98R). d(E,F) = √((R + 0.87r − 0.17R)² + (0.5r − 0.98R)²) = √((0.83R + 0.87r)² + (0.5r − 0.98R)²).
+
+With r = 2R: √((0.83R + 1.74R)² + (R − 0.98R)²) = √((2.57R)² + (0.02R)²) ≈ 2.57R. And d(E,C) = r = 2R. So d(E,C) = 2R < d(E,F) ≈ 2.57R. ✓!
+
+And d(D,F): D at (−R − 1.74R, −R) = (−2.74R, −R). F at (−0.17R, 0.98R). d(D,F) = √((2.57R)² + (1.98R)²) = √(6.6R² + 3.9R²) = √(10.5R²) ≈ 3.24R. d(D,C) = 2R < 3.24R. ✓.
+
+d(D,G): G at angle 260° from B, distance R. G = (R cos260°, R sin260°) = (−0.17R, −0.98R). D at (−2.74R, −R). d(D,G) = √((2.57R)² + (0.02R)²) ≈ 2.57R. d(D,C) = 2R < 2.57R. ✓.
+
+d(D,E): D at (−2.74R, −R), E at (−2.74R, R). d(D,E) = 2R. d(D,C) = 2R. Equal! Not strictly less. Problem.
+
+The angle between D and E as seen from C: D at angle 210° from C, E at angle 150° from C. Angle = 60°. d(D,E) = 2r sin(30°) = r = 2R. And d(D,C) = r = 2R. So d(D,E) = d(D,C). We need strict inequality. Use a wider angle, say 80°: D at 220°, E at 140°. d(D,E) = 2r sin(40°) ≈ 1.29r = 2.58R > 2R = d(D,C). ✓.
+
+Let me recompute with D at 220° from C, E at 140° from C, both at distance r = 2R from C.
+C = (−R, 0).
+D = C + 2R(cos220°, sin220°) = (−R + 2R(−0.766), 2R(−0.643)) = (−R − 1.53R, −1.29R) = (−2.53R, −1.29R).
+E = C + 2R(cos140°, sin140°) = (−R + 2R(−0.766), 2R(0.643)) = (−2.53R, 1.29R).
+
+d(D,C) = 2R. d(E,C) = 2R. d(D,E) = 2·1.29R = 2.58R. ✓ (> 2R).
+
+d(D,B) = √((2.53R)² + (1.29R)²) = √(6.4 + 1.66)R = √8.06 R ≈ 2.84R > 2R. ✓.
+d(E,B) = same ≈ 2.84R > 2R. ✓.
+
+d(D,F): F = (−0.17R, 0.98R). d(D,F) = √((2.53−0.17)²R² + (1.29+0.98)²R²) = √(2.36² + 2.27²)R = √(5.57+5.15)R = √10.72 R ≈ 3.27R > 2R. ✓.
+d(E,F) = √((2.53−0.17)² + (1.29−0.98)²)R = √(2.36² + 0.31²)R = √(5.57+0.096)R ≈ 2.38R > 2R. ✓.
+d(D,G): G = (−0.17R, −0.98R). d(D,G) = √((2.53−0.17)² + (1.29−0.98)²)R ≈ 2.38R > 2R. ✓.
+d(E,G) = √((2.53−0.17)² + (1.29+0.98)²)R ≈ 3.27R > 2R. ✓.
+
+Now A's children: 3 points in A's half-plane (x > ε/2, roughly right side), at distance R from A, at angles -80°, 0°, 80° from A (i.e., to the right of A). Wait, A is at (ε, 0) ≈ (0, 0). A's half-plane is x > ε/2, so to the right. Place A's children at angles -80°, 0°, 80° from A, at distance R. But angle 0° is along positive x-axis, away from B. 
+
+A's children: P1 at A + R(cos(-80°), sin(-80°)) = (ε + 0.17R, −0.98R).
+P2 at A + R(1, 0) = (ε + R, 0).
+P3 at A + R(cos80°, sin80°) = (ε + 0.17R, 0.98R).
+
+Check: d(Pi, A) = R. d(Pi, B) ≈ R (since A ≈ B). We need d(Pi, A) < d(Pi, B). d(Pi, B) = d(Pi, A) + ε (roughly, if Pi is on the far side from B). Actually, d(Pi, B)² = d(Pi, A)² + ε² − 2·d(Pi,A)·ε·cos(angle). For P2 (angle 0°, away from B): d(P2, B) = R + ε > R = d(P2, A). ✓. For P1 (angle -80°): cos(-80°) = 0.17. d(P1, B)² = R² + ε² − 2Rε·0.17 ≈ R² − 0.34Rε. So d(P1, B) ≈ R − 0.17ε < R. Bad! P1 is closer to B than to A.
+
+So I need A's children at angles more than 90° from the direction to B. B is at angle 180° from A (A is at (ε,0), B at (0,0), so B is to the left of A). A's children should be to the right, at angles within ±90° of 0° (the direction away from B). Angles -80°, 0°, 80° are within ±90°, but the issue is the distance to B.
+
+d(P1, B)² = R² + ε² − 2Rε cos(80°) where the angle is between the direction A→P1 and A→B. A→B is direction 180°. A→P1 is direction -80° = 280°. Angle between them = 180° - 280° = -100°, or 100°. cos(100°) = -0.17. So d(P1, B)² = R² + ε² + 2Rε·0.17 ≈ R² + 0.34Rε > R². So d(P1, B) > R = d(P1, A). ✓!
+
+I made an error before. Let me redo. A is at (ε, 0), B at (0, 0). Direction from A to B is 180° (pointing left). A's children are at angles -80°, 0°, 80° from A (pointing right-ish). The angle between A→P1 (direction -80°) and A→B (direction 180°) is 180° - (-80°) = 260°, or equivalently 100°. cos(100°) < 0. So d(P1, B)² = R² + ε² - 2Rε cos(100°) = R² + ε² + 2Rε·0.17 > R². ✓.
+
+Great, so all A's children are closer to A than to B. Now check pairwise distances among A's children:
+d(P1, P2) = distance between (ε+0.17R, -0.98R) and (ε+R, 0) = √((0.83R)² + (0.98R)²) = √(0.69 + 0.96)R = √1.65 R ≈ 1.28R > R. ✓.
+d(P2, P3) = same ≈ 1.28R > R. ✓.
+d(P1, P3) = distance between (ε+0.17R, -0.98R) and (ε+0.17R, 0.98R) = 1.96R > R. ✓.
+
+So all A's children have A as nearest. ✓.
+
+Now check that D and E are closer to C than to A's children:
+d(D, P1): D = (-2.53R, -1.29R), P1 = (ε+0.17R, -0.98R) ≈ (0.17R, -0.98R). d = √((2.53+0.17)² + (1.29-0.98)²)R = √(2.7² + 0.31²)R = √(7.29+0.096)R ≈ 2.72R > 2R = d(D,C). ✓.
+d(D, P2): P2 ≈ (R, 0). d = √((2.53+R)² + (1.29R)²)... wait, D = (-2.53R, -1.29R), P2 = (R, 0) (approx, ignoring ε). d = √((3.53R)² + (1.29R)²) = √(12.46 + 1.66)R ≈ 3.76R > 2R. ✓.
+d(D, P3): P3 ≈ (0.17R, 0.98R). d = √((2.7R)² + (2.27R)²) = √(7.29+5.15)R ≈ 3.53R > 2R. ✓.
+d(E, P1): E = (-2.53R, 1.29R), P1 ≈ (0.17R, -0.98R). d = √((2.7R)² + (2.27R)²) ≈ 3.53R > 2R. ✓.
+d(E, P2): d = √((3.53R)² + (1.29R)²) ≈ 3.76R > 2R. ✓.
+d(E, P3): d = √((2.7R)² + (0.31R)²) ≈ 2.72R > 2R. ✓.
+
+Now check that A's children are closer to A than to D, E, C, F, G:
+d(P1, C): P1 ≈ (0.17R, -0.98R), C = (-R, 0). d = √((1.17R)² + (0.98R)²) = √(1.37+0.96)R ≈ 1.53R > R = d(P1, A). ✓.
+d(P1, F): P1 ≈ (0.17R, -0.98R), F ≈ (-0.17R, 0.98R). d = √((0.34R)² + (1.96R)²) = √(0.12+3.84)R ≈ 1.99R > R. ✓.
+d(P1, G): G ≈ (-0.17R, -0.98R). d = √((0.34R)² + 0) = 0.34R < R. ✗!!! 
+
+P1 is at (ε + 0.17R, -0.98R) and G is at (-0.17R, -0.98R). They're at the same y-coordinate and close in x. d(P1, G) ≈ 0.34R < R = d(P1, A). So P1's nearest is G, not A!
+
+This is a problem. A's children and B's children are at similar distances from the center and can be close to each other.
+
+I need to place A's children and B's children so they're far from each other. Since A's children are to the right and B's to the left, they should be far apart. But P1 (A's child at angle -80°) and G (B's child at angle 260° = -100°) are both in the lower region and close.
+
+The issue is that A's children span angles -80° to 80° (right side) and B's children span 100° to 260° (left side). P1 at -80° and G at 260° = -100° are both near the bottom, separated by only 20° in angle. At distance R from center, they're close.
+
+To fix: increase angular separation. Use A's children at angles -60°, 0°, 60° and B's children at 120°, 180°, 240°. Then the closest pair between the groups: A's child at 60° and B's child at 120°, separated by 60°. At distance R: d = 2R sin(30°) = R. Equal to d(Pi, A) = R. Not strictly greater. Problem.
+
+With angles -50°, 0°, 50° for A and 130°, 180°, 230° for B: closest pair at 50° and 130°, separated by 80°. d = 2R sin(40°) ≈ 1.29R > R. ✓. But A's children at -50°, 0°, 50°: separation 50° < 60°. d(P1, P2) = 2R sin(25°) ≈ 0.85R < R. ✗. A's children are too close to each other.
+
+The fundamental issue: A's children need >60° separation among themselves, B's children need >60° among themselves, and A's and B's children need to be far from each other. With 3 children each in half-planes, the half-planes are 180° each, and 3 children need 2 gaps > 60° = > 120° in 180°. That leaves 60° of slack. But the boundary between A's and B's half-planes is at 90° and 270°, and children near the boundary can be close.
+
+Let me use different distances. Place A's children at distance RA and B's children at distance RB, with RA ≠ RB. Then even if they're at similar angles, the distance between them is larger.
+
+Actually, a simpler fix: place A's children much closer to A (small RA) and B's children farther (large RB), or vice versa. Then A's children are close to A and far from B's children.
+
+Let RA = R, RB = 3R. A's children at distance R from A, B's children at distance 3R from B.
+
+A's children: at angles -60°, 0°, 60° from A, distance R. Pairwise: 2R sin(30°) = R. Not > R. Need > 60°. Use -70°, 0°, 70°: 2R sin(35°) ≈ 1.15R > R. ✓. But angle 70° from A, and A is at (ε, 0): the child at 70° is at (ε + R cos70°, R sin70°) = (ε + 0.34R, 0.94R). Distance to B at (0,0): √((0.34R)² + (0.94R)²) = √(0.12 + 0.88)R = R. Equal to d(P, A) = R. Need strict inequality. Barely fails.
+
+Use angles -80°, 0°, 80°: pairwise 2R sin(40°) ≈ 1.29R > R. ✓. Child at 80°: (ε + 0.17R, 0.98R). d to B: √((0.17R)² + (0.98R)²) = √(0.03+0.96)R ≈ R. Again ≈ R. The issue is that at 80° from A (which is at (ε,0)), the child is almost at distance R from B too.
+
+The perpendicular bisector of AB is at x = ε/2. A's children must be at x > ε/2. Child at angle 80° from A: x = ε + R cos80° = ε + 0.17R. This is > ε/2 for R > 0. ✓. But d(child, B) vs d(child, A): 
+
+d²(child, B) = (ε + R cos80°)² + (R sin80°)² = ε² + 2εR cos80° + R² = R² + ε² + 0.35εR.
+d²(child, A) = R².
+So d(child, B) > d(child, A). ✓ (barely, by ε² + 0.35εR).
+
+OK so it works but the margin is small. The real issue is the distance between A's children and B's children.
+
+B's children at distance 3R from B, at angles 100°, 180°, 260°. 
+B's child at 100°: (3R cos100°, 3R sin100°) = (-0.52R, 2.95R).
+A's child at 80°: (ε + 0.17R, 0.98R) ≈ (0.17R, 0.98R).
+d = √((0.17+0.52)²R² + (0.98-2.95)²R²) = √(0.48² + 1.97²)R = √(0.23+3.88)R ≈ 2.03R > R = d(A's child, A). ✓.
+
+B's child at 260°: (3R cos260°, 3R sin260°) = (-0.52R, -2.95R).
+A's child at -80°: (0.17R, -0.98R).
+d = √((0.69)² + (1.97)²)R ≈ 2.09R > R. ✓.
+
+B's child at 100°: (-0.52R, 2.95R). A's child at 0°: (R, 0). d = √((1.52)² + (2.95)²)R ≈ 3.32R > R. ✓.
+
+B's children pairwise: at 3R, angles 100°, 180°, 260°. Separations 80°. d = 2·3R sin(40°) ≈ 3.86R > 3R. ✓.
+
+B's children vs B: d = 3R. d(B's child, A) ≈ 3R (since A ≈ B). Need d(child, B) < d(child, A). Same perpendicular bisector argument: child is at x < 0 (left side), so closer to B. ✓.
+
+Now C (B's child at 180°): C = (-3R, 0). C's children D, E at distance r from C, with r > 3R (C's nearest is B at 3R). Let r = 6R.
+
+D at angle 220° from C, distance 6R: D = (-3R + 6R cos220°, 6R sin220°) = (-3R - 4.6R, -3.86R) = (-7.6R, -3.86R).
+E at angle 140° from C, distance 6R: E = (-3R - 4.6R, 3.86R) = (-7.6R, 3.86R).
+
+d(D,C) = 6R. d(E,C) = 6R. d(D,E) = 2·3.86R = 7.72R > 6R. ✓.
+
+d(D,B) = √((7.6R)² + (3.86R)²) = √(57.76 + 14.9)R = √72.66 R ≈ 8.52R > 6R. ✓.
+d(E,B) = same ≈ 8.52R > 6R. ✓.
+
+d(D, F) where F = B's child at 100° = (-0.52R, 2.95R): d = √((7.6-0.52)² + (3.86+2.95)²)R = √(7.08² + 6.81²)R = √(50.1+46.4)R ≈ 9.83R > 6R. ✓.
+d(D, G) where G = (-0.52R, -2.95R): d = √((7.08)² + (0.91)²)R ≈ 7.14R > 6R. ✓.
+d(E, F): d = √((7.08)² + (0.91)²)R ≈ 7.14R > 6R. ✓.
+d(E, G): d = √((7.08)² + (6.81)²)R ≈ 9.83R > 6R. ✓.
+
+d(D, A's children): A's child at 0° = (R, 0). d(D, (R,0)) = √((8.6)² + (3.86)²)R ≈ 9.43R > 6R. ✓. (All A's children are even farther.)
+
+d(C, D) = 6R, d(C, B) = 3R. C's nearest is B (3R < 6R). ✓.
+d(C, F) = d between (-3R, 0) and (-0.52R, 2.95R) = √((2.48)² + (2.95)²)R = √(6.15+8.7)R ≈ 3.85R > 3R = d(C,B). ✓.
+d(C, G) = same ≈ 3.85R > 3R. ✓.
+d(C, A) ≈ 3R + ε ≈ 3R. d(C, A) = √((3R+ε)² + 0) ≈ 3R + ε > 3R = d(C,B). ✓ (barely).
+d(C, A's children): A's child at 0° = (R, 0). d = 4R > 3R. ✓.
+
+Now I also need to check that F and G (B's other

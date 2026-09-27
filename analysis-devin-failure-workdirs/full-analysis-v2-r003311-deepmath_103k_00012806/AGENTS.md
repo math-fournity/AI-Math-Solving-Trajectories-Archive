@@ -1,0 +1,963 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>deepmath_103k_00012806</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Are continuous functions measurable with respect to the sigma-algebra generated by analytic sets, denoted as ${\cal B}^1$?
+
+## Standard Solution
+
+Okay, so I need to figure out if continuous functions are measurable with respect to the sigma-algebra generated by analytic sets, which is denoted as ℬ¹. Hmm, let me start by recalling some basic definitions to make sure I'm on the right track.
+
+First off, a continuous function is a function where the preimage of every open set is open. In the context of measurability, usually, we talk about functions being measurable with respect to certain sigma-algebras. The most common one is the Borel sigma-algebra, which is generated by open sets. So, if we have a function that's continuous, it's Borel measurable because the preimage of any open set (which is in the Borel sigma-algebra) is open, hence also Borel.
+
+But the question here is about the sigma-algebra generated by analytic sets, ℬ¹. I need to remember what analytic sets are. Analytic sets, also known as Suslin sets, are the continuous images of Borel sets. More formally, a set is analytic if it is the image of a Borel set under a continuous function between Polish spaces. So, the sigma-algebra generated by analytic sets would be the smallest sigma-algebra containing all analytic sets.
+
+Wait, but isn't the collection of analytic sets not necessarily a sigma-algebra themselves? They are closed under countable unions and intersections, but not under complements. So, the sigma-algebra generated by analytic sets would include all sets that can be formed by complements, countable unions, and countable intersections of analytic sets.
+
+Now, the Borel sigma-algebra is contained within ℬ¹, right? Because every Borel set is analytic? Hmm, not exactly. Actually, in Polish spaces, every Borel set is analytic, but the complement of an analytic set is not necessarily analytic. So, the sigma-algebra generated by analytic sets would include the Borel sets plus some more sets obtained by taking complements of analytic sets and so on. So, ℬ¹ is larger than the Borel sigma-algebra. Therefore, if a function is Borel measurable, it would also be measurable with respect to any larger sigma-algebra, such as ℬ¹.
+
+But wait, the question is specifically about continuous functions. Since continuous functions are Borel measurable, and since ℬ¹ contains all Borel sets, then the preimage of any Borel set under a continuous function would be Borel, hence also in ℬ¹. Therefore, continuous functions should be measurable with respect to ℬ¹.
+
+But let me check if there's a detail I might be missing. Analytic sets are also part of the projective hierarchy, right? So, the sigma-algebra ℬ¹ is part of the projective hierarchy, starting with analytic sets at level 1. But does measurability with respect to ℬ¹ require something more than just being Borel? For example, maybe the preimage of an analytic set under a continuous function needs to be analytic or something else?
+
+Wait, let's recall that the preimage of an analytic set under a continuous function is analytic. Because if you have a continuous function f: X → Y, and A is an analytic subset of Y, then A = g(B) where B is a Borel set in some Polish space Z and g: Z → Y is continuous. Then f⁻¹(A) = f⁻¹(g(B)). Since the composition of continuous functions is continuous, and the preimage of a Borel set under a continuous function is Borel? Wait, no, the preimage of a continuous image of a Borel set.
+
+Wait, maybe not directly. Let me think. If A is analytic in Y, then A = g(B) where B is Borel in Z and g is continuous. Then f⁻¹(A) = f⁻¹(g(B)) = (g∘f)⁻¹(B). But g∘f is a continuous function from X to Y, and preimage of Borel under continuous is Borel. So, (g∘f)⁻¹(B) is Borel in X. Therefore, the preimage of an analytic set under a continuous function is Borel. Wait, so f⁻¹(A) is Borel. Therefore, if we have a sigma-algebra generated by analytic sets in the codomain, then the preimage of a generator (analytic set) is Borel, which is in ℬ¹ (since ℬ¹ contains Borel sets). Since the sigma-algebra ℬ¹ in the domain would need to make the function measurable, we need to check if for every analytic set in the codomain, its preimage is in the domain's sigma-algebra. But in this case, the domain's sigma-algebra is also ℬ¹. Wait, maybe I need to clarify.
+
+Wait, actually, when we talk about a function being measurable with respect to a sigma-algebra on the domain and another on the codomain. The question is, are continuous functions measurable when both domain and codomain are equipped with the sigma-algebra ℬ¹?
+
+But usually, when we talk about measurable functions, if the sigma-algebra on the codomain is generated by certain sets, then to check measurability, it's enough to check that the preimage of each generator is measurable in the domain. So, if ℬ¹ on the codomain is generated by analytic sets, then to show that a continuous function f is measurable, we need to show that for every analytic set A in the codomain, f⁻¹(A) is in ℬ¹ of the domain.
+
+But earlier, we saw that f⁻¹(A) is actually Borel, because A = g(B), f⁻¹(g(B)) = (g∘f)⁻¹(B), and since g∘f is continuous, the preimage of B is Borel. Therefore, f⁻¹(A) is Borel, hence in ℬ¹ because ℬ¹ contains all Borel sets. Therefore, the preimage of any generator (analytic set) of ℬ¹ is in ℬ¹, which makes f measurable.
+
+Therefore, continuous functions are indeed measurable with respect to ℬ¹. But let me check if there is a possible mistake here.
+
+Wait, but maybe the sigma-algebra ℬ¹ is different. For example, sometimes in descriptive set theory, people talk about different sigma-algebras. Wait, the notation ℬ¹ is sometimes used for the sigma-algebra generated by analytic sets, but I need to confirm.
+
+Alternatively, maybe ℬ¹ here refers to the Baire sigma-algebra? No, Baire sigma-algebra is generated by compact Gδ sets in a compact Hausdorff space, but that's probably not the case here.
+
+Alternatively, maybe ℬ¹ refers to the first level of the Borel hierarchy, which is the open sets. But no, the Borel sigma-algebra is the union of all finite levels of the Borel hierarchy. But the question mentions the sigma-algebra generated by analytic sets, which is definitely larger than the Borel sigma-algebra. So, ℬ¹ here is likely the sigma-algebra generated by analytic sets.
+
+Given that, then the previous reasoning applies: preimage of analytic is Borel, hence in ℬ¹. Therefore, continuous functions are measurable. So, the answer should be yes, continuous functions are measurable with respect to ℬ¹.
+
+But let me think if there's a possible counterexample or a nuance. Suppose we have a continuous function f: X → Y, and suppose that X and Y are Polish spaces. Analytic sets are in the codomain Y, and we need to check if their preimages are in ℬ¹ in X.
+
+But as we saw, preimage of analytic is Borel, which is contained in ℬ¹. Therefore, for the function to be measurable, since the generators (analytic sets) have preimages in ℬ¹, then the function is measurable. Therefore, yes, continuous functions are measurable with respect to ℬ¹.
+
+Alternatively, if the sigma-algebra in the domain is also ℬ¹, but since ℬ¹ includes all Borel sets, and preimages of analytic sets under continuous functions are Borel, hence measurable. Therefore, yes, they are measurable.
+
+Therefore, I think the answer is yes, continuous functions are measurable with respect to ℬ¹.
+
+**Final Answer**
+\boxed{Yes}
+</think>
+
+To determine if continuous functions are measurable with respect to the sigma-algebra generated by analytic sets, denoted as \( \mathcal{B}^1 \), we start by recalling key definitions and properties:
+
+1. **Continuous Functions**: A function is continuous if the preimage of every open set is open. Continuous functions are Borel measurable because the preimage of any open set (a Borel set) is open, hence Borel.
+
+2. **Analytic Sets**: Analytic sets (or Suslin sets) are continuous images of Borel sets. The sigma-algebra \( \mathcal{B}^1 \) is the smallest sigma-algebra containing all analytic sets. Since analytic sets are closed under countable unions and intersections but not complements, \( \mathcal{B}^1 \) includes all sets formed by complements, countable unions, and intersections of analytic sets.
+
+3. **Borel Sigma-Algebra and \( \mathcal{B}^1 \)**: The Borel sigma-algebra is contained within \( \mathcal{B}^1 \) because every Borel set is analytic in a Polish space. However, the complement of an analytic set is not necessarily analytic, so \( \mathcal{B}^1 \) is larger than the Borel sigma-algebra.
+
+4. **Measurability of Continuous Functions**: For a continuous function \( f: X \to Y \), the preimage of any Borel set in \( Y \) is Borel in \( X \). Since analytic sets are continuous images of Borel sets, the preimage of an analytic set under a continuous function \( f \) is Borel. This is because if \( A \subseteq Y \) is analytic, \( A = g(B) \) for some Borel set \( B \) and continuous function \( g \). Then \( f^{-1}(A) = (g \circ f)^{-1}(B) \), which is Borel as \( g \circ f \) is continuous.
+
+Since the preimage of any analytic set under a continuous function is Borel, and Borel sets are contained in \( \mathcal{B}^1 \), continuous functions are measurable with respect to \( \mathcal{B}^1 \).
+
+Thus, the final answer is:
+
+\[
+\boxed{Yes}
+\]
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We have a finitely generated field extension $K/k$ where $k = K^G$ for some set $G$ of automorphisms of $K$. We have the polynomial ring extension $k[X_1,\ldots,X_n] \subset K[X_1,\ldots,X_n]$ and a $G$-invariant ideal $I \lhd K[X_1,\ldots,X_n]$. The question is whether $I$ can be defined by polynomials in $k$.
+
+First, let me check for answer leaks. The problem statement is clean — it just asks the question. No solution sketch, no formalization notes, no answer embedded. Good.
+
+Now let me think about this problem. This is a classic question in invariant theory / Galois theory of polynomial rings.
+
+The setting: $K/k$ is a finitely generated field extension, $k = K^G$ is the fixed field of a group $G$ of automorphisms. We have a $G$-invariant ideal $I$ in $K[X_1,\ldots,X_n]$. The question: can $I$ be generated by (or "defined by") polynomials with coefficients in $k$?
+
+Let me think about what "defined by polynomials in $k$" means. It means $I$ is generated by $I \cap k[X_1,\ldots,X_n]$, or more precisely, that $I = (I \cap k[X_1,\ldots,X_n]) \cdot K[X_1,\ldots,X_n]$, i.e., the extension of the ideal $I \cap k[X_1,\ldots,X_n]$ to $K[X_1,\ldots,X_n]$ equals $I$.
+
+This is related to the theory of Galois descent for ideals.
+
+Key facts:
+1. If $K/k$ is a Galois extension (finite or infinite), and $I$ is a $G$-stable ideal, then $I$ is generated by $I \cap k[X_1,\ldots,X_n]$.
+
+This is a well-known result. Let me think about whether the hypotheses here are sufficient.
+
+The condition $k = K^G$ means $K/k$ is a Galois extension (in the sense of infinite Galois extensions, by Artin's theorem). Actually, let me be careful. Artin's theorem says: if $G$ is a group of automorphisms of $K$ and $k = K^G$, then $K/k$ is Galois with Galois group (the closure of) $G$, and if $G$ is finite of order $n$, then $[K:k] = n$.
+
+But here $G$ is just a "set" of automorphisms, not necessarily a group. However, $K^G = K^{\langle G \rangle}$ where $\langle G \rangle$ is the group generated by $G$. So we can assume $G$ is a group.
+
+Also, $K/k$ is finitely generated as a field extension. Since $k = K^G$, $K/k$ is Galois. A finitely generated Galois extension... this could be finite or infinite. Wait, a finitely generated field extension that is Galois — is it necessarily finite?
+
+Actually, a finitely generated field extension $K/k$ means $K = k(\alpha_1, \ldots, \alpha_m)$ for some elements. If $K/k$ is Galois (i.e., $k = K^G$ for some group $G$), is it necessarily finite?
+
+Hmm, not necessarily. For example, consider $K = \mathbb{Q}(\sqrt{2}, \sqrt{3}, \sqrt{5})$ — this is a finite extension. But what about something like $K = k(t)$ with $k = K^G$? If $G$ is trivial, then $k = K$ and the extension is trivial.
+
+Actually, let me think again. If $K/k$ is finitely generated and $k = K^G$ for a group $G$ of automorphisms, then by Artin's theorem, $K/k$ is Galois. A finitely generated Galois extension can be infinite — for example, the separable closure of a finite field is not finitely generated, but... hmm.
+
+Wait, actually: a finitely generated field extension $K/k$ that is algebraic must be finite. If $K/k$ is Galois and finitely generated, is it algebraic? Not necessarily — $K/k$ could be a finitely generated transcendental extension.
+
+But if $k = K^G$ for a group $G$ of automorphisms, can $K/k$ have transcendence degree > 0?
+
+If $K/k$ has positive transcendence degree, say $K = k(t, \ldots)$, then automorphisms of $K$ fixing $k$ could move $t$. But the fixed field of all automorphisms... Let me think. If $K = k(t)$ and $G$ consists of automorphisms $t \mapsto t + a$ for $a \in k$ (assuming $\text{char} = 0$ and $k$ infinite), then $K^G = k$. So yes, $K/k$ can be a finitely generated (even simple) transcendental extension with $k = K^G$.
+
+Hmm wait, but in that case $G$ would need to be infinite. And $K = k(t)$ is finitely generated over $k$. So this is a valid example.
+
+OK so the question is general: $K/k$ finitely generated, $k = K^G$, $I$ a $G$-invariant ideal in $K[X_1,\ldots,X_n]$. Is $I$ defined over $k$?
+
+Let me think about the standard result. The key result is:
+
+**Theorem (Galois descent for ideals):** Let $K/k$ be a Galois extension with Galois group $G$ (not necessarily finite). Let $I$ be a $G$-stable ideal of $K[X_1,\ldots,X_n]$. Then $I = (I \cap k[X_1,\ldots,X_n]) K[X_1,\ldots,X_n]$.
+
+Is this true for infinite Galois extensions? Let me think carefully.
+
+For finite Galois extensions, this is standard. The proof uses the fact that $K/k$ is finite Galois, so we can use the trace or averaging operator. For any $f \in I$, we can produce elements of $I \cap k[X_1,\ldots,X_n]$ that generate $f$ over $K$.
+
+For infinite Galois extensions, the situation is more subtle. The issue is that an element $f \in I$ involves only finitely many coefficients from $K$, and these coefficients lie in some finite Galois subextension $L/k$. Then we can work within $L[X_1,\ldots,X_n]$.
+
+Wait, but this requires that $K/k$ is algebraic (so that every element lies in a finite subextension). If $K/k$ has positive transcendence degree, this argument doesn't directly apply.
+
+Let me reconsider. The problem says $K/k$ is finitely generated and $k = K^G$. 
+
+Case 1: $K/k$ is algebraic. Then since it's finitely generated and algebraic, it's finite. Since $k = K^G$, it's finite Galois. Then the standard result applies: $I$ is defined over $k$.
+
+Case 2: $K/k$ has positive transcendence degree. Then $K/k$ is a finitely generated extension of positive transcendence degree, with $k = K^G$.
+
+In Case 2, is the result still true?
+
+Let me think about a specific example. Take $K = k(t)$, $G = \{g_a : t \mapsto t + a \mid a \in k\}$ where $k$ is an infinite field of characteristic 0. Then $K^G = k$.
+
+Now consider $n = 1$, so we're looking at $K[X] = k(t)[X]$. Consider the ideal $I = (X - t)$ in $K[X]$. Is this $G$-invariant? For $g_a \in G$, $g_a(X - t) = X - (t+a) = (X-t) - a$. This is in $I$ since $a \in k \subset K$ and $X - t \in I$. So $g_a(I) \subseteq I$. Similarly $g_a^{-1}(I) \subseteq I$, so $g_a(I) = I$. So $I$ is $G$-invariant.
+
+Now, $I \cap k[X]$: what polynomials in $k[X]$ are divisible by $X - t$ in $k(t)[X]$? A polynomial $f(X) \in k[X]$ is in $I$ iff $f(t) = 0$. But $t$ is transcendental over $k$, so $f(t) = 0$ implies $f = 0$. Thus $I \cap k[X] = \{0\}$.
+
+So $(I \cap k[X]) \cdot K[X] = \{0\} \neq I$.
+
+This shows the answer is **NO** in general!
+
+Wait, let me double-check. $I = (X - t) \subset k(t)[X]$. $I$ is $G$-invariant as shown. $I \cap k[X] = \{0\}$ because $t$ is transcendental. So $I$ cannot be defined by polynomials in $k$.
+
+So the answer to the question is **No**, it is not true in general.
+
+But wait, let me reconsider whether the problem is asking something slightly different. "Can $I$ be defined by polynomials in $k$?" — this could mean: does there exist a set of generators of $I$ that lie in $k[X_1,\ldots,X_n]$? Or it could mean: is $I$ the extension of some ideal of $k[X_1,\ldots,X_n]$?
+
+Both interpretations lead to the same thing: $I = J \cdot K[X_1,\ldots,X_n]$ for some ideal $J$ of $k[X_1,\ldots,X_n]$, which forces $J = I \cap k[X_1,\ldots,X_n]$.
+
+In my counterexample, $I = (X-t)$, $I \cap k[X] = 0$, so $I$ cannot be the extension of any ideal from $k[X]$.
+
+So the answer is **No**.
+
+Hmm, but let me reconsider. Maybe the problem is expecting the answer "Yes" under some interpretation, or maybe there's a subtlety I'm missing.
+
+Actually, wait. Let me re-examine. The problem says $K/k$ is finitely generated and $k = K^G$. In my example, $K = k(t)$, $G = \{g_a : a \in k\}$. Is $K^G = k$?
+
+If $k$ is an infinite field of characteristic 0, and $G = \{g_a : t \mapsto t + a, a \in k\}$, then for $f(t) \in k(t)$, $f(t)$ is fixed by all $g_a$ iff $f(t+a) = f(t)$ for all $a \in k$. Since $k$ is infinite, this means $f$ is constant (as a rational function), so $f \in k$. Yes, $K^G = k$.
+
+And $K = k(t)$ is finitely generated over $k$ (generated by one element $t$). So this is a valid counterexample.
+
+Actually, let me also consider: is the problem perhaps asking about the case where $K/k$ is finite? The phrase "finitely generated field extension" could be interpreted as algebraic (finite) in some contexts, but in standard usage, "finitely generated field extension" just means $K = k(\alpha_1, \ldots, \alpha_m)$, which includes transcendental extensions.
+
+If $K/k$ is finite Galois (which happens when $K/k$ is finite and $k = K^G$), then the answer is **Yes**. But the problem doesn't restrict to the finite/algebraic case.
+
+So the answer depends on the interpretation. Given the problem as stated, with $K/k$ finitely generated (possibly transcendental), the answer is **No** in general, and I should provide the counterexample.
+
+Actually, let me reconsider once more. Let me re-read the problem.
+
+"Consider a finitely generated field extension $K/k$ where $k=K^G$ for some set $G$ of automorphisms of $K$."
+
+So $K/k$ is finitely generated, and $k = K^G$. As I noted, this includes both finite (algebraic) and transcendental cases.
+
+"Given the extension of polynomial rings $k[X_1,\ldots,X_n]\subset K[X_1,\ldots,X_n]$ and a $G$-invariant ideal $I \lhd K[X_1,\ldots,X_n]$, is it true that $I$ can be defined by polynomials in $k$?"
+
+The answer is **No** in general, as shown by the counterexample.
+
+But actually, I want to make sure my counterexample is fully correct. Let me re-examine the $G$-invariance of $I = (X - t)$.
+
+$G$ acts on $K[X]$ by acting on coefficients: $g_a(\sum c_i X^i) = \sum g_a(c_i) X^i$.
+
+$g_a(X - t) = X - g_a(t) = X - (t + a)$.
+
+Now, is $g_a(I) = I$? We need $g_a(X-t) \in I = (X-t)$. Indeed, $X - (t+a) = (X - t) - a = (X-t) \cdot 1 + (-a) \cdot 1$. Wait, that's not showing it's in the ideal $(X-t)$. Let me be more careful.
+
+$X - (t+a) = (X - t) - a$. Is this in $(X-t)$? We need $X - (t+a) = (X-t) \cdot q(X)$ for some $q(X) \in K[X]$. $(X-t) \cdot 1 = X - t \neq X - (t+a)$ unless $a = 0$. So $g_a(X-t) \notin (X-t)$ in general!
+
+Wait, that's wrong. $(X-t)$ is the ideal generated by $X-t$. An element $f$ is in $(X-t)$ iff $f = (X-t) \cdot g$ for some $g \in K[X]$. Now $X - (t+a) = (X-t) - a$. Is $(X-t) - a \in (X-t)$? Only if $a \in (X-t)$, i.e., $a = (X-t) \cdot h$ for some $h$. But $a$ is a nonzero constant, and $(X-t) \cdot h$ has degree $\geq 1$ unless $h = 0$. So $a \notin (X-t)$ (for $a \neq 0$).
+
+So $g_a(X-t) = X - (t+a) \notin (X-t) = I$ for $a \neq 0$.
+
+This means $I = (X-t)$ is **NOT** $G$-invariant! My counterexample fails.
+
+Let me reconsider. The issue is that $G$-invariance of an ideal $I$ means $g(I) = I$ for all $g \in G$, i.e., $g(f) \in I$ for all $f \in I$ and $g \in G$.
+
+So for $I = (X-t)$, we need $g_a(X-t) = X - (t+a) \in (X-t)$ for all $a$. But as shown, this fails.
+
+So my counterexample doesn't work. Let me think more carefully.
+
+What $G$-invariant ideals look like in $K[X]$ when $K = k(t)$ and $G = \{t \mapsto t + a : a \in k\}$?
+
+A $G$-invariant ideal $I$ of $K[X]$ must satisfy: for all $f \in I$ and all $a \in k$, $g_a(f) \in I$.
+
+Let me think about what ideals are $G$-invariant. 
+
+Actually, let me think about this differently. The $G$-invariant ideals of $K[X_1,\ldots,X_n]$ — when $K/k$ is Galois (possibly infinite) — are they all defined over $k$?
+
+For finite Galois extensions, yes. For infinite Galois extensions, the key question is whether every $G$-invariant ideal is defined over $k$.
+
+Let me think about the infinite algebraic case first. If $K/k$ is an infinite Galois extension (algebraic), and $I$ is a $G$-invariant ideal of $K[X_1,\ldots,X_n]$, is $I$ defined over $k$?
+
+The argument would go: Take any $f \in I$. The coefficients of $f$ lie in some finite Galois subextension $L/k$ (since $K/k$ is algebraic, every element is in a finite subextension). Let $H = \text{Gal}(K/L)$. Then $f \in L[X_1,\ldots,X_n]$. The ideal $I \cap L[X_1,\ldots,X_n]$ is $\text{Gal}(L/k)$-invariant (since $I$ is $G$-invariant and $L/k$ is finite Galois). By the finite case, $I \cap L[X_1,\ldots,X_n]$ is generated by its intersection with $k[X_1,\ldots,X_n]$. So $f \in (I \cap k[X_1,\ldots,X_n]) \cdot L[X_1,\ldots,X_n] \subseteq (I \cap k[X_1,\ldots,X_n]) \cdot K[X_1,\ldots,X_n]$.
+
+This shows $I \subseteq (I \cap k[X_1,\ldots,X_n]) \cdot K[X_1,\ldots,X_n]$, and the reverse inclusion is obvious. So $I = (I \cap k[X_1,\ldots,X_n]) \cdot K[X_1,\ldots,X_n]$.
+
+So for infinite algebraic Galois extensions, the answer is **Yes**.
+
+But wait — a finitely generated algebraic extension is finite. So if $K/k$ is finitely generated and algebraic, it's finite. The infinite algebraic case doesn't arise from "finitely generated."
+
+So the interesting case is when $K/k$ is finitely generated with positive transcendence degree, and $k = K^G$.
+
+Now, in the transcendental case, the argument using finite subextensions doesn't work because elements of $K$ may not lie in finite Galois subextensions of $k$.
+
+Let me think about whether the result holds in the transcendental case.
+
+Consider $K = k(t)$, $G = \{g_a : t \mapsto t + a, a \in k\}$, $k$ infinite of characteristic 0. $K^G = k$.
+
+What are the $G$-invariant ideals of $K[X]$?
+
+An ideal $I \subseteq K[X]$ is $G$-invariant if for all $f \in I$ and all $a \in k$, $f(X, t+a) \in I$ (where I write $f(X,t)$ to emphasize the dependence on $t$).
+
+Consider the ideal $I = (X - t, X - (t+1)) = (X-t, 1) = K[X]$ (if $1 \in k$, which it is). That's the whole ring, trivially defined over $k$.
+
+Let me try $I = (X - t) \cap (X - (t+1))$... hmm, but these are comaximal since $(X-t) - (X-(t+1)) = 1$. So the intersection is the product, which is $K[X]$ again. Not helpful.
+
+Let me think differently. Consider a $G$-invariant ideal $I$. Take $f \in I$. Then $g_a(f) \in I$ for all $a \in k$. So $I$ contains $\{g_a(f) : a \in k\}$. 
+
+If $f = X - t$, then $g_a(f) = X - (t+a)$ for all $a \in k$. The ideal generated by $\{X - (t+a) : a \in k\}$ contains $(X - (t+a)) - (X - (t+b)) = b - a$ for all $a, b \in k$. If $k$ has at least two elements (which it does), this gives a nonzero constant, so the ideal is $K[X]$.
+
+So the smallest $G$-invariant ideal containing $X - t$ is $K[X]$, which is defined over $k$. 
+
+Hmm, so maybe in this case, all $G$-invariant ideals are defined over $k$?
+
+Let me think about this more carefully. Let $I$ be a $G$-invariant ideal of $K[X_1,\ldots,X_n]$. Take $f \in I$. Consider the $k$-vector space spanned by $\{g(f) : g \in G\}$ inside $K[X_1,\ldots,X_n]$. Actually, let me think about the orbit of $f$ under $G$.
+
+The key idea: if $f \in I$, then the ideal generated by the orbit $G \cdot f$ is contained in $I$. If we can show that this orbit-ideal is defined over $k$ (or at least that $f$ is in the extension of some ideal from $k[X_1,\ldots,X_n]$), we'd be done.
+
+Actually, let me think about this from the perspective of Galois descent more generally.
+
+The general theorem I'm thinking of is:
+
+**Theorem:** Let $K/k$ be a Galois extension (possibly infinite, possibly transcendental) with $G = \text{Aut}(K/k)$ (or any group with $K^G = k$). Let $R$ be a $k$-algebra, and let $I$ be a $G$-stable ideal of $R \otimes_k K$. Then $I = (I \cap R) \otimes_k K$ (where $R$ is identified with $R \otimes 1 \subset R \otimes_k K$).
+
+Is this true? For $R = k[X_1,\ldots,X_n]$, $R \otimes_k K = K[X_1,\ldots,X_n]$.
+
+I think this is true when $K/k$ is finite Galois (by Galois descent). For infinite Galois, the algebraic case works by the finite subextension argument. For the transcendental case, I'm less sure.
+
+Actually, let me think about whether there's a general proof that works for all cases.
+
+**Approach:** Let $f \in I$. We want to show $f \in (I \cap k[X_1,\ldots,X_n]) \cdot K[X_1,\ldots,X_n]$.
+
+Write $f = \sum_j c_j m_j$ where $c_j \in K$ and $m_j$ are monomials in $X_1,\ldots,X_n$.
+
+The coefficients $c_j$ generate a finite-dimensional $k$-subspace $V$ of $K$ (actually, they lie in a finitely generated $k$-subalgebra of $K$).
+
+Hmm, this is getting complicated. Let me think about the problem differently.
+
+Actually, I recall that the result is indeed true in general. The key is the following:
+
+**Lemma (Galois descent for modules/vector spaces):** If $K/k$ is Galois with group $G$ (i.e., $k = K^G$), and $V$ is a $K$-vector space with a semilinear $G$-action (i.e., $g(\alpha v) = g(\alpha) g(v)$), then the natural map $(V^G) \otimes_k K \to V$ is an isomorphism if $V$ is finite-dimensional over $K$.
+
+Wait, this is for finite-dimensional vector spaces, and it requires $K/k$ to be finite Galois (or at least the descent to work). For infinite Galois, there are subtleties.
+
+Hmm, actually, faithful flatness is the key. $K$ is faithfully flat over $k$ (since $k$ is a field, any extension is flat, and faithfully flat since $K \neq 0$). But that alone doesn't give us what we want.
+
+Let me think about this more carefully using the specific structure.
+
+Actually, I think the answer might be **Yes** in general, and here's a potential proof strategy:
+
+**Claim:** If $K/k$ is any field extension with $k = K^G$ for a group $G \leq \text{Aut}(K)$, and $I$ is a $G$-stable ideal of $K[X_1,\ldots,X_n]$, then $I = (I \cap k[X_1,\ldots,X_n]) \cdot K[X_1,\ldots,X_n]$.
+
+**Proof attempt:** The inclusion $(I \cap k[X_1,\ldots,X_n]) \cdot K[X_1,\ldots,X_n] \subseteq I$ is clear. For the reverse, let $f \in I$. We need to show $f \in (I \cap k[X_1,\ldots,X_n]) \cdot K[X_1,\ldots,X_n]$.
+
+Consider the $K$-vector space $M = K[X_1,\ldots,X_n]/I$. This is a $K$-vector space (and a $K$-algebra) with a $G$-action (since $I$ is $G$-stable). The $G$-action is semilinear: $g(\alpha \bar{f}) = g(\alpha) \overline{g(f)}$.
+
+We want to show that the natural map $(M^G) \otimes_k K \to M$ is surjective (or an isomorphism). If so, then for $f \in I$, $\bar{f} = 0$ in $M$, and we can write $0 = \sum g_i \cdot \overline{h_i}$ where $g_i \in K$, $h_i \in k[X_1,\ldots,X_n]$ with $\overline{h_i} \in M^G$... hmm, this isn't quite right.
+
+Let me think again. We want: $f \in I$ implies $f \in (I \cap k[X_1,\ldots,X_n]) K[X_1,\ldots,X_n]$. Equivalently, if $f \notin (I \cap k[X_1,\ldots,X_n]) K[X_1,\ldots,X_n]$, then $f \notin I$.
+
+Let $J = I \cap k[X_1,\ldots,X_n]$ and $J' = J \cdot K[X_1,\ldots,X_n]$. Then $J' \subseteq I$ (since $J \subseteq I$ and $I$ is an ideal of $K[X_1,\ldots,X_n]$). We want $J' = I$.
+
+Consider $M = K[X_1,\ldots,X_n]/J'$. This has a $G$-action (since $J'$ is $G$-stable — because $J \subseteq k[X_1,\ldots,X_n]$ is fixed by $G$, so $J'$ is $G$-stable). We want to show that $I/J' = 0$ in $M$, i.e., $I \subseteq J'$.
+
+The image of $I$ in $M$ is a $G$-stable ideal. If we can show that $M^G = k[X_1,\ldots,X_n]/J$ and that $M$ is generated by $M^G$ as a $K$-module (or that the only $G$-stable ideal that could be $I/J'$ is zero), we'd be done.
+
+Hmm, this is getting complicated. Let me try a different approach.
+
+**Direct approach using the "Reynolds operator" or trace:**
+
+For finite Galois extensions, we use the trace/average: $\text{Tr}(f) = \sum_{g \in G} g(f) \in I \cap k[X_1,\ldots,X_n]$, and then use linear algebra to show $f$ is in the span.
+
+For infinite $G$, we can't sum over all of $G$. But we can use the following trick:
+
+Take $f \in I$. The coefficients of $f$ involve finitely many elements of $K$. These elements lie in a finitely generated $k$-subalgebra $A$ of $K$. So $f \in A[X_1,\ldots,X_n]$.
+
+Now, $A$ is a finitely generated $k$-algebra, and $K$ is the fraction field of... hmm, $A$ might not be a domain's coordinate ring in a useful way.
+
+Actually, let me think about this differently. The coefficients of $f$ are $c_1, \ldots, c_m \in K$. These generate a finite-dimensional $k$-vector space $V = \text{span}_k(c_1, \ldots, c_m)$... no, that's not right either, since $K$ might be infinite-dimensional over $k$.
+
+Let me try yet another approach. 
+
+Consider the $k$-vector space $W$ spanned by $\{g(f) : g \in G\}$ in $K[X_1,\ldots,X_n]$. This is a subspace of $I$ (since $I$ is $G$-stable). The elements of $W$ are all in $I$.
+
+Now, $W$ is a $G$-stable $k$-subspace of $K[X_1,\ldots,X_n]$. If $W$ is finite-dimensional over $k$, then we can use the following: $W$ is a finite-dimensional $G$-module over $k$, and the $G$-invariants $W^G$ span $W$ over $K$... no, that's not right either.
+
+Hmm, let me think about this more carefully.
+
+Actually, I think the key insight is this: $K[X_1,\ldots,X_n] = K \otimes_k k[X_1,\ldots,X_n]$, and the $G$-action is on the $K$ factor. So we're asking about $G$-stable ideals in $K \otimes_k R$ where $R = k[X_1,\ldots,X_n]$.
+
+The question becomes: is every $G$-stable ideal of $K \otimes_k R$ of the form $K \otimes_k J$ for some ideal $J$ of $R$?
+
+This is a question about "Galois descent of ideals" or "faithfully flat descent."
+
+**Faithfully flat descent:** If $A \to B$ is faithfully flat, then the map $J \mapsto JB$ gives a bijection between ideals of $A$ and ideals of $B$ that are "descent data" (i.e., satisfy a cocycle condition). For a Galois extension $K/k$ with group $G$, the $G$-stable ideals are exactly the ones satisfying the descent condition.
+
+Wait, is that true? For faithfully flat descent, the condition is more than just $G$-stability. Let me recall.
+
+For $B/A$ faithfully flat, an ideal $I$ of $B$ descends to $A$ (i.e., $I = (I \cap A) B$) if and only if $I$ is "effective descent data," which for a Galois extension with group $G$ means $I$ is $G$-stable.
+
+Actually, I think for Galois extensions, $G$-stability is exactly the descent condition. Let me recall the precise statement.
+
+For $K/k$ finite Galois with group $G$: $K \otimes_k K \cong \prod_{g \in G} K$ via $a \otimes b \mapsto (a \cdot g(b))_{g \in G}$. An ideal $I$ of $K \otimes_k R$ descends iff it's the pullback of an ideal under some map, which translates to $G$-stability.
+
+For infinite Galois, the tensor product $K \otimes_k K$ is more complicated.
+
+But actually, for the question of ideals, the key property is:
+
+**$K$ is faithfully flat over $k$** (true for any field extension). By fpqc descent, the category of quasi-coherent sheaves (or modules) descends. For ideals specifically:
+
+An ideal $I$ of $K \otimes_k R$ is of the form $K \otimes_k J$ for some ideal $J$ of $R$ if and only if $I$ is a "descent ideal," which means $I$ satisfies: under the two maps $K \otimes_k R \to K \otimes_k K \otimes_k R$ (given by $a \otimes r \mapsto a \otimes 1 \otimes r$ and $a \otimes r \mapsto 1 \otimes a \otimes r$), the two extensions of $I$ agree.
+
+For a Galois extension $K/k$ with $k = K^G$, the condition that the two extensions agree is equivalent to $G$-stability of $I$.
+
+Let me verify this. The two maps $K \to K \otimes_k K$ are $\delta_1(a) = a \otimes 1$ and $\delta_2(a) = 1 \otimes a$. The condition is $\delta_1(I) \cdot (K \otimes_k K \otimes_k R) = \delta_2(I) \cdot (K \otimes_k K \otimes_k R)$, i.e., $I \otimes_k 1 = 1 \otimes_k I$ in $K \otimes_k K \otimes_k R \cong (K \otimes_k K) \otimes_k R$.
+
+For finite Galois, $K \otimes_k K \cong \prod_g K$, and the condition becomes: for each $g$, the $g$-th component of $I \otimes 1$ equals the $g$-th component of $1 \otimes I$, which means $g(I) = I$, i.e., $G$-stability.
+
+For infinite Galois, the map $K \otimes_k K \to \prod_{g \in G} K$ is injective but not surjective. So the condition $I \otimes 1 = 1 \otimes I$ in $K \otimes_k K \otimes_k R$ is stronger than just $G$-stability.
+
+Hmm, so for infinite Galois extensions, $G$-stability might not be sufficient for descent!
+
+But wait, in the algebraic infinite case, I gave an argument above using finite subextensions that shows $G$-stability IS sufficient. Let me reconcile this.
+
+In the algebraic infinite case: every element of $K$ lies in a finite Galois subextension $L/k$. So for $f \in I$, $f \in L[X_1,\ldots,X_n]$ for some finite Galois $L/k$. The ideal $I \cap L[X_1,\ldots,X_n]$ is $\text{Gal}(L/k)$-stable (because $I$ is $G$-stable and the restriction of $G$ to $L$ gives all of $\text{Gal}(L/k)$... wait, does it?).
+
+Hmm, this is the subtle point. If $G$ is a group of automorphisms of $K$ with $K^G = k$, and $L$ is a finite Galois subextension of $K/k$, is the restriction map $G \to \text{Gal}(L/k)$ surjective?
+
+Not necessarily! For example, $K$ could be the algebraic closure of $k$, and $G$ could be a proper subgroup of $\text{Gal}(K/k)$ whose fixed field is still $k$. In infinite Galois theory, the fixed field of a dense subgroup equals the fixed field of the whole group. So $G$ could be a dense but proper subgroup.
+
+But if $G$ is dense in $\text{Gal}(K/k)$ (in the Krull topology), then for any finite Galois subextension $L/k$, the restriction $G \to \text{Gal}(L/k)$ is surjective (by density). So the argument works.
+
+But what if $G$ is not dense? Can we have $K^G = k$ but $G$ not dense in $\text{Gal}(K/k)$?
+
+If $K/k$ is algebraic Galois, then $\text{Gal}(K/k)$ is a profinite group, and $K^G = k$ iff $G$ is dense in $\text{Gal}(K/k)$ (this is a standard result in infinite Galois theory). So in the algebraic case, $G$-stability implies descent, and the answer is Yes.
+
+But our case is finitely generated, so if algebraic, it's finite, and the answer is Yes.
+
+Now for the transcendental case. Let me think about whether $G$-stability implies descent.
+
+In the transcendental case, $K/k$ is finitely generated with $\text{tr.deg}(K/k) > 0$, and $k = K^G$.
+
+Let me consider the specific example: $K = k(t)$, $G = \{g_a : t \mapsto t + a, a \in k\}$, $k$ infinite of char 0.
+
+I need to find a $G$-stable ideal of $K[X]$ that is not defined over $k$, or show that all $G$-stable ideals are defined over $k$.
+
+Let me think about what $G$-stable ideals look like.
+
+A $G$-stable ideal $I \subseteq K[X] = k(t)[X]$ must satisfy: $f(X, t) \in I \Rightarrow f(X, t+a) \in I$ for all $a \in k$.
+
+Consider the map $\phi: K[X] \to K[X]$ sending $f(X, t) \mapsto f(X, t+a)$. This is a $K$-algebra automorphism (it's $g_a$ applied to coefficients). $I$ is $G$-stable iff $g_a(I) = I$ for all $a$.
+
+Now, let's think about $K[X]$ as $k[t, X]$ localized at the nonzero elements of $k[t]$. Actually, $K[X] = k(t)[X] = k[t, X]_{k[t] \setminus \{0\}}$... no, that's not quite right. $k(t)[X]$ is the localization of $k[t][X] = k[t, X]$ at $S = k[t] \setminus \{0\}$, but only inverting elements of $k[t]$, not all of $k[t, X] \setminus \{0\}$.
+
+So $K[X] = S^{-1} k[t, X]$ where $S = k[t] \setminus \{0\}$.
+
+A $G$-stable ideal $I$ of $K[X]$ corresponds to... hmm, ideals in localizations are tricky.
+
+Let me try a different approach. Let me think about $K[X]$ as a $k$-vector space. $K[X] = \bigoplus_{d \geq 0} K \cdot X^d$, and $K = k(t)$ is infinite-dimensional over $k$.
+
+A $G$-stable ideal $I$ is, in particular, a $G$-stable $k$-subspace. 
+
+Let me think about $G$-stable $k$-subspaces of $K = k(t)$. The $G$-action is $g_a(f(t)) = f(t+a)$. The $G$-invariant elements are $k$ (constants). A $G$-stable $k$-subspace $V$ of $k(t)$ satisfies $f(t) \in V \Rightarrow f(t+a) \in V$ for all $a \in k$.
+
+What are the $G$-stable $k$-subspaces of $k(t)$? 
+
+- $k$ itself (the constants).
+- $k(t)$ itself.
+- The space of polynomials $k[t]$? If $f(t) \in k[t]$, then $f(t+a) \in k[t]$, so yes, $k[t]$ is $G$-stable.
+- The space of rational functions with no poles? That's $k[t]$.
+- What about $k[t, 1/t]$? If $f(t) = 1/t$, then $f(t+a) = 1/(t+a)$, which is not in $k[t, 1/t]$ (it has a pole at $t = -a$, not at $t = 0$). So $k[t, 1/t]$ is not $G$-stable.
+
+Actually, the $G$-stable $k$-subspaces of $k(t)$ that are also $k$-subalgebras: $k$ and $k[t]$ and $k(t)$. Are there others?
+
+What about the ideal $(t)$ in $k[t]$? As a $k$-subspace, if $f(t) \in (t) \subset k[t]$, i.e., $f(0) = 0$, then $f(t+a)$ has $f(a)$ as its value at $t=0$, which is not necessarily 0. So $(t)$ is not $G$-stable.
+
+What about $k[t]$ itself? Yes, it's $G$-stable. And $k[t]$ is not of the form $K \otimes_k V$ for a $k$-subspace $V$ of $k$ (since $K \otimes_k V$ would be a $K$-vector space, but $k[t]$ is not a $K$-vector space).
+
+But we're interested in ideals of $K[X]$, not just $k$-subspaces of $K$.
+
+Let me think about this more carefully. Consider $I$ a $G$-stable ideal of $K[X] = k(t)[X]$. 
+
+Take $f \in I$, say $f = c_0 + c_1 X + \ldots + c_d X^d$ with $c_i \in k(t)$.
+
+For each $a \in k$, $g_a(f) = g_a(c_0) + g_a(c_1) X + \ldots + g_a(c_d) X^d \in I$.
+
+So the $k$-span of $\{g_a(c_i) : a \in k\}$ for each $i$ gives us elements of $I$ (in the $i$-th degree component).
+
+Now, consider the $k$-vector space $V_i = \text{span}_k\{g_a(c_i) : a \in k\} \subseteq K$. This is a $G$-stable $k$-subspace of $K$.
+
+If $V_i$ is finite-dimensional over $k$, then... hmm, what can we say?
+
+For $c_i \in k(t)$, the orbit $\{g_a(c_i) : a \in k\} = \{c_i(t + a) : a \in k\}$. When is this finite-dimensional over $k$?
+
+If $c_i$ is a polynomial of degree $m$ in $t$, then $c_i(t+a)$ is a polynomial of degree $m$ in $t$ (with coefficients that are polynomials in $a$). The span of $\{c_i(t+a) : a \in k\}$ over $k$ is contained in the space of polynomials of degree $\leq m$ in $t$, which is $(m+1)$-dimensional over $k$. So it's finite-dimensional.
+
+If $c_i = 1/t$, then $c_i(t+a) = 1/(t+a)$. The span of $\{1/(t+a) : a \in k\}$ over $k$ — are these linearly independent? For distinct $a_1, \ldots, a_m$, the functions $1/(t+a_j)$ are linearly independent over $k$ (they have distinct poles). So if $k$ is infinite, this span is infinite-dimensional.
+
+So for polynomial coefficients, the orbit spans are finite-dimensional, but for general rational function coefficients, they can be infinite-dimensional.
+
+This suggests that the answer might depend on the specific situation. Let me try to construct a counterexample with a non-polynomial coefficient.
+
+Take $I$ to be the $G$-stable ideal generated by $f = \frac{1}{t} X \in K[X]$. So $I$ is the ideal of $K[X]$ generated by $\{g_a(f) : a \in k\} = \{\frac{1}{t+a} X : a \in k\}$.
+
+So $I = (\frac{X}{t+a} : a \in k) \subseteq K[X]$.
+
+Now, $\frac{X}{t+a} = \frac{X}{t+a}$. Note that $\frac{X}{t+a_1} - \frac{X}{t+a_2} = X \cdot \frac{(t+a_2) - (t+a_1)}{(t+a_1)(t+a_2)} = X \cdot \frac{a_2 - a_1}{(t+a_1)(t+a_2)}$.
+
+So $I$ contains $X \cdot \frac{a_2 - a_1}{(t+a_1)(t+a_2)}$ for all $a_1, a_2$. In particular, $I$ contains $X \cdot \frac{c}{(t+a_1)(t+a_2)}$ for any nonzero $c \in k$ and distinct $a_1, a_2$.
+
+More generally, $I$ contains $X \cdot h(t)$ for various rational functions $h(t)$. Let me figure out exactly what $I$ is.
+
+$I$ is generated as an ideal of $K[X] = k(t)[X]$ by $\{\frac{X}{t+a} : a \in k\}$. Since $K[X]$ is a PID (it's $k(t)[X]$, a polynomial ring in one variable over a field), $I$ is generated by a single element, namely the GCD of the generators.
+
+The GCD of $\{\frac{X}{t+a} : a \in k\}$ in $K[X]$: each generator is $\frac{1}{t+a} \cdot X$. The GCD of $\{\frac{1}{t+a} : a \in k\}$ in $K = k(t)$ is... well, in $K[X]$, the generators are $\frac{X}{t+a}$, and the GCD is $X \cdot \gcd(\frac{1}{t+a} : a \in k)$. Since $\frac{1}{t+a}$ are all units in $K$ (they're nonzero elements of the field $K$), their GCD is 1. So the GCD of $\{\frac{X}{t+a}\}$ is $X$ (up to units).
+
+Wait, let me be more careful. In $K[X]$, the ideal generated by $\frac{X}{t+a_1}$ and $\frac{X}{t+a_2}$ is generated by their GCD. $\frac{X}{t+a_1} = \frac{1}{t+a_1} X$ and $\frac{X}{t+a_2} = \frac{1}{t+a_2} X$. The GCD is $X$ (since $\frac{1}{t+a_i}$ are units). So the ideal generated by any two of these is $(X)$.
+
+So $I = (X) \subseteq K[X]$. And $(X) \cap k[X] = (X) \cap k[X] = X \cdot k[X]$, and $(X \cdot k[X]) \cdot K[X] = (X) = I$. So $I$ IS defined over $k$.
+
+Hmm. So this example doesn't give a counterexample.
+
+Let me try something else. Let me think about what kind of ideal could fail to be defined over $k$.
+
+For $I$ to not be defined over $k$, we need $I \cap k[X] \cdot K[X] \subsetneq I$. This means there's some $f \in I$ that's not in the ideal generated by $I \cap k[X]$.
+
+In $K[X] = k(t)[X]$, which is a PID, every ideal is principal. So $I = (f)$ for some $f \in K[X]$. Then $I \cap k[X] = \{g \in k[X] : f | g \text{ in } K[X]\}$. And $I \cap k[X] \cdot K[X] = (I \cap k[X]) \cdot K[X]$.
+
+If $I = (f)$ is $G$-stable, then $g_a(f) = u_a \cdot f$ for some unit $u_a \in K^*$ (since $g_a(I) = I$ means $g_a(f) \in (f)$, and since $g_a$ is an automorphism, $g_a(f)$ generates $I$, so $g_a(f) = u_a f$ with $u_a \in K^*$).
+
+So $f$ is a "semi-invariant" — it transforms by a character $a \mapsto u_a$.
+
+Now, $f \in K[X] = k(t)[X]$. Write $f = c \cdot \prod (X - \alpha_i)$ where $c \in K^*$ and $\alpha_i \in \bar{K}$ (algebraic closure). Then $g_a(f) = g_a(c) \prod (X - g_a(\alpha_i))$. For $g_a(f) = u_a f$, we need $g_a(c) = u_a c$ and $\{g_a(\alpha_i)\} = \{\alpha_i\}$ as multisets.
+
+The condition $\{g_a(\alpha_i)\} = \{\alpha_i\}$ means the multiset of roots is $G$-stable. 
+
+If the roots $\alpha_i$ are in $K$, then $G$ permutes them. The elementary symmetric polynomials of the roots are $G$-invariant, hence in $k$. So $f/c = \prod(X - \alpha_i)$ has coefficients in $k$ (the elementary symmetric polynomials). So $f = c \cdot p(X)$ where $p(X) \in k[X]$ is monic. Then $I = (f) = (c \cdot p) = (p)$ (since $c$ is a unit). And $(p) \cap k[X] = p \cdot k[X]$ (since $p$ is monic in $k[X]$, and $p | g$ in $K[X]$ with $g \in k[X]$ implies $g/p \in K[X] \cap k(X) = k[X]$... wait, is that true? $g/p \in K[X]$ and $g, p \in k[X]$. Is $g/p \in k[X]$? Not necessarily, since $K[X] \cap k(X) = k[X]$... hmm, $K[X] \cap k(X)$: an element of $K[X]$ is a polynomial in $X$ with coefficients in $K$, and an element of $k(X)$ is a rational function in $X$ with coefficients in $k$. Their intersection is $k[X]$ (a polynomial with coefficients in $K$ that is also a rational function over $k$ must be a polynomial over $k$). So yes, $g/p \in k[X]$, hence $g \in p \cdot k[X]$. So $(p) \cap k[X] = p \cdot k[X]$, and $(p \cdot k[X]) \cdot K[X] = (p) = I$. So $I$ is defined over $k$.
+
+But what if the roots are not in $K$? Then $f$ might not factor into linear factors over $K$. But $f \in K[X]$, so it factors into irreducible factors over $K$. The $G$-stability of $I = (f)$ means $g_a(f) = u_a f$, which means $g_a$ permutes the irreducible factors of $f$ (up to units).
+
+Let me think about an example. Take $f = X^2 - t \in K[X] = k(t)[X]$. Is $(f)$ $G$-stable? $g_a(f) = X^2 - (t+a)$. Is $X^2 - (t+a) \in (X^2 - t)$? In $K[X]$, $X^2 - (t+a) = (X^2 - t) - a$. Is $a \in (X^2 - t)$? No, $a$ is a nonzero constant and $(X^2 - t)$ contains no nonzero constants. So $(f)$ is not $G$-stable.
+
+What about $f = X^2 - t^2$? $g_a(f) = X^2 - (t+a)^2 = (X - (t+a))(X + (t+a))$. And $f = (X-t)(X+t)$. Is $g_a(f) \in (f)$? $g_a(f) = X^2 - (t+a)^2$, $f = X^2 - t^2$. $g_a(f) - f = -(t+a)^2 + t^2 = -2at - a^2$. Is $-2at - a^2 \in (X^2 - t^2)$? No, it's a polynomial in $t$ (no $X$), and $(X^2 - t^2)$ contains no nonzero elements of $K$. So not $G$-stable.
+
+What about $f = X - t^2$? $g_a(f) = X - (t+a)^2 = X - t^2 - 2at - a^2$. $g_a(f) - f = -2at - a^2 \notin (X - t^2)$. Not $G$-stable.
+
+Hmm, it seems hard to find $G$-stable principal ideals that aren't defined over $k$.
+
+Let me think about this differently. For $I = (f)$ to be $G$-stable, we need $g_a(f) = u_a f$ for units $u_a \in K^*$. This means $f$ is a semi-invariant.
+
+If $f = \sum c_i X^i$, then $g_a(f) = \sum g_a(c_i) X^i = u_a \sum c_i X^i$, so $g_a(c_i) = u_a c_i$ for all $i$. This means all coefficients $c_i$ transform by the same character: $g_a(c_i)/c_i = u_a$ (for $c_i \neq 0$).
+
+So $c_i/c_j$ is $G$-invariant for all $i, j$ with $c_j \neq 0$, hence $c_i/c_j \in k$. This means all coefficients are $k$-multiples of one another. So $f = c \cdot p(X)$ where $c \in K^*$ and $p(X) \in k[X]$.
+
+Then $I = (f) = (p)$, and as shown above, $I$ is defined over $k$.
+
+So for $n = 1$ (one variable), every $G$-stable ideal of $K[X]$ is defined over $k$!
+
+Interesting. Let me check: is this argument correct? The key step is that $g_a(c_i) = u_a c_i$ for all $i$, which gives $c_i/c_j \in k$. Then $f = c_0 \cdot (1 + (c_1/c_0) X + \ldots) = c_0 \cdot p(X)$ with $p \in k[X]$. And $I = (c_0 p) = (p)$ since $c_0$ is a unit. Then $(p) \cap k[X] = p \cdot k[X]$ (as argued), and the extension gives $(p) = I$. ✓
+
+So for $n = 1$, the answer is Yes. What about $n \geq 2$?
+
+For $n \geq 2$, $K[X_1, \ldots, X_n]$ is not a PID, so ideals can be more complicated. Let me think about whether the result holds for $n \geq 2$.
+
+Actually, let me reconsider the problem. The problem asks about general $n$. Let me think about whether the answer is always Yes.
+
+Let me try to prove it in general. The approach:
+
+**Claim:** Let $K/k$ be a field extension with $k = K^G$ for a group $G \leq \text{Aut}(K)$. Let $I$ be a $G$-stable ideal of $K[X_1, \ldots, X_n]$. Then $I = (I \cap k[X_1, \ldots, X_n]) \cdot K[X_1, \ldots, X_n]$.
+
+**Proof attempt:** Let $J = I \cap k[X_1, \ldots, X_n]$ and $J^e = J \cdot K[X_1, \ldots, X_n]$. Clearly $J^e \subseteq I$. We need $I \subseteq J^e$.
+
+Take $f \in I$. Write $f = \sum_{\mu} c_\mu X^\mu$ where $\mu$ ranges over monomials and $c_\mu \in K$.
+
+Consider the $k$-vector space $V = \text{span}_k\{g(c_\mu) : g \in G, \text{all } \mu\} \subseteq K$. This is a $G$-stable $k$-subspace of $K$.
+
+If $V$ is finite-dimensional over $k$, say $V = \text{span}_k(v_1, \ldots, v_m)$, then we can write $c_\mu = \sum_j a_{\mu j} v_j$ with $a_{\mu j} \in k$. Then $f = \sum_\mu \sum_j a_{\mu j} v_j X^\mu = \sum_j v_j \left(\sum_\mu a_{\mu j} X^\mu\right) = \sum_j v_j f_j$ where $f_j \in k[X_1, \ldots, X_n]$.
+
+Now, for each $g \in G$, $g(f) = \sum_j g(v_j) f_j \in I$ (since $f_j \in k[X_1, \ldots, X_n]$ is fixed by $G$). So $\{g(f) : g \in G\} \subseteq I$, and these are $\sum_j g(v_j) f_j$.
+
+If $V$ has a $k$-basis consisting of $G$-invariant vectors... no, that's not generally true.
+
+But we can use the following: $V$ is a finite-dimensional $G$-module over $k$. The $G$-invariants $V^G$ might not span $V$ over $k$. However, we can use the "averaging" or "trace" trick if $G$ is finite.
+
+For infinite $G$, we need a different approach. 
+
+Hmm, but actually, the key point is: we have $g(f) = \sum_j g(v_j) f_j \in I$ for all $g \in G$. The $f_j$ are fixed. We want to show $f = \sum_j v_j f_j \in J^e$.
+
+$J^e$ is generated by $J = I \cap k[X_1, \ldots, X_n]$. So we need to find elements of $I \cap k[X_1, \ldots, X_n]$ that generate $f$ over $K$.
+
+Consider the $K$-vector space $W = \text{span}_K\{g(f) : g \in G\} \subseteq I$. Each $g(f) = \sum_j g(v_j) f_j$. So $W \subseteq \text{span}_K\{f_1, \ldots, f_m\}$.
+
+Now, $W$ is a $G$-stable $K$-subspace of $K[X_1, \ldots, X_n]$ (well, $G$ acts semilinearly). The $G$-invariant elements of $W$ are in $I \cap k[X_1, \ldots, X_n] = J$.
+
+By Galois descent for finite-dimensional vector spaces (if it applies), $W = W^G \otimes_k K$, and then $f \in W \subseteq J^e$.
+
+But Galois descent for finite-dimensional vector spaces requires... what exactly? 
+
+**Galois descent for vector spaces:** If $K/k$ is Galois with group $G$ (meaning $k = K^G$), and $W$ is a finite-dimensional $K$-vector space with a semilinear $G$-action (i.e., $g(\alpha w) = g(\alpha) g(w)$), then $W \cong W^G \otimes_k K$.
+
+Is this true for infinite Galois extensions? I believe it is, as long as the $G$-action is "continuous" in some sense. But for an arbitrary group $G$ with $K^G = k$, without any topology, is this true?
+
+Actually, I think the key issue is whether $G$ is "large enough." The condition $K^G = k$ means $G$ is dense in $\text{Gal}(K/k)$ (in the appropriate topology). For finite-dimensional semilinear representations, density is enough for descent.
+
+Let me think about this more carefully. The standard result is:
+
+**Theorem (Galois descent):** Let $K/k$ be a Galois extension (not necessarily finite) with Galois group $\Gamma = \text{Aut}(K/k)$. Let $V$ be a finite-dimensional $K$-vector space with a semilinear $\Gamma$-action that is continuous (i.e., the stabilizer of each element is open). Then $V \cong V^\Gamma \otimes_k K$.
+
+For our problem, $G$ might not be the full Galois group, and the action might not be continuous. But $K^G = k$ means $G$ is dense in $\Gamma$.
+
+If $V$ is finite-dimensional over $K$ with a semilinear $G$-action, and $K^G = k$, does $V \cong V^G \otimes_k K$?
+
+I think the answer is yes, and here's why: $V^G = V^\Gamma$ when $G$ is dense in $\Gamma$ (for continuous actions). But our action might not be continuous.
+
+Hmm, let me think about whether the action is automatically continuous in our setting.
+
+In our setting, $V = W = \text{span}_K\{g(f) : g \in G\}$ is finite-dimensional over $K$ (since it's contained in $\text{span}_K\{f_1, \ldots, f_m\}$). The $G$-action on $W$ is semilinear. Is it continuous?
+
+For the Krull topology on $\Gamma = \text{Aut}(K/k)$, continuity means the stabilizer of each element of $W$ is open. An open subgroup of $\Gamma$ contains $\text{Gal}(K/L)$ for some finite Galois subextension $L/k$. The stabilizer of $w \in W$ is $\{g \in \Gamma : g(w) = w\}$. Since $w$ has finitely many coefficients in $K$, and each coefficient lies in some finite extension of $k$ (if $K/k$ is algebraic), the stabilizer is open.
+
+But if $K/k$ is transcendental, the coefficients might not lie in finite Galois subextensions, and the Krull topology doesn't directly apply.
+
+OK, I think I need to approach this differently. Let me consider the problem more carefully.
+
+Actually, let me reconsider. The problem says $K/k$ is finitely generated. If $K/k$ is finitely generated and $k = K^G$, what can we say about the structure?
+
+If $K/k$ is finitely generated and algebraic, it's finite, and $k = K^G$ makes it finite Galois. The answer is Yes (standard result).
+
+If $K/k$ is finitely generated with positive transcendence degree, say $\text{tr.deg}(K/k) = r > 0$, then... $k = K^G$ is a strong condition.
+
+Let me think about what $K/k$ finitely generated with $k = K^G$ and $\text{tr.deg} > 0$ looks like.
+
+$K = k(\alpha_1, \ldots, \alpha_m)$ where some $\alpha_i$ are transcendental over $k$. Let $t_1, \ldots, t_r$ be a transcendence basis. Then $K$ is a finite algebraic extension of $k(t_1, \ldots, t_r)$.
+
+Now, $G$ acts on $K$ fixing $k$. Since $k = K^G$, $G$ must act nontrivially on the transcendence basis (otherwise $k(t_1, \ldots, t_r) \subseteq K^G = k$, contradiction).
+
+In my example, $K = k(t)$, $G = \{t \mapsto t + a : a \in k\}$, $K^G = k$. This works.
+
+Now, for the general case, let me try to prove the result.
+
+**Key idea:** Use the fact that $K[X_1, \ldots, X_n] = K \otimes_k k[X_1, \ldots, X_n]$, and the $G$-action is on the $K$-factor. We want to show that $G$-stable ideals of $K \otimes_k R$ (where $R = k[X_1, \ldots, X_n]$) are exactly extensions of ideals of $R$.
+
+This is equivalent to saying that the map $J \mapsto K \otimes_k J$ from ideals of $R$ to $G$-stable ideals of $K \otimes_k R$ is a bijection.
+
+The inverse map is $I \mapsto I \cap R$ (where $R = k \otimes 1 \subset K \otimes_k R$). We need:
+1. $(K \otimes_k J) \cap R = J$ for all ideals $J$ of $R$. This is true because $K$ is faithfully flat over $k$.
+2. $K \otimes_k (I \cap R) = I$ for all $G$-stable ideals $I$ of $K \otimes_k R$. This is what we need to prove.
+
+For (2), the question is whether $G$-stability is sufficient for descent.
+
+Now, I recall that for faithfully flat descent, the condition for an ideal $I$ of $B = K \otimes_k R$ to descend is that $I$ is an "effective descent ideal," which means $I \otimes_B (B \otimes_A B) = (B \otimes_A B) \otimes_B I$ as submodules of $B \otimes_A B \otimes_A R$ (or something like that). For Galois extensions, this translates to a condition involving $G$.
+
+For finite Galois extensions, $G$-stability is equivalent to the descent condition. For infinite Galois extensions, the descent condition is stronger than $G$-stability (it requires a "continuous" $G$-action).
+
+But in our case, $K/k$ is finitely generated. If it's finite Galois, we're fine. If it's transcendental, the situation is different.
+
+Hmm, let me try to directly prove or disprove the result for the transcendental case.
+
+Let me go back to my example: $K = k(t)$, $G = \{g_a : t \mapsto t + a, a \in k\}$, $k$ infinite of char 0.
+
+For $n = 1$, I showed the answer is Yes. Let me try $n = 2$.
+
+Consider $I \subseteq K[X, Y] = k(t)[X, Y]$. Let me try to construct a $G$-stable ideal that's not defined over $k$.
+
+Consider $f = X - tY \in K[X, Y]$. The ideal $(f)$: is it $G$-stable? $g_a(f) = X - (t+a)Y = (X - tY) - aY$. Is $aY \in (X - tY)$? In $K[X, Y]$, $(X - tY)$ is a prime ideal (it's the kernel of $K[X, Y] \to K[Y]$, $X \mapsto tY$, $Y \mapsto Y$). $aY \notin (X - tY)$ since $aY$ maps to $aY \neq 0$ in $K[Y]$. So $(f)$ is not $G$-stable.
+
+What about the $G$-stable ideal generated by $f = X - tY$? This is the ideal generated by $\{g_a(f) : a \in k\} = \{X - (t+a)Y : a \in k\}$.
+
+$g_a(f) - g_b(f) = (b - a)Y$ for $a \neq b$. So $Y \in I$ (taking $a \neq b$, we get $(b-a)Y \in I$, and $b - a \in k^*$ is a unit). Then $X - tY \in I$ and $Y \in I$ implies $X \in I$. So $I = (X, Y) = (X, Y) \cdot K[X, Y]$. And $(X, Y) \cap k[X, Y] = (X, Y) \cdot k[X, Y]$, so $I$ is defined over $k$. ✓
+
+Let me try a more subtle example. Consider $f = tX - Y \in K[X, Y]$. $g_a(f) = (t+a)X - Y = tX - Y + aX$. The $G$-stable ideal generated by $f$: contains $g_a(f) - g_0(f) = aX$ for all $a$, so $X \in I$, and then $Y = tX - f \in I$. So again $I = (X, Y)$, defined over $k$.
+
+What about $f = X^2 - tY$? $g_a(f) = X^2 - (t+a)Y$. $g_a(f) - g_0(f) = -aY$, so $Y \in I$, then $X^2 \in I$, so $I = (X^2, Y)$. And $(X^2, Y) \cap k[X, Y] = (X^2, Y) \cdot k[X, Y]$, defined over $k$. ✓
+
+It seems like in these examples, the $G$-stable ideal always ends up being defined over $k$. Let me think about why.
+
+The pattern is: if $f \in I$ and $g_a(f) \in I$, then $g_a(f) - f \in I$, and this difference often produces elements with coefficients in $k$ (by eliminating the $t$-dependent terms).
+
+More generally, if $f = \sum c_\mu(t) X^\mu \in I$, then $g_a(f) = \sum c_\mu(t+a) X^\mu \in I$, and $g_a(f) - f = \sum (c_\mu(t+a) - c_\mu(t)) X^\mu \in I$.
+
+If the $c_\mu$ are polynomials in $t$, then $c_\mu(t+a) - c_\mu(t)$ is a polynomial in $t$ of lower degree (in $t$). By iterating, we can reduce the degree in $t$ until we get elements with coefficients in $k$ (degree 0 in $t$).
+
+This is essentially the "finite difference" method. Let me formalize this.
+
+**Lemma:** Let $k$ be an infinite field, $K = k(t)$, $G = \{g_a : t \mapsto t + a, a \in k\}$. Let $f \in K[X_1, \ldots, X_n]$ with coefficients that are polynomials in $t$ (i.e., $f \in k[t][X_1, \ldots, X_n] = k[t, X_1, \ldots, X_n]$). If $f \in I$ where $I$ is $G$-stable, then by taking finite differences, we can produce elements of $I \cap k[X_1, \ldots, X_n]$.
+
+**Proof of lemma:** Write $f = \sum_{i=0}^d f_i(X_1, \ldots, X_n) t^i$ where $f_i \in k[X_1, \ldots, X_n]$. Then $g_a(f) = \sum_i f_i (t+a)^i = \sum_i f_i \sum_j \binom{i}{j} t^j a^{i-j} = \sum_j t^j \sum_i \binom{i}{j} a^{i-j} f_i$.
+
+So $g_a(f) - f = \sum_j t^j \left(\sum_i \binom{i}{j} a^{i-j} f_i - f_j\right)$. The coefficient of $t^d$ in $g_a(f)$ is $\sum_i \binom{i}{d} a^{i-d} f_i = f_d$ (only $i = d$ contributes, giving $\binom{d}{d} a^0 f_d = f_d$). So the $t^d$ coefficient of $g_a(f) - f$ is $f_d - f_d = 0$. Good, the degree in $t$ drops.
+
+More precisely, $g_a(f) - f$ has degree at most $d - 1$ in $t$ (the leading term cancels). By iterating with different values of $a$, we can reduce the degree to 0, obtaining elements in $k[X_1, \ldots, X_n] \cap I$.
+
+Specifically, define the finite difference operator $\Delta_a f = g_a(f) - f$. Then $\Delta_a$ reduces the $t$-degree by at least 1. After $d$ iterations (with appropriate choices of $a$), we get an element of $I$ with $t$-degree 0, i.e., in $k[X_1, \ldots, X_n]$.
+
+But we need to be more careful: we need to show that $f$ itself is in the ideal generated by these $k$-elements. Just producing some $k$-elements in $I$ isn't enough.
+
+Hmm, let me think about this more carefully.
+
+Actually, the finite difference argument shows that we can produce elements of $I \cap k[X_1, \ldots, X_n]$, but we need to show that $f$ is in the $K$-span of these elements.
+
+Let me think about this using the "Vandermonde" or "interpolation" argument.
+
+If $f = \sum_{i=0}^d f_i t^i$ with $f_i \in k[X_1, \ldots, X_n]$, then $g_{a_j}(f) = \sum_i f_i (t + a_j)^i$ for $j = 0, 1, \ldots, d$ (with $a_0 = 0$). We have $d + 1$ elements $g_{a_0}(f), \ldots, g_{a_d}(f) \in I$.
+
+Now, $g_{a_j}(f) = \sum_i f_i (t + a_j)^i = \sum_i f_i \sum_l \binom{i}{l} t^l a_j^{i-l} = \sum_l t^l \sum_i \binom{i}{l} a_j^{i-l} f_i$.
+
+Let $F_l = \sum_i \binom{i}{l} a_j^{i-l} f_i$... no wait, $F_l$ depends on $j$. Let me rewrite.
+
+$g_{a_j}(f) = \sum_{l=0}^d t^l \left(\sum_{i=l}^d \binom{i}{l} a_j^{i-l} f_i\right)$.
+
+Let $h_{l,j} = \sum_{i=l}^d \binom{i}{l} a_j^{i-l} f_i \in k[X_1, \ldots, X_n]$. Then $g_{a_j}(f) = \sum_l h_{l,j} t^l$.
+
+The matrix $(h_{l,j})_{l,j}$ (with $l$ being the row index for $t^l$ and $j$ being the index for the $j$-th element) is:
+
+$h_{l,j} = \sum_{i=l}^d \binom{i}{l} a_j^{i-l} f_i$.
+
+For $l = d$: $h_{d,j} = f_d$ (independent of $j$).
+For $l = d-1$: $h_{d-1,j} = d \cdot a_j \cdot f_d + f_{d-1}$.
+...
+
+The matrix $M = (h_{l,j})$ is upper-triangular in some sense. Actually, let me think of it differently.
+
+We have $g_{a_j}(f) = \sum_l h_{l,j} t^l$ where $h_{l,j} = \sum_{i \geq l} \binom{i}{l} a_j^{i-l} f_i$.
+
+The coefficient of $t^l$ in $g_{a_j}(f)$ is a polynomial in $a_j$ (of degree $d - l$) with coefficients in $k[X_1, \ldots, X_n]$.
+
+Specifically, $h_{l,j} = \sum_{m=0}^{d-l} \binom{l+m}{l} a_j^m f_{l+m}$.
+
+So $h_{l,j} = \sum_{m=0}^{d-l} \binom{l+m}{l} f_{l+m} a_j^m$.
+
+This is a polynomial of degree $d - l$ in $a_j$, with coefficients in $k[X_1, \ldots, X_n]$.
+
+Now, we have $d + 1$ elements $g_{a_0}(f), \ldots, g_{a_d}(f) \in I$, and we want to recover $f = g_{a_0}(f)$ (with $a_0 = 0$) from elements in $I \cap k[X_1, \ldots, X_n]$.
+
+Consider the system: for each $j$, $g_{a_j}(f) = \sum_l h_{l,j} t^l \in I$. We can take $K$-linear combinations of these elements to get new elements of $I$.
+
+We want to find $K$-linear combinations that produce elements in $k[X_1, \ldots, X_n]$ (i.e., with only the $t^0$ term).
+
+Take $\sum_j \lambda_j g_{a_j}(f) = \sum_l t^l \sum_j \lambda_j h_{l,j}$. We want the coefficients of $t^l$ for $l \geq 1$ to vanish, i.e., $\sum_j \lambda_j h_{l,j} = 0$ for $l = 1, \ldots, d$.
+
+This is a system of $d$ equations in $d + 1$ unknowns $\lambda_0, \ldots, \lambda_d$ (over $K$). The system has a nontrivial solution. But we need the solution to give us something useful.
+
+Actually, we want to find $\lambda_j \in K$ such that $\sum_j \lambda_j h_{l,j} = 0$ for $l \geq 1$ and $\sum_j \lambda_j h_{0,j} \neq 0$ (to get a nonzero element in $k[X_1, \ldots, X_n]$).
+
+The matrix $(h_{l,j})_{l=1,\ldots,d; j=0,\ldots,d}$ is a $d \times (d+1)$ matrix. Its rows are polynomials in $a_j$ of degrees $d-1, d-2, \ldots, 0$ (for $l = 1, 2, \ldots, d$). 
+
+Actually, $h_{l,j}$ as a function of $a_j$ is a polynomial of degree $d - l$ in $a_j$. So the row for $l = 1$ has degree $d - 1$, for $l = 2$ has degree $d - 2$, etc., and for $l = d$ has degree $0$ (constant $f_d$).
+
+The matrix $(h_{l,j})$ for $l = 1, \ldots, d$ and $j = 0, \ldots, d$ has a specific structure. The null space has dimension at least 1. 
+
+But I want to be more explicit. Let me use the Vandermonde matrix.
+
+Consider the change of basis: instead of $1, t, t^2, \ldots, t^d$, use $1, (t + a_0), (t + a_0)(t + a_1), \ldots$ — Newton's forward difference basis. Actually, let me use a simpler approach.
+
+We have $g_{a_j}(f) = \sum_i f_i (t + a_j)^i$. Think of this as evaluating the "polynomial" $F(T) = \sum_i f_i T^i$ at $T = t + a_j$. So $g_{a_j}(f) = F(t + a_j)$ where $F(T) = \sum f_i T^i \in k[X_1, \ldots, X_n][T]$.
+
+We have $F(t + a_j) \in I$ for all $j$ (well, for $j = 0, \ldots, d$ with chosen $a_j$). We want to recover $F(t) = f$ from these.
+
+By Lagrange interpolation: $F(T) = \sum_j F(t + a_j) \cdot L_j(T)$ where $L_j(T) = \prod_{i \neq j} \frac{T - (t + a_i)}{(t + a_j) - (t + a_i)} = \prod_{i \neq j} \frac{T - t - a_i}{a_j - a_i}$.
+
+Evaluating at $T = t$: $F(t) = \sum_j F(t + a_j) \cdot \prod_{i \neq j} \frac{t - t - a_i}{a_j - a_i} = \sum_j F(t + a_j) \cdot \prod_{i \neq j} \frac{-a_i}{a_j - a_i}$.
+
+So $f = F(t) = \sum_j c_j \cdot g_{a_j}(f)$ where $c_j = \prod_{i \neq j} \frac{-a_i}{a_j - a_i} \in k$ (since $a_i \in k$).
+
+Wait, but this expresses $f$ as a $k$-linear combination of $g_{a_j}(f)$, which are all in $I$. So $f \in I$, which we already knew. This doesn't help directly.
+
+But wait — the key point is different. We want to express $f$ in terms of elements of $I \cap k[X_1, \ldots, X_n]$, not just elements of $I$.
+
+Hmm, the interpolation gives $f = \sum_j c_j g_{a_j}(f)$ with $c_j \in k$. This just says $f \in I$, which we knew.
+
+Let me think differently. We want to produce elements of $I \cap k[X_1, \ldots, X_n]$ from $f$ and its $G$-translates, and then show $f$ is in the $K$-ideal they generate.
+
+Take the finite differences: $\Delta_{a} f = g_a(f) - f = F(t+a) - F(t)$. This has degree $d - 1$ in $t$ (the leading term $f_d t^d$ cancels since $(t+a)^d - t^d$ has degree $d - 1$ in $t$).
+
+More precisely, $\Delta_a f = \sum_i f_i ((t+a)^i - t^i)$. The leading term ($i = d$) gives $f_d ((t+a)^d - t^d) = f_d \sum_{j=0}^{d-1} \binom{d}{j} a^{d-j} t^j$, which has degree $d - 1$ in $t$.
+
+By taking $d$-th order finite differences (with $d$ different values of $a$), we get an element of degree 0 in $t$, i.e., in $k[X_1, \ldots, X_n]$.
+
+Specifically, $\Delta_{a_1} \Delta_{a_2} \cdots \Delta_{a_d} f$ has degree 0 in $t$ and is in $I$ (since each $\Delta$ produces an element of $I$). This gives an element of $I \cap k[X_1, \ldots, X_n]$.
+
+But we need more: we need enough such elements to generate $f$ over $K$.
+
+Let me think about this more carefully. We have $d + 1$ elements $g_{a_0}(f), \ldots, g_{a_d}(f) \in I$ (with $a_0 = 0$, so $g_{a_0}(f) = f$). We can form $K$-linear combinations to get elements of $I$. We want to find combinations that land in $k[X_1, \ldots, X_n]$.
+
+An element $\sum_j \lambda_j g_{a_j}(f) = \sum_l t^l \sum_j \lambda_j h_{l,j}$ is in $k[X_1, \ldots, X_n]$ iff $\sum_j \lambda_j h_{l,j} = 0$ for $l = 1, \ldots, d$.
+
+The space of such $\lambda = (\lambda_0, \ldots, \lambda_d)$ is the null space of the $d \times (d+1)$ matrix $H = (h_{l,j})_{l=1,\ldots,d; j=0,\ldots,d}$.
+
+The null space has dimension at least 1. Let's find it.
+
+$h_{l,j} = \sum_{i=l}^d \binom{i}{l} a_j^{i-l} f_i$. For $l = d$: $h_{d,j} = f_d$ (constant in $j$). For $l = d-1$: $h_{d-1,j} = d a_j f_d + f_{d-1}$. Etc.
+
+The matrix $H$ has rows indexed by $l = 1, \ldots, d$ and columns by $j = 0, \ldots, d$. The entry $h_{l,j}$ is a polynomial of degree $d - l$ in $a_j$.
+
+The null space of $H$: we need $\sum_j \lambda_j h_{l,j} = 0$ for all $l = 1, \ldots, d$.
+
+Since $h_{l,j}$ is a polynomial of degree $d - l$ in $a_j$, and the degrees are $d - 1, d - 2, \ldots, 0$ for $l = 1, 2, \ldots, d$, the conditions are:
+
+$\sum_j \lambda_j p_m(a_j) = 0$ for $m = 0, 1, \ldots, d - 1$
+
+where $p_m$ is a polynomial of degree $m$ (corresponding to $l = d - m$). Actually, the polynomials $h_{l,j}$ in $a_j$ are not exactly the standard basis, but they span the same space as $1, a_j, a_j^2, \ldots, a_j^{d-1}$ (since the leading coefficient of $h_{l,j}$ as a polynomial in $a_j$ is $\binom{d}{l} f_d \neq 0$ assuming $f_d \neq 0$).
+
+Wait, I need to be more careful. $h_{l,j}$ as a polynomial in $a_j$ has leading term $\binom{d}{l} f_d a_j^{d-l}$ (from $i = d$). So $h_{l,j}$ has degree $d - l$ in $a_j$ with leading coefficient $\binom{d}{l} f_d$.
+
+If $f_d \neq 0$ (which it is, since $f$ has degree $d$ in $t$), then the polynomials $h_{l,j}$ (as functions of $a_j$) for $l = 1, \ldots, d$ have degrees $d-1, d-2, \ldots, 0$ with nonzero leading coefficients. So they form a basis for the space of polynomials of degree $\leq d - 1$ in $a_j$.
+
+Therefore, the conditions $\sum_j \lambda_j h_{l,j} = 0$ for $l = 1, \ldots, d$ are equivalent to $\sum_j \lambda_j q(a_j) = 0$ for all polynomials $q$ of degree $\leq d - 1$.
+
+This is equivalent to $\sum_j \lambda_j a_j^m = 0$ for $m = 0, 1, \ldots, d - 1$.
+
+The null space of the Vandermonde-like matrix $(a_j^m)_{m=0,\ldots,d-1; j=0,\ldots,d}$ has dimension 1 (since it's a $d \times (d+1)$ matrix with full rank $d$, assuming the $a_j$ are distinct).
+
+The null vector is $\lambda_j = \prod_{i \neq j} \frac{1}{a_j - a_i}$ (up to scaling), which are the barycentric weights. Actually, the null space of the Vandermonde matrix $V = (a_j^m)_{m=0,\ldots,d-1; j=0,\ldots,d}$ consists of vectors $\lambda$ such that $\sum_j \lambda_j a_j^m = 0$ for $m = 0, \ldots, d-1$. This means $\sum_j \lambda_j q(a_j) = 0$ for all polynomials $q$ of degree $\leq d - 1$.
+
+The null space is 1-dimensional, spanned by $\lambda_j = \prod_{i \neq j} (a_j - a_i)^{-1}$... hmm, let me think. The Vandermonde matrix $V$ (with rows $m = 0, \ldots, d-1$ and columns $j = 0, \ldots, d$) has a $(d+1) \times (d+1)$ Vandermonde as a submatrix (using any $d$ of the $d+1$ columns). The null space is spanned by the vector $\lambda$ with $\lambda_j = \prod_{i \neq j} \frac{1}{a_j - a_i}$... actually, I think the null vector is related to the Lagrange interpolation.
+
+The null space of $V^T$ (the transpose) is trivial since $V$ has full row rank. The null space of $V$ (as a map from $K^{d+1} \to K^d$) has dimension 1.
+
+The null vector $\lambda$ satisfies $\sum_j \lambda_j a_j^m = 0$ for $m = 0, \ldots, d-1$. This means the discrete measure $\sum_j \lambda_j \delta_{a_j}$ has zero moments up to order $d - 1$. 
+
+For the specific choice $a_j = j$ (or any $d + 1$ distinct values), the null vector is $\lambda_j = (-1)^j \binom{d}{j}$ (for $a_j = j$). This is the finite difference formula.
+
+OK so the null space is 1-dimensional, and the corresponding element of $I \cap k[X_1, \ldots, X_n]$ is:
+
+$P = \sum_j \lambda_j g_{a_j}(f) = \sum_j \lambda_j h_{0,j}$
+
+where $h_{0,j} = \sum_i f_i a_j^i = F(a_j)$ (evaluating $F(T) = \sum f_i T^i$ at $T = a_j$).
+
+Wait, $h_{0,j} = \sum_{i=0}^d \binom{i}{0} a_j^i f_i = \sum_i a_j^i f_i = F(a_j)$.
+
+So $P = \sum_j \lambda_j F(a_j)$. And $\lambda$ is the null vector of the Vandermonde system.
+
+Now, $P = \sum_j \lambda_j F(a_j)$ where $\lambda$ satisfies $\sum_j \lambda_j a_j^m = 0$ for $m = 0, \ldots, d-1$.
+
+This means $P = \sum_j \lambda_j F(a_j) = \sum_j \lambda_j \sum_i f_i a_j^i = \sum_i f_i \sum_j \lambda_j a_j^i$.
+
+For $i = 0, \ldots, d - 1$: $\sum_j \lambda_j a_j^i = 0$ (by the null space condition).
+For $i = d$: $\sum_j \lambda_j a_j^d = $ some nonzero value (call it $V_d$, the Vandermonde determinant).
+
+So $P = f_d \cdot V_d$ where $V_d = \sum_j \lambda_j a_j^d \in k$.
+
+Since $V_d \neq 0$ (it's the Vandermonde determinant, which is nonzero for distinct $a_j$), we get $P = V_d \cdot f_d \in I \cap k[X_1, \ldots, X_n]$.
+
+So we've shown that $f_d \in I \cap k[X_1, \ldots, X_n]$ (up to a nonzero scalar in $k$).
+
+Now, $f - \frac{t^d}{1} \cdot f_d = f - t^d f_d = \sum_{i=0}^{d-1} f_i t^i \in I$ (since $f \in I$ and $t^d f_d = t^d \cdot (P / V_d) \in I$ because $P \in I$ and $t^d / V_d \in K$).
+
+Wait, $t^d f_d = t^d \cdot P / V_d$. Since $P \in I$ and $t^d / V_d \in K[X_1, \ldots, X_n]$ (it's $t^d / V_d$ times $1$, which is in $K[X_1, \ldots, X_n]$ since $V_d \in k^*$), we have $t^d f_d \in I$. So $f - t^d f_d \in I$, and this has degree $d - 1$ in $t$.
+
+By induction, we can show that each $f_i \in I \cap k[X_1, \ldots, X_n]$ (up to $K$-multiples), and therefore $f = \sum_i f_i t^i \in (I \cap k[X_1, \ldots, X_n]) \cdot K[X_1, \ldots, X_n]$.
+
+Wait, let me be more careful. We showed $f_d \in I \cap k[X_1, \ldots, X_n]$ (since $P = V_d f_d \in I \cap k[X_1, \ldots, X_n]$ and $V_d \in k^*$, so $f_d \in I \cap k[X_1, \ldots, X_n]$). Then $f - t^d f_d \in I$ has degree $d - 1$ in $t$. By induction, $f_{d-1}, \ldots, f_0 \in I \cap k[X_1, \ldots, X_n]$, and $f = \sum f_i t^i \in (I \cap k[X_1, \ldots, X_n]) \cdot K[X_1, \ldots, X_n]$.
+
+But wait, this only works when the coefficients of $f$ (as a polynomial in $t$) are in $k[X_1, \ldots, X_n]$, i.e., when $f \in k[t, X_1, \ldots, X_n]$. What if $f$ has coefficients that are rational functions in $t$ (not just polynomials)?
+
+If $f \in K[X_1, \ldots, X_n] = k(t)[X_1, \ldots, X_n]$, the coefficients are in $k(t)$, not necessarily in $k[t]$.
+
+So the argument above works for $f \in k[t, X_1, \ldots, X_n]$, but not for general $f \in k(t)[X_1, \ldots, X_n]$.
+
+For general $f$, we can write $f = \frac{1}{q(t)} \tilde{f}$ where $q(t) \in k[t] \setminus \{0\}$ and $\tilde{f} \in k[t, X_1, \ldots, X_n]$. Then $\tilde{f} = q(t) \cdot f \in I$ (since $f \in I$ and $q(t) \in K$). So $\tilde{f} \in I$, and by the argument above, $\tilde{f} \in (I \cap k[X_1, \ldots, X_n]) \cdot K[X_1, \ldots, X_n]$. Then $f = \tilde{f} / q(t) \in (I \cap k[X_1, \ldots, X_n]) \cdot K[X_1, \ldots, X_n]$ (since $1/q(t) \in K$).
+
+Wait, that's not quite right. $\tilde{f} \in (I \cap k[X_1, \ldots, X_n]) \cdot K[X_1, \ldots, X_n]$ means $\tilde{f} = \sum_l a_l p_l$ where $a_l \in K[X_1, \ldots, X_n]$ and $p_l \in I \cap k[X_1, \ldots, X_n]$. Then $f = \tilde{f}/q(t) = \sum_l (a_l / q(t)) p_l$, and $a_l / q(t) \in K[X_1, \ldots, X_n]$ (since $1/q(t) \in K$). So $f \in (I \cap k[X_1, \ldots, X_n]) \cdot K[X_1, \ldots, X_n]$. ✓
+
+But wait, I need to check that $\tilde{f} = q(t) f \in I$. Since $f \in I$ and $I$ is an ideal of $K[X_1, \ldots, X_n]$, and $q(t) \in K \subset K[X_1, \ldots, X_n]$, yes, $q(t) f \in I$. ✓
+
+But I also need $\tilde{f}$ to be $G$-stable... no, I don't. I just need $\tilde{f} \in I$, and then I apply the finite difference argument to $\tilde{f}$. But the finite difference argument requires that $g_a(\tilde{f}) \in I$ for all $a$, which is true because $I$ is $G$-stable and $\tilde{f} \in I$.
+
+So the argument works! Let me also check: the finite difference argument requires $k$ to be infinite (to have enough distinct $a_j$). If $k$ is finite, we might not have enough elements.
+
+Hmm, if $k$ is finite, say $k = \mathbb{F}_q$, and $K = k(t)$, then $G = \{g_a : t \mapsto t + a, a \in k\}$ has only $q$ elements. But $K^G = k(t^q - t)$ (the fixed field of the additive group $\mathbb{F}_q$ acting by translations), not $k$. So $K^G \neq k$ in this case.
+
+So for $K^G = k$ with $K = k(t)$ and $G = \{t \mapsto t + a\}$, we need $k$ to be infinite (for $K^G = k$). So the finite field case doesn't arise in this specific example.
+
+But in general, $K/k$ could be a finite field extension (which is finite Galois), and the answer is Yes by the standard finite Galois descent.
+
+So the question is: for a finitely generated field extension $K/k$ with $k = K^G$, is the answer always Yes?
+
+Let me consider a more general transcendental example. Suppose $K = k(t)$ and $G$ is a group of automorphisms of $K$ fixing $k$ with $K^G = k$. The group $G$ could be more general than just translations.
+
+For instance, $G$ could be $\text{PGL}_2(k)$ acting by Möbius transformations: $t \mapsto \frac{at + b}{ct + d}$. Then $K^G = k$ (for $|k| \geq 3$). 
+
+In this case, the finite difference argument doesn't directly apply (since the action is not by translations). But maybe a similar argument works.
+
+Actually, let me think about this more generally. The key property we used is:
+
+1. $K = k(t)$ is a rational function field.
+2. $G$ acts on $K$ fixing $k$.
+3. For any $f \in K[X_1, \ldots, X_n]$, we can clear denominators to get $\tilde{f} \in k[t, X_1, \ldots, X_n] \cap I$.
+4. The $G$-orbit of $\tilde{f}$ in $I$ generates enough elements to produce $k[X_1, \ldots, X_n]$-elements.
+
+For step 4, we used the specific structure of the translation action. For a general $G$, this might not work.
+
+But actually, I think the general argument should work via Galois descent. Let me think about this from a more abstract perspective.
+
+**Abstract approach:** $K[X_1, \ldots, X_n] = K \otimes_k k[X_1, \ldots, X_n]$. The $G$-action is on the $K$-factor. We want to show that $G$-stable ideals of $K \otimes_k R$ (where $R = k[X_1, \ldots, X_n]$) are exactly extensions of ideals of $R$.
+
+This is a question about "Galois descent of ideals" for the extension $K/k$.
+
+The general theory says: for a faithfully flat extension $A \to B$, an ideal $I$ of $B$ descends to $A$ (i.e., $I = (I \cap A) B$) if and only if $I$ is an "effective descent ideal." For a Galois extension $K/k$ with group $G$, the effective descent condition for ideals of $K \otimes_k R$ is related to $G$-stability.
+
+For finite Galois extensions, $G$-stability is equivalent to the descent condition. For infinite Galois extensions, the descent condition is stronger (it requires continuity).
+
+But for our problem, $K/k$ is finitely generated. If it's finite, we're done. If it's transcendental, we need to check.
+
+Hmm, let me think about whether the result is actually true in general, or whether there's a counterexample.
+
+Let me try a different example. Take $K = \mathbb{C}$, $k = \mathbb{R}$, $G = \{\text{id}, \text{conj}\}$. This is a finite Galois extension, so the answer is Yes.
+
+Now take $K = \mathbb{R}(t)$, $k = \mathbb{R}$, and $G = \{g_a : t \mapsto t + a, a \in \mathbb{R}\} \cup \{h_a : t \mapsto -(t + a), a \in \mathbb{R}\}$. Wait, this is getting complicated. Let me stick with simpler examples.
+
+Actually, let me try to think about whether the result could fail. 
+
+Consider $K = k(s, t)$ with $G$ acting by $s \mapsto s + a, t \mapsto t + b$ for $(a, b) \in k^2$. Then $K^G = k$ (for $k$ infinite). $K/k$ is finitely generated (by $s$ and $t$).
+
+Now consider $I = (sX - tY) \subseteq K[X, Y]$. Is this $G$-stable? $g_{a,b}(sX - tY) = (s+a)X - (t+b)Y = (sX - tY) + (aX - bY)$. Is $aX - bY \in (sX - tY)$? In $K[X, Y]$, $(sX - tY)$ is the kernel of $K[X, Y] \to K$, $X \mapsto t, Y \mapsto s$ (wait, $sX - tY$ maps to $st - ts = 0$). Actually, $sX - tY$ is irreducible in $K[X, Y]$ (it's linear). The ideal $(sX - tY)$ consists of all multiples of $sX - tY$. $aX - bY$ is a multiple of $sX - tY$ iff $aX - bY = c(sX - tY)$ for some $c \in K$, i.e., $a = cs$ and $b = ct$, i.e., $c = a/s = b/t$, i.e., $at = bs$. This is not true in general. So $(sX - tY)$ is not $G$-stable.
+
+The $G$-stable ideal generated by $sX - tY$: contains $g_{a,b}(sX - tY) = (s+a)X - (t+b)Y$ for all $a, b$. Taking differences: $(s+a)X - (t+b)Y - (sX - tY) = aX - bY$ for all $a, b$. So $X, Y \in I$ (taking $a = 1, b = 0$ and $a = 0, b = 1$). Then $I = (X, Y)$, defined over $k$. ✓
+
+Let me try to think of a potential counterexample more cleverly.
+
+What if the $G$-action is such that the orbit of an element is "too small" to generate enough $k$-elements?
+
+Consider $K = k(t)$, $G = \{g : t \mapsto \zeta t\}$ where $\zeta$ is a primitive $m$-th root of unity (and $\text{char}(k) \nmid m$). Then $K^G = k(t^m)$. So $K^G \neq k$ unless $m = 1$. So this doesn't give $K^G = k$.
+
+For $K^G = k$ with $K = k(t)$, we need $G$ to be "large enough." The translation group $\{t \mapsto t + a : a \in k\}$ works for infinite $k$. The full $\text{PGL}_2(k)$ also works.
+
+What about $K = k(t)$ with $G = \text{Aut}(K/k) = \text{PGL}_2(k)$ (for $|k| \geq 3$)? Then $K^G = k$.
+
+In this case, a $G$-stable ideal $I$ of $K[X_1, \ldots, X_n]$ must be invariant under all Möbius transformations of $t$. This is a very strong condition.
+
+Take $f \in I$ with $f \in k[t, X_1, \ldots, X_n]$ (after clearing denominators). The $G$-orbit of $f$ includes $f$ with $t$ replaced by any Möbius transformation $\frac{at+b}{ct+d}$. By taking suitable combinations, we should be able to produce $k$-elements.
+
+I think the general principle is: if $G$ is "large enough" that $K^G = k$, then $G$-stable ideals descend. The finite difference argument (or a variant) should work.
+
+But I'm not sure this is true in full generality. Let me think about a potential counterexample.
+
+What if $K/k$ is finitely generated, $k = K^G$, but $G$ is "small" in some sense?
+
+For example, $K = k(t, \sqrt{t})$ with $k$ of characteristic $\neq 2$. Let $G = \{\text{id}, \sigma\}$ where $\sigma(\sqrt{t}) = -\sqrt{t}$ (and $\sigma(t) = t$). Then $K^G = k(t) \neq k$. So this doesn't work.
+
+What about $K = k(t, \sqrt{t})$ with $G$ including both $\sigma: \sqrt{t} \mapsto -\sqrt{t}$ and translations $t \mapsto t + a$? But translations don't extend to $K$ in a simple way (since $\sqrt{t+a}$ is not in $K$ in general).
+
+Hmm, this is getting complicated. Let me think about the problem from a higher level.
+
+The problem is asking whether the answer is Yes or No. Based on my analysis:
+
+1. For finite Galois extensions (which includes the finitely generated algebraic case), the answer is **Yes**.
+2. For the transcendental case with $K = k(t)$ and $G = $ translations, the answer is **Yes** (by the finite difference argument).
+3. I haven't found a counterexample in the transcendental case.
+
+Let me think about whether the answer is always Yes, or if there

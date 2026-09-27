@@ -1,0 +1,1284 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_01417</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+There are $10$ cups, each having $10$ pebbles in them. Two players $A$ and $B$ play a game, repeating the following in order each move:
+
+$\bullet$ $B$ takes one pebble from each cup and redistributes them as $A$ wishes. 
+
+$\bullet$ After $B$ distributes the pebbles, he tells how many pebbles are in each cup to $A$. Then $B$ destroys all the cups having no pebbles.
+
+$\bullet$ $B$ switches the places of two cups without telling $A$.
+
+After finitely many moves, $A$ can guarantee that $n$ cups are destroyed. Find the maximum possible value of $n$.
+(Note that $A$ doesn't see the cups while playing.)
+
+[i]Proposed by Emre Osman[/i]
+
+## Standard Solution
+
+1. **Initial Setup:**
+   - There are 10 cups, each containing 10 pebbles.
+   - Players A and B take turns according to the rules specified.
+
+2. **Strategy of Player A:**
+   - Player A instructs Player B to distribute the pebbles such that the cup with the most pebbles gets $\left\lfloor \frac{k}{2} \right\rfloor$ pebbles and the cup with the second most pebbles gets $k - \left\lfloor \frac{k}{2} \right\rfloor$ pebbles, where $k$ is the number of cups remaining.
+
+3. **Analysis of Cases:**
+   - Let $x_1 \geq x_2 \geq \cdots \geq x_k$ be the number of pebbles in the cups as reported by Player B in the previous round.
+   - Player A tells Player B to put the pebbles in the cups that they think have $x_1$ and $x_2$ pebbles.
+
+4. **Case 1:**
+   - If Player B does not switch the cups with $x_1$ and $x_2$ pebbles:
+     \[
+     (x_1 + \left\lfloor \frac{k}{2} \right\rfloor - 1, x_2 + k - \left\lfloor \frac{k}{2} \right\rfloor - 1, x_3 - 1, \ldots, x_k - 1)
+     \]
+
+5. **Case 2:**
+   - If Player B switches the cups with $x_1$ and $x_2$ pebbles:
+     \[
+     (x_1 + k - \left\lfloor \frac{k}{2} \right\rfloor - 1, x_2 + \left\lfloor \frac{k}{2} \right\rfloor - 1, x_3 - 1, \ldots, x_k - 1)
+     \]
+
+6. **Case 3:**
+   - If Player B switches the cups with $x_1$ and $x_3$ pebbles:
+     \[
+     (x_1 - 1, x_2 + k - \left\lfloor \frac{k}{2} \right\rfloor - 1, x_3 + \left\lfloor \frac{k}{2} \right\rfloor - 1, \ldots, x_k - 1)
+     \]
+
+7. **Case 4:**
+   - If Player B switches the cups with $x_2$ and $x_3$ pebbles:
+     \[
+     (x_1 + \left\lfloor \frac{k}{2} \right\rfloor - 1, x_2 - 1, x_3 + k - \left\lfloor \frac{k}{2} \right\rfloor - 1, \ldots, x_k - 1)
+     \]
+
+8. **Claim:**
+   - In all four cases, the total number of pebbles in the cups with the most and second most pebbles either increases or does not change. If it does not change, then the number of pebbles in the cup with the most pebbles increases.
+
+9. **Proof:**
+   - Let $a = \left\lfloor \frac{k}{2} \right\rfloor - 1$ and $b = k - \left\lfloor \frac{k}{2} \right\rfloor - 1$. Since $k \geq 5$, $a \geq 1$ and $b \geq 2$.
+   - For Case 1 and Case 2:
+     \[
+     x_1 + x_2 \rightarrow x_1 + x_2 + k - 2
+     \]
+     This increases.
+   - For Case 3:
+     \[
+     (x_1, x_2, x_3) \rightarrow (x_1 - 1, x_2 + b, x_3 + a)
+     \]
+     There are 6 subcases for the order of these:
+     - If $x_1 - 1 \geq x_2 + b \geq x_3 + a$, then $(x_1 - 1) + (x_2 + b) > x_1 + x_2$ because $b \geq 2$.
+     - If $x_1 - 1 \geq x_3 + a \geq x_2 + b$, then $(x_1 - 1) + (x_3 + a) > x_1 + x_2$ because $x_3 - x_2 \geq b - a > 1 - a$.
+     - For other subcases, the total of the top two cups also increases.
+   - For Case 4:
+     \[
+     (x_1, x_2, x_3) \rightarrow (x_1 + a, x_2 - 1, x_3 + b)
+     \]
+     There are 6 subcases for the order of these. Similar to Case 3, since $a \geq 1$, the total of the top two cups either increases or does not change. If it stays the same, then $x_1 \rightarrow x_1 + a$, so the top cup increases.
+
+10. **Conclusion:**
+    - With this strategy, pebbles can be concentrated in the top two cups, and it works until $k = 4$. Therefore, Player A can guarantee to destroy 6 cups.
+
+The final answer is $\boxed{6}$
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We have 10 cups, each with 10 pebbles. Two players A and B play a game. Each move:
+1. B takes one pebble from each cup and redistributes them as A wishes.
+2. After B distributes the pebbles, he tells A how many pebbles are in each cup. Then B destroys all cups having no pebbles.
+3. B switches the places of two cups without telling A.
+
+After finitely many moves, A can guarantee that n cups are destroyed. Find the maximum possible value of n.
+
+Note: A doesn't see the cups while playing.
+
+Let me think about this carefully.
+
+Initially: 10 cups, each with 10 pebbles. Total = 100 pebbles.
+
+Each move:
+- B takes one pebble from each cup (so from each cup, 1 pebble is removed). If a cup has 0 pebbles... wait, but cups with 0 pebbles are destroyed. So at the start of each move, all cups have at least 1 pebble.
+
+Wait, let me re-read. "B takes one pebble from each cup" - so from each existing cup, B takes 1 pebble. If there are k cups, B takes k pebbles total (one from each). Then B redistributes these k pebbles "as A wishes" - so A decides how to distribute these k pebbles among the k cups.
+
+Then B tells A how many pebbles are in each cup (the multiset of pebble counts). Then B destroys all cups with 0 pebbles.
+
+Then B switches the places of two cups without telling A.
+
+So the key information A has: A knows the multiset of pebble counts after each move. But A doesn't know which cup is which, because B switches two cups each move.
+
+Wait, actually, let me reconsider. A doesn't see the cups at all. A gives instructions on how to redistribute the pebbles. But since A doesn't see the cups, how does A give instructions?
+
+Let me re-read: "B takes one pebble from each cup and redistributes them as A wishes."
+
+So A wishes how the redistribution happens. A tells B how to distribute the k pebbles (taken one from each of k cups) back among the k cups. But A doesn't see the cups... So A can only give instructions based on the information A has, which is the history of multisets of pebble counts.
+
+Hmm, but if A doesn't see the cups, A can't say "put 2 pebbles in cup 3". A can only say something like "put the pebbles in cups with certain pebble counts" or give a distribution pattern.
+
+Actually, I think the key issue is: A knows the multiset of pebble counts (B tells A after each move). A can give instructions based on pebble counts. For example, A can say "put all k pebbles into the cup with the most pebbles" or "distribute them equally" etc. But since B switches two cups each turn, A can't track individual cups across moves.
+
+Wait, but actually, A gives the redistribution instruction BEFORE being told the current counts. Let me re-read the order.
+
+The move repeats:
+1. B takes one pebble from each cup and redistributes them as A wishes.
+2. After B distributes, he tells A how many pebbles are in each cup. Then B destroys empty cups.
+3. B switches two cups.
+
+So at the start of move t, A knows the multiset from the end of move t-1 (after destruction and switching). A gives redistribution instructions. Then B executes, tells A the new multiset, destroys empty cups, and switches two cups.
+
+But the switching happens at the end of move t-1, so at the start of move t, A knows the multiset but not the positions. Since A can't see cups, A's instructions must be based on... what exactly?
+
+I think A can give instructions like "put pebbles into cups that currently have X pebbles" - i.e., A can refer to cups by their current pebble count. But if multiple cups have the same count, A can't distinguish them.
+
+Actually, let me think about this differently. Since A can't see the cups, A's strategy can only depend on the multiset of pebble counts that A has been told. A can say things like "take the pebble from each cup, and put all of them into one cup" but A needs to specify which cup. Since A can't see, A can only specify based on pebble counts.
+
+Hmm, actually, maybe A can specify based on the order B reports. Like "B tells A how many pebbles are in each cup" - maybe B reports them in some order (like cup 1, cup 2, ...) and A can refer to "the first cup in your report". But then B switches two cups, so the order changes.
+
+Let me think about this more carefully. I think the key insight is:
+
+A knows the multiset of pebble counts. A gives a redistribution instruction. The instruction can be based on pebble counts (like "put pebbles into cups with the smallest count" or "put all pebbles into one cup with the largest count"). Then B reports the new multiset, destroys empties, and permutes two cups.
+
+Since A only knows the multiset (not the arrangement), and B permutes two cups each turn, A's strategy is essentially a function from multisets to redistribution instructions.
+
+The goal: A wants to maximize the number of cups destroyed (cups that reach 0 pebbles).
+
+Let me think about what A can control. Each move, k pebbles are taken (one from each of k cups, where k is the current number of cups). A decides how to distribute these k pebbles back. If A puts 0 pebbles into some cups, those cups lose 1 pebble (net). If A puts 2 pebbles into some cups, those cups gain 1 pebble (net). Etc.
+
+To destroy a cup, A needs a cup to reach 0. A cup with 1 pebble, if A takes 1 from it (which happens automatically) and puts 0 back, it becomes 0 and is destroyed.
+
+So A's strategy: try to concentrate pebbles into fewer cups, emptying others.
+
+But the challenge: A doesn't know which cup is which across moves (because of the switching). A only knows the multiset.
+
+Let me think about small cases first.
+
+Case: 2 cups, each with some pebbles.
+
+Actually, let me think about the problem more carefully with the switching.
+
+The switching of two cups is the key adversarial element. Since A can't see the cups, A's instructions can only be based on the multiset. The switching means that even if A tries to track cups by their pebble counts, B can swap cups to confuse A.
+
+But wait - A only knows the multiset anyway. The switching doesn't change the multiset. So what does the switching actually do?
+
+I think the issue is about how A gives instructions. If A could say "put pebbles into the cup that had 5 pebbles last turn", the switching would prevent that from being reliable. But if A can only say "put pebbles into the cup with the fewest pebbles right now", then switching doesn't matter because A is referring to current state.
+
+Hmm, let me reconsider. Maybe A can give instructions based on the current pebble counts before redistribution. Like "from the k pebbles you took, put them all into the cup(s) that currently have the most pebbles" or "put them into the cup that currently has 1 pebble" etc.
+
+If that's the case, then A can refer to cups by their current pebble count (before the redistribution). The switching at the end of the previous move doesn't affect this, because A is referring to current counts.
+
+But if multiple cups have the same count, A can't distinguish them. So A can say "put a pebble into a cup with count 3" but if there are two cups with count 3, B chooses which one.
+
+Actually wait, I think the problem is more subtle. Let me re-read.
+
+"B takes one pebble from each cup and redistributes them as A wishes."
+
+I think "as A wishes" means A specifies the complete redistribution. A says exactly how many pebbles go to each cup. But since A can't see the cups, A must specify this based on... the information A has.
+
+Actually, maybe the model is: A can identify cups by their current pebble count. A says "put x pebbles into cups with count c1, y pebbles into cups with count c2" etc. But if there are multiple cups with the same count, A can't specify which gets what - B decides.
+
+Or maybe: A can label the cups by their pebble counts and give a redistribution that's a function of pebble counts. Like "for each cup with c pebbles, put f(c) pebbles into it" where f is a function A chooses. But the total must equal k (the number of pebbles taken).
+
+Hmm, I think I need to think about this differently. Let me consider the possibility that A can give a complete redistribution instruction based on the current multiset, but can't track individual cups across moves.
+
+Actually, let me reconsider the problem. I think the key point is:
+
+- A knows the multiset of pebble counts at each step.
+- A can give redistribution instructions that are functions of the current pebble counts.
+- B switches two cups each turn, which means A can't track cups across turns by their positions.
+- But A can track cups by their pebble counts... except B can swap two cups, which might cause two cups with different counts to swap positions. But since A only knows the multiset, positions don't matter to A.
+
+Wait, I think I'm overcomplicating this. Let me re-read the problem.
+
+"B switches the places of two cups without telling A."
+
+I think the point is: A might try to give instructions like "put the pebbles into the same cup as last time" or "put pebbles into cup position 3". But since B switches cups, A can't rely on positions. A can only rely on pebble counts.
+
+But here's the thing: if A gives instructions based on pebble counts (like "put all pebbles into the cup with the most pebbles"), then the switching doesn't matter at all, because A isn't using positions.
+
+So maybe the switching matters in a different way. Let me think...
+
+Oh wait, I think the issue is about what information A has when giving instructions. Let me re-read the order:
+
+Move t:
+1. B takes one pebble from each cup and redistributes them as A wishes.
+2. After B distributes, he tells A how many pebbles are in each cup. Then B destroys empty cups.
+3. B switches two cups.
+
+So at the start of move t, A knows the multiset from step 2 of move t-1 (after destruction). But B switched two cups in step 3 of move t-1. Since A only gets the multiset, the switching doesn't change the multiset. So A's information is just the multiset.
+
+But here's the key: when A gives redistribution instructions in step 1 of move t, A needs to specify which cups get how many pebbles. A knows the multiset of current pebble counts. A can say "put pebbles into cups with certain counts" but if there are ties, B gets to choose.
+
+Actually, I think the problem might be simpler than I'm making it. Let me consider this interpretation:
+
+A can specify, for each cup (identified by its current pebble count), how many of the k taken pebbles to put back. But if two cups have the same count, A's instruction applies to both equally, or B chooses how to split.
+
+Hmm, let me try yet another interpretation. Maybe A can give a complete redistribution: A says "put a_1 pebbles in cup 1, a_2 in cup 2, ..." where the cups are ordered by their pebble count (or by some canonical ordering). Then B switches two cups, so next turn the ordering might be different.
+
+I think the most natural interpretation is:
+
+- A knows the multiset of pebble counts.
+- A can give a redistribution instruction that specifies, for each pebble count value, how many pebbles to put into cups with that count.
+- If there are multiple cups with the same count, B can distribute among them as B wishes (adversarially).
+- B switches two cups each turn, but since A only knows multisets, this doesn't directly affect A's information.
+
+Wait, but then what's the point of the switching? Let me think again...
+
+Oh! Maybe the point is that A CAN see the cups during the redistribution step (A can see the current state and give instructions), but then B tells A the counts, destroys empties, and switches two cups. So A loses track of which cup is which for the NEXT move.
+
+Let me re-read: "Note that A doesn't see the cups while playing."
+
+OK so A truly can't see the cups. So A gives instructions blind. A only knows the multiset of pebble counts (told by B each turn).
+
+I think the switching is there to prevent A from using any positional information. Even if B reports the counts in a specific order (like "cup 1 has 5, cup 2 has 3, ..."), the switching means that next turn the order is permuted, so A can't track cups by their report position.
+
+So A's strategy is purely a function of the multiset of pebble counts. A says how to redistribute based on the multiset. But A needs to specify the redistribution somehow...
+
+I think the key insight is: A can specify a redistribution as a function of pebble counts. For example, "from the k pebbles taken, put 0 back into cups that had 1 pebble, and distribute the rest among cups that had more." But if there are multiple cups with the same count, A can't control which specific cup gets how many - B decides.
+
+Actually, let me try to think about it as: A chooses a function f from pebble counts to non-negative integers, such that the sum of f(c) * (number of cups with count c) = k (the total pebbles taken). Then each cup with count c gets f(c) pebbles put back. After this, cups with count c have c - 1 + f(c) pebbles.
+
+Wait, but that's too restrictive. A might want to give different amounts to different cups with the same count.
+
+Hmm, but A can't distinguish cups with the same count. So A's instruction must treat all cups with the same count equally. Unless A can use some other criterion...
+
+Actually, I think the problem is saying that A can give any redistribution instruction, but since A can't see the cups, the instruction can only be based on the multiset. And B, being adversarial, will interpret ambiguous instructions in the worst way for A.
+
+Let me try to think about this problem from a high level. 
+
+Total pebbles: 100. Each move, k pebbles are taken and redistributed. The total stays 100 (pebbles are just moved around, not removed). Wait, no - cups are destroyed when they reach 0. But the pebbles in a destroyed cup... are they lost? Let me re-read.
+
+"B takes one pebble from each cup" - so B takes 1 from each cup. If a cup has 0 pebbles, it was already destroyed. So B takes from non-empty cups only. The pebbles taken are redistributed. So total pebbles are conserved (just moved between cups). When a cup is destroyed (reaches 0), it has 0 pebbles, so no pebbles are lost.
+
+Wait, a cup reaches 0 when B takes 1 from a cup with 1 pebble and A puts 0 back. So the cup has 0 pebbles, and it's destroyed. The 1 pebble that was taken from it is redistributed to other cups. So total pebbles are conserved.
+
+So total pebbles = 100 always. Number of cups decreases over time. Each cup always has at least 1 pebble (since empty cups are destroyed).
+
+If we have k cups with a total of 100 pebbles, each move takes k pebbles (one from each cup) and redistributes them. A cup with 1 pebble, if it gets 0 back, becomes 0 and is destroyed.
+
+A wants to maximize the number of cups destroyed. So A wants to concentrate pebbles into fewer cups.
+
+The maximum number of cups destroyed would be 9 (leaving 1 cup with 100 pebbles). But can A guarantee this?
+
+The challenge: A doesn't know which cup is which (due to switching), and B is adversarial.
+
+Let me think about what A can do. A knows the multiset. A wants to empty cups. To empty a cup with 1 pebble, A needs to put 0 pebbles back into it. But A needs to identify which cup has 1 pebble.
+
+If there's exactly one cup with 1 pebble, A can say "put 0 pebbles into the cup with 1 pebble, and distribute the rest among other cups." That cup becomes 0 and is destroyed.
+
+But if there are multiple cups with 1 pebble, A can say "put 0 pebbles into all cups with 1 pebble." Then all those cups become 0 and are destroyed. But A needs to distribute the k pebbles among the remaining cups.
+
+Wait, but A's instruction must specify how many pebbles go to each cup. If A says "put 0 into cups with count 1, and put the rest into cups with count > 1", B gets to decide how to distribute among the cups with count > 1. But that doesn't matter for A's goal of destroying cups.
+
+Hmm, actually, let me reconsider. If A says "put 0 pebbles into all cups with 1 pebble", then each such cup goes from 1 to 0 (since 1 - 1 + 0 = 0) and is destroyed. The pebbles taken from those cups (one each) plus the pebbles taken from other cups (one each) = k pebbles total, and A puts them into the non-1-count cups.
+
+So if A can always identify cups with 1 pebble and choose to not give them any pebbles back, A can destroy all cups with 1 pebble each turn.
+
+The question is: can A create cups with 1 pebble and then destroy them?
+
+Let me think about a strategy. Start: 10 cups, each with 10 pebbles. Multiset: {10, 10, 10, 10, 10, 10, 10, 10, 10, 10}.
+
+Move 1: B takes 1 from each cup (10 pebbles). A redistributes. A wants to create cups with 1 pebble. A can say "put 0 pebbles into 9 cups and 10 pebbles into 1 cup." But A can't distinguish the cups (they all have 10 pebbles). So A can only say "put f(10) pebbles into each cup with 10 pebbles" where 10 * f(10) = 10, so f(10) = 1. Each cup gets 1 back, so each cup goes from 10 to 10. No change!
+
+Wait, that's a problem. If all cups have the same count, A can't create any differentiation. A is forced to put the same number back into each cup (since A can't distinguish them). So each cup goes from 10 to 10 - 1 + 1 = 10. No change.
+
+Hmm, but that can't be right, because then A can never do anything. Let me reconsider.
+
+Maybe A CAN distinguish cups, just not by position. Maybe A can distinguish cups by some other means. Or maybe the problem allows A to give more specific instructions.
+
+Let me re-read the problem: "B takes one pebble from each cup and redistributes them as A wishes."
+
+Maybe "as A wishes" means A can specify the exact redistribution, including which cup gets how many. But A can't see the cups, so A has to identify cups somehow. 
+
+Oh wait, maybe the point is that A CAN see the cups during the redistribution (A can see the pebbles and cups), but then B switches two cups, so A loses track for the next move. Let me re-read: "Note that A doesn't see the cups while playing."
+
+Hmm, "while playing" might mean during the entire game. So A truly can't see anything.
+
+But then, if all cups have the same count, A can't create any differentiation, and the game is stuck. That can't be the intended interpretation.
+
+Let me reconsider. Maybe A can give instructions like "put 3 pebbles into one cup, 1 into another, 0 into the rest" without specifying which cup. Then B (adversarially) decides which cups get what. So A specifies a distribution (a multiset of how many pebbles go to each cup), and B assigns these to specific cups.
+
+Under this interpretation:
+- A specifies a distribution (a_1, a_2, ..., a_k) with sum = k.
+- B assigns each a_i to a specific cup (B chooses the assignment adversarially).
+- Cup j goes from c_j to c_j - 1 + a_{assigned}.
+
+This makes more sense! A chooses the multiset of redistribution amounts, and B assigns them to cups adversarially.
+
+With this interpretation, in the first move with all cups at 10:
+- A must choose (a_1, ..., a_10) with sum = 10.
+- B assigns these to the 10 cups (all with count 10).
+- Each cup goes from 10 to 10 - 1 + a_i = 9 + a_i.
+- A wants to create differentiation, so A might choose something like (10, 0, 0, 0, 0, 0, 0, 0, 0, 0), making one cup have 19 and nine cups have 9. But B assigns adversarially. Since all cups have the same count (10), the assignment doesn't matter - the result is the same multiset: {19, 9, 9, 9, 9, 9, 9, 9, 9, 9}.
+
+Wait, but B assigns adversarially. If all cups have the same count, the assignment doesn't matter. So A can create differentiation in the first move!
+
+Then in the next move, A knows the multiset {19, 9, 9, 9, 9, 9, 9, 9, 9, 9}. A wants to continue concentrating pebbles. A can choose a distribution that puts more pebbles into the cup with 19 and takes from the cups with 9. But B assigns adversarially - B might put the pebbles into cups with 9 instead of the cup with 19.
+
+Hmm wait, but A specifies the distribution and B assigns. If A says "put 10 pebbles into one cup and 0 into the rest", B could assign the 10 to a cup with 9 (making it 18) and 0 to the cup with 19 (making it 18). So the cup with 19 goes to 18, and one cup with 9 goes to 18, and the other eight cups with 9 go to 8.
+
+Result: {18, 18, 8, 8, 8, 8, 8, 8, 8, 8}. B has prevented A from concentrating into one cup.
+
+So the adversarial assignment by B is the key challenge.
+
+Let me reconsider the problem with this interpretation. A chooses a redistribution vector (a_1, ..., a_k) with sum = k, and B assigns these to cups adversarially (to minimize cups destroyed, or to prevent A's strategy).
+
+Actually, I realize there might be another interpretation. Let me re-read once more.
+
+"B takes one pebble from each cup and redistributes them as A wishes."
+
+Maybe A can see the cups (with their pebble counts) during the redistribution, and A specifies exactly which cup gets how many. Then:
+- B tells A the counts.
+- B destroys empty cups.
+- B switches two cups.
+- Next move, A can see the cups again but two have been switched, so A doesn't know which is which.
+
+But the problem says "A doesn't see the cups while playing." So A can't see the cups at all.
+
+OK let me try the interpretation where A specifies a redistribution vector and B assigns it to cups adversarially. This seems like the most sensible interpretation given the constraints.
+
+Actually, wait. Let me reconsider. Maybe A can give instructions based on pebble counts. Like "put all pebbles into the cup with the highest count." Then B must follow this instruction. But if there are ties, B chooses. And B switches two cups, but since A only knows the multiset, switching doesn't matter.
+
+Under this interpretation:
+- A gives an instruction that's a function of pebble counts.
+- B follows it, choosing arbitrarily (adversarially) when there are ties.
+- The switching is irrelevant because A only knows multisets.
+
+With this interpretation, in the first move (all cups at 10):
+- A says "put all 10 pebbles into one cup." Since all cups have the same count, B chooses any one. Result: {19, 9, 9, 9, 9, 9, 9, 9, 9, 9}.
+
+Next move (multiset {19, 9×9}):
+- A says "put all 10 pebbles into the cup with 19." There's only one such cup, so B must comply. Result: {28, 8, 8, 8, 8, 8, 8, 8, 8, 8}.
+
+Wait, that's 10 pebbles taken (one from each of 10 cups), and A puts all 10 into the cup with 19. So that cup goes from 19 to 19 - 1 + 10 = 28. The other 9 cups go from 9 to 9 - 1 + 0 = 8. Result: {28, 8×9}.
+
+Next: A puts all 10 into the cup with 28. That cup: 28 - 1 + 10 = 37. Others: 8 - 1 = 7. Result: {37, 7×9}.
+
+Continuing: {46, 6×9}, {55, 5×9}, {64, 4×9}, {73, 3×9}, {82, 2×9}, {91, 1×9}.
+
+Now A has {91, 1, 1, 1, 1, 1, 1, 1, 1, 1}. A says "put 0 pebbles into cups with 1 pebble, and put all 10 into the cup with 91." The 9 cups with 1 pebble go to 0 and are destroyed. The cup with 91 goes to 91 - 1 + 10 = 100. Result: {100}. 9 cups destroyed.
+
+But wait, B switches two cups each turn. Does this matter? Under this interpretation, A gives instructions based on pebble counts, not positions. So switching doesn't matter. A can always identify the cup with the highest count and the cups with count 1.
+
+But this seems too easy. The answer would be 9. Let me check if there's something I'm missing.
+
+Hmm, the issue might be that A can't give instructions based on pebble counts. A can only give a redistribution vector, and B assigns it to cups. Let me reconsider.
+
+If A can only specify a redistribution vector (a_1, ..., a_k) and B assigns adversarially:
+
+First move (all cups at 10): A chooses (10, 0, 0, 0, 0, 0, 0, 0, 0, 0). B assigns. Since all cups are identical, result is {19, 9×9} regardless.
+
+Second move (multiset {19, 9×9}): A wants to put pebbles into the cup with 19. A chooses (10, 0, 0, 0, 0, 0, 0, 0, 0, 0). B assigns the 10 to a cup with 9 (making it 18) and 0 to the cup with 19 (making it 18). Result: {18, 18, 8×8}.
+
+So B can prevent A from concentrating pebbles into one cup! This makes the problem much harder.
+
+Let me think about this interpretation more carefully.
+
+With the adversarial assignment, A chooses a vector and B assigns it to cups. A wants to create cups with 1 pebble (to then destroy them), and B wants to prevent this.
+
+Let me think about what A can guarantee.
+
+Actually, I realize there's a subtlety. When A gives the redistribution vector, does A know the current multiset? Yes, B told A the multiset at the end of the previous move. So A knows the multiset but not the assignment of counts to cup positions.
+
+So A's strategy is: given the current multiset, choose a redistribution vector. B then assigns this vector to the cups adversarially.
+
+Let me think about this more carefully.
+
+Let's denote the current state as a multiset S of pebble counts. |S| = k (number of cups), sum(S) = 100.
+
+A chooses a vector (a_1, ..., a_k) with a_i ≥ 0 and sum = k. B assigns these to the k cups. Cup with count c, assigned amount a, becomes c - 1 + a. If c - 1 + a = 0, i.e., c = 1 and a = 0, the cup is destroyed.
+
+A wants to maximize the total number of cups destroyed over the game. B wants to minimize this.
+
+Let me think about what A can achieve.
+
+First, note that if A can create cups with 1 pebble, A can then destroy them by giving them 0 pebbles. But B's adversarial assignment makes it hard to target specific cups.
+
+Key observation: if A chooses the vector (0, 0, ..., 0, k) (all pebbles to one cup), B will assign the k to a cup with the highest count (to prevent concentration) or to a cup with a low count to prevent cups from reaching 1.
+
+Hmm, actually B wants to minimize cups destroyed. B's strategy would be to prevent cups from reaching 1 pebble (since cups with 1 pebble can be destroyed).
+
+Let me think about this differently. Let's consider what happens when A uses a uniform strategy: A gives each cup the same number of pebbles back. If k cups, A gives each cup 1 pebble back (since k pebbles taken, k cups, 1 each). Then each cup stays the same: c → c - 1 + 1 = c. No change. This is useless.
+
+A needs to create non-uniform distributions. But B assigns adversarially.
+
+Let me think about the case where A chooses (2, 0, 0, ..., 0) (2 pebbles to one cup, 0 to the rest, but sum must be k). Wait, sum must be k. So if k = 10, A needs sum = 10.
+
+Let me think about specific strategies.
+
+Strategy 1: A chooses (k, 0, 0, ..., 0). One cup gets k pebbles, rest get 0. B assigns the k to... which cup? B wants to minimize destruction. If B assigns k to a cup with count c, that cup becomes c - 1 + k. The other cups each lose 1 (become c_i - 1). Cups with count 1 become 0 and are destroyed.
+
+So if A chooses (k, 0, ..., 0) and there are cups with count 1, those cups (which get 0) become 0 and are destroyed. B would want to assign the k to a cup with count 1 to save it. But there's only one cup getting k, and if there are multiple cups with count 1, B can only save one.
+
+Wait, but B assigns the entire vector. B chooses which cup gets k and which get 0. If there are m cups with count 1, B assigns k to one of them (saving it, it becomes 1 - 1 + k = k), and 0 to the rest. The other m-1 cups with count 1 get 0 and become 0 (destroyed). Also, all other cups get 0 and lose 1.
+
+So if A chooses (k, 0, ..., 0) when there are m cups with count 1, then m-1 cups are destroyed (B saves one).
+
+But also, all other cups lose 1. So cups with count 2 become 1, creating new cups with count 1 for the next move.
+
+This seems like a viable strategy! Let me trace through.
+
+Start: {10×10}. k = 10.
+
+Move 1: A chooses (10, 0, 0, 0, 0, 0, 0, 0, 0, 0). B assigns 10 to one cup (all have count 10, so doesn't matter). Result: {19, 9×9}. No cups destroyed (no cups had count 1).
+
+Move 2: A chooses (10, 0, 0, 0, 0, 0, 0, 0, 0, 0). B assigns 10 to... B wants to minimize future destruction. The cups have counts {19, 9×9}. B assigns 10 to the cup with 19 (making it 28) or to a cup with 9 (making it 18). 
+
+If B assigns 10 to the cup with 19: {28, 8×9}. 
+If B assigns 10 to a cup with 9: {18, 18, 8×8}.
+
+B wants to minimize cups destroyed. Let's think about which is better for B.
+
+In the first case, next move A again chooses (10, 0, ..., 0). B assigns 10 to the cup with 28 (making it 37), others go to 7. {37, 7×9}.
+
+In the second case, next move A chooses (10, 0, ..., 0). B assigns 10 to a cup with 18 (making it 27), the other 18 goes to 17, and the 8s go to 7. {27, 17, 7×8}.
+
+Hmm, it seems like B can't prevent the cups from decreasing. Let me think about this more carefully.
+
+With strategy (k, 0, ..., 0) each move:
+- One cup gets +k-1 (net change from the k pebbles minus the 1 taken).
+- All other cups get -1.
+
+If B always assigns k to the largest cup, the largest cup grows by k-1 each move, and all others decrease by 1. After t moves, the largest cup has 10 + t*(k-1) pebbles... wait, k changes as cups are destroyed.
+
+Let me trace more carefully. Let's say B always assigns k to the largest cup (to keep it big and prevent others from reaching 1 quickly... actually, B might want to assign k to a cup that's about to reach 1, to save it).
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+With strategy (k, 0, ..., 0):
+- Each move, one cup gets k pebbles (net +k-1), all others get 0 (net -1).
+- B chooses which cup gets the k pebbles.
+- Cups that reach 0 are destroyed.
+
+B's optimal strategy: assign k to a cup with count 1 (to prevent it from being destroyed), if any. If no cup has count 1, assign k to the largest cup (to keep it big) or to a cup with count 2 (to prevent it from becoming 1 next turn).
+
+Actually, B wants to minimize total cups destroyed. Let me think about what B's optimal strategy is.
+
+If A always plays (k, 0, ..., 0):
+- Each move, k-1 cups lose 1 pebble, 1 cup gains k-1 pebbles.
+- B chooses which cup gains.
+
+Let's say there are k cups. After one move with this strategy, k-1 cups decrease by 1 and 1 cup increases by k-1. Total pebbles conserved.
+
+If B always gives the bonus to the same cup, that cup grows and all others shrink by 1 each turn. After t turns, the big cup has 10 + t*(k-1) and the others have 10 - t. When 10 - t = 1, i.e., t = 9, the other cups have 1 pebble. At that point, k = 10 (no cups destroyed yet), and the big cup has 10 + 9*9 = 91.
+
+Move 10: A plays (10, 0, ..., 0). 9 cups have count 1, 1 cup has count 91. B must assign 10 to one cup. If B assigns to a cup with 1, that cup becomes 10, and the other 8 cups with 1 become 0 (destroyed). The cup with 91 becomes 90. So 8 cups destroyed.
+
+If B assigns to the cup with 91, it becomes 100, and all 9 cups with 1 become 0 (destroyed). So 9 cups destroyed. B prefers the first option: 8 destroyed.
+
+After move 10: 2 cups remain. {10, 90}. (The saved cup has 1-1+10=10, the big cup has 91-1=90.)
+
+Move 11: k = 2. A plays (2, 0). B assigns 2 to the cup with 90 (making it 91) or to the cup with 10 (making it 11). The other cup goes to 9 or 89.
+
+If B assigns 2 to the cup with 90: {91, 9}. 
+If B assigns 2 to the cup with 10: {11, 89}.
+
+B wants to minimize destruction. Let's continue.
+
+Case: B assigns to cup with 90: {91, 9}.
+Move 12: A plays (2, 0). B assigns 2 to 91 (→92) or 9 (→10). Other goes to 8 or 90.
+B assigns to 91: {92, 8}.
+...
+This continues. The small cup decreases by 1 each turn. After 8 more turns, the small cup reaches 1.
+
+Move 19: {99, 1}. A plays (2, 0). B assigns 2 to the cup with 1 (→2) or to the cup with 99 (→100). If B assigns to cup with 1: {2, 98}. 0 destroyed. If B assigns to 99: {100, 0}. 1 destroyed. B prefers first: 0 destroyed.
+
+After move 19: {2, 98}. 
+Move 20: A plays (2, 0). B assigns to 98 (→99) or 2 (→3). Other goes to 1 or 97.
+B assigns to 98: {99, 1}. Back to similar state.
+B assigns to 2: {3, 97}. 
+
+Hmm, it seems like with 2 cups, B can always save the cup with 1 by giving it the bonus. So A can never destroy the last cup. With 2 cups, A can't destroy either one.
+
+Wait, let me reconsider. With 2 cups and counts {a, b} where a > b, A plays (2, 0). B can assign 2 to cup a (→ a+1, b → b-1) or to cup b (→ b+1, a → a-1). B wants to prevent either from reaching 0.
+
+If b = 1: B assigns 2 to cup b (→ 2), cup a → a-1. No destruction. {a-1, 2}.
+If b = 1 and A plays (0, 2) instead: same thing, B assigns 2 to cup b. No destruction.
+If b = 1 and A plays (1, 1): both cups get 1. Cup b: 1-1+1=1. Cup a: a-1+1=a. No change. No destruction.
+
+So with 2 cups, if one has 1 pebble, B can always save it. A can't destroy it.
+
+What if both cups have 1? {1, 1}. A plays (2, 0) or (0, 2) or (1, 1).
+- (2, 0): B assigns 2 to one cup (→2), 0 to other (→0, destroyed). 1 destroyed. But B could also assign 2 to the other. Either way, 1 cup destroyed, 1 saved. Result: {2}. 1 cup destroyed.
+- (1, 1): both get 1. {1, 1}. No change.
+
+So if both cups have 1, A can destroy 1. But B would try to prevent reaching {1, 1}.
+
+With 2 cups, can A force {1, 1}? Starting from {a, b} with a + b = 100, a > b ≥ 2. A plays (2, 0). B assigns to minimize destruction. B will try to keep both cups above 1.
+
+If B always assigns 2 to the larger cup, the smaller cup decreases by 1 each turn. Eventually the smaller cup reaches 1. At that point, B switches to assigning 2 to the smaller cup (saving it), and the larger cup decreases. But then the smaller cup grows...
+
+Let me trace: {50, 50} (say). 
+A plays (2,0). B assigns to one: {51, 49}.
+A plays (2,0). B assigns to 51: {52, 48}.
+...
+A plays (2,0). B assigns to larger: {91, 9}.
+...
+{98, 2}. A plays (2,0). B assigns to 98: {99, 1}. 
+Now {99, 1}. A plays (2,0). B assigns to 1 (saving it): {98, 2}. Back to {98, 2}!
+
+So we're in a cycle: {98, 2} → {99, 1} → {98, 2} → ... A can never destroy a cup with 2 cups.
+
+What if A tries a different strategy? With {99, 1}, A plays (1, 1): {99, 1}. No change. A plays (0, 2): B assigns 2 to cup with 1 (→2), 0 to cup with 99 (→98). {98, 2}. Same result.
+
+So with 2 cups, A can't destroy any cup. The minimum number of cups A can reduce to is 2, meaning A can destroy at most 8 cups.
+
+Wait, but earlier I showed that with 10 cups, A could destroy 8 cups (reducing to 2). Can A do better?
+
+Let me reconsider. With the strategy (k, 0, ..., 0), starting from 10 cups:
+- B always assigns k to the largest cup.
+- After 9 moves: {91, 1×9}. 
+- Move 10: A plays (10, 0, ..., 0). B assigns 10 to one cup with 1 (saving it). 8 cups with 1 are destroyed. {90, 10}. 2 cups remain. 8 destroyed.
+
+Can A do better with a different strategy?
+
+What if A uses a different distribution? Let me think about whether A can destroy 9 cups.
+
+To destroy 9 cups, A needs to reduce to 1 cup. But with 2 cups, A can't destroy either (as shown). So A needs to go from some number of cups directly to 1, not through 2.
+
+Can A go from 3 cups to 1? With 3 cups, A plays (3, 0, 0). B assigns 3 to one cup. If two cups have count 1, B saves one, and the other is destroyed. So A goes from 3 to 2. Then stuck at 2.
+
+Unless A can get all 3 cups to count 1 simultaneously. {1, 1, 1} with k=3. A plays (3, 0, 0). B assigns 3 to one cup (→3), 0 to two cups (→0, destroyed). 2 destroyed, 1 remains. So from {1, 1, 1}, A can destroy 2, leaving 1 cup.
+
+But can A reach {1, 1, 1} from 3 cups? With 3 cups and total 100, A plays (3, 0, 0). B assigns 3 to largest. The two smaller cups decrease by 1 each turn. Eventually they reach 1.
+
+Let me trace: 3 cups, say {34, 33, 33}. A plays (3, 0, 0). B assigns 3 to 34: {36, 32, 32}. 
+A plays (3, 0, 0). B assigns 3 to 36: {38, 31, 31}.
+...
+The two smaller cups decrease by 1 each turn. After 31 turns: {34+31*2, 1, 1} = {96, 1, 1}. Wait, let me be more careful.
+
+Actually, B might not always assign to the largest. B might assign to one of the smaller cups to create asymmetry and prevent them from both reaching 1 simultaneously.
+
+Let me think about this. 3 cups: {a, b, c} with a ≥ b ≥ c. A plays (3, 0, 0). B assigns 3 to one cup.
+
+If B assigns to a: {a+2, b-1, c-1}.
+If B assigns to b: {a-1, b+2, c-1}.
+If B assigns to c: {a-1, b-1, c+2}.
+
+B wants to prevent two cups from reaching 1 simultaneously. B's strategy might be to sometimes assign to a smaller cup to create asymmetry.
+
+For example, starting from {34, 33, 33}:
+B assigns to 34: {36, 32, 32}.
+B assigns to 36: {38, 31, 31}.
+...
+B assigns to largest: {34+2t, 33-t, 33-t}. When 33-t = 1, t = 32. Then {98, 1, 1}.
+
+At {98, 1, 1}: A plays (3, 0, 0). B assigns 3 to one of the 1s (saving it, →3), 0 to the other 1 (→0, destroyed) and 0 to 98 (→97). Result: {97, 3}. 2 cups. 1 destroyed.
+
+Then with 2 cups, A is stuck. Total destroyed from 3 cups: 1. Going from 10 to 3 destroyed 7, then 1 more = 8 total.
+
+But what if B doesn't always assign to the largest? Let's say at some point B assigns to a smaller cup to create asymmetry.
+
+{36, 32, 32}. B assigns to a 32: {35, 34, 31}. Now the cups are more spread out.
+Next: A plays (3, 0, 0). B assigns to 35: {37, 33, 30}. Or B assigns to 31: {34, 33, 32}. Hmm, B could try to keep the cups close together.
+
+Actually, B's goal is to prevent two cups from reaching 1 at the same time. If B can keep all cups at different counts, then at most one cup reaches 1 at a time, and B can save it.
+
+With 3 cups, B wants to keep the two smaller cups at different counts. If B sometimes gives the bonus to the middle cup, the smallest cup decreases faster.
+
+Let me think about this differently. With 3 cups and strategy (3, 0, 0):
+- Each move, 2 cups decrease by 1, 1 cup increases by 2.
+- B chooses which cup increases.
+
+B's strategy: always give the bonus to the cup that would reach 1 first, to delay it. Or give the bonus to keep cups at different levels.
+
+Actually, I think B can always prevent reaching {1, 1, x} by ensuring the two smaller cups never both reach 1. Here's how: B always gives the bonus to the second-smallest cup (or the smallest when it's about to hit 1). This creates asymmetry.
+
+Hmm, let me think about this more carefully with a potential function argument.
+
+Actually, let me think about the problem from a higher level. The key question is: can A force all cups to reach 1 simultaneously?
+
+With the strategy (k, 0, ..., 0), each move k-1 cups decrease by 1 and 1 cup increases by k-1. B chooses which cup increases. B can always choose to increase a cup that's about to hit 1, preventing it from being destroyed.
+
+With k cups, B needs to save at most k-1 cups from reaching 0. But B can only save 1 cup per move (the one that gets the bonus). So if multiple cups reach 1 simultaneously, B can only save one.
+
+The question is: can A force multiple cups to reach 1 simultaneously?
+
+With the strategy (k, 0, ..., 0), B can always give the bonus to the largest cup, making all other cups decrease uniformly. If all other cups start at the same count, they reach 1 simultaneously. But B can break symmetry by sometimes giving the bonus to a different cup.
+
+Wait, but in the initial state, all cups are at 10. After the first move with (10, 0, ..., 0), one cup is at 19 and 9 are at 9. The 9 cups at 9 are symmetric. If B always gives the bonus to the cup at 19, the 9 cups at 9 decrease uniformly: 9, 8, 7, ..., 1. After 8 more moves, they're all at 1. Then A can destroy 8 of them (B saves 1).
+
+But can B break the symmetry among the 9 cups? If B gives the bonus to one of the 9 cups (say one at 9), it becomes 17, and the cup at 19 becomes 18, and the other 8 cups at 9 become 8. Now the state is {18, 17, 8×8}. The 8 cups at 8 are still symmetric.
+
+B can continue breaking symmetry, but each time B gives the bonus to a non-largest cup, the largest cup also decreases. Let me think about whether B can prevent all small cups from reaching 1 simultaneously.
+
+Actually, I think the key insight is different. Let me think about it in terms of how many cups B can save.
+
+With k cups, each move B can save 1 cup (by giving it the bonus). If A uses strategy (k, 0, ..., 0), each move k-1 cups decrease by 1. B saves 1 cup per move from decreasing. So effectively, k-1 cups decrease by 1, and B can choose 1 cup to not decrease (it increases by k-1 instead).
+
+Over t moves, B has made t saves. Each save protects one cup from decreasing for one move. B can use these saves to keep certain cups alive.
+
+The total "decrease" applied to cups is (k-1)*t (each move, k-1 cups decrease by 1). B redistributes this by choosing which cups to save. B can save the same cup every time, letting it grow, while all others decrease.
+
+If B saves the same cup every time, that cup grows by (k-1) per move, and all others decrease by 1 per move. After t moves, the saved cup has 10 + (k-1)*t, and others have 10 - t. Others reach 1 when t = 9. At that point, A can destroy all but one of them (B saves one more). So A destroys k - 2 cups (k-1 cups reach 1, B saves 1, A destroys k-2).
+
+Wait, let me re-examine. With 10 cups, after 9 moves of B saving the same cup:
+- Saved cup: 10 + 9*9 = 91.
+- Other 9 cups: 10 - 9 = 1.
+State: {91, 1×9}.
+
+Move 10: A plays (10, 0, ..., 0). B must assign 10 to one cup. If B assigns to a cup with 1, that cup becomes 10, and the other 8 cups with 1 become 0 (destroyed). The cup with 91 becomes 90. 8 cups destroyed. Remaining: {90, 10}.
+
+Then with 2 cups, A is stuck (as shown earlier). Total: 8 destroyed.
+
+But what if B doesn't save the same cup every time? B might save different cups to create asymmetry and prevent all 9 from reaching 1 simultaneously.
+
+Let me consider B's strategy of saving different cups. Say B saves cup 1 on odd moves and cup 2 on even moves. Then:
+- Cup 1: 10, 18, 17, 25, 24, 32, 31, 39, 38, 46 (alternating +9 and -1)
+- Cup 2: 10, 9, 17, 16, 24, 23, 31, 30, 38, 37
+- Cups 3-10: decrease by 1 each move: 10, 9, 8, 7, 6, 5, 4, 3, 2, 1.
+
+After 9 moves: {46, 37, 1, 1, 1, 1, 1, 1, 1, 1}. Wait, cups 3-10 all reach 1 after 9 moves. Cups 1 and 2 are at 46 and 37.
+
+So even with B saving different cups, the unsaved cups still decrease uniformly and reach 1 simultaneously. B saving different cups just means the saved cups are at different levels, but the unsaved cups all reach 1 together.
+
+Hmm, but B could save a cup that's about to reach 1. Like, when cup 3 is at 2 (after 8 moves), B saves cup 3 instead of cup 1. Then cup 3 goes to 2+9=11, and cup 1 goes to 38-1=37. Now cup 3 is at 11, not 1. The other unsaved cups (4-10) are at 1.
+
+So B can save one cup from reaching 1, but the rest still reach 1. With 10 cups, B can save at most 9 cups over 9 moves (one per move), but there are 9 cups decreasing. If B saves a different cup each move, B can delay each cup by one move, but they'll still reach 1 eventually.
+
+Wait, let me think more carefully. B has 9 moves before any cup reaches 1 (cups start at 10, decrease by 1 per move if not saved). B can save one cup per move. If B saves a different cup each move, each cup gets saved once, delaying it by one move. But the cups that aren't saved on a given move still decrease.
+
+Let me trace: 10 cups, all at 10. A plays (10, 0×9) each move.
+
+Move 1: B saves cup 1. State: {19, 9×9}.
+Move 2: B saves cup 2. Cup 1: 18, cup 2: 17, cups 3-10: 8. State: {18, 17, 8×8}.
+Move 3: B saves cup 3. Cup 1: 17, cup 2: 16, cup 3: 15, cups 4-10: 7. State: {17, 16, 15, 7×7}.
+...
+
+After move t, cups 1 through t have been saved once and have count 10 + (k-1) - (t-1) = 10 + 9 - (t-1) = 20 - t. Wait, let me recalculate.
+
+After move 1: cup 1 = 19, cups 2-10 = 9.
+After move 2: cup 1 = 18, cup 2 = 17, cups 3-10 = 8.
+After move 3: cup 1 = 17, cup 2 = 16, cup 3 = 15, cups 4-10 = 7.
+...
+After move t: cups 1..t have been saved once. Cup i (for i ≤ t) has count 19 - (t-1) + (i-1)*0... hmm, this is getting complicated. Let me think about it differently.
+
+Each cup's count = 10 + (number of times saved)*(k-1) - (number of moves not saved)*1.
+
+Wait, more precisely: each move, a cup either gets +k-1 (if saved) or -1 (if not saved). After t moves, cup i has count 10 + (saves_i)*(k-1) - (t - saves_i)*1 = 10 + saves_i * k - t.
+
+For cup i with saves_i saves: count = 10 + saves_i * 10 - t = 10(1 + saves_i) - t.
+
+After t = 9 moves: count = 10(1 + saves_i) - 9 = 10 + 10*saves_i - 9 = 1 + 10*saves_i.
+
+If saves_i = 0: count = 1.
+If saves_i = 1: count = 11.
+If saves_i = 2: count = 21.
+
+B has 9 saves over 9 moves. B can distribute these among the 10 cups. To minimize the number of cups with count 1, B should give each cup at most 1 save. With 9 saves and 10 cups, B can give saves to 9 cups, leaving 1 cup with 0 saves (count 1).
+
+After 9 moves: 1 cup with count 1, 9 cups with count 11. State: {11×9, 1}.
+
+Move 10: A plays (10, 0, ..., 0). B assigns 10 to the cup with 1 (saving it, →10). All 9 cups with 11 get 0, becoming 10. No cups destroyed! State: {10×10}. We're back to the start!
+
+Oh no, B can reset the game! That's terrible for A.
+
+So B's strategy is: save a different cup each move, ensuring that after 9 moves, only 1 cup is at 1, and the rest are at 11. Then B saves the cup at 1, and all cups go back to 10.
+
+This means A's strategy of (k, 0, ..., 0) doesn't work if B plays this way. A needs a different strategy.
+
+Hmm, so the problem is more subtle. Let me reconsider.
+
+The key issue: B can use saves to keep all cups above 1. With 10 cups and 9 saves over 9 moves, B can ensure only 1 cup reaches 1, and then save it. So A can't destroy any cups with this strategy.
+
+A needs a strategy that forces multiple cups to 1 simultaneously, despite B's saves.
+
+Let me think about what happens if A uses a different distribution. Instead of (k, 0, ..., 0), what if A uses (k-1, 1, 0, ..., 0)? Then one cup gets k-1, one gets 1, and the rest get 0. B assigns these.
+
+Each move, k-2 cups decrease by 1, 1 cup stays the same (gets 1 back, net 0), and 1 cup increases by k-2. B chooses which cups get which.
+
+Hmm, this gives B more flexibility. Let me think differently.
+
+What if A uses (0, 0, ..., 0, k)? Same as (k, 0, ..., 0). 
+
+What if A uses a strategy that doesn't let B save cups efficiently?
+
+Key insight: B can save 1 cup per move. If A can create a situation where more than 1 cup needs saving per move, A can force destruction.
+
+With strategy (k, 0, ..., 0), each move k-1 cups decrease. B saves 1, so k-2 cups effectively decrease (net). Over t moves, the total decrease is (k-2)*t spread among k cups. But B can concentrate the saves on specific cups.
+
+The issue is that B can always save the cup that's closest to 0, preventing destruction. With k cups, B needs to save at most 1 cup per move (the one closest to 0). As long as only 1 cup is close to 0 at any time, B can save it.
+
+A needs to create a situation where multiple cups are at 1 simultaneously. This requires all cups to decrease to 1 at the same time, despite B's saves.
+
+With k cups, B has 1 save per move. If A's strategy makes all cups decrease at the same rate, B can save 1 per move, creating a "stagger" that prevents simultaneous arrival at 1.
+
+But what if A uses a strategy that decreases cups at different rates, making it harder for B to stagger?
+
+Hmm, let me think about this differently. Let me consider the total "pebble deficit" from the initial state.
+
+Actually, let me think about the problem in terms of what A can guarantee.
+
+Claim: A can guarantee destroying at most 8 cups (reducing to 2 cups), and cannot guarantee destroying 9.
+
+We showed that with 2 cups, A can't destroy either (B can always save the one closest to 0). So A can't guarantee more than 8.
+
+But can A guarantee 8? We showed that with strategy (k, 0, ..., 0), B can reset the game by saving different cups. So A needs a better strategy.
+
+Let me think about what strategy A should use.
+
+Alternative strategy: A plays (k, 0, ..., 0) for the first move to create one big cup, then plays differently.
+
+After move 1: {19, 9×9}. Now A knows this multiset.
+
+Move 2: A plays (10, 0, ..., 0). B can save any cup. If B saves the big cup (19→28), the 9 small cups go to 8. If B saves a small cup (9→18), the big cup goes to 18 and 8 small cups go to 8.
+
+B's optimal: B wants to prevent cups from reaching 1 simultaneously. B should save different cups to create stagger.
+
+But here's the thing: A can adapt. A knows the multiset after each move. A can choose a different strategy based on the multiset.
+
+Let me think about what A should do when B creates stagger.
+
+Suppose after several moves, the state is something like {a, b, c, ...} with various counts. A wants to create cups with 1 pebble. A can choose a distribution that decreases certain cups faster.
+
+For example, if the state is {11, 11, 11, 11, 11, 11, 11, 11, 11, 1}, A can play (10, 0, ..., 0). B saves the cup with 1 (→10). The 9 cups with 11 go to 10. State: {10×10}. Reset.
+
+What if A plays differently? Instead of (10, 0, ..., 0), A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10). Same thing.
+
+What if A plays (1, 1, 1, 1, 1, 1, 1, 1, 1, 1)? All cups get 1 back. No change. {11×9, 1} → {11×9, 1}. Wait, cup with 1 gets 1 back: 1-1+1=1. Cups with 11: 11-1+1=11. No change.
+
+What if A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10)? B assigns 10 to the cup with 1 (→10), 0 to the rest (→10). {10×10}. Reset.
+
+What if A plays (0, 0, 0, 0, 0, 0, 0, 0, 1, 9)? B assigns 9 to the cup with 1 (→9), 1 to a cup with 11 (→11), 0 to the rest (→10). State: {11, 10×8, 9}. Hmm, this doesn't help.
+
+It seems like B can always save the cup with 1 and reset the others. Let me think about whether A can prevent the reset.
+
+The issue is that when only 1 cup is at 1, B can save it and all other cups go to 10 (if they were at 11). A needs to create a situation where multiple cups are at 1, or where saving one cup at 1 doesn't reset the others.
+
+What if A uses a strategy that creates more extreme distributions?
+
+Let me try: A plays (10, 0, ..., 0) for the first move. State: {19, 9×9}.
+
+Move 2: A plays (10, 0, ..., 0). B saves a cup with 9 (→17). State: {18, 17, 8×8}.
+
+Move 3: A plays (10, 0, ..., 0). B saves a cup with 8 (→16). State: {17, 16, 15, 7×7}.
+
+...After move t: B has saved t different cups. The saved cups have count 10 + 10 - t = 20 - t... wait, let me recalculate.
+
+Actually, I computed before: after t moves with B saving a different cup each time, cup i (saved on move i) has count 10(1 + saves_i) - t. With saves_i = 1 for cups 1..t and saves_i = 0 for cups t+1..10:
+
+Cups 1..t: count = 10(2) - t = 20 - t.
+Cups t+1..10: count = 10(1) - t = 10 - t.
+
+After t = 9: cups 1..9 have count 11, cup 10 has count 1. State: {11×9, 1}.
+
+Now A needs to deal with {11×9, 1}. As shown, B can reset.
+
+What if A changes strategy at this point? A knows the state is {11×9, 1}.
+
+A plays (9, 1, 0, 0, 0, 0, 0, 0, 0, 0). B assigns 9 to the cup with 1 (→9), 1 to a cup with 11 (→11), 0 to the rest (→10). State: {11, 10×8, 9}. Not helpful.
+
+A plays (0, 10, 0, ..., 0). B assigns 10 to cup with 1 (→10), 0 to rest (→10). {10×10}. Reset.
+
+Hmm, it seems hard for A to make progress when B plays the "save different cups" strategy.
+
+Let me think about this problem from a completely different angle.
+
+Maybe A should use a strategy that doesn't let B reset. The key is that B can reset when all cups are at similar counts. A needs to create a situation where cups are at very different counts, so B can't reset them all to the same level.
+
+What if A plays (10, 0, ..., 0) repeatedly, and B saves the same cup every time?
+
+If B saves the same cup: after 9 moves, {91, 1×9}. Then A can destroy 8. Total: 8.
+
+But B won't play this way. B will save different cups to prevent simultaneous 1s.
+
+So the question is: can A force B into a situation where B must let multiple cups reach 1?
+
+Let me think about a potential function. Define the "spread" of the state as the variance or range of pebble counts. A wants to maximize the spread (to create cups at 1), while B wants to minimize it.
+
+With strategy (k, 0, ..., 0), A creates maximum spread (one cup gets a lot, others decrease). B counters by saving different cups, reducing spread.
+
+What if A uses a strategy that's adaptive? A observes the multiset and chooses a distribution that targets the cups B is trying to save.
+
+For example, if the state is {11×9, 1}, A knows B will save the cup with 1. So A plays a distribution that also decreases the cups with 11.
+
+A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10). B assigns 10 to cup with 1 (→10), 0 to cups with 11 (→10). Reset.
+
+What if A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10) but also wants to decrease the 11s? A can't do both with this distribution.
+
+What if A plays (1, 1, 1, 1, 1, 1, 1, 1, 1, 1)? No change. Useless.
+
+What if A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10)? B saves the 1, rest go to 10. Reset.
+
+It seems like from {11×9, 1}, A can't make progress. B always resets.
+
+Let me think about whether A can prevent reaching {11×9, 1} in the first place.
+
+The issue is that B saves a different cup each move, creating the {11×9, 1} state after 9 moves. Can A prevent this?
+
+A's strategy could be to not always play (k, 0, ..., 0). A could play differently based on the observed multiset.
+
+For example, after move 1: {19, 9×9}. A knows B will try to save different cups. A plays (10, 0, ..., 0). B saves a cup with 9 (→17). State: {18, 17, 8×8}.
+
+Now A plays (10, 0, ..., 0). B saves a cup with 8 (→16). State: {17, 16, 15, 7×7}.
+
+A plays (10, 0, ..., 0). B saves a cup with 7 (→15). State: {16, 15, 14, 13, 6×6}.
+
+...After move t: the unsaved cups are at 10-t, and the saved cups are at various levels. B saves one unsaved cup per move.
+
+After 9 moves: 1 cup at 1, 9 cups at 11. A is stuck.
+
+What if A changes strategy mid-way? After move 3: {17, 16, 15, 7×7}. Instead of (10, 0, ..., 0), A plays something else.
+
+A plays (0, 0, 0, 10, 0, 0, 0, 0, 0, 0). B assigns 10 to... B wants to minimize destruction. B could assign 10 to a cup with 7 (→16), 0 to the rest. The cups at 17, 16, 15 go to 16, 15, 14. The other 6 cups at 7 go to 6. State: {16, 15, 14, 16, 6×6} = {16, 16, 15, 14, 6×6}.
+
+Hmm, this doesn't seem to help. B can still save cups.
+
+Let me think about this problem differently. Maybe the answer is not 8 but something else.
+
+Let me reconsider the problem. Maybe I'm wrong about the 2-cup case. Let me re-examine.
+
+With 2 cups {a, b}, a + b = 100, a ≥ b ≥ 1. A plays a distribution (x, 2-x) with 0 ≤ x ≤ 2. B assigns to cups.
+
+If A plays (2, 0): B assigns 2 to one cup, 0 to other. B will assign 2 to the cup with smaller count (to prevent it from reaching 0). Cup with b: b → b+1 (if b gets 2) or b → b-1 (if b gets 0). B assigns 2 to cup with b: {a-1, b+1}. B assigns 2 to cup with a: {a+1, b-1}.
+
+B wants to prevent either from reaching 0. If b = 1, B assigns 2 to cup with b: {a-1, 2}. If b = 1 and B assigns 2 to a: {a+1, 0}. Cup destroyed. So B will assign 2 to b, saving it.
+
+If b = 1: {a-1, 2}. Next move: A plays (2, 0). B assigns 2 to cup with 2 (→3) or a-1 (→a). If a-1 > 2, B assigns 2 to a-1: {a, 1}. Back to {a, 1} with a decreased by 1... wait, {a-1+1, 2-1} = {a, 1}. Hmm, so we go from {a, 1} to {a-1, 2} to {a, 1}... wait let me recompute.
+
+{a, 1}. A plays (2, 0). B assigns 2 to cup with 1: {a-1, 2}. 
+{a-1, 2}. A plays (2, 0). B assigns 2 to cup with 2 (if a-1 > 2): {a-2, 3}. Or B assigns 2 to cup with a-1: {a, 1}.
+
+B wants to prevent destruction. If B assigns 2 to the larger cup: {a, 1}. We're back to {a, 1} with the same a. Cycle!
+
+If B assigns 2 to the smaller cup: {a-2, 3}. Then {a-3, 4}, etc. Eventually the smaller cup grows and the larger shrinks. When they meet, say {51, 49}, B might switch strategy.
+
+Actually, B's goal is to prevent any cup from reaching 0. B can always do this with 2 cups by assigning the bonus to the smaller cup. The smaller cup grows and the larger shrinks, but neither reaches 0 (since total is 100 and both stay positive).
+
+Wait, let me check: {a, 1}. B assigns 2 to smaller: {a-1, 2}. Then {a-2, 3}. Then {a-3, 4}. ... {a-t, t+1}. When t = a-1: {1, a}. Now the roles are reversed. B assigns 2 to the cup with 1: {a, 2}. Wait, {1, a}. B assigns 2 to cup with 1: {0, a+1}. Cup destroyed!
+
+No wait. {1, a}. A plays (2, 0). B assigns 2 to cup with 1: 1-1+2 = 2. Cup with a: a-1+0 = a-1. {a-1, 2}. Not destroyed.
+
+Hmm, I made an error. Let me redo. {a-t, t+1}. A plays (2, 0). B assigns 2 to the smaller cup (a-t if a-t < t+1, i.e., t > (a-1)/2).
+
+If B always assigns 2 to the smaller cup:
+{a, 1} → {a-1, 2} → {a-2, 3} → ... → {a-t, t+1}.
+
+When a-t = t+1, i.e., t = (a-1)/2, the cups are equal. Then B can assign 2 to either. Say {50, 50} (if a = 99). B assigns 2 to one: {51, 49}. Then B assigns 2 to 49: {50, 50}. Cycle!
+
+So with 2 cups, B can maintain a cycle and prevent any destruction. A cannot destroy any cup with 2 cups. Confirmed.
+
+Now, can A do better than 8? Let me think about whether A can destroy 9 cups (reduce to 1).
+
+To reduce to 1 cup, A needs to go from some state directly to 1 cup, not through 2 cups. This means A needs to destroy multiple cups in a single move.
+
+In a single move, A can destroy all cups with count 1 that B doesn't save. B saves 1 cup per move. So if m cups have count 1, A can destroy m-1 of them.
+
+To destroy 9 cups from 10, A needs all 10 cups at count 1, and then B saves 1, destroying 9. But total pebbles = 100, and 10 cups at count 1 has total 10, not 100. Contradiction.
+
+So A can't have all 10 cups at 1. A needs to reduce the number of cups first, then destroy the rest.
+
+From 10 cups, A destroys some, say d1, leaving 10-d1 cups. Then from 10-d1 cups, A destroys d2, etc. The total is d1 + d2 + ...
+
+But at each stage, B can save 1 cup. And with 2 cups, A can't destroy any. So A needs to jump from ≥3 cups to 1 cup in a single move, which requires all remaining cups to be at 1.
+
+From 3 cups at {1, 1, 98}: A plays (3, 0, 0). B saves one cup with 1 (→3), the other cup with 1 is destroyed, and the cup with 98 goes to 97. Result: {97, 3}. 1 destroyed. Then stuck at 2.
+
+From 3 cups at {1, 1, 1}: total = 3, but total must be 100. Impossible.
+
+So A can never have 3 cups all at 1 (total would be 3 ≠ 100). A can have at most 2 cups at 1 (with the third having 98). Then A destroys 1, leaving 2 cups. Stuck.
+
+Wait, so the maximum A can destroy is: from 10 cups, reduce to 2 cups (destroying 8), and then can't destroy more. So the answer is 8?
+
+But I showed earlier that B can prevent A from even reaching 8 by using the "save different cups" strategy to reset the game. Let me reconsider.
+
+The "save different cups" strategy leads to {11×9, 1} after 9 moves, and then B resets. So A can't make progress with strategy (k, 0, ..., 0).
+
+A needs a different strategy. Let me think about what A can do.
+
+Key insight: A can choose a different distribution each move based on the observed multiset. A is not limited to (k, 0, ..., 0).
+
+Let me think about what happens if A plays (k, 0, ..., 0) for the first move, creating {19, 9×9}, and then plays adaptively.
+
+After {19, 9×9}, A knows B will try to save different cups. A's goal is to prevent B from resetting.
+
+What if A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10) (all to one cup)? B assigns 10 to a cup with 9 (→18). State: {18, 18, 8×8}. Now there are two big cups.
+
+Next: A plays (10, 0, ..., 0). B assigns 10 to a cup with 8 (→16). State: {17, 17, 16, 7×7}.
+
+Next: A plays (10, 0, ..., 0). B assigns 10 to a cup with 7 (→15). State: {16, 16, 15, 15, 6×6}.
+
+Hmm, B is still saving different cups. The pattern continues.
+
+After 9 moves: B has saved 9 different cups. The 10th cup (never saved) is at 1. The 9 saved cups are at 11. State: {11×9, 1}. Reset.
+
+It seems like no matter what A does, B can save a different cup each move and reset after 9 moves.
+
+But wait, what if A plays a distribution that doesn't allow B to save a cup? For example, A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10) every move. B must assign 10 to one cup and 0 to the rest. B saves one cup per move. Same situation.
+
+What if A plays (0, 0, 0, 0, 0, 0, 0, 0, 1, 9)? B assigns 9 to one cup and 1 to another. The cup with 9 gets +8, the cup with 1 gets +0 (net), and the rest get -1. B can still save 1 cup (with the 9) and 1 cup stays the same (with the 1). This is even better for B!
+
+What if A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10) but targets the biggest cup? A can't target specific cups; A only chooses the distribution vector and B assigns.
+
+Hmm, I think the fundamental issue is that B can always save 1 cup per move, and with 10 cups, B can cycle through saves to prevent any cup from reaching 0.
+
+But wait, B can only save 1 cup per move. If A can create a situation where 2 cups need saving simultaneously, A can force a destruction.
+
+When does a cup need saving? When it's at 1 and would be destroyed. If 2 cups are at 1 simultaneously, B can only save 1, and the other is destroyed.
+
+So A's goal is to get 2 cups to 1 simultaneously. B's goal is to prevent this.
+
+With 10 cups, B saves 1 per move. Over 9 moves, B can save 9 cups (one per move). If A's strategy makes all cups decrease at the same rate, B can save a different cup each move, and after 9 moves, 1 cup is at 1 (the one never saved). Then B saves it, resetting.
+
+But what if A's strategy makes cups decrease at different rates? Then some cups reach 1 faster. B has to save them, but B can only save 1 per move. If two cups reach 1 at the same time, B can only save one.
+
+Can A create a situation where two cups reach 1 at the same time, despite B's best efforts?
+
+Let me think about this. With 10 cups, A plays (10, 0, ..., 0) each move. Each move, 9 cups decrease by 1 and 1 cup increases by 9. B chooses which cup increases.
+
+B's strategy: save a different cup each move. After 9 moves, 1 cup at 1, 9 cups at 11.
+
+But what if A plays a different distribution? Say A plays (5, 5, 0, 0, 0, 0, 0, 0, 0, 0). Then 2 cups increase by 4, 8 cups decrease by 1. B chooses which 2 cups increase.
+
+B can save 2 cups per move now! But the 8 unsaved cups decrease faster. After 1 move: 8 cups at 9, 2 cups at 14. After 2 moves: 8 cups at 8, 2 cups at 14 (if B saves the same 2) or different cups at different levels.
+
+Hmm, this gives B more saving power. Not good for A.
+
+What if A plays (9, 1, 0, 0, 0, 0, 0, 0, 0, 0)? 1 cup +8, 1 cup +0, 8 cups -1. B saves 1 cup (with 9) and 1 cup stays (with 1). B effectively saves 2 cups (one from decreasing, one stays same). Not good.
+
+It seems like (k, 0, ..., 0) is the best for A, as it minimizes B's saving power (only 1 save per move). But even then, B can cycle through saves.
+
+Let me think about whether A can use a non-uniform strategy to break B's cycle.
+
+After 9 moves of (10, 0, ..., 0) with B saving different cups: {11×9, 1}. A knows this.
+
+Now A plays (10, 0, ..., 0). B saves the cup with 1 (→10). Others go to 10. {10×10}. Reset.
+
+What if A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10)? Same thing.
+
+What if A plays (9, 0, 0, 0, 0, 0, 0, 0, 0, 1)? B assigns 9 to cup with 1 (→9), 1 to a cup with 11 (→11), 0 to rest (→10). {11, 10×8, 9}. Not a full reset, but close.
+
+What if A plays (8, 0, 0, 0, 0, 0, 0, 0, 0, 2)? B assigns 8 to cup with 1 (→8), 2 to a cup with 11 (→12), 0 to rest (→10). {12, 10×8, 8}. 
+
+What if A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10)? B assigns 10 to cup with 1 (→10), 0 to rest (→10). Full reset.
+
+It seems like from {11×9, 1}, A can't make progress. B always saves the cup with 1 and resets the rest.
+
+But what if A doesn't let the game reach {11×9, 1}? A can change strategy earlier.
+
+After 5 moves of (10, 0, ..., 0) with B saving different cups: 5 cups at 15, 5 cups at 5. State: {15×5, 5×5}.
+
+Now A changes strategy. A plays (10, 0, ..., 0). B saves a cup with 5 (→13). State: {14×5, 4×4, 13}. Hmm, this is messy.
+
+Let me think about this more carefully. After 5 moves, the state is {15, 15, 15, 15, 15, 5, 5, 5, 5, 5}. A knows this.
+
+A plays (10, 0, ..., 0). B saves a cup with 5 (→13). State: {14, 14, 14, 14, 14, 4, 4, 4, 4, 13}. Sorted: {14×5, 13, 4×4}.
+
+A plays (10, 0, ..., 0). B saves a cup with 4 (→12). State: {13×5, 13, 12, 3×3}. Sorted: {13×6, 12, 3×3}.
+
+A plays (10, 0, ..., 0). B saves a cup with 3 (→11). State: {12×6, 12, 11, 2×2}. Sorted: {12×7, 11, 2×2}.
+
+A plays (10, 0, ..., 0). B saves a cup with 2 (→10). State: {11×7, 11, 10, 1}. Sorted: {11×9, 10, 1}.
+
+Wait, that's only 4 more moves (moves 6-9), and we're at {11×9, 10, 1}... but that's 11 cups? No, we started with 10 cups. Let me recount.
+
+After 5 moves: 5 cups at 15, 5 cups at 5. 10 cups total.
+Move 6: B saves one of the 5s. 5 cups at 14, 4 cups at 4, 1 cup at 13. 10 cups.
+Move 7: B saves one of the 4s. 5 cups at 13, 3 cups at 3, 1 cup at 12, 1 cup at 13. Wait, the cup saved in move 6 (at 13) also decreases to 12. Let me be more careful.
+
+After move 5: cups 1-5 at 15, cups 6-10 at 5.
+Move 6: A plays (10, 0, ..., 0). B saves cup 6 (at 5 → 13). Cups 1-5: 14, cups 7-10: 4, cup 6: 13. State: {14×5, 13, 4×4}.
+Move 7: A plays (10, 0, ..., 0). B saves cup 7 (at 4 → 12). Cups 1-5: 13, cup 6: 12, cups 8-10: 3, cup 7: 12. State: {13×5, 12, 12, 3×3} = {13×5, 12×2, 3×3}.
+Move 8: A plays (10, 0, ..., 0). B saves cup 8 (at 3 → 11). Cups 1-5: 12, cups 6-7: 11, cups 9-10: 2, cup 8: 11. State: {12×5, 11×3, 2×2}.
+Move 9: A plays (10, 0, ..., 0). B saves cup 9 (at 2 → 10). Cups 1-5: 11, cups 6-8: 10, cup 10: 1, cup 9: 10. State: {11×5, 10×4, 1}.
+
+So after 9 moves: {11×5, 10×4, 1}. 10 cups, one at 1.
+
+Move 10: A plays (10, 0, ..., 0). B saves cup 10 (at 1 → 10). Cups 1-5: 10, cups 6-9: 9, cup 10: 10. State: {10×6, 9×4}. Not a full reset, but close.
+
+Hmm, so B doesn't fully reset, but the state is still far from having multiple cups at 1.
+
+Let me think about this problem from a completely different angle.
+
+Maybe A should use a strategy that creates a "binary" structure. A divides cups into two groups and treats them differently.
+
+Or maybe A should think about this in terms of information theory. A knows the multiset but not the assignment. The switching of two cups by B adds noise.
+
+Wait, I just realized something. The problem says "B switches the places of two cups without telling A." This means B swaps two cups. But since A can't see the cups, what does "places" mean?
+
+I think "places" refers to the physical positions of the cups. B swaps the positions of two cups. Since A can't see the cups, this doesn't directly affect A's information (A only knows the multiset). But it might affect how A gives instructions.
+
+If A gives instructions based on positions (like "put pebbles into the cup on the left"), the switching would mess this up. But if A gives instructions based on pebble counts, switching doesn't matter.
+
+I think the switching is there to prevent A from using positional information. A can only use pebble count information. This is consistent with my earlier analysis.
+
+OK so let me reconsider the problem. The key question is: what is the maximum number of cups A can guarantee to destroy?
+
+I've established:
+1. With 2 cups, A can't destroy any (B can always save the smaller one).
+2. With strategy (k, 0, ..., 0), B can cycle through saves to prevent any destruction.
+
+So maybe the answer is less than 8. Let me think about what A can actually guarantee.
+
+Hmm, wait. Let me reconsider point 2. B's "save different cups" strategy requires B to save a specific cup each move. But B doesn't know A's strategy in advance. However, B is adversarial and plays optimally.
+
+Actually, in this game, B is adversarial. B knows A's strategy and plays to minimize destruction. So B will indeed use the "save different cups" strategy if it's optimal.
+
+But A can also adapt. A knows the multiset after each move and can change strategy. The question is whether A has a strategy that guarantees destruction regardless of B's play.
+
+Let me think about this as a game. A chooses a distribution vector, B assigns it to cups. A wants to maximize destruction, B wants to minimize it.
+
+Key insight: B can save 1 cup per move (by giving it the largest redistribution amount). With k cups, B can cycle through saves, ensuring no cup stays unsaved for more than k-1 moves. Each unsaved move decreases a cup by 1. So a cup can decrease by at most k-1 before being saved, then it jumps back up.
+
+With 10 cups, a cup can decrease by at most 9 before B saves it. Starting from 10, a cup can go down to 1 before B must save it. B can save it at 1, bringing it back to 10. So B can keep all cups between 1 and 19 (or similar range).
+
+But this analysis assumes A plays (k, 0, ..., 0) every move. What if A plays differently?
+
+If A plays (k, 0, ..., 0), each cup either gets +k-1 or -1. B chooses one cup for +k-1.
+
+If A plays a different distribution, say (a_1, ..., a_k), the cups get different amounts. B assigns these to cups. B can give the largest amount to the cup that needs saving most.
+
+The key constraint: sum of a_i = k, a_i ≥ 0. The maximum any cup can get is k (all pebbles to one cup). The minimum is 0.
+
+A's best strategy for creating cups at 1: maximize the number of cups that decrease. Strategy (k, 0, ..., 0) makes k-1 cups decrease by 1 and 1 cup increase by k-1. This maximizes the number of decreasing cups.
+
+But B can save 1 cup per move. So net, k-2 cups decrease per move (B saves 1 from decreasing). Over t moves, the total decrease is (k-2)*t. With k cups, the average decrease per cup is (k-2)*t/k. For a cup to reach 1 from 10, it needs to decrease by 9. Average time: 9k/(k-2). For k=10: 90/8 ≈ 11.25 moves.
+
+But B doesn't distribute decreases evenly. B concentrates saves on cups that are close to 1, keeping them alive. The cups that are far from 1 are left to decrease.
+
+Hmm, I think the key question is: can B indefinitely prevent any cup from reaching 0?
+
+With k cups and strategy (k, 0, ..., 0), B saves 1 cup per move. Each cup decreases by 1 when not saved and increases by k-1 when saved. B needs to ensure no cup reaches 0.
+
+A cup at count c needs to be saved within c-1 moves (otherwise it reaches 0). B can save 1 cup per move. With k cups, B needs to save each cup at least once every c-1 moves. If all cups are at count c, B needs to save each cup once every c-1 moves. B can do this if k ≤ c-1 (B can cycle through all k cups in k moves, and each cup is saved within k-1 moves, so it needs c-1 ≥ k-1, i.e., c ≥ k).
+
+Initially, all cups are at 10 and k = 10. So c = k = 10. B can just barely cycle through: each cup is saved once every 10 moves, and each cup can survive 9 moves without saving (going from 10 to 1). So B saves a cup when it's at 1, bringing it to 10. Then the cycle repeats.
+
+But wait, when B saves a cup at 1, it goes to 1 + k - 1 = k = 10. And the other cups decrease by 1. So after 10 moves, the state is back to {10×10}. B can maintain this cycle indefinitely!
+
+So with strategy (k, 0, ..., 0), B can prevent any destruction by cycling saves. A gets 0 cups destroyed.
+
+This means A needs a completely different strategy. Let me think about what A can do.
+
+The issue is that B can cycle saves when all cups are at similar levels. A needs to create a situation where B can't cycle saves effectively.
+
+What if A creates a very uneven distribution? Say A plays (10, 0, ..., 0) for 9 moves, and B saves the same cup each time (because B is forced to). Wait, B isn't forced to save the same cup. B can save different cups.
+
+Hmm, but what if A plays a strategy that makes it impossible for B to cycle?
+
+Let me think about this. B's cycling strategy works because each cup can survive k-1 moves without saving (going from 10 to 1). If A could make some cups have fewer pebbles, they'd need saving more often, and B couldn't cycle through all cups.
+
+But A can't target specific cups (B assigns the distribution). A can only choose the distribution vector.
+
+Wait, here's an idea. What if A plays (k, 0, ..., 0) for one move, creating {19, 9×9}. Then A plays (k, 0, ..., 0) again. B saves a cup with 9 (→17). State: {18, 17, 8×8}. 
+
+Now the cups have different levels. The cups at 8 can survive 7 more moves without saving. The cups at 17 and 18 can survive 16-17 more moves. B needs to save the cups at 8 first.
+
+After 7 more moves (saving cups at 8 each move): the cups at 8 go to 1 (one saved each move, going to 16). Wait, B saves one cup at 8 each move. After 7 moves, 7 cups at 8 have been saved (now at 15, 14, 13, 12, 11, 10, 9) and 1 cup at 8 is at 1. The cups at 18 and 17 have gone to 11 and 10. State: {11, 10, 15, 14, 13, 12, 11, 10, 9, 1}. 
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+Actually, I think the key insight is that B's cycling strategy requires all cups to be at the same level. Once A creates unevenness, B's cycling becomes less effective.
+
+But B can also create unevenness to break A's strategy. It's a game.
+
+Let me try to think about the problem from the perspective of invariants and potential functions.
+
+Total pebbles: 100 (constant).
+Number of cups: k (decreasing).
+Average pebbles per cup: 100/k (increasing as k decreases).
+
+Each move, k pebbles are taken and redistributed. The total is conserved.
+
+For a cup to be destroyed, it must reach 0. A cup reaches 0 when it has 1 pebble, gets 0 in redistribution, and is destroyed.
+
+A wants to create cups with 1 pebble. B wants to prevent this.
+
+Key observation: B can save 1 cup per move. If A's strategy makes m cups decrease per move, B can save 1, and m-1 cups effectively decrease. Over time, cups decrease, but B can cycle saves.
+
+The critical question: can A force a situation where 2 cups need saving simultaneously?
+
+Let me think about a specific strategy for A.
+
+Strategy: A plays (k, 0, ..., 0) every move. B cycles saves. After 10 moves, the state returns to {10×10}. No progress.
+
+But what if A plays (k, 0, ..., 0) for 9 moves (B cycles, state becomes {11×9, 1}), and then A plays a different distribution?
+
+At {11×9, 1}, A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10). B assigns 10 to the cup with 1 (→10), 0 to the rest (→10). {10×10}. Reset.
+
+A plays (1, 1, 1, 1, 1, 1, 1, 1, 1, 1). No change. {11×9, 1}.
+
+A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10). Reset.
+
+A plays (2, 0, 0, 0, 0, 0, 0, 0, 0, 8). B assigns 8 to cup with 1 (→8), 2 to a cup with 11 (→12), 0 to rest (→10). {12, 10×8, 8}. Not a full reset, but no destruction.
+
+Hmm, from {11×9, 1}, A can't destroy anything. B always saves the cup with 1.
+
+What if A plays (0, 0, 0, 0, 0, 0, 0, 0, 0, 10) and B doesn't save the cup with 1? B would be stupid not to save it. B is adversarial and will save it.
+
+So from {11×9, 1}, A is stuck. B resets.
+
+What if A doesn't let the game reach {11×9, 1}? A can change strategy earlier.
+
+After 5 moves of (10, 0, ..., 0) with B cycling: {15×5, 5×5}. A changes strategy.
+
+A plays (0, 0, 0, 0, 0, 5, 5, 0, 0, 0). B assigns the two 5s to cups. B will assign them to cups with 5 (→9 each). The cups with 15 get 0 (→14). State: {14×5, 9×2, 5×3}. Hmm, this is getting complicated and doesn't seem to help.
+
+Let me try a completely different approach. Maybe A should use a strategy that maintains a "reservoir" cup and drains the others.
+
+Actually, let me reconsider the problem. Maybe the answer is not 8 but something smaller, like 5 or 6.
+
+Let me think about what A can guarantee with a clever strategy.
+
+Alternative approach: A uses a "pairing" strategy. A pairs up cups and treats each pair independently.
+
+With 10 cups, A pairs them into 5 pairs. A plays a distribution that affects each pair independently. But A can't identify specific cups (B assigns the distribution), so A can't pair cups.
+
+Hmm, let me think about this differently.
+
+Actually, let me reconsider the problem statement. Maybe I'm misunderstanding the game.
+
+"B takes one pebble from each cup and redistributes them as A wishes."
+
+Maybe "as A wishes" means A can specify the complete redistribution, including which cup gets how many. A can see the cups (or at least, B describes them to A). But then "A doesn't see the cups while playing" contradicts this.
+
+Or maybe: A can see the cups but not their positions. A sees the multiset of pebble counts and can give instructions based on that. But B switches two cups, so A can't track cups across moves.
+
+Wait, I think the key is: A can give instructions based on the current pebble counts. A can say "put 3 pebbles into a cup with 5 pebbles, 2 into a cup with 7 pebbles, etc." But if there are multiple cups with the same count, A can't specify which one. B chooses.
+
+Under this interpretation, A's instruction is a function from pebble counts to redistribution amounts. For each pebble count c, A specifies how many pebbles go to cups with count c. If there are n_c cups with count c, A specifies f(c) pebbles per cup with count c, and n_c * f(c) must be part of the total.
+
+Wait, but A might want to give different amounts to different cups with the same count. A can't do that under this interpretation.
+
+Hmm, but maybe A can. Maybe A can say "among the cups with count 5, put 3 pebbles into one and 0 into the other." But then B chooses which cup gets 3 and which gets 0.
+
+I think the most natural interpretation is: A specifies a redistribution vector (a_1, ..., a_k) with sum = k, and B assigns these to cups. B chooses the assignment adversarially. This is the interpretation I've been using.
+
+Under this interpretation, I've shown that B can cycle saves to prevent any destruction when A plays (k, 0, ..., 0). And from {11×9, 1}, A can't make progress.
+
+But maybe A has a more clever strategy. Let me think harder.
+
+What if A plays a distribution that creates two cups at 1 simultaneously?
+
+For example, from {10×10}, A plays (10, 0, ..., 0). State: {19, 9×9}. A plays (10, 0, ..., 0). B saves a cup with 9 (→17). State: {18, 17, 8×8}. 
+
+Now A plays (10, 0, ..., 0). B must save a cup. B can save a cup with 8 (→16) or a cup with 17 or 18. B saves a cup with 8. State: {17, 16, 16, 7×7}.
+
+A plays (10, 0, ..., 0). B saves a cup with 7. State: {16, 15, 15, 15, 6×6}.
+
+...After 9 moves total: {11×9, 1}. (As before.)
+
+The problem is that B can always save the cup closest to 0, and the cycle resets.
+
+What if A plays a distribution that makes two cups decrease to 1 at the same time?
+
+From {10×10}, A plays (5, 5, 0, 0, 0, 0, 0, 0, 0, 0). B assigns the two 5s to two cups (→14 each). Others go to 9. State: {14×2, 9×8}.
+
+A plays (5, 5, 0, 0, 0, 0, 0, 0, 0, 0). B assigns the two 5s to two cups with 9 (→13 each). Others: 14→13, 9→8. State: {13×4, 8×6}.
+
+A plays (5, 5, 0, 0, 0, 0, 0, 0, 0, 0). B assigns to two cups with 8 (→12). Others: 13→12, 8→7. State: {12×6, 7×4}.
+
+A plays (5, 5, 0, 0, 0, 0, 0, 0, 0, 0). B assigns to two cups with 7 (→11). Others: 12→11, 7→6. State: {11×8, 6×2}.
+
+A plays (5, 5, 0, 0, 0, 0, 0, 0, 0, 0). B assigns to two cups with 6 (→10). Others: 11→10, 6→5. State: {10×10, 5×0}... wait, that's wrong. Let me recount.
+
+After move 4: {11×8, 6×2}. 10 cups.
+Move 5: A plays (5, 5, 0, ..., 0). B assigns 5s to cups with 6 (→10 each). 8 cups with 11 get 0 (→10). 2 cups with 6 get 5 (→10). State: {10×10}. Reset!
+
+Hmm, B reset the game again by saving the cups with 6.
+
+What if A plays (10, 0, ..., 0) instead of (5, 5, 0, ..., 0) from {11×8, 6×2}?
+
+Move 5: A plays (10, 0, ..., 0). B saves a cup with 6 (→14). 8 cups with 11 go to 10, 1 cup with 6 goes to 5. State: {14, 10×8, 5}.
+
+Move 6: A plays (10, 0, ..., 0). B saves the cup with 5 (→13). 8 cups with 10 go to 9, cup with 14 goes to 13. State: {13×2, 9×8}.
+
+Move 7: A plays (10, 0, ..., 0). B saves a cup with 9 (→17). 2 cups with 13 go to 12, 7 cups with 9 go to 8. State: {17, 12×2, 8×7}.
+
+Move 8: A plays (10, 0, ..., 0). B saves a cup with 8 (→16). 1 cup with 17 goes to 16, 2 cups with 12 go to 11, 6 cups with 8 go to 7. State: {16×2, 11×2, 7×6}.
+
+Move 9: A plays (10, 0, ..., 0). B saves a cup with 7 (→15). 2 cups with 16 go to 15, 2 cups with 11 go to 10, 5 cups with 7 go to 6. State: {15×3, 10×2, 6×5}.
+
+Move 10: A plays (10, 0, ..., 0). B saves a cup with 6 (→14). 3 cups with 15 go to 14, 2 cups with 10 go to 9, 4 cups with 6 go to 5. State: {14×4, 9×2, 5×4}.
+
+This is getting very messy and doesn't seem to converge to a state with multiple cups at 1.
+
+Let me think about this problem from a higher level. 
+
+The fundamental issue is that B can save 1 cup per move, and with 10 cups, B can cycle through saves to keep all cups alive. The question is whether A can force a situation where B's save isn't enough.
+
+B can save 1 cup per move. A needs 2 cups to be at 1 simultaneously to force a destruction (B saves 1, the other is destroyed).
+
+For 2 cups to be at 1 simultaneously, they both need to decrease to 1 without being saved. But B can save one of them when it's at 2 (bringing it to 11), preventing it from reaching 1.
+
+The question is: can A create a situation where 2 cups are at 2 simultaneously, and B can only save 1, letting the other go to 1? But then the cup at 1 is

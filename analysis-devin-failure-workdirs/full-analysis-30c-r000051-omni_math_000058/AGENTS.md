@@ -1,0 +1,3728 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   Find all pairs of positive integers $ (m,n)$ such that $ mn - 1$ divides $ (n^2 - n + 1)^2$.       — 题目文本
+#   
+To find all pairs of positive integers \((m, n)\) such that \(mn - 1\) divides \((n^2 - n + 1)^2\), we need to analyze the given condition and derive the solutions.
+
+First, let's denote \(d = mn - 1\). We need \(d\) to divide \((n^2 - n + 1)^2\). This implies:
+\[
+d \mid (n^2 - n + 1)^2.
+\]
+
+We start by considering the trivial solution \((m, n) = (2, 2)\):
+\[
+2 \cdot 2 - 1 = 3 \quad \text{and} \quad (2^2 - 2 + 1)^2 = 3^2 = 9,
+\]
+which satisfies \(3 \mid 9\).
+
+Next, we explore other potential solutions. Suppose \((m, n)\) is a solution with \(2 < n < m\). We need to find \(k < n\) such that \((n, k)\) is also a solution. This requires:
+\[
+(n^2 - n + 1)^2 \equiv -1 \pmod{n}.
+\]
+
+We analyze the inequalities:
+\[
+n^2 - 1 \leq \frac{(n^2 - n + 1)^2}{mn - 1} \leq \frac{(n^2 - n + 1)^2}{n^2 - 1}.
+\]
+
+Simplifying, we get:
+\[
+\frac{(n^2 - n + 1)^2}{n^2 - 1} \geq n^2 - 1 \implies n^2 - n + 1 \geq n^2 - 1 \implies n \leq 2.
+\]
+
+This implies that the solutions are limited to specific cases. By fixing initial values \(a_0\) and \(b_0\) with \(b_0 \leq 2\), we can generate all solutions using the recurrence relation:
+\[
+(a_i, b_i)_{i=0}^{\infty} \quad \text{where} \quad a_i = b_{i+1}, \quad b_i = \frac{1}{b_{i+1}} \left[ \frac{(b_{i+1}^2 - b_{i+1} + 1)^2}{a_{i+1} b_{i+1} - 1} + 1 \right] \quad \forall \ i \in \mathbb{N}^*.
+\]
+
+By working through this recurrence, we find that the solutions are:
+\[
+(m, n) = (2, 2) \quad \text{and} \quad (m, n) = (b_{\ell-1}, b_{\ell}), \ (b_{\ell}, b_{\ell+1}) \quad \forall \ \ell \in \mathbb{N}^*.
+\]
+
+Cleaning up the recurrence relation:
+\[
+b_{i+2} = \frac{b_{i+1}^3 - 2b_{i+1}^2 + 3b_{i+1} + b_i - 2}{b_i b_{i+1} - 1} \quad \forall \ i \in \mathbb{N}^*, \quad b_0 = 2, \quad b_1 = 5,
+\]
+we get the sequence:
+\[
+(b_i)_{i=0}^{\infty} = 2, 5, 10, 17, \ldots,
+\]
+which can be generalized as:
+\[
+b_i = (i + 1)^2 + 1.
+\]
+
+Thus, the pairs \((m, n)\) that satisfy the condition are:
+\[
+(m, n) = (2, 2) \quad \text{and} \quad (m, n) = ((i+1)^2 + 1, (i+2)^2 + 1) \quad \forall \ i \in \mathbb{N}.
+\]
+
+The answer is: \boxed{(2, 2) \text{ and } ((i+1)^2 + 1, (i+2)^2 + 1) \text{ for all } i \in \mathbb{N}}.  — 标准解答
+#   The problem: Given distinct positive integers $a_1, a_2, \ldots, a_{2020}$. For $n \ge 2021$, $a_n$ is the smallest number different from $a_1, \ldots, a_{n-1}$ which doesn't divide $a_{n-2020}\cdots a_{n-2}a_{n-1}$. Prove that every number large enough appears in the sequence.
+
+Let me think about this carefully.
+
+First, let me understand the rule. We have a window of the last 2020 elements. The product $P_n = a_{n-2020} \cdot a_{n-2019} \cdots a_{n-1}$. Then $a_n$ is the smallest positive integer not yet in the sequence that does NOT divide $P_n$.
+
+So $a_n$ is chosen as: among all positive integers not in $\{a_1, \ldots, a_{n-1}\}$, pick the smallest one that does not divide the product of the last 2020 terms.
+
+Key observations:
+
+1. The sequence consists of distinct positive integers.
+
+2. If a number $m$ is not in the sequence yet and $m \nmid P_n$, then $m$ is a candidate. We pick the smallest such candidate.
+
+Let me think about what numbers can divide $P_n$. $P_n$ is a product of 2020 distinct positive integers. A number $m$ divides $P_n$ iff for every prime $p$, the exponent of $p$ in $m$ is at most the exponent of $p$ in $P_n$.
+
+Let me think about the structure. 
+
+First, let's think about small numbers. Consider number 1. $1 | P_n$ always. So 1 can never be chosen as $a_n$ for $n \ge 2021$ (since 1 always divides the product). So if 1 is not among $a_1, \ldots, a_{2020}$, it will never appear. But the problem says "every number large enough appears", so small numbers might not appear, that's fine.
+
+Actually wait, the problem says distinct positive integers $a_1, \ldots, a_{2020}$. So 1 might or might not be among them.
+
+Let me think about this differently. The key insight is probably about the growth of the sequence and how eventually all large numbers must appear.
+
+Let me think about what happens. At each step, we look at the product of the last 2020 terms. We need to find the smallest unused number that doesn't divide this product.
+
+A number $m$ divides $P_n = \prod_{i=0}^{2019} a_{n-2020+i}$ iff for each prime $p$, $v_p(m) \le \sum_{i=0}^{2019} v_p(a_{n-2020+i})$.
+
+So $m$ does NOT divide $P_n$ iff there exists a prime $p$ such that $v_p(m) > \sum_{i=0}^{2019} v_p(a_{n-2020+i})$.
+
+Now, the smallest unused number that doesn't divide $P_n$. 
+
+Let me think about the primes. Consider a prime $p$. If $p^k$ is not in the sequence and $k > \sum v_p$ of the last 2020 terms, then $p^k$ doesn't divide $P_n$. But we need the SMALLEST such number.
+
+Hmm, let me think about this more carefully with a simpler case first. Let's consider the case with window size $w$ (here $w = 2020$) and think about what happens.
+
+Actually, let me think about the key structural property. 
+
+Claim: The sequence is eventually "dense" in the sense that all sufficiently large integers appear.
+
+Let me think about why a number might NOT appear. A number $m$ doesn't appear if at every step $n$ where $m$ is still unused, $m | P_n$. So $m$ divides the product of every window of 2020 consecutive terms (from the point where $m$ becomes the smallest unused, or more precisely, at every step where $m$ is a candidate for being chosen but isn't because it divides $P_n$... wait, no. $m$ is chosen when it's the smallest unused that doesn't divide $P_n$. So $m$ is NOT chosen at step $n$ if either $m | P_n$ (so it's not a candidate) or there's a smaller unused number that also doesn't divide $P_n$.
+
+Actually, $m$ is chosen at step $n$ if: $m$ is unused, $m \nmid P_n$, and every unused number smaller than $m$ divides $P_n$.
+
+So $m$ fails to be chosen at step $n$ (while still unused) if either $m | P_n$, or some unused number $< m$ also doesn't divide $P_n$.
+
+This is getting complex. Let me think about the overall structure.
+
+Let me consider the set $S$ of numbers that never appear in the sequence. We want to show $S$ is finite.
+
+Suppose $m \in S$, i.e., $m$ never appears. Then at every step $n \ge 2021$ (where $m$ is still unused, which is all steps since $m$ never appears), either $m | P_n$ or some smaller unused number $m' < m$ with $m' \nmid P_n$ exists (and that $m'$ gets chosen, or an even smaller one).
+
+Hmm, but actually, the chosen $a_n$ is the smallest unused not dividing $P_n$. So if $m$ is unused and $m \nmid P_n$, then $a_n \le m$ (since $a_n$ is the smallest such). And if $a_n < m$, then $a_n$ is a new number smaller than $m$ that gets used. Since there are only finitely many numbers smaller than $m$, eventually all numbers smaller than $m$ that will ever appear have appeared. 
+
+So let's say after some step $N$, all numbers $< m$ that will ever appear have already appeared. Then for $n > N$, if $m$ is still unused, $m$ is the smallest unused number. So $a_n = m$ iff $m \nmid P_n$. If $m | P_n$ for all $n > N$, then $m$ never appears. If at some point $m \nmid P_n$, then $a_n = m$ and $m$ appears.
+
+So: $m$ never appears iff after all numbers $< m$ that will appear have appeared, $m$ divides $P_n$ for all subsequent $n$.
+
+Now, $m | P_n = a_{n-2020} \cdots a_{n-1}$ for all large $n$. This means $m$ divides every product of 2020 consecutive terms (for large enough $n$).
+
+Let me think about what it means for $m$ to divide every window of 2020 consecutive terms.
+
+If $m | a_{n-2020} \cdots a_{n-1}$ for all $n \ge N$, then in particular, $m | a_{n} \cdots a_{n+2019}$ for all $n \ge N - 2020$... wait, let me be more careful.
+
+$m | P_n$ means $m | \prod_{i=n-2020}^{n-1} a_i$. For all $n \ge N$.
+
+Consider two consecutive windows: $P_n = \prod_{i=n-2020}^{n-1} a_i$ and $P_{n+1} = \prod_{i=n-2019}^{n} a_i$. 
+
+$P_{n+1} / P_n = a_n / a_{n-2020}$.
+
+If $m | P_n$ and $m | P_{n+1}$, then... well, this doesn't directly give us much since we're dealing with integers and divisibility.
+
+Let me think about prime by prime. Fix a prime $p$ and let $e = v_p(m)$. We need $v_p(P_n) \ge e$ for all $n \ge N$, i.e., $\sum_{i=n-2020}^{n-1} v_p(a_i) \ge e$ for all $n \ge N$.
+
+Let $b_i = v_p(a_i)$. We need $\sum_{i=n-2020}^{n-1} b_i \ge e$ for all large $n$.
+
+The sum of any 2020 consecutive $b_i$'s is at least $e$. 
+
+Now, the $a_i$ are distinct positive integers, so they grow. In particular, the sequence must grow (since we keep adding new distinct positive integers, and small ones get used up or are in $S$).
+
+Hmm wait, does the sequence grow? Not necessarily monotonically. $a_n$ is the smallest unused number not dividing $P_n$. This could be small or large.
+
+Let me think about whether the sequence is bounded or grows.
+
+Actually, let's think about it. The numbers that divide $P_n$ form a specific set. The smallest unused number not dividing $P_n$... 
+
+If the sequence stays bounded, then only finitely many distinct values are used, but the sequence is infinite and all values are distinct, contradiction. So the sequence is unbounded.
+
+More precisely, since all $a_i$ are distinct positive integers, $a_n \ge n$ for all $n$ (well, not exactly, but the sequence takes infinitely many distinct values so it's unbounded). Actually, $a_n$ are all distinct, so $\{a_1, a_2, \ldots\}$ is an infinite subset of positive integers, hence unbounded.
+
+Now, let me think about the growth rate. 
+
+Key idea: Let's think about what the sequence looks like. At each step, we pick the smallest unused number not dividing the product of the last 2020 terms. 
+
+Consider the primes. A prime $p$ that is unused: $p | P_n$ iff $p$ divides one of $a_{n-2020}, \ldots, a_{n-1}$. So $p \nmid P_n$ iff $p$ doesn't divide any of the last 2020 terms.
+
+So if $p$ is an unused prime and none of the last 2020 terms is divisible by $p$, then $p$ is a candidate (it doesn't divide $P_n$), and $a_n \le p$.
+
+Now here's a key insight: consider a prime $p$ that is larger than all of $a_1, \ldots, a_{2020}$ (the initial terms) and larger than all numbers that will ever be chosen. Wait, that's circular.
+
+Let me think differently. Let me consider the "greedy" nature. 
+
+Let me think about the sequence of values. Since the sequence is unbounded, for any $M$, there exists $n$ with $a_n > M$.
+
+Now, suppose $m$ never appears in the sequence. As argued, after some point $N$, $m$ is the smallest unused number, and $m | P_n$ for all $n \ge N$.
+
+For each prime $p | m$, let $e_p = v_p(m)$. We need $\sum_{i=n-2020}^{n-1} v_p(a_i) \ge e_p$ for all $n \ge N$.
+
+Now, consider what happens as the sequence grows. The terms $a_i$ for large $i$ are large numbers. 
+
+Let me think about the density of multiples of $p$ in the sequence. 
+
+Hmm, let me think about this problem from a higher level. The claim is that every sufficiently large number appears. 
+
+Approach: Show that the set of numbers that never appear is finite.
+
+Suppose $m$ never appears. Then for all large $n$, $m | \prod_{i=n-2020}^{n-1} a_i$.
+
+Consider the sequence modulo considerations. For each prime power $p^k || m$, we need enough $p$-adic valuation in every window of 2020.
+
+Now, here's a crucial observation: if $m$ never appears and $m' = m \cdot q$ for some prime $q \nmid m$, does $m'$ ever appear? 
+
+If $m'$ is unused and is the smallest unused not dividing $P_n$ at some point... Let's see. $m' | P_n$ requires $v_q(P_n) \ge 1$, i.e., some $a_i$ in the window is divisible by $q$. And $v_p(P_n) \ge e_p$ for all $p | m$.
+
+Since $m | P_n$ for all large $n$ (as $m$ never appears), we have $v_p(P_n) \ge e_p$ for all $p | m$. So $m' | P_n$ iff $v_q(P_n) \ge 1$, i.e., some term in the window is divisible by $q$.
+
+If $q$ is a prime that never appears in the sequence and no multiple of $q$ ever appears... hmm, this is getting complicated.
+
+Let me try a different approach. Let me think about what the sequence actually looks like.
+
+Let me consider a simpler version: window size 1. So $a_n$ is the smallest unused number not dividing $a_{n-1}$.
+
+With window size 1: $a_n$ is the smallest positive integer not in $\{a_1, \ldots, a_{n-1}\}$ that doesn't divide $a_{n-1}$.
+
+Starting with $a_1 = $ some value. Then $a_2$ = smallest unused not dividing $a_1$. Etc.
+
+If $a_1 = 1$: $a_2$ = smallest unused not dividing 1 = 2 (since 1|1, 2 doesn't divide 1). $a_3$ = smallest unused not dividing 2. Unused: 1, 3, 4, 5, ... 1|2? No, 1|2 yes (1 divides everything). Wait, 1 divides 2. So 1 is not a candidate. 3 doesn't divide 2, so $a_3 = 3$. Hmm wait, but 1 is unused. 1 divides 2, so 1 is not a candidate. 3 doesn't divide 2, so $a_3 = 3$. Then $a_4$ = smallest unused not dividing 3. Unused: 1, 4, 5, 6, ... 1|3 yes. 4 doesn't divide 3, so $a_4 = 4$. Continuing, $a_5$ = smallest unused not dividing 4. Unused: 1, 5, 6, ... 1|4. 5 doesn't divide 4, $a_5 = 5$. It seems like with $a_1 = 1$, we get $a_n = n$ for all $n$, and 1 never appears again (it's already used). So every number appears. Good.
+
+What if $a_1 = 2$? $a_2$ = smallest unused not dividing 2. Unused: 1, 3, 4, 5, ... 1|2 yes. 3 doesn't divide 2, $a_2 = 3$. $a_3$ = smallest unused not dividing 3. Unused: 1, 2, 4, 5, ... 1|3. 2 doesn't divide 3, $a_3 = 2$. Wait, 2 is unused! 2 doesn't divide 3. So $a_3 = 2$. $a_4$ = smallest unused not dividing 2. Unused: 1, 4, 5, 6, ... 1|2. 4 doesn't divide 2 (4 > 2, so 4 doesn't divide 2). $a_4 = 4$. $a_5$ = smallest unused not dividing 4. Unused: 1, 5, 6, ... 1|4. 5 doesn't divide 4. $a_5 = 5$. $a_6$ = smallest unused not dividing 5. Unused: 1, 6, 7, ... 1|5. 6 doesn't divide 5. $a_6 = 6$. So we get 1 never appears (it always divides everything), and all other numbers appear. So "every number large enough appears" holds (everything except 1).
+
+OK so for window size 1, the result holds. Let me think about the general case.
+
+Let me think about the key structural properties.
+
+**Property 1**: The sequence is unbounded (since all terms are distinct).
+
+**Property 2**: Let $S$ be the set of numbers that never appear. For each $m \in S$, there exists $N_m$ such that for all $n \ge N_m$, $m | P_n$ (where $P_n = \prod_{i=n-2020}^{n-1} a_i$).
+
+This is because: after all numbers $< m$ that will ever appear have appeared, $m$ is the smallest unused. If at any point $m \nmid P_n$, then $a_n = m$ and $m$ appears. So if $m$ never appears, $m | P_n$ for all large $n$.
+
+**Property 3**: $S$ is "downward closed" in some sense? Not exactly. But let's think about it. If $m \in S$ and $d | m$ with $d < m$, is $d \in S$? Not necessarily, since $d$ might be among the initial terms.
+
+Hmm, let me think about the structure of $S$ more carefully.
+
+Actually, let me think about the key constraint. If $m \in S$, then $m | P_n$ for all large $n$. This means for each prime $p | m$ with $e_p = v_p(m)$:
+
+$$\sum_{i=n-2020}^{n-1} v_p(a_i) \ge e_p \quad \text{for all } n \ge N_m.$$
+
+Now, the sequence $a_i$ is unbounded and consists of distinct positive integers. 
+
+Let me think about the $p$-adic valuations. Consider the sequence $b_i = v_p(a_i)$ for a fixed prime $p$. We need the sum of any 2020 consecutive $b_i$'s (for large enough $i$) to be at least $e_p$.
+
+Now, the $a_i$ are distinct, so they can't all be divisible by $p$. In fact, among any 2020 consecutive terms, how many can be divisible by $p$?
+
+Well, there's no direct limit on how many terms are divisible by $p$. But the terms are distinct, so the terms divisible by $p$ are distinct multiples of $p$.
+
+Hmm, I think the key insight might be about the growth of the sequence and how it forces certain numbers to appear.
+
+Let me think about it from the perspective of: what numbers are forced to appear?
+
+Consider a large prime $p$. If $p$ is unused and none of the last 2020 terms is a multiple of $p$, then $p \nmid P_n$, so $p$ is a candidate, and $a_n \le p$.
+
+Now, the question is: can we avoid having $p$ appear? We'd need that whenever $p$ is the smallest unused candidate (i.e., all smaller unused numbers divide $P_n$), we have $p | P_n$, meaning some term in the window is a multiple of $p$.
+
+But the terms in the window are specific numbers. For $p | P_n$, we need one of $a_{n-2020}, \ldots, a_{n-1}$ to be a multiple of $p$. The multiples of $p$ are $p, 2p, 3p, \ldots$. If $p$ itself is unused, the multiples of $p$ that could be in the sequence are $2p, 3p, 4p, \ldots$ (and $p$ itself if it appears, but we're assuming it doesn't).
+
+So for $p$ to never appear, we need: for all large $n$, some $a_i$ ($n-2020 \le i \le n-1$) is a multiple of $p$. This means multiples of $p$ appear frequently in the sequence — at least once every 2020 terms (for large enough indices).
+
+But the multiples of $p$ that appear are distinct. So we need at least one multiple of $p$ in every window of 2020 consecutive terms. 
+
+Now, here's the thing: if $p$ is large, the multiples of $p$ are $p, 2p, 3p, \ldots$, which are all $\ge p$. If the sequence is growing, then at some point all terms are $\ge p$, and the multiples of $p$ among them are $p, 2p, 3p, \ldots$.
+
+Wait, but the sequence doesn't grow monotonically. Let me reconsider.
+
+Actually, let me think about this more carefully. The sequence is unbounded but not monotone. However, the set of numbers that appear is some infinite subset of $\mathbb{Z}^+$.
+
+Let me consider the set $A = \{a_1, a_2, a_3, \ldots\}$ of numbers that appear, and $S = \mathbb{Z}^+ \setminus A$ the numbers that don't appear. We want to show $S$ is finite.
+
+For $m \in S$, we established that $m | P_n$ for all large $n$.
+
+Now, let me think about the relationship between different elements of $S$.
+
+**Key Lemma**: If $m \in S$, then every divisor of $m$ that is not in the initial segment $\{a_1, \ldots, a_{2020}\}$ is also in $S$.
+
+Wait, is that true? Let me think... If $d | m$ and $d \notin \{a_1, \ldots, a_{2020}\}$ and $d$ appears at some position $a_k = d$ for $k > 2020$... then $d$ was chosen as the smallest unused not dividing $P_k$. Since $m > d$ (assuming $d < m$) and $m$ is unused at step $k$ (since $m \in S$), and $d$ was chosen, it means $d \nmid P_k$ but $d$ was the smallest such. 
+
+Hmm, this doesn't immediately give a contradiction. Let me think more.
+
+Actually, let me think about the problem differently. Let me consider the structure of the sequence more carefully.
+
+**Observation**: The sequence eventually "stabilizes" in the sense that small numbers are either used or in $S$, and the sequence keeps growing.
+
+Let me define $M_0 = \max(a_1, \ldots, a_{2020})$. 
+
+After the initial 2020 terms, the sequence continues. Let me think about what happens to numbers $\le M_0$.
+
+Numbers $\le M_0$ that are in the initial segment are already used. Numbers $\le M_0$ not in the initial segment might or might not appear later.
+
+Let me think about the growth. Consider the first time $a_n > M_0$ for $n > 2020$. Before that, all terms are $\le M_0$. But there are only $M_0$ positive integers $\le M_0$, and 2020 of them are already used. So at most $M_0 - 2020$ more can be used. If $M_0 < 2020$... well, $a_1, \ldots, a_{2020}$ are distinct positive integers, so $M_0 \ge 2020$.
+
+Hmm, this is getting complicated. Let me think about the problem from a higher level again.
+
+The key claim is that $S$ (the set of non-appearing numbers) is finite. 
+
+Let me think about what constraints $S$ must satisfy.
+
+For each $m \in S$, $m | P_n$ for all large $n$. This means $m | \text{lcm-style}$... no, $m$ divides the product, not the lcm.
+
+Let me think about the product $P_n$ and how it evolves. $P_{n+1} = P_n \cdot a_n / a_{n-2020}$.
+
+So $P_{n+1}/P_n = a_n / a_{n-2020}$ (as a rational number).
+
+If $m | P_n$ and $m | P_{n+1}$, then $m | P_n$ and $m | P_n \cdot (a_n / a_{n-2020})$. This means $m | P_n \cdot a_n / a_{n-2020}$. Since $m | P_n$, we can write $P_n = m \cdot q$. Then $P_{n+1} = m \cdot q \cdot a_n / a_{n-2020}$. For $m | P_{n+1}$, we need $a_{n-2020} | q \cdot a_n$. 
+
+This is getting complicated. Let me try yet another approach.
+
+**Approach via density**: 
+
+Consider the sequence $a_1, a_2, \ldots$. Since all terms are distinct, $a_n \ge$ roughly $n$ (in the sense that the $n$-th smallest element of the sequence is at least $n$).
+
+Actually, more precisely: if $A_n = \{a_1, \ldots, a_n\}$, then $|A_n| = n$ and $A_n \subseteq \{1, 2, \ldots\}$, so the maximum of $A_n$ is at least $n$.
+
+Now, let's think about the product $P_n = \prod_{i=n-2020}^{n-1} a_i$. The number of divisors of $P_n$ is at most... well, $P_n$ is a product of 2020 numbers, each at least 1. The number of divisors can be large.
+
+The key point: the number of positive integers $\le X$ that divide $P_n$ is at most... hmm, it's the number of divisors of $P_n$ that are $\le X$. 
+
+Actually, let me think about it differently. The number of unused positive integers $\le X$ is roughly $X - n$ (after $n$ steps, $n$ numbers have been used). The number of these that divide $P_n$ is at most the number of divisors of $P_n$ that are $\le X$.
+
+For $a_n$ to be large (say $> X$), we need all unused numbers $\le X$ to divide $P_n$. The number of unused numbers $\le X$ is $X - n + (\text{number of elements of } S \text{ that are } \le X)$... hmm, this isn't quite right either.
+
+Let me reconsider. After $n-1$ steps, the used numbers are $\{a_1, \ldots, a_{n-1}\}$, which has $n-1$ elements. The unused numbers $\le X$ are $\{1, \ldots, X\} \setminus \{a_1, \ldots, a_{n-1}\}$, which has $X - |\{a_1, \ldots, a_{n-1}\} \cap \{1, \ldots, X\}|$ elements.
+
+For $a_n > X$, we need: every unused number $\le X$ divides $P_n$. The number of unused numbers $\le X$ is $X - |\{a_1, \ldots, a_{n-1}\} \cap \{1, \ldots, X\}|$.
+
+If $X$ is large and $n$ is not too large, there are many unused numbers $\le X$, and they all need to divide $P_n$. But $P_n$ is a product of 2020 specific numbers, and the number of divisors of $P_n$ is limited.
+
+Hmm, but the number of divisors can be very large. Let me think about this more carefully.
+
+Actually, the number of divisors of $P_n$ that are $\le X$: if $P_n$ has prime factorization $\prod p_i^{e_i}$, the number of divisors is $\prod (e_i + 1)$. But the number of divisors $\le X$ could be much less.
+
+Let me think about a different approach.
+
+**Approach: Bounding the sequence growth**
+
+Claim: $a_n \le C \cdot n$ for some constant $C$ (depending on the initial conditions). If this is true, then the sequence doesn't grow too fast, and we can show that all large numbers must appear.
+
+Wait, actually, I think the right approach is to show that the sequence grows at most linearly, and then use this to show $S$ is finite.
+
+Let me think about why $a_n$ can't be too large. 
+
+At step $n$, $a_n$ is the smallest unused number not dividing $P_n$. If $a_n$ is very large, it means all unused numbers up to $a_n - 1$ divide $P_n$. 
+
+The number of unused numbers up to $a_n - 1$ is $(a_n - 1) - (n - 1) + |S \cap \{1, \ldots, a_n - 1\}|$... hmm wait.
+
+Actually, the number of unused numbers in $\{1, \ldots, a_n - 1\}$ is $(a_n - 1) - |\{a_1, \ldots, a_{n-1}\} \cap \{1, \ldots, a_n - 1\}|$. Since $a_n$ is the smallest unused not dividing $P_n$, all unused numbers in $\{1, \ldots, a_n - 1\}$ divide $P_n$.
+
+The number of such unused numbers is at least $(a_n - 1) - (n - 1) = a_n - n$ (since at most $n-1$ numbers are used, and they're all in $\{1, \ldots, \}$, but not necessarily all $\le a_n - 1$). Actually, the used numbers in $\{1, \ldots, a_n - 1\}$ is at most $n - 1$, so the unused numbers in $\{1, \ldots, a_n - 1\}$ is at least $(a_n - 1) - (n-1) = a_n - n$.
+
+So at least $a_n - n$ numbers in $\{1, \ldots, a_n - 1\}$ divide $P_n$.
+
+Now, $P_n = \prod_{i=n-2020}^{n-1} a_i$. The number of divisors of $P_n$ is $d(P_n)$. We need $d(P_n) \ge a_n - n$.
+
+But $d(P_n)$ can be bounded in terms of $P_n$. We have $d(P_n) \le P_n^{o(1)}$ (the number of divisors is subpolynomial). But $P_n$ itself could be huge.
+
+Hmm, this approach might not directly work because $P_n$ can be very large.
+
+Let me think about this differently.
+
+**Key Insight**: Let me think about what numbers must divide $P_n$.
+
+If $m \in S$ (never appears), then $m | P_n$ for all large $n$. The elements of $S$ are all "small" in some sense, because if $m$ is very large and in $S$, then $m | P_n$ for all large $n$, which is very restrictive.
+
+Let me try to bound the elements of $S$.
+
+Suppose $m \in S$. Then for all large $n$, $m | P_n$. In particular, for each prime $p | m$ with $e = v_p(m)$, the sum of $v_p(a_i)$ over any window of 2020 consecutive terms (for large $n$) is at least $e$.
+
+Now, consider the sequence of $v_p(a_i)$ for a fixed prime $p$. The terms $a_i$ that are not divisible by $p$ have $v_p = 0$. The terms divisible by $p$ have $v_p \ge 1$.
+
+For the sum over any window of 2020 to be $\ge e$, we need... well, if $e = 1$, we need at least one multiple of $p$ in every window of 2020. If $e = 2$, we need either one term with $v_p \ge 2$ or two terms with $v_p \ge 1$ in every window, etc.
+
+Now, the multiples of $p$ in the sequence are distinct numbers. The $k$-th multiple of $p$ that appears is at least $kp$ (since multiples of $p$ are $p, 2p, 3p, \ldots$ and they're distinct). 
+
+Hmm, but I need to relate this to the frequency of multiples of $p$ in the sequence.
+
+Let me think about the frequency. If every window of 2020 consecutive terms contains a multiple of $p$, then the "gap" between consecutive multiples of $p$ in the sequence is at most 2020. So the $j$-th multiple of $p$ appears at position $\le 2020j + C$ for some constant $C$.
+
+The $j$-th multiple of $p$ in the sequence is some number $\ge jp$ (since the multiples of $p$ are $p, 2p, 3p, \ldots$ and they're distinct, the $j$-th smallest is $\ge jp$). But it could also be much larger.
+
+Hmm, I think I need a different approach. Let me think about the problem more carefully.
+
+**New approach**: Let me think about the sequence and show that it eventually includes all numbers beyond a certain point.
+
+Let me consider the "complementary" set $S$ (numbers that never appear). I want to show $S$ is finite.
+
+Step 1: Show that $S$ has the property that if $m \in S$, then $m | P_n$ for all sufficiently large $n$.
+
+Step 2: Show that this property is very restrictive and limits $S$ to be finite.
+
+For Step 2, let me think about what happens. If $m \in S$, then $m | P_n$ for all $n \ge N$. Consider the sequence $a_n$ for $n \ge N$. These are all distinct and unbounded.
+
+Now, $m | a_{n-2020} \cdots a_{n-1}$ for all $n \ge N$. Let me consider two overlapping windows:
+- Window at $n$: $a_{n-2020}, \ldots, a_{n-1}$
+- Window at $n+1$: $a_{n-2019}, \ldots, a_n$
+
+Both products are divisible by $m$. The first window contains $a_{n-2020}$ but not $a_n$; the second contains $a_n$ but not $a_{n-2020}$.
+
+From $m | \prod_{i=n-2020}^{n-1} a_i$ and $m | \prod_{i=n-2019}^{n} a_i$:
+
+$\frac{\prod_{i=n-2019}^{n} a_i}{\prod_{i=n-2020}^{n-1} a_i} = \frac{a_n}{a_{n-2020}}$
+
+Both products are divisible by $m$, so $m | \text{lcm}(\prod_{i=n-2020}^{n-1} a_i, \prod_{i=n-2019}^{n} a_i)$. But this doesn't directly help.
+
+Let me think prime by prime. For prime $p$ with $e = v_p(m)$:
+- $v_p(\prod_{i=n-2020}^{n-1} a_i) \ge e$
+- $v_p(\prod_{i=n-2019}^{n} a_i) \ge e$
+
+The difference is $v_p(a_n) - v_p(a_{n-2020})$. So:
+$v_p(\prod_{i=n-2019}^{n} a_i) = v_p(\prod_{i=n-2020}^{n-1} a_i) - v_p(a_{n-2020}) + v_p(a_n) \ge e$
+
+Since $v_p(\prod_{i=n-2020}^{n-1} a_i) \ge e$, we get $v_p(a_n) - v_p(a_{n-2020}) \ge e - v_p(\prod_{i=n-2020}^{n-1} a_i)$. But this could be negative, so it's not very helpful.
+
+Let me try to think about this more cleverly.
+
+**Alternative approach**: Let me think about the sequence in terms of what it avoids.
+
+The sequence avoids numbers that divide the product of the last 2020 terms. So at each step, we're "skipping" numbers that divide the current product.
+
+The numbers that divide $P_n$ are the divisors of $P_n$. As the sequence evolves, $P_n$ changes.
+
+Let me think about the prime factorization approach. 
+
+For a prime $p$, let's track when $p$-multiples appear in the sequence. 
+
+Actually, let me try to think about the problem from the perspective of: what is the maximum element of $S$?
+
+Suppose $m \in S$ and $m$ is large. Then $m | P_n$ for all $n \ge N$. 
+
+Now, consider a prime $p > m$ (or $p$ not dividing $m$). Such a prime $p$ is not in the initial segment (if $m$ is large enough). Does $p$ appear in the sequence?
+
+If $p$ is unused and is the smallest unused not dividing $P_n$, then $p$ appears. For $p$ to not appear, we need $p | P_n$ whenever $p$ is the smallest unused candidate. $p | P_n$ means some term in the window is a multiple of $p$. Since $p$ is prime and large, the only multiples of $p$ that could be in the sequence are $p, 2p, 3p, \ldots$. If $p$ itself doesn't appear, the multiples are $2p, 3p, \ldots$, all $\ge 2p$.
+
+So for $p$ to not appear, we need a multiple of $p$ (that's $\ge 2p$) in every window of 2020 terms. But these multiples are large ($\ge 2p$), and they need to appear frequently (every 2020 terms). 
+
+Now, if $p$ is very large, say $p > \max(a_1, \ldots, a_{N+2020})$ for some large $N$, then the multiples of $p$ in the sequence are all $> p$, hence very large. But the sequence is growing, so eventually terms are $> p$, and then multiples of $p$ could appear.
+
+Hmm, I think the key is to show that the sequence grows at most linearly, and then large primes must appear.
+
+Let me try to establish a linear growth bound.
+
+**Claim**: There exists a constant $C$ such that $a_n \le Cn$ for all $n$.
+
+To prove this, I need to show that $a_n$ can't be too large. $a_n$ is the smallest unused number not dividing $P_n$. If $a_n$ is large, many unused numbers divide $P_n$.
+
+Let me think about how many numbers $\le X$ can divide $P_n = \prod_{i=n-2020}^{n-1} a_i$.
+
+A number $d \le X$ divides $P_n$ iff for each prime $p$, $v_p(d) \le v_p(P_n) = \sum_{i=n-2020}^{n-1} v_p(a_i)$.
+
+The number of such $d \le X$ is at most $\prod_{p | P_n} (v_p(P_n) + 1)$ (the total number of divisors), but we need those $\le X$.
+
+Hmm, this is hard to bound directly. Let me think differently.
+
+Actually, let me think about a specific prime. Consider the largest prime $p \le X$. By Bertrand's postulate, there's a prime between $X/2$ and $X$. So there's a prime $p$ with $X/2 < p \le X$.
+
+Now, $p | P_n$ iff some $a_i$ in the window is a multiple of $p$. Since $p > X/2$, the only multiples of $p$ that are $\le X$ are $p$ itself (since $2p > X$). So if $p$ is unused and $p \le X$, then $p | P_n$ iff $p$ divides some $a_i$ in the window, i.e., some $a_i$ is a multiple of $p$. If all $a_i$ in the window are $< p$, then none is a multiple of $p$ (since the only multiple of $p$ that's $< p$ is... none, since $p$ is prime and $p > 1$). Wait, multiples of $p$ less than $p$: only if $p | a_i$ and $a_i < p$, which is impossible for $a_i \ge 1$ since $p$ is prime and $a_i < p$ means $p \nmid a_i$. 
+
+So if all terms in the window are $< p$, then $p \nmid P_n$, so $p$ is a candidate. If $p$ is the smallest unused candidate, $a_n = p$.
+
+This is useful! If the window consists of numbers all less than some prime $p$, and $p$ is unused, then $p$ doesn't divide $P_n$, so $p$ is a candidate.
+
+Now, let me think about the growth. Suppose at step $n$, all of $a_{n-2020}, \ldots, a_{n-1}$ are $< p$ for some prime $p$. Then $p \nmid P_n$. If $p$ is unused, then $a_n \le p$ (since $p$ is a candidate, and $a_n$ is the smallest candidate).
+
+So: if the window has max $< p$ and $p$ is an unused prime, then $a_n \le p$.
+
+Now, let me think about the maximum of the window. Let $M_n = \max(a_{n-2020}, \ldots, a_{n-1})$. If $M_n < p$ for some unused prime $p$, then $a_n \le p$.
+
+By Bertrand's postulate, there's a prime $p$ with $M_n < p \le 2M_n$ (for $M_n \ge 2$). If this prime $p$ is unused, then $a_n \le p \le 2M_n$.
+
+But what if $p$ is already used? Then we need a larger prime. 
+
+Hmm, but there are many primes. The number of primes $\le 2M_n$ is $\sim 2M_n / \ln(2M_n)$, and the number of used numbers $\le 2M_n$ is at most $n$. If $n$ is much smaller than $2M_n / \ln(2M_n)$, there are unused primes $\le 2M_n$.
+
+But this requires $M_n$ to be large relative to $n$, which is what we're trying to prove...
+
+Let me think about this more carefully. Let me try to show that $a_n = O(n)$ by induction.
+
+Actually, let me think about a cleaner approach.
+
+**Approach: Show that the sequence grows at most linearly, then use this to show all large numbers appear.**
+
+Let me define $M = \max(a_1, \ldots, a_{2020})$ and think about what happens.
+
+After the initial 2020 terms, consider the numbers $1, 2, \ldots, M$. Some of them are used (the initial 2020 terms), and some are not. The unused ones in $\{1, \ldots, M\}$ either appear later or are in $S$.
+
+Now, consider numbers $> M$. These are all unused initially. 
+
+Let me think about the first time a number $> M$ appears. Before that, all terms after the initial 2020 are $\le M$. But there are only finitely many unused numbers $\le M$, so eventually we must pick a number $> M$ (or we run out of unused numbers $\le M$ that don't divide $P_n$).
+
+Wait, actually, it's possible that all remaining unused numbers $\le M$ always divide $P_n$, so we're forced to pick a number $> M$. 
+
+Hmm, but it's also possible that we keep picking unused numbers $\le M$ for a while.
+
+Let me think about the set $T = \{1, \ldots, M\} \setminus \{a_1, \ldots, a_{2020}\}$, the unused numbers $\le M$ after the initial segment. $|T| = M - 2020$ (assuming all initial terms are $\le M$, which they are by definition).
+
+Each element of $T$ either appears later or is in $S$. 
+
+Now, here's a key observation: $|T| = M - 2020$. The elements of $T$ that are in $S$ must divide $P_n$ for all large $n$. The elements of $T$ that appear, appear at some specific step.
+
+After all elements of $T$ have either appeared or been "settled" into $S$, the smallest unused number is $> M$ (or is an element of $S \cap T$). 
+
+Wait, elements of $S \cap T$ are always unused. So after all elements of $T \setminus S$ have appeared, the unused numbers $\le M$ are exactly $S \cap T$. 
+
+From this point on, the smallest unused number is the smallest element of $S \cap T$ (if $S \cap T$ is nonempty) or the smallest unused number $> M$ (if $S \cap T$ is empty).
+
+Hmm, this is getting complicated. Let me try to think about the problem more carefully.
+
+Let me try a cleaner approach. I'll try to prove:
+
+1. The sequence $\{a_n\}$ grows at most linearly: $a_n \le C \cdot n$ for some constant $C$.
+2. If the sequence grows at most linearly, then $S$ is finite.
+
+For part 2: If $a_n \le Cn$, then after $n$ steps, all used numbers are $\le Cn$. The number of used numbers is $n$. So the number of unused numbers $\le Cn$ is $Cn - n = (C-1)n$. These unused numbers are either in $S$ or will appear later. But the numbers that will appear later and are $\le Cn$: at most... hmm, this doesn't directly show $S$ is finite.
+
+Let me think about part 2 more carefully. If $a_n \le Cn$ for all $n$, then the $n$-th term is at most $Cn$. The set of numbers that appear is $\{a_1, a_2, \ldots\}$ with $a_n \le Cn$. 
+
+For a number $m$ to be in $S$, $m$ never appears, and $m | P_n$ for all large $n$. 
+
+Consider a large number $m$. If $m \in S$, then $m | P_n$ for all $n \ge N_m$. In particular, for each prime $p | m$, the $p$-adic valuation of $P_n$ is at least $v_p(m)$ for all $n \ge N_m$.
+
+Now, $P_n = \prod_{i=n-2020}^{n-1} a_i$. Since $a_i \le Ci$, we have $P_n \le \prod_{i=n-2020}^{n-1} Ci = (C)^{2020} \prod_{i=n-2020}^{n-1} i \le C^{2020} (Cn)^{2020} = C^{4040} n^{2020}$.
+
+So $P_n \le C^{4040} n^{2020}$, meaning $P_n = O(n^{2020})$.
+
+Now, if $m | P_n$ for all $n \ge N_m$, then $m \le P_n \le C^{4040} n^{2020}$ for all $n \ge N_m$. In particular, $m \le C^{4040} N_m^{2020}$. But this just says $m$ is finite, which we already knew.
+
+Hmm, I need a better argument. Let me think about the prime factorization.
+
+If $m \in S$ and $p$ is a prime dividing $m$ with $e = v_p(m)$, then $\sum_{i=n-2020}^{n-1} v_p(a_i) \ge e$ for all $n \ge N_m$.
+
+Now, $v_p(a_i) \le \log_p(a_i) \le \log_p(Ci)$. So $\sum_{i=n-2020}^{n-1} v_p(a_i) \le 2020 \log_p(Cn)$. This gives $e \le 2020 \log_p(Cn)$ for all $n \ge N_m$, which is satisfied for large $n$ as long as $e$ is fixed. So this doesn't give a contradiction.
+
+I think the linear growth bound alone isn't enough. I need a more refined argument.
+
+Let me reconsider the problem.
+
+**New idea**: Think about the sequence modulo a prime.
+
+Fix a prime $p$. Consider the subsequence of terms not divisible by $p$. If there's a window of 2020 consecutive terms none of which is divisible by $p$, then $p \nmid P_n$ for that $n$, and if $p$ is unused, $p$ is a candidate.
+
+So for $p$ to be in $S$ (never appear), every window of 2020 consecutive terms (for large $n$) must contain a multiple of $p$. This means the "gaps" between multiples of $p$ in the sequence are at most 2020.
+
+Now, the multiples of $p$ that appear in the sequence are distinct. The $k$-th multiple of $p$ to appear is at position $n_k$ with $n_{k+1} - n_k \le 2020$ (for large $k$). So $n_k \le 2020k + C$ for some constant $C$.
+
+The $k$-th multiple of $p$ to appear is some $a_{n_k}$, which is a multiple of $p$. The distinct multiples of $p$ are $p, 2p, 3p, \ldots$. But not all of them need to appear. The $k$-th one to appear is at least $kp$ (since the $k$-th smallest multiple of $p$ is $kp$, and the ones that appear are distinct multiples of $p$, so the $k$-th smallest is $\ge kp$). Wait, that's not right either—the $k$-th to appear might not be the $k$-th smallest. But the set of multiples of $p$ that appear is a set of distinct multiples of $p$, so the $k$-th smallest element of this set is $\ge kp$.
+
+Hmm, but I want to relate the position $n_k$ to the value $a_{n_k}$.
+
+Since $a_{n_k} \ge kp$ (as the $k$-th smallest multiple of $p$ in the sequence is $\ge kp$... actually, I need to be more careful. The multiples of $p$ that appear are some subset of $\{p, 2p, 3p, \ldots\}$. If $p \in S$, then $p$ doesn't appear, so the multiples are from $\{2p, 3p, 4p, \ldots\}$. The $k$-th smallest is $\ge (k+1)p$.
+
+And $n_k \le 2020k + C$ (for large $k$). So $a_{n_k} \ge (k+1)p$ while $n_k \le 2020k + C$.
+
+If the sequence grows linearly, $a_{n_k} \le C' n_k \le C'(2020k + C)$. So $(k+1)p \le C'(2020k + C)$, giving $p \le C' \cdot 2020$ (for large $k$). 
+
+So if $p \in S$ and the sequence grows linearly, then $p \le 2020 C'$, i.e., $p$ is bounded!
+
+This is the key insight! If $p$ is a prime in $S$, then $p$ is bounded by a constant depending on the growth rate. And if the growth rate is linear, then all primes in $S$ are bounded.
+
+Now, if all primes in $S$ are bounded, then $S$ is finite (since any $m \in S$ has all its prime factors in $S$ or in the used set, and... hmm, actually, $m \in S$ doesn't mean its prime factors are in $S$).
+
+Wait, let me reconsider. If $m \in S$ and $p | m$, does $p \in S$? Not necessarily. $p$ might appear in the sequence.
+
+But let me think about it. If $m \in S$ with $v_p(m) = e$, then $\sum_{i=n-2020}^{n-1} v_p(a_i) \ge e$ for all large $n$. This means there are enough multiples of $p$ (with high enough $p$-adic valuation) in every window.
+
+If $p$ appears in the sequence, that's fine. The constraint is on the $p$-adic valuations of the terms in the window.
+
+Hmm, let me think about this differently. 
+
+Let me focus on primes. If $p$ is a large prime (larger than some bound), I want to show $p$ appears in the sequence.
+
+If $p$ doesn't appear, then (as argued) every window of 2020 consecutive terms (for large $n$) contains a multiple of $p$. The multiples of $p$ that appear are $\ge 2p$ (since $p$ doesn't appear). 
+
+Now, I need to show this leads to a contradiction if $p$ is large enough and the sequence grows linearly.
+
+The multiples of $p$ in the sequence appear at least once every 2020 terms. So in the first $N$ terms (for large $N$), there are at least $N/2020$ multiples of $p$. Each is $\ge 2p$ and they're distinct, so the largest is $\ge 2p \cdot N/2020$. But the largest term in the first $N$ terms is $a_N \le CN$ (by linear growth). So $2p \cdot N/2020 \le CN$, giving $p \le 2020C/2 = 1010C$.
+
+So any prime $p > 1010C$ must appear in the sequence! (Assuming linear growth.)
+
+Now, for composite numbers: if $m$ is a large number with all prime factors $> 1010C$ (i.e., $m$ is a product of large primes), then all prime factors of $m$ appear in the sequence. But does $m$ itself appear?
+
+Hmm, not necessarily. Let me think about this.
+
+Actually, let me first establish the linear growth bound, and then think about composites.
+
+**Establishing linear growth:**
+
+I want to show $a_n \le Cn$ for some constant $C$.
+
+At step $n$, $a_n$ is the smallest unused number not dividing $P_n$. 
+
+Consider the primes in the interval $(a_{n-1}, 2a_{n-1}]$ (by Bertrand's postulate, there's at least one). Actually, let me think about the window.
+
+Let $M_n = \max(a_{n-2020}, \ldots, a_{n-1})$. There's a prime $p$ with $M_n < p \le 2M_n$ (by Bertrand, for $M_n \ge 2$). If $p$ is unused, then $p \nmid P_n$ (since all terms in the window are $< p$, so none is a multiple of $p$, so $p \nmid P_n$). So $p$ is a candidate, and $a_n \le p \le 2M_n$.
+
+If $p$ is already used, we need another prime. How many primes are in $(M_n, 2M_n]$? By the prime number theorem, roughly $M_n / \ln(M_n)$. How many of these are used? At most $n$ (since $n$ numbers have been used so far). So if $M_n / \ln(M_n) > n$, there's an unused prime in $(M_n, 2M_n]$, and $a_n \le 2M_n$.
+
+So the condition is $M_n / \ln(M_n) > n$, i.e., roughly $M_n > n \ln n$.
+
+But we want $a_n \le Cn$, which means $M_n \le Cn$ (roughly), and we need $Cn / \ln(Cn) > n$, i.e., $C / \ln(Cn) > 1$, i.e., $C > \ln(Cn)$. For large $n$, this fails. So this approach gives $a_n \le 2M_n$ when $M_n > n \ln n$, but doesn't give linear growth directly.
+
+Hmm, let me think about this differently. Maybe the growth isn't linear but something like $n \log n$ or $n \log \log n$.
+
+Actually, wait. Let me reconsider. The issue is that there might be many used primes in the interval $(M_n, 2M_n]$. But the used numbers are $a_1, \ldots, a_{n-1}$, and these are $n-1$ distinct numbers. The number of primes in $(M_n, 2M_n]$ is $\sim M_n / \ln M_n$. The number of used primes in this interval is at most $n$. So if $M_n / \ln M_n > n$, we're fine.
+
+But if $M_n \sim Cn$, then $M_n / \ln M_n \sim Cn / \ln(Cn)$, which is less than $n$ for large $n$ (since $C / \ln(Cn) \to 0$). So the condition $M_n / \ln M_n > n$ requires $M_n$ to grow faster than $n \ln n$.
+
+So maybe the growth is $O(n \log n)$ or similar. Let me check if that's sufficient.
+
+If $a_n = O(n \log n)$, then the same argument as before: if $p \in S$ (prime, never appears), then every window of 2020 has a multiple of $p$, all multiples $\ge 2p$, so in $N$ terms there are $\ge N/2020$ multiples of $p$, the largest $\ge 2p \cdot N/2020$, but the largest term is $O(N \log N)$. So $2pN/2020 \le O(N \log N)$, giving $p = O(\log N)$. But this should hold for all $N$, so... hmm, $p \le O(\log N)$ for all large $N$, which means $p$ is bounded (since the RHS grows, but we need it for all $N$, so $p \le \lim_{N \to \infty} O(\log N) = \infty$... that doesn't work).
+
+Wait, I think I made an error. Let me redo this. If $p \in S$, then in the first $N$ terms, there are at least $(N - C_0)/2020$ multiples of $p$ (for $N > C_0$), where $C_0$ is the point after which every window has a multiple of $p$. These multiples are distinct and $\ge 2p$. So the largest is $\ge 2p \cdot (N - C_0)/2020$. But the largest term in the first $N$ terms is $\max(a_1, \ldots, a_N) \le C N \log N$ (assuming $a_n \le Cn \log n$). So $2p(N - C_0)/2020 \le CN \log N$, giving $p \le 1010 C N \log N / (N - C_0) \le 1010 C \log N \cdot 2$ for large $N$. 
+
+But this gives $p = O(\log N)$, and since this holds for all $N$, we need $p \le \inf_N O(\log N) = O(\log C_0)$... no, that's not right either. The bound $p \le 2020 C \log N$ holds for all $N > C_0$, so $p \le 2020 C \log C_0$ (taking $N = C_0 + 1$) and also $p \le 2020 C \log N$ for larger $N$. The tightest bound is at $N = C_0 + 1$, giving $p = O(\log C_0)$. But $C_0$ depends on $p$ (it's the point after which every window has a multiple of $p$), so this is circular.
+
+Hmm, let me think about this more carefully. 
+
+Actually, the issue is that $C_0$ (the threshold after which every window of 2020 has a multiple of $p$) depends on $p$. For larger $p$, $C_0$ might be larger. So the bound becomes $p \le 2020 C \log C_0(p)$, which is a relationship between $p$ and $C_0(p)$, not a direct bound on $p$.
+
+Let me think about what $C_0(p)$ is. $C_0(p)$ is the point after which $p | P_n$ for all $n \ge C_0(p)$. Before $C_0(p)$, there might be windows without a multiple of $p$, and at those points, $p$ would be a candidate. But $p$ doesn't get chosen because there's a smaller candidate.
+
+Actually, $C_0(p)$ is the point after which $p$ is the smallest unused number (or there are smaller unused numbers, all in $S$, and $p$ is one of the candidates). Hmm, this is getting complicated.
+
+Let me try a different approach to bound the growth.
+
+**Approach: Direct bound on $a_n$**
+
+At step $n$, $a_n$ is the smallest unused positive integer not dividing $P_n$. 
+
+The key observation: the number 1 always divides $P_n$. So 1 is never a candidate (unless it's already used). If 1 is in the initial segment, it's used. If not, 1 is always unused and always divides $P_n$, so 1 $\in S$.
+
+More generally, small numbers tend to divide $P_n$ (since $P_n$ is a product of 2020 numbers, it has many divisors).
+
+Let me think about the number of unused numbers $\le X$ that divide $P_n$. 
+
+Actually, let me think about a specific kind of number: prime powers. A prime power $p^k$ divides $P_n$ iff $v_p(P_n) \ge k$, i.e., $\sum_{i=n-2020}^{n-1} v_p(a_i) \ge k$.
+
+For a prime $p$ that doesn't divide any of the last 2020 terms, $v_p(P_n) = 0$, so $p \nmid P_n$ (and $p^k \nmid P_n$ for all $k \ge 1$). So $p$ is a candidate.
+
+Now, the primes that don't divide any of the last 2020 terms: these are primes $p$ such that $p \nmid a_i$ for all $i \in \{n-2020, \ldots, n-1\}$. 
+
+The number of primes that divide at least one of $a_{n-2020}, \ldots, a_{n-1}$ is at most $\sum_{i=n-2020}^{n-1} \omega(a_i)$, where $\omega(a_i)$ is the number of prime factors of $a_i$. This is at most $2020 \cdot \max_i \omega(a_i) \le 2020 \cdot \log_2(a_i) \le 2020 \log_2(M_n)$.
+
+So the number of primes that divide $P_n$ is at most $2020 \log_2(M_n)$. All other primes don't divide $P_n$ and are candidates (if unused).
+
+The number of primes $\le X$ is $\sim X / \ln X$. The number of primes $\le X$ that divide $P_n$ is at most $2020 \log_2(M_n)$. So the number of primes $\le X$ that don't divide $P_n$ is at least $X/\ln X - 2020 \log_2(M_n)$.
+
+If $X/\ln X > 2020 \log_2(M_n)$, there's a prime $\le X$ not dividing $P_n$. If this prime is unused, it's a candidate, so $a_n \le X$.
+
+The number of used primes $\le X$ is at most $n$. So the number of unused primes $\le X$ not dividing $P_n$ is at least $X/\ln X - 2020 \log_2(M_n) - n$.
+
+For this to be positive: $X/\ln X > n + 2020 \log_2(M_n)$.
+
+If $M_n \le X$ (which we can ensure by taking $X = M_n$ or larger), then $2020 \log_2(M_n) \le 2020 \log_2(X)$. So we need $X/\ln X > n + 2020 \log_2 X$.
+
+For $X = Cn \ln n$, $X / \ln X \sim Cn \ln n / \ln(Cn \ln n) \sim Cn \ln n / \ln n = Cn$. And $n + 2020 \log_2 X \sim n + 2020 \log_2(Cn \ln n) \sim n + O(\log n) \sim n$. So we need $Cn > n$, i.e., $C > 1$. So for $C > 1$ and large $n$, $X = Cn \ln n$ works, giving $a_n \le Cn \ln n$.
+
+Wait, but I also need $M_n \le X$. $M_n = \max(a_{n-2020}, \ldots, a_{n-1})$. If $a_k \le Ck \ln k$ for all $k < n$, then $M_n \le C(n-1) \ln(n-1) < Cn \ln n = X$. So by induction, $a_n \le Cn \ln n$.
+
+But wait, I need to be more careful. Let me redo this.
+
+**Induction**: Assume $a_k \le Ck \ln k$ for all $k < n$ (and $k \ge 3$, say). Then $M_n = \max(a_{n-2020}, \ldots, a_{n-1}) \le C(n-1) \ln(n-1)$.
+
+Set $X = Cn \ln n$. The number of primes $\le X$ is $\pi(X) \ge X / (2 \ln X)$ for large $X$ (by Chebyshev). The number of primes dividing $P_n$ is at most $\sum_{i=n-2020}^{n-1} \omega(a_i) \le 2020 \max \omega(a_i) \le 2020 \log_2(M_n) \le 2020 \log_2(Cn \ln n) \le 2020 \cdot 2 \ln(Cn \ln n) / \ln 2 \le 6000 \ln(Cn \ln n)$.
+
+The number of used numbers is $n-1$. So the number of unused primes $\le X$ not dividing $P_n$ is at least:
+$$\pi(X) - (\text{primes dividing } P_n) - (\text{used primes} \le X \text{ not already counted})$$
+
+Hmm, actually, primes dividing $P_n$ and used primes are not necessarily disjoint. Let me be more careful.
+
+The number of primes $\le X$ that are either used or divide $P_n$ is at most (number of used numbers $\le X$) + (number of primes dividing $P_n$ that are not used). But this overcounts. Let me just use:
+
+Number of primes $\le X$ that are unused AND don't divide $P_n$ $\ge$ $\pi(X)$ - (number of used primes $\le X$) - (number of primes dividing $P_n$).
+
+Number of used primes $\le X$ $\le$ $n - 1$ (total used numbers).
+Number of primes dividing $P_n$ $\le 2020 \log_2(M_n) \le 2020 \log_2(Cn \ln n)$.
+
+So unused primes $\le X$ not dividing $P_n$ $\ge \pi(X) - (n-1) - 2020 \log_2(Cn \ln n)$.
+
+With $X = Cn \ln n$:
+$\pi(X) \ge \frac{Cn \ln n}{2 \ln(Cn \ln n)} \ge \frac{Cn \ln n}{2 \cdot 2 \ln n} = \frac{Cn}{4}$ (for large $n$, since $\ln(Cn \ln n) \le 2 \ln n$).
+
+And $2020 \log_2(Cn \ln n) \le 2020 \cdot \frac{2 \ln n}{\ln 2} \le 6000 \ln n$.
+
+So unused primes $\le X$ not dividing $P_n$ $\ge \frac{Cn}{4} - n - 6000 \ln n$.
+
+For this to be positive, we need $\frac{Cn}{4} > n + 6000 \ln n$, i.e., $C > 4 + \frac{24000 \ln n}{n}$. For large $n$, this is satisfied if $C > 4$.
+
+So for $C > 4$ and large $n$, there exists an unused prime $p \le Cn \ln n$ not dividing $P_n$. This prime is a candidate, so $a_n \le p \le Cn \ln n$.
+
+Wait, but I need to handle the base case too. For small $n$, I can adjust $C$ to be large enough. So:
+
+**Lemma 1**: $a_n \le C n \ln n$ for some constant $C$ and all $n \ge 2$.
+
+Now, with this growth bound, let me show $S$ is finite.
+
+If $p$ is a prime in $S$, then every window of 2020 consecutive terms (for $n \ge N_p$) contains a multiple of $p$. The multiples of $p$ in the sequence are distinct and $\ge 2p$ (since $p \notin A$). In the first $N$ terms (for $N > N_p$), there are at least $(N - N_p)/2020$ multiples of $p$. The largest is $\ge 2p \cdot (N - N_p)/2020$ (since they're distinct multiples of $p$, all $\ge 2p$, so the $k$-th smallest is $\ge 2pk$, and the largest of $k$ such multiples is $\ge 2pk$). But the largest term in the first $N$ terms is $\le CN \ln N$. So:
+
+$$2p \cdot \frac{N - N_p}{2020} \le CN \ln N$$
+
+$$p \le \frac{1010 CN \ln N}{N - N_p}$$
+
+For $N \to \infty$, $p \le 1010 C \ln N \cdot \frac{N}{N - N_p} \to 1010 C \ln N$. But this grows with $N$, so it doesn't give a fixed bound on $p$.
+
+Hmm, the issue is that $N_p$ depends on $p$, and as $p$ grows, $N_p$ might grow too.
+
+Let me think about what $N_p$ is. $N_p$ is the point after which $p | P_n$ for all $n \ge N_p$. Before $N_p$, there exists some $n < N_p$ with $p \nmid P_n$. At such $n$, $p$ is a candidate (if unused). But $p$ is not chosen because there's a smaller candidate.
+
+Actually, $N_p$ is the point after which $p$ is "stable" in $S$, meaning $p | P_n$ for all $n \ge N_p$. Before $N_p$, it's possible that $p \nmid P_n$ for some $n$, but $p$ is not the smallest unused candidate.
+
+Now, the key question: how large can $N_p$ be?
+
+Before $N_p$, there are windows without a multiple of $p$. At those steps, $p$ is a candidate but not chosen. The chosen $a_n$ is some number $< p$ (since $p$ is a candidate but not chosen, the chosen one is smaller). But there are only $p - 1$ numbers smaller than $p$, and some are already used. So the number of steps before $N_p$ where $p$ is a candidate but not chosen is at most $p - 1$ (since each such step uses a new number $< p$). 
+
+Wait, that's not quite right. At each step before $N_p$ where $p \nmid P_n$, $p$ is a candidate, and $a_n < p$ (since $a_n$ is the smallest candidate and $p$ is a candidate but not the smallest, or $p$ is the smallest and gets chosen—but $p \in S$ so it doesn't get chosen). So $a_n < p$. And $a_n$ is a new number (not used before). So the number of such steps is at most $p - 1$ (since there are only $p - 1$ positive integers $< p$).
+
+But also, between these steps, there are steps where $p | P_n$ (and $p$ is not a candidate). The total number of steps before $N_p$ is at most... hmm, it's not just the steps where $p$ is a candidate. There are also steps where $p | P_n$.
+
+Let me reconsider. $N_p$ is the first index such that for all $n \ge N_p$, $p | P_n$. For $n < N_p$, there exists at least one $n$ with $p \nmid P_n$ (in the range $[2021, N_p - 1]$). But actually, $N_p$ is just the threshold; before $N_p$, it's possible that $p | P_n$ for some $n$ and $p \nmid P_n$ for others.
+
+The point is: for $n \ge N_p$, $p | P_n$ always. For $n < N_p$, $p \nmid P_n$ for at least one $n$ (otherwise $N_p$ would be smaller).
+
+Now, the number of $n$ in $[2021, N_p - 1]$ with $p \nmid P_n$ and $p$ unused: at each such $n$, $a_n < p$ (since $p$ is a candidate but not chosen). So there are at most $p - 1$ such $n$ (since each uses a distinct number $< p$). 
+
+But there could also be $n$ in $[2021, N_p - 1]$ with $p | P_n$. At those $n$, $p$ is not a candidate, and $a_n$ could be anything.
+
+So $N_p - 2021 \le$ (number of $n$ with $p \nmid P_n$) + (number of $n$ with $p | P_n$). The first is $\le p - 1$. The second could be large.
+
+Hmm, so $N_p$ could be much larger than $p$. The steps where $p | P_n$ don't constrain $N_p$ directly.
+
+But wait, the steps where $p | P_n$ in the range $[2021, N_p - 1]$: at these steps, $p$ divides the product of the last 2020 terms, meaning some term in the window is a multiple of $p$. These multiples of $p$ are distinct and $\ge 2p$ (since $p \notin A$). 
+
+Hmm, but this doesn't directly bound $N_p$.
+
+Let me try a different approach. Instead of trying to bound $N_p$, let me use a different argument.
+
+**Approach: Counting argument**
+
+Suppose $S$ is infinite. Then $S$ contains infinitely many numbers. 
+
+For each $m \in S$, $m | P_n$ for all $n \ge N_m$. 
+
+Now, consider the product $\prod_{m \in S, m \le X} m$. This product divides $P_n$ for all $n \ge \max_{m \in S, m \le X} N_m$. So $\prod_{m \in S, m \le X} m | P_n$ for large $n$.
+
+But $P_n \le (Cn \ln n)^{2020}$ (since each of the 2020 terms is $\le Cn \ln n$). And $\prod_{m \in S, m \le X} m$ grows with $X$. If $S$ is infinite, this product grows without bound. But $P_n$ is fixed for each $n$. So for large enough $X$, $\prod_{m \in S, m \le X} m > P_n$, contradiction.
+
+Wait, but $N_m$ depends on $m$, so the threshold $N = \max_{m \in S, m \le X} N_m$ also grows with $X$. So we need $\prod_{m \in S, m \le X} m | P_N$ where $N = \max_{m \in S, m \le X} N_m$. And $P_N \le (CN \ln N)^{2020}$. So we need $\prod_{m \in S, m \le X} m \le (CN \ln N)^{2020}$.
+
+If $N$ grows much faster than $X$, this might be satisfiable. So this approach doesn't immediately work without bounding $N_m$ in terms of $m$.
+
+OK let me try yet another approach. Let me think about the problem more carefully.
+
+**Key Idea**: Consider the lcm of all elements of $S$. If $S$ is infinite, the lcm is infinite (or rather, unbounded). But $P_n$ is divisible by all elements of $S$ (for large $n$), so $P_n$ is divisible by the lcm of all elements of $S$ up to some point. 
+
+Actually, the issue is that different elements of $S$ have different thresholds $N_m$. Let me think about elements of $S$ that share the same threshold.
+
+Hmm, let me try to think about the problem from a completely different angle.
+
+**Approach: Analyzing the sequence directly**
+
+Let me think about what the sequence looks like. At each step, we pick the smallest unused number not dividing the product of the last 2020 terms.
+
+Consider the "state" of the sequence: the last 2020 terms and the set of unused numbers. 
+
+The key observation is that the sequence is deterministic given the initial 2020 terms.
+
+Let me think about the sequence in terms of "epochs." 
+
+Epoch 1: The initial 2020 terms $a_1, \ldots, a_{2020}$.
+Epoch 2: From $a_{2021}$ onwards.
+
+In epoch 2, the sequence evolves based on the rule. 
+
+Let me think about what numbers are "forced" to appear. 
+
+Consider a prime $p$ that is not among $a_1, \ldots, a_{2020}$ and is larger than all of them. At some point, the window will consist entirely of numbers $< p$ (if the sequence hasn't grown past $p$ yet). At that point, $p \nmid P_n$, so $p$ is a candidate. If $p$ is the smallest unused candidate, $p$ is chosen.
+
+But the sequence might grow past $p$ before $p$ is chosen. If the sequence grows to numbers $> p$, then the window might contain numbers $> p$ that are multiples of $p$, making $p | P_n$.
+
+Hmm, but multiples of $p$ that are $> p$ are $2p, 3p, \ldots$. If the sequence reaches $2p$, it might use $2p$ (or a multiple of $p$), which would make $p | P_n$ for windows containing that term.
+
+So the question is: does $p$ get chosen before the sequence "passes" $p$?
+
+Let me think about this. The sequence grows, and at some point, the smallest unused number is $p$ (or something close). If at that point $p \nmid P_n$, then $p$ is chosen. If $p | P_n$, then $p$ is not chosen, and the sequence picks a larger number.
+
+For $p | P_n$, some term in the window must be a multiple of $p$. If all terms in the window are $< p$, no term is a multiple of $p$ (since the only positive multiple of $p$ less than $p$ is... none, since $p$ is prime). Wait, actually, $p$ is prime, so the multiples of $p$ are $p, 2p, 3p, \ldots$. If all terms are $< p$, none is a multiple of $p$, so $p \nmid P_n$.
+
+So: if the window consists of numbers all $< p$, and $p$ is the smallest unused number, then $p$ is chosen.
+
+Now, when is $p$ the smallest unused number? After all numbers $< p$ have been used or are in $S$. 
+
+The numbers $< p$ that are in $S$: these are numbers that never appear. Let $s(p) = |S \cap \{1, \ldots, p-1\}|$. The numbers $< p$ that are used: $|\{a_1, a_2, \ldots\} \cap \{1, \ldots, p-1\}| = (p - 1) - s(p)$.
+
+After $(p - 1) - s(p)$ numbers $< p$ have been used, the remaining unused numbers $< p$ are exactly $S \cap \{1, \ldots, p-1\}$, and the smallest unused number is $\min(S \cap \{1, \ldots, p-1\} \cup \{p, p+1, \ldots\})$. If $S \cap \{1, \ldots, p-1\}$ is nonempty, the smallest unused is in $S$ and is $< p$. If $S \cap \{1, \ldots, p-1\}$ is empty, the smallest unused is $p$ (or something $\ge p$).
+
+Case 1: $S \cap \{1, \ldots, p-1\}$ is empty. Then after all numbers $< p$ are used, the smallest unused is $p$. At this point, if the window has all terms $< p$, then $p \nmid P_n$ and $p$ is chosen. But the window might contain terms $\ge p$ (if the sequence has already grown past $p$). 
+
+Hmm, but if all numbers $< p$ are used, the sequence has used $p - 1$ numbers, all $< p$. The window of the last 2020 terms: these are the most recently used numbers, which are all $< p$ (since only numbers $< p$ have been used so far, plus possibly some $\ge p$). Wait, no: the sequence might have used some numbers $\ge p$ before all numbers $< p$ are used.
+
+Actually, the sequence doesn't use numbers in order. It uses the smallest unused not dividing $P_n$. So it might use a number $\ge p$ before using all numbers $< p$.
+
+Let me reconsider. The sequence uses numbers in some order. At each step, it picks the smallest unused not dividing $P_n$. This might be a number $< p$ or $\ge p$.
+
+If at some step, all unused numbers $< p$ divide $P_n$, then the smallest candidate is $\ge p$, and the sequence picks a number $\ge p$. This could happen before all numbers $< p$ are used.
+
+So the sequence might "jump" to numbers $\ge p$ before using all numbers $< p$. In that case, when it later comes back to try to use $p$, the window might contain numbers $\ge p$ (possibly multiples of $p$), and $p | P_n$.
+
+This is the crux of the difficulty. The sequence can "skip" $p$ by jumping to larger numbers, and then $p$ might never come back.
+
+But wait, the sequence is unbounded, so it keeps growing. Once it's past $p$, does it ever come back to $p$? 
+
+The sequence picks the smallest unused not dividing $P_n$. If $p$ is unused and $p \nmid P_n$, then $a_n \le p$. So $p$ would be chosen (or something smaller). The sequence "comes back" to small numbers when they don't divide $P_n$.
+
+So the question is: can $p | P_n$ for all large $n$? This requires a multiple of $p$ in every window of 2020 terms, for all large $n$. 
+
+If the sequence is growing and terms are getting larger, the multiples of $p$ in the sequence are $2p, 3p, 4p, \ldots$ (since $p$ is unused). These need to appear frequently (every 2020 terms). 
+
+Now, here's the key: the multiples of $p$ that appear are distinct. In the first $N$ terms, there are at least $(N - N_p)/2020$ multiples of $p$ (for $N > N_p$). These are distinct multiples of $p$, all $\ge 2p$. The $k$-th smallest is $\ge 2pk$... no wait, the $k$-th smallest multiple of $p$ that appears is the $k$-th element of some subset of $\{2p, 3p, 4p, \ldots\}$, so it's $\ge (k+1)p$.
+
+Hmm wait, I realize the issue with my earlier approach. Let me try to bound $N_p$ more carefully.
+
+$N_p$ is the threshold after which $p | P_n$ for all $n$. Before $N_p$, there are steps where $p \nmid P_n$. At those steps, $p$ is a candidate (if unused, which it is since $p \in S$). The chosen $a_n$ at those steps is $\le p$ (since $p$ is a candidate, the smallest candidate is $\le p$). If $a_n < p$, it's a new number $< p$. If $a_n = p$, then $p$ appears, contradicting $p \in S$. So $a_n < p$ at all steps where $p \nmid P_n$ and $p$ is unused.
+
+The number of such steps is at most $p - 1$ (since each uses a distinct number $< p$, and there are $p - 1$ positive integers $< p$). But actually, some numbers $< p$ might already be used (in the initial segment or earlier). So the number of such steps is at most $p - 1 - |\{a_1, \ldots, a_{2020}\} \cap \{1, \ldots, p-1\}|$... no, it's at most $p - 1$ minus the number of numbers $< p$ already used before the first such step. 
+
+Actually, let me just say: the number of steps $n \in [2021, N_p - 1]$ with $p \nmid P_n$ is at most $p - 1$ (since each such step uses a new number $< p$). Let's call this number $\alpha \le p - 1$.
+
+But the total number of steps before $N_p$ is $N_p - 2021$. This includes both steps where $p | P_n$ and steps where $p \nmid P_n$. So $N_p - 2021 = \alpha + \beta$ where $\alpha \le p - 1$ is the number of steps with $p \nmid P_n$ and $\beta$ is the number of steps with $p | P_n$.
+
+At steps with $p | P_n$ (in the range $[2021, N_p - 1]$), some term in the window is a multiple of $p$. These multiples are distinct and $\ge 2p$. The number of such multiples used in this range is at most $\beta$ (well, it's complicated because a single multiple of $p$ can serve multiple windows).
+
+Hmm, this is getting complicated. Let me try a cleaner approach.
+
+**Cleaner approach:**
+
+Let me define things more carefully. Let $A = \{a_1, a_2, \ldots\}$ be the set of numbers that appear, and $S = \mathbb{Z}^+ \setminus A$.
+
+**Step 1**: Show $a_n \le Cn \log n$ for some constant $C$.
+
+**Step 2**: Show that if $p$ is a prime with $p > p_0$ (for some constant $p_0$), then $p \in A$.
+
+**Step 3**: Show that if all sufficiently large primes are in $A$, then $S$ is finite.
+
+For Step 1, I gave the argument above using Bertrand's postulate and the prime counting function. Let me make it more rigorous.
+
+*Step 1 details*: 
+
+We prove by induction that $a_n \le Cn \log n$ for all $n \ge 3$, for some sufficiently large $C$.
+
+Base case: For $n = 3, \ldots, 2020$, $a_n$ are given (distinct positive integers). Choose $C$ large enough so that $a_n \le Cn \log n$ for $n = 3, \ldots, 2020$.
+
+Inductive step: Assume $a_k \le Ck \log k$ for all $3 \le k < n$. Then $M_n = \max(a_{n-2020}, \ldots, a_{n-1}) \le C(n-1) \log(n-1)$.
+
+Set $X = Cn \log n$. We want to find an unused number $\le X$ not dividing $P_n$.
+
+The number of primes $\le X$ is $\pi(X)$. By the prime number theorem (or Chebyshev's estimate), $\pi(X) \ge \frac{X}{2 \log X}$ for $X \ge 17$ (say).
+
+The number of primes dividing $P_n$: each $a_i$ has at most $\log_2(a_i) \le \log_2(Cn \log n)$ prime factors. So the number of primes dividing $P_n$ is at most $2020 \log_2(Cn \log n) \le \frac{2020 \cdot 2 \log(Cn \log n)}{\log 2} \le 6000 \log(Cn \log n)$.
+
+The number of used numbers is $n - 1$.
+
+So the number of unused primes $\le X$ not dividing $P_n$ is at least:
+$$\pi(X) - (n-1) - 6000 \log(Cn \log n) \ge \frac{Cn \log n}{2 \log(Cn \log n)} - n - 6000 \log(Cn \log n)$$
+
+For large $n$, $\log(Cn \log n) \le 2 \log n$ (for $C$ fixed and $n$ large). So:
+$$\ge \frac{Cn \log n}{4 \log n} - n - 12000 \log n = \frac{Cn}{4} - n - 12000 \log n = n\left(\frac{C}{4} - 1\right) - 12000 \log n$$
+
+For $C > 4$ and $n$ large enough, this is positive. So there exists an unused prime $p \le X$ not dividing $P_n$, and $a_n \le p \le X = Cn \log n$.
+
+For small $n$ (where the estimate doesn't hold), we can increase $C$ to handle the finitely many cases. So Step 1 is proved.
+
+*Step 2 details*:
+
+Suppose $p$ is a prime and $p \in S$. Then $p | P_n$ for all $n \ge N_p$.
+
+For $n \ge N_p$, every window of 2020 consecutive terms contains a multiple of $p$. Since $p \in S$, the multiples of $p$ in $A$ are from $\{2p, 3p, 4p, \ldots\}$.
+
+Let $f(N) = |\{i \le N : p | a_i\}|$ be the number of multiples of $p$ among the first $N$ terms. For $N \ge N_p + 2020$, every window of 2020 starting from index $N_p$ contains a multiple of $p$. So $f(N) \ge (N - N_p)/2020$ for $N \ge N_p$.
+
+The multiples of $p$ in $A$ are distinct elements of $\{2p, 3p, 4p, \ldots\}$. So the $k$-th smallest is $\ge (k+1)p$. Thus, the largest multiple of $p$ among the first $N$ terms is $\ge (f(N) + 1)p \ge \left(\frac{N - N_p}{2020} + 1\right) p$.
+
+But the largest term among the first $N$ terms is $\le CN \log N$ (by Step 1). So:
+$$\left(\frac{N - N_p}{2020} + 1\right) p \le CN \log N$$
+
+Now, I need to bound $N_p$. As argued, the number of steps $n \in [2021, N_p]$ with $p \nmid P_n$ is at most $p - 1$ (each uses a new number $< p$). Let $\alpha$ be this count, $\alpha \le p - 1$.
+
+For the remaining steps $n \in [2021, N_p]$ with $p | P_n$: at each such step, the window contains a multiple of $p$. But a single multiple of $p$ in the sequence can "cover" up to 2020 consecutive windows. So the number of distinct multiples of $p$ used in the range $[1, N_p]$ is at least $\beta / 2020$ where $\beta = N_p - 2021 - \alpha$ is the number of steps with $p | P_n$.
+
+Hmm wait, this isn't quite right. Let me think again.
+
+Actually, for $n \in [2021, N_p - 1]$ with $p | P_n$: the window $[n-2020, n-1]$ contains a multiple of $p$. But these windows overlap, and a single multiple of $p$ at position $j$ covers windows $n \in [j+1, j+2020]$. So the number of distinct multiples of $p$ needed to cover all such $n$ is at least $\beta / 2020$.
+
+These multiples of $p$ are distinct elements of $\{2p, 3p, \ldots\}$, so the largest is $\ge 2p \cdot \beta / 2020$... no, the $k$-th smallest is $\ge (k+1)p$, so the largest of $\lceil \beta / 2020 \rceil$ such multiples is $\ge (\lceil \beta/2020 \rceil + 1) p$.
+
+And this largest multiple is at position $\le N_p - 1$, so its value is $\le C N_p \log N_p$ (by Step 1). So:
+$$(\beta / 2020 + 1) p \le C N_p \log N_p$$
+
+where $\beta = N_p - 2021 - \alpha$ and $\alpha \le p - 1$.
+
+So $\beta \ge N_p - 2021 - (p-1) = N_p - p - 2020$.
+
+$$(N_p - p - 2020) / 2020 \cdot p \le C N_p \log N_p$$
+
+$$(N_p - p - 2020) \cdot p \le 2020 C N_p \log N_p$$
+
+If $N_p \gg p$, then $N_p \cdot p \lesssim 2020 C N_p \log N_p$, giving $p \lesssim 2020 C \log N_p$.
+
+And from the earlier inequality (for $N$ large):
+$$\frac{N \cdot p}{2020} \le C N \log N$$
+$$p \le 2020 C \log N$$
+
+This holds for all $N \ge N_p + 2020$. Taking $N = N_p + 2020$:
+$$p \le 2020 C \log(N_p + 2020) \le 2020 C \log(2 N_p) \le 2020 C \cdot 2 \log N_p = 4040 C \log N_p$$
+
+(assuming $N_p \ge 2020$).
+
+And from the other inequality:
+$$p \le 2020 C \log N_p \cdot \frac{N_p}{N_p - p - 2020}$$
+
+If $N_p > 2p + 4040$, then $\frac{N_p}{N_p - p - 2020} \le 2$, so $p \le 4040 C \log N_p$.
+
+If $N_p \le 2p + 4040$, then from $p \le 4040 C \log N_p \le 4040 C \log(2p + 4040) \le 4040 C \cdot 2 \log(2p + 4040)$. Hmm, this gives $p \le 8080 C \log(2p + 4040)$. For large $p$, $\log(2p + 4040) \le 2 \log p$, so $p \le 16160 C \log p$. But $p / \log p \to \infty$, so this is only satisfiable for $p \le$ some constant. 
+
+So: if $N_p \le 2p + 4040$, then $p$ is bounded by a constant.
+If $N_p > 2p + 4040$, then $p \le 4040 C \log N_p$, and also $p \le 4040 C \log N_p$ (from the other bound). But $N_p$ could be very large, so this doesn't bound $p$.
+
+Hmm, wait. Let me combine the two inequalities. From the first (taking $N = N_p + 2020$):
+$$p \le 2020 C \log(N_p + 2020) \le 4040 C \log N_p \quad \text{(for } N_p \ge 2020\text{)}$$
+
+From the second (if $N_p > 2p + 4040$):
+$$p \le 4040 C \log N_p$$
+
+So in both cases, $p \le 4040 C \log N_p$, i.e., $N_p \ge 2^{p/(4040C)}$.
+
+But also, from the first inequality with general $N$:
+$$p \le 2020 C \log N \quad \text{for all } N \ge N_p + 2020$$
+
+The tightest is at $N = N_p + 2020$: $p \le 4040 C \log N_p$.
+
+And $N_p \ge 2^{p/(4040C)}$ (from $p \le 4040 C \log N_p$).
+
+Now, let me use the second inequality more carefully. We have:
+$$(N_p - p - 2020) \cdot p \le 2020 C N_p \log N_p$$
+
+With $N_p \ge 2^{p/(4040C)}$, the RHS is $2020 C \cdot 2^{p/(4040C)} \cdot \frac{p}{4040C} = \frac{2020}{4040} p \cdot 2^{p/(4040C)} = \frac{p}{2} \cdot 2^{p/(4040C)}$.
+
+And the LHS is $(N_p - p - 2020) \cdot p \ge (2^{p/(4040C)} - p - 2020) \cdot p$.
+
+For large $p$, $2^{p/(4040C)} \gg p + 2020$, so LHS $\ge \frac{p}{2} \cdot 2^{p/(4040C)}$ (roughly). And RHS $= \frac{p}{2} \cdot 2^{p/(4040C)}$. So LHS $\approx$ RHS, which is consistent. Hmm, so this doesn't give a contradiction.
+
+Let me try to be more precise. We have:
+$$(N_p - p - 2020) \cdot p \le 2020 C N_p \log N_p$$
+
+Dividing by $N_p$:
+$$\left(1 - \frac{p + 2020}{N_p}\right) p \le 2020 C \log N_p$$
+
+If $N_p$ is very large compared to $p$, then $1 - (p+2020)/N_p \approx 1$, and $p \le 2020 C \log N_p$, which is consistent with $N_p \ge 2^{p/(2020C)}$.
+
+So the two inequalities are consistent, and we can't derive a contradiction this way. The issue is that $N_p$ can be exponentially large in $p$, which allows $p$ to be in $S$.
+
+Hmm, so maybe the growth bound $O(n \log n)$ is not strong enough. Let me think about whether a stronger growth bound can be established.
+
+Actually, wait. Let me reconsider. The issue is that I'm not using the full strength of the condition. The condition is not just that $p | P_n$ for all $n \ge N_p$, but that ALL elements of $S$ divide $P_n$ for all large $n$. If $S$ is infinite, then $P_n$ is divisible by infinitely many numbers, which is impossible since $P_n$ is finite.
+
+But the thresholds $N_m$ for different $m \in S$ are different. So for a given $n$, $P_n$ is divisible by $\{m \in S : N_m \le n\}$. As $n$ grows, more elements of $S$ are "activated."
+
+Let me think about this. For a given $n$, let $S_n = \{m \in S : N_m \le n\}$. Then $\text{lcm}(S_n) | P_n$. 
+
+$P_n \le (Cn \log n)^{2020}$. So $\text{lcm}(S_n) \le (Cn \log n)^{2020}$.
+
+Now, if $S$ is infinite, $S_n$ grows with $n$, and $\text{lcm}(S_n) \to \infty$. The question is whether $\text{lcm}(S_n)$ can grow slowly enough to be $\le (Cn \log n)^{2020}$.
+
+If $S$ contains all powers of 2 (i.e., $2, 4, 8, 16, \ldots \in S$), then $\text{lcm}(S_n) \ge 2^k$ where $2^k$ is the largest power of 2 in $S_n$. If $N_{2^k} \le n$, then $2^k \in S_n$. We showed $N_p \ge 2^{p/(4040C)}$ for primes, and similarly $N_{2^k} \ge 2^{2^k/(4040C)}$ (roughly). So for $n = 2^{2^k/(4040C)}$, $2^k \in S_n$, and $\text{lcm}(S_n) \ge 2^k$. We need $2^k \le (Cn \log n)^{2020} = (C \cdot 2^{2^k/(4040C)} \cdot 2^k/(4040C))^{2020}$. This is $2^{2020 \cdot 2^k/(4040C) + O(k)} = 2^{2^k/(2C) + O(k)}$. And we need this $\ge 2^k$, i.e., $2^k/(2C) + O(k) \ge k$, i.e., $2^k/(2C) \ge k - O(k)$, which is true for large $k$. So this is consistent.
+
+Hmm, so even with infinitely many elements in $S$, the lcm constraint might be satisfiable. Let me think about whether there's a tighter constraint.
+
+Actually, I think the key issue is that I need a better growth bound. Let me try to show that $a_n = O(n)$, i.e., linear growth.
+
+The issue with the $O(n \log n)$ bound was that the number of primes up to $X = Cn \log n$ is $\sim Cn$, and we need this to exceed $n + O(\log n)$. So we need $C > 1$, which works. But can we do better?
+
+What if we use not just primes but also other numbers? The candidates are all unused numbers not dividing $P_n$, not just primes. 
+
+Actually, for the growth bound, using primes is sufficient: we just need ONE unused number not dividing $P_n$ that is $\le X$. Primes are convenient because a prime $p$ not dividing $P_n$ is easy to ensure (just need $p$ to not divide any term in the window).
+
+But maybe we can use a tighter analysis. Instead of looking at primes up to $X$, let me look at primes in a specific range.
+
+Let me reconsider. The number of primes dividing $P_n$ is at most $\Omega(P_n) \le \sum_{i=n-2020}^{n-1} \Omega(a_i)$ where $\Omega$ counts prime factors with multiplicity. Each $a_i \le Cn \log n$, so $\Omega(a_i) \le \log_2(Cn \log n) \le 2 \log_2 n$ for large $n$. So $\Omega(P_n) \le 2020 \cdot 2 \log_2 n = 4040 \log_2 n \le 6000 \ln n$.
+
+The number of primes $\le X$ is $\pi(X) \sim X / \ln X$. The number of used numbers is $n - 1$. So unused primes $\le X$ not dividing $P_n$ $\ge \pi(X) - n - 6000 \ln n$.
+
+For this to be $\ge 1$: $\pi(X) \ge n + 6000 \ln n + 1$.
+
+$\pi(X) \sim X / \ln X$. So $X / \ln X \ge n + 6000 \ln n$. For $X = Cn$: $Cn / \ln(Cn) \ge n + 6000 \ln n$. For large $n$, $Cn / \ln(Cn) \sim Cn / \ln n$, and we need $Cn / \ln n \ge n$, i.e., $C \ge \ln n$. This grows with $n$, so $X = Cn$ doesn't work for fixed $C$.
+
+For $X = Cn \ln n$: $Cn \ln n / \ln(Cn \ln n) \sim Cn \ln n / \ln n = Cn$. Need $Cn \ge n + 6000 \ln n$, i.e., $C \ge 1 + 6000 \ln n / n$. For large $n$, $C > 1$ works.
+
+For $X = Cn \ln \ln n$: $Cn \ln \ln n / \ln(Cn \ln \ln n) \sim Cn \ln \ln n / \ln n$. Need $Cn \ln \ln n / \ln n \ge n$, i.e., $C \ln \ln n \ge \ln n$, i.e., $C \ge \ln n / \ln \ln n$. This grows, so doesn't work.
+
+So $X = Cn \ln n$ is the best we can do with this approach, giving $a_n = O(n \log n)$.
+
+Can we do better with a different approach? 
+
+Let me think about using numbers other than primes. A number $m$ not dividing $P_n$ doesn't have to be prime. For example, $m = p^k$ for a prime $p$ not dividing $P_n$ and $k \ge 1$. Or $m = pq$ for primes $p, q$ not dividing $P_n$.
+
+But the key constraint is the same: we need $m$ to not divide $P_n$, which requires some prime factor of $m$ to not divide $P_n$ (with sufficient multiplicity). So using primes is essentially the best approach.
+
+Hmm, but wait. We can also use numbers where a prime factor divides $P_n$ but not with sufficient multiplicity. For example, if $p | P_n$ but $p^2 \nmid P_n$, then $p^2 \nmid P_n$, so $p^2$ is a candidate (if unused). This gives more candidates.
+
+But I think for the growth bound, primes are sufficient, and $O(n \log n)$ is what we get.
+
+Now, with $a_n = O(n \log n)$, can we show $S$ is finite?
+
+Let me reconsider the argument. The issue was that $N_p$ can be exponentially large in $p$, which is consistent with the constraints.
+
+Let me try a different approach to show $S$ is finite, not relying on bounding individual elements of $S$.
+
+**Approach: LCM argument**
+
+For each $n$, let $S_n = \{m \in S : N_m \le n\}$. Then $\text{lcm}(S_n) | P_n$.
+
+$P_n = \prod_{
+Let me read the problem carefully.
+
+We have distinct positive integers $a_1, a_2, \ldots, a_{2020}$. For $n \ge 2021$, $a_n$ is the smallest number different from $a_1, \ldots, a_{n-1}$ which doesn't divide $a_{n-2020} \cdots a_{n-2} a_{n-1}$ (the product of the last 2020 terms).
+
+We need to prove that every sufficiently large number appears in the sequence.
+
+Let me think about this. The "window" is 2020 terms. At each step, we look at the product of the last 2020 terms, and pick the smallest positive integer not yet used that does NOT divide this product.
+
+Let me denote $k = 2020$ for generality. The window size is $k$.
+
+Key observations:
+1. The sequence consists of distinct positive integers.
+2. At step $n$, we compute $P_n = a_{n-k} \cdot a_{n-k+1} \cdots a_{n-1}$ (product of last $k$ terms).
+3. $a_n$ = smallest positive integer not in $\{a_1, \ldots, a_{n-1}\}$ that does not divide $P_n$.
+
+We want to show every sufficiently large integer appears.
+
+Let me think about what numbers can be "skipped" (never appear). A number $m$ is skipped if at every step $n \ge$ (some point), either $m$ already appeared, or $m$ divides $P_n$ (so $m$ is not eligible because it divides the product, or some smaller number not yet used and not dividing $P_n$ is chosen instead).
+
+Actually, $m$ is skipped forever if: for every $n$ where $m$ hasn't appeared yet and $m$ doesn't divide $P_n$, some smaller number $< m$ that also hasn't appeared and doesn't divide $P_n$ is chosen instead.
+
+Hmm, this is complex. Let me think differently.
+
+Let me think about the structure. Consider a number $m$. For $m$ to never appear, it must be that whenever $m$ is the smallest "available" (not yet used) number not dividing $P_n$, actually... no. $a_n$ is the smallest number not yet used that doesn't divide $P_n$. So $m$ is chosen at step $n$ iff $m$ is the smallest not-yet-used number not dividing $P_n$.
+
+So $m$ is never chosen means: for every $n \ge 2021$ (or $n \ge 1$ if $m$ is among initial), if $m$ hasn't been used by step $n-1$, then either $m | P_n$, or there exists some $m' < m$ not yet used with $m' \nmid P_n$.
+
+Let me think about small numbers. The number 1: 1 divides everything. So 1 can never be chosen as $a_n$ for $n \ge 2021$ (since 1 divides any product). So if 1 is not among $a_1, \ldots, a_{2020}$, it will never appear. But the problem says "every number large enough appears", so small numbers might not appear. That's fine.
+
+Similarly, any number $m$ that divides every possible product $P_n$ would never appear (if not in initial). But products vary, so this is unlikely for large $m$.
+
+Let me think about this more carefully. Let's consider the set $S$ of numbers that never appear. We want to show $S$ is finite.
+
+Claim: The set of numbers that never appear is finite.
+
+Approach: Show that for large enough $m$, $m$ must eventually appear.
+
+Let me think about what it means for $m$ to not divide $P_n$. If $m$ has a prime factor $p$ with high enough power, and none of the last $k$ terms is divisible by $p$ (or by high enough power of $p$), then $m \nmid P_n$.
+
+Actually, let me think about primes. Consider a large prime $p$. If $p$ is not among the initial terms and $p$ never appears, then for every $n \ge 2021$, either $p | P_n$ (meaning $p$ divides one of the last $k$ terms) or some smaller available number doesn't divide $P_n$.
+
+But $p$ is prime, so $p | P_n$ iff $p$ divides one of $a_{n-k}, \ldots, a_{n-1}$.
+
+Hmm, let me think about this differently. Let me consider the "greedy" nature.
+
+Let me think about a simpler version first. Suppose $k = 1$ (window size 1). Then $a_n$ is the smallest number not yet used that doesn't divide $a_{n-1}$.
+
+With $k=1$: Start with $a_1$. Then $a_2$ = smallest positive integer $\ne a_1$ not dividing $a_1$. If $a_1 = 1$, then $a_2 = 2$ (smallest not dividing 1, which is 2). Then $a_3$ = smallest not yet used not dividing 2. Numbers not dividing 2: 3, 5, 6, 7, ... Smallest not used: 3. So $a_3 = 3$. Then smallest not dividing 3 and not used: 4 (4 doesn't divide 3). Wait, 2 divides... no, we need doesn't divide $a_{n-1} = 3$. 4 doesn't divide 3, and 4 is not used. But wait, is 4 the smallest? 1 divides 3? No, 1 divides everything. 2 doesn't divide 3, but 2 is already used. 4 doesn't divide 3, not used. So $a_4 = 4$. Then not dividing 4: 3 (used), 5, 6, 7... smallest not used not dividing 4: 5? Wait, 3 doesn't divide 4 but 3 is used. 5 doesn't divide 4, not used. So $a_5 = 5$. Hmm, seems like we might get all numbers $\ge 2$.
+
+Actually with $k=1$ and $a_1 = 1$: $a_2 = 2, a_3 = 3, a_4 = 4, a_5 = 5, \ldots$? Let's check: $a_5$ = smallest not used not dividing $a_4 = 4$. Not used: 1, 3, 5, 6, 7, ... Wait, 1 is not used (only if $a_1 = 1$, then 1 is used). Used: 1, 2, 3, 4. Not used: 5, 6, 7, ... Not dividing 4: 3 (used), 5, 6, 7, ... So $a_5 = 5$. Then $a_6$: not dividing 5, not used (used: 1,2,3,4,5). Not dividing 5: 2(used), 3(used), 4(used), 6, 7, 8, ... So $a_6 = 6$. Seems like we just get $1, 2, 3, 4, 5, 6, \ldots$ which is all positive integers. OK.
+
+But with general $k = 2020$, it's more complex.
+
+Let me think about the general structure. The key insight is:
+
+**Lemma**: For any $m$ not in the initial set, if $m$ is not yet used and $m \nmid P_n$, then $a_n \le m$ (since $a_n$ is the smallest such number). So if $m$ never appears, then whenever $m$ is not yet used, either $m | P_n$ or $a_n < m$ (some smaller number is chosen).
+
+But there are only finitely many numbers smaller than $m$. So eventually, all numbers $< m$ that will ever appear have appeared. After that point, if $m$ is not yet used and $m \nmid P_n$, then $m$ would be chosen (since all smaller numbers are either used or divide $P_n$... wait, no, smaller numbers might be used already).
+
+Let me be more precise. After all numbers $< m$ that ever appear have appeared (and there are finitely many such numbers, at most $m-1$), the set of "not yet used" numbers $< m$ is fixed (it's the set of numbers $< m$ that never appear). Call this set $T_m$.
+
+For $m$ to not appear, at every subsequent step $n$, either:
+- $m | P_n$, or
+- Some element of $T_m$ doesn't divide $P_n$ (and is the smallest such, so it gets chosen... but wait, elements of $T_m$ never appear, so they're always "not yet used").
+
+Hmm wait. If $t \in T_m$ (so $t < m$, $t$ never appears, $t$ is not in initial set), then $t$ is always available (not yet used). If at some step $n$, $t \nmid P_n$ and $t$ is the smallest available number not dividing $P_n$, then $a_n = t$, contradiction since $t$ never appears.
+
+So for $t \in T_m$ to never appear, at every step $n$ (after initial), either $t | P_n$ or some smaller available number $< t$ doesn't divide $P_n$.
+
+This gives a recursive structure. Let me think about the smallest number that never appears.
+
+Let $m_0$ be the smallest positive integer that never appears (and is not in the initial set). Then for every $n \ge 2021$, since all numbers $< m_0$ either appear (and thus eventually are used) or are in the initial set (and thus used), after some point $N$, all numbers $< m_0$ are used. After step $N$, the only available numbers $< m_0$ are... none (they're all used). So for $n > N$, if $m_0 \nmid P_n$, then $m_0$ is the smallest available number not dividing $P_n$ (since all smaller numbers are used), so $a_n = m_0$, contradiction.
+
+Therefore, for all $n > N$, $m_0 | P_n$.
+
+So $m_0$ divides every product $P_n$ for $n > N$. This means $m_0$ divides $a_{n-k} \cdots a_{n-1}$ for all $n > N$.
+
+Now, $m_0 | P_n$ and $m_0 | P_{n+1}$. $P_{n+1} = P_n \cdot a_n / a_{n-k}$. So $m_0 | P_n \cdot a_n / a_{n-k}$.
+
+Since $m_0 | P_n$ and $m_0 | P_{n+1}$, we get $m_0 | P_n \cdot a_n / a_{n-k}$, which means $m_0 \cdot a_{n-k} | P_n \cdot a_n$... hmm, this isn't quite right because of the division.
+
+Let me think more carefully. $P_{n+1} = \frac{P_n \cdot a_n}{a_{n-k}}$. For this to be an integer, we need $a_{n-k} | P_n \cdot a_n$, which is true since $a_{n-k} | P_n$ (as $a_{n-k}$ is one of the factors of $P_n$). Actually $P_n = a_{n-k} \cdot a_{n-k+1} \cdots a_{n-1}$, so $P_{n+1} = a_{n-k+1} \cdots a_n = P_n \cdot a_n / a_{n-k}$.
+
+So $m_0 | P_{n+1}$ means $m_0 | P_n \cdot a_n / a_{n-k}$.
+
+Since $m_0 | P_n$, write $P_n = m_0 \cdot q$. Then $P_{n+1} = m_0 \cdot q \cdot a_n / a_{n-k}$. For $m_0 | P_{n+1}$, we need $m_0 | m_0 \cdot q \cdot a_n / a_{n-k}$, i.e., $a_{n-k} | q \cdot a_n$, i.e., $a_{n-k} | (P_n / m_0) \cdot a_n$.
+
+This is getting complicated. Let me think about it in terms of prime powers.
+
+For each prime $p$ and power $p^e \| m_0$ (meaning $p^e | m_0$ but $p^{e+1} \nmid m_0$), we need $p^e | P_n$ for all $n > N$. This means the sum of $p$-adic valuations of $a_{n-k}, \ldots, a_{n-1}$ is $\ge e$ for all $n > N$.
+
+So for every window of $k$ consecutive terms (after position $N$), the sum of $v_p$ of those terms is $\ge e$.
+
+Now, consider what happens. The terms $a_n$ for $n > N$ are all $\ge m_0$ (since all numbers $< m_0$ are used). Actually, they could be anything $\ge m_0$ that's not yet used.
+
+Hmm, but I need to derive a contradiction or show that $m_0$ can't be too large. Actually, the problem asks to show that every sufficiently large number appears, i.e., the set of numbers that never appear is finite. So I need to show $m_0$ exists (the set of never-appearing numbers is non-empty is possible) but that there's an upper bound.
+
+Wait, actually, I need to show that the set of never-appearing numbers is finite. Let me reconsider.
+
+Let me think about the second-smallest number that never appears. Let $m_0 < m_1$ be the two smallest never-appearing numbers. After all numbers $< m_1$ that ever appear have appeared (say after step $N_1$), the available numbers $< m_1$ are exactly $m_0$ (and possibly other never-appearing numbers $< m_1$, but $m_0$ is the smallest, so the never-appearing numbers $< m_1$ are just $m_0$ if $m_1$ is the second smallest).
+
+Wait, I said $m_0 < m_1$ are the two smallest. So never-appearing numbers $< m_1$ are just $\{m_0\}$. After step $N_1$, all numbers $< m_1$ except $m_0$ are used. So for $n > N_1$, if $m_1 \nmid P_n$, then the smallest available number not dividing $P_n$ is either $m_0$ (if $m_0 \nmid P_n$) or $m_1$ (if $m_0 | P_n$ and $m_1 \nmid P_n$).
+
+For $m_1$ to never appear: if $m_1 \nmid P_n$ and $m_0 | P_n$, then $a_n = m_1$, contradiction. So whenever $m_1 \nmid P_n$, we must have $m_0 \nmid P_n$ too (so that $m_0$ is chosen instead, but $m_0$ never appears either...).
+
+Wait, but $m_0$ never appears. So if $m_0 \nmid P_n$ and $m_0$ is the smallest available not dividing $P_n$, then $a_n = m_0$, contradiction. So $m_0 | P_n$ for all $n > N_0$ (where $N_0$ is after all numbers $< m_0$ are used).
+
+So for $n > \max(N_0, N_1)$: $m_0 | P_n$ always. And if $m_1 \nmid P_n$, then since $m_0 | P_n$, $m_1$ would be chosen (it's the smallest available not dividing $P_n$), contradiction. So $m_1 | P_n$ for all $n > \max(N_0, N_1)$.
+
+By induction, if $m_0 < m_1 < m_2 < \ldots$ are all the never-appearing numbers, then for each $j$, $m_j | P_n$ for all sufficiently large $n$.
+
+So every never-appearing number divides $P_n$ for all sufficiently large $n$.
+
+Now, the never-appearing numbers are distinct positive integers, all dividing $P_n$ for large $n$. So their product divides $P_n$ (if they're pairwise coprime... no, not necessarily). But at least, each never-appearing number divides $P_n$.
+
+If there are infinitely many never-appearing numbers $m_0, m_1, m_2, \ldots$, then for large $n$, all of them divide $P_n$. But $P_n = a_{n-k} \cdots a_{n-1}$ is a product of $k = 2020$ positive integers. The number of divisors of $P_n$ is finite, so only finitely many numbers can divide $P_n$. Contradiction!
+
+Wait, that's the key. If infinitely many never-appearing numbers exist, they all must divide $P_n$ for large $n$, but $P_n$ has finitely many divisors. So only finitely many never-appearing numbers exist.
+
+But wait, I need to be more careful. "For all sufficiently large $n$" depends on $j$. For each $m_j$, there exists $N_j$ such that for $n > N_j$, $m_j | P_n$. If there are infinitely many $m_j$, the $N_j$ could go to infinity. So it's not true that there's a single $n$ where all $m_j$ divide $P_n$.
+
+Hmm, so the argument doesn't immediately work. Let me reconsider.
+
+Let me think again. For each never-appearing number $m_j$, there exists $N_j$ such that for all $n > N_j$, $m_j | P_n$. The $N_j$ could increase with $j$.
+
+So I can't just pick one $n$ and say all $m_j | P_n$.
+
+Let me think differently. Let me consider the never-appearing numbers and their prime factorizations.
+
+Actually, let me reconsider the problem. Let me think about what numbers can divide $P_n$ for all large $n$.
+
+$P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. For $m | P_n$ for all large $n$, we need: for every prime power $p^e \| m$, the window $a_{n-k}, \ldots, a_{n-1}$ always contains enough factors of $p$ (total $v_p \ge e$) for all large $n$.
+
+Since the window slides by one each step, $P_{n+1} = P_n \cdot a_n / a_{n-k}$. So $v_p(P_{n+1}) = v_p(P_n) + v_p(a_n) - v_p(a_{n-k})$.
+
+For $v_p(P_n) \ge e$ for all large $n$, we need the running sum to stay $\ge e$. This is like a queue: we add $v_p(a_n)$ and remove $v_p(a_{n-k})$.
+
+If $v_p(P_n) \ge e$ for all $n > N$, then in particular, $v_p(P_n) \ge e$ and $v_p(P_{n+1}) \ge e$. The difference is $v_p(a_n) - v_p(a_{n-k})$. This can be negative (if $a_{n-k}$ has more factors of $p$ than $a_n$), but the sum stays $\ge e$.
+
+Now, here's an idea: if $m$ never appears and $m | P_n$ for all $n > N$, consider the terms $a_n$ for $n > N$. These are all numbers that do appear (they're in the sequence). Each $a_n$ is chosen as the smallest available number not dividing $P_n$.
+
+Since $m | P_n$ for all $n > N$, $m$ is never the chosen one (it always divides $P_n$, so it's not eligible). But also, $m$ being a non-divisor of $P_n$ never happens, so $m$ is never forced to appear.
+
+Now, the key question: can there be infinitely many such $m$?
+
+Let me think about it from the perspective of the sequence values. For $n > N$, $a_n$ is the smallest available number not dividing $P_n$. The available numbers are those not yet used. As $n$ increases, more numbers get used, so the pool of available numbers shrinks (well, it always shrinks since we add one each step).
+
+The numbers that never appear are exactly those that, at every step, either divide $P_n$ or are "blocked" by a smaller available number not dividing $P_n$.
+
+Let me try a different approach. Let me think about the sequence of $a_n$ values for large $n$.
+
+Claim: For large $n$, $a_n$ is "roughly" increasing, or at least, the values that appear eventually include all large numbers.
+
+Hmm, let me think about this more concretely. Let me consider the set $U$ of numbers that are used (appear in the sequence). The complement $S = \mathbb{Z}^+ \setminus U$ is the set of never-appearing numbers. We want $|S| < \infty$.
+
+For each $s \in S$, $s | P_n$ for all sufficiently large $n$ (as shown above, assuming $s$ is not in the initial set; if $s$ is in the initial set, it already appeared).
+
+Wait, I need to also handle the case where $s$ is in the initial set. But if $s \in \{a_1, \ldots, a_{2020}\}$, then $s$ appeared, so $s \notin S$. So $S$ consists of numbers not in the initial set.
+
+OK so for every $s \in S$, $s | P_n$ for all $n > N_s$ (for some $N_s$ depending on $s$).
+
+Now, let me think about the structure of $S$. Let $S = \{s_1 < s_2 < s_3 < \ldots\}$ (possibly infinite). For each $s_j$, $s_j | P_n$ for all $n > N_{s_j}$.
+
+Consider the prime factorization aspect. For a prime $p$, let $e_j = v_p(s_j)$. For $s_j | P_n$ with $n > N_{s_j}$, we need $v_p(P_n) \ge e_j$.
+
+Now, $v_p(P_n)$ is the sum of $v_p(a_i)$ for $i$ in the window $[n-k, n-1]$. As $n$ increases, this is a sliding window sum.
+
+Key insight: The terms $a_n$ for $n$ large are all distinct and all $\ge$ some value (since small numbers get used up). Actually, they're all distinct by construction. And they're chosen greedily.
+
+Let me think about whether the $a_n$ values can be bounded. If $a_n$ were bounded, then since they're distinct, only finitely many values are possible, contradiction (the sequence is infinite). So $a_n \to \infty$ in some sense (not monotonically, but the values must grow).
+
+Actually, $a_n$ are all distinct positive integers, so the sequence is a permutation of some subset of $\mathbb{Z}^+$. Since there are infinitely many terms, infinitely many distinct values appear. The values that appear include all of $U$, and $U$ is infinite.
+
+Now, for $s \in S$, $s | P_n$ for all large $n$. Let's think about what this implies for the sequence.
+
+Consider two never-appearing numbers $s, t \in S$ with $\gcd(s, t) = 1$ (if they exist). Then $st | P_n$ for all $n > \max(N_s, N_t)$. More generally, $\text{lcm}(s_1, \ldots, s_j) | P_n$ for $n > \max(N_{s_1}, \ldots, N_{s_j})$.
+
+If $S$ is infinite, then $\text{lcm}(s_1, s_2, \ldots)$ is infinite (diverges to infinity). But for any fixed $n$, $P_n$ is a fixed number, so only finitely many numbers divide it. The issue is the $N_{s_j}$ growing.
+
+Let me try yet another approach. Let me think about the growth of $a_n$.
+
+For large $n$, consider the smallest available (not yet used) number, call it $m(n)$. As $n$ increases, $m(n)$ is non-decreasing (since using a number can only increase the smallest available). Actually, $m(n)$ increases by at least 1 each time $a_n = m(n)$, but $a_n$ might not equal $m(n)$ (if $m(n) | P_n$).
+
+If $m(n) | P_n$ for all large $n$, then $m(n)$ stays constant for all large $n$ (it's never used), so $m(n) = m^*$ for all $n > N^*$. This $m^*$ would be a never-appearing number, and the smallest one.
+
+Then for $n > N^*$, $a_n > m^*$ (since $m^*$ is the smallest available but divides $P_n$, so it's not chosen). The next available number is $m^* + 1$ or something larger, depending on what's been used.
+
+Actually, let me reconsider. Let $m^*$ be the smallest never-appearing number. Then for $n > N^*$ (after all numbers $< m^*$ are used), $m^*$ is the smallest available number. For $m^*$ to never be chosen, $m^* | P_n$ for all $n > N^*$.
+
+Now, the second smallest available number (for $n > N^*$): it's the smallest number $> m^*$ that's not yet used. As $n$ increases, numbers $> m^*$ get used, so this second smallest available number increases. But $m^*$ stays available forever.
+
+For $n > N^*$, $a_n$ is the smallest available number $> m^*$ (since $m^*$ divides $P_n$) that doesn't divide $P_n$. Wait, no: $a_n$ is the smallest available number not dividing $P_n$. Since $m^* | P_n$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$... no, $a_n$ is the smallest available number not dividing $P_n$, and $m^*$ divides $P_n$, so $a_n$ is the smallest available number $\ne m^*$ not dividing $P_n$, which is the smallest available number $> m^*$ not dividing $P_n$ (since $m^*$ is the smallest available and it divides $P_n$).
+
+Hmm wait, there could be available numbers between $m^*$ and the next one. Actually, $m^*$ is the smallest available, so all numbers $< m^*$ are used. The available numbers are $m^*$ and some numbers $> m^*$. So $a_n$ = smallest available number not dividing $P_n$ = either $m^*$ (if $m^* \nmid P_n$, but we said $m^* | P_n$) or the smallest available number $> m^*$ not dividing $P_n$.
+
+OK so for $n > N^*$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$.
+
+Now, let's think about the second smallest never-appearing number $m^{**}$ (if it exists). After all numbers $< m^{**}$ except $m^*$ are used (say after step $N^{**}$), the available numbers $< m^{**}$ are just $\{m^*\}$. For $n > N^{**}$, $a_n$ is the smallest available number not dividing $P_n$. If $m^* | P_n$ (which it does for $n > N^*$) and $m^{**} \nmid P_n$, then $a_n = m^{**}$ (since $m^*$ divides $P_n$ and $m^{**}$ is the next available). So for $m^{**}$ to never appear, $m^{**} | P_n$ for all $n > N^{**}$.
+
+So both $m^*$ and $m^{**}$ divide $P_n$ for $n > \max(N^*, N^{**})$.
+
+Continuing, all never-appearing numbers divide $P_n$ for sufficiently large $n$.
+
+Now, the crucial step: I need to show that only finitely many numbers can divide $P_n$ for all large $n$.
+
+Let me think about this. $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. The terms $a_n$ for large $n$ are all distinct and grow (they must, since there are infinitely many distinct terms). 
+
+Consider the prime factorization of $P_n$. For a number $m$ to divide $P_n$ for all large $n$, every prime power in $m$ must be "covered" by the window at all times.
+
+Let me think about a specific prime $p$. Let $f(n) = v_p(P_n)$, the $p$-adic valuation of $P_n$. We have $f(n+1) = f(n) + v_p(a_n) - v_p(a_{n-k})$.
+
+For $m | P_n$ for all $n > N$, we need $f(n) \ge v_p(m)$ for all $n > N$.
+
+Now, the terms $a_n$ are distinct and grow. What can we say about $v_p(a_n)$?
+
+If the never-appearing numbers include numbers with arbitrarily high powers of $p$, then $f(n) \ge v_p(m_j)$ for all $j$ and all $n > N_j$. Since $v_p(m_j) \to \infty$, this means $f(n) \to \infty$.
+
+But $f(n)$ is a sliding window sum of $v_p(a_i)$. If $f(n) \to \infty$, then the average of $v_p(a_i)$ over any window of size $k$ goes to infinity. This means $v_p(a_i) \to \infty$ on average, meaning the terms $a_i$ have higher and higher powers of $p$.
+
+But the terms $a_i$ are chosen greedily as the smallest available number not dividing $P_i$. If all terms have high powers of $p$, they'd be large (multiples of high powers of $p$), but the greedy choice picks the smallest available... this seems contradictory.
+
+Let me try to make this precise. 
+
+Suppose $S$ (never-appearing set) is infinite. Then for each prime $p$ and each $e$, there might be elements of $S$ divisible by $p^e$ (not necessarily, but let's see).
+
+Actually, $S$ being infinite doesn't directly imply high prime powers. $S$ could be $\{2, 4, 8, 16, \ldots\}$ (powers of 2), or $\{2, 3, 5, 7, 11, \ldots\}$ (primes), etc.
+
+Let me think about it differently. Let me consider the lcm of all never-appearing numbers.
+
+If $S$ is infinite, then $L_j = \text{lcm}(s_1, \ldots, s_j) \to \infty$ as $j \to \infty$ (since the $s_j$ are distinct positive integers, their lcm must grow). Actually, is this true? If $s_j = j$ for all $j$, then $\text{lcm}(1, \ldots, j) \to \infty$. If $s_j$ are all powers of 2, $\text{lcm} = 2^{\max} \to \infty$. Yes, in general, the lcm of an infinite set of distinct positive integers diverges.
+
+So $L_j \to \infty$. For each $j$, $L_j | P_n$ for all $n > N_j$ (where $N_j = \max(N_{s_1}, \ldots, N_{s_j})$).
+
+So for any $M$, there exists $j$ with $L_j > M$, and $L_j | P_n$ for $n > N_j$. This means $P_n > L_j > M$ for $n > N_j$... well, $P_n \ge L_j$ since $L_j | P_n$ and $P_n > 0$.
+
+But this just says $P_n$ is eventually large, which is obvious since $a_n$ are distinct positive integers (so they grow).
+
+Hmm, I need a stronger argument. Let me think about the structure more carefully.
+
+Let me consider the following approach: show that the never-appearing numbers must all divide some fixed number, hence there are finitely many of them.
+
+For each never-appearing number $s$, $s | P_n$ for all $n > N_s$. Consider two consecutive windows: $P_n$ and $P_{n+1}$. We have $P_{n+1} = P_n \cdot a_n / a_{n-k}$.
+
+So $s | P_n$ and $s | P_{n+1} = P_n \cdot a_n / a_{n-k}$. Since $s | P_n$, we can write $P_n = s \cdot t$. Then $P_{n+1} = s \cdot t \cdot a_n / a_{n-k}$. For $s | P_{n+1}$, we need $a_{n-k} | t \cdot a_n$, i.e., $a_{n-k} | (P_n / s) \cdot a_n$.
+
+Hmm, this is still complex. Let me try to think about the problem from a higher level.
+
+Alternative approach: Think about what the sequence looks like for large $n$.
+
+For large $n$, the smallest available number $m^*$ (smallest never-appearing) divides every $P_n$. So $a_n$ is chosen from numbers $> m^*$.
+
+Now, consider the sequence $b_n = a_n$ for $n > N^*$. These are all $> m^*$ (well, $\ge m^* + 1$ or something). And they're chosen greedily: $b_n$ is the smallest available number $> m^*$ not dividing $P_n$.
+
+Actually, I realize the problem might have a cleaner approach. Let me think about the "complementary" sequence.
+
+Let me consider the following: define $c_n$ as the smallest positive integer not in $\{a_1, \ldots, a_n\}$ (the smallest "missing" number after $n$ steps). Then $c_n$ is non-decreasing, and $c_n \to m^*$ (the smallest never-appearing number) if $S$ is non-empty, or $c_n \to \infty$ if $S$ is empty.
+
+Wait, $c_n$ is non-decreasing? Not exactly. $c_n$ is the smallest positive integer not yet used. When we use $a_n = c_{n-1}$, then $c_n > c_{n-1}$. When we use $a_n \ne c_{n-1}$, $c_n = c_{n-1}$. So $c_n$ is non-decreasing. And $c_n$ is bounded by $m^*$ if $S$ is non-empty (it converges to $m^*$), or unbounded if $S$ is empty.
+
+Case 1: $S$ is empty. Then every positive integer appears. Done (trivially, every sufficiently large number appears).
+
+Case 2: $S$ is non-empty. Then $c_n \to m^* = \min(S)$. For $n > N^*$, $c_n = m^*$, meaning $m^*$ is the smallest available number, and $m^* | P_n$ for all $n > N^*$.
+
+Now, for $n > N^*$, $a_n > m^*$ (since $m^*$ divides $P_n$ and is thus not eligible). Let's think about the "reduced" problem. The available numbers are $m^*$ and numbers $> m^*$ not yet used. Since $m^*$ always divides $P_n$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$.
+
+Hmm, let me think about the growth of $a_n$. For $n > N^*$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$. The product $P_n$ includes $m^*$ as a factor (since $m^* | P_n$). 
+
+Actually, I think the key insight is:
+
+**For $n > N^*$, $m^* | P_n$, so $m^* | a_{n-k} \cdots a_{n-1}$. Since $m^*$ is prime or composite...**
+
+Let me consider the case where $m^*$ is prime first, say $m^* = p$. Then $p | P_n$ for all $n > N^*$, meaning at least one of $a_{n-k}, \ldots, a_{n-1}$ is divisible by $p$ for every window of $k$ consecutive terms (after $N^*$). This means in every block of $k$ consecutive terms, at least one is divisible by $p$.
+
+So the "gap" between consecutive multiples of $p$ in the sequence is at most $k$. Since the sequence terms are distinct, and at least one in every $k$ is a multiple of $p$, the density of multiples of $p$ is $\ge 1/k$.
+
+Now, the available numbers not divisible by $p$ and $> p$: these are numbers not divisible by $p$ that haven't been used. The greedy algorithm picks the smallest such number not dividing $P_n$.
+
+Hmm, this is getting complicated. Let me try a completely different approach.
+
+**Approach via contradiction: assume $S$ is infinite.**
+
+If $S$ is infinite, list $S = \{s_1 < s_2 < \ldots\}$. For each $j$, $s_j | P_n$ for all $n > N_j$.
+
+Now, consider the sequence $(a_n)$ for $n$ large. The terms are distinct, and $a_n$ is chosen greedily. 
+
+Key claim: **For $n$ sufficiently large, $a_n \le C \cdot n$ for some constant $C$.** Or more precisely, the sequence doesn't grow too fast.
+
+Actually, let me think about an upper bound on $a_n$. At step $n$, $a_n$ is the smallest available number not dividing $P_n$. The number of available numbers $\le M$ is at least $M - n$ (since at most $n$ numbers have been used by step $n$). The number of divisors of $P_n$ that are $\le M$ is at most... well, $P_n$ could have many divisors, but the number of divisors of any number $N$ is at most $N^{o(1)}$, which isn't directly helpful.
+
+Hmm, but actually, the number of divisors of $P_n$ up to $M$ is at most $d(P_n)$, and if $P_n$ is not too large, this is bounded. But $P_n$ could be huge.
+
+Let me think about it differently. The number of integers in $[1, M]$ that divide $P_n$ is at most $d(P_n)$. But also, the number of integers in $[1, M]$ not dividing $P_n$ is at least $M - d(P_n)$... no, that's not right either. An integer in $[1, M]$ divides $P_n$ or not; the number that divide $P_n$ is at most the number of divisors of $P_n$ that are $\le M$, which is at most $d(P_n) \le 2\sqrt{P_n}$ (a crude bound). But $P_n$ can be huge.
+
+Let me try yet another approach.
+
+**Approach: Show that $a_n$ is eventually periodic or has bounded gaps, implying all large numbers appear.**
+
+Hmm, that seems hard. Let me think about the problem from the perspective of the competition. This is likely an olympiad problem (the 2020 suggests it might be from 2020). Let me think about what the key idea might be.
+
+Let me reconsider. The window size is $k = 2020$. The key property is that $a_n$ is the smallest available number not dividing the product of the last $k$ terms.
+
+**Key idea**: Consider a number $m$ that never appears. Then $m | P_n$ for all large $n$. Now, $P_n$ is a product of $k$ terms. If $m$ is large (say $m > $ all terms in some window), then $m$ can't divide $P_n$ (since $P_n$ is a product of $k$ terms each $< m$, so $P_n$ could still be $\ge m$...). Hmm, that doesn't work directly.
+
+Let me think about it more carefully. If $m$ never appears and $m | P_n$ for all $n > N$, then $m | a_{n-k} \cdots a_{n-1}$ for all $n > N$. In particular, $m$ divides the product of any $k$ consecutive terms (for $n$ large enough).
+
+Now, consider the terms $a_N, a_{N+1}, \ldots$. These are all distinct and all $> m^*$ (the smallest never-appearing number). 
+
+$m$ divides $a_{n-k} \cdots a_{n-1}$ for all $n > N$. So $m$ divides $a_N \cdots a_{N+k-1}$, $m$ divides $a_{N+1} \cdots a_{N+k}$, etc.
+
+From $m | a_N \cdots a_{N+k-1}$ and $m | a_{N+1} \cdots a_{N+k}$, we get $m | \text{lcm}(a_N \cdots a_{N+k-1}, a_{N+1} \cdots a_{N+k})$. But more usefully:
+
+$m | a_N \cdots a_{N+k-1}$ and $m | a_{N+1} \cdots a_{N+k}$. Dividing (in the sense of gcd/lcm), $m | \text{lcm}(a_N \cdots a_{N+k-1})$ and $m | \text{lcm}(a_{N+1} \cdots a_{N+k})$.
+
+Actually, from $m | \prod_{i=0}^{k-1} a_{N+i}$ and $m | \prod_{i=1}^{k} a_{N+i}$, we get $m | \gcd(\prod_{i=0}^{k-1} a_{N+i}, \prod_{i=1}^{k} a_{N+i})$. 
+
+$\gcd(\prod_{i=0}^{k-1} a_{N+i}, \prod_{i=1}^{k} a_{N+i}) = \prod_{i=1}^{k-1} a_{N+i} \cdot \gcd(a_N, a_{N+k})$... no, that's not right either. The gcd of two products isn't the product of gcds in general.
+
+Let me think about it prime by prime. For a prime $p$ with $p^e \| m$:
+- $v_p(\prod_{i=0}^{k-1} a_{N+i}) \ge e$ and $v_p(\prod_{i=1}^{k} a_{N+i}) \ge e$.
+- The first sum is $v_p(a_N) + v_p(a_{N+1}) + \ldots + v_p(a_{N+k-1}) \ge e$.
+- The second sum is $v_p(a_{N+1}) + \ldots + v_p(a_{N+k}) \ge e$.
+- Subtracting: $v_p(a_N) - v_p(a_{N+k}) \le 0$ is not necessarily true, but both sums are $\ge e$.
+
+More generally, for all $n > N$, $\sum_{i=0}^{k-1} v_p(a_{n-k+i}) \ge e$. This is a sliding window constraint.
+
+The sliding window sum $f(n) = \sum_{i=0}^{k-1} v_p(a_{n-k+i})$ satisfies $f(n) \ge e$ for all $n > N$, and $f(n+1) - f(n) = v_p(a_n) - v_p(a_{n-k})$.
+
+Now, sum over $n = N+1$ to $N+M$:
+$\sum_{n=N+1}^{N+M} [f(n+1) - f(n)] = f(N+M+1) - f(N+1) = \sum_{n=N+1}^{N+M} [v_p(a_n) - v_p(a_{n-k})]$.
+
+$= \sum_{n=N+1}^{N+M} v_p(a_n) - \sum_{n=N+1}^{N+M} v_p(a_{n-k}) = \sum_{n=N+1}^{N+M} v_p(a_n) - \sum_{n=N+1-k}^{N+M-k} v_p(a_n)$.
+
+$= \sum_{n=N+M-k+1}^{N+M} v_p(a_n) - \sum_{n=N+1-k}^{N} v_p(a_n)$.
+
+So $f(N+M+1) - f(N+1) = \sum_{n=N+M-k+1}^{N+M} v_p(a_n) - \sum_{n=N+1-k}^{N} v_p(a_n)$.
+
+Since $f(n) \ge e$ for all $n > N$, we have $f(N+M+1) \ge e$ and $f(N+1) \ge e$, so the difference is bounded below by $e - f(N+1)$, but $f(N+1)$ could be large.
+
+This isn't leading anywhere directly. Let me try to think about the average.
+
+Average of $f(n)$ over a long range: $\frac{1}{M} \sum_{n=N+1}^{N+M} f(n) = \frac{1}{M} \sum_{n=N+1}^{N+M} \sum_{i=0}^{k-1} v_p(a_{n-k+i})$.
+
+Each $v_p(a_j)$ appears in about $k$ windows (for $j$ in the interior), so the average is approximately $k \cdot \bar{v}_p$ where $\bar{v}_p$ is the average of $v_p(a_j)$.
+
+Since $f(n) \ge e$ for all $n > N$, the average is $\ge e$, so $k \cdot \bar{v}_p \ge e$, meaning $\bar{v}_p \ge e/k$.
+
+This means the average $p$-adic valuation of the terms is $\ge e/k$. If $e$ is large (i.e., $m$ has a high power of $p$), the terms must have high $p$-adic valuations on average.
+
+Now, if $S$ is infinite and contains numbers with arbitrarily high powers of $p$ (for some prime $p$), then $e$ can be arbitrarily large, so $\bar{v}_p$ must be arbitrarily large, meaning the terms have unbounded $p$-adic valuations.
+
+But the terms are chosen greedily. If all terms (for large $n$) have high $p$-adic valuations, they're all multiples of high powers of $p$, hence large. But the greedy choice picks the smallest available number not dividing $P_n$. If $P_n$ has very high $p$-adic valuation, then many small numbers (those that are powers of $p$ or have low $p$-adic valuation) might divide $P_n$... hmm, actually, a number not dividing $P_n$ needs to have some prime power not covered by $P_n$.
+
+OK let me try to think about this more carefully with a cleaner argument.
+
+**Cleaner approach:**
+
+Let me define things more carefully. Let $S$ be the set of never-appearing numbers. We've shown that for each $s \in S$, $s | P_n$ for all sufficiently large $n$.
+
+**Claim**: $S$ is finite.
+
+**Proof**: Suppose $S$ is infinite. Let $s_1 < s_2 < \ldots$ be the elements of $S$. For each $j$, let $N_j$ be such that $s_j | P_n$ for all $n > N_j$.
+
+Consider the prime factorization of the elements of $S$. Since $S$ is infinite, there exists a prime $p$ such that $v_p(s_j)$ is unbounded (because if $v_p(s_j)$ were bounded for every prime $p$, then each $s_j$ would be a product of bounded prime powers, but since the $s_j$ are distinct, some prime must appear with unbounded exponent... actually, that's not quite right. The $s_j$ could be $2, 3, 5, 7, 11, \ldots$ (distinct primes), where each prime appears with exponent 1. Then $v_p(s_j)$ is 1 for $p = s_j$ and 0 otherwise, so for each fixed $p$, $v_p(s_j) \le 1$.)
+
+Hmm, so it's possible that no prime has unbounded exponent. Let me reconsider.
+
+If $S$ consists of distinct primes $p_1, p_2, \ldots$, then for each $p_j$, $p_j | P_n$ for all $n > N_j$. This means every window of $k$ consecutive terms (for $n$ large enough) contains a multiple of $p_j$.
+
+For different primes $p_j$, the threshold $N_j$ may differ. But for any finite set of primes $\{p_1, \ldots, p_J\}$, for $n > \max(N_1, \ldots, N_J)$, every window of $k$ terms contains a multiple of each $p_j$.
+
+So for $n > \max(N_1, \ldots, N_J)$, the product $P_n$ is divisible by $p_1 \cdots p_J$. Since the $p_j$ are distinct primes, $P_n$ is divisible by their product.
+
+Now, $P_n = a_{n-k} \cdots a_{n-1}$, a product of $k$ terms. If $P_n$ is divisible by $p_1 \cdots p_J$ (product of $J$ distinct primes), then the $k$ terms must collectively have all these primes as factors. Since each term can contribute multiple primes, this is possible as long as $J$ isn't too large relative to the terms.
+
+But as $J \to \infty$, $p_1 \cdots p_J \to \infty$, and $P_n \ge p_1 \cdots p_J$. Since $P_n$ is a product of $k$ terms, and the terms are distinct positive integers, $P_n$ can be large. So this alone doesn't give a contradiction.
+
+But here's the thing: the terms $a_n$ are chosen greedily. Let me think about what constrains them.
+
+For $n > N^*$ (where $N^*$ is such that $c_n = m^*$ for $n > N^*$), $a_n$ is the smallest available number $> m^*$ not dividing $P_n$. 
+
+Now, $P_n$ is divisible by $m^*$ and by $s_j$ for all $j$ with $N_j < n$. As $n$ increases, more and more $s_j$ divide $P_n$.
+
+The number of divisors of $P_n$ grows (since $P_n$ is divisible by more and more numbers). But $a_n$ is the smallest available number NOT dividing $P_n$. If $P_n$ has many divisors, there are fewer "non-divisors" among small numbers, so $a_n$ might be large.
+
+But actually, $P_n$ is a product of $k$ terms, each of which is a specific number. The divisors of $P_n$ are determined by its prime factorization. Even if $P_n$ is large, the number of "small" divisors (say $\le M$) is at most $M$ (trivially), but could be a large fraction of $[1, M]$.
+
+Hmm, I think I need a different approach. Let me think about the problem from the perspective of the sequence values.
+
+**Approach: Bounding $a_n$ from above.**
+
+At step $n$, $a_n$ is the smallest available number not dividing $P_n$. The available numbers are those not in $\{a_1, \ldots, a_{n-1}\}$, which is $\mathbb{Z}^+ \setminus \{a_1, \ldots, a_{n-1}\}$. The number of used values up to step $n-1$ is $n-1$. So among $\{1, 2, \ldots, M\}$, at most $n-1$ are used, so at least $M - (n-1)$ are available (for $M \ge n$).
+
+The number of divisors of $P_n$ in $\{1, \ldots, M\}$ is at most $d(P_n)$ (total number of divisors). So the number of available non-divisors of $P_n$ in $\{1, \ldots, M\}$ is at least $M - (n-1) - d(P_n)$.
+
+For this to be positive (so that $a_n \le M$), we need $M > (n-1) + d(P_n)$.
+
+So $a_n \le (n-1) + d(P_n) + 1$.
+
+Now, $d(P_n) \le 2\sqrt{P_n}$ (crude bound). And $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. If the terms are bounded by $B$, then $P_n \le B^k$, so $d(P_n) \le 2 B^{k/2}$.
+
+This gives $a_n \le n + 2B^{k/2}$, which isn't very helpful if $B$ is growing.
+
+Let me try a different bound. Actually, the number of divisors of $N$ is $N^{o(1)}$, more precisely $d(N) \le N^{O(1/\log \log N)}$. But this is still not great for a product.
+
+Hmm, let me think about this problem differently. Maybe I should think about what numbers are "forced" to appear.
+
+**Approach: Large primes must appear.**
+
+Consider a large prime $p > $ (some threshold). If $p$ never appears, then $p | P_n$ for all $n > N_p$. This means every window of $k$ consecutive terms (for $n > N_p$) contains a multiple of $p$.
+
+The multiples of $p$ are $p, 2p, 3p, \ldots$. In the sequence, the multiples of $p$ that appear must be at least one in every window of $k$. So the "gap" between consecutive multiples of $p$ in the sequence is at most $k$.
+
+Now, the multiples of $p$ that appear in the sequence are distinct. After the initial terms, the multiples of $p$ that appear are chosen by the greedy rule. The available multiples of $p$ are $p, 2p, 3p, \ldots$ minus those already used.
+
+In every window of $k$ terms, at least one is a multiple of $p$. So in the first $M$ terms (after $N_p$), at least $M/k$ are multiples of $p$. These are distinct multiples of $p$, so they are at least $p, 2p, \ldots, (M/k)p$ (not exactly, but the $j$-th smallest multiple of $p$ is $jp$). So the largest multiple of $p$ used in the first $M$ terms is $\ge (M/k) \cdot p$.
+
+But also, the terms are chosen greedily, so they tend to be small. The $n$-th term $a_n$ is the smallest available non-divisor of $P_n$. 
+
+Hmm, I think the key is to show that the terms can't grow too fast, and then use the density argument.
+
+Let me try to bound $a_n$ more carefully.
+
+**Lemma**: $a_n \le n + C$ for some constant $C$ depending only on $k$ and the initial terms.
+
+*Proof attempt*: Among $\{1, 2, \ldots, n + C\}$, at most $n - 1$ are used (by step $n-1$), so at least $C + 1$ are available. We need at least one of these to not divide $P_n$. The number of divisors of $P_n$ in $\{1, \ldots, n+C\}$ is at most... well, we need this to be $< C + 1$ (so that at least one available number doesn't divide $P_n$). But $P_n$ could have many divisors.
+
+Hmm, this doesn't work without bounding $d(P_n)$.
+
+Let me try a different approach. Maybe I should think about specific numbers.
+
+**Approach: Consider numbers of the form $q$ where $q$ is a prime larger than all initial terms and larger than some threshold.**
+
+Let $Q = \max(a_1, \ldots, a_{2020})$. Consider a prime $p > Q$. 
+
+If $p$ is not yet used and $p \nmid P_n$, then $a_n \le p$ (since $a_n$ is the smallest available non-divisor). But could $a_n < p$? Yes, if there's a smaller available non-divisor.
+
+For $p$ to never appear, $p | P_n$ for all large $n$. Since $p$ is prime and $p > Q$, $p$ doesn't divide any of the initial terms. So $p | P_n$ means $p$ divides one of $a_{n-k}, \ldots, a_{n-1}$, i.e., one of the last $k$ terms is a multiple of $p$.
+
+The multiples of $p$ are $p, 2p, 3p, \ldots$. The ones that could appear in the sequence are those not in the initial set (which they aren't, since they're $> Q$... well, $p > Q$ but $2p > p > Q$, so all multiples of $p$ are $> Q$ and thus not in the initial set).
+
+So for $p$ to never appear, every window of $k$ terms (for large $n$) contains a multiple of $p$ (which is $p, 2p, 3p, \ldots$, none of which is $p$ itself since $p$ never appears). So the multiples of $p$ appearing in the sequence are $2p, 3p, 4p, \ldots$ (excluding $p$).
+
+In every window of $k$ terms, at least one is a multiple of $p$ (from $\{2p, 3p, \ldots\}$). So the density of multiples of $p$ is $\ge 1/k$.
+
+Now, consider two large primes $p, q$ (both $> Q$, both never appearing). Then every window of $k$ terms contains a multiple of $p$ and a multiple of $q$. These could be the same term (if it's a multiple of $pq$) or different terms.
+
+If we have many large primes $p_1, \ldots, p_J$ that never appear, then every window of $k$ terms contains, for each $p_j$, a multiple of $p_j$. 
+
+In a window of $k$ terms, each term can be a multiple of several $p_j$'s. But a term that is a multiple of $p_{j_1}, \ldots, p_{j_l}$ is a multiple of $p_{j_1} \cdots p_{j_l}$, so it's at least $p_{j_1} \cdots p_{j_l}$.
+
+If the $k$ terms in a window must collectively be multiples of all $J$ primes, then by pigeonhole, some term must be a multiple of at least $J/k$ primes, hence $\ge$ product of $J/k$ primes, which grows like $e^{(J/k) \log J}$ or something. This means some term in every window is very large.
+
+But the terms are chosen greedily to be small. This creates a contradiction if $J$ is large enough.
+
+Let me make this precise. Suppose $p_1, \ldots, p_J$ are distinct primes, all $> Q$, all never appearing. For $n > \max(N_{p_1}, \ldots, N_{p_J})$, every window of $k$ terms contains, for each $j$, a multiple of $p_j$.
+
+Each of the $k$ terms in the window is a multiple of some subset of $\{p_1, \ldots, p_J\}$. By pigeonhole, some term is a multiple of at least $\lceil J/k \rceil$ of these primes. So that term is $\ge \prod_{j \in S} p_j$ for some subset $S$ with $|S| \ge J/k$.
+
+Since $p_j > Q$ for all $j$, the product of $J/k$ such primes is $> Q^{J/k}$.
+
+So in every window of $k$ terms (for $n$ large), some term is $> Q^{J/k}$.
+
+This means the maximum term in every window is $> Q^{J/k}$. Since windows overlap, this means for all large $n$, there exists $i \in \{n-k, \ldots, n-1\}$ with $a_i > Q^{J/k}$.
+
+But the terms $a_n$ are chosen greedily. Can they be this large? Well, $a_n$ is the smallest available non-divisor of $P_n$. If $P_n$ is divisible by $p_1 \cdots p_J$ (and more), then many numbers divide $P_n$, and the smallest non-divisor could be large.
+
+Hmm, but I need to relate this to a contradiction. Let me think about the growth rate.
+
+If in every window of $k$ terms, some term is $> Q^{J/k}$, then the terms can't all be small. But the greedy algorithm picks the smallest available non-divisor. If the available non-divisors are all large, then $a_n$ is large, but then $P_{n+1}$ is even larger, and has even more divisors...
+
+Actually, I think the contradiction comes from the fact that the terms are distinct and there are only finitely many numbers below any threshold. Let me think about it as follows.
+
+If $J$ never-appearing primes exist, then for large $n$, every window of $k$ terms has a term $> Q^{J/k}$. But also, the number of terms up to step $n$ that are $> Q^{J/k}$ is at most... well, it could be many.
+
+Hmm, let me think about this differently. The issue is that I'm not getting a direct contradiction. Let me try to bound $a_n$ from above and show it can't grow as fast as required.
+
+**Upper bound on $a_n$:**
+
+At step $n$, $a_n$ is the smallest available number not dividing $P_n$. Consider the numbers $1, 2, \ldots, M$ where $M = n + k \cdot Q$ (or something). The number of used numbers in this range is at most $n - 1$. The number of divisors of $P_n$ in this range... 
+
+Actually, here's a cleaner idea. Consider the number $M = n \cdot k$ (or some linear function of $n$). Among $\{1, \ldots, M\}$, at most $n-1$ are used, so at least $M - n + 1$ are available. The number of divisors of $P_n$ that are $\le M$ is at most $d(P_n)$.
+
+But I need $d(P_n)$ to be small. $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. If each $a_{n-k+i} \le B$, then $P_n \le B^k$ and $d(P_n) \le d(B^k) \le (2B)^k$ or something. This is circular.
+
+Let me try a different approach to bound $a_n$.
+
+**Approach: Use the fact that $P_n$ has at most $k$ prime factors (with multiplicity) from the $k$ terms... no, each term can have many prime factors.**
+
+Hmm. Let me think about the problem differently.
+
+**Key observation**: A number $m$ not dividing $P_n$ exists among small available numbers if $P_n$ doesn't have too many small divisors. But $P_n$ is a product of $k$ numbers, each of which is a term of the sequence. The terms are distinct.
+
+Let me try to think about what $P_n$ looks like. For $n$ large, $P_n = a_{n-k} \cdots a_{n-1}$. These $k$ terms are distinct (since all sequence terms are distinct). 
+
+A number $m$ divides $P_n$ iff for every prime $p$, $v_p(m) \le v_p(P_n) = \sum_{i=0}^{k-1} v_p(a_{n-k+i})$.
+
+For $m$ to not divide $P_n$, there must be some prime $p$ with $v_p(m) > \sum_{i=0}^{k-1} v_p(a_{n-k+i})$.
+
+So $a_n$ is the smallest available $m$ such that for some prime $p$, $v_p(m) > v_p(P_n)$.
+
+Now, consider the number $m = p^{v_p(P_n) + 1}$ for some prime $p$. This doesn't divide $P_n$ (since $v_p(m) = v_p(P_n) + 1 > v_p(P_n)$). If $m$ is available, then $a_n \le m = p^{v_p(P_n)+1}$.
+
+But $m$ might not be available (it might have been used already). However, there are many primes, and for each prime $p$, $p^{v_p(P_n)+1}$ doesn't divide $P_n$. If any of these is available and small, $a_n$ is small.
+
+The smallest such $m$ over all primes $p$ is $\min_p p^{v_p(P_n)+1}$. For the prime $p$ with the smallest $p^{v_p(P_n)+1}$... if $p = 2$ and $v_2(P_n) = 0$, then $m = 2$. If $v_2(P_n) = 1$, $m = 4$. Etc.
+
+But $m$ might be used. However, the point is that there exist small numbers not dividing $P_n$, and if they're available, $a_n$ is small.
+
+Let me think about the number of available numbers $\le M$ that don't divide $P_n$. This is (available numbers $\le M$) minus (available numbers $\le M$ that divide $P_n$) $\ge (M - n) - d(P_n)$... no, (available $\le M$) $\ge M - n$ and (divisors of $P_n$ that are $\le M$) $\le d(P_n)$. So (available non-divisors $\le M$) $\ge M - n - d(P_n)$.
+
+For this to be $\ge 1$, we need $M \ge n + d(P_n) + 1$, so $a_n \le n + d(P_n) + 1$.
+
+Now I need to bound $d(P_n)$. $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. The number of divisors of a product of $k$ numbers... if the numbers are $b_1, \ldots, b_k$, then $d(b_1 \cdots b_k) \le \prod_{i=1}^k d(b_i) \cdot (\text{something for shared primes})$... actually, $d(b_1 \cdots b_k) \le \prod_{i=1}^k (2\sqrt{b_i})$ is very crude. 
+
+Actually, $d(N) \le 2\sqrt{N}$ for any $N$. So $d(P_n) \le 2\sqrt{P_n} = 2 \prod_{i=0}^{k-1} \sqrt{a_{n-k+i}}$. If each $a_{n-k+i} \le A$, then $d(P_n) \le 2 A^{k/2}$.
+
+So $a_n \le n + 2 A^{k/2} + 1$ where $A = \max(a_{n-k}, \ldots, a_{n-1})$.
+
+If $a_n \le n + 2 A^{k/2} + 1$ and $A \le n + 2 A'^{k/2} + 1$ (where $A'$ is the max of the previous window), this gives a recurrence that could grow fast.
+
+With $k = 2020$, $A^{k/2} = A^{1010}$, which is enormous. This bound is too weak.
+
+Let me try a better bound on $d(N)$. We have $d(N) \le N^{O(1/\log \log N)}$, but for a product, this is still large.
+
+Actually, a much better approach: the number of divisors of $N$ up to $M$ is at most $M$ (trivially), but more usefully, the number of integers in $[1, M]$ that divide $N$ is at most $\sum_{d | N, d \le M} 1 \le d(N)$. But also, the number of integers in $[1, M]$ NOT dividing $N$ is $M - |\{d | N : d \le M\}|$.
+
+Hmm, I think the divisor function approach is too weak. Let me think about the problem from a completely different angle.
+
+**Approach: Think about the sequence modulo small primes.**
+
+Actually, let me reconsider the problem. The window size is $k = 2020$. Let me think about what happens for a general window size $k$.
+
+Let me consider the simplest case: what if the initial terms are $a_1 = 1, a_2 = 2, \ldots, a_{2020} = 2020$? Then $P_{2021} = 1 \cdot 2 \cdots 2020 = 2020!$. The smallest number not yet used (i.e., not in $\{1, \ldots, 2020\}$) that doesn't divide $2020!$ is... $2021$ if $2021 \nmid 2020!$. Since $2021 = 43 \times 47$, and both 43 and 47 are $\le 2020$, $2021 | 2020!$. So $a_{2021} \ne 2021$. Next, $2022 = 2 \times 3 \times 337$. $337 \le 2020$, so $2022 | 2020!$. Continue... the smallest number $> 2020$ not dividing $2020!$ would be the smallest prime $> 2020$, which is $2027$ (I think). Wait, let me check: $2021 = 43 \times 47$, $2022 = 2 \times 3 \times 337$, $2023 = 7 \times 17^2$, $2024 = 2^3 \times 11 \times 23$, $2025 = 3^4 \times 5^2$, $2026 = 2 \times 1013$. All of these have prime factors $\le 2020$, so they all divide $2020!$. $2027$: is it prime? $2027 / 7 = 289.57...$, $2027 / 11 = 184.27...$, $2027 / 13 = 155.9...$, $2027 / 17 = 119.2...$, $2027 / 19 = 106.7...$, $2027 / 23 = 88.1...$, $2027 / 29 = 69.9...$, $2027 / 31 = 65.4...$, $2027 / 37 = 54.8...$, $2027 / 41 = 49.4...$, $2027 / 43 = 47.1...$, $\sqrt{2027} \approx 45.0$. So we need to check primes up to 45. $2027 / 47 = 43.1... > 45$? No, $47 > 45$. So we check up to 43. $2027 / 43 = 47.1...$, not integer. So 2027 is prime. So $a_{2021} = 2027$ (the smallest number $> 2020$ not dividing $2020!$).
+
+OK so in this case, the first new term is a prime. Then $P_{2022} = 2 \cdot 3 \cdots 2020 \cdot 2027 = 2020! \cdot 2027 / 1 = 2020! \cdot 2027$. Wait, $P_{2022} = a_2 \cdots a_{2021} = 2 \cdot 3 \cdots 2020 \cdot 2027$. The smallest available number not dividing this... $1$ divides everything, but $1$ is used. $2021 = 43 \times 47$, both divide $P_{2022}$ (since $43, 47 \le 2020$ are in the product). So $2021 | P_{2022}$. Similarly for $2022, \ldots, 2026$. $2027$ is used. $2028 = 2^2 \times 3 \times 13^2$, all prime factors $\le 2020$, so $2028 | P_{2022}$. Hmm, when does the next non-divisor appear?
+
+This is getting complicated. Let me go back to the theoretical approach.
+
+**Approach: Show that $a_n = O(n)$ (linear growth), then use the density argument.**
+
+If $a_n \le Cn$ for some constant $C$, then the number of terms up to value $M$ is $\ge M/C$ (roughly). The never-appearing numbers up to $M$ are at most $M - M/C = M(1 - 1/C)$. This doesn't directly give finiteness.
+
+Hmm, I need a better approach.
+
+**Approach: Show that the never-appearing numbers form a finite set by showing they must all divide a fixed number.**
+
+We've shown that each never-appearing number $s$ divides $P_n$ for all $n > N_s$. Consider $P_n$ and $P_{n+1}$ for $n > N_s$:
+
+$s | P_n$ and $s | P_{n+1} = P_n \cdot a_n / a_{n-k}$.
+
+So $s | P_n \cdot a_n / a_{n-k}$. Since $s | P_n$, write $P_n = s \cdot q$. Then $s | s \cdot q \cdot a_n / a_{n-k}$, which means $a_{n-k} | q \cdot a_n$, i.e., $a_{n-k} | (P_n / s) \cdot a_n$.
+
+Hmm, this doesn't directly help. Let me think about it in terms of $p$-adic valuations.
+
+For a prime $p$ with $p^e \| s$:
+- $v_p(P_n) \ge e$ for all $n > N_s$.
+- $v_p(P_{n+1}) = v_p(P_n) + v_p(a_n) - v_p(a_{n-k}) \ge e$.
+
+So $v_p(a_n) - v_p(a_{n-k}) \ge e - v_p(P_n)$. Since $v_p(P_n) \ge e$, the RHS is $\le 0$, so this is always satisfied. Not helpful directly.
+
+But consider: $v_p(P_n) \ge e$ for all $n > N_s$. The sliding window sum $f(n) = \sum_{i=0}^{k-1} v_p(a_{n-k+i}) \ge e$ for all $n > N_s$.
+
+Now, consider the sum $\sum_{n=N_s+1}^{N_s+k} f(n)$. Each $a_j$ for $j \in [N_s+1-k, N_s+k-1]$ appears in some of these windows. Specifically, $a_j$ appears in windows $f(n)$ for $n$ such that $n-k \le j \le n-1$, i.e., $j+1 \le n \le j+k$. The number of such $n$ in $[N_s+1, N_s+k]$ depends on $j$.
+
+This is getting complicated. Let me try a cleaner approach.
+
+**Approach: Consider the product of all never-appearing numbers and derive a contradiction.**
+
+Actually, let me try to think about this more carefully using the structure of the problem.
+
+Let me denote by $S$ the set of never-appearing numbers. We've shown:
+1. For each $s \in S$, $s | P_n$ for all $n > N_s$.
+2. The smallest element $m^* = \min(S)$ (if $S \ne \emptyset$) satisfies $m^* | P_n$ for all $n > N^*$, and for $n > N^*$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$.
+
+Now, here's a key idea: **consider the sequence $(a_n)$ for $n > N^*$ as a new "recurrence" with a modified rule.**
+
+For $n > N^*$, the available numbers are $\{m^*\} \cup T$ where $T$ is the set of numbers $> m^*$ not yet used. Since $m^* | P_n$ always, $a_n$ is the smallest element of $T$ not dividing $P_n$.
+
+Now, $m^* | P_n = a_{n-k} \cdots a_{n-1}$. Write $P_n = m^* \cdot Q_n$ where $Q_n = P_n / m^*$. Then $a_n$ is the smallest available number $> m^*$ not dividing $m^* \cdot Q_n$.
+
+A number $t > m^*$ doesn't divide $m^* \cdot Q_n$ iff there exists a prime $p$ with $v_p(t) > v_p(m^*) + v_p(Q_n) = v_p(P_n)$. So $a_n$ is the smallest available $t > m^*$ with $v_p(t) > v_p(P_n)$ for some prime $p$.
+
+Hmm, this is the same as before. Let me think about the second smallest never-appearing number.
+
+Let $m^{**}$ be the second smallest never-appearing number (if it exists). For $n > N^{**}$, both $m^*$ and $m^{**}$ divide $P_n$. So $P_n$ is divisible by $\text{lcm}(m^*, m^{**})$.
+
+Continuing, if $S = \{m_1, m_2, \ldots\}$ (finite or infinite), then for $n > N_j$, $P_n$ is divisible by $\text{lcm}(m_1, \ldots, m_j)$.
+
+Now, $\text{lcm}(m_1, \ldots, m_j) | P_n$ for $n > N_j$. And $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$, a product of $k$ terms.
+
+**Key claim**: The terms $a_n$ (for $n$ large) are bounded by some function of the never-appearing numbers, and this creates a contradiction if $S$ is infinite.
+
+Let me think about the growth of $a_n$ more carefully.
+
+For $n > N^*$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$. Since $m^* | P_n$, and $P_n$ is divisible by more and more never-appearing numbers as $n$ grows, $P_n$ has more and more divisors, so the smallest available non-divisor might grow.
+
+But the available numbers also change: as $n$ increases, more numbers are used, so fewer are available. The smallest available number $> m^*$ increases.
+
+Let me think about the "available" numbers. After step $n$, the used numbers are $\{a_1, \ldots, a_n\}$. The available numbers are $\mathbb{Z}^+ \setminus \{a_1, \ldots, a_n\}$. The smallest available number is $m^*$ (for $n > N^*$). The second smallest available number is the smallest number $> m^*$ not in $\{a_1, \ldots, a_n\}$.
+
+As $n$ increases, the second smallest available number increases (since more numbers are used). Eventually, it stabilizes at $m^{**}$ (the second never-appearing number) if $m^{**}$ exists, or goes to infinity if $m^{**}$ doesn't exist (meaning all numbers $> m^*$ eventually appear).
+
+If $S = \{m^*\}$ (only one never-appearing number), then all numbers $> m^*$ eventually appear, and we're done.
+
+If $S = \{m^*, m^{**}, \ldots\}$ (multiple), then for $n$ large enough, the available numbers less than any given bound are exactly the never-appearing numbers less than that bound.
+
+So for $n$ very large, the available numbers are exactly $S$ (the never-appearing numbers) plus numbers larger than some growing threshold. The greedy choice $a_n$ is the smallest available number not dividing $P_n$, which is the smallest element of $S$ not dividing $P_n$, or if all elements of $S$ divide $P_n$, then the smallest available number $> \max(S \cap [1, M])$ not dividing $P_n$ for some $M$... 
+
+Wait, this isn't quite right. The available numbers are $S \cup \{\text{numbers} > \text{some threshold not yet used}\}$. As $n \to \infty$, the threshold goes to $\infty$ (all non-$S$ numbers eventually get used). So for very large $n$, the available numbers are $S \cup \{\text{very large numbers}\}$.
+
+For $a_n$ to be chosen, it's the smallest available number not dividing $P_n$. If all elements of $S$ divide $P_n$ (which happens for $n > N_j$ for each $s_j \in S$ with $s_j \le$ some bound), then $a_n$ is the smallest available number larger than all "small" elements of $S$ that doesn't divide $P_n$.
+
+Hmm, I think the key insight is:
+
+**For $n$ sufficiently large, all elements of $S$ up to some bound $B(n)$ divide $P_n$, and $a_n$ is the smallest available number not in $S$ (i.e., the smallest number that will eventually appear) that doesn't divide $P_n$.**
+
+But the numbers that will eventually appear are exactly $U = \mathbb{Z}^+ \setminus S$. For $n$ large, the available numbers in $U$ are those not yet used, which are numbers $> $ some threshold (since all small elements of $U$ have been used). So $a_n$ is the smallest unused element of $U$ not dividing $P_n$.
+
+As $n$ increases, the unused elements of $U$ are pushed to larger and larger values. So $a_n$ grows.
+
+But the question is: does $a_n$ grow fast enough that all large numbers appear, or can some large numbers be "skipped"?
+
+A number $m \in U$ (that will eventually appear) appears at some step $n$ where $m$ is the smallest available non-divisor of $P_n$. For this to happen, $m$ must be available (not yet used) and not divide $P_n$, and all smaller available numbers must divide $P_n$.
+
+The smaller available numbers are: elements of $S$ smaller than $m$, and unused elements of $U$ smaller than $m$. For $n$ large enough, all elements of $U$ smaller than $m$ have been used, so the only smaller available numbers are elements of $S$ smaller than $m$. These all divide $P_n$ (for $n$ large enough). So $m$ appears iff $m \nmid P_n$ at some step $n$ where $m$ is the smallest available non-divisor.
+
+For $m \in U$ to appear, there must exist $n$ such that:
+1. $m$ is not yet used at step $n$.
+2. $m \nmid P_n$.
+3. All elements of $S$ smaller than $m$ divide $P_n$ (so they don't "block" $m$).
+4. All elements of $U$ smaller than $m$ have been used by step $n$ (so they're not available).
+
+Condition 4 is satisfied for $n$ large enough. Condition 3 is satisfied for $n$ large enough (since each $s \in S$ divides $P_n$ for $n > N_s$). So for $n$ large enough, $m$ appears iff $m \nmid P_n$ for some such $n$.
+
+But $m \in U$ means $m$ does appear, so there exists such $n$. And $m \in S$ means $m$ doesn't appear, so $m | P_n$ for all $n$ large enough.
+
+So the question reduces to: for which $m$ is it true that $m | P_n$ for all $n$ large enough? And we need to show this set is finite.
+
+Now, $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. For $n$ large, the terms $a_{n-k}, \ldots, a_{n-1}$ are elements of $U$ (they appear in the sequence) that are large (since small elements of $U$ have been used). 
+
+$m | P_n$ for all $n$ large means: for every window of $k$ consecutive terms (for $n$ large), $m$ divides the product. 
+
+Now, here's the key: **the terms $a_n$ for $n$ large are all elements of $U$ (they appear), and they're distinct. The elements of $U$ that appear late in the sequence are large. So for $n$ large, $P_n$ is a product of $k$ large distinct elements of $U$.**
+
+For $m$ to divide such a product for all $n$ large, $m$ must divide the product of any $k$ consecutive late terms. 
+
+Now, consider a prime $p | m$ with $p^e \| m$. We need $v_p(P_n) \ge e$ for all $n$ large. $v_p(P_n) = \sum_{i=0}^{k-1} v_p(a_{n-k+i})$. 
+
+The terms $a_n$ for $n$ large are large elements of $U$, chosen greedily. The greedy choice is: $a_n$ = smallest available number not dividing $P_n$. 
+
+Here's the crucial point: **if $m$ is large and $m | P_n$ for all $n$ large, then $m$ divides the product of any $k$ consecutive large terms. But the terms are chosen to NOT divide $P_n$ (each $a_n$ doesn't divide $P_n$). So $a_n \nmid P_n$, meaning $a_n$ has some prime power not covered by $P_n$. But $m | P_n$ and $a_n \nmid P_n$... these are about different numbers.**
+
+Hmm, let me think about this differently.
+
+**Approach: Show that for large $m$, $m$ cannot divide $P_n$ for all large $n$, because the terms in the window are too "sparse" in their prime factorizations.**
+
+Consider a large number $m$. For $m | P_n$, every prime power in $m$'s factorization must be covered by the window. If $m$ has a large prime factor $p > $ (all terms in the window), then $p \nmid P_n$ (since no term is divisible by $p$), so $m \nmid P_n$.
+
+So if $m$ has a prime factor $p$ that is larger than all terms in some window, then $m \nmid P_n$ for that window, and $m$ would be "eligible" to appear (if it's the smallest available non-divisor).
+
+Now, the terms $a_n$ grow (they're distinct and there are infinitely many). But do they grow fast enough that for any large prime $p$, there's a window where no term is divisible by $p$?
+
+If $p$ never appears and $p$ is prime, then $p | P_n$ for all $n$ large, meaning every window has a multiple of $p$. The multiples of $p$ are $p, 2p, 3p, \ldots$. Since $p$ never appears, the multiples appearing are $2p, 3p, \ldots$ (excluding $p$). In every window of $k$ terms, at least one is a multiple of $p$.
+
+Now, the terms are chosen greedily. Consider what happens when the available numbers are all very large. The smallest available number not dividing $P_n$ is chosen. If $P_n$ is divisible by many primes (all never-appearing primes), then $P_n$ has many divisors, and the smallest non-divisor might be a number with a "new" prime factor not in $P_n$.
+
+Actually, I think the key is:
+
+**The terms $a_n$ are chosen to not divide $P_n$. So $a_n$ has a prime power $p^e$ with $p^e \nmid P_n$, i.e., $v_p(a_n) > v_p(P_n)$ for some prime $p$. This means $a_n$ introduces a "new" prime power to the window.**
+
+When $a_n$ enters the window and $a_{n-k}$ leaves, the $p$-adic valuation of the window changes by $v_p(a_n) - v_p(a_{n-k})$. If $v_p(a_n) > v_p(P_n)$, then $a_n$ has a high power of $p$, and when it enters the window, $v_p(P_{n+1})$ increases.
+
+But then, $k$ steps later, $a_n$ leaves the window, and $v_p(P_{n+k+1})$ decreases by $v_p(a_n)$.
+
+For a never-appearing number $m$ with $p^e \| m$, we need $v_p(P_n) \ge e$ for all $n$ large. The "pulses" of high $p$-adic valuation from terms like $a_n$ (which have $v_p(a_n) > v_p(P_n)$) must be frequent enough to keep the window sum $\ge e$.
+
+But each such "pulse" is a term with high $v_p$, and these terms are chosen greedily. The greedy choice prefers small numbers, so it would prefer numbers with low $v_p$ (unless forced to pick high $v_p$ numbers).
+
+I think the contradiction comes from the fact that if $S$ is infinite, there are infinitely many constraints (one for each $s \in S$), and these constraints force the terms to be large, but the greedy algorithm keeps them small.
+
+Let me try to formalize this. 
+
+**Formal argument:**
+
+Assume $S$ is infinite. Let $s_1 < s_2 < \ldots$ be the elements of $S$. For each $j$, $s_j | P_n$ for all $n > N_j$.
+
+For any $J$, let $N(J) = \max(N_1, \ldots, N_J)$. For $n > N(J)$, $s_1 \cdots s_J$ (well, $\text{lcm}(s_1, \ldots, s_J)$) divides $P_n$.
+
+Let $L_J = \text{lcm}(s_1, \ldots, s_J)$. Then $L_J | P_n$ for $n > N(J)$, so $P_n \ge L_J$ for $n > N(J)$.
+
+Now, $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. So $\prod_{i=0}^{k-1} a_{n-k+i} \ge L_J$ for $n > N(J)$. By AM-GM, $\max(a_{n-k}, \ldots, a_{n-1}) \ge L_J^{1/k}$.
+
+So for $n > N(J)$, some term in the window is $\ge L_J^{1/k}$. Since $L_J \to \infty$ as $J \to \infty$, this means the maximum term in every window goes to infinity (as we consider larger $J$ and correspondingly larger $n$).
+
+But this just says the terms grow, which we already knew. I need a contradiction.
+
+Let me think about the growth rate. $L_J \ge s_J \ge J$ (since the $s_j$ are distinct positive integers, $s_J \ge J$). Actually, $s_J$ could be much larger than $J$.
+
+The issue is that $N(J)$ could be very large, so the constraint $P_n \ge L_J$ only applies for very large $n$, and by then, the terms could be large enough.
+
+**Better approach: Bound $a_n$ from above, and show it can't grow fast enough.**
+
+Let me try to show $a_n \le C \cdot n$ for some constant $C$.
+
+At step $n$, among $\{1, 2, \ldots, Cn\}$, at most $n-1$ are used. So at least $Cn - n + 1 = (C-1)n + 1$ are available. The number of divisors of $P_n$ in $\{1, \ldots, Cn\}$ is at most $d(P_n)$.
+
+I need $(C-1)n + 1 > d(P_n)$, i.e., $d(P_n) < (C-1)n$.
+
+Now, $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. If $a_j \le Cj$ for all $j$ (inductive hypothesis), then $P_n \le \prod_{i=0}^{k-1} C(n-k+i) \le (Cn)^k$. So $d(P_n) \le d((Cn)^k)$.
+
+The number of divisors of $N$ is $O(N^{\epsilon})$ for any $\epsilon > 0$. More precisely, $d(N) \le 2\sqrt{N}$, so $d((Cn)^k) \le 2(Cn)^{k/2}$.
+
+For $k = 2020$, $(Cn)^{1010}$, which is way larger than $(C-1)n$. So this approach fails with the crude bound.
+
+But the divisor function bound $d(N) \le 2\sqrt{N}$ is very crude. The actual bound is $d(N) = N^{o(1)}$, more precisely $d(N) \le \exp(O(\log N / \log \log N))$. For $N = (Cn)^k$, $\log N = k \log(Cn)$, so $d(N) \le \exp(O(k \log(Cn) / \log(k \log(Cn))))$. For large $n$, this is $\exp(O(k \log n / \log \log n))$, which is $n^{O(k / \log \log n)}$. For $n$ large enough, $k / \log \log n < 1$, so $d(P_n) < n^{1+\epsilon}$ for any $\epsilon > 0$ and large enough $n$. In particular, $d(P_n) < (C-1)n$ for large $n$ if $C > 1$.
+
+Wait, let me be more precise. $d(N) \le \exp((1+o(1)) \log N / \log \log N)$. For $N = (Cn)^k$, $\log N = k \log(Cn) \approx k \log n$. $\log \log N \approx \log(k \log n) \approx \log \log n$ (for large $n$). So $d(N) \le \exp((1+o(1)) k \log n / \log \log n) = n^{(1+o(1)) k / \log \log n}$.
+
+For $n$ large enough, $k / \log \log n < 1/2$ (say), so $d(P_n) \le n^{1/2 + o(1)}$. Then $(C-1)n > n^{1/2 + o(1)}$ for large $n$, so the bound works.
+
+So for large $n$, $a_n \le Cn$ for any $C > 1$ (say $C = 2$). More precisely, $a_n \le 2n$ for all $n \ge N_0$ (some constant).
+
+Wait, but I used the inductive hypothesis that $a_j \le Cj$ for $j < n$. Let me be more careful.
+
+**Lemma**: There exists a constant $C$ and $N_0$ such that $a_n \le Cn$ for all $n \ge N_0$.
+
+*Proof*: We prove this by induction. Assume $a_j \le Cj$ for all $j < n$ (where $n \ge N_0$ and $N_0$ is large enough). Then $P_n = \prod_{i=0}^{k-1} a_{n-k+i} \le \prod_{i=0}^{k-1} C(n-k+i) \le (Cn)^k$.
+
+The number of divisors of $P_n$ is $d(P_n) \le d((Cn)^k)$. Using the bound $d(N) \le \exp(O(\log N / \log \log N))$:
+
+$d((Cn)^k) \le \exp(O(k \log(Cn) / \log(k \log(Cn))))$.
+
+For $n$ large enough, $k \log(Cn) / \log(k \log(Cn)) < \log n / 2$ (since the LHS is $O(k \log n / \log \log n)$ and the RHS is $\log n / 2$; for large $n$, $k / \log \log n < 1/2$).
+
+So $d(P_n) \le \exp(O(\log n / 2)) = n^{O(1/2)} < n$ for large $n$.
+
+Among $\{1, \ldots, Cn\}$, the number of used numbers is $n - 1$, and the number of divisors of $P_n$ is $< n$. So the number of available non-divisors of $P_n$ in $\{1, \ldots, Cn\}$ is $\ge Cn - (n-1) - d(P_n) > Cn - 2n = (C-2)n$. For $C \ge 3$, this is $\ge n > 0$.
+
+So $a_n \le Cn$ for $n \ge N_0$. The induction goes through (with a large enough $N_0$ and $C = 3$, say).
+
+Wait, I need to be more careful with the induction. The base case: for $n = N_0$, I need $a_j \le Cj$ for $j < N_0$. But the initial terms $a_1, \ldots, a_{2020}$ are given and fixed, so $a_j \le Q$ for $j \le 2020$ where $Q = \max(a_1, \ldots, a_{2020})$. For $j > 2020$ and $j < N_0$, I need the bound to hold. 
+
+Actually, the induction is strong induction: assume $a_j \le Cj$ for all $j < n$, prove $a_n \le Cn$. The base case is $n = 1$: $a_1 \le C \cdot 1 = C$, which holds if $C \ge Q$ (since $a_1 \le Q$). For $n = 2$: $a_2 \le C \cdot 2$, holds if $C \ge Q/2$. Etc. For $n \le 2020$: $a_n \le Q \le Cn$ if $C \ge Q$ (since $n \ge 1$). For $n > 2020$: use the argument above.
+
+But the argument above requires $n$ to be large enough (for the divisor bound to kick in). For small $n > 2020$, the divisor bound might not hold. So I need $N_0$ to be large enough, and for $2020 < n < N_0$, I need a different argument or just make $C$ large enough.
+
+For $2020 < n < N_0$: $a_n$ is the smallest available non-divisor of $P_n$. $P_n \le Q^{2020} \cdot (C \cdot N_0)^{n - 2020}$... hmm, this is getting complicated. Let me just say: for $n$ in any finite range, $a_n$ is finite, so there exists $C$ large enough that $a_n \le Cn$ for all $n \le N_0$. Then the induction takes over for $n > N_0$.
+
+Actually, the issue is that for the induction step, I need $P_n \le (Cn)^k$, which requires $a_{n-k+i} \le C(n-k+i) \le Cn$ for all $i$. This is the inductive hypothesis for $j = n-k, \ldots, n-1$, all of which are $< n$. So the induction works.
+
+The key step is: for $n$ large enough, $d((Cn)^k) < (C-2)n$, which holds because $d((Cn)^k) = n^{o(1)}$ (for fixed $C, k$) while $(C-2)n$ is linear in $n$.
+
+So the lemma holds: $a_n \le Cn$ for all $n \ge 1$ (with appropriate $C$).
+
+**Great, so $a_n = O(n)$.** Now, how does this help?
+
+If $a_n \le Cn$ for all $n$, then the number of terms with value $\le M$ is at least $M/C$ (since the first $\lfloor M/C \rfloor$ terms have values $\le M$). Actually, more precisely: the terms $a_1, \ldots, a_{\lfloor M/C \rfloor}$ all have values $\le C \cdot \lfloor M/C \rfloor \le M$. So at least $\lfloor M/C \rfloor$ distinct values in $[1, M]$ are used.
+
+The total numbers in $[1, M]$ is $M$. The used numbers in $[1, M]$ is $\ge \lfloor M/C \rfloor$. So the never-appearing numbers in $[1, M]$ is $\le M - \lfloor M/C \rfloor \le M(1 - 1/C) + 1$.
+
+This gives $|S \cap [1, M]| \le M(1 - 1/C) + 1$, which is $O(M)$, not $O(1)$. So this doesn't prove $S$ is finite.
+
+I need a stronger bound. Let me think about how to get a better upper bound on $a_n$.
+
+**Better bound: $a_n \le n + O(n^\alpha)$ for some $\alpha < 1$.**
+
+At step $n$, among $\{1, \ldots, n + D\}$ where $D = d(P_n) + 1$, the number of available non-divisors is $\ge (n + D) - (n-1) - d(P_n) = D - d(P_n) \ge 1$. So $a_n \le n + d(P_n) + 1$.
+
+Now, $d(P_n) \le d((Cn)^k) = n^{o(1)}$. So $a_n \le n + n^{o(1)}$.
+
+More precisely, $a_n \le n + \exp(O(k \log n / \log \log n))$.
+
+For any $\epsilon > 0$, $a_n \le n + n^{\epsilon}$ for large $n$ (since $k \log n / \log \log n < \epsilon \log n$ for large $n$, i.e., $k / \log \log n < \epsilon$).
+
+So $a_n \le n + n^{\epsilon}$ for any $\epsilon > 0$ and large $n$.
+
+Now, the number of terms with value $\le M$ is at least the largest $n$ with $n + n^{\epsilon} \le M$, which is $n \ge M - M^{\epsilon}$ (roughly). So at least $M - M^{\epsilon}$ distinct values in $[1, M]$ are used.
+
+The never-appearing numbers in $[1, M]$ is $\le M - (M - M^{\epsilon}) = M^{\epsilon}$.
+
+So $|S \cap [1, M]| \le M^{\epsilon}$ for any $\epsilon > 0$ and large $M$.
+
+This is $M^{o(1)}$, which is still not $O(1)$. But it's much better.
+
+Can I iterate this? If $a_n \le n + n^{\epsilon}$, then $P_n \le \prod (n + n^{\epsilon}) \le (n + n^{\epsilon})^k \le n^k (1 + n^{\epsilon - 1})^k \le n^k \cdot 2$ for large $n$ (since $n^{\epsilon - 1} \to 0$). So $P_n \le 2 n^k$ for large $n$.
+
+$d(P_n) \le d(2 n^k) \le \exp(O(k \log n / \log \log n)) = n^{o(1)}$.
+
+So $a_n \le n + n^{o(1)}$, and more precisely, $a_n \le n + \exp(O(k \log n / \log \log n))$.
+
+Let $f(n) = \exp(O(k \log n / \log \log n)) = n^{O(k / \log \log n)}$. Then $a_n \le n + f(n)$.
+
+The number of never-appearing numbers up to $M$ is $\le f(M) = M^{O(k / \log \log M)}$.
+
+As $M \to \infty$, $k / \log \log M \to 0$, so $f(M) = M^{o(1)}$. This still goes to infinity, so $S$ could be infinite.
+
+Hmm, I need a different approach to get a contradiction. Let me think about this more.
+
+**Approach: Use the structure of $S$ more carefully.**
+
+We know:
+1. $a_n \le n + n^{o(1)}$ (the terms grow almost linearly).
+2. Each $s \in S$ divides $P_n$ for all $n > N_s$.
+3. $P_n \le 2n^k$ for large $n$ (from the bound on $a_n$).
+
+From (2) and (3): for $s \in S$ and $n > N_s$, $s | P_n$ and $P_n \le 2n^k$, so $s \le 2n^k$. This is trivially true for $n$ large.
+
+But also, $s | P_n$ for ALL $n > N_s$, not just one $n$. So $s$ divides $P_n$ for infinitely many $n$.
+
+Now, consider two consecutive values: $s | P_n$ and $s | P_{n+1}$. $P_{n+1} = P_n \cdot a_n / a_{n-k}$. So $s | P_n \cdot a_n / a_{n-k}$.
+
+Since $s | P_n$, we have $P_n = s \cdot t$ for some integer $t$. Then $P_{n+1} = s \cdot t \cdot a_n / a_{n-k}$. For $s | P_{n+1}$, we need $a_{n-k} | t \cdot a_n$, i.e., $a_{n-k} | (P_n / s) \cdot a_n$.
+
+Let $g = \gcd(s, a_{n-k})$. Write $s = g \cdot s'$ and $a_{n-k} = g \cdot b$ with $\gcd(s', b) = 1$. Then the condition becomes $g \cdot b | (P_n / s) \cdot a_n$, i.e., $b | (P_n / s) \cdot a_n / g$... hmm, this is getting messy.
+
+Let me think about it differently. 
+
+$s | P_n$ and $s | P_{n+1}$. $P_{n+1}/P_n = a_n / a_{n-k}$. So $s | P_n$ and $s | P_n \cdot (a_n / a_{n-k})$. 
+
+If $\gcd(s, a_n / a_{n-k}) = 1$... but $        — AI历史解题过程（thinking）
+#   omni_math_000058         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>omni_math_000058</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Find all pairs of positive integers $ (m,n)$ such that $ mn - 1$ divides $ (n^2 - n + 1)^2$.
+
+## Standard Solution
+
+
+To find all pairs of positive integers \((m, n)\) such that \(mn - 1\) divides \((n^2 - n + 1)^2\), we need to analyze the given condition and derive the solutions.
+
+First, let's denote \(d = mn - 1\). We need \(d\) to divide \((n^2 - n + 1)^2\). This implies:
+\[
+d \mid (n^2 - n + 1)^2.
+\]
+
+We start by considering the trivial solution \((m, n) = (2, 2)\):
+\[
+2 \cdot 2 - 1 = 3 \quad \text{and} \quad (2^2 - 2 + 1)^2 = 3^2 = 9,
+\]
+which satisfies \(3 \mid 9\).
+
+Next, we explore other potential solutions. Suppose \((m, n)\) is a solution with \(2 < n < m\). We need to find \(k < n\) such that \((n, k)\) is also a solution. This requires:
+\[
+(n^2 - n + 1)^2 \equiv -1 \pmod{n}.
+\]
+
+We analyze the inequalities:
+\[
+n^2 - 1 \leq \frac{(n^2 - n + 1)^2}{mn - 1} \leq \frac{(n^2 - n + 1)^2}{n^2 - 1}.
+\]
+
+Simplifying, we get:
+\[
+\frac{(n^2 - n + 1)^2}{n^2 - 1} \geq n^2 - 1 \implies n^2 - n + 1 \geq n^2 - 1 \implies n \leq 2.
+\]
+
+This implies that the solutions are limited to specific cases. By fixing initial values \(a_0\) and \(b_0\) with \(b_0 \leq 2\), we can generate all solutions using the recurrence relation:
+\[
+(a_i, b_i)_{i=0}^{\infty} \quad \text{where} \quad a_i = b_{i+1}, \quad b_i = \frac{1}{b_{i+1}} \left[ \frac{(b_{i+1}^2 - b_{i+1} + 1)^2}{a_{i+1} b_{i+1} - 1} + 1 \right] \quad \forall \ i \in \mathbb{N}^*.
+\]
+
+By working through this recurrence, we find that the solutions are:
+\[
+(m, n) = (2, 2) \quad \text{and} \quad (m, n) = (b_{\ell-1}, b_{\ell}), \ (b_{\ell}, b_{\ell+1}) \quad \forall \ \ell \in \mathbb{N}^*.
+\]
+
+Cleaning up the recurrence relation:
+\[
+b_{i+2} = \frac{b_{i+1}^3 - 2b_{i+1}^2 + 3b_{i+1} + b_i - 2}{b_i b_{i+1} - 1} \quad \forall \ i \in \mathbb{N}^*, \quad b_0 = 2, \quad b_1 = 5,
+\]
+we get the sequence:
+\[
+(b_i)_{i=0}^{\infty} = 2, 5, 10, 17, \ldots,
+\]
+which can be generalized as:
+\[
+b_i = (i + 1)^2 + 1.
+\]
+
+Thus, the pairs \((m, n)\) that satisfy the condition are:
+\[
+(m, n) = (2, 2) \quad \text{and} \quad (m, n) = ((i+1)^2 + 1, (i+2)^2 + 1) \quad \forall \ i \in \mathbb{N}.
+\]
+
+The answer is: \boxed{(2, 2) \text{ and } ((i+1)^2 + 1, (i+2)^2 + 1) \text{ for all } i \in \mathbb{N}}.
+
+## AI's Thinking (Attempted Solution Process)
+
+The problem: Given distinct positive integers $a_1, a_2, \ldots, a_{2020}$. For $n \ge 2021$, $a_n$ is the smallest number different from $a_1, \ldots, a_{n-1}$ which doesn't divide $a_{n-2020}\cdots a_{n-2}a_{n-1}$. Prove that every number large enough appears in the sequence.
+
+Let me think about this carefully.
+
+First, let me understand the rule. We have a window of the last 2020 elements. The product $P_n = a_{n-2020} \cdot a_{n-2019} \cdots a_{n-1}$. Then $a_n$ is the smallest positive integer not yet in the sequence that does NOT divide $P_n$.
+
+So $a_n$ is chosen as: among all positive integers not in $\{a_1, \ldots, a_{n-1}\}$, pick the smallest one that does not divide the product of the last 2020 terms.
+
+Key observations:
+
+1. The sequence consists of distinct positive integers.
+
+2. If a number $m$ is not in the sequence yet and $m \nmid P_n$, then $m$ is a candidate. We pick the smallest such candidate.
+
+Let me think about what numbers can divide $P_n$. $P_n$ is a product of 2020 distinct positive integers. A number $m$ divides $P_n$ iff for every prime $p$, the exponent of $p$ in $m$ is at most the exponent of $p$ in $P_n$.
+
+Let me think about the structure. 
+
+First, let's think about small numbers. Consider number 1. $1 | P_n$ always. So 1 can never be chosen as $a_n$ for $n \ge 2021$ (since 1 always divides the product). So if 1 is not among $a_1, \ldots, a_{2020}$, it will never appear. But the problem says "every number large enough appears", so small numbers might not appear, that's fine.
+
+Actually wait, the problem says distinct positive integers $a_1, \ldots, a_{2020}$. So 1 might or might not be among them.
+
+Let me think about this differently. The key insight is probably about the growth of the sequence and how eventually all large numbers must appear.
+
+Let me think about what happens. At each step, we look at the product of the last 2020 terms. We need to find the smallest unused number that doesn't divide this product.
+
+A number $m$ divides $P_n = \prod_{i=0}^{2019} a_{n-2020+i}$ iff for each prime $p$, $v_p(m) \le \sum_{i=0}^{2019} v_p(a_{n-2020+i})$.
+
+So $m$ does NOT divide $P_n$ iff there exists a prime $p$ such that $v_p(m) > \sum_{i=0}^{2019} v_p(a_{n-2020+i})$.
+
+Now, the smallest unused number that doesn't divide $P_n$. 
+
+Let me think about the primes. Consider a prime $p$. If $p^k$ is not in the sequence and $k > \sum v_p$ of the last 2020 terms, then $p^k$ doesn't divide $P_n$. But we need the SMALLEST such number.
+
+Hmm, let me think about this more carefully with a simpler case first. Let's consider the case with window size $w$ (here $w = 2020$) and think about what happens.
+
+Actually, let me think about the key structural property. 
+
+Claim: The sequence is eventually "dense" in the sense that all sufficiently large integers appear.
+
+Let me think about why a number might NOT appear. A number $m$ doesn't appear if at every step $n$ where $m$ is still unused, $m | P_n$. So $m$ divides the product of every window of 2020 consecutive terms (from the point where $m$ becomes the smallest unused, or more precisely, at every step where $m$ is a candidate for being chosen but isn't because it divides $P_n$... wait, no. $m$ is chosen when it's the smallest unused that doesn't divide $P_n$. So $m$ is NOT chosen at step $n$ if either $m | P_n$ (so it's not a candidate) or there's a smaller unused number that also doesn't divide $P_n$.
+
+Actually, $m$ is chosen at step $n$ if: $m$ is unused, $m \nmid P_n$, and every unused number smaller than $m$ divides $P_n$.
+
+So $m$ fails to be chosen at step $n$ (while still unused) if either $m | P_n$, or some unused number $< m$ also doesn't divide $P_n$.
+
+This is getting complex. Let me think about the overall structure.
+
+Let me consider the set $S$ of numbers that never appear in the sequence. We want to show $S$ is finite.
+
+Suppose $m \in S$, i.e., $m$ never appears. Then at every step $n \ge 2021$ (where $m$ is still unused, which is all steps since $m$ never appears), either $m | P_n$ or some smaller unused number $m' < m$ with $m' \nmid P_n$ exists (and that $m'$ gets chosen, or an even smaller one).
+
+Hmm, but actually, the chosen $a_n$ is the smallest unused not dividing $P_n$. So if $m$ is unused and $m \nmid P_n$, then $a_n \le m$ (since $a_n$ is the smallest such). And if $a_n < m$, then $a_n$ is a new number smaller than $m$ that gets used. Since there are only finitely many numbers smaller than $m$, eventually all numbers smaller than $m$ that will ever appear have appeared. 
+
+So let's say after some step $N$, all numbers $< m$ that will ever appear have already appeared. Then for $n > N$, if $m$ is still unused, $m$ is the smallest unused number. So $a_n = m$ iff $m \nmid P_n$. If $m | P_n$ for all $n > N$, then $m$ never appears. If at some point $m \nmid P_n$, then $a_n = m$ and $m$ appears.
+
+So: $m$ never appears iff after all numbers $< m$ that will appear have appeared, $m$ divides $P_n$ for all subsequent $n$.
+
+Now, $m | P_n = a_{n-2020} \cdots a_{n-1}$ for all large $n$. This means $m$ divides every product of 2020 consecutive terms (for large enough $n$).
+
+Let me think about what it means for $m$ to divide every window of 2020 consecutive terms.
+
+If $m | a_{n-2020} \cdots a_{n-1}$ for all $n \ge N$, then in particular, $m | a_{n} \cdots a_{n+2019}$ for all $n \ge N - 2020$... wait, let me be more careful.
+
+$m | P_n$ means $m | \prod_{i=n-2020}^{n-1} a_i$. For all $n \ge N$.
+
+Consider two consecutive windows: $P_n = \prod_{i=n-2020}^{n-1} a_i$ and $P_{n+1} = \prod_{i=n-2019}^{n} a_i$. 
+
+$P_{n+1} / P_n = a_n / a_{n-2020}$.
+
+If $m | P_n$ and $m | P_{n+1}$, then... well, this doesn't directly give us much since we're dealing with integers and divisibility.
+
+Let me think about prime by prime. Fix a prime $p$ and let $e = v_p(m)$. We need $v_p(P_n) \ge e$ for all $n \ge N$, i.e., $\sum_{i=n-2020}^{n-1} v_p(a_i) \ge e$ for all $n \ge N$.
+
+Let $b_i = v_p(a_i)$. We need $\sum_{i=n-2020}^{n-1} b_i \ge e$ for all large $n$.
+
+The sum of any 2020 consecutive $b_i$'s is at least $e$. 
+
+Now, the $a_i$ are distinct positive integers, so they grow. In particular, the sequence must grow (since we keep adding new distinct positive integers, and small ones get used up or are in $S$).
+
+Hmm wait, does the sequence grow? Not necessarily monotonically. $a_n$ is the smallest unused number not dividing $P_n$. This could be small or large.
+
+Let me think about whether the sequence is bounded or grows.
+
+Actually, let's think about it. The numbers that divide $P_n$ form a specific set. The smallest unused number not dividing $P_n$... 
+
+If the sequence stays bounded, then only finitely many distinct values are used, but the sequence is infinite and all values are distinct, contradiction. So the sequence is unbounded.
+
+More precisely, since all $a_i$ are distinct positive integers, $a_n \ge n$ for all $n$ (well, not exactly, but the sequence takes infinitely many distinct values so it's unbounded). Actually, $a_n$ are all distinct, so $\{a_1, a_2, \ldots\}$ is an infinite subset of positive integers, hence unbounded.
+
+Now, let me think about the growth rate. 
+
+Key idea: Let's think about what the sequence looks like. At each step, we pick the smallest unused number not dividing the product of the last 2020 terms. 
+
+Consider the primes. A prime $p$ that is unused: $p | P_n$ iff $p$ divides one of $a_{n-2020}, \ldots, a_{n-1}$. So $p \nmid P_n$ iff $p$ doesn't divide any of the last 2020 terms.
+
+So if $p$ is an unused prime and none of the last 2020 terms is divisible by $p$, then $p$ is a candidate (it doesn't divide $P_n$), and $a_n \le p$.
+
+Now here's a key insight: consider a prime $p$ that is larger than all of $a_1, \ldots, a_{2020}$ (the initial terms) and larger than all numbers that will ever be chosen. Wait, that's circular.
+
+Let me think differently. Let me consider the "greedy" nature. 
+
+Let me think about the sequence of values. Since the sequence is unbounded, for any $M$, there exists $n$ with $a_n > M$.
+
+Now, suppose $m$ never appears in the sequence. As argued, after some point $N$, $m$ is the smallest unused number, and $m | P_n$ for all $n \ge N$.
+
+For each prime $p | m$, let $e_p = v_p(m)$. We need $\sum_{i=n-2020}^{n-1} v_p(a_i) \ge e_p$ for all $n \ge N$.
+
+Now, consider what happens as the sequence grows. The terms $a_i$ for large $i$ are large numbers. 
+
+Let me think about the density of multiples of $p$ in the sequence. 
+
+Hmm, let me think about this problem from a higher level. The claim is that every sufficiently large number appears. 
+
+Approach: Show that the set of numbers that never appear is finite.
+
+Suppose $m$ never appears. Then for all large $n$, $m | \prod_{i=n-2020}^{n-1} a_i$.
+
+Consider the sequence modulo considerations. For each prime power $p^k || m$, we need enough $p$-adic valuation in every window of 2020.
+
+Now, here's a crucial observation: if $m$ never appears and $m' = m \cdot q$ for some prime $q \nmid m$, does $m'$ ever appear? 
+
+If $m'$ is unused and is the smallest unused not dividing $P_n$ at some point... Let's see. $m' | P_n$ requires $v_q(P_n) \ge 1$, i.e., some $a_i$ in the window is divisible by $q$. And $v_p(P_n) \ge e_p$ for all $p | m$.
+
+Since $m | P_n$ for all large $n$ (as $m$ never appears), we have $v_p(P_n) \ge e_p$ for all $p | m$. So $m' | P_n$ iff $v_q(P_n) \ge 1$, i.e., some term in the window is divisible by $q$.
+
+If $q$ is a prime that never appears in the sequence and no multiple of $q$ ever appears... hmm, this is getting complicated.
+
+Let me try a different approach. Let me think about what the sequence actually looks like.
+
+Let me consider a simpler version: window size 1. So $a_n$ is the smallest unused number not dividing $a_{n-1}$.
+
+With window size 1: $a_n$ is the smallest positive integer not in $\{a_1, \ldots, a_{n-1}\}$ that doesn't divide $a_{n-1}$.
+
+Starting with $a_1 = $ some value. Then $a_2$ = smallest unused not dividing $a_1$. Etc.
+
+If $a_1 = 1$: $a_2$ = smallest unused not dividing 1 = 2 (since 1|1, 2 doesn't divide 1). $a_3$ = smallest unused not dividing 2. Unused: 1, 3, 4, 5, ... 1|2? No, 1|2 yes (1 divides everything). Wait, 1 divides 2. So 1 is not a candidate. 3 doesn't divide 2, so $a_3 = 3$. Hmm wait, but 1 is unused. 1 divides 2, so 1 is not a candidate. 3 doesn't divide 2, so $a_3 = 3$. Then $a_4$ = smallest unused not dividing 3. Unused: 1, 4, 5, 6, ... 1|3 yes. 4 doesn't divide 3, so $a_4 = 4$. Continuing, $a_5$ = smallest unused not dividing 4. Unused: 1, 5, 6, ... 1|4. 5 doesn't divide 4, $a_5 = 5$. It seems like with $a_1 = 1$, we get $a_n = n$ for all $n$, and 1 never appears again (it's already used). So every number appears. Good.
+
+What if $a_1 = 2$? $a_2$ = smallest unused not dividing 2. Unused: 1, 3, 4, 5, ... 1|2 yes. 3 doesn't divide 2, $a_2 = 3$. $a_3$ = smallest unused not dividing 3. Unused: 1, 2, 4, 5, ... 1|3. 2 doesn't divide 3, $a_3 = 2$. Wait, 2 is unused! 2 doesn't divide 3. So $a_3 = 2$. $a_4$ = smallest unused not dividing 2. Unused: 1, 4, 5, 6, ... 1|2. 4 doesn't divide 2 (4 > 2, so 4 doesn't divide 2). $a_4 = 4$. $a_5$ = smallest unused not dividing 4. Unused: 1, 5, 6, ... 1|4. 5 doesn't divide 4. $a_5 = 5$. $a_6$ = smallest unused not dividing 5. Unused: 1, 6, 7, ... 1|5. 6 doesn't divide 5. $a_6 = 6$. So we get 1 never appears (it always divides everything), and all other numbers appear. So "every number large enough appears" holds (everything except 1).
+
+OK so for window size 1, the result holds. Let me think about the general case.
+
+Let me think about the key structural properties.
+
+**Property 1**: The sequence is unbounded (since all terms are distinct).
+
+**Property 2**: Let $S$ be the set of numbers that never appear. For each $m \in S$, there exists $N_m$ such that for all $n \ge N_m$, $m | P_n$ (where $P_n = \prod_{i=n-2020}^{n-1} a_i$).
+
+This is because: after all numbers $< m$ that will ever appear have appeared, $m$ is the smallest unused. If at any point $m \nmid P_n$, then $a_n = m$ and $m$ appears. So if $m$ never appears, $m | P_n$ for all large $n$.
+
+**Property 3**: $S$ is "downward closed" in some sense? Not exactly. But let's think about it. If $m \in S$ and $d | m$ with $d < m$, is $d \in S$? Not necessarily, since $d$ might be among the initial terms.
+
+Hmm, let me think about the structure of $S$ more carefully.
+
+Actually, let me think about the key constraint. If $m \in S$, then $m | P_n$ for all large $n$. This means for each prime $p | m$ with $e_p = v_p(m)$:
+
+$$\sum_{i=n-2020}^{n-1} v_p(a_i) \ge e_p \quad \text{for all } n \ge N_m.$$
+
+Now, the sequence $a_i$ is unbounded and consists of distinct positive integers. 
+
+Let me think about the $p$-adic valuations. Consider the sequence $b_i = v_p(a_i)$ for a fixed prime $p$. We need the sum of any 2020 consecutive $b_i$'s (for large enough $i$) to be at least $e_p$.
+
+Now, the $a_i$ are distinct, so they can't all be divisible by $p$. In fact, among any 2020 consecutive terms, how many can be divisible by $p$?
+
+Well, there's no direct limit on how many terms are divisible by $p$. But the terms are distinct, so the terms divisible by $p$ are distinct multiples of $p$.
+
+Hmm, I think the key insight might be about the growth of the sequence and how it forces certain numbers to appear.
+
+Let me think about it from the perspective of: what numbers are forced to appear?
+
+Consider a large prime $p$. If $p$ is unused and none of the last 2020 terms is a multiple of $p$, then $p \nmid P_n$, so $p$ is a candidate, and $a_n \le p$.
+
+Now, the question is: can we avoid having $p$ appear? We'd need that whenever $p$ is the smallest unused candidate (i.e., all smaller unused numbers divide $P_n$), we have $p | P_n$, meaning some term in the window is a multiple of $p$.
+
+But the terms in the window are specific numbers. For $p | P_n$, we need one of $a_{n-2020}, \ldots, a_{n-1}$ to be a multiple of $p$. The multiples of $p$ are $p, 2p, 3p, \ldots$. If $p$ itself is unused, the multiples of $p$ that could be in the sequence are $2p, 3p, 4p, \ldots$ (and $p$ itself if it appears, but we're assuming it doesn't).
+
+So for $p$ to never appear, we need: for all large $n$, some $a_i$ ($n-2020 \le i \le n-1$) is a multiple of $p$. This means multiples of $p$ appear frequently in the sequence — at least once every 2020 terms (for large enough indices).
+
+But the multiples of $p$ that appear are distinct. So we need at least one multiple of $p$ in every window of 2020 consecutive terms. 
+
+Now, here's the thing: if $p$ is large, the multiples of $p$ are $p, 2p, 3p, \ldots$, which are all $\ge p$. If the sequence is growing, then at some point all terms are $\ge p$, and the multiples of $p$ among them are $p, 2p, 3p, \ldots$.
+
+Wait, but the sequence doesn't grow monotonically. Let me reconsider.
+
+Actually, let me think about this more carefully. The sequence is unbounded but not monotone. However, the set of numbers that appear is some infinite subset of $\mathbb{Z}^+$.
+
+Let me consider the set $A = \{a_1, a_2, a_3, \ldots\}$ of numbers that appear, and $S = \mathbb{Z}^+ \setminus A$ the numbers that don't appear. We want to show $S$ is finite.
+
+For $m \in S$, we established that $m | P_n$ for all large $n$.
+
+Now, let me think about the relationship between different elements of $S$.
+
+**Key Lemma**: If $m \in S$, then every divisor of $m$ that is not in the initial segment $\{a_1, \ldots, a_{2020}\}$ is also in $S$.
+
+Wait, is that true? Let me think... If $d | m$ and $d \notin \{a_1, \ldots, a_{2020}\}$ and $d$ appears at some position $a_k = d$ for $k > 2020$... then $d$ was chosen as the smallest unused not dividing $P_k$. Since $m > d$ (assuming $d < m$) and $m$ is unused at step $k$ (since $m \in S$), and $d$ was chosen, it means $d \nmid P_k$ but $d$ was the smallest such. 
+
+Hmm, this doesn't immediately give a contradiction. Let me think more.
+
+Actually, let me think about the problem differently. Let me consider the structure of the sequence more carefully.
+
+**Observation**: The sequence eventually "stabilizes" in the sense that small numbers are either used or in $S$, and the sequence keeps growing.
+
+Let me define $M_0 = \max(a_1, \ldots, a_{2020})$. 
+
+After the initial 2020 terms, the sequence continues. Let me think about what happens to numbers $\le M_0$.
+
+Numbers $\le M_0$ that are in the initial segment are already used. Numbers $\le M_0$ not in the initial segment might or might not appear later.
+
+Let me think about the growth. Consider the first time $a_n > M_0$ for $n > 2020$. Before that, all terms are $\le M_0$. But there are only $M_0$ positive integers $\le M_0$, and 2020 of them are already used. So at most $M_0 - 2020$ more can be used. If $M_0 < 2020$... well, $a_1, \ldots, a_{2020}$ are distinct positive integers, so $M_0 \ge 2020$.
+
+Hmm, this is getting complicated. Let me think about the problem from a higher level again.
+
+The key claim is that $S$ (the set of non-appearing numbers) is finite. 
+
+Let me think about what constraints $S$ must satisfy.
+
+For each $m \in S$, $m | P_n$ for all large $n$. This means $m | \text{lcm-style}$... no, $m$ divides the product, not the lcm.
+
+Let me think about the product $P_n$ and how it evolves. $P_{n+1} = P_n \cdot a_n / a_{n-2020}$.
+
+So $P_{n+1}/P_n = a_n / a_{n-2020}$ (as a rational number).
+
+If $m | P_n$ and $m | P_{n+1}$, then $m | P_n$ and $m | P_n \cdot (a_n / a_{n-2020})$. This means $m | P_n \cdot a_n / a_{n-2020}$. Since $m | P_n$, we can write $P_n = m \cdot q$. Then $P_{n+1} = m \cdot q \cdot a_n / a_{n-2020}$. For $m | P_{n+1}$, we need $a_{n-2020} | q \cdot a_n$. 
+
+This is getting complicated. Let me try yet another approach.
+
+**Approach via density**: 
+
+Consider the sequence $a_1, a_2, \ldots$. Since all terms are distinct, $a_n \ge$ roughly $n$ (in the sense that the $n$-th smallest element of the sequence is at least $n$).
+
+Actually, more precisely: if $A_n = \{a_1, \ldots, a_n\}$, then $|A_n| = n$ and $A_n \subseteq \{1, 2, \ldots\}$, so the maximum of $A_n$ is at least $n$.
+
+Now, let's think about the product $P_n = \prod_{i=n-2020}^{n-1} a_i$. The number of divisors of $P_n$ is at most... well, $P_n$ is a product of 2020 numbers, each at least 1. The number of divisors can be large.
+
+The key point: the number of positive integers $\le X$ that divide $P_n$ is at most... hmm, it's the number of divisors of $P_n$ that are $\le X$. 
+
+Actually, let me think about it differently. The number of unused positive integers $\le X$ is roughly $X - n$ (after $n$ steps, $n$ numbers have been used). The number of these that divide $P_n$ is at most the number of divisors of $P_n$ that are $\le X$.
+
+For $a_n$ to be large (say $> X$), we need all unused numbers $\le X$ to divide $P_n$. The number of unused numbers $\le X$ is $X - n + (\text{number of elements of } S \text{ that are } \le X)$... hmm, this isn't quite right either.
+
+Let me reconsider. After $n-1$ steps, the used numbers are $\{a_1, \ldots, a_{n-1}\}$, which has $n-1$ elements. The unused numbers $\le X$ are $\{1, \ldots, X\} \setminus \{a_1, \ldots, a_{n-1}\}$, which has $X - |\{a_1, \ldots, a_{n-1}\} \cap \{1, \ldots, X\}|$ elements.
+
+For $a_n > X$, we need: every unused number $\le X$ divides $P_n$. The number of unused numbers $\le X$ is $X - |\{a_1, \ldots, a_{n-1}\} \cap \{1, \ldots, X\}|$.
+
+If $X$ is large and $n$ is not too large, there are many unused numbers $\le X$, and they all need to divide $P_n$. But $P_n$ is a product of 2020 specific numbers, and the number of divisors of $P_n$ is limited.
+
+Hmm, but the number of divisors can be very large. Let me think about this more carefully.
+
+Actually, the number of divisors of $P_n$ that are $\le X$: if $P_n$ has prime factorization $\prod p_i^{e_i}$, the number of divisors is $\prod (e_i + 1)$. But the number of divisors $\le X$ could be much less.
+
+Let me think about a different approach.
+
+**Approach: Bounding the sequence growth**
+
+Claim: $a_n \le C \cdot n$ for some constant $C$ (depending on the initial conditions). If this is true, then the sequence doesn't grow too fast, and we can show that all large numbers must appear.
+
+Wait, actually, I think the right approach is to show that the sequence grows at most linearly, and then use this to show $S$ is finite.
+
+Let me think about why $a_n$ can't be too large. 
+
+At step $n$, $a_n$ is the smallest unused number not dividing $P_n$. If $a_n$ is very large, it means all unused numbers up to $a_n - 1$ divide $P_n$. 
+
+The number of unused numbers up to $a_n - 1$ is $(a_n - 1) - (n - 1) + |S \cap \{1, \ldots, a_n - 1\}|$... hmm wait.
+
+Actually, the number of unused numbers in $\{1, \ldots, a_n - 1\}$ is $(a_n - 1) - |\{a_1, \ldots, a_{n-1}\} \cap \{1, \ldots, a_n - 1\}|$. Since $a_n$ is the smallest unused not dividing $P_n$, all unused numbers in $\{1, \ldots, a_n - 1\}$ divide $P_n$.
+
+The number of such unused numbers is at least $(a_n - 1) - (n - 1) = a_n - n$ (since at most $n-1$ numbers are used, and they're all in $\{1, \ldots, \}$, but not necessarily all $\le a_n - 1$). Actually, the used numbers in $\{1, \ldots, a_n - 1\}$ is at most $n - 1$, so the unused numbers in $\{1, \ldots, a_n - 1\}$ is at least $(a_n - 1) - (n-1) = a_n - n$.
+
+So at least $a_n - n$ numbers in $\{1, \ldots, a_n - 1\}$ divide $P_n$.
+
+Now, $P_n = \prod_{i=n-2020}^{n-1} a_i$. The number of divisors of $P_n$ is $d(P_n)$. We need $d(P_n) \ge a_n - n$.
+
+But $d(P_n)$ can be bounded in terms of $P_n$. We have $d(P_n) \le P_n^{o(1)}$ (the number of divisors is subpolynomial). But $P_n$ itself could be huge.
+
+Hmm, this approach might not directly work because $P_n$ can be very large.
+
+Let me think about this differently.
+
+**Key Insight**: Let me think about what numbers must divide $P_n$.
+
+If $m \in S$ (never appears), then $m | P_n$ for all large $n$. The elements of $S$ are all "small" in some sense, because if $m$ is very large and in $S$, then $m | P_n$ for all large $n$, which is very restrictive.
+
+Let me try to bound the elements of $S$.
+
+Suppose $m \in S$. Then for all large $n$, $m | P_n$. In particular, for each prime $p | m$ with $e = v_p(m)$, the sum of $v_p(a_i)$ over any window of 2020 consecutive terms (for large $n$) is at least $e$.
+
+Now, consider the sequence of $v_p(a_i)$ for a fixed prime $p$. The terms $a_i$ that are not divisible by $p$ have $v_p = 0$. The terms divisible by $p$ have $v_p \ge 1$.
+
+For the sum over any window of 2020 to be $\ge e$, we need... well, if $e = 1$, we need at least one multiple of $p$ in every window of 2020. If $e = 2$, we need either one term with $v_p \ge 2$ or two terms with $v_p \ge 1$ in every window, etc.
+
+Now, the multiples of $p$ in the sequence are distinct numbers. The $k$-th multiple of $p$ that appears is at least $kp$ (since multiples of $p$ are $p, 2p, 3p, \ldots$ and they're distinct). 
+
+Hmm, but I need to relate this to the frequency of multiples of $p$ in the sequence.
+
+Let me think about the frequency. If every window of 2020 consecutive terms contains a multiple of $p$, then the "gap" between consecutive multiples of $p$ in the sequence is at most 2020. So the $j$-th multiple of $p$ appears at position $\le 2020j + C$ for some constant $C$.
+
+The $j$-th multiple of $p$ in the sequence is some number $\ge jp$ (since the multiples of $p$ are $p, 2p, 3p, \ldots$ and they're distinct, the $j$-th smallest is $\ge jp$). But it could also be much larger.
+
+Hmm, I think I need a different approach. Let me think about the problem more carefully.
+
+**New approach**: Let me think about the sequence and show that it eventually includes all numbers beyond a certain point.
+
+Let me consider the "complementary" set $S$ (numbers that never appear). I want to show $S$ is finite.
+
+Step 1: Show that $S$ has the property that if $m \in S$, then $m | P_n$ for all sufficiently large $n$.
+
+Step 2: Show that this property is very restrictive and limits $S$ to be finite.
+
+For Step 2, let me think about what happens. If $m \in S$, then $m | P_n$ for all $n \ge N$. Consider the sequence $a_n$ for $n \ge N$. These are all distinct and unbounded.
+
+Now, $m | a_{n-2020} \cdots a_{n-1}$ for all $n \ge N$. Let me consider two overlapping windows:
+- Window at $n$: $a_{n-2020}, \ldots, a_{n-1}$
+- Window at $n+1$: $a_{n-2019}, \ldots, a_n$
+
+Both products are divisible by $m$. The first window contains $a_{n-2020}$ but not $a_n$; the second contains $a_n$ but not $a_{n-2020}$.
+
+From $m | \prod_{i=n-2020}^{n-1} a_i$ and $m | \prod_{i=n-2019}^{n} a_i$:
+
+$\frac{\prod_{i=n-2019}^{n} a_i}{\prod_{i=n-2020}^{n-1} a_i} = \frac{a_n}{a_{n-2020}}$
+
+Both products are divisible by $m$, so $m | \text{lcm}(\prod_{i=n-2020}^{n-1} a_i, \prod_{i=n-2019}^{n} a_i)$. But this doesn't directly help.
+
+Let me think prime by prime. For prime $p$ with $e = v_p(m)$:
+- $v_p(\prod_{i=n-2020}^{n-1} a_i) \ge e$
+- $v_p(\prod_{i=n-2019}^{n} a_i) \ge e$
+
+The difference is $v_p(a_n) - v_p(a_{n-2020})$. So:
+$v_p(\prod_{i=n-2019}^{n} a_i) = v_p(\prod_{i=n-2020}^{n-1} a_i) - v_p(a_{n-2020}) + v_p(a_n) \ge e$
+
+Since $v_p(\prod_{i=n-2020}^{n-1} a_i) \ge e$, we get $v_p(a_n) - v_p(a_{n-2020}) \ge e - v_p(\prod_{i=n-2020}^{n-1} a_i)$. But this could be negative, so it's not very helpful.
+
+Let me try to think about this more cleverly.
+
+**Alternative approach**: Let me think about the sequence in terms of what it avoids.
+
+The sequence avoids numbers that divide the product of the last 2020 terms. So at each step, we're "skipping" numbers that divide the current product.
+
+The numbers that divide $P_n$ are the divisors of $P_n$. As the sequence evolves, $P_n$ changes.
+
+Let me think about the prime factorization approach. 
+
+For a prime $p$, let's track when $p$-multiples appear in the sequence. 
+
+Actually, let me try to think about the problem from the perspective of: what is the maximum element of $S$?
+
+Suppose $m \in S$ and $m$ is large. Then $m | P_n$ for all $n \ge N$. 
+
+Now, consider a prime $p > m$ (or $p$ not dividing $m$). Such a prime $p$ is not in the initial segment (if $m$ is large enough). Does $p$ appear in the sequence?
+
+If $p$ is unused and is the smallest unused not dividing $P_n$, then $p$ appears. For $p$ to not appear, we need $p | P_n$ whenever $p$ is the smallest unused candidate. $p | P_n$ means some term in the window is a multiple of $p$. Since $p$ is prime and large, the only multiples of $p$ that could be in the sequence are $p, 2p, 3p, \ldots$. If $p$ itself doesn't appear, the multiples are $2p, 3p, \ldots$, all $\ge 2p$.
+
+So for $p$ to not appear, we need a multiple of $p$ (that's $\ge 2p$) in every window of 2020 terms. But these multiples are large ($\ge 2p$), and they need to appear frequently (every 2020 terms). 
+
+Now, if $p$ is very large, say $p > \max(a_1, \ldots, a_{N+2020})$ for some large $N$, then the multiples of $p$ in the sequence are all $> p$, hence very large. But the sequence is growing, so eventually terms are $> p$, and then multiples of $p$ could appear.
+
+Hmm, I think the key is to show that the sequence grows at most linearly, and then large primes must appear.
+
+Let me try to establish a linear growth bound.
+
+**Claim**: There exists a constant $C$ such that $a_n \le Cn$ for all $n$.
+
+To prove this, I need to show that $a_n$ can't be too large. $a_n$ is the smallest unused number not dividing $P_n$. If $a_n$ is large, many unused numbers divide $P_n$.
+
+Let me think about how many numbers $\le X$ can divide $P_n = \prod_{i=n-2020}^{n-1} a_i$.
+
+A number $d \le X$ divides $P_n$ iff for each prime $p$, $v_p(d) \le v_p(P_n) = \sum_{i=n-2020}^{n-1} v_p(a_i)$.
+
+The number of such $d \le X$ is at most $\prod_{p | P_n} (v_p(P_n) + 1)$ (the total number of divisors), but we need those $\le X$.
+
+Hmm, this is hard to bound directly. Let me think differently.
+
+Actually, let me think about a specific prime. Consider the largest prime $p \le X$. By Bertrand's postulate, there's a prime between $X/2$ and $X$. So there's a prime $p$ with $X/2 < p \le X$.
+
+Now, $p | P_n$ iff some $a_i$ in the window is a multiple of $p$. Since $p > X/2$, the only multiples of $p$ that are $\le X$ are $p$ itself (since $2p > X$). So if $p$ is unused and $p \le X$, then $p | P_n$ iff $p$ divides some $a_i$ in the window, i.e., some $a_i$ is a multiple of $p$. If all $a_i$ in the window are $< p$, then none is a multiple of $p$ (since the only multiple of $p$ that's $< p$ is... none, since $p$ is prime and $p > 1$). Wait, multiples of $p$ less than $p$: only if $p | a_i$ and $a_i < p$, which is impossible for $a_i \ge 1$ since $p$ is prime and $a_i < p$ means $p \nmid a_i$. 
+
+So if all terms in the window are $< p$, then $p \nmid P_n$, so $p$ is a candidate. If $p$ is the smallest unused candidate, $a_n = p$.
+
+This is useful! If the window consists of numbers all less than some prime $p$, and $p$ is unused, then $p$ doesn't divide $P_n$, so $p$ is a candidate.
+
+Now, let me think about the growth. Suppose at step $n$, all of $a_{n-2020}, \ldots, a_{n-1}$ are $< p$ for some prime $p$. Then $p \nmid P_n$. If $p$ is unused, then $a_n \le p$ (since $p$ is a candidate, and $a_n$ is the smallest candidate).
+
+So: if the window has max $< p$ and $p$ is an unused prime, then $a_n \le p$.
+
+Now, let me think about the maximum of the window. Let $M_n = \max(a_{n-2020}, \ldots, a_{n-1})$. If $M_n < p$ for some unused prime $p$, then $a_n \le p$.
+
+By Bertrand's postulate, there's a prime $p$ with $M_n < p \le 2M_n$ (for $M_n \ge 2$). If this prime $p$ is unused, then $a_n \le p \le 2M_n$.
+
+But what if $p$ is already used? Then we need a larger prime. 
+
+Hmm, but there are many primes. The number of primes $\le 2M_n$ is $\sim 2M_n / \ln(2M_n)$, and the number of used numbers $\le 2M_n$ is at most $n$. If $n$ is much smaller than $2M_n / \ln(2M_n)$, there are unused primes $\le 2M_n$.
+
+But this requires $M_n$ to be large relative to $n$, which is what we're trying to prove...
+
+Let me think about this more carefully. Let me try to show that $a_n = O(n)$ by induction.
+
+Actually, let me think about a cleaner approach.
+
+**Approach: Show that the sequence grows at most linearly, then use this to show all large numbers appear.**
+
+Let me define $M = \max(a_1, \ldots, a_{2020})$ and think about what happens.
+
+After the initial 2020 terms, consider the numbers $1, 2, \ldots, M$. Some of them are used (the initial 2020 terms), and some are not. The unused ones in $\{1, \ldots, M\}$ either appear later or are in $S$.
+
+Now, consider numbers $> M$. These are all unused initially. 
+
+Let me think about the first time a number $> M$ appears. Before that, all terms after the initial 2020 are $\le M$. But there are only finitely many unused numbers $\le M$, so eventually we must pick a number $> M$ (or we run out of unused numbers $\le M$ that don't divide $P_n$).
+
+Wait, actually, it's possible that all remaining unused numbers $\le M$ always divide $P_n$, so we're forced to pick a number $> M$. 
+
+Hmm, but it's also possible that we keep picking unused numbers $\le M$ for a while.
+
+Let me think about the set $T = \{1, \ldots, M\} \setminus \{a_1, \ldots, a_{2020}\}$, the unused numbers $\le M$ after the initial segment. $|T| = M - 2020$ (assuming all initial terms are $\le M$, which they are by definition).
+
+Each element of $T$ either appears later or is in $S$. 
+
+Now, here's a key observation: $|T| = M - 2020$. The elements of $T$ that are in $S$ must divide $P_n$ for all large $n$. The elements of $T$ that appear, appear at some specific step.
+
+After all elements of $T$ have either appeared or been "settled" into $S$, the smallest unused number is $> M$ (or is an element of $S \cap T$). 
+
+Wait, elements of $S \cap T$ are always unused. So after all elements of $T \setminus S$ have appeared, the unused numbers $\le M$ are exactly $S \cap T$. 
+
+From this point on, the smallest unused number is the smallest element of $S \cap T$ (if $S \cap T$ is nonempty) or the smallest unused number $> M$ (if $S \cap T$ is empty).
+
+Hmm, this is getting complicated. Let me try to think about the problem more carefully.
+
+Let me try a cleaner approach. I'll try to prove:
+
+1. The sequence $\{a_n\}$ grows at most linearly: $a_n \le C \cdot n$ for some constant $C$.
+2. If the sequence grows at most linearly, then $S$ is finite.
+
+For part 2: If $a_n \le Cn$, then after $n$ steps, all used numbers are $\le Cn$. The number of used numbers is $n$. So the number of unused numbers $\le Cn$ is $Cn - n = (C-1)n$. These unused numbers are either in $S$ or will appear later. But the numbers that will appear later and are $\le Cn$: at most... hmm, this doesn't directly show $S$ is finite.
+
+Let me think about part 2 more carefully. If $a_n \le Cn$ for all $n$, then the $n$-th term is at most $Cn$. The set of numbers that appear is $\{a_1, a_2, \ldots\}$ with $a_n \le Cn$. 
+
+For a number $m$ to be in $S$, $m$ never appears, and $m | P_n$ for all large $n$. 
+
+Consider a large number $m$. If $m \in S$, then $m | P_n$ for all $n \ge N_m$. In particular, for each prime $p | m$, the $p$-adic valuation of $P_n$ is at least $v_p(m)$ for all $n \ge N_m$.
+
+Now, $P_n = \prod_{i=n-2020}^{n-1} a_i$. Since $a_i \le Ci$, we have $P_n \le \prod_{i=n-2020}^{n-1} Ci = (C)^{2020} \prod_{i=n-2020}^{n-1} i \le C^{2020} (Cn)^{2020} = C^{4040} n^{2020}$.
+
+So $P_n \le C^{4040} n^{2020}$, meaning $P_n = O(n^{2020})$.
+
+Now, if $m | P_n$ for all $n \ge N_m$, then $m \le P_n \le C^{4040} n^{2020}$ for all $n \ge N_m$. In particular, $m \le C^{4040} N_m^{2020}$. But this just says $m$ is finite, which we already knew.
+
+Hmm, I need a better argument. Let me think about the prime factorization.
+
+If $m \in S$ and $p$ is a prime dividing $m$ with $e = v_p(m)$, then $\sum_{i=n-2020}^{n-1} v_p(a_i) \ge e$ for all $n \ge N_m$.
+
+Now, $v_p(a_i) \le \log_p(a_i) \le \log_p(Ci)$. So $\sum_{i=n-2020}^{n-1} v_p(a_i) \le 2020 \log_p(Cn)$. This gives $e \le 2020 \log_p(Cn)$ for all $n \ge N_m$, which is satisfied for large $n$ as long as $e$ is fixed. So this doesn't give a contradiction.
+
+I think the linear growth bound alone isn't enough. I need a more refined argument.
+
+Let me reconsider the problem.
+
+**New idea**: Think about the sequence modulo a prime.
+
+Fix a prime $p$. Consider the subsequence of terms not divisible by $p$. If there's a window of 2020 consecutive terms none of which is divisible by $p$, then $p \nmid P_n$ for that $n$, and if $p$ is unused, $p$ is a candidate.
+
+So for $p$ to be in $S$ (never appear), every window of 2020 consecutive terms (for large $n$) must contain a multiple of $p$. This means the "gaps" between multiples of $p$ in the sequence are at most 2020.
+
+Now, the multiples of $p$ that appear in the sequence are distinct. The $k$-th multiple of $p$ to appear is at position $n_k$ with $n_{k+1} - n_k \le 2020$ (for large $k$). So $n_k \le 2020k + C$ for some constant $C$.
+
+The $k$-th multiple of $p$ to appear is some $a_{n_k}$, which is a multiple of $p$. The distinct multiples of $p$ are $p, 2p, 3p, \ldots$. But not all of them need to appear. The $k$-th one to appear is at least $kp$ (since the $k$-th smallest multiple of $p$ is $kp$, and the ones that appear are distinct multiples of $p$, so the $k$-th smallest is $\ge kp$). Wait, that's not right either—the $k$-th to appear might not be the $k$-th smallest. But the set of multiples of $p$ that appear is a set of distinct multiples of $p$, so the $k$-th smallest element of this set is $\ge kp$.
+
+Hmm, but I want to relate the position $n_k$ to the value $a_{n_k}$.
+
+Since $a_{n_k} \ge kp$ (as the $k$-th smallest multiple of $p$ in the sequence is $\ge kp$... actually, I need to be more careful. The multiples of $p$ that appear are some subset of $\{p, 2p, 3p, \ldots\}$. If $p \in S$, then $p$ doesn't appear, so the multiples are from $\{2p, 3p, 4p, \ldots\}$. The $k$-th smallest is $\ge (k+1)p$.
+
+And $n_k \le 2020k + C$ (for large $k$). So $a_{n_k} \ge (k+1)p$ while $n_k \le 2020k + C$.
+
+If the sequence grows linearly, $a_{n_k} \le C' n_k \le C'(2020k + C)$. So $(k+1)p \le C'(2020k + C)$, giving $p \le C' \cdot 2020$ (for large $k$). 
+
+So if $p \in S$ and the sequence grows linearly, then $p \le 2020 C'$, i.e., $p$ is bounded!
+
+This is the key insight! If $p$ is a prime in $S$, then $p$ is bounded by a constant depending on the growth rate. And if the growth rate is linear, then all primes in $S$ are bounded.
+
+Now, if all primes in $S$ are bounded, then $S$ is finite (since any $m \in S$ has all its prime factors in $S$ or in the used set, and... hmm, actually, $m \in S$ doesn't mean its prime factors are in $S$).
+
+Wait, let me reconsider. If $m \in S$ and $p | m$, does $p \in S$? Not necessarily. $p$ might appear in the sequence.
+
+But let me think about it. If $m \in S$ with $v_p(m) = e$, then $\sum_{i=n-2020}^{n-1} v_p(a_i) \ge e$ for all large $n$. This means there are enough multiples of $p$ (with high enough $p$-adic valuation) in every window.
+
+If $p$ appears in the sequence, that's fine. The constraint is on the $p$-adic valuations of the terms in the window.
+
+Hmm, let me think about this differently. 
+
+Let me focus on primes. If $p$ is a large prime (larger than some bound), I want to show $p$ appears in the sequence.
+
+If $p$ doesn't appear, then (as argued) every window of 2020 consecutive terms (for large $n$) contains a multiple of $p$. The multiples of $p$ that appear are $\ge 2p$ (since $p$ doesn't appear). 
+
+Now, I need to show this leads to a contradiction if $p$ is large enough and the sequence grows linearly.
+
+The multiples of $p$ in the sequence appear at least once every 2020 terms. So in the first $N$ terms (for large $N$), there are at least $N/2020$ multiples of $p$. Each is $\ge 2p$ and they're distinct, so the largest is $\ge 2p \cdot N/2020$. But the largest term in the first $N$ terms is $a_N \le CN$ (by linear growth). So $2p \cdot N/2020 \le CN$, giving $p \le 2020C/2 = 1010C$.
+
+So any prime $p > 1010C$ must appear in the sequence! (Assuming linear growth.)
+
+Now, for composite numbers: if $m$ is a large number with all prime factors $> 1010C$ (i.e., $m$ is a product of large primes), then all prime factors of $m$ appear in the sequence. But does $m$ itself appear?
+
+Hmm, not necessarily. Let me think about this.
+
+Actually, let me first establish the linear growth bound, and then think about composites.
+
+**Establishing linear growth:**
+
+I want to show $a_n \le Cn$ for some constant $C$.
+
+At step $n$, $a_n$ is the smallest unused number not dividing $P_n$. 
+
+Consider the primes in the interval $(a_{n-1}, 2a_{n-1}]$ (by Bertrand's postulate, there's at least one). Actually, let me think about the window.
+
+Let $M_n = \max(a_{n-2020}, \ldots, a_{n-1})$. There's a prime $p$ with $M_n < p \le 2M_n$ (by Bertrand, for $M_n \ge 2$). If $p$ is unused, then $p \nmid P_n$ (since all terms in the window are $< p$, so none is a multiple of $p$, so $p \nmid P_n$). So $p$ is a candidate, and $a_n \le p \le 2M_n$.
+
+If $p$ is already used, we need another prime. How many primes are in $(M_n, 2M_n]$? By the prime number theorem, roughly $M_n / \ln(M_n)$. How many of these are used? At most $n$ (since $n$ numbers have been used so far). So if $M_n / \ln(M_n) > n$, there's an unused prime in $(M_n, 2M_n]$, and $a_n \le 2M_n$.
+
+So the condition is $M_n / \ln(M_n) > n$, i.e., roughly $M_n > n \ln n$.
+
+But we want $a_n \le Cn$, which means $M_n \le Cn$ (roughly), and we need $Cn / \ln(Cn) > n$, i.e., $C / \ln(Cn) > 1$, i.e., $C > \ln(Cn)$. For large $n$, this fails. So this approach gives $a_n \le 2M_n$ when $M_n > n \ln n$, but doesn't give linear growth directly.
+
+Hmm, let me think about this differently. Maybe the growth isn't linear but something like $n \log n$ or $n \log \log n$.
+
+Actually, wait. Let me reconsider. The issue is that there might be many used primes in the interval $(M_n, 2M_n]$. But the used numbers are $a_1, \ldots, a_{n-1}$, and these are $n-1$ distinct numbers. The number of primes in $(M_n, 2M_n]$ is $\sim M_n / \ln M_n$. The number of used primes in this interval is at most $n$. So if $M_n / \ln M_n > n$, we're fine.
+
+But if $M_n \sim Cn$, then $M_n / \ln M_n \sim Cn / \ln(Cn)$, which is less than $n$ for large $n$ (since $C / \ln(Cn) \to 0$). So the condition $M_n / \ln M_n > n$ requires $M_n$ to grow faster than $n \ln n$.
+
+So maybe the growth is $O(n \log n)$ or similar. Let me check if that's sufficient.
+
+If $a_n = O(n \log n)$, then the same argument as before: if $p \in S$ (prime, never appears), then every window of 2020 has a multiple of $p$, all multiples $\ge 2p$, so in $N$ terms there are $\ge N/2020$ multiples of $p$, the largest $\ge 2p \cdot N/2020$, but the largest term is $O(N \log N)$. So $2pN/2020 \le O(N \log N)$, giving $p = O(\log N)$. But this should hold for all $N$, so... hmm, $p \le O(\log N)$ for all large $N$, which means $p$ is bounded (since the RHS grows, but we need it for all $N$, so $p \le \lim_{N \to \infty} O(\log N) = \infty$... that doesn't work).
+
+Wait, I think I made an error. Let me redo this. If $p \in S$, then in the first $N$ terms, there are at least $(N - C_0)/2020$ multiples of $p$ (for $N > C_0$), where $C_0$ is the point after which every window has a multiple of $p$. These multiples are distinct and $\ge 2p$. So the largest is $\ge 2p \cdot (N - C_0)/2020$. But the largest term in the first $N$ terms is $\max(a_1, \ldots, a_N) \le C N \log N$ (assuming $a_n \le Cn \log n$). So $2p(N - C_0)/2020 \le CN \log N$, giving $p \le 1010 C N \log N / (N - C_0) \le 1010 C \log N \cdot 2$ for large $N$. 
+
+But this gives $p = O(\log N)$, and since this holds for all $N$, we need $p \le \inf_N O(\log N) = O(\log C_0)$... no, that's not right either. The bound $p \le 2020 C \log N$ holds for all $N > C_0$, so $p \le 2020 C \log C_0$ (taking $N = C_0 + 1$) and also $p \le 2020 C \log N$ for larger $N$. The tightest bound is at $N = C_0 + 1$, giving $p = O(\log C_0)$. But $C_0$ depends on $p$ (it's the point after which every window has a multiple of $p$), so this is circular.
+
+Hmm, let me think about this more carefully. 
+
+Actually, the issue is that $C_0$ (the threshold after which every window of 2020 has a multiple of $p$) depends on $p$. For larger $p$, $C_0$ might be larger. So the bound becomes $p \le 2020 C \log C_0(p)$, which is a relationship between $p$ and $C_0(p)$, not a direct bound on $p$.
+
+Let me think about what $C_0(p)$ is. $C_0(p)$ is the point after which $p | P_n$ for all $n \ge C_0(p)$. Before $C_0(p)$, there might be windows without a multiple of $p$, and at those points, $p$ would be a candidate. But $p$ doesn't get chosen because there's a smaller candidate.
+
+Actually, $C_0(p)$ is the point after which $p$ is the smallest unused number (or there are smaller unused numbers, all in $S$, and $p$ is one of the candidates). Hmm, this is getting complicated.
+
+Let me try a different approach to bound the growth.
+
+**Approach: Direct bound on $a_n$**
+
+At step $n$, $a_n$ is the smallest unused positive integer not dividing $P_n$. 
+
+The key observation: the number 1 always divides $P_n$. So 1 is never a candidate (unless it's already used). If 1 is in the initial segment, it's used. If not, 1 is always unused and always divides $P_n$, so 1 $\in S$.
+
+More generally, small numbers tend to divide $P_n$ (since $P_n$ is a product of 2020 numbers, it has many divisors).
+
+Let me think about the number of unused numbers $\le X$ that divide $P_n$. 
+
+Actually, let me think about a specific kind of number: prime powers. A prime power $p^k$ divides $P_n$ iff $v_p(P_n) \ge k$, i.e., $\sum_{i=n-2020}^{n-1} v_p(a_i) \ge k$.
+
+For a prime $p$ that doesn't divide any of the last 2020 terms, $v_p(P_n) = 0$, so $p \nmid P_n$ (and $p^k \nmid P_n$ for all $k \ge 1$). So $p$ is a candidate.
+
+Now, the primes that don't divide any of the last 2020 terms: these are primes $p$ such that $p \nmid a_i$ for all $i \in \{n-2020, \ldots, n-1\}$. 
+
+The number of primes that divide at least one of $a_{n-2020}, \ldots, a_{n-1}$ is at most $\sum_{i=n-2020}^{n-1} \omega(a_i)$, where $\omega(a_i)$ is the number of prime factors of $a_i$. This is at most $2020 \cdot \max_i \omega(a_i) \le 2020 \cdot \log_2(a_i) \le 2020 \log_2(M_n)$.
+
+So the number of primes that divide $P_n$ is at most $2020 \log_2(M_n)$. All other primes don't divide $P_n$ and are candidates (if unused).
+
+The number of primes $\le X$ is $\sim X / \ln X$. The number of primes $\le X$ that divide $P_n$ is at most $2020 \log_2(M_n)$. So the number of primes $\le X$ that don't divide $P_n$ is at least $X/\ln X - 2020 \log_2(M_n)$.
+
+If $X/\ln X > 2020 \log_2(M_n)$, there's a prime $\le X$ not dividing $P_n$. If this prime is unused, it's a candidate, so $a_n \le X$.
+
+The number of used primes $\le X$ is at most $n$. So the number of unused primes $\le X$ not dividing $P_n$ is at least $X/\ln X - 2020 \log_2(M_n) - n$.
+
+For this to be positive: $X/\ln X > n + 2020 \log_2(M_n)$.
+
+If $M_n \le X$ (which we can ensure by taking $X = M_n$ or larger), then $2020 \log_2(M_n) \le 2020 \log_2(X)$. So we need $X/\ln X > n + 2020 \log_2 X$.
+
+For $X = Cn \ln n$, $X / \ln X \sim Cn \ln n / \ln(Cn \ln n) \sim Cn \ln n / \ln n = Cn$. And $n + 2020 \log_2 X \sim n + 2020 \log_2(Cn \ln n) \sim n + O(\log n) \sim n$. So we need $Cn > n$, i.e., $C > 1$. So for $C > 1$ and large $n$, $X = Cn \ln n$ works, giving $a_n \le Cn \ln n$.
+
+Wait, but I also need $M_n \le X$. $M_n = \max(a_{n-2020}, \ldots, a_{n-1})$. If $a_k \le Ck \ln k$ for all $k < n$, then $M_n \le C(n-1) \ln(n-1) < Cn \ln n = X$. So by induction, $a_n \le Cn \ln n$.
+
+But wait, I need to be more careful. Let me redo this.
+
+**Induction**: Assume $a_k \le Ck \ln k$ for all $k < n$ (and $k \ge 3$, say). Then $M_n = \max(a_{n-2020}, \ldots, a_{n-1}) \le C(n-1) \ln(n-1)$.
+
+Set $X = Cn \ln n$. The number of primes $\le X$ is $\pi(X) \ge X / (2 \ln X)$ for large $X$ (by Chebyshev). The number of primes dividing $P_n$ is at most $\sum_{i=n-2020}^{n-1} \omega(a_i) \le 2020 \max \omega(a_i) \le 2020 \log_2(M_n) \le 2020 \log_2(Cn \ln n) \le 2020 \cdot 2 \ln(Cn \ln n) / \ln 2 \le 6000 \ln(Cn \ln n)$.
+
+The number of used numbers is $n-1$. So the number of unused primes $\le X$ not dividing $P_n$ is at least:
+$$\pi(X) - (\text{primes dividing } P_n) - (\text{used primes} \le X \text{ not already counted})$$
+
+Hmm, actually, primes dividing $P_n$ and used primes are not necessarily disjoint. Let me be more careful.
+
+The number of primes $\le X$ that are either used or divide $P_n$ is at most (number of used numbers $\le X$) + (number of primes dividing $P_n$ that are not used). But this overcounts. Let me just use:
+
+Number of primes $\le X$ that are unused AND don't divide $P_n$ $\ge$ $\pi(X)$ - (number of used primes $\le X$) - (number of primes dividing $P_n$).
+
+Number of used primes $\le X$ $\le$ $n - 1$ (total used numbers).
+Number of primes dividing $P_n$ $\le 2020 \log_2(M_n) \le 2020 \log_2(Cn \ln n)$.
+
+So unused primes $\le X$ not dividing $P_n$ $\ge \pi(X) - (n-1) - 2020 \log_2(Cn \ln n)$.
+
+With $X = Cn \ln n$:
+$\pi(X) \ge \frac{Cn \ln n}{2 \ln(Cn \ln n)} \ge \frac{Cn \ln n}{2 \cdot 2 \ln n} = \frac{Cn}{4}$ (for large $n$, since $\ln(Cn \ln n) \le 2 \ln n$).
+
+And $2020 \log_2(Cn \ln n) \le 2020 \cdot \frac{2 \ln n}{\ln 2} \le 6000 \ln n$.
+
+So unused primes $\le X$ not dividing $P_n$ $\ge \frac{Cn}{4} - n - 6000 \ln n$.
+
+For this to be positive, we need $\frac{Cn}{4} > n + 6000 \ln n$, i.e., $C > 4 + \frac{24000 \ln n}{n}$. For large $n$, this is satisfied if $C > 4$.
+
+So for $C > 4$ and large $n$, there exists an unused prime $p \le Cn \ln n$ not dividing $P_n$. This prime is a candidate, so $a_n \le p \le Cn \ln n$.
+
+Wait, but I need to handle the base case too. For small $n$, I can adjust $C$ to be large enough. So:
+
+**Lemma 1**: $a_n \le C n \ln n$ for some constant $C$ and all $n \ge 2$.
+
+Now, with this growth bound, let me show $S$ is finite.
+
+If $p$ is a prime in $S$, then every window of 2020 consecutive terms (for $n \ge N_p$) contains a multiple of $p$. The multiples of $p$ in the sequence are distinct and $\ge 2p$ (since $p \notin A$). In the first $N$ terms (for $N > N_p$), there are at least $(N - N_p)/2020$ multiples of $p$. The largest is $\ge 2p \cdot (N - N_p)/2020$ (since they're distinct multiples of $p$, all $\ge 2p$, so the $k$-th smallest is $\ge 2pk$, and the largest of $k$ such multiples is $\ge 2pk$). But the largest term in the first $N$ terms is $\le CN \ln N$. So:
+
+$$2p \cdot \frac{N - N_p}{2020} \le CN \ln N$$
+
+$$p \le \frac{1010 CN \ln N}{N - N_p}$$
+
+For $N \to \infty$, $p \le 1010 C \ln N \cdot \frac{N}{N - N_p} \to 1010 C \ln N$. But this grows with $N$, so it doesn't give a fixed bound on $p$.
+
+Hmm, the issue is that $N_p$ depends on $p$, and as $p$ grows, $N_p$ might grow too.
+
+Let me think about what $N_p$ is. $N_p$ is the point after which $p | P_n$ for all $n \ge N_p$. Before $N_p$, there exists some $n < N_p$ with $p \nmid P_n$. At such $n$, $p$ is a candidate (if unused). But $p$ is not chosen because there's a smaller candidate.
+
+Actually, $N_p$ is the point after which $p$ is "stable" in $S$, meaning $p | P_n$ for all $n \ge N_p$. Before $N_p$, it's possible that $p \nmid P_n$ for some $n$, but $p$ is not the smallest unused candidate.
+
+Now, the key question: how large can $N_p$ be?
+
+Before $N_p$, there are windows without a multiple of $p$. At those steps, $p$ is a candidate but not chosen. The chosen $a_n$ is some number $< p$ (since $p$ is a candidate but not chosen, the chosen one is smaller). But there are only $p - 1$ numbers smaller than $p$, and some are already used. So the number of steps before $N_p$ where $p$ is a candidate but not chosen is at most $p - 1$ (since each such step uses a new number $< p$). 
+
+Wait, that's not quite right. At each step before $N_p$ where $p \nmid P_n$, $p$ is a candidate, and $a_n < p$ (since $a_n$ is the smallest candidate and $p$ is a candidate but not the smallest, or $p$ is the smallest and gets chosen—but $p \in S$ so it doesn't get chosen). So $a_n < p$. And $a_n$ is a new number (not used before). So the number of such steps is at most $p - 1$ (since there are only $p - 1$ positive integers $< p$).
+
+But also, between these steps, there are steps where $p | P_n$ (and $p$ is not a candidate). The total number of steps before $N_p$ is at most... hmm, it's not just the steps where $p$ is a candidate. There are also steps where $p | P_n$.
+
+Let me reconsider. $N_p$ is the first index such that for all $n \ge N_p$, $p | P_n$. For $n < N_p$, there exists at least one $n$ with $p \nmid P_n$ (in the range $[2021, N_p - 1]$). But actually, $N_p$ is just the threshold; before $N_p$, it's possible that $p | P_n$ for some $n$ and $p \nmid P_n$ for others.
+
+The point is: for $n \ge N_p$, $p | P_n$ always. For $n < N_p$, $p \nmid P_n$ for at least one $n$ (otherwise $N_p$ would be smaller).
+
+Now, the number of $n$ in $[2021, N_p - 1]$ with $p \nmid P_n$ and $p$ unused: at each such $n$, $a_n < p$ (since $p$ is a candidate but not chosen). So there are at most $p - 1$ such $n$ (since each uses a distinct number $< p$). 
+
+But there could also be $n$ in $[2021, N_p - 1]$ with $p | P_n$. At those $n$, $p$ is not a candidate, and $a_n$ could be anything.
+
+So $N_p - 2021 \le$ (number of $n$ with $p \nmid P_n$) + (number of $n$ with $p | P_n$). The first is $\le p - 1$. The second could be large.
+
+Hmm, so $N_p$ could be much larger than $p$. The steps where $p | P_n$ don't constrain $N_p$ directly.
+
+But wait, the steps where $p | P_n$ in the range $[2021, N_p - 1]$: at these steps, $p$ divides the product of the last 2020 terms, meaning some term in the window is a multiple of $p$. These multiples of $p$ are distinct and $\ge 2p$ (since $p \notin A$). 
+
+Hmm, but this doesn't directly bound $N_p$.
+
+Let me try a different approach. Instead of trying to bound $N_p$, let me use a different argument.
+
+**Approach: Counting argument**
+
+Suppose $S$ is infinite. Then $S$ contains infinitely many numbers. 
+
+For each $m \in S$, $m | P_n$ for all $n \ge N_m$. 
+
+Now, consider the product $\prod_{m \in S, m \le X} m$. This product divides $P_n$ for all $n \ge \max_{m \in S, m \le X} N_m$. So $\prod_{m \in S, m \le X} m | P_n$ for large $n$.
+
+But $P_n \le (Cn \ln n)^{2020}$ (since each of the 2020 terms is $\le Cn \ln n$). And $\prod_{m \in S, m \le X} m$ grows with $X$. If $S$ is infinite, this product grows without bound. But $P_n$ is fixed for each $n$. So for large enough $X$, $\prod_{m \in S, m \le X} m > P_n$, contradiction.
+
+Wait, but $N_m$ depends on $m$, so the threshold $N = \max_{m \in S, m \le X} N_m$ also grows with $X$. So we need $\prod_{m \in S, m \le X} m | P_N$ where $N = \max_{m \in S, m \le X} N_m$. And $P_N \le (CN \ln N)^{2020}$. So we need $\prod_{m \in S, m \le X} m \le (CN \ln N)^{2020}$.
+
+If $N$ grows much faster than $X$, this might be satisfiable. So this approach doesn't immediately work without bounding $N_m$ in terms of $m$.
+
+OK let me try yet another approach. Let me think about the problem more carefully.
+
+**Key Idea**: Consider the lcm of all elements of $S$. If $S$ is infinite, the lcm is infinite (or rather, unbounded). But $P_n$ is divisible by all elements of $S$ (for large $n$), so $P_n$ is divisible by the lcm of all elements of $S$ up to some point. 
+
+Actually, the issue is that different elements of $S$ have different thresholds $N_m$. Let me think about elements of $S$ that share the same threshold.
+
+Hmm, let me try to think about the problem from a completely different angle.
+
+**Approach: Analyzing the sequence directly**
+
+Let me think about what the sequence looks like. At each step, we pick the smallest unused number not dividing the product of the last 2020 terms.
+
+Consider the "state" of the sequence: the last 2020 terms and the set of unused numbers. 
+
+The key observation is that the sequence is deterministic given the initial 2020 terms.
+
+Let me think about the sequence in terms of "epochs." 
+
+Epoch 1: The initial 2020 terms $a_1, \ldots, a_{2020}$.
+Epoch 2: From $a_{2021}$ onwards.
+
+In epoch 2, the sequence evolves based on the rule. 
+
+Let me think about what numbers are "forced" to appear. 
+
+Consider a prime $p$ that is not among $a_1, \ldots, a_{2020}$ and is larger than all of them. At some point, the window will consist entirely of numbers $< p$ (if the sequence hasn't grown past $p$ yet). At that point, $p \nmid P_n$, so $p$ is a candidate. If $p$ is the smallest unused candidate, $p$ is chosen.
+
+But the sequence might grow past $p$ before $p$ is chosen. If the sequence grows to numbers $> p$, then the window might contain numbers $> p$ that are multiples of $p$, making $p | P_n$.
+
+Hmm, but multiples of $p$ that are $> p$ are $2p, 3p, \ldots$. If the sequence reaches $2p$, it might use $2p$ (or a multiple of $p$), which would make $p | P_n$ for windows containing that term.
+
+So the question is: does $p$ get chosen before the sequence "passes" $p$?
+
+Let me think about this. The sequence grows, and at some point, the smallest unused number is $p$ (or something close). If at that point $p \nmid P_n$, then $p$ is chosen. If $p | P_n$, then $p$ is not chosen, and the sequence picks a larger number.
+
+For $p | P_n$, some term in the window must be a multiple of $p$. If all terms in the window are $< p$, no term is a multiple of $p$ (since the only positive multiple of $p$ less than $p$ is... none, since $p$ is prime). Wait, actually, $p$ is prime, so the multiples of $p$ are $p, 2p, 3p, \ldots$. If all terms are $< p$, none is a multiple of $p$, so $p \nmid P_n$.
+
+So: if the window consists of numbers all $< p$, and $p$ is the smallest unused number, then $p$ is chosen.
+
+Now, when is $p$ the smallest unused number? After all numbers $< p$ have been used or are in $S$. 
+
+The numbers $< p$ that are in $S$: these are numbers that never appear. Let $s(p) = |S \cap \{1, \ldots, p-1\}|$. The numbers $< p$ that are used: $|\{a_1, a_2, \ldots\} \cap \{1, \ldots, p-1\}| = (p - 1) - s(p)$.
+
+After $(p - 1) - s(p)$ numbers $< p$ have been used, the remaining unused numbers $< p$ are exactly $S \cap \{1, \ldots, p-1\}$, and the smallest unused number is $\min(S \cap \{1, \ldots, p-1\} \cup \{p, p+1, \ldots\})$. If $S \cap \{1, \ldots, p-1\}$ is nonempty, the smallest unused is in $S$ and is $< p$. If $S \cap \{1, \ldots, p-1\}$ is empty, the smallest unused is $p$ (or something $\ge p$).
+
+Case 1: $S \cap \{1, \ldots, p-1\}$ is empty. Then after all numbers $< p$ are used, the smallest unused is $p$. At this point, if the window has all terms $< p$, then $p \nmid P_n$ and $p$ is chosen. But the window might contain terms $\ge p$ (if the sequence has already grown past $p$). 
+
+Hmm, but if all numbers $< p$ are used, the sequence has used $p - 1$ numbers, all $< p$. The window of the last 2020 terms: these are the most recently used numbers, which are all $< p$ (since only numbers $< p$ have been used so far, plus possibly some $\ge p$). Wait, no: the sequence might have used some numbers $\ge p$ before all numbers $< p$ are used.
+
+Actually, the sequence doesn't use numbers in order. It uses the smallest unused not dividing $P_n$. So it might use a number $\ge p$ before using all numbers $< p$.
+
+Let me reconsider. The sequence uses numbers in some order. At each step, it picks the smallest unused not dividing $P_n$. This might be a number $< p$ or $\ge p$.
+
+If at some step, all unused numbers $< p$ divide $P_n$, then the smallest candidate is $\ge p$, and the sequence picks a number $\ge p$. This could happen before all numbers $< p$ are used.
+
+So the sequence might "jump" to numbers $\ge p$ before using all numbers $< p$. In that case, when it later comes back to try to use $p$, the window might contain numbers $\ge p$ (possibly multiples of $p$), and $p | P_n$.
+
+This is the crux of the difficulty. The sequence can "skip" $p$ by jumping to larger numbers, and then $p$ might never come back.
+
+But wait, the sequence is unbounded, so it keeps growing. Once it's past $p$, does it ever come back to $p$? 
+
+The sequence picks the smallest unused not dividing $P_n$. If $p$ is unused and $p \nmid P_n$, then $a_n \le p$. So $p$ would be chosen (or something smaller). The sequence "comes back" to small numbers when they don't divide $P_n$.
+
+So the question is: can $p | P_n$ for all large $n$? This requires a multiple of $p$ in every window of 2020 terms, for all large $n$. 
+
+If the sequence is growing and terms are getting larger, the multiples of $p$ in the sequence are $2p, 3p, 4p, \ldots$ (since $p$ is unused). These need to appear frequently (every 2020 terms). 
+
+Now, here's the key: the multiples of $p$ that appear are distinct. In the first $N$ terms, there are at least $(N - N_p)/2020$ multiples of $p$ (for $N > N_p$). These are distinct multiples of $p$, all $\ge 2p$. The $k$-th smallest is $\ge 2pk$... no wait, the $k$-th smallest multiple of $p$ that appears is the $k$-th element of some subset of $\{2p, 3p, 4p, \ldots\}$, so it's $\ge (k+1)p$.
+
+Hmm wait, I realize the issue with my earlier approach. Let me try to bound $N_p$ more carefully.
+
+$N_p$ is the threshold after which $p | P_n$ for all $n$. Before $N_p$, there are steps where $p \nmid P_n$. At those steps, $p$ is a candidate (if unused, which it is since $p \in S$). The chosen $a_n$ at those steps is $\le p$ (since $p$ is a candidate, the smallest candidate is $\le p$). If $a_n < p$, it's a new number $< p$. If $a_n = p$, then $p$ appears, contradicting $p \in S$. So $a_n < p$ at all steps where $p \nmid P_n$ and $p$ is unused.
+
+The number of such steps is at most $p - 1$ (since each uses a distinct number $< p$, and there are $p - 1$ positive integers $< p$). But actually, some numbers $< p$ might already be used (in the initial segment or earlier). So the number of such steps is at most $p - 1 - |\{a_1, \ldots, a_{2020}\} \cap \{1, \ldots, p-1\}|$... no, it's at most $p - 1$ minus the number of numbers $< p$ already used before the first such step. 
+
+Actually, let me just say: the number of steps $n \in [2021, N_p - 1]$ with $p \nmid P_n$ is at most $p - 1$ (since each such step uses a new number $< p$). Let's call this number $\alpha \le p - 1$.
+
+But the total number of steps before $N_p$ is $N_p - 2021$. This includes both steps where $p | P_n$ and steps where $p \nmid P_n$. So $N_p - 2021 = \alpha + \beta$ where $\alpha \le p - 1$ is the number of steps with $p \nmid P_n$ and $\beta$ is the number of steps with $p | P_n$.
+
+At steps with $p | P_n$ (in the range $[2021, N_p - 1]$), some term in the window is a multiple of $p$. These multiples are distinct and $\ge 2p$. The number of such multiples used in this range is at most $\beta$ (well, it's complicated because a single multiple of $p$ can serve multiple windows).
+
+Hmm, this is getting complicated. Let me try a cleaner approach.
+
+**Cleaner approach:**
+
+Let me define things more carefully. Let $A = \{a_1, a_2, \ldots\}$ be the set of numbers that appear, and $S = \mathbb{Z}^+ \setminus A$.
+
+**Step 1**: Show $a_n \le Cn \log n$ for some constant $C$.
+
+**Step 2**: Show that if $p$ is a prime with $p > p_0$ (for some constant $p_0$), then $p \in A$.
+
+**Step 3**: Show that if all sufficiently large primes are in $A$, then $S$ is finite.
+
+For Step 1, I gave the argument above using Bertrand's postulate and the prime counting function. Let me make it more rigorous.
+
+*Step 1 details*: 
+
+We prove by induction that $a_n \le Cn \log n$ for all $n \ge 3$, for some sufficiently large $C$.
+
+Base case: For $n = 3, \ldots, 2020$, $a_n$ are given (distinct positive integers). Choose $C$ large enough so that $a_n \le Cn \log n$ for $n = 3, \ldots, 2020$.
+
+Inductive step: Assume $a_k \le Ck \log k$ for all $3 \le k < n$. Then $M_n = \max(a_{n-2020}, \ldots, a_{n-1}) \le C(n-1) \log(n-1)$.
+
+Set $X = Cn \log n$. We want to find an unused number $\le X$ not dividing $P_n$.
+
+The number of primes $\le X$ is $\pi(X)$. By the prime number theorem (or Chebyshev's estimate), $\pi(X) \ge \frac{X}{2 \log X}$ for $X \ge 17$ (say).
+
+The number of primes dividing $P_n$: each $a_i$ has at most $\log_2(a_i) \le \log_2(Cn \log n)$ prime factors. So the number of primes dividing $P_n$ is at most $2020 \log_2(Cn \log n) \le \frac{2020 \cdot 2 \log(Cn \log n)}{\log 2} \le 6000 \log(Cn \log n)$.
+
+The number of used numbers is $n - 1$.
+
+So the number of unused primes $\le X$ not dividing $P_n$ is at least:
+$$\pi(X) - (n-1) - 6000 \log(Cn \log n) \ge \frac{Cn \log n}{2 \log(Cn \log n)} - n - 6000 \log(Cn \log n)$$
+
+For large $n$, $\log(Cn \log n) \le 2 \log n$ (for $C$ fixed and $n$ large). So:
+$$\ge \frac{Cn \log n}{4 \log n} - n - 12000 \log n = \frac{Cn}{4} - n - 12000 \log n = n\left(\frac{C}{4} - 1\right) - 12000 \log n$$
+
+For $C > 4$ and $n$ large enough, this is positive. So there exists an unused prime $p \le X$ not dividing $P_n$, and $a_n \le p \le X = Cn \log n$.
+
+For small $n$ (where the estimate doesn't hold), we can increase $C$ to handle the finitely many cases. So Step 1 is proved.
+
+*Step 2 details*:
+
+Suppose $p$ is a prime and $p \in S$. Then $p | P_n$ for all $n \ge N_p$.
+
+For $n \ge N_p$, every window of 2020 consecutive terms contains a multiple of $p$. Since $p \in S$, the multiples of $p$ in $A$ are from $\{2p, 3p, 4p, \ldots\}$.
+
+Let $f(N) = |\{i \le N : p | a_i\}|$ be the number of multiples of $p$ among the first $N$ terms. For $N \ge N_p + 2020$, every window of 2020 starting from index $N_p$ contains a multiple of $p$. So $f(N) \ge (N - N_p)/2020$ for $N \ge N_p$.
+
+The multiples of $p$ in $A$ are distinct elements of $\{2p, 3p, 4p, \ldots\}$. So the $k$-th smallest is $\ge (k+1)p$. Thus, the largest multiple of $p$ among the first $N$ terms is $\ge (f(N) + 1)p \ge \left(\frac{N - N_p}{2020} + 1\right) p$.
+
+But the largest term among the first $N$ terms is $\le CN \log N$ (by Step 1). So:
+$$\left(\frac{N - N_p}{2020} + 1\right) p \le CN \log N$$
+
+Now, I need to bound $N_p$. As argued, the number of steps $n \in [2021, N_p]$ with $p \nmid P_n$ is at most $p - 1$ (each uses a new number $< p$). Let $\alpha$ be this count, $\alpha \le p - 1$.
+
+For the remaining steps $n \in [2021, N_p]$ with $p | P_n$: at each such step, the window contains a multiple of $p$. But a single multiple of $p$ in the sequence can "cover" up to 2020 consecutive windows. So the number of distinct multiples of $p$ used in the range $[1, N_p]$ is at least $\beta / 2020$ where $\beta = N_p - 2021 - \alpha$ is the number of steps with $p | P_n$.
+
+Hmm wait, this isn't quite right. Let me think again.
+
+Actually, for $n \in [2021, N_p - 1]$ with $p | P_n$: the window $[n-2020, n-1]$ contains a multiple of $p$. But these windows overlap, and a single multiple of $p$ at position $j$ covers windows $n \in [j+1, j+2020]$. So the number of distinct multiples of $p$ needed to cover all such $n$ is at least $\beta / 2020$.
+
+These multiples of $p$ are distinct elements of $\{2p, 3p, \ldots\}$, so the largest is $\ge 2p \cdot \beta / 2020$... no, the $k$-th smallest is $\ge (k+1)p$, so the largest of $\lceil \beta / 2020 \rceil$ such multiples is $\ge (\lceil \beta/2020 \rceil + 1) p$.
+
+And this largest multiple is at position $\le N_p - 1$, so its value is $\le C N_p \log N_p$ (by Step 1). So:
+$$(\beta / 2020 + 1) p \le C N_p \log N_p$$
+
+where $\beta = N_p - 2021 - \alpha$ and $\alpha \le p - 1$.
+
+So $\beta \ge N_p - 2021 - (p-1) = N_p - p - 2020$.
+
+$$(N_p - p - 2020) / 2020 \cdot p \le C N_p \log N_p$$
+
+$$(N_p - p - 2020) \cdot p \le 2020 C N_p \log N_p$$
+
+If $N_p \gg p$, then $N_p \cdot p \lesssim 2020 C N_p \log N_p$, giving $p \lesssim 2020 C \log N_p$.
+
+And from the earlier inequality (for $N$ large):
+$$\frac{N \cdot p}{2020} \le C N \log N$$
+$$p \le 2020 C \log N$$
+
+This holds for all $N \ge N_p + 2020$. Taking $N = N_p + 2020$:
+$$p \le 2020 C \log(N_p + 2020) \le 2020 C \log(2 N_p) \le 2020 C \cdot 2 \log N_p = 4040 C \log N_p$$
+
+(assuming $N_p \ge 2020$).
+
+And from the other inequality:
+$$p \le 2020 C \log N_p \cdot \frac{N_p}{N_p - p - 2020}$$
+
+If $N_p > 2p + 4040$, then $\frac{N_p}{N_p - p - 2020} \le 2$, so $p \le 4040 C \log N_p$.
+
+If $N_p \le 2p + 4040$, then from $p \le 4040 C \log N_p \le 4040 C \log(2p + 4040) \le 4040 C \cdot 2 \log(2p + 4040)$. Hmm, this gives $p \le 8080 C \log(2p + 4040)$. For large $p$, $\log(2p + 4040) \le 2 \log p$, so $p \le 16160 C \log p$. But $p / \log p \to \infty$, so this is only satisfiable for $p \le$ some constant. 
+
+So: if $N_p \le 2p + 4040$, then $p$ is bounded by a constant.
+If $N_p > 2p + 4040$, then $p \le 4040 C \log N_p$, and also $p \le 4040 C \log N_p$ (from the other bound). But $N_p$ could be very large, so this doesn't bound $p$.
+
+Hmm, wait. Let me combine the two inequalities. From the first (taking $N = N_p + 2020$):
+$$p \le 2020 C \log(N_p + 2020) \le 4040 C \log N_p \quad \text{(for } N_p \ge 2020\text{)}$$
+
+From the second (if $N_p > 2p + 4040$):
+$$p \le 4040 C \log N_p$$
+
+So in both cases, $p \le 4040 C \log N_p$, i.e., $N_p \ge 2^{p/(4040C)}$.
+
+But also, from the first inequality with general $N$:
+$$p \le 2020 C \log N \quad \text{for all } N \ge N_p + 2020$$
+
+The tightest is at $N = N_p + 2020$: $p \le 4040 C \log N_p$.
+
+And $N_p \ge 2^{p/(4040C)}$ (from $p \le 4040 C \log N_p$).
+
+Now, let me use the second inequality more carefully. We have:
+$$(N_p - p - 2020) \cdot p \le 2020 C N_p \log N_p$$
+
+With $N_p \ge 2^{p/(4040C)}$, the RHS is $2020 C \cdot 2^{p/(4040C)} \cdot \frac{p}{4040C} = \frac{2020}{4040} p \cdot 2^{p/(4040C)} = \frac{p}{2} \cdot 2^{p/(4040C)}$.
+
+And the LHS is $(N_p - p - 2020) \cdot p \ge (2^{p/(4040C)} - p - 2020) \cdot p$.
+
+For large $p$, $2^{p/(4040C)} \gg p + 2020$, so LHS $\ge \frac{p}{2} \cdot 2^{p/(4040C)}$ (roughly). And RHS $= \frac{p}{2} \cdot 2^{p/(4040C)}$. So LHS $\approx$ RHS, which is consistent. Hmm, so this doesn't give a contradiction.
+
+Let me try to be more precise. We have:
+$$(N_p - p - 2020) \cdot p \le 2020 C N_p \log N_p$$
+
+Dividing by $N_p$:
+$$\left(1 - \frac{p + 2020}{N_p}\right) p \le 2020 C \log N_p$$
+
+If $N_p$ is very large compared to $p$, then $1 - (p+2020)/N_p \approx 1$, and $p \le 2020 C \log N_p$, which is consistent with $N_p \ge 2^{p/(2020C)}$.
+
+So the two inequalities are consistent, and we can't derive a contradiction this way. The issue is that $N_p$ can be exponentially large in $p$, which allows $p$ to be in $S$.
+
+Hmm, so maybe the growth bound $O(n \log n)$ is not strong enough. Let me think about whether a stronger growth bound can be established.
+
+Actually, wait. Let me reconsider. The issue is that I'm not using the full strength of the condition. The condition is not just that $p | P_n$ for all $n \ge N_p$, but that ALL elements of $S$ divide $P_n$ for all large $n$. If $S$ is infinite, then $P_n$ is divisible by infinitely many numbers, which is impossible since $P_n$ is finite.
+
+But the thresholds $N_m$ for different $m \in S$ are different. So for a given $n$, $P_n$ is divisible by $\{m \in S : N_m \le n\}$. As $n$ grows, more elements of $S$ are "activated."
+
+Let me think about this. For a given $n$, let $S_n = \{m \in S : N_m \le n\}$. Then $\text{lcm}(S_n) | P_n$. 
+
+$P_n \le (Cn \log n)^{2020}$. So $\text{lcm}(S_n) \le (Cn \log n)^{2020}$.
+
+Now, if $S$ is infinite, $S_n$ grows with $n$, and $\text{lcm}(S_n) \to \infty$. The question is whether $\text{lcm}(S_n)$ can grow slowly enough to be $\le (Cn \log n)^{2020}$.
+
+If $S$ contains all powers of 2 (i.e., $2, 4, 8, 16, \ldots \in S$), then $\text{lcm}(S_n) \ge 2^k$ where $2^k$ is the largest power of 2 in $S_n$. If $N_{2^k} \le n$, then $2^k \in S_n$. We showed $N_p \ge 2^{p/(4040C)}$ for primes, and similarly $N_{2^k} \ge 2^{2^k/(4040C)}$ (roughly). So for $n = 2^{2^k/(4040C)}$, $2^k \in S_n$, and $\text{lcm}(S_n) \ge 2^k$. We need $2^k \le (Cn \log n)^{2020} = (C \cdot 2^{2^k/(4040C)} \cdot 2^k/(4040C))^{2020}$. This is $2^{2020 \cdot 2^k/(4040C) + O(k)} = 2^{2^k/(2C) + O(k)}$. And we need this $\ge 2^k$, i.e., $2^k/(2C) + O(k) \ge k$, i.e., $2^k/(2C) \ge k - O(k)$, which is true for large $k$. So this is consistent.
+
+Hmm, so even with infinitely many elements in $S$, the lcm constraint might be satisfiable. Let me think about whether there's a tighter constraint.
+
+Actually, I think the key issue is that I need a better growth bound. Let me try to show that $a_n = O(n)$, i.e., linear growth.
+
+The issue with the $O(n \log n)$ bound was that the number of primes up to $X = Cn \log n$ is $\sim Cn$, and we need this to exceed $n + O(\log n)$. So we need $C > 1$, which works. But can we do better?
+
+What if we use not just primes but also other numbers? The candidates are all unused numbers not dividing $P_n$, not just primes. 
+
+Actually, for the growth bound, using primes is sufficient: we just need ONE unused number not dividing $P_n$ that is $\le X$. Primes are convenient because a prime $p$ not dividing $P_n$ is easy to ensure (just need $p$ to not divide any term in the window).
+
+But maybe we can use a tighter analysis. Instead of looking at primes up to $X$, let me look at primes in a specific range.
+
+Let me reconsider. The number of primes dividing $P_n$ is at most $\Omega(P_n) \le \sum_{i=n-2020}^{n-1} \Omega(a_i)$ where $\Omega$ counts prime factors with multiplicity. Each $a_i \le Cn \log n$, so $\Omega(a_i) \le \log_2(Cn \log n) \le 2 \log_2 n$ for large $n$. So $\Omega(P_n) \le 2020 \cdot 2 \log_2 n = 4040 \log_2 n \le 6000 \ln n$.
+
+The number of primes $\le X$ is $\pi(X) \sim X / \ln X$. The number of used numbers is $n - 1$. So unused primes $\le X$ not dividing $P_n$ $\ge \pi(X) - n - 6000 \ln n$.
+
+For this to be $\ge 1$: $\pi(X) \ge n + 6000 \ln n + 1$.
+
+$\pi(X) \sim X / \ln X$. So $X / \ln X \ge n + 6000 \ln n$. For $X = Cn$: $Cn / \ln(Cn) \ge n + 6000 \ln n$. For large $n$, $Cn / \ln(Cn) \sim Cn / \ln n$, and we need $Cn / \ln n \ge n$, i.e., $C \ge \ln n$. This grows with $n$, so $X = Cn$ doesn't work for fixed $C$.
+
+For $X = Cn \ln n$: $Cn \ln n / \ln(Cn \ln n) \sim Cn \ln n / \ln n = Cn$. Need $Cn \ge n + 6000 \ln n$, i.e., $C \ge 1 + 6000 \ln n / n$. For large $n$, $C > 1$ works.
+
+For $X = Cn \ln \ln n$: $Cn \ln \ln n / \ln(Cn \ln \ln n) \sim Cn \ln \ln n / \ln n$. Need $Cn \ln \ln n / \ln n \ge n$, i.e., $C \ln \ln n \ge \ln n$, i.e., $C \ge \ln n / \ln \ln n$. This grows, so doesn't work.
+
+So $X = Cn \ln n$ is the best we can do with this approach, giving $a_n = O(n \log n)$.
+
+Can we do better with a different approach? 
+
+Let me think about using numbers other than primes. A number $m$ not dividing $P_n$ doesn't have to be prime. For example, $m = p^k$ for a prime $p$ not dividing $P_n$ and $k \ge 1$. Or $m = pq$ for primes $p, q$ not dividing $P_n$.
+
+But the key constraint is the same: we need $m$ to not divide $P_n$, which requires some prime factor of $m$ to not divide $P_n$ (with sufficient multiplicity). So using primes is essentially the best approach.
+
+Hmm, but wait. We can also use numbers where a prime factor divides $P_n$ but not with sufficient multiplicity. For example, if $p | P_n$ but $p^2 \nmid P_n$, then $p^2 \nmid P_n$, so $p^2$ is a candidate (if unused). This gives more candidates.
+
+But I think for the growth bound, primes are sufficient, and $O(n \log n)$ is what we get.
+
+Now, with $a_n = O(n \log n)$, can we show $S$ is finite?
+
+Let me reconsider the argument. The issue was that $N_p$ can be exponentially large in $p$, which is consistent with the constraints.
+
+Let me try a different approach to show $S$ is finite, not relying on bounding individual elements of $S$.
+
+**Approach: LCM argument**
+
+For each $n$, let $S_n = \{m \in S : N_m \le n\}$. Then $\text{lcm}(S_n) | P_n$.
+
+$P_n = \prod_{
+Let me read the problem carefully.
+
+We have distinct positive integers $a_1, a_2, \ldots, a_{2020}$. For $n \ge 2021$, $a_n$ is the smallest number different from $a_1, \ldots, a_{n-1}$ which doesn't divide $a_{n-2020} \cdots a_{n-2} a_{n-1}$ (the product of the last 2020 terms).
+
+We need to prove that every sufficiently large number appears in the sequence.
+
+Let me think about this. The "window" is 2020 terms. At each step, we look at the product of the last 2020 terms, and pick the smallest positive integer not yet used that does NOT divide this product.
+
+Let me denote $k = 2020$ for generality. The window size is $k$.
+
+Key observations:
+1. The sequence consists of distinct positive integers.
+2. At step $n$, we compute $P_n = a_{n-k} \cdot a_{n-k+1} \cdots a_{n-1}$ (product of last $k$ terms).
+3. $a_n$ = smallest positive integer not in $\{a_1, \ldots, a_{n-1}\}$ that does not divide $P_n$.
+
+We want to show every sufficiently large integer appears.
+
+Let me think about what numbers can be "skipped" (never appear). A number $m$ is skipped if at every step $n \ge$ (some point), either $m$ already appeared, or $m$ divides $P_n$ (so $m$ is not eligible because it divides the product, or some smaller number not yet used and not dividing $P_n$ is chosen instead).
+
+Actually, $m$ is skipped forever if: for every $n$ where $m$ hasn't appeared yet and $m$ doesn't divide $P_n$, some smaller number $< m$ that also hasn't appeared and doesn't divide $P_n$ is chosen instead.
+
+Hmm, this is complex. Let me think differently.
+
+Let me think about the structure. Consider a number $m$. For $m$ to never appear, it must be that whenever $m$ is the smallest "available" (not yet used) number not dividing $P_n$, actually... no. $a_n$ is the smallest number not yet used that doesn't divide $P_n$. So $m$ is chosen at step $n$ iff $m$ is the smallest not-yet-used number not dividing $P_n$.
+
+So $m$ is never chosen means: for every $n \ge 2021$ (or $n \ge 1$ if $m$ is among initial), if $m$ hasn't been used by step $n-1$, then either $m | P_n$, or there exists some $m' < m$ not yet used with $m' \nmid P_n$.
+
+Let me think about small numbers. The number 1: 1 divides everything. So 1 can never be chosen as $a_n$ for $n \ge 2021$ (since 1 divides any product). So if 1 is not among $a_1, \ldots, a_{2020}$, it will never appear. But the problem says "every number large enough appears", so small numbers might not appear. That's fine.
+
+Similarly, any number $m$ that divides every possible product $P_n$ would never appear (if not in initial). But products vary, so this is unlikely for large $m$.
+
+Let me think about this more carefully. Let's consider the set $S$ of numbers that never appear. We want to show $S$ is finite.
+
+Claim: The set of numbers that never appear is finite.
+
+Approach: Show that for large enough $m$, $m$ must eventually appear.
+
+Let me think about what it means for $m$ to not divide $P_n$. If $m$ has a prime factor $p$ with high enough power, and none of the last $k$ terms is divisible by $p$ (or by high enough power of $p$), then $m \nmid P_n$.
+
+Actually, let me think about primes. Consider a large prime $p$. If $p$ is not among the initial terms and $p$ never appears, then for every $n \ge 2021$, either $p | P_n$ (meaning $p$ divides one of the last $k$ terms) or some smaller available number doesn't divide $P_n$.
+
+But $p$ is prime, so $p | P_n$ iff $p$ divides one of $a_{n-k}, \ldots, a_{n-1}$.
+
+Hmm, let me think about this differently. Let me consider the "greedy" nature.
+
+Let me think about a simpler version first. Suppose $k = 1$ (window size 1). Then $a_n$ is the smallest number not yet used that doesn't divide $a_{n-1}$.
+
+With $k=1$: Start with $a_1$. Then $a_2$ = smallest positive integer $\ne a_1$ not dividing $a_1$. If $a_1 = 1$, then $a_2 = 2$ (smallest not dividing 1, which is 2). Then $a_3$ = smallest not yet used not dividing 2. Numbers not dividing 2: 3, 5, 6, 7, ... Smallest not used: 3. So $a_3 = 3$. Then smallest not dividing 3 and not used: 4 (4 doesn't divide 3). Wait, 2 divides... no, we need doesn't divide $a_{n-1} = 3$. 4 doesn't divide 3, and 4 is not used. But wait, is 4 the smallest? 1 divides 3? No, 1 divides everything. 2 doesn't divide 3, but 2 is already used. 4 doesn't divide 3, not used. So $a_4 = 4$. Then not dividing 4: 3 (used), 5, 6, 7... smallest not used not dividing 4: 5? Wait, 3 doesn't divide 4 but 3 is used. 5 doesn't divide 4, not used. So $a_5 = 5$. Hmm, seems like we might get all numbers $\ge 2$.
+
+Actually with $k=1$ and $a_1 = 1$: $a_2 = 2, a_3 = 3, a_4 = 4, a_5 = 5, \ldots$? Let's check: $a_5$ = smallest not used not dividing $a_4 = 4$. Not used: 1, 3, 5, 6, 7, ... Wait, 1 is not used (only if $a_1 = 1$, then 1 is used). Used: 1, 2, 3, 4. Not used: 5, 6, 7, ... Not dividing 4: 3 (used), 5, 6, 7, ... So $a_5 = 5$. Then $a_6$: not dividing 5, not used (used: 1,2,3,4,5). Not dividing 5: 2(used), 3(used), 4(used), 6, 7, 8, ... So $a_6 = 6$. Seems like we just get $1, 2, 3, 4, 5, 6, \ldots$ which is all positive integers. OK.
+
+But with general $k = 2020$, it's more complex.
+
+Let me think about the general structure. The key insight is:
+
+**Lemma**: For any $m$ not in the initial set, if $m$ is not yet used and $m \nmid P_n$, then $a_n \le m$ (since $a_n$ is the smallest such number). So if $m$ never appears, then whenever $m$ is not yet used, either $m | P_n$ or $a_n < m$ (some smaller number is chosen).
+
+But there are only finitely many numbers smaller than $m$. So eventually, all numbers $< m$ that will ever appear have appeared. After that point, if $m$ is not yet used and $m \nmid P_n$, then $m$ would be chosen (since all smaller numbers are either used or divide $P_n$... wait, no, smaller numbers might be used already).
+
+Let me be more precise. After all numbers $< m$ that ever appear have appeared (and there are finitely many such numbers, at most $m-1$), the set of "not yet used" numbers $< m$ is fixed (it's the set of numbers $< m$ that never appear). Call this set $T_m$.
+
+For $m$ to not appear, at every subsequent step $n$, either:
+- $m | P_n$, or
+- Some element of $T_m$ doesn't divide $P_n$ (and is the smallest such, so it gets chosen... but wait, elements of $T_m$ never appear, so they're always "not yet used").
+
+Hmm wait. If $t \in T_m$ (so $t < m$, $t$ never appears, $t$ is not in initial set), then $t$ is always available (not yet used). If at some step $n$, $t \nmid P_n$ and $t$ is the smallest available number not dividing $P_n$, then $a_n = t$, contradiction since $t$ never appears.
+
+So for $t \in T_m$ to never appear, at every step $n$ (after initial), either $t | P_n$ or some smaller available number $< t$ doesn't divide $P_n$.
+
+This gives a recursive structure. Let me think about the smallest number that never appears.
+
+Let $m_0$ be the smallest positive integer that never appears (and is not in the initial set). Then for every $n \ge 2021$, since all numbers $< m_0$ either appear (and thus eventually are used) or are in the initial set (and thus used), after some point $N$, all numbers $< m_0$ are used. After step $N$, the only available numbers $< m_0$ are... none (they're all used). So for $n > N$, if $m_0 \nmid P_n$, then $m_0$ is the smallest available number not dividing $P_n$ (since all smaller numbers are used), so $a_n = m_0$, contradiction.
+
+Therefore, for all $n > N$, $m_0 | P_n$.
+
+So $m_0$ divides every product $P_n$ for $n > N$. This means $m_0$ divides $a_{n-k} \cdots a_{n-1}$ for all $n > N$.
+
+Now, $m_0 | P_n$ and $m_0 | P_{n+1}$. $P_{n+1} = P_n \cdot a_n / a_{n-k}$. So $m_0 | P_n \cdot a_n / a_{n-k}$.
+
+Since $m_0 | P_n$ and $m_0 | P_{n+1}$, we get $m_0 | P_n \cdot a_n / a_{n-k}$, which means $m_0 \cdot a_{n-k} | P_n \cdot a_n$... hmm, this isn't quite right because of the division.
+
+Let me think more carefully. $P_{n+1} = \frac{P_n \cdot a_n}{a_{n-k}}$. For this to be an integer, we need $a_{n-k} | P_n \cdot a_n$, which is true since $a_{n-k} | P_n$ (as $a_{n-k}$ is one of the factors of $P_n$). Actually $P_n = a_{n-k} \cdot a_{n-k+1} \cdots a_{n-1}$, so $P_{n+1} = a_{n-k+1} \cdots a_n = P_n \cdot a_n / a_{n-k}$.
+
+So $m_0 | P_{n+1}$ means $m_0 | P_n \cdot a_n / a_{n-k}$.
+
+Since $m_0 | P_n$, write $P_n = m_0 \cdot q$. Then $P_{n+1} = m_0 \cdot q \cdot a_n / a_{n-k}$. For $m_0 | P_{n+1}$, we need $m_0 | m_0 \cdot q \cdot a_n / a_{n-k}$, i.e., $a_{n-k} | q \cdot a_n$, i.e., $a_{n-k} | (P_n / m_0) \cdot a_n$.
+
+This is getting complicated. Let me think about it in terms of prime powers.
+
+For each prime $p$ and power $p^e \| m_0$ (meaning $p^e | m_0$ but $p^{e+1} \nmid m_0$), we need $p^e | P_n$ for all $n > N$. This means the sum of $p$-adic valuations of $a_{n-k}, \ldots, a_{n-1}$ is $\ge e$ for all $n > N$.
+
+So for every window of $k$ consecutive terms (after position $N$), the sum of $v_p$ of those terms is $\ge e$.
+
+Now, consider what happens. The terms $a_n$ for $n > N$ are all $\ge m_0$ (since all numbers $< m_0$ are used). Actually, they could be anything $\ge m_0$ that's not yet used.
+
+Hmm, but I need to derive a contradiction or show that $m_0$ can't be too large. Actually, the problem asks to show that every sufficiently large number appears, i.e., the set of numbers that never appear is finite. So I need to show $m_0$ exists (the set of never-appearing numbers is non-empty is possible) but that there's an upper bound.
+
+Wait, actually, I need to show that the set of never-appearing numbers is finite. Let me reconsider.
+
+Let me think about the second-smallest number that never appears. Let $m_0 < m_1$ be the two smallest never-appearing numbers. After all numbers $< m_1$ that ever appear have appeared (say after step $N_1$), the available numbers $< m_1$ are exactly $m_0$ (and possibly other never-appearing numbers $< m_1$, but $m_0$ is the smallest, so the never-appearing numbers $< m_1$ are just $m_0$ if $m_1$ is the second smallest).
+
+Wait, I said $m_0 < m_1$ are the two smallest. So never-appearing numbers $< m_1$ are just $\{m_0\}$. After step $N_1$, all numbers $< m_1$ except $m_0$ are used. So for $n > N_1$, if $m_1 \nmid P_n$, then the smallest available number not dividing $P_n$ is either $m_0$ (if $m_0 \nmid P_n$) or $m_1$ (if $m_0 | P_n$ and $m_1 \nmid P_n$).
+
+For $m_1$ to never appear: if $m_1 \nmid P_n$ and $m_0 | P_n$, then $a_n = m_1$, contradiction. So whenever $m_1 \nmid P_n$, we must have $m_0 \nmid P_n$ too (so that $m_0$ is chosen instead, but $m_0$ never appears either...).
+
+Wait, but $m_0$ never appears. So if $m_0 \nmid P_n$ and $m_0$ is the smallest available not dividing $P_n$, then $a_n = m_0$, contradiction. So $m_0 | P_n$ for all $n > N_0$ (where $N_0$ is after all numbers $< m_0$ are used).
+
+So for $n > \max(N_0, N_1)$: $m_0 | P_n$ always. And if $m_1 \nmid P_n$, then since $m_0 | P_n$, $m_1$ would be chosen (it's the smallest available not dividing $P_n$), contradiction. So $m_1 | P_n$ for all $n > \max(N_0, N_1)$.
+
+By induction, if $m_0 < m_1 < m_2 < \ldots$ are all the never-appearing numbers, then for each $j$, $m_j | P_n$ for all sufficiently large $n$.
+
+So every never-appearing number divides $P_n$ for all sufficiently large $n$.
+
+Now, the never-appearing numbers are distinct positive integers, all dividing $P_n$ for large $n$. So their product divides $P_n$ (if they're pairwise coprime... no, not necessarily). But at least, each never-appearing number divides $P_n$.
+
+If there are infinitely many never-appearing numbers $m_0, m_1, m_2, \ldots$, then for large $n$, all of them divide $P_n$. But $P_n = a_{n-k} \cdots a_{n-1}$ is a product of $k = 2020$ positive integers. The number of divisors of $P_n$ is finite, so only finitely many numbers can divide $P_n$. Contradiction!
+
+Wait, that's the key. If infinitely many never-appearing numbers exist, they all must divide $P_n$ for large $n$, but $P_n$ has finitely many divisors. So only finitely many never-appearing numbers exist.
+
+But wait, I need to be more careful. "For all sufficiently large $n$" depends on $j$. For each $m_j$, there exists $N_j$ such that for $n > N_j$, $m_j | P_n$. If there are infinitely many $m_j$, the $N_j$ could go to infinity. So it's not true that there's a single $n$ where all $m_j$ divide $P_n$.
+
+Hmm, so the argument doesn't immediately work. Let me reconsider.
+
+Let me think again. For each never-appearing number $m_j$, there exists $N_j$ such that for all $n > N_j$, $m_j | P_n$. The $N_j$ could increase with $j$.
+
+So I can't just pick one $n$ and say all $m_j | P_n$.
+
+Let me think differently. Let me consider the never-appearing numbers and their prime factorizations.
+
+Actually, let me reconsider the problem. Let me think about what numbers can divide $P_n$ for all large $n$.
+
+$P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. For $m | P_n$ for all large $n$, we need: for every prime power $p^e \| m$, the window $a_{n-k}, \ldots, a_{n-1}$ always contains enough factors of $p$ (total $v_p \ge e$) for all large $n$.
+
+Since the window slides by one each step, $P_{n+1} = P_n \cdot a_n / a_{n-k}$. So $v_p(P_{n+1}) = v_p(P_n) + v_p(a_n) - v_p(a_{n-k})$.
+
+For $v_p(P_n) \ge e$ for all large $n$, we need the running sum to stay $\ge e$. This is like a queue: we add $v_p(a_n)$ and remove $v_p(a_{n-k})$.
+
+If $v_p(P_n) \ge e$ for all $n > N$, then in particular, $v_p(P_n) \ge e$ and $v_p(P_{n+1}) \ge e$. The difference is $v_p(a_n) - v_p(a_{n-k})$. This can be negative (if $a_{n-k}$ has more factors of $p$ than $a_n$), but the sum stays $\ge e$.
+
+Now, here's an idea: if $m$ never appears and $m | P_n$ for all $n > N$, consider the terms $a_n$ for $n > N$. These are all numbers that do appear (they're in the sequence). Each $a_n$ is chosen as the smallest available number not dividing $P_n$.
+
+Since $m | P_n$ for all $n > N$, $m$ is never the chosen one (it always divides $P_n$, so it's not eligible). But also, $m$ being a non-divisor of $P_n$ never happens, so $m$ is never forced to appear.
+
+Now, the key question: can there be infinitely many such $m$?
+
+Let me think about it from the perspective of the sequence values. For $n > N$, $a_n$ is the smallest available number not dividing $P_n$. The available numbers are those not yet used. As $n$ increases, more numbers get used, so the pool of available numbers shrinks (well, it always shrinks since we add one each step).
+
+The numbers that never appear are exactly those that, at every step, either divide $P_n$ or are "blocked" by a smaller available number not dividing $P_n$.
+
+Let me try a different approach. Let me think about the sequence of $a_n$ values for large $n$.
+
+Claim: For large $n$, $a_n$ is "roughly" increasing, or at least, the values that appear eventually include all large numbers.
+
+Hmm, let me think about this more concretely. Let me consider the set $U$ of numbers that are used (appear in the sequence). The complement $S = \mathbb{Z}^+ \setminus U$ is the set of never-appearing numbers. We want $|S| < \infty$.
+
+For each $s \in S$, $s | P_n$ for all sufficiently large $n$ (as shown above, assuming $s$ is not in the initial set; if $s$ is in the initial set, it already appeared).
+
+Wait, I need to also handle the case where $s$ is in the initial set. But if $s \in \{a_1, \ldots, a_{2020}\}$, then $s$ appeared, so $s \notin S$. So $S$ consists of numbers not in the initial set.
+
+OK so for every $s \in S$, $s | P_n$ for all $n > N_s$ (for some $N_s$ depending on $s$).
+
+Now, let me think about the structure of $S$. Let $S = \{s_1 < s_2 < s_3 < \ldots\}$ (possibly infinite). For each $s_j$, $s_j | P_n$ for all $n > N_{s_j}$.
+
+Consider the prime factorization aspect. For a prime $p$, let $e_j = v_p(s_j)$. For $s_j | P_n$ with $n > N_{s_j}$, we need $v_p(P_n) \ge e_j$.
+
+Now, $v_p(P_n)$ is the sum of $v_p(a_i)$ for $i$ in the window $[n-k, n-1]$. As $n$ increases, this is a sliding window sum.
+
+Key insight: The terms $a_n$ for $n$ large are all distinct and all $\ge$ some value (since small numbers get used up). Actually, they're all distinct by construction. And they're chosen greedily.
+
+Let me think about whether the $a_n$ values can be bounded. If $a_n$ were bounded, then since they're distinct, only finitely many values are possible, contradiction (the sequence is infinite). So $a_n \to \infty$ in some sense (not monotonically, but the values must grow).
+
+Actually, $a_n$ are all distinct positive integers, so the sequence is a permutation of some subset of $\mathbb{Z}^+$. Since there are infinitely many terms, infinitely many distinct values appear. The values that appear include all of $U$, and $U$ is infinite.
+
+Now, for $s \in S$, $s | P_n$ for all large $n$. Let's think about what this implies for the sequence.
+
+Consider two never-appearing numbers $s, t \in S$ with $\gcd(s, t) = 1$ (if they exist). Then $st | P_n$ for all $n > \max(N_s, N_t)$. More generally, $\text{lcm}(s_1, \ldots, s_j) | P_n$ for $n > \max(N_{s_1}, \ldots, N_{s_j})$.
+
+If $S$ is infinite, then $\text{lcm}(s_1, s_2, \ldots)$ is infinite (diverges to infinity). But for any fixed $n$, $P_n$ is a fixed number, so only finitely many numbers divide it. The issue is the $N_{s_j}$ growing.
+
+Let me try yet another approach. Let me think about the growth of $a_n$.
+
+For large $n$, consider the smallest available (not yet used) number, call it $m(n)$. As $n$ increases, $m(n)$ is non-decreasing (since using a number can only increase the smallest available). Actually, $m(n)$ increases by at least 1 each time $a_n = m(n)$, but $a_n$ might not equal $m(n)$ (if $m(n) | P_n$).
+
+If $m(n) | P_n$ for all large $n$, then $m(n)$ stays constant for all large $n$ (it's never used), so $m(n) = m^*$ for all $n > N^*$. This $m^*$ would be a never-appearing number, and the smallest one.
+
+Then for $n > N^*$, $a_n > m^*$ (since $m^*$ is the smallest available but divides $P_n$, so it's not chosen). The next available number is $m^* + 1$ or something larger, depending on what's been used.
+
+Actually, let me reconsider. Let $m^*$ be the smallest never-appearing number. Then for $n > N^*$ (after all numbers $< m^*$ are used), $m^*$ is the smallest available number. For $m^*$ to never be chosen, $m^* | P_n$ for all $n > N^*$.
+
+Now, the second smallest available number (for $n > N^*$): it's the smallest number $> m^*$ that's not yet used. As $n$ increases, numbers $> m^*$ get used, so this second smallest available number increases. But $m^*$ stays available forever.
+
+For $n > N^*$, $a_n$ is the smallest available number $> m^*$ (since $m^*$ divides $P_n$) that doesn't divide $P_n$. Wait, no: $a_n$ is the smallest available number not dividing $P_n$. Since $m^* | P_n$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$... no, $a_n$ is the smallest available number not dividing $P_n$, and $m^*$ divides $P_n$, so $a_n$ is the smallest available number $\ne m^*$ not dividing $P_n$, which is the smallest available number $> m^*$ not dividing $P_n$ (since $m^*$ is the smallest available and it divides $P_n$).
+
+Hmm wait, there could be available numbers between $m^*$ and the next one. Actually, $m^*$ is the smallest available, so all numbers $< m^*$ are used. The available numbers are $m^*$ and some numbers $> m^*$. So $a_n$ = smallest available number not dividing $P_n$ = either $m^*$ (if $m^* \nmid P_n$, but we said $m^* | P_n$) or the smallest available number $> m^*$ not dividing $P_n$.
+
+OK so for $n > N^*$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$.
+
+Now, let's think about the second smallest never-appearing number $m^{**}$ (if it exists). After all numbers $< m^{**}$ except $m^*$ are used (say after step $N^{**}$), the available numbers $< m^{**}$ are just $\{m^*\}$. For $n > N^{**}$, $a_n$ is the smallest available number not dividing $P_n$. If $m^* | P_n$ (which it does for $n > N^*$) and $m^{**} \nmid P_n$, then $a_n = m^{**}$ (since $m^*$ divides $P_n$ and $m^{**}$ is the next available). So for $m^{**}$ to never appear, $m^{**} | P_n$ for all $n > N^{**}$.
+
+So both $m^*$ and $m^{**}$ divide $P_n$ for $n > \max(N^*, N^{**})$.
+
+Continuing, all never-appearing numbers divide $P_n$ for sufficiently large $n$.
+
+Now, the crucial step: I need to show that only finitely many numbers can divide $P_n$ for all large $n$.
+
+Let me think about this. $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. The terms $a_n$ for large $n$ are all distinct and grow (they must, since there are infinitely many distinct terms). 
+
+Consider the prime factorization of $P_n$. For a number $m$ to divide $P_n$ for all large $n$, every prime power in $m$ must be "covered" by the window at all times.
+
+Let me think about a specific prime $p$. Let $f(n) = v_p(P_n)$, the $p$-adic valuation of $P_n$. We have $f(n+1) = f(n) + v_p(a_n) - v_p(a_{n-k})$.
+
+For $m | P_n$ for all $n > N$, we need $f(n) \ge v_p(m)$ for all $n > N$.
+
+Now, the terms $a_n$ are distinct and grow. What can we say about $v_p(a_n)$?
+
+If the never-appearing numbers include numbers with arbitrarily high powers of $p$, then $f(n) \ge v_p(m_j)$ for all $j$ and all $n > N_j$. Since $v_p(m_j) \to \infty$, this means $f(n) \to \infty$.
+
+But $f(n)$ is a sliding window sum of $v_p(a_i)$. If $f(n) \to \infty$, then the average of $v_p(a_i)$ over any window of size $k$ goes to infinity. This means $v_p(a_i) \to \infty$ on average, meaning the terms $a_i$ have higher and higher powers of $p$.
+
+But the terms $a_i$ are chosen greedily as the smallest available number not dividing $P_i$. If all terms have high powers of $p$, they'd be large (multiples of high powers of $p$), but the greedy choice picks the smallest available... this seems contradictory.
+
+Let me try to make this precise. 
+
+Suppose $S$ (never-appearing set) is infinite. Then for each prime $p$ and each $e$, there might be elements of $S$ divisible by $p^e$ (not necessarily, but let's see).
+
+Actually, $S$ being infinite doesn't directly imply high prime powers. $S$ could be $\{2, 4, 8, 16, \ldots\}$ (powers of 2), or $\{2, 3, 5, 7, 11, \ldots\}$ (primes), etc.
+
+Let me think about it differently. Let me consider the lcm of all never-appearing numbers.
+
+If $S$ is infinite, then $L_j = \text{lcm}(s_1, \ldots, s_j) \to \infty$ as $j \to \infty$ (since the $s_j$ are distinct positive integers, their lcm must grow). Actually, is this true? If $s_j = j$ for all $j$, then $\text{lcm}(1, \ldots, j) \to \infty$. If $s_j$ are all powers of 2, $\text{lcm} = 2^{\max} \to \infty$. Yes, in general, the lcm of an infinite set of distinct positive integers diverges.
+
+So $L_j \to \infty$. For each $j$, $L_j | P_n$ for all $n > N_j$ (where $N_j = \max(N_{s_1}, \ldots, N_{s_j})$).
+
+So for any $M$, there exists $j$ with $L_j > M$, and $L_j | P_n$ for $n > N_j$. This means $P_n > L_j > M$ for $n > N_j$... well, $P_n \ge L_j$ since $L_j | P_n$ and $P_n > 0$.
+
+But this just says $P_n$ is eventually large, which is obvious since $a_n$ are distinct positive integers (so they grow).
+
+Hmm, I need a stronger argument. Let me think about the structure more carefully.
+
+Let me consider the following approach: show that the never-appearing numbers must all divide some fixed number, hence there are finitely many of them.
+
+For each never-appearing number $s$, $s | P_n$ for all $n > N_s$. Consider two consecutive windows: $P_n$ and $P_{n+1}$. We have $P_{n+1} = P_n \cdot a_n / a_{n-k}$.
+
+So $s | P_n$ and $s | P_{n+1} = P_n \cdot a_n / a_{n-k}$. Since $s | P_n$, we can write $P_n = s \cdot t$. Then $P_{n+1} = s \cdot t \cdot a_n / a_{n-k}$. For $s | P_{n+1}$, we need $a_{n-k} | t \cdot a_n$, i.e., $a_{n-k} | (P_n / s) \cdot a_n$.
+
+Hmm, this is still complex. Let me try to think about the problem from a higher level.
+
+Alternative approach: Think about what the sequence looks like for large $n$.
+
+For large $n$, the smallest available number $m^*$ (smallest never-appearing) divides every $P_n$. So $a_n$ is chosen from numbers $> m^*$.
+
+Now, consider the sequence $b_n = a_n$ for $n > N^*$. These are all $> m^*$ (well, $\ge m^* + 1$ or something). And they're chosen greedily: $b_n$ is the smallest available number $> m^*$ not dividing $P_n$.
+
+Actually, I realize the problem might have a cleaner approach. Let me think about the "complementary" sequence.
+
+Let me consider the following: define $c_n$ as the smallest positive integer not in $\{a_1, \ldots, a_n\}$ (the smallest "missing" number after $n$ steps). Then $c_n$ is non-decreasing, and $c_n \to m^*$ (the smallest never-appearing number) if $S$ is non-empty, or $c_n \to \infty$ if $S$ is empty.
+
+Wait, $c_n$ is non-decreasing? Not exactly. $c_n$ is the smallest positive integer not yet used. When we use $a_n = c_{n-1}$, then $c_n > c_{n-1}$. When we use $a_n \ne c_{n-1}$, $c_n = c_{n-1}$. So $c_n$ is non-decreasing. And $c_n$ is bounded by $m^*$ if $S$ is non-empty (it converges to $m^*$), or unbounded if $S$ is empty.
+
+Case 1: $S$ is empty. Then every positive integer appears. Done (trivially, every sufficiently large number appears).
+
+Case 2: $S$ is non-empty. Then $c_n \to m^* = \min(S)$. For $n > N^*$, $c_n = m^*$, meaning $m^*$ is the smallest available number, and $m^* | P_n$ for all $n > N^*$.
+
+Now, for $n > N^*$, $a_n > m^*$ (since $m^*$ divides $P_n$ and is thus not eligible). Let's think about the "reduced" problem. The available numbers are $m^*$ and numbers $> m^*$ not yet used. Since $m^*$ always divides $P_n$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$.
+
+Hmm, let me think about the growth of $a_n$. For $n > N^*$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$. The product $P_n$ includes $m^*$ as a factor (since $m^* | P_n$). 
+
+Actually, I think the key insight is:
+
+**For $n > N^*$, $m^* | P_n$, so $m^* | a_{n-k} \cdots a_{n-1}$. Since $m^*$ is prime or composite...**
+
+Let me consider the case where $m^*$ is prime first, say $m^* = p$. Then $p | P_n$ for all $n > N^*$, meaning at least one of $a_{n-k}, \ldots, a_{n-1}$ is divisible by $p$ for every window of $k$ consecutive terms (after $N^*$). This means in every block of $k$ consecutive terms, at least one is divisible by $p$.
+
+So the "gap" between consecutive multiples of $p$ in the sequence is at most $k$. Since the sequence terms are distinct, and at least one in every $k$ is a multiple of $p$, the density of multiples of $p$ is $\ge 1/k$.
+
+Now, the available numbers not divisible by $p$ and $> p$: these are numbers not divisible by $p$ that haven't been used. The greedy algorithm picks the smallest such number not dividing $P_n$.
+
+Hmm, this is getting complicated. Let me try a completely different approach.
+
+**Approach via contradiction: assume $S$ is infinite.**
+
+If $S$ is infinite, list $S = \{s_1 < s_2 < \ldots\}$. For each $j$, $s_j | P_n$ for all $n > N_j$.
+
+Now, consider the sequence $(a_n)$ for $n$ large. The terms are distinct, and $a_n$ is chosen greedily. 
+
+Key claim: **For $n$ sufficiently large, $a_n \le C \cdot n$ for some constant $C$.** Or more precisely, the sequence doesn't grow too fast.
+
+Actually, let me think about an upper bound on $a_n$. At step $n$, $a_n$ is the smallest available number not dividing $P_n$. The number of available numbers $\le M$ is at least $M - n$ (since at most $n$ numbers have been used by step $n$). The number of divisors of $P_n$ that are $\le M$ is at most... well, $P_n$ could have many divisors, but the number of divisors of any number $N$ is at most $N^{o(1)}$, which isn't directly helpful.
+
+Hmm, but actually, the number of divisors of $P_n$ up to $M$ is at most $d(P_n)$, and if $P_n$ is not too large, this is bounded. But $P_n$ could be huge.
+
+Let me think about it differently. The number of integers in $[1, M]$ that divide $P_n$ is at most $d(P_n)$. But also, the number of integers in $[1, M]$ not dividing $P_n$ is at least $M - d(P_n)$... no, that's not right either. An integer in $[1, M]$ divides $P_n$ or not; the number that divide $P_n$ is at most the number of divisors of $P_n$ that are $\le M$, which is at most $d(P_n) \le 2\sqrt{P_n}$ (a crude bound). But $P_n$ can be huge.
+
+Let me try yet another approach.
+
+**Approach: Show that $a_n$ is eventually periodic or has bounded gaps, implying all large numbers appear.**
+
+Hmm, that seems hard. Let me think about the problem from the perspective of the competition. This is likely an olympiad problem (the 2020 suggests it might be from 2020). Let me think about what the key idea might be.
+
+Let me reconsider. The window size is $k = 2020$. The key property is that $a_n$ is the smallest available number not dividing the product of the last $k$ terms.
+
+**Key idea**: Consider a number $m$ that never appears. Then $m | P_n$ for all large $n$. Now, $P_n$ is a product of $k$ terms. If $m$ is large (say $m > $ all terms in some window), then $m$ can't divide $P_n$ (since $P_n$ is a product of $k$ terms each $< m$, so $P_n$ could still be $\ge m$...). Hmm, that doesn't work directly.
+
+Let me think about it more carefully. If $m$ never appears and $m | P_n$ for all $n > N$, then $m | a_{n-k} \cdots a_{n-1}$ for all $n > N$. In particular, $m$ divides the product of any $k$ consecutive terms (for $n$ large enough).
+
+Now, consider the terms $a_N, a_{N+1}, \ldots$. These are all distinct and all $> m^*$ (the smallest never-appearing number). 
+
+$m$ divides $a_{n-k} \cdots a_{n-1}$ for all $n > N$. So $m$ divides $a_N \cdots a_{N+k-1}$, $m$ divides $a_{N+1} \cdots a_{N+k}$, etc.
+
+From $m | a_N \cdots a_{N+k-1}$ and $m | a_{N+1} \cdots a_{N+k}$, we get $m | \text{lcm}(a_N \cdots a_{N+k-1}, a_{N+1} \cdots a_{N+k})$. But more usefully:
+
+$m | a_N \cdots a_{N+k-1}$ and $m | a_{N+1} \cdots a_{N+k}$. Dividing (in the sense of gcd/lcm), $m | \text{lcm}(a_N \cdots a_{N+k-1})$ and $m | \text{lcm}(a_{N+1} \cdots a_{N+k})$.
+
+Actually, from $m | \prod_{i=0}^{k-1} a_{N+i}$ and $m | \prod_{i=1}^{k} a_{N+i}$, we get $m | \gcd(\prod_{i=0}^{k-1} a_{N+i}, \prod_{i=1}^{k} a_{N+i})$. 
+
+$\gcd(\prod_{i=0}^{k-1} a_{N+i}, \prod_{i=1}^{k} a_{N+i}) = \prod_{i=1}^{k-1} a_{N+i} \cdot \gcd(a_N, a_{N+k})$... no, that's not right either. The gcd of two products isn't the product of gcds in general.
+
+Let me think about it prime by prime. For a prime $p$ with $p^e \| m$:
+- $v_p(\prod_{i=0}^{k-1} a_{N+i}) \ge e$ and $v_p(\prod_{i=1}^{k} a_{N+i}) \ge e$.
+- The first sum is $v_p(a_N) + v_p(a_{N+1}) + \ldots + v_p(a_{N+k-1}) \ge e$.
+- The second sum is $v_p(a_{N+1}) + \ldots + v_p(a_{N+k}) \ge e$.
+- Subtracting: $v_p(a_N) - v_p(a_{N+k}) \le 0$ is not necessarily true, but both sums are $\ge e$.
+
+More generally, for all $n > N$, $\sum_{i=0}^{k-1} v_p(a_{n-k+i}) \ge e$. This is a sliding window constraint.
+
+The sliding window sum $f(n) = \sum_{i=0}^{k-1} v_p(a_{n-k+i})$ satisfies $f(n) \ge e$ for all $n > N$, and $f(n+1) - f(n) = v_p(a_n) - v_p(a_{n-k})$.
+
+Now, sum over $n = N+1$ to $N+M$:
+$\sum_{n=N+1}^{N+M} [f(n+1) - f(n)] = f(N+M+1) - f(N+1) = \sum_{n=N+1}^{N+M} [v_p(a_n) - v_p(a_{n-k})]$.
+
+$= \sum_{n=N+1}^{N+M} v_p(a_n) - \sum_{n=N+1}^{N+M} v_p(a_{n-k}) = \sum_{n=N+1}^{N+M} v_p(a_n) - \sum_{n=N+1-k}^{N+M-k} v_p(a_n)$.
+
+$= \sum_{n=N+M-k+1}^{N+M} v_p(a_n) - \sum_{n=N+1-k}^{N} v_p(a_n)$.
+
+So $f(N+M+1) - f(N+1) = \sum_{n=N+M-k+1}^{N+M} v_p(a_n) - \sum_{n=N+1-k}^{N} v_p(a_n)$.
+
+Since $f(n) \ge e$ for all $n > N$, we have $f(N+M+1) \ge e$ and $f(N+1) \ge e$, so the difference is bounded below by $e - f(N+1)$, but $f(N+1)$ could be large.
+
+This isn't leading anywhere directly. Let me try to think about the average.
+
+Average of $f(n)$ over a long range: $\frac{1}{M} \sum_{n=N+1}^{N+M} f(n) = \frac{1}{M} \sum_{n=N+1}^{N+M} \sum_{i=0}^{k-1} v_p(a_{n-k+i})$.
+
+Each $v_p(a_j)$ appears in about $k$ windows (for $j$ in the interior), so the average is approximately $k \cdot \bar{v}_p$ where $\bar{v}_p$ is the average of $v_p(a_j)$.
+
+Since $f(n) \ge e$ for all $n > N$, the average is $\ge e$, so $k \cdot \bar{v}_p \ge e$, meaning $\bar{v}_p \ge e/k$.
+
+This means the average $p$-adic valuation of the terms is $\ge e/k$. If $e$ is large (i.e., $m$ has a high power of $p$), the terms must have high $p$-adic valuations on average.
+
+Now, if $S$ is infinite and contains numbers with arbitrarily high powers of $p$ (for some prime $p$), then $e$ can be arbitrarily large, so $\bar{v}_p$ must be arbitrarily large, meaning the terms have unbounded $p$-adic valuations.
+
+But the terms are chosen greedily. If all terms (for large $n$) have high $p$-adic valuations, they're all multiples of high powers of $p$, hence large. But the greedy choice picks the smallest available number not dividing $P_n$. If $P_n$ has very high $p$-adic valuation, then many small numbers (those that are powers of $p$ or have low $p$-adic valuation) might divide $P_n$... hmm, actually, a number not dividing $P_n$ needs to have some prime power not covered by $P_n$.
+
+OK let me try to think about this more carefully with a cleaner argument.
+
+**Cleaner approach:**
+
+Let me define things more carefully. Let $S$ be the set of never-appearing numbers. We've shown that for each $s \in S$, $s | P_n$ for all sufficiently large $n$.
+
+**Claim**: $S$ is finite.
+
+**Proof**: Suppose $S$ is infinite. Let $s_1 < s_2 < \ldots$ be the elements of $S$. For each $j$, let $N_j$ be such that $s_j | P_n$ for all $n > N_j$.
+
+Consider the prime factorization of the elements of $S$. Since $S$ is infinite, there exists a prime $p$ such that $v_p(s_j)$ is unbounded (because if $v_p(s_j)$ were bounded for every prime $p$, then each $s_j$ would be a product of bounded prime powers, but since the $s_j$ are distinct, some prime must appear with unbounded exponent... actually, that's not quite right. The $s_j$ could be $2, 3, 5, 7, 11, \ldots$ (distinct primes), where each prime appears with exponent 1. Then $v_p(s_j)$ is 1 for $p = s_j$ and 0 otherwise, so for each fixed $p$, $v_p(s_j) \le 1$.)
+
+Hmm, so it's possible that no prime has unbounded exponent. Let me reconsider.
+
+If $S$ consists of distinct primes $p_1, p_2, \ldots$, then for each $p_j$, $p_j | P_n$ for all $n > N_j$. This means every window of $k$ consecutive terms (for $n$ large enough) contains a multiple of $p_j$.
+
+For different primes $p_j$, the threshold $N_j$ may differ. But for any finite set of primes $\{p_1, \ldots, p_J\}$, for $n > \max(N_1, \ldots, N_J)$, every window of $k$ terms contains a multiple of each $p_j$.
+
+So for $n > \max(N_1, \ldots, N_J)$, the product $P_n$ is divisible by $p_1 \cdots p_J$. Since the $p_j$ are distinct primes, $P_n$ is divisible by their product.
+
+Now, $P_n = a_{n-k} \cdots a_{n-1}$, a product of $k$ terms. If $P_n$ is divisible by $p_1 \cdots p_J$ (product of $J$ distinct primes), then the $k$ terms must collectively have all these primes as factors. Since each term can contribute multiple primes, this is possible as long as $J$ isn't too large relative to the terms.
+
+But as $J \to \infty$, $p_1 \cdots p_J \to \infty$, and $P_n \ge p_1 \cdots p_J$. Since $P_n$ is a product of $k$ terms, and the terms are distinct positive integers, $P_n$ can be large. So this alone doesn't give a contradiction.
+
+But here's the thing: the terms $a_n$ are chosen greedily. Let me think about what constrains them.
+
+For $n > N^*$ (where $N^*$ is such that $c_n = m^*$ for $n > N^*$), $a_n$ is the smallest available number $> m^*$ not dividing $P_n$. 
+
+Now, $P_n$ is divisible by $m^*$ and by $s_j$ for all $j$ with $N_j < n$. As $n$ increases, more and more $s_j$ divide $P_n$.
+
+The number of divisors of $P_n$ grows (since $P_n$ is divisible by more and more numbers). But $a_n$ is the smallest available number NOT dividing $P_n$. If $P_n$ has many divisors, there are fewer "non-divisors" among small numbers, so $a_n$ might be large.
+
+But actually, $P_n$ is a product of $k$ terms, each of which is a specific number. The divisors of $P_n$ are determined by its prime factorization. Even if $P_n$ is large, the number of "small" divisors (say $\le M$) is at most $M$ (trivially), but could be a large fraction of $[1, M]$.
+
+Hmm, I think I need a different approach. Let me think about the problem from the perspective of the sequence values.
+
+**Approach: Bounding $a_n$ from above.**
+
+At step $n$, $a_n$ is the smallest available number not dividing $P_n$. The available numbers are those not in $\{a_1, \ldots, a_{n-1}\}$, which is $\mathbb{Z}^+ \setminus \{a_1, \ldots, a_{n-1}\}$. The number of used values up to step $n-1$ is $n-1$. So among $\{1, 2, \ldots, M\}$, at most $n-1$ are used, so at least $M - (n-1)$ are available (for $M \ge n$).
+
+The number of divisors of $P_n$ in $\{1, \ldots, M\}$ is at most $d(P_n)$ (total number of divisors). So the number of available non-divisors of $P_n$ in $\{1, \ldots, M\}$ is at least $M - (n-1) - d(P_n)$.
+
+For this to be positive (so that $a_n \le M$), we need $M > (n-1) + d(P_n)$.
+
+So $a_n \le (n-1) + d(P_n) + 1$.
+
+Now, $d(P_n) \le 2\sqrt{P_n}$ (crude bound). And $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. If the terms are bounded by $B$, then $P_n \le B^k$, so $d(P_n) \le 2 B^{k/2}$.
+
+This gives $a_n \le n + 2B^{k/2}$, which isn't very helpful if $B$ is growing.
+
+Let me try a different bound. Actually, the number of divisors of $N$ is $N^{o(1)}$, more precisely $d(N) \le N^{O(1/\log \log N)}$. But this is still not great for a product.
+
+Hmm, let me think about this problem differently. Maybe I should think about what numbers are "forced" to appear.
+
+**Approach: Large primes must appear.**
+
+Consider a large prime $p > $ (some threshold). If $p$ never appears, then $p | P_n$ for all $n > N_p$. This means every window of $k$ consecutive terms (for $n > N_p$) contains a multiple of $p$.
+
+The multiples of $p$ are $p, 2p, 3p, \ldots$. In the sequence, the multiples of $p$ that appear must be at least one in every window of $k$. So the "gap" between consecutive multiples of $p$ in the sequence is at most $k$.
+
+Now, the multiples of $p$ that appear in the sequence are distinct. After the initial terms, the multiples of $p$ that appear are chosen by the greedy rule. The available multiples of $p$ are $p, 2p, 3p, \ldots$ minus those already used.
+
+In every window of $k$ terms, at least one is a multiple of $p$. So in the first $M$ terms (after $N_p$), at least $M/k$ are multiples of $p$. These are distinct multiples of $p$, so they are at least $p, 2p, \ldots, (M/k)p$ (not exactly, but the $j$-th smallest multiple of $p$ is $jp$). So the largest multiple of $p$ used in the first $M$ terms is $\ge (M/k) \cdot p$.
+
+But also, the terms are chosen greedily, so they tend to be small. The $n$-th term $a_n$ is the smallest available non-divisor of $P_n$. 
+
+Hmm, I think the key is to show that the terms can't grow too fast, and then use the density argument.
+
+Let me try to bound $a_n$ more carefully.
+
+**Lemma**: $a_n \le n + C$ for some constant $C$ depending only on $k$ and the initial terms.
+
+*Proof attempt*: Among $\{1, 2, \ldots, n + C\}$, at most $n - 1$ are used (by step $n-1$), so at least $C + 1$ are available. We need at least one of these to not divide $P_n$. The number of divisors of $P_n$ in $\{1, \ldots, n+C\}$ is at most... well, we need this to be $< C + 1$ (so that at least one available number doesn't divide $P_n$). But $P_n$ could have many divisors.
+
+Hmm, this doesn't work without bounding $d(P_n)$.
+
+Let me try a different approach. Maybe I should think about specific numbers.
+
+**Approach: Consider numbers of the form $q$ where $q$ is a prime larger than all initial terms and larger than some threshold.**
+
+Let $Q = \max(a_1, \ldots, a_{2020})$. Consider a prime $p > Q$. 
+
+If $p$ is not yet used and $p \nmid P_n$, then $a_n \le p$ (since $a_n$ is the smallest available non-divisor). But could $a_n < p$? Yes, if there's a smaller available non-divisor.
+
+For $p$ to never appear, $p | P_n$ for all large $n$. Since $p$ is prime and $p > Q$, $p$ doesn't divide any of the initial terms. So $p | P_n$ means $p$ divides one of $a_{n-k}, \ldots, a_{n-1}$, i.e., one of the last $k$ terms is a multiple of $p$.
+
+The multiples of $p$ are $p, 2p, 3p, \ldots$. The ones that could appear in the sequence are those not in the initial set (which they aren't, since they're $> Q$... well, $p > Q$ but $2p > p > Q$, so all multiples of $p$ are $> Q$ and thus not in the initial set).
+
+So for $p$ to never appear, every window of $k$ terms (for large $n$) contains a multiple of $p$ (which is $p, 2p, 3p, \ldots$, none of which is $p$ itself since $p$ never appears). So the multiples of $p$ appearing in the sequence are $2p, 3p, 4p, \ldots$ (excluding $p$).
+
+In every window of $k$ terms, at least one is a multiple of $p$ (from $\{2p, 3p, \ldots\}$). So the density of multiples of $p$ is $\ge 1/k$.
+
+Now, consider two large primes $p, q$ (both $> Q$, both never appearing). Then every window of $k$ terms contains a multiple of $p$ and a multiple of $q$. These could be the same term (if it's a multiple of $pq$) or different terms.
+
+If we have many large primes $p_1, \ldots, p_J$ that never appear, then every window of $k$ terms contains, for each $p_j$, a multiple of $p_j$. 
+
+In a window of $k$ terms, each term can be a multiple of several $p_j$'s. But a term that is a multiple of $p_{j_1}, \ldots, p_{j_l}$ is a multiple of $p_{j_1} \cdots p_{j_l}$, so it's at least $p_{j_1} \cdots p_{j_l}$.
+
+If the $k$ terms in a window must collectively be multiples of all $J$ primes, then by pigeonhole, some term must be a multiple of at least $J/k$ primes, hence $\ge$ product of $J/k$ primes, which grows like $e^{(J/k) \log J}$ or something. This means some term in every window is very large.
+
+But the terms are chosen greedily to be small. This creates a contradiction if $J$ is large enough.
+
+Let me make this precise. Suppose $p_1, \ldots, p_J$ are distinct primes, all $> Q$, all never appearing. For $n > \max(N_{p_1}, \ldots, N_{p_J})$, every window of $k$ terms contains, for each $j$, a multiple of $p_j$.
+
+Each of the $k$ terms in the window is a multiple of some subset of $\{p_1, \ldots, p_J\}$. By pigeonhole, some term is a multiple of at least $\lceil J/k \rceil$ of these primes. So that term is $\ge \prod_{j \in S} p_j$ for some subset $S$ with $|S| \ge J/k$.
+
+Since $p_j > Q$ for all $j$, the product of $J/k$ such primes is $> Q^{J/k}$.
+
+So in every window of $k$ terms (for $n$ large), some term is $> Q^{J/k}$.
+
+This means the maximum term in every window is $> Q^{J/k}$. Since windows overlap, this means for all large $n$, there exists $i \in \{n-k, \ldots, n-1\}$ with $a_i > Q^{J/k}$.
+
+But the terms $a_n$ are chosen greedily. Can they be this large? Well, $a_n$ is the smallest available non-divisor of $P_n$. If $P_n$ is divisible by $p_1 \cdots p_J$ (and more), then many numbers divide $P_n$, and the smallest non-divisor could be large.
+
+Hmm, but I need to relate this to a contradiction. Let me think about the growth rate.
+
+If in every window of $k$ terms, some term is $> Q^{J/k}$, then the terms can't all be small. But the greedy algorithm picks the smallest available non-divisor. If the available non-divisors are all large, then $a_n$ is large, but then $P_{n+1}$ is even larger, and has even more divisors...
+
+Actually, I think the contradiction comes from the fact that the terms are distinct and there are only finitely many numbers below any threshold. Let me think about it as follows.
+
+If $J$ never-appearing primes exist, then for large $n$, every window of $k$ terms has a term $> Q^{J/k}$. But also, the number of terms up to step $n$ that are $> Q^{J/k}$ is at most... well, it could be many.
+
+Hmm, let me think about this differently. The issue is that I'm not getting a direct contradiction. Let me try to bound $a_n$ from above and show it can't grow as fast as required.
+
+**Upper bound on $a_n$:**
+
+At step $n$, $a_n$ is the smallest available number not dividing $P_n$. Consider the numbers $1, 2, \ldots, M$ where $M = n + k \cdot Q$ (or something). The number of used numbers in this range is at most $n - 1$. The number of divisors of $P_n$ in this range... 
+
+Actually, here's a cleaner idea. Consider the number $M = n \cdot k$ (or some linear function of $n$). Among $\{1, \ldots, M\}$, at most $n-1$ are used, so at least $M - n + 1$ are available. The number of divisors of $P_n$ that are $\le M$ is at most $d(P_n)$.
+
+But I need $d(P_n)$ to be small. $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. If each $a_{n-k+i} \le B$, then $P_n \le B^k$ and $d(P_n) \le d(B^k) \le (2B)^k$ or something. This is circular.
+
+Let me try a different approach to bound $a_n$.
+
+**Approach: Use the fact that $P_n$ has at most $k$ prime factors (with multiplicity) from the $k$ terms... no, each term can have many prime factors.**
+
+Hmm. Let me think about the problem differently.
+
+**Key observation**: A number $m$ not dividing $P_n$ exists among small available numbers if $P_n$ doesn't have too many small divisors. But $P_n$ is a product of $k$ numbers, each of which is a term of the sequence. The terms are distinct.
+
+Let me try to think about what $P_n$ looks like. For $n$ large, $P_n = a_{n-k} \cdots a_{n-1}$. These $k$ terms are distinct (since all sequence terms are distinct). 
+
+A number $m$ divides $P_n$ iff for every prime $p$, $v_p(m) \le v_p(P_n) = \sum_{i=0}^{k-1} v_p(a_{n-k+i})$.
+
+For $m$ to not divide $P_n$, there must be some prime $p$ with $v_p(m) > \sum_{i=0}^{k-1} v_p(a_{n-k+i})$.
+
+So $a_n$ is the smallest available $m$ such that for some prime $p$, $v_p(m) > v_p(P_n)$.
+
+Now, consider the number $m = p^{v_p(P_n) + 1}$ for some prime $p$. This doesn't divide $P_n$ (since $v_p(m) = v_p(P_n) + 1 > v_p(P_n)$). If $m$ is available, then $a_n \le m = p^{v_p(P_n)+1}$.
+
+But $m$ might not be available (it might have been used already). However, there are many primes, and for each prime $p$, $p^{v_p(P_n)+1}$ doesn't divide $P_n$. If any of these is available and small, $a_n$ is small.
+
+The smallest such $m$ over all primes $p$ is $\min_p p^{v_p(P_n)+1}$. For the prime $p$ with the smallest $p^{v_p(P_n)+1}$... if $p = 2$ and $v_2(P_n) = 0$, then $m = 2$. If $v_2(P_n) = 1$, $m = 4$. Etc.
+
+But $m$ might be used. However, the point is that there exist small numbers not dividing $P_n$, and if they're available, $a_n$ is small.
+
+Let me think about the number of available numbers $\le M$ that don't divide $P_n$. This is (available numbers $\le M$) minus (available numbers $\le M$ that divide $P_n$) $\ge (M - n) - d(P_n)$... no, (available $\le M$) $\ge M - n$ and (divisors of $P_n$ that are $\le M$) $\le d(P_n)$. So (available non-divisors $\le M$) $\ge M - n - d(P_n)$.
+
+For this to be $\ge 1$, we need $M \ge n + d(P_n) + 1$, so $a_n \le n + d(P_n) + 1$.
+
+Now I need to bound $d(P_n)$. $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. The number of divisors of a product of $k$ numbers... if the numbers are $b_1, \ldots, b_k$, then $d(b_1 \cdots b_k) \le \prod_{i=1}^k d(b_i) \cdot (\text{something for shared primes})$... actually, $d(b_1 \cdots b_k) \le \prod_{i=1}^k (2\sqrt{b_i})$ is very crude. 
+
+Actually, $d(N) \le 2\sqrt{N}$ for any $N$. So $d(P_n) \le 2\sqrt{P_n} = 2 \prod_{i=0}^{k-1} \sqrt{a_{n-k+i}}$. If each $a_{n-k+i} \le A$, then $d(P_n) \le 2 A^{k/2}$.
+
+So $a_n \le n + 2 A^{k/2} + 1$ where $A = \max(a_{n-k}, \ldots, a_{n-1})$.
+
+If $a_n \le n + 2 A^{k/2} + 1$ and $A \le n + 2 A'^{k/2} + 1$ (where $A'$ is the max of the previous window), this gives a recurrence that could grow fast.
+
+With $k = 2020$, $A^{k/2} = A^{1010}$, which is enormous. This bound is too weak.
+
+Let me try a better bound on $d(N)$. We have $d(N) \le N^{O(1/\log \log N)}$, but for a product, this is still large.
+
+Actually, a much better approach: the number of divisors of $N$ up to $M$ is at most $M$ (trivially), but more usefully, the number of integers in $[1, M]$ that divide $N$ is at most $\sum_{d | N, d \le M} 1 \le d(N)$. But also, the number of integers in $[1, M]$ NOT dividing $N$ is $M - |\{d | N : d \le M\}|$.
+
+Hmm, I think the divisor function approach is too weak. Let me think about the problem from a completely different angle.
+
+**Approach: Think about the sequence modulo small primes.**
+
+Actually, let me reconsider the problem. The window size is $k = 2020$. Let me think about what happens for a general window size $k$.
+
+Let me consider the simplest case: what if the initial terms are $a_1 = 1, a_2 = 2, \ldots, a_{2020} = 2020$? Then $P_{2021} = 1 \cdot 2 \cdots 2020 = 2020!$. The smallest number not yet used (i.e., not in $\{1, \ldots, 2020\}$) that doesn't divide $2020!$ is... $2021$ if $2021 \nmid 2020!$. Since $2021 = 43 \times 47$, and both 43 and 47 are $\le 2020$, $2021 | 2020!$. So $a_{2021} \ne 2021$. Next, $2022 = 2 \times 3 \times 337$. $337 \le 2020$, so $2022 | 2020!$. Continue... the smallest number $> 2020$ not dividing $2020!$ would be the smallest prime $> 2020$, which is $2027$ (I think). Wait, let me check: $2021 = 43 \times 47$, $2022 = 2 \times 3 \times 337$, $2023 = 7 \times 17^2$, $2024 = 2^3 \times 11 \times 23$, $2025 = 3^4 \times 5^2$, $2026 = 2 \times 1013$. All of these have prime factors $\le 2020$, so they all divide $2020!$. $2027$: is it prime? $2027 / 7 = 289.57...$, $2027 / 11 = 184.27...$, $2027 / 13 = 155.9...$, $2027 / 17 = 119.2...$, $2027 / 19 = 106.7...$, $2027 / 23 = 88.1...$, $2027 / 29 = 69.9...$, $2027 / 31 = 65.4...$, $2027 / 37 = 54.8...$, $2027 / 41 = 49.4...$, $2027 / 43 = 47.1...$, $\sqrt{2027} \approx 45.0$. So we need to check primes up to 45. $2027 / 47 = 43.1... > 45$? No, $47 > 45$. So we check up to 43. $2027 / 43 = 47.1...$, not integer. So 2027 is prime. So $a_{2021} = 2027$ (the smallest number $> 2020$ not dividing $2020!$).
+
+OK so in this case, the first new term is a prime. Then $P_{2022} = 2 \cdot 3 \cdots 2020 \cdot 2027 = 2020! \cdot 2027 / 1 = 2020! \cdot 2027$. Wait, $P_{2022} = a_2 \cdots a_{2021} = 2 \cdot 3 \cdots 2020 \cdot 2027$. The smallest available number not dividing this... $1$ divides everything, but $1$ is used. $2021 = 43 \times 47$, both divide $P_{2022}$ (since $43, 47 \le 2020$ are in the product). So $2021 | P_{2022}$. Similarly for $2022, \ldots, 2026$. $2027$ is used. $2028 = 2^2 \times 3 \times 13^2$, all prime factors $\le 2020$, so $2028 | P_{2022}$. Hmm, when does the next non-divisor appear?
+
+This is getting complicated. Let me go back to the theoretical approach.
+
+**Approach: Show that $a_n = O(n)$ (linear growth), then use the density argument.**
+
+If $a_n \le Cn$ for some constant $C$, then the number of terms up to value $M$ is $\ge M/C$ (roughly). The never-appearing numbers up to $M$ are at most $M - M/C = M(1 - 1/C)$. This doesn't directly give finiteness.
+
+Hmm, I need a better approach.
+
+**Approach: Show that the never-appearing numbers form a finite set by showing they must all divide a fixed number.**
+
+We've shown that each never-appearing number $s$ divides $P_n$ for all $n > N_s$. Consider $P_n$ and $P_{n+1}$ for $n > N_s$:
+
+$s | P_n$ and $s | P_{n+1} = P_n \cdot a_n / a_{n-k}$.
+
+So $s | P_n \cdot a_n / a_{n-k}$. Since $s | P_n$, write $P_n = s \cdot q$. Then $s | s \cdot q \cdot a_n / a_{n-k}$, which means $a_{n-k} | q \cdot a_n$, i.e., $a_{n-k} | (P_n / s) \cdot a_n$.
+
+Hmm, this doesn't directly help. Let me think about it in terms of $p$-adic valuations.
+
+For a prime $p$ with $p^e \| s$:
+- $v_p(P_n) \ge e$ for all $n > N_s$.
+- $v_p(P_{n+1}) = v_p(P_n) + v_p(a_n) - v_p(a_{n-k}) \ge e$.
+
+So $v_p(a_n) - v_p(a_{n-k}) \ge e - v_p(P_n)$. Since $v_p(P_n) \ge e$, the RHS is $\le 0$, so this is always satisfied. Not helpful directly.
+
+But consider: $v_p(P_n) \ge e$ for all $n > N_s$. The sliding window sum $f(n) = \sum_{i=0}^{k-1} v_p(a_{n-k+i}) \ge e$ for all $n > N_s$.
+
+Now, consider the sum $\sum_{n=N_s+1}^{N_s+k} f(n)$. Each $a_j$ for $j \in [N_s+1-k, N_s+k-1]$ appears in some of these windows. Specifically, $a_j$ appears in windows $f(n)$ for $n$ such that $n-k \le j \le n-1$, i.e., $j+1 \le n \le j+k$. The number of such $n$ in $[N_s+1, N_s+k]$ depends on $j$.
+
+This is getting complicated. Let me try a cleaner approach.
+
+**Approach: Consider the product of all never-appearing numbers and derive a contradiction.**
+
+Actually, let me try to think about this more carefully using the structure of the problem.
+
+Let me denote by $S$ the set of never-appearing numbers. We've shown:
+1. For each $s \in S$, $s | P_n$ for all $n > N_s$.
+2. The smallest element $m^* = \min(S)$ (if $S \ne \emptyset$) satisfies $m^* | P_n$ for all $n > N^*$, and for $n > N^*$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$.
+
+Now, here's a key idea: **consider the sequence $(a_n)$ for $n > N^*$ as a new "recurrence" with a modified rule.**
+
+For $n > N^*$, the available numbers are $\{m^*\} \cup T$ where $T$ is the set of numbers $> m^*$ not yet used. Since $m^* | P_n$ always, $a_n$ is the smallest element of $T$ not dividing $P_n$.
+
+Now, $m^* | P_n = a_{n-k} \cdots a_{n-1}$. Write $P_n = m^* \cdot Q_n$ where $Q_n = P_n / m^*$. Then $a_n$ is the smallest available number $> m^*$ not dividing $m^* \cdot Q_n$.
+
+A number $t > m^*$ doesn't divide $m^* \cdot Q_n$ iff there exists a prime $p$ with $v_p(t) > v_p(m^*) + v_p(Q_n) = v_p(P_n)$. So $a_n$ is the smallest available $t > m^*$ with $v_p(t) > v_p(P_n)$ for some prime $p$.
+
+Hmm, this is the same as before. Let me think about the second smallest never-appearing number.
+
+Let $m^{**}$ be the second smallest never-appearing number (if it exists). For $n > N^{**}$, both $m^*$ and $m^{**}$ divide $P_n$. So $P_n$ is divisible by $\text{lcm}(m^*, m^{**})$.
+
+Continuing, if $S = \{m_1, m_2, \ldots\}$ (finite or infinite), then for $n > N_j$, $P_n$ is divisible by $\text{lcm}(m_1, \ldots, m_j)$.
+
+Now, $\text{lcm}(m_1, \ldots, m_j) | P_n$ for $n > N_j$. And $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$, a product of $k$ terms.
+
+**Key claim**: The terms $a_n$ (for $n$ large) are bounded by some function of the never-appearing numbers, and this creates a contradiction if $S$ is infinite.
+
+Let me think about the growth of $a_n$ more carefully.
+
+For $n > N^*$, $a_n$ is the smallest available number $> m^*$ not dividing $P_n$. Since $m^* | P_n$, and $P_n$ is divisible by more and more never-appearing numbers as $n$ grows, $P_n$ has more and more divisors, so the smallest available non-divisor might grow.
+
+But the available numbers also change: as $n$ increases, more numbers are used, so fewer are available. The smallest available number $> m^*$ increases.
+
+Let me think about the "available" numbers. After step $n$, the used numbers are $\{a_1, \ldots, a_n\}$. The available numbers are $\mathbb{Z}^+ \setminus \{a_1, \ldots, a_n\}$. The smallest available number is $m^*$ (for $n > N^*$). The second smallest available number is the smallest number $> m^*$ not in $\{a_1, \ldots, a_n\}$.
+
+As $n$ increases, the second smallest available number increases (since more numbers are used). Eventually, it stabilizes at $m^{**}$ (the second never-appearing number) if $m^{**}$ exists, or goes to infinity if $m^{**}$ doesn't exist (meaning all numbers $> m^*$ eventually appear).
+
+If $S = \{m^*\}$ (only one never-appearing number), then all numbers $> m^*$ eventually appear, and we're done.
+
+If $S = \{m^*, m^{**}, \ldots\}$ (multiple), then for $n$ large enough, the available numbers less than any given bound are exactly the never-appearing numbers less than that bound.
+
+So for $n$ very large, the available numbers are exactly $S$ (the never-appearing numbers) plus numbers larger than some growing threshold. The greedy choice $a_n$ is the smallest available number not dividing $P_n$, which is the smallest element of $S$ not dividing $P_n$, or if all elements of $S$ divide $P_n$, then the smallest available number $> \max(S \cap [1, M])$ not dividing $P_n$ for some $M$... 
+
+Wait, this isn't quite right. The available numbers are $S \cup \{\text{numbers} > \text{some threshold not yet used}\}$. As $n \to \infty$, the threshold goes to $\infty$ (all non-$S$ numbers eventually get used). So for very large $n$, the available numbers are $S \cup \{\text{very large numbers}\}$.
+
+For $a_n$ to be chosen, it's the smallest available number not dividing $P_n$. If all elements of $S$ divide $P_n$ (which happens for $n > N_j$ for each $s_j \in S$ with $s_j \le$ some bound), then $a_n$ is the smallest available number larger than all "small" elements of $S$ that doesn't divide $P_n$.
+
+Hmm, I think the key insight is:
+
+**For $n$ sufficiently large, all elements of $S$ up to some bound $B(n)$ divide $P_n$, and $a_n$ is the smallest available number not in $S$ (i.e., the smallest number that will eventually appear) that doesn't divide $P_n$.**
+
+But the numbers that will eventually appear are exactly $U = \mathbb{Z}^+ \setminus S$. For $n$ large, the available numbers in $U$ are those not yet used, which are numbers $> $ some threshold (since all small elements of $U$ have been used). So $a_n$ is the smallest unused element of $U$ not dividing $P_n$.
+
+As $n$ increases, the unused elements of $U$ are pushed to larger and larger values. So $a_n$ grows.
+
+But the question is: does $a_n$ grow fast enough that all large numbers appear, or can some large numbers be "skipped"?
+
+A number $m \in U$ (that will eventually appear) appears at some step $n$ where $m$ is the smallest available non-divisor of $P_n$. For this to happen, $m$ must be available (not yet used) and not divide $P_n$, and all smaller available numbers must divide $P_n$.
+
+The smaller available numbers are: elements of $S$ smaller than $m$, and unused elements of $U$ smaller than $m$. For $n$ large enough, all elements of $U$ smaller than $m$ have been used, so the only smaller available numbers are elements of $S$ smaller than $m$. These all divide $P_n$ (for $n$ large enough). So $m$ appears iff $m \nmid P_n$ at some step $n$ where $m$ is the smallest available non-divisor.
+
+For $m \in U$ to appear, there must exist $n$ such that:
+1. $m$ is not yet used at step $n$.
+2. $m \nmid P_n$.
+3. All elements of $S$ smaller than $m$ divide $P_n$ (so they don't "block" $m$).
+4. All elements of $U$ smaller than $m$ have been used by step $n$ (so they're not available).
+
+Condition 4 is satisfied for $n$ large enough. Condition 3 is satisfied for $n$ large enough (since each $s \in S$ divides $P_n$ for $n > N_s$). So for $n$ large enough, $m$ appears iff $m \nmid P_n$ for some such $n$.
+
+But $m \in U$ means $m$ does appear, so there exists such $n$. And $m \in S$ means $m$ doesn't appear, so $m | P_n$ for all $n$ large enough.
+
+So the question reduces to: for which $m$ is it true that $m | P_n$ for all $n$ large enough? And we need to show this set is finite.
+
+Now, $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. For $n$ large, the terms $a_{n-k}, \ldots, a_{n-1}$ are elements of $U$ (they appear in the sequence) that are large (since small elements of $U$ have been used). 
+
+$m | P_n$ for all $n$ large means: for every window of $k$ consecutive terms (for $n$ large), $m$ divides the product. 
+
+Now, here's the key: **the terms $a_n$ for $n$ large are all elements of $U$ (they appear), and they're distinct. The elements of $U$ that appear late in the sequence are large. So for $n$ large, $P_n$ is a product of $k$ large distinct elements of $U$.**
+
+For $m$ to divide such a product for all $n$ large, $m$ must divide the product of any $k$ consecutive late terms. 
+
+Now, consider a prime $p | m$ with $p^e \| m$. We need $v_p(P_n) \ge e$ for all $n$ large. $v_p(P_n) = \sum_{i=0}^{k-1} v_p(a_{n-k+i})$. 
+
+The terms $a_n$ for $n$ large are large elements of $U$, chosen greedily. The greedy choice is: $a_n$ = smallest available number not dividing $P_n$. 
+
+Here's the crucial point: **if $m$ is large and $m | P_n$ for all $n$ large, then $m$ divides the product of any $k$ consecutive large terms. But the terms are chosen to NOT divide $P_n$ (each $a_n$ doesn't divide $P_n$). So $a_n \nmid P_n$, meaning $a_n$ has some prime power not covered by $P_n$. But $m | P_n$ and $a_n \nmid P_n$... these are about different numbers.**
+
+Hmm, let me think about this differently.
+
+**Approach: Show that for large $m$, $m$ cannot divide $P_n$ for all large $n$, because the terms in the window are too "sparse" in their prime factorizations.**
+
+Consider a large number $m$. For $m | P_n$, every prime power in $m$'s factorization must be covered by the window. If $m$ has a large prime factor $p > $ (all terms in the window), then $p \nmid P_n$ (since no term is divisible by $p$), so $m \nmid P_n$.
+
+So if $m$ has a prime factor $p$ that is larger than all terms in some window, then $m \nmid P_n$ for that window, and $m$ would be "eligible" to appear (if it's the smallest available non-divisor).
+
+Now, the terms $a_n$ grow (they're distinct and there are infinitely many). But do they grow fast enough that for any large prime $p$, there's a window where no term is divisible by $p$?
+
+If $p$ never appears and $p$ is prime, then $p | P_n$ for all $n$ large, meaning every window has a multiple of $p$. The multiples of $p$ are $p, 2p, 3p, \ldots$. Since $p$ never appears, the multiples appearing are $2p, 3p, \ldots$ (excluding $p$). In every window of $k$ terms, at least one is a multiple of $p$.
+
+Now, the terms are chosen greedily. Consider what happens when the available numbers are all very large. The smallest available number not dividing $P_n$ is chosen. If $P_n$ is divisible by many primes (all never-appearing primes), then $P_n$ has many divisors, and the smallest non-divisor might be a number with a "new" prime factor not in $P_n$.
+
+Actually, I think the key is:
+
+**The terms $a_n$ are chosen to not divide $P_n$. So $a_n$ has a prime power $p^e$ with $p^e \nmid P_n$, i.e., $v_p(a_n) > v_p(P_n)$ for some prime $p$. This means $a_n$ introduces a "new" prime power to the window.**
+
+When $a_n$ enters the window and $a_{n-k}$ leaves, the $p$-adic valuation of the window changes by $v_p(a_n) - v_p(a_{n-k})$. If $v_p(a_n) > v_p(P_n)$, then $a_n$ has a high power of $p$, and when it enters the window, $v_p(P_{n+1})$ increases.
+
+But then, $k$ steps later, $a_n$ leaves the window, and $v_p(P_{n+k+1})$ decreases by $v_p(a_n)$.
+
+For a never-appearing number $m$ with $p^e \| m$, we need $v_p(P_n) \ge e$ for all $n$ large. The "pulses" of high $p$-adic valuation from terms like $a_n$ (which have $v_p(a_n) > v_p(P_n)$) must be frequent enough to keep the window sum $\ge e$.
+
+But each such "pulse" is a term with high $v_p$, and these terms are chosen greedily. The greedy choice prefers small numbers, so it would prefer numbers with low $v_p$ (unless forced to pick high $v_p$ numbers).
+
+I think the contradiction comes from the fact that if $S$ is infinite, there are infinitely many constraints (one for each $s \in S$), and these constraints force the terms to be large, but the greedy algorithm keeps them small.
+
+Let me try to formalize this. 
+
+**Formal argument:**
+
+Assume $S$ is infinite. Let $s_1 < s_2 < \ldots$ be the elements of $S$. For each $j$, $s_j | P_n$ for all $n > N_j$.
+
+For any $J$, let $N(J) = \max(N_1, \ldots, N_J)$. For $n > N(J)$, $s_1 \cdots s_J$ (well, $\text{lcm}(s_1, \ldots, s_J)$) divides $P_n$.
+
+Let $L_J = \text{lcm}(s_1, \ldots, s_J)$. Then $L_J | P_n$ for $n > N(J)$, so $P_n \ge L_J$ for $n > N(J)$.
+
+Now, $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. So $\prod_{i=0}^{k-1} a_{n-k+i} \ge L_J$ for $n > N(J)$. By AM-GM, $\max(a_{n-k}, \ldots, a_{n-1}) \ge L_J^{1/k}$.
+
+So for $n > N(J)$, some term in the window is $\ge L_J^{1/k}$. Since $L_J \to \infty$ as $J \to \infty$, this means the maximum term in every window goes to infinity (as we consider larger $J$ and correspondingly larger $n$).
+
+But this just says the terms grow, which we already knew. I need a contradiction.
+
+Let me think about the growth rate. $L_J \ge s_J \ge J$ (since the $s_j$ are distinct positive integers, $s_J \ge J$). Actually, $s_J$ could be much larger than $J$.
+
+The issue is that $N(J)$ could be very large, so the constraint $P_n \ge L_J$ only applies for very large $n$, and by then, the terms could be large enough.
+
+**Better approach: Bound $a_n$ from above, and show it can't grow fast enough.**
+
+Let me try to show $a_n \le C \cdot n$ for some constant $C$.
+
+At step $n$, among $\{1, 2, \ldots, Cn\}$, at most $n-1$ are used. So at least $Cn - n + 1 = (C-1)n + 1$ are available. The number of divisors of $P_n$ in $\{1, \ldots, Cn\}$ is at most $d(P_n)$.
+
+I need $(C-1)n + 1 > d(P_n)$, i.e., $d(P_n) < (C-1)n$.
+
+Now, $P_n = \prod_{i=0}^{k-1} a_{n-k+i}$. If $a_j \le Cj$ for all $j$ (inductive hypothesis), then $P_n \le \prod_{i=0}^{k-1} C(n-k+i) \le (Cn)^k$. So $d(P_n) \le d((Cn)^k)$.
+
+The number of divisors of $N$ is $O(N^{\epsilon})$ for any $\epsilon > 0$. More precisely, $d(N) \le 2\sqrt{N}$, so $d((Cn)^k) \le 2(Cn)^{k/2}$.
+
+For $k = 2020$, $(Cn)^{1010}$, which is way larger than $(C-1)n$. So this approach fails with the crude bound.
+
+But the divisor function bound $d(N) \le 2\sqrt{N}$ is very crude. The actual bound is $d(N) = N^{o(1)}$, more precisely $d(N) \le \exp(O(\log N / \log \log N))$. For $N = (Cn)^k$, $\log N = k \log(Cn)$, so $d(N) \le \exp(O(k \log(Cn) / \log(k \log(Cn))))$. For large $n$, this is $\exp(O(k \log n / \log \log n))$, which is $n^{O(k / \log \log n)}$. For $n$ large enough, $k / \log \log n < 1$, so $d(P_n) < n^{1+\epsilon}$ for any $\epsilon > 0$ and large enough $n$. In particular, $d(P_n) < (C-1)n$ for large $n$ if $C > 1$.
+
+Wait, let me be more precise. $d(N) \le \exp((1+o(1)) \log N / \log \log N)$. For $N = (Cn)^k$, $\log N = k \log(Cn) \approx k \log n$. $\log \log N \approx \log(k \log n) \approx \log \log n$ (for large $n$). So $d(N) \le \exp((1+o(1)) k \log n / \log \log n) = n^{(1+o(1)) k / \log \log n}$.
+
+For $n$ large enough, $k / \log \log n < 1/2$ (say), so $d(P_n) \le n^{1/2 + o(1)}$. Then $(C-1)n > n^{1/2 + o(1)}$ for large $n$, so the bound works.
+
+So for large $n$, $a_n \le Cn$ for any $C > 1$ (say $C = 2$). More precisely, $a_n \le 2n$ for all $n \ge N_0$ (some constant).
+
+Wait, but I used the inductive hypothesis that $a_j \le Cj$ for $j < n$. Let me be more careful.
+
+**Lemma**: There exists a constant $C$ and $N_0$ such that $a_n \le Cn$ for all $n \ge N_0$.
+
+*Proof*: We prove this by induction. Assume $a_j \le Cj$ for all $j < n$ (where $n \ge N_0$ and $N_0$ is large enough). Then $P_n = \prod_{i=0}^{k-1} a_{n-k+i} \le \prod_{i=0}^{k-1} C(n-k+i) \le (Cn)^k$.
+
+The number of divisors of $P_n$ is $d(P_n) \le d((Cn)^k)$. Using the bound $d(N) \le \exp(O(\log N / \log \log N))$:
+
+$d((Cn)^k) \le \exp(O(k \log(Cn) / \log(k \log(Cn))))$.
+
+For $n$ large enough, $k \log(Cn) / \log(k \log(Cn)) < \log n / 2$ (since the LHS is $O(k \log n / \log \log n)$ and the RHS is $\log n / 2$; for large $n$, $k / \log \log n < 1/2$).
+
+So $d(P_n) \le \exp(O(\log n / 2)) = n^{O(1/2)} < n$ for large $n$.
+
+Among $\{1, \ldots, Cn\}$, the number of used numbers is $n - 1$, and the number of divisors of $P_n$ is $< n$. So the number of available non-divisors of $P_n$ in $\{1, \ldots, Cn\}$ is $\ge Cn - (n-1) - d(P_n) > Cn - 2n = (C-2)n$. For $C \ge 3$, this is $\ge n > 0$.
+
+So $a_n \le Cn$ for $n \ge N_0$. The induction goes through (with a large enough $N_0$ and $C = 3$, say).
+
+Wait, I need to be more careful with the induction. The base case: for $n = N_0$, I need $a_j \le Cj$ for $j < N_0$. But the initial terms $a_1, \ldots, a_{2020}$ are given and fixed, so $a_j \le Q$ for $j \le 2020$ where $Q = \max(a_1, \ldots, a_{2020})$. For $j > 2020$ and $j < N_0$, I need the bound to hold. 
+
+Actually, the induction is strong induction: assume $a_j \le Cj$ for all $j < n$, prove $a_n \le Cn$. The base case is $n = 1$: $a_1 \le C \cdot 1 = C$, which holds if $C \ge Q$ (since $a_1 \le Q$). For $n = 2$: $a_2 \le C \cdot 2$, holds if $C \ge Q/2$. Etc. For $n \le 2020$: $a_n \le Q \le Cn$ if $C \ge Q$ (since $n \ge 1$). For $n > 2020$: use the argument above.
+
+But the argument above requires $n$ to be large enough (for the divisor bound to kick in). For small $n > 2020$, the divisor bound might not hold. So I need $N_0$ to be large enough, and for $2020 < n < N_0$, I need a different argument or just make $C$ large enough.
+
+For $2020 < n < N_0$: $a_n$ is the smallest available non-divisor of $P_n$. $P_n \le Q^{2020} \cdot (C \cdot N_0)^{n - 2020}$... hmm, this is getting complicated. Let me just say: for $n$ in any finite range, $a_n$ is finite, so there exists $C$ large enough that $a_n \le Cn$ for all $n \le N_0$. Then the induction takes over for $n > N_0$.
+
+Actually, the issue is that for the induction step, I need $P_n \le (Cn)^k$, which requires $a_{n-k+i} \le C(n-k+i) \le Cn$ for all $i$. This is the inductive hypothesis for $j = n-k, \ldots, n-1$, all of which are $< n$. So the induction works.
+
+The key step is: for $n$ large enough, $d((Cn)^k) < (C-2)n$, which holds because $d((Cn)^k) = n^{o(1)}$ (for fixed $C, k$) while $(C-2)n$ is linear in $n$.
+
+So the lemma holds: $a_n \le Cn$ for all $n \ge 1$ (with appropriate $C$).
+
+**Great, so $a_n = O(n)$.** Now, how does this help?
+
+If $a_n \le Cn$ for all $n$, then the number of terms with value $\le M$ is at least $M/C$ (since the first $\lfloor M/C \rfloor$ terms have values $\le M$). Actually, more precisely: the terms $a_1, \ldots, a_{\lfloor M/C \rfloor}$ all have values $\le C \cdot \lfloor M/C \rfloor \le M$. So at least $\lfloor M/C \rfloor$ distinct values in $[1, M]$ are used.
+
+The total numbers in $[1, M]$ is $M$. The used numbers in $[1, M]$ is $\ge \lfloor M/C \rfloor$. So the never-appearing numbers in $[1, M]$ is $\le M - \lfloor M/C \rfloor \le M(1 - 1/C) + 1$.
+
+This gives $|S \cap [1, M]| \le M(1 - 1/C) + 1$, which is $O(M)$, not $O(1)$. So this doesn't prove $S$ is finite.
+
+I need a stronger bound. Let me think about how to get a better upper bound on $a_n$.
+
+**Better bound: $a_n \le n + O(n^\alpha)$ for some $\alpha < 1$.**
+
+At step $n$, among $\{1, \ldots, n + D\}$ where $D = d(P_n) + 1$, the number of available non-divisors is $\ge (n + D) - (n-1) - d(P_n) = D - d(P_n) \ge 1$. So $a_n \le n + d(P_n) + 1$.
+
+Now, $d(P_n) \le d((Cn)^k) = n^{o(1)}$. So $a_n \le n + n^{o(1)}$.
+
+More precisely, $a_n \le n + \exp(O(k \log n / \log \log n))$.
+
+For any $\epsilon > 0$, $a_n \le n + n^{\epsilon}$ for large $n$ (since $k \log n / \log \log n < \epsilon \log n$ for large $n$, i.e., $k / \log \log n < \epsilon$).
+
+So $a_n \le n + n^{\epsilon}$ for any $\epsilon > 0$ and large $n$.
+
+Now, the number of terms with value $\le M$ is at least the largest $n$ with $n + n^{\epsilon} \le M$, which is $n \ge M - M^{\epsilon}$ (roughly). So at least $M - M^{\epsilon}$ distinct values in $[1, M]$ are used.
+
+The never-appearing numbers in $[1, M]$ is $\le M - (M - M^{\epsilon}) = M^{\epsilon}$.
+
+So $|S \cap [1, M]| \le M^{\epsilon}$ for any $\epsilon > 0$ and large $M$.
+
+This is $M^{o(1)}$, which is still not $O(1)$. But it's much better.
+
+Can I iterate this? If $a_n \le n + n^{\epsilon}$, then $P_n \le \prod (n + n^{\epsilon}) \le (n + n^{\epsilon})^k \le n^k (1 + n^{\epsilon - 1})^k \le n^k \cdot 2$ for large $n$ (since $n^{\epsilon - 1} \to 0$). So $P_n \le 2 n^k$ for large $n$.
+
+$d(P_n) \le d(2 n^k) \le \exp(O(k \log n / \log \log n)) = n^{o(1)}$.
+
+So $a_n \le n + n^{o(1)}$, and more precisely, $a_n \le n + \exp(O(k \log n / \log \log n))$.
+
+Let $f(n) = \exp(O(k \log n / \log \log n)) = n^{O(k / \log \log n)}$. Then $a_n \le n + f(n)$.
+
+The number of never-appearing numbers up to $M$ is $\le f(M) = M^{O(k / \log \log M)}$.
+
+As $M \to \infty$, $k / \log \log M \to 0$, so $f(M) = M^{o(1)}$. This still goes to infinity, so $S$ could be infinite.
+
+Hmm, I need a different approach to get a contradiction. Let me think about this more.
+
+**Approach: Use the structure of $S$ more carefully.**
+
+We know:
+1. $a_n \le n + n^{o(1)}$ (the terms grow almost linearly).
+2. Each $s \in S$ divides $P_n$ for all $n > N_s$.
+3. $P_n \le 2n^k$ for large $n$ (from the bound on $a_n$).
+
+From (2) and (3): for $s \in S$ and $n > N_s$, $s | P_n$ and $P_n \le 2n^k$, so $s \le 2n^k$. This is trivially true for $n$ large.
+
+But also, $s | P_n$ for ALL $n > N_s$, not just one $n$. So $s$ divides $P_n$ for infinitely many $n$.
+
+Now, consider two consecutive values: $s | P_n$ and $s | P_{n+1}$. $P_{n+1} = P_n \cdot a_n / a_{n-k}$. So $s | P_n \cdot a_n / a_{n-k}$.
+
+Since $s | P_n$, we have $P_n = s \cdot t$ for some integer $t$. Then $P_{n+1} = s \cdot t \cdot a_n / a_{n-k}$. For $s | P_{n+1}$, we need $a_{n-k} | t \cdot a_n$, i.e., $a_{n-k} | (P_n / s) \cdot a_n$.
+
+Let $g = \gcd(s, a_{n-k})$. Write $s = g \cdot s'$ and $a_{n-k} = g \cdot b$ with $\gcd(s', b) = 1$. Then the condition becomes $g \cdot b | (P_n / s) \cdot a_n$, i.e., $b | (P_n / s) \cdot a_n / g$... hmm, this is getting messy.
+
+Let me think about it differently. 
+
+$s | P_n$ and $s | P_{n+1}$. $P_{n+1}/P_n = a_n / a_{n-k}$. So $s | P_n$ and $s | P_n \cdot (a_n / a_{n-k})$. 
+
+If $\gcd(s, a_n / a_{n-k}) = 1$... but $

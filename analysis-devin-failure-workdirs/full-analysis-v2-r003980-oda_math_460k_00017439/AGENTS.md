@@ -1,0 +1,861 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>oda_math_460k_00017439</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Determine the equation of the hyperbola that passes through the points $(\pm 2, 0)$ and has its foci at a distance of $4$ from the center.
+
+## Standard Solution
+
+<think>Okay, let's try to figure out the equation of this hyperbola. First, I need to remember the standard forms of hyperbolas. There are two main types: one that opens left and right, and one that opens up and down. The problem mentions that the hyperbola passes through (±2, 0), which are points on the x-axis. That makes me think it's a horizontal hyperbola, because the vertices would be on the x-axis. 
+
+The standard form for a horizontal hyperbola centered at the origin (since the foci are given in relation to the center, and the points (±2,0) are symmetric, I assume the center is at (0,0)) is (x²/a²) - (y²/b²) = 1. 
+
+First, let's confirm the center. The problem says "foci at a distance of 4 from the center." If the hyperbola passes through (±2, 0), those are likely the vertices. For a hyperbola, the distance from the center to each vertex is 'a'. So if the vertices are at (±2, 0), then a = 2. That makes sense because the vertices are (±a, 0). 
+
+Now, the foci are located at (±c, 0) for a horizontal hyperbola, where c is the distance from the center to each focus. The problem states that the foci are at a distance of 4 from the center, so c = 4. 
+
+I remember the relationship between a, b, and c for hyperbolas is c² = a² + b². We need to find b² to write the equation. Let's plug in the known values. We have a = 2, so a² = 4. c = 4, so c² = 16. Then:
+
+c² = a² + b²  
+16 = 4 + b²  
+Subtract 4 from both sides: b² = 12.
+
+So now we have a² = 4 and b² = 12. Plugging these into the standard form of the horizontal hyperbola:
+
+(x²/4) - (y²/12) = 1.
+
+Let me double-check. The vertices are at (±a, 0) = (±2, 0), which matches the given points. The foci are at (±c, 0) = (±4, 0), which are 4 units from the center (0,0), so that's correct. The relationship c² = a² + b² holds: 16 = 4 + 12, which is true. So the equation should be correct.
+</think>
+
+To determine the equation of the hyperbola, we start by noting that the hyperbola passes through the points \((\pm 2, 0)\), indicating its vertices are at \((\pm 2, 0)\). For a hyperbola centered at the origin with a horizontal transverse axis, the standard form is \(\frac{x^2}{a^2} - \frac{y^2}{b^2} = 1\), where \(a\) is the distance from the center to each vertex. Here, \(a = 2\), so \(a^2 = 4\).
+
+The foci are given to be 4 units from the center, so \(c = 4\) (where \(c\) is the distance from the center to each focus). For hyperbolas, the relationship between \(a\), \(b\), and \(c\) is \(c^2 = a^2 + b^2\). Substituting the known values:
+
+\[
+c^2 = a^2 + b^2 \implies 4^2 = 2^2 + b^2 \implies 16 = 4 + b^2 \implies b^2 = 12
+\]
+
+Thus, the equation of the hyperbola is \(\frac{x^2}{4} - \frac{y^2}{12} = 1\).
+
+\[
+\boxed{\frac{x^2}{4} - \frac{y^2}{12} = 1}
+\]
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. The curve is $y^2 = x(x^4-1)$, a genus 2 hyperelliptic curve. I need to describe its Jacobian as a complex torus $\mathbb{C}^2/\Lambda$.
+
+First, let me check for answer leaks. The problem statement is clean - just asks to describe the Jacobian as a complex torus and find an explicit lattice. No solution sketch, no leaked answer. Good.
+
+Now let me solve. The curve $X: y^2 = x(x^4-1) = x^5 - x$. This is a genus 2 curve. The branch points (where $y=0$) are roots of $x(x^4-1) = x(x-1)(x+1)(x-i)(x+i) = 0$. So branch points are $x \in \{0, 1, -1, i, -i\}$ plus the point at infinity $\infty$.
+
+For a hyperelliptic curve $y^2 = f(x)$ of degree $2g+1$ (odd degree), there are $2g+2$ branch points including infinity. Here degree is 5 = 2(2)+1, so genus 2, and 6 branch points: $\{0, 1, -1, i, -i, \infty\}$.
+
+The Jacobian of a genus 2 curve is a 2-dimensional abelian variety. As a complex torus, $\text{Jac}(X) \cong \mathbb{C}^2/\Lambda$ where $\Lambda$ is the period lattice.
+
+The standard approach: Choose a basis of holomorphic differentials on $X$. For genus 2, these are $\omega_1 = dx/y$ and $\omega_2 = x\,dx/y$.
+
+Then choose a symplectic basis of $H_1(X, \mathbb{Z})$: cycles $\{a_1, a_2, b_1, b_2\}$ with intersection pairings $a_i \cdot a_j = 0$, $b_i \cdot b_j = 0$, $a_i \cdot b_j = \delta_{ij}$.
+
+The period matrix is $\Omega = (\Omega_1 \mid \Omega_2)$ where $\Omega_1$ has entries $\int_{a_j} \omega_i$ and $\Omega_2$ has entries $\int_{b_j} \omega_i$.
+
+The lattice is $\Lambda = \Omega_1 \mathbb{Z}^2 + \Omega_2 \mathbb{Z}^2 \subset \mathbb{C}^2$.
+
+After normalizing so that $\Omega_1 = I$ (the identity), the lattice becomes $\Lambda = \mathbb{Z}^2 + \tau \mathbb{Z}^2$ where $\tau = \Omega_1^{-1}\Omega_2$ is the Riemann matrix (a $2\times 2$ symmetric matrix with positive definite imaginary part).
+
+So the key is to compute the period matrix explicitly, or at least describe the lattice.
+
+Let me think about the branch cuts and cycles concretely. The branch points on the $x$-sphere are $e_1 = 0, e_2 = 1, e_3 = -1, e_4 = i, e_5 = -i$, and $e_6 = \infty$.
+
+For the hyperelliptic cover $\pi: X \to \mathbb{P}^1$, we make branch cuts connecting pairs of branch points. A standard choice: cut along arcs connecting $(e_1, e_2), (e_3, e_4), (e_5, e_6)$, i.e., $(0,1), (-1, i), (-i, \infty)$.
+
+Actually, let me think more carefully. The standard way to get a symplectic basis for a genus 2 hyperelliptic curve with branch points $e_1, \ldots, e_6$ is:
+
+Choose cuts $c_1 = (e_1, e_2)$, $c_2 = (e_3, e_4)$, $c_3 = (e_5, e_6)$. The $a$-cycles $a_1, a_2$ go around $c_1, c_2$ respectively. The $b$-cycles $b_i$ go around $c_i$ and $c_3$.
+
+Specifically, $a_i$ is a loop encircling the cut $c_i$ (lifting to a closed loop on $X$), and $b_i$ goes from a point on $c_i$ to a point on $c_3$ on one sheet and back on the other sheet.
+
+Now I need to compute the periods. The holomorphic differentials are $\omega_1 = dx/y$ and $\omega_2 = x\,dx/y$.
+
+The $a$-periods: $\int_{a_j} \omega_i$. For the $a$-cycle around the cut $(e_{2j-1}, e_{2j})$, the integral is $2\int_{e_{2j-1}}^{e_{2j}} \omega_i$ (going along the cut on one sheet and back on the other, picking up factor 2).
+
+Wait, let me be more careful. The $a$-cycle around a cut $[e_a, e_b]$ lifts to a path that goes from $e_a$ to $e_b$ on one sheet and returns from $e_b$ to $e_a$ on the other sheet. On the return, $y$ changes sign, so $dx/y$ changes sign. Thus $\oint_{a} \omega = \int_{e_a}^{e_b} \omega|_{\text{sheet 1}} + \int_{e_b}^{e_a} \omega|_{\text{sheet 2}} = \int_{e_a}^{e_b} \frac{dx}{y} - \int_{e_a}^{e_b} \frac{dx}{y} \cdot (-1)$... 
+
+Hmm, let me think again. On sheet 1, $y = +\sqrt{f(x)}$, on sheet 2, $y = -\sqrt{f(x)}$. The $a$-cycle goes from $e_a$ to $e_b$ on sheet 1 (where $y = +\sqrt{f}$) and returns from $e_b$ to $e_a$ on sheet 2 (where $y = -\sqrt{f}$). So:
+
+$$\oint_{a} \frac{dx}{y} = \int_{e_a}^{e_b} \frac{dx}{\sqrt{f(x)}} + \int_{e_b}^{e_a} \frac{dx}{-\sqrt{f(x)}} = 2\int_{e_a}^{e_b} \frac{dx}{\sqrt{f(x)}}$$
+
+So $A_{ij} = \int_{a_j} \omega_i = 2\int_{e_{2j-1}}^{e_{2j}} \frac{x^{i-1} dx}{\sqrt{f(x)}}$.
+
+With our cuts: $c_1 = (0, 1)$, $c_2 = (-1, i)$, $c_3 = (-i, \infty)$.
+
+$A_{11} = 2\int_0^1 \frac{dx}{\sqrt{x^5 - x}} = 2\int_0^1 \frac{dx}{\sqrt{x(x^4-1)}}$
+
+Hmm, but $x^4 - 1 < 0$ for $x \in (0,1)$, so $f(x) = x(x^4-1) < 0$ on $(0,1)$. So $\sqrt{f(x)}$ is imaginary. Let me write $f(x) = x(x^4-1) = -x(1-x^4)$ on $(0,1)$. So $\sqrt{f} = i\sqrt{x(1-x^4)}$.
+
+$A_{11} = 2\int_0^1 \frac{dx}{i\sqrt{x(1-x^4)}} = -2i \int_0^1 \frac{dx}{\sqrt{x(1-x^4)}}$
+
+Let me compute $\int_0^1 \frac{dx}{\sqrt{x(1-x^4)}}$. Substitute $u = x^4$, $du = 4x^3 dx$, $x = u^{1/4}$, $dx = \frac{1}{4}u^{-3/4}du$.
+
+$\int_0^1 \frac{dx}{\sqrt{x(1-x^4)}} = \int_0^1 \frac{u^{-3/4}/4 \, du}{u^{1/8}(1-u)^{1/2}} = \frac{1}{4}\int_0^1 u^{-3/4-1/8}(1-u)^{-1/2}du = \frac{1}{4}\int_0^1 u^{-7/8}(1-u)^{-1/2}du$
+
+$= \frac{1}{4}B(1/8, 1/2) = \frac{1}{4}\frac{\Gamma(1/8)\Gamma(1/2)}{\Gamma(5/8)}$
+
+So $A_{11} = -2i \cdot \frac{1}{4}\frac{\Gamma(1/8)\Gamma(1/2)}{\Gamma(5/8)} = -\frac{i}{2}\frac{\Gamma(1/8)\sqrt{\pi}}{\Gamma(5/8)}$.
+
+This is getting complicated. The problem asks for an "explicit lattice." Let me think about what level of explicitness is expected.
+
+Actually, for this kind of problem, the standard answer is to describe the lattice via the period matrix, expressing the periods in terms of beta functions / gamma functions. Let me continue the computation.
+
+Let me define the integrals more systematically. Let me use the substitution to express all periods as beta functions.
+
+For a general integral $\int_{e_a}^{e_b} \frac{x^k dx}{\sqrt{x^5-x}}$ along a path, I need to be careful about which branch of the square root to take.
+
+Actually, this problem has a lot of symmetry. The curve $y^2 = x^5 - x$ has automorphisms: $(x,y) \mapsto (\zeta x, \zeta^{?} y)$ where $\zeta$ is a primitive 4th root of unity (since $x^5 - x$ has the symmetry $x \to ix$ giving $(ix)^5 - ix = i(x^4-1)\cdot i x \cdot ... $ let me check: $(ix)^5 - ix = i^5 x^5 - ix = ix^5 - ix = i(x^5 - x)$. So $f(ix) = i \cdot f(x)$. So if $y^2 = f(x)$, then we need $y'^2 = f(ix) = i f(x)$, so $y' = i^{1/2} y$. The automorphism is $(x,y) \mapsto (ix, \sqrt{i}\, y)$ where $\sqrt{i} = e^{i\pi/4}$.
+
+This is an automorphism of order 4 (since applying 4 times: $x \to i^4 x = x$, $y \to (\sqrt{i})^4 y = i^2 y = -y$... hmm, that gives $-y$ not $y$). Let me recheck. $f(ix) = (ix)^5 - ix = i^5 x^5 - ix = ix^5 - ix = i(x^5-x) = if(x)$. So if $y^2 = f(x)$, we need $y'^2 = if(x) = iy^2$, so $y' = \sqrt{i}\,y = e^{i\pi/4}y$. Applying twice: $(x,y) \to (ix, e^{i\pi/4}y) \to (-x, e^{i\pi/2}y) = (-x, iy)$. Check: $f(-x) = -x^5+x = -(x^5-x) = -f(x)$, and $(iy)^2 = -y^2 = -f(x) = f(-x)$. ✓. Applying 4 times: $(x,y) \to (ix, e^{i\pi/4}y) \to (-x, iy) \to (-ix, e^{3i\pi/4}y) \to (x, e^{i\pi}y) = (x, -y)$. So order 8? No wait, $(x,-y)$ is the same point on the curve (hyperelliptic involution). So as an automorphism of the curve, this has order 4 (since the 4th power is the hyperelliptic involution, which is trivial on the curve? No, the hyperelliptic involution is NOT trivial on the curve, it's a non-trivial automorphism).
+
+Hmm, actually the hyperelliptic involution $\iota: (x,y) \to (x,-y)$ is a non-trivial automorphism of the curve. So the automorphism $(x,y) \to (ix, e^{i\pi/4}y)$ has order 8 as a map, but its 4th power is the hyperelliptic involution. As an automorphism of the curve, it generates a group of order 8 (including the hyperelliptic involution). Actually, the automorphism group of $y^2 = x^5 - x$ is known to be of order 16 (it's a special curve with extra automorphisms).
+
+Anyway, this symmetry can be exploited to relate the periods, but let me just compute them directly.
+
+Let me set up the computation more carefully. I'll use the branch points $e_1 = 0, e_2 = 1, e_3 = -1, e_4 = i, e_5 = -i, e_6 = \infty$ and cuts $c_1 = [0,1]$, $c_2 = [-1, i]$, $c_3 = [-i, \infty]$ (where $[-i, \infty]$ means a path from $-i$ to $\infty$).
+
+Hmm, actually the choice of cuts matters for the explicit computation but the lattice is determined up to $\text{Sp}(4,\mathbb{Z})$ transformation. Let me choose cuts that make computation easiest.
+
+Actually, let me reconsider. The problem says "find an explicit lattice $\Lambda \subset \mathbb{C}^2$". The standard answer for such a problem is:
+
+1. Identify the holomorphic 1-forms $\omega_1 = dx/y$, $\omega_2 = x\,dx/y$.
+2. Choose a symplectic homology basis $\{a_1, a_2, b_1, b_2\}$.
+3. Compute the period matrix $\Pi = (A | B)$ where $A_{ij} = \int_{a_j}\omega_i$, $B_{ij} = \int_{b_j}\omega_i$.
+4. The lattice is $\Lambda = A\mathbb{Z}^2 + B\mathbb{Z}^2 \subset \mathbb{C}^2$.
+5. Equivalently, $\Lambda = \mathbb{Z}^2 + \tau\mathbb{Z}^2$ where $\tau = A^{-1}B$.
+
+The explicit computation of the periods in terms of beta/gamma functions is the meat of the problem.
+
+Let me compute the $a$-periods and $b$-periods. I'll choose the cuts carefully.
+
+Let me choose cuts: $c_1 = [0, 1]$, $c_2 = [-1, -i]$... hmm, let me think about which cuts give the cleanest integrals.
+
+Actually, let me use a different approach. Let me use the cuts $c_1 = [0,1]$, $c_2 = [-1, 0]$... no, cuts can't share endpoints in the standard way. Let me think.
+
+Standard choice for 6 branch points $e_1, \ldots, e_6$: cuts $[e_1, e_2]$, $[e_3, e_4]$, $[e_5, e_6]$. The $a$-cycles encircle $[e_1,e_2]$ and $[e_3,e_4]$. The $b$-cycles: $b_1$ goes from $[e_1,e_2]$ to $[e_5,e_6]$, $b_2$ goes from $[e_3,e_4]$ to $[e_5,e_6]$.
+
+Let me order the branch points as $e_1 = 0, e_2 = 1, e_3 = -1, e_4 = i, e_5 = -i, e_6 = \infty$.
+
+Cuts: $c_1 = [0,1]$, $c_2 = [-1, i]$, $c_3 = [-i, \infty]$.
+
+$a_1$ encircles $[0,1]$, $a_2$ encircles $[-1, i]$.
+
+$b_1$ goes from $[0,1]$ to $[-i, \infty]$, $b_2$ goes from $[-1,i]$ to $[-i, \infty]$.
+
+**$a$-periods:**
+
+$A_{11} = \oint_{a_1} \omega_1 = 2\int_0^1 \frac{dx}{\sqrt{x^5-x}}$
+
+On $(0,1)$: $x^5 - x = x(x^4-1) = -x(1-x^4)$. So $\sqrt{x^5-x} = i\sqrt{x(1-x^4)}$ (choosing the branch where $y > 0$ on the upper sheet for $x > 1$, say).
+
+$A_{11} = 2\int_0^1 \frac{dx}{i\sqrt{x(1-x^4)}} = \frac{2}{i}\int_0^1 x^{-1/2}(1-x^4)^{-1/2}dx$
+
+Sub $t = x^4$: $x = t^{1/4}$, $dx = \frac{1}{4}t^{-3/4}dt$.
+
+$= \frac{2}{i}\int_0^1 t^{-1/8}(1-t)^{-1/2}\frac{1}{4}t^{-3/4}dt = \frac{1}{2i}\int_0^1 t^{-7/8}(1-t)^{-1/2}dt = \frac{1}{2i}B(1/8, 1/2)$
+
+$= \frac{1}{2i}\frac{\Gamma(1/8)\Gamma(1/2)}{\Gamma(5/8)} = \frac{\sqrt{\pi}\,\Gamma(1/8)}{2i\,\Gamma(5/8)}$
+
+$A_{21} = \oint_{a_1} \omega_2 = 2\int_0^1 \frac{x\,dx}{\sqrt{x^5-x}} = \frac{2}{i}\int_0^1 \frac{x\,dx}{\sqrt{x(1-x^4)}} = \frac{2}{i}\int_0^1 x^{1/2}(1-x^4)^{-1/2}dx$
+
+Sub $t = x^4$: $= \frac{2}{i}\int_0^1 t^{1/8}(1-t)^{-1/2}\frac{1}{4}t^{-3/4}dt = \frac{1}{2i}\int_0^1 t^{-5/8}(1-t)^{-1/2}dt = \frac{1}{2i}B(3/8, 1/2)$
+
+$= \frac{\sqrt{\pi}\,\Gamma(3/8)}{2i\,\Gamma(7/8)}$
+
+Now for $a_2$ encircling $[-1, i]$. The integral is $2\int_{-1}^{i} \frac{x^k dx}{\sqrt{x^5-x}}$ along a path from $-1$ to $i$. This is more complex because the path isn't along the real axis. Let me parameterize or use a different approach.
+
+Actually, this is getting quite involved. Let me think about whether there's a cleaner way to express the answer.
+
+The key insight: the curve $y^2 = x^5 - x$ has the automorphism $\sigma: (x,y) \to (ix, e^{i\pi/4}y)$ of order 4 (mod hyperelliptic involution). This automorphism acts on the holomorphic differentials and on the homology, and we can use it to relate the periods.
+
+The action on differentials: $\sigma^* \omega_1 = \sigma^*(dx/y) = d(ix)/(e^{i\pi/4}y) = \frac{i}{e^{i\pi/4}}dx/y = e^{i\pi/4}\omega_1$ (since $i/e^{i\pi/4} = e^{i\pi/2}/e^{i\pi/4} = e^{i\pi/4}$).
+
+$\sigma^* \omega_2 = \sigma^*(x\,dx/y) = (ix)(d(ix))/(e^{i\pi/4}y) = ix \cdot i \, dx / (e^{i\pi/4}y) = \frac{i^2}{e^{i\pi/4}}x\,dx/y = \frac{-1}{e^{i\pi/4}}\omega_2 = e^{-i3\pi/4}\omega_2 = e^{5i\pi/4}\omega_2$.
+
+Hmm wait, $-1/e^{i\pi/4} = -e^{-i\pi/4} = e^{i\pi}e^{-i\pi/4} = e^{3i\pi/4}$. So $\sigma^*\omega_2 = e^{3i\pi/4}\omega_2$.
+
+So $\sigma^*$ acts on $(\omega_1, \omega_2)$ with eigenvalues $e^{i\pi/4}$ and $e^{3i\pi/4}$.
+
+This means the Jacobian has complex multiplication by $\mathbb{Z}[i]$ (or a larger ring). The curve $y^2 = x^5 - x$ is known to have CM by $\mathbb{Z}[\zeta_8]$ where $\zeta_8 = e^{2\pi i/8}$... actually, let me think about this differently.
+
+The eigenvalues of $\sigma^*$ on the space of holomorphic differentials are $e^{i\pi/4}$ and $e^{3i\pi/4}$. These are primitive 8th roots of unity ($\zeta_8$ and $\zeta_8^3$). So the Jacobian has an automorphism of order 8 (well, order 4 on the curve, but the action on differentials has order 8... no, $\sigma$ has order 8 as a map, order 4 modulo hyperelliptic involution). 
+
+Actually, $\sigma^8 = \text{id}$ (since $\sigma^4$ is the hyperelliptic involution, and $\sigma^8 = \iota^2 = \text{id}$). The eigenvalues $e^{i\pi/4} = \zeta_8$ and $e^{3i\pi/4} = \zeta_8^3$ are both primitive 8th roots of unity. So the Jacobian has CM by $\mathbb{Z}[\zeta_8]$, the ring of integers of $\mathbb{Q}(\zeta_8)$.
+
+This is a well-known fact: the Jacobian of $y^2 = x^5 - x$ has CM by $\mathbb{Z}[\zeta_8] = \mathbb{Z}[i, \sqrt{2}]$... actually $\mathbb{Q}(\zeta_8) = \mathbb{Q}(i, \sqrt{2})$, and $\mathbb{Z}[\zeta_8]$ is the ring of integers.
+
+For a CM abelian surface, the lattice can be described quite explicitly. The period lattice of a CM abelian variety with CM by $\mathcal{O}_K$ (where $K = \mathbb{Q}(\zeta_8)$) is a projective $\mathcal{O}_K$-module of rank 1 (for a simple abelian surface) or related structure.
+
+Actually, let me think about this more carefully. The Jacobian of $y^2 = x^5 - x$ — is it simple or isogenous to a product of elliptic curves?
+
+The CM type: the eigenvalues are $\zeta_8$ and $\zeta_8^3$. The CM type is $\{1, 3\}$ (referring to the powers of $\zeta_8$). The Galois group $\text{Gal}(\mathbb{Q}(\zeta_8)/\mathbb{Q}) \cong (\mathbb{Z}/8\mathbb{Z})^* = \{1, 3, 5, 7\}$. The CM type $\{1, 3\}$ is not stable under complex conjugation (which sends $k \to -k \mod 8$, so $1 \to 7, 3 \to 5$), so the type is $\{1, 3\}$ and its conjugate is $\{5, 7\}$. Since $\{1,3\} \neq \{5,7\}$, this is a primitive CM type, meaning the abelian variety is simple.
+
+Wait, but $\mathbb{Q}(\zeta_8)$ has degree 4 over $\mathbb{Q}$, and a CM abelian surface has dimension 2, so the CM field has degree $2 \cdot 2 = 4$. Yes, $[\mathbb{Q}(\zeta_8):\mathbb{Q}] = 4 = 2g$. Good.
+
+So the Jacobian is a simple abelian surface with CM by $\mathbb{Z}[\zeta_8]$ and CM type $\{1, 3\}$.
+
+Now, for the explicit lattice. The standard construction: Let $K = \mathbb{Q}(\zeta_8)$, $\mathcal{O}_K = \mathbb{Z}[\zeta_8]$. The CM type is $\Phi = \{\phi_1, \phi_3\}$ where $\phi_k(\zeta_8) = \zeta_8^k = e^{2\pi i k/8}$.
+
+For a CM abelian variety with CM by $\mathcal{O}_K$ and type $\Phi$, the lattice is of the form $\Lambda = \Phi(\mathfrak{a})$ for some fractional ideal $\mathfrak{a}$ of $\mathcal{O}_K$, where $\Phi(\mathfrak{a}) = \{(\phi_1(\alpha), \phi_3(\alpha)) : \alpha \in \mathfrak{a}\} \subset \mathbb{C}^2$.
+
+So $\Lambda = \{(\alpha, \sigma(\alpha)) : \alpha \in \mathfrak{a}\}$ where $\sigma$ is the automorphism $\zeta_8 \mapsto \zeta_8^3$, and the embedding $\alpha \mapsto (\phi_1(\alpha), \phi_3(\alpha))$.
+
+But we need to determine which ideal $\mathfrak{a}$. For the "canonical" period lattice, we need to compute the actual periods.
+
+Let me try to compute the periods more explicitly. Let me use the symmetry to simplify.
+
+Actually, let me try a different, more computational approach. Let me choose cuts along the real axis where possible.
+
+The branch points are $0, 1, -1, i, -i, \infty$. On the real line, we have $-1, 0, 1$. Let me choose:
+- $c_1 = [-1, 0]$ (cut along real axis from $-1$ to $0$)
+- $c_2 = [0, 1]$ (cut along real axis from $0$ to $1$)
+
+Wait, but these share the endpoint $0$. That's not standard. Let me use:
+- $c_1 = [-1, 0]$
+- $c_2 = [i, -i]$... no, that doesn't make sense as a cut.
+
+Let me try yet another approach. Let me place the cuts as:
+- $c_1 = [-1, 0]$
+- $c_2 = [0, 1]$... 
+
+No. Standard cuts must be disjoint. Let me use:
+- $c_1 = [-1, 0]$
+- $c_2 = [i, \infty]$ (going from $i$ upward to infinity)
+- $c_3 = [-i, 1]$... 
+
+This is getting messy. Let me just use the standard ordering and compute.
+
+Actually, let me try a cleaner approach. Order the branch points as $e_1 = -1, e_2 = 0, e_3 = 1, e_4 = i, e_5 = -i, e_6 = \infty$ and use cuts $c_1 = [-1, 0]$, $c_2 = [1, i]$, $c_3 = [-i, \infty]$.
+
+Hmm, $[1, i]$ is a path from 1 to $i$. Let me just go with cuts along the real axis where possible and compute.
+
+Let me try: $c_1 = [-1, 0]$, $c_2 = [0, 1]$... no, can't share endpoint.
+
+OK here's another approach. Let me use cuts:
+- $c_1 = [0, 1]$ (real interval)
+- $c_2 = [-1, -i]$ (path from $-1$ to $-i$)
+- $c_3 = [i, \infty]$ (path from $i$ to $\infty$)
+
+$a_1$ encircles $[0,1]$, $a_2$ encircles $[-1, -i]$.
+
+For $a_1$: I already computed $A_{11}$ and $A_{21}$ above.
+
+For $a_2$ encircling $[-1, -i]$: I need $2\int_{-1}^{-i} \frac{x^k dx}{\sqrt{x^5-x}}$ along a path from $-1$ to $-i$.
+
+This is still complicated. Let me try to use the automorphism to relate the periods.
+
+The automorphism $\sigma: (x,y) \to (ix, e^{i\pi/4}y)$ maps branch points: $0 \to 0$, $1 \to i$, $-1 \to -i$, $i \to -1$, $-i \to 1$, $\infty \to \infty$.
+
+So $\sigma$ maps the cut $[0,1]$ to $[0, i]$, and $[-1, -i]$ to $[-i, -i\cdot(-i)] = [-i, -1]$... wait, $\sigma(-1) = -i$ and $\sigma(-i) = i\cdot(-i) = 1$. So $\sigma$ maps $[-1, -i]$ to $[-i, 1]$.
+
+This doesn't directly simplify things. Let me try a completely different approach.
+
+Let me use the substitution to reduce the integrals to beta functions. The key integrals are of the form $\int_{e_a}^{e_b} \frac{x^k dx}{\sqrt{x^5 - x}}$ where the path goes between two branch points.
+
+For paths along the real axis between real branch points, the computation is clean. The real branch points are $-1, 0, 1$. So I can compute integrals along $[-1, 0]$ and $[0, 1]$.
+
+Let me choose cuts: $c_1 = [-1, 0]$, $c_2 = [0, 1]$... but these share the endpoint 0. 
+
+Actually, in the standard theory, we can choose cuts that share an endpoint if we're careful, but it's cleaner not to. Let me instead choose:
+- $c_1 = [-1, 0]$
+- $c_2 = [1, i]$ (or any path from 1 to $i$)
+- $c_3 = [-i, \infty]$
+
+But then $a_2$ encircles $[1, i]$, which is not along the real axis.
+
+Alternatively, let me just compute all the periods I can along the real axis and use the automorphism to get the rest.
+
+Let me define:
+- $I_k(a,b) = \int_a^b \frac{x^k dx}{\sqrt{x^5 - x}}$ (with appropriate branch of square root)
+
+For the interval $[0,1]$: $x^5 - x = -x(1-x^4) < 0$, so $\sqrt{x^5-x} = i\sqrt{x(1-x^4)}$.
+
+$I_k(0,1) = \int_0^1 \frac{x^k dx}{i\sqrt{x(1-x^4)}} = \frac{1}{i}\int_0^1 x^{k-1/2}(1-x^4)^{-1/2}dx$
+
+Sub $u = x^4$: $= \frac{1}{i}\int_0^1 u^{(k-1/2)/4}(1-u)^{-1/2}\frac{1}{4}u^{-3/4}du = \frac{1}{4i}\int_0^1 u^{(k-1/2)/4 - 3/4}(1-u)^{-1/2}du$
+
+$= \frac{1}{4i}\int_0^1 u^{(k-5/2)/4}(1-u)^{-1/2}du = \frac{1}{4i}B\left(\frac{k-1/2}{4}+\frac{1}{4}, \frac{1}{2}\right)$
+
+Wait, let me redo. $(k-1/2)/4 - 3/4 = (k-1/2-3)/4 = (k-7/2)/4$. And the exponent of $u$ in the beta function is $(k-7/2)/4 + 1 = (k-3/2)/4$. So:
+
+$I_k(0,1) = \frac{1}{4i}B\left(\frac{k-3/2}{4}+\frac{1}{2}, \frac{1}{2}\right)$... 
+
+Hmm, I'm getting confused. Let me be more careful.
+
+$\int_0^1 u^{a-1}(1-u)^{b-1}du = B(a,b) = \frac{\Gamma(a)\Gamma(b)}{\Gamma(a+b)}$
+
+I need $\int_0^1 u^{(k-7/2)/4}(1-u)^{-1/2}du$. So $a - 1 = (k-7/2)/4$, i.e., $a = (k-7/2)/4 + 1 = (k+1/2)/4$, and $b - 1 = -1/2$, i.e., $b = 1/2$.
+
+$I_k(0,1) = \frac{1}{4i}B\left(\frac{k+1/2}{4}, \frac{1}{2}\right) = \frac{1}{4i}\frac{\Gamma(\frac{k+1/2}{4})\Gamma(1/2)}{\Gamma(\frac{k+1/2}{4}+\frac{1}{2})} = \frac{\sqrt{\pi}}{4i}\frac{\Gamma(\frac{2k+1}{8})}{\Gamma(\frac{2k+5}{8})}$
+
+For $k=0$: $I_0(0,1) = \frac{\sqrt{\pi}}{4i}\frac{\Gamma(1/8)}{\Gamma(5/8)}$
+For $k=1$: $I_1(0,1) = \frac{\sqrt{\pi}}{4i}\frac{\Gamma(3/8)}{\Gamma(7/8)}$
+
+These match what I had before. Good.
+
+For the interval $[-1, 0]$: Let $x = -t$, $t \in [0,1]$, $dx = -dt$.
+$x^5 - x = -t^5 + t = t(1-t^4) > 0$ for $t \in (0,1)$. So $\sqrt{x^5-x} = \sqrt{t(1-t^4)}$ (real and positive, if we choose the right branch).
+
+$I_k(-1, 0) = \int_{-1}^0 \frac{x^k dx}{\sqrt{x^5-x}} = \int_1^0 \frac{(-t)^k(-dt)}{\sqrt{t(1-t^4)}} = (-1)^k \int_0^1 \frac{t^k dt}{\sqrt{t(1-t^4)}}$
+
+$= (-1)^k \int_0^1 t^{k-1/2}(1-t^4)^{-1/2}dt$
+
+Same substitution $u = t^4$: $= (-1)^k \frac{1}{4}\int_0^1 u^{(k-7/2)/4}(1-u)^{-1/2}du = \frac{(-1)^k}{4}B\left(\frac{2k+1}{8}, \frac{1}{2}\right) = \frac{(-1)^k\sqrt{\pi}}{4}\frac{\Gamma(\frac{2k+1}{8})}{\Gamma(\frac{2k+5}{8})}$
+
+For $k=0$: $I_0(-1,0) = \frac{\sqrt{\pi}}{4}\frac{\Gamma(1/8)}{\Gamma(5/8)}$
+For $k=1$: $I_1(-1,0) = -\frac{\sqrt{\pi}}{4}\frac{\Gamma(3/8)}{\Gamma(7/8)}$
+
+Note: $I_k(0,1) = \frac{1}{i} I_k(-1,0) \cdot (-1)^k \cdot (-1)^k = \frac{1}{i} \cdot |I_k(-1,0)|$... let me check.
+
+$I_0(0,1) = \frac{\sqrt{\pi}}{4i}\frac{\Gamma(1/8)}{\Gamma(5/8)}$ and $I_0(-1,0) = \frac{\sqrt{\pi}}{4}\frac{\Gamma(1/8)}{\Gamma(5/8)}$. So $I_0(0,1) = \frac{1}{i}I_0(-1,0) = -i \cdot I_0(-1,0)$. ✓
+
+$I_1(0,1) = \frac{\sqrt{\pi}}{4i}\frac{\Gamma(3/8)}{\Gamma(7/8)}$ and $I_1(-1,0) = -\frac{\sqrt{\pi}}{4}\frac{\Gamma(3/8)}{\Gamma(7/8)}$. So $I_1(0,1) = \frac{1}{i}(-I_1(-1,0)) = \frac{-1}{i}I_1(-1,0) = i \cdot I_1(-1,0)$... 
+
+Hmm, $I_1(-1,0) = -\frac{\sqrt{\pi}}{4}\frac{\Gamma(3/8)}{\Gamma(7/8)}$ and $I_1(0,1) = \frac{\sqrt{\pi}}{4i}\frac{\Gamma(3/8)}{\Gamma(7/8)} = \frac{1}{i}\frac{\sqrt{\pi}}{4}\frac{\Gamma(3/8)}{\Gamma(7/8)} = \frac{-1}{i}I_1(-1,0) = i\,I_1(-1,0)$. 
+
+OK so the relationship is $I_k(0,1) = \frac{(-1)^k}{i} I_k(-1,0) \cdot (-1)^k$... this is getting confusing. Let me just keep the explicit values.
+
+Now, for the interval $[1, \infty]$ (from 1 to $\infty$ along the real axis): $x^5 - x = x(x^4-1) > 0$ for $x > 1$. So $\sqrt{x^5-x}$ is real and positive.
+
+$I_k(1, \infty) = \int_1^\infty \frac{x^k dx}{\sqrt{x^5-x}} = \int_1^\infty \frac{x^k dx}{\sqrt{x(x^4-1)}} = \int_1^\infty x^{k-1/2}(x^4-1)^{-1/2}dx$
+
+Sub $u = 1/x^4$, $x = u^{-1/4}$, $dx = -\frac{1}{4}u^{-5/4}du$. When $x=1$, $u=1$; when $x\to\infty$, $u\to 0$.
+
+$= \int_1^0 u^{-(k-1/2)/4}(u^{-1}-1)^{-1/2}\left(-\frac{1}{4}u^{-5/4}\right)du = \frac{1}{4}\int_0^1 u^{-(k-1/2)/4}\frac{u^{1/2}}{(1-u)^{1/2}}u^{-5/4}du$
+
+$= \frac{1}{4}\int_0^1 u^{-(k-1/2)/4+1/2-5/4}(1-u)^{-1/2}du = \frac{1}{4}\int_0^1 u^{-(k-1/2)/4-3/4}(1-u)^{-1/2}du$
+
+$-(k-1/2)/4 - 3/4 = -(k-1/2+3)/4 = -(k+5/2)/4$
+
+So the exponent of $u$ is $-(k+5/2)/4$, and $a - 1 = -(k+5/2)/4$, $a = 1 - (k+5/2)/4 = (4-k-5/2)/4 = (3/2-k)/4 = (3-2k)/8$.
+
+$I_k(1,\infty) = \frac{1}{4}B\left(\frac{3-2k}{8}, \frac{1}{2}\right) = \frac{\sqrt{\pi}}{4}\frac{\Gamma(\frac{3-2k}{8})}{\Gamma(\frac{7-2k}{8})}$
+
+For $k=0$: $I_0(1,\infty) = \frac{\sqrt{\pi}}{4}\frac{\Gamma(3/8)}{\Gamma(7/8)}$
+For $k=1$: $I_1(1,\infty) = \frac{\sqrt{\pi}}{4}\frac{\Gamma(1/8)}{\Gamma(5/8)}$
+
+Interesting! So $I_0(1,\infty) = \frac{\sqrt{\pi}}{4}\frac{\Gamma(3/8)}{\Gamma(7/8)}$ and $I_1(1,\infty) = \frac{\sqrt{\pi}}{4}\frac{\Gamma(1/8)}{\Gamma(5/8)}$.
+
+Let me also compute $I_k(-\infty, -1)$ (from $-\infty$ to $-1$ along the real axis). For $x < -1$: $x^5 - x = x(x^4-1)$. $x < 0$ and $x^4 - 1 > 0$, so $x^5 - x < 0$. So $\sqrt{x^5-x} = i\sqrt{|x^5-x|} = i\sqrt{(-x)(x^4-1)}$.
+
+$I_k(-\infty, -1) = \int_{-\infty}^{-1} \frac{x^k dx}{i\sqrt{(-x)(x^4-1)}}$
+
+Let $x = -t$, $t > 1$, $dx = -dt$:
+$= \int_\infty^1 \frac{(-t)^k(-dt)}{i\sqrt{t(t^4-1)}} = \frac{(-1)^k}{i}\int_1^\infty \frac{t^k dt}{\sqrt{t(t^4-1)}} = \frac{(-1)^k}{i}I_k(1,\infty)$
+
+For $k=0$: $I_0(-\infty,-1) = \frac{1}{i}I_0(1,\infty) = \frac{\sqrt{\pi}}{4i}\frac{\Gamma(3/8)}{\Gamma(7/8)}$
+For $k=1$: $I_1(-\infty,-1) = \frac{-1}{i}I_1(1,\infty) = -\frac{\sqrt{\pi}}{4i}\frac{\Gamma(1/8)}{\Gamma(5/8)}$
+
+Now let me set up the cycles properly. I'll choose cuts:
+- $c_1 = [-1, 0]$ (along real axis)
+- $c_2 = [0, 1]$ (along real axis)
+
+Wait, these share endpoint 0. In the standard theory, we need 3 disjoint cuts for genus 2. Let me think again.
+
+For 6 branch points, we need 3 cuts pairing them up. The standard choice pairs $(e_1,e_2), (e_3,e_4), (e_5,e_6)$. 
+
+Let me pair: $(−1, 0), (1, i), (−i, \infty)$. But then the $a_2$ cycle around $[1, i]$ is not along the real axis.
+
+Alternatively, pair: $(0, 1), (-1, -i), (i, \infty)$. Again, $[-1, -i]$ is not along the real axis.
+
+The issue is that we have 3 real branch points $(-1, 0, 1)$ and 2 imaginary ones $(i, -i)$ plus $\infty$. We can't pair all 6 into 3 cuts along the real axis.
+
+Let me just go with the pairing $(0, 1), (-1, -i), (i, \infty)$ and compute the $a_1$ periods (which are along $[0,1]$) and use the automorphism to get the rest.
+
+Actually, let me try a different approach. Let me use the pairing $(-1, 0), (1, \infty), (i, -i)$. The cut $(i, -i)$ goes along the imaginary axis from $i$ to $-i$ (passing through 0, but 0 is a branch point...). Hmm, that's problematic.
+
+Let me try $(-1, 0), (1, \infty), (-i, i)$ where the cut from $-i$ to $i$ goes along a path not passing through 0 (e.g., a semicircle in the right half-plane). Actually, the cut just needs to be a path from $-i$ to $i$; it doesn't have to pass through 0.
+
+OK, I think the cleanest approach is:
+
+Cuts: $c_1 = [-1, 0]$, $c_2 = [1, \infty]$ (along real axis), $c_3 = [-i, i]$ (along imaginary axis, but we need to be careful about the path).
+
+Actually, $[−i, i]$ along the imaginary axis passes through $0$, which is a branch point. So let me take $c_3$ to be a semicircle from $-i$ to $i$ in the right half-plane.
+
+Hmm, this is getting complicated. Let me just go with a standard choice and compute what I can.
+
+Let me use cuts: $c_1 = [0, 1]$, $c_2 = [-1, 0]$... no. OK let me think about this differently.
+
+For the purpose of this problem, I think the expected answer is to:
+1. Identify the curve as genus 2 with holomorphic differentials $\omega_1 = dx/y$, $\omega_2 = x\,dx/y$.
+2. Choose a symplectic basis of $H_1$.
+3. Express the period matrix in terms of beta/gamma functions.
+4. Write down the lattice.
+
+Let me choose the cuts as follows, using the ordering $e_1 = 0, e_2 = 1, e_3 = -1, e_4 = -i, e_5 = i, e_6 = \infty$:
+- $c_1 = [0, 1]$
+- $c_2 = [-1, -i]$
+- $c_3 = [i, \infty]$
+
+$a_1$ encircles $[0,1]$, $a_2$ encircles $[-1, -i]$.
+$b_1$ goes from $[0,1]$ to $[i, \infty]$, $b_2$ goes from $[-1,-i]$ to $[i, \infty]$.
+
+**$a_1$-periods** (already computed):
+$A_{11} = 2I_0(0,1) = \frac{\sqrt{\pi}}{2i}\frac{\Gamma(1/8)}{\Gamma(5/8)}$
+$A_{21} = 2I_1(0,1) = \frac{\sqrt{\pi}}{2i}\frac{\Gamma(3/8)}{\Gamma(7/8)}$
+
+**$a_2$-periods**: $a_2$ encircles $[-1, -i]$. The integral is $2\int_{-1}^{-i} \frac{x^k dx}{\sqrt{x^5-x}}$ along a path from $-1$ to $-i$.
+
+Let me parameterize the path from $-1$ to $-i$. A natural choice is the straight line: $x(t) = -1 + t(1-i)$ for $t \in [0,1]$, so $x$ goes from $-1$ to $-i$. But this doesn't simplify the integral.
+
+Alternatively, use the automorphism. The automorphism $\sigma: x \to ix$ maps $-1 \to -i$ and $0 \to 0$. So $\sigma$ maps the cut $[-1, 0]$ to $[-i, 0]$. And $\sigma$ maps the cut $[0, 1]$ to $[0, i]$.
+
+Hmm, let me think about this differently. Let me use the automorphism to relate the $a_2$-periods to the $a_1$-periods.
+
+If I choose the cuts so that $\sigma$ maps $c_1$ to $c_2$, then the $a$-periods would be related by the automorphism.
+
+$\sigma$ maps: $0 \to 0$, $1 \to i$, $-1 \to -i$, $i \to -1$, $-i \to 1$, $\infty \to \infty$.
+
+So $\sigma$ maps the cut $[0, 1]$ to $[0, i]$, and $[-1, -i]$ to $[-i, 1]$, and $[i, \infty]$ to $[-1, \infty]$.
+
+This doesn't map my cuts to each other. Let me choose cuts differently.
+
+Let me choose: $c_1 = [0, 1]$, $c_2 = [0, i]$, $c_3 = [\infty, -1]$ (or $[-1, \infty]$). Wait, but $c_1$ and $c_2$ share the endpoint 0. That's not allowed in the standard construction.
+
+Hmm. Let me try: $c_1 = [1, i]$, $c_2 = [-1, -i]$, $c_3 = [0, \infty]$. Then $\sigma$ maps $c_1 = [1, i]$ to $[i, -1]$, which is not one of my cuts.
+
+This is getting complicated. Let me try yet another approach: just compute everything numerically or symbolically without worrying about the automorphism.
+
+Actually, let me step back and think about what the problem is really asking. It says "find an explicit lattice $\Lambda \subset \mathbb{C}^2$". I think the expected answer is:
+
+1. The curve has genus 2, so $\text{Jac}(X) \cong \mathbb{C}^2/\Lambda$ for some rank-4 lattice $\Lambda$.
+2. The holomorphic differentials are $\omega_1 = dx/y$, $\omega_2 = x\,dx/y$.
+3. Choose a symplectic homology basis $\{a_1, a_2, b_1, b_2\}$.
+4. The lattice is $\Lambda = \{A\mathbf{n} + B\mathbf{m} : \mathbf{n}, \mathbf{m} \in \mathbb{Z}^2\}$ where $A_{ij} = \int_{a_j}\omega_i$, $B_{ij} = \int_{b_j}\omega_i$.
+5. Express the periods in terms of beta functions.
+
+Let me try to compute all the periods. I'll use cuts $c_1 = [0,1]$, $c_2 = [-1,0]$, $c_3 = [i, -i]$... no, can't have $c_1$ and $c_2$ share endpoint.
+
+OK, I'll use a non-standard but workable choice. Let me use the cuts:
+$c_1 = [0, 1]$, $c_2 = [-1, -i]$, $c_3 = [i, \infty]$.
+
+For $a_1$ (around $[0,1]$): computed above.
+For $a_2$ (around $[-1, -i]$): need to compute $2\int_{-1}^{-i} \frac{x^k dx}{\sqrt{x^5-x}}$.
+
+For the path from $-1$ to $-i$, let me use the automorphism. Consider the path $\gamma$ from $-1$ to $-i$. Under $\sigma^{-1}: x \to -ix$ (since $\sigma: x \to ix$, $\sigma^{-1}: x \to -ix$), $-1 \to -i(-1) = i$ and $-i \to -i(-i) = -1$. So $\sigma^{-1}$ maps the path from $-1$ to $-i$ to a path from $i$ to $-1$.
+
+This doesn't directly help. Let me try $\sigma: x \to ix$. $\sigma(-1) = -i$, $\sigma(-i) = i \cdot (-i) = 1$. So $\sigma$ maps the path $[-1, -i]$ to $[-i, 1]$.
+
+So $\int_{-1}^{-i} \frac{x^k dx}{\sqrt{x^5-x}}$. Under the substitution $x = iu$ (so $u = -ix$, $dx = i\,du$), when $x = -1$, $u = i$; when $x = -i$, $u = 1$.
+
+$(iu)^5 - iu = i^5 u^5 - iu = iu^5 - iu = i(u^5 - u) = i(u^4-1)u$.
+
+$\sqrt{(iu)^5 - iu} = \sqrt{i}\sqrt{u(u^4-1)} = e^{i\pi/4}\sqrt{u(u^4-1)}$
+
+$\int_{-1}^{-i} \frac{x^k dx}{\sqrt{x^5-x}} = \int_i^1 \frac{(iu)^k \cdot i\,du}{e^{i\pi/4}\sqrt{u(u^4-1)}} = \frac{i^{k+1}}{e^{i\pi/4}}\int_i^1 \frac{u^k du}{\sqrt{u(u^4-1)}}$
+
+$= \frac{i^{k+1}}{e^{i\pi/4}}\left(-\int_1^i \frac{u^k du}{\sqrt{u(u^4-1)}}\right) = -\frac{i^{k+1}}{e^{i\pi/4}}\int_1^i \frac{u^k du}{\sqrt{u(u^4-1)}}$
+
+Now, $\int_1^i \frac{u^k du}{\sqrt{u(u^4-1)}}$ is an integral from 1 to $i$ along some path. For $u$ on the unit circle from 1 to $i$ (i.e., $u = e^{i\theta}$, $\theta \in [0, \pi/2]$), $u^4 = e^{4i\theta}$, $u^4 - 1 = e^{4i\theta} - 1$. This doesn't simplify nicely.
+
+I think computing the $a_2$ and $b$-periods explicitly in terms of elementary/beta functions requires more careful analysis. Let me try a different approach to the whole problem.
+
+**Alternative approach: Use the CM structure directly.**
+
+Since the Jacobian has CM by $\mathbb{Z}[\zeta_8]$ with CM type $\{1, 3\}$, the lattice is $\Lambda = \Phi(\mathfrak{a})$ for some fractional ideal $\mathfrak{a}$ of $\mathbb{Z}[\zeta_8]$, where $\Phi = (\phi_1, \phi_3)$ with $\phi_k(\zeta_8) = e^{2\pi i k/8}$.
+
+The lattice is:
+$$\Lambda = \{(\phi_1(\alpha), \phi_3(\alpha)) : \alpha \in \mathfrak{a}\} \subset \mathbb{C}^2$$
+
+To determine $\mathfrak{a}$, we need to compute the actual periods. But the problem might accept this description with $\mathfrak{a} = \mathbb{Z}[\zeta_8]$ (or a specific ideal) if we can verify it.
+
+Actually, let me think about this more carefully. The period lattice of a CM abelian variety $A = \mathbb{C}^g/\Lambda$ with CM by $\mathcal{O}_K$ is a fractional $\mathcal{O}_K$-ideal $\mathfrak{a}$ (viewed via the CM type embedding). Specifically, $\Lambda = \Phi(\mathfrak{a})$ where $\Phi: K \to \mathbb{C}^g$ is the CM type embedding.
+
+But which ideal $\mathfrak{a}$? This depends on the specific curve. For the curve $y^2 = x^5 - x$, we need to compute the periods to determine $\mathfrak{a}$.
+
+Let me try to compute the period matrix more carefully using a good choice of cycles.
+
+Let me use the following approach. I'll choose cuts that allow me to compute all periods as integrals along the real axis or simple paths.
+
+The branch points are $-1, 0, 1, i, -i, \infty$. Let me choose cuts:
+- $c_1 = [-1, 0]$ (real axis)
+- $c_2 = [1, \infty]$ (real axis, from 1 to $+\infty$)
+- $c_3 = [-i, i]$ (imaginary axis, but avoiding 0 — let's say a semicircle in the right half-plane from $-i$ to $i$)
+
+Wait, but $c_3$ passes near 0 which is a branch point. Actually, the cut $c_3$ should connect $-i$ and $i$ without passing through any other branch point. A semicircle in the right half-plane from $-i$ to $i$ (i.e., $x = e^{i\theta}$ for $\theta$ from $-\pi/2$ to $\pi/2$) passes through $x=1$ when $\theta = 0$, which is a branch point! So that doesn't work.
+
+A semicircle in the left half-plane from $-i$ to $i$ (i.e., $x = e^{i\theta}$ for $\theta$ from $3\pi/2$ to $\pi/2$, or equivalently $\theta$ from $-\pi/2$ to $\pi/2$ going the other way) passes through $x = -1$ when $\theta = \pi$, which is also a branch point.
+
+So any path from $-i$ to $i$ along the unit circle passes through either $1$ or $-1$. I need a path that doesn't pass through any branch point. For example, a path from $-i$ to $i$ that goes far to the right (e.g., $x = R + it$ for large $R$ and $t$ from $-1$ to $1$, then connecting). Or just a straight line from $-i$ to $i$ along the imaginary axis, which passes through $0$ — but 0 is a branch point.
+
+Hmm, this is the fundamental issue: the branch points $-1, 0, 1$ are on the real axis and $i, -i$ are on the imaginary axis, and any "nice" path between $i$ and $-i$ tends to pass through one of the real branch points.
+
+Let me just choose the cuts differently. How about:
+- $c_1 = [0, 1]$
+- $c_2 = [i, \infty]$ (from $i$ going up to $\infty$ along the imaginary axis, i.e., $x = it$ for $t$ from 1 to $\infty$)
+- $c_3 = [-1, -i]$ (from $-1$ to $-i$, some path)
+
+For $c_2 = [i, \infty]$: parameterize as $x = it$, $t$ from 1 to $\infty$. Then $x^5 - x = (it)^5 - it = it^5 - it = it(t^4-1)$. $\sqrt{x^5-x} = \sqrt{i}\sqrt{t(t^4-1)} = e^{i\pi/4}\sqrt{t(t^4-1)}$.
+
+$\int_i^\infty \frac{x^k dx}{\sqrt{x^5-x}} = \int_1^\infty \frac{(it)^k \cdot i\,dt}{e^{i\pi/4}\sqrt{t(t^4-1)}} = \frac{i^{k+1}}{e^{i\pi/4}}\int_1^\infty \frac{t^k dt}{\sqrt{t(t^4-1)}} = \frac{i^{k+1}}{e^{i\pi/4}} I_k(1,\infty)$
+
+where $I_k(1,\infty) = \int_1^\infty \frac{t^k dt}{\sqrt{t(t^4-1)}}$ which I computed before.
+
+For $k=0$: $\frac{i}{e^{i\pi/4}}I_0(1,\infty) = e^{i\pi/4} \cdot \frac{\sqrt{\pi}}{4}\frac{\Gamma(3/8)}{\Gamma(7/8)}$
+
+For $k=1$: $\frac{i^2}{e^{i\pi/4}}I_1(1,\infty) = \frac{-1}{e^{i\pi/4}} \cdot \frac{\sqrt{\pi}}{4}\frac{\Gamma(1/8)}{\Gamma(5/8)} = -e^{-i\pi/4} \cdot \frac{\sqrt{\pi}}{4}\frac{\Gamma(1/8)}{\Gamma(5/8)}$
+
+Similarly, for $c_3 = [-i, \infty]$ (from $-i$ going down to $\infty$): parameterize as $x = -it$, $t$ from 1 to $\infty$. $x^5 - x = (-it)^5 - (-it) = -it^5 + it = -it(t^4-1)$. $\sqrt{x^5-x} = \sqrt{-i}\sqrt{t(t^4-1)} = e^{-i\pi/4}\sqrt{t(t^4-1)}$.
+
+$\int_{-i}^\infty \frac{x^k dx}{\sqrt{x^5-x}} = \int_1^\infty \frac{(-it)^k(-i)dt}{e^{-i\pi/4}\sqrt{t(t^4-1)}} = \frac{(-i)^{k+1}}{e^{-i\pi/4}}I_k(1,\infty) = \frac{(-i)^{k+1}e^{i\pi/4}}{1}I_k(1,\infty)$
+
+For $k=0$: $(-i)e^{i\pi/4}I_0(1,\infty) = e^{-i\pi/2}e^{i\pi/4}I_0(1,\infty) = e^{-i\pi/4}I_0(1,\infty) = e^{-i\pi/4}\frac{\sqrt{\pi}}{4}\frac{\Gamma(3/8)}{\Gamma(7/8)}$
+
+For $k=1$: $(-i)^2 e^{i\pi/4}I_1(1,\infty) = (-1)e^{i\pi/4}I_1(1,\infty) = -e^{i\pi/4}\frac{\sqrt{\pi}}{4}\frac{\Gamma(1/8)}{\Gamma(5/8)}$
+
+OK so now let me set up the cycles properly. Let me choose cuts:
+- $c_1 = [0, 1]$ (real)
+- $c_2 = [i, i\infty]$ (from $i$ up the imaginary axis to $i\infty$, i.e., to $\infty$)
+- $c_3 = [-i, -i\infty]$ (from $-i$ down the imaginary axis to $-i\infty$, i.e., to $\infty$)
+
+Wait, but $c_2$ and $c_3$ both go to $\infty$, so they share the endpoint $\infty$. That's fine — $\infty$ is a single branch point, and both cuts end there. Actually, in the standard construction, each branch point is an endpoint of exactly one cut. If both $c_2$ and $c_3$ end at $\infty$, then $\infty$ is shared, which is not standard.
+
+Let me reconsider. The 6 branch points are $e_1, \ldots, e_6$ and we pair them into 3 cuts. Each branch point appears in exactly one cut. So I need to pair them as 3 disjoint pairs.
+
+Pairing: $(0, 1), (i, -i), (-1, \infty)$. The cut $[i, -i]$ goes from $i$ to $-i$ (some path not through other branch points), and $[-1, \infty]$ goes from $-1$ to $\infty$ (along the real axis to $-\infty$, which is $\infty$).
+
+With this pairing:
+- $c_1 = [0, 1]$: $a_1$ encircles this.
+- $c_2 = [i, -i]$: $a_2$ encircles this.
+- $c_3 = [-1, \infty]$: this is the "reference" cut.
+
+$b_1$ goes from $c_1$ to $c_3$, $b_2$ goes from $c_2$ to $c_3$.
+
+**$a_1$-periods** (encircling $[0,1]$):
+$A_{11} = 2I_0(0,1) = \frac{\sqrt{\pi}}{2i}\frac{\Gamma(1/8)}{\Gamma(5/8)}$
+$A_{21} = 2I_1(0,1) = \frac{\sqrt{\pi}}{2i}\frac{\Gamma(3/8)}{\Gamma(7/8)}$
+
+**$a_2$-periods** (encircling $[i, -i]$): $A_{i2} = 2\int_i^{-i} \frac{x^{i-1}dx}{\sqrt{x^5-x}}$ along a path from $i$ to $-i$.
+
+Let me take the path along the imaginary axis from $i$ to $-i$, i.e., $x = it$ for $t$ from 1 to $-1$ (or equivalently, $x = it$, $t: 1 \to -1$). But this passes through $x = 0$ (when $t = 0$), which is a branch point! So I can't use this path directly.
+
+Let me use a path from $i$ to $-i$ that goes around 0, say a semicircle in the right half-plane: $x = e^{i\theta}$ for $\theta$ from $\pi/2$ to $-\pi/2$ (going clockwise through $\theta = 0$, i.e., $x = 1$). But $x = 1$ is a branch point!
+
+Semicircle in the left half-plane: $x = e^{i\theta}$ for $\theta$ from $\pi/2$ to $3\pi/2$ (going counterclockwise through $\theta = \pi$, i.e., $x = -1$). But $x = -1$ is a branch point!
+
+So any arc of the unit circle from $i$ to $-i$ passes through either $1$ or $-1$. I need a different path. How about a large semicircle: $x = Re^{i\theta}$ for large $R$ and $\theta$ from $\pi/2$ to $-\pi/2$ (through $\theta = 0$). This doesn't pass through any finite branch point. But the integral along this path is not easy to compute.
+
+Alternatively, a path from $i$ to $-i$ going through the point $x = 1 + i$ (or some other point not on the real or imaginary axis). This is a generic path and the integral is hard to compute.
+
+I think the issue is that for this particular curve, the branch points are arranged in a way that makes it hard to choose cuts that give clean integrals for all periods. The $a_1$-periods (around $[0,1]$) are clean, but the $a_2$-periods require integrating along non-trivial paths.
+
+Let me try a completely different approach. Instead of trying to compute all periods as beta functions, let me use the automorphism to relate them.
+
+**Using the automorphism to compute the period matrix:**
+
+The automorphism $\sigma: (x,y) \to (ix, e^{i\pi/4}y)$ acts on the holomorphic differentials as:
+$\sigma^*\omega_1 = e^{i\pi/4}\omega_1$
+$\sigma^*\omega_2 = e^{3i\pi/4}\omega_2$
+
+It also acts on $H_1(X, \mathbb{Z})$. Let $\sigma_*$ denote the induced action on homology.
+
+The period matrix satisfies:
+$\int_{\sigma_*(\gamma)} \omega_i = \int_\gamma \sigma^*\omega_i$
+
+So if $\sigma_*(a_j) = \sum_k m_{jk} a_k + \sum_k n_{jk} b_k$, then:
+$\sum_k m_{jk} A_{ik} + \sum_k n_{jk} B_{ik} = \lambda_i \cdot (\text{periods of } a_j)$
+
+where $\lambda_1 = e^{i\pi/4}$, $\lambda_2 = e^{3i\pi/4}$.
+
+This gives relations between the periods. But to use this, I need to know the action of $\sigma$ on homology, which requires understanding the topology.
+
+Let me try yet another approach. Let me use the fact that the curve has an automorphism of order 4 (mod hyperelliptic involution) to decompose the Jacobian.
+
+Actually, I recall that for the curve $y^2 = x^5 - x$, the Jacobian is isogenous (actually isomorphic) to the product of two elliptic curves with CM. Wait, no — I showed above that the CM type is primitive, so the Jacobian is simple. Let me re-examine.
+
+The CM type is $\{1, 3\}$. The reflex type is $\{1, 5\}$ (or something). For $\mathbb{Q}(\zeta_8)$, the subfields are $\mathbb{Q}(i)$ and $\mathbb{Q}(\sqrt{2})$. The CM type $\{1, 3\}$: is this primitive?
+
+A CM type $\Phi$ is primitive if it's not induced from a CM type of a proper CM subfield. The proper CM subfields of $\mathbb{Q}(\zeta_8)$ are $\mathbb{Q}(i)$ (with CM type $\{1\}$, where we identify $\text{Gal}(\mathbb{Q}(i)/\mathbb{Q}) = \{1, 3\} \subset (\mathbb{Z}/8)^*$). The restriction of the type $\{1, 3\}$ to $\mathbb{Q}(i)$ gives $\{1\}|_{\mathbb{Q}(i)} \cup \{3\}|_{\mathbb{Q}(i)} = \{1, 3\}|_{\mathbb{Q}(i)}$. But $\text{Gal}(\mathbb{Q}(i)/\mathbb{Q}) = \{1, c\}$ where $c$ is complex conjugation. Under the restriction map $(\mathbb{Z}/8)^* \to \text{Gal}(\mathbb{Q}(i)/\mathbb{Q})$, both 1 and 3 restrict to the identity (since $\zeta_8 \mapsto \zeta_8$ and $\zeta_8 \mapsto \zeta_8^3$ both send $i = \zeta_8^2$ to $i$ and $i^3 = -i$ respectively... wait, $\zeta_8^2 = i$, so $\phi_1(i) = i$ and $\phi_3(i) = \zeta_8^6 = -i$. So 1 restricts to the identity on $\mathbb{Q}(i)$ and 3 restricts to complex conjugation on $\mathbb{Q}(i)$.
+
+So the CM type $\{1, 3\}$ restricted to $\mathbb{Q}(i)$ is $\{\text{id}, c\}$, which is the full CM type of $\mathbb{Q}(i)$. This means $\{1, 3\}$ is induced from the CM type of $\mathbb{Q}(i)$! So the CM type is NOT primitive, and the Jacobian is isogenous to a product of elliptic curves with CM by $\mathbb{Z}[i]$.
+
+Wait, let me be more careful. A CM type $\Phi$ of $K$ is induced from a CM subfield $K'$ if $\Phi = \{\phi \in \text{Hom}(K, \mathbb{C}) : \phi|_{K'} \in \Phi'\}$ for some CM type $\Phi'$ of $K'$. 
+
+$K = \mathbb{Q}(\zeta_8)$, $K' = \mathbb{Q}(i)$. $\text{Hom}(K, \mathbb{C}) = \{\phi_1, \phi_3, \phi_5, \phi_7\}$. $\text{Hom}(K', \mathbb{C}) = \{\text{id}, c\}$. $\phi_1|_{K'} = \text{id}$, $\phi_3|_{K'} = c$, $\phi_5|_{K'} = \text{id}$, $\phi_7|_{K'} = c$.
+
+If $\Phi' = \{\text{id}\}$, then $\Phi = \{\phi \in \text{Hom}(K,\mathbb{C}) : \phi|_{K'} = \text{id}\} = \{\phi_1, \phi_5\}$.
+If $\Phi' = \{c\}$, then $\Phi = \{\phi_3, \phi_7\}$.
+
+Our type is $\{1, 3\}$, which is neither $\{1, 5\}$ nor $\{3, 7\}$. So it's NOT induced from $\mathbb{Q}(i)$.
+
+What about $\mathbb{Q}(\sqrt{-2})$? This is another CM subfield of $\mathbb{Q}(\zeta_8)$. $\sqrt{-2} = \zeta_8 - \zeta_8^{-1} = \zeta_8 - \zeta_8^7$. Under $\phi_1$: $\phi_1(\sqrt{-2}) = \zeta_8 - \zeta_8^7 = \sqrt{-2}$. Under $\phi_3$: $\phi_3(\sqrt{-2}) = \zeta_8^3 - \zeta_8^{21} = \zeta_8^3 - \zeta_8^5$. $\zeta_8^3 = e^{3\pi i/4}$, $\zeta_8^5 = e^{5\pi i/4}$. $\zeta_8^3 - \zeta_8^5 = e^{3\pi i/4} - e^{5\pi i/4} = 2i\sin(3\pi/4) = 2i \cdot \frac{\sqrt{2}}{2} = i\sqrt{2}$. And $\sqrt{-2} = i\sqrt{2}$. So $\phi_3(\sqrt{-2}) = i\sqrt{2} = \sqrt{-2}$. So both $\phi_1$ and $\phi_3$ restrict to the identity on $\mathbb{Q}(\sqrt{-2})$.
+
+Hmm, so $\{1, 3\}$ restricted to $\mathbb{Q}(\sqrt{-2})$ is $\{\text{id}, \text{id}\}$, which is just $\{\text{id}\}$ (as a set). The CM type of $\mathbb{Q}(\sqrt{-2})$ is $\{\text{id}\}$. And $\{\phi \in \text{Hom}(K,\mathbb{C}) : \phi|_{\mathbb{Q}(\sqrt{-2})} = \text{id}\} = \{\phi_1, \phi_3\}$ (since $\phi_5(\sqrt{-2}) = \zeta_8^5 - \zeta_8^{35} = \zeta_8^5 - \zeta_8^3 = -(\zeta_8^3 - \zeta_8^5) = -i\sqrt{2} = -\sqrt{-2}$, so $\phi_5$ restricts to $c$; similarly $\phi_7$ restricts to $c$).
+
+So $\{1, 3\} = \{\phi \in \text{Hom}(K,\mathbb{C}) : \phi|_{\mathbb{Q}(\sqrt{-2})} = \text{id}\}$, which means the CM type IS induced from $\mathbb{Q}(\sqrt{-2})$!
+
+So the Jacobian is isogenous to $E^2$ where $E$ is an elliptic curve with CM by $\mathbb{Z}[\sqrt{-2}]$ (the ring of integers of $\mathbb{Q}(\sqrt{-2})$).
+
+Hmm wait, but isogenous to $E^2$ doesn't mean isomorphic to $E^2$. The Jacobian could be simple but isogenous to a product. Actually, if the CM type is induced from a subfield, then the abelian variety is isogenous to a power of an elliptic curve (or a product of lower-dimensional abelian varieties). But it might not be isomorphic to that product.
+
+Actually, I need to be more careful. If the CM type is induced from $K' = \mathbb{Q}(\sqrt{-2})$, then the abelian variety is isogenous to $E^2$ where $E$ has CM by $\mathcal{O}_{K'}$. But the Jacobian itself might not split as a product.
+
+Hmm, but actually for genus 2 curves with CM, if the CM type is induced, the Jacobian is isogenous (but not necessarily isomorphic) to a product of elliptic curves. The curve $y^2 = x^5 - x$ is a well-known example.
+
+Actually, I recall that the curve $y^2 = x^5 - x$ is related to the elliptic curve $y^2 = x^3 - x$ (which has CM by $\mathbb{Z}[i]$) via a covering. Let me think...
+
+The curve $y^2 = x^5 - x = x(x^4-1)$. If we substitute $x = u^2$, we get $y^2 = u^2(u^8-1)$, so $y = u\sqrt{u^8-1}$, which doesn't simplify. If we substitute $x^2 = t$, then $y^2 = t^{1/2}(t^2-1)$... no.
+
+Actually, the curve $y^2 = x^5 - x$ is a double cover of the elliptic curve $v^2 = u^3 - u$ (which has CM by $\mathbb{Z}[i]$) via the map $(x, y) \to (x^2, xy)$. Let me check: if $u = x^2$ and $v = xy$, then $v^2 = x^2 y^2 = x^2 \cdot x(x^4-1) = x^3(x^4-1) = u \cdot u^2 \cdot (u^2-1)/u$... hmm, let me redo.
+
+$v^2 = x^2 y^2 = x^2 \cdot (x^5-x) = x^7 - x^3 = x^3(x^4-1)$. And $u = x^2$, so $u^3 = x^6$ and $u = x^2$. $v^2 = x^3(x^4-1) = x \cdot x^2(x^4-1) = x \cdot u(u^2-1)$. But $x = \sqrt{u}$, so $v^2 = \sqrt{u} \cdot u(u^2-1) = u^{3/2}(u^2-1)$. This doesn't give $v^2 = u^3 - u$.
+
+Let me try the map $(x,y) \to (u,v) = (x^2, yx)$. Then $v^2 = y^2 x^2 = (x^5-x)x^2 = x^7 - x^3$. And $u^3 - u = x^6 - x^2 = x^2(x^4-1)$. So $v^2 = x^3(x^4-1) = x \cdot x^2(x^4-1) = x(u^3-u)$. So $v^2 = x(u^3-u)$, and $x = \sqrt{u}$, so $v^2 = \sqrt{u}(u^3-u)$. Not an elliptic curve.
+
+How about the map $u = x^2, v = y$? Then $v^2 = x^5-x = x(x^4-1) = \sqrt{u}(u^2-1)$. Not clean.
+
+Let me try $u = x^2, w = y/x$. Then $w^2 = y^2/x^2 = (x^5-x)/x^2 = x^3 - x^{-1} = x(x^2 - x^{-2}) = \sqrt{u}(u - u^{-1}) = \sqrt{u} \cdot (u^2-1)/u$. Still not clean.
+
+Hmm. Let me try a different map. Consider $u = x^2, v = y$. Then $v^2 = x(x^4-1) = x^{1/2} \cdot x^{1/2}(x^4-1) = u^{1/4} \cdot ... $. No.
+
+Actually, let me think about this differently. The curve $C: y^2 = x^5 - x$ has an automorphism $\sigma: (x,y) \to (ix, e^{i\pi/4}y)$ of order 4 (mod hyperelliptic involution). The quotient $C/\langle\sigma\rangle$ has genus... by Riemann-Hurwitz, $2g(C) - 2 = |G|(2g(C/G) - 2) + \sum(e_P - 1)$. Here $g(C) = 2$, $|G| = 4$ (the group generated by $\sigma$ modulo hyperelliptic involution has order 4; but actually $\sigma$ has order 8, and $\sigma^4 = \iota$ is the hyperelliptic involution, so the group $\langle\sigma\rangle$ has order 8, and $C \to C/\langle\sigma\rangle$ has degree 8).
+
+Let me use the group $G = \langle\sigma\rangle$ of order 8. The fixed points of $\sigma$: $\sigma(x,y) = (x,y)$ requires $ix = x$, so $x = 0$ (and then $y = 0$). So the only fixed point of $\sigma$ is $(0,0)$. But $(0,0)$ is a branch point of the hyperelliptic cover, so it's a Weierstrass point.
+
+Fixed points of $\sigma^2: (x,y) \to (-x, iy)$. $\sigma^2(x,y) = (x,y)$ requires $-x = x$, so $x = 0$, $y = 0$. Same point.
+
+Actually, the fixed points of $\sigma^2$ on the curve: $-x = x \Rightarrow x = 0$, and then $y^2 = 0$, so $y = 0$. Just the point $(0,0)$.
+
+The quotient $C/\langle\sigma^2\rangle$: $\sigma^2$ has order 4 (since $\sigma^4 = \iota$, $\sigma^8 = \text{id}$, and $\sigma^2$ has order 4). By Riemann-Hurwitz: $2 \cdot 2 - 2 = 4(2g' - 2) + \sum(e_P - 1)$. The fixed points of $\sigma^2$: only $(0,0)$, with $e = 4$. So $2 = 4(2g'-2) + 3 = 4(2g'-2) + 3$, giving $4(2g'-2) = -1$, which is impossible. So I must be missing some fixed points.
+
+Let me reconsider. $\sigma^2: (x,y) \to (-x, iy)$. Fixed points: $-x = x \Rightarrow x = 0$, $iy = y \Rightarrow y = 0$ (since $i \neq 1$). So the only fixed point is $(0,0)$. But $\sigma^2$ has order 4, and $(0,0)$ is fixed by $\sigma^2$, so the stabilizer of $(0,0)$ in $\langle\sigma^2\rangle$ is the full group of order 4.
+
+But we also need to consider the point at infinity. The point at infinity on $C$ — let's call it $\infty_C$. $\sigma(\infty_C) = \infty_C$ (since $\sigma$ fixes $\infty$ on the $x$-sphere). So $\infty_C$ is fixed by $\sigma$ and hence by $\sigma^2$.
+
+So the fixed points of $\sigma^2$ are $(0,0)$ and $\infty_C$, each with stabilizer of order 4 (the full $\langle\sigma^2\rangle$).
+
+Riemann-Hurwitz: $2 = 4(2g'-2) + (4-1) + (4-1) = 4(2g'-2) + 6$. So $4(2g'-2) = -4$, $g' = 1/2$. That's not an integer either. Something is wrong.
+
+Let me reconsider the order of $\sigma^2$. $\sigma: (x,y) \to (ix, e^{i\pi/4}y)$. $\sigma^2: (x,y) \to (-x, e^{i\pi/2}y) = (-x, iy)$. $\sigma^4: (x,y) \to (x, e^{i\pi}y) = (x, -y) = \iota(x,y)$. So $\sigma^4 = \iota$ (hyperelliptic involution). $\sigma^8 = \text{id}$.
+
+The group $G = \langle\sigma\rangle$ has order 8. The quotient $C/G$ has genus $g''$. Riemann-Hurwitz: $2 \cdot 2 - 2 = 8(2g'' - 2) + \sum(e_P - 1)$.
+
+Fixed points of $\sigma$: $(0,0)$ and $\infty_C$. Stabilizer of $(0,0)$: $\sigma(0,0) = (0,0)$, so the stabilizer is $\langle\sigma\rangle$ of order 8, $e = 8$. Similarly for $\infty_C$.
+
+But wait, are there other fixed points? $\sigma(x,y) = (ix, e^{i\pi/4}y) = (x,y)$ requires $ix = x$, so $x(ix-1) = 0$, giving $x = 0$ (and $y = 0$). And $\sigma^k$ for $k = 2, 3, 4, 5, 6, 7$:
+
+$\sigma^2(x,y) = (-x, iy)$: fixed when $x = 0, y = 0$.
+$\sigma^3(x,y) = (-ix, e^{3i\pi/4}y)$: fixed when $-ix = x$, i.e., $x(-i-1) = 0$, so $x = 0, y = 0$.
+$\sigma^4 = \iota$: fixed when $y = 0$, i.e., $x^5 = x$, so $x \in \{0, 1, -1, i, -i\}$ and $y = 0$. Plus $\infty_C$. So 6 fixed points (the Weierstrass points).
+$\sigma^5(x,y) = (ix, e^{5i\pi/4}y)$: fixed when $ix = x$, $x = 0, y = 0$.
+$\sigma^6(x,y) = (-x, e^{3i\pi/2}y) = (-x, -iy)$: fixed when $x = 0, y = 0$.
+$\sigma^7(x,y) = (-ix, e^{7i\pi/4}y)$: fixed when $-ix = x$, $x = 0, y = 0$.
+
+So the fixed points:
+- $(0,0)$: fixed by all powers of $\sigma$, stabilizer = $G$, order 8, $e = 8$.
+- $\infty_C$: fixed by all powers of $\sigma$ (since $\sigma$ fixes $\infty$), stabilizer = $G$, order 8, $e = 8$.
+- $(1,0), (-1,0), (i,0), (-i,0)$: fixed only by $\sigma^4 = \iota$, stabilizer = $\langle\iota\rangle$ of order 2, $e = 2$.
+
+Riemann-Hurwitz: $2 = 8(2g''-2) + (8-1) + (8-1) + 4 \cdot (2-1) = 8(2g''-2) + 7 + 7 + 4 = 8(2g''-2) + 18$.
+$8(2g''-2) = 2 - 18 = -16$, $2g'' - 2 = -2$, $g'' = 0$.
+
+So $C/G \cong \mathbb{P}^1$. Good.
+
+Now, the quotient by $\langle\sigma^4\rangle = \langle\iota\rangle$ is $\mathbb{P}^1$ (the $x$-sphere), which we already knew. The quotient by $\langle\sigma^2\rangle$ (order 4):
+
+$\sigma^2: (x,y) \to (-x, iy)$. Fixed points of $\sigma^2$: $(0,0)$ and $\infty_C$ (as computed). But also fixed points of $\sigma^2$ that are not fixed by $\sigma^2$ itself but by some power... no, for Riemann-Hurwitz with the group $H = \langle\sigma^2\rangle$ of order 4, we need all points with non-trivial stabilizer in $H$.
+
+Stabilizers in $H = \{1, \sigma^2, \sigma^4, \sigma^6\}$:
+- $(0,0)$: fixed by $\sigma^2$ (and all of $H$), stabilizer = $H$, order 4, $e = 4$.
+- $\infty_C$: fixed by all of $H$, $e = 4$.
+- $(1,0), (-1,0), (i,0), (-i,0)$: fixed by $\sigma^4 = \iota$, stabilizer = $\langle\iota\rangle = \langle\sigma^4\rangle$ of order 2, $e = 2$.
+
+Riemann-Hurwitz: $2 = 4(2g'-2) + (4-1) + (4-1) + 4(2-1) = 4(2g'-2) + 3 + 3 + 4 = 4(2g'-2) + 10$.
+$4(2g'-2) = -8$, $g' = 0$.
+
+So $C/\langle\sigma^2\rangle \cong \mathbb{P}^1$ as well.
+
+Now the quotient by $\langle\sigma^4, \sigma^2\rangle = \langle\sigma^2\rangle$ is $\mathbb{P}^1$, and the quotient by $\langle\sigma^4\rangle = \langle\iota\rangle$ is also $\mathbb{P}^1$ (the $x$-sphere). The map $C/\langle\iota\rangle \to C/\langle\sigma^2\rangle$ is a degree 2 map $\mathbb{P}^1 \to \mathbb{P}^1$.
+
+What about the quotient by $\langle\sigma^4\rangle$ vs. $C$? We have $C \to C/\langle\iota\rangle = \mathbb{P}^1_x$ (degree 2) and $C \to C/\langle\sigma^2\rangle = \mathbb{P}^1$ (degree 4).
+
+The intermediate quotient $C/\langle\sigma^4\rangle = \mathbb{P}^1_x$ maps to $C/\langle\sigma^2\rangle$ by the map induced by $\sigma^2$ on the $x$-sphere. On the $x$-sphere, $\sigma^2: x \to -x$, so the quotient map is $x \to x^2$ (or $u = x^2$). So $C/\langle\sigma^2\rangle$ is the $u$-sphere where $u = x^2$.
+
+Now, the Jacobian of $C$ has an action of $\mathbb{Z}[\zeta_8]$. The decomposition of the Jacobian under this action... 
+
+Actually, let me think about the quotient $C \to C/\langle\sigma^2\rangle$. This is a degree 4 map. The Prym variety of this covering would be a 2-dimensional abelian variety (since $g(C) - g(C/\langle\sigma^2\rangle) = 2 - 0 = 2$), which is the Jacobian itself (since $g(C/\langle\sigma^2\rangle) = 0$).
+
+Hmm, this isn't leading anywhere productive. Let me go back to directly computing the periods.
+
+Let me try a different set of cuts. I'll use:
+- $c_1 = [-1, 0]$ (real axis)
+- $c_2 = [0, 1]$ (real axis)
+
+Wait, these share the endpoint 0. In some formulations, this is OK — the cuts $[-1, 0]$ and $[0, 1]$ together form the cut $[-1, 1]$, and the branch point 0 is in the interior. But then we have only 2 cuts for 5 finite branch points + $\infty$, which gives genus... the number of cuts is $g = 2$, so we need 3 cuts (since $2g+1 = 5$ branch points finite + 1 at infinity = 6, and we need $g = 2$ cuts, i.e., 3 cuts pairing 6 branch points).
+
+Hmm wait, for a hyperelliptic curve $y^2 = f(x)$ with $\deg f = 2g+1$, there are $2g+2$ branch points (including $\infty$), and we make $g+1$ cuts pairing them up. Wait no, we make $g$ cuts... let me recall.
+
+For $y^2 = f(x)$ with $\deg f = 2g+1$ (odd), the branch points are the $2g+1$ roots of $f$ plus $\infty$, totaling $2g+2$. We make $g+1$ cuts pairing them. The genus is $g$.
+
+For our curve, $g = 2$, $\deg f = 5$, so 6 branch points and 3 cuts. ✓
+
+So I need 3 cuts. Let me use:
+- $c_1 = [-1, 0]$
+- $c_2 = [0, 1]$
+
+These share the endpoint 0. That's only 2 cuts covering 3 branch points ($-1, 0, 1$). I need one more cut for the remaining branch points $i, -i, \infty$:
+- $c_3 = [i, -i]$ (some path from $i$ to $-i$) — but this leaves $\infty$ unpaired!
+- $c_3 = [i, \infty]$ — but this leaves $-i$ unpaired!
+
+So I can't have both $c_1 = [-1, 0]$ and $c_2 = [0, 1]$ because they share the endpoint 0, leaving only 3 branch points ($i, -i, \infty$) for 1 cut, which can only pair 2 of them.
+
+OK so I really do need 3 disjoint cuts. Let me use:
+- $c_1 = [-1, 0]$
+- $c_2 = [1, i]$
+- $c_3 = [-i, \infty]$
+
+$a_1$ encircles $[-1, 0]$, $a_2$ encircles $[1, i]$.
+$b_1$ goes from $[-1, 0]$ to $[-i, \infty]$, $b_2$ goes from $[1, i]$ to $[-i, \infty]$.
+
+**$a_1$-periods** (encircling $[-1, 0]$):
+$A_{11} = 2I_0(-1, 0) = 2 \cdot \frac{\sqrt{\pi}}{4}\frac{\Gamma(1/8)}{\Gamma(5/8)} = \frac{\sqrt{\pi}}{2}\frac{\Gamma(1/8)}{\Gamma(5/8)}$
+$A_{21} = 2I_1(-1, 0) = 2 \cdot (-\frac{\sqrt{\pi}}{4})\frac{\Gamma(3/8)}{\Gamma(7/8)} = -\frac{\sqrt{\pi}}{2}\frac{\Gamma(3/8)}{\Gamma(7/8)}$
+
+**$a_2$-periods** (encircling $[1, i]$): $A_{k2} = 2\int_1^i \frac{x^{k-1}dx}{\sqrt{x^5-x}}$ along a path from 1 to $i$.
+
+Let me use the path along the unit circle from 1 to $i$: $x = e^{i\theta}$, $\theta$ from 0 to $\pi/2$. Then $dx = ie^{i\theta}d\theta$, $x^5 - x = e^{5i\theta} - e^{i\theta} = e^{i\theta}(e^{4i\theta} - 1)$.
+
+$\sqrt{x^5-x} = e^{i\theta/2}\sqrt{e^{4i\theta}-1}$
+
+For $\theta \in (0, \pi/2)$: $4i\theta \in (0, 2\pi)$, so $e^{4i\theta}$ goes from 1 around the unit circle. $e^{4i\theta} - 1 = 2i\sin(2\theta)e^{2i\theta}$. So $\sqrt{e^{4i\theta}-1} = \sqrt{2i\sin(2\theta)}e^{i\theta} = \sqrt{2\sin(2\theta)}e^{i\pi/4}e^{i\theta}$.
+
+$\sqrt{x^5-x} = e^{i\theta/2} \cdot \sqrt{2\sin(2\theta)}e^{i\pi/4}e^{i\theta} = \sqrt{2\sin(2\theta)}e^{i\pi/4}e^{3i\theta/2}$
+
+$\frac{x^{k-1}dx}{\sqrt{x^5-x}} = \frac{e^{i(k-1)\theta} \cdot ie^{i\theta}d\theta}{\sqrt{2\sin(2\theta)}e^{i\pi/4}e^{3i\theta/2}} = \frac{i \cdot e^{ik\theta - 3i\theta/2 - i\pi/4}}{\sqrt{2\sin(2\theta)}}d\theta = \frac{e^{i\pi/2}e^{i(k-3/2)\theta - i\pi/4}}{\sqrt{2\sin(2\theta)}}d\theta = \frac{e^{i\pi/4}e^{i(k-3/2)\theta}}{\sqrt{2\sin(2\theta)}}d\theta$
+
+$\int_1^i \frac{x^{k-1}dx}{\sqrt{x^5-x}} = e^{i\pi/4}\int_0^{\pi/2} \frac{e^{i(k-3/2)\theta}}{\sqrt{2\sin(2\theta)}}d\theta$
+
+This is an integral involving $e^{i\alpha\theta}/\sqrt{\sin(2\theta)}$, which can be expressed in terms of beta functions.
+
+$\int_0^{\pi/2} \frac{e^{i\alpha\theta}}{\sqrt{\sin(2\theta)}}d\theta$
+
+Let $\phi = 2\theta$, $d\theta = d\phi/2$:
+$= \frac{1}{2}\int_0^{\pi} \frac{e^{i\alpha\phi/2}}{\sqrt{\sin\phi}}d\phi$
+
+Now, $\int_0^{\pi} \frac{e^{i\beta\phi}}{\sqrt{\sin\phi}}d\phi = \int_0^{\pi} \frac{\cos(\beta\phi) + i\sin(\beta\phi)}{\sqrt{\sin\phi}}d\phi$.
+
+By symmetry $\phi \to \pi - \phi$: $\sin(\pi-\phi) = \sin\phi$, $\cos(\beta(\pi-\phi)) = \cos(\beta\pi - \beta\phi) = \cos(\beta\pi)\cos(\beta\phi) + \sin(\beta\pi)\sin(\beta\phi)$, $\sin(\beta(\pi-\phi)) = \sin(\beta\pi - \beta\phi) = \sin(\beta\pi)\cos(\beta\phi) - \cos(\beta\pi)\sin(\beta\phi)$.
+
+$\int_0^{\pi} \frac{\cos(\beta\phi)}{\sqrt{\sin\phi}}d\phi = \int_0^{\pi} \frac{\cos(\beta(\pi-\phi))}{\sqrt{\sin\phi}}d\phi = \cos(\beta\pi)\int_0^{\pi}\frac{\cos(\beta\phi)}{\sqrt{\sin\phi}}d\phi + \sin(\beta\pi)\int_0^{\pi}\frac{\sin(\beta\phi)}{\sqrt{\sin\phi}}d\phi$
+
+This gives $(1 - \cos(\beta\pi))\int_0^{\pi}\frac{\cos(\beta\phi)}{\sqrt{\sin\phi}}d\phi = \sin(\beta\pi)\int_0^{\pi}\frac{\sin(\beta\phi)}{\sqrt{\sin\phi}}d\phi$.
+
+Similarly, $\int_0^{\pi}\frac{\sin(\beta\phi)}{\sqrt{\sin\phi}}d\phi = \int_0^{\pi}\frac{\sin(\beta(\pi-\phi))}{\sqrt{\sin\phi}}d\phi = \sin(\beta\pi)\int_0^{\pi}\frac{\cos(\beta\phi)}{\sqrt{\sin\phi}}d\phi - \cos(\beta\pi)\int_0^{\pi}\frac{\sin(\beta\phi)}{\sqrt{\sin\phi}}d\phi$
+
+$(1+\cos(\beta\pi))\int_0^{\pi}\frac{\sin(\beta\phi)}{\sqrt{\sin\phi}}d\phi = \sin(\beta\pi)\int_0^{\pi}\frac{\cos(\beta\phi)}{\sqrt{\sin\phi}}d\phi$
+
+From the first: $\frac{\int \sin}{\int \cos} = \frac{1-\cos(\beta\pi)}{\sin(\beta\pi)} = \tan(\beta\pi/2)$.
+
+From the second: $\frac{\int \sin}{\int \cos} = \frac{\sin(\beta\pi)}{1+\cos(\beta\pi)} = \tan(\beta\pi/2)$. ✓ Consistent.
+
+So $\int_0^{\pi}\frac{e^{i\beta\phi}}{\sqrt{\sin\phi}}d\phi = \int_0^{\pi}\frac{\cos(\beta\phi)}{\sqrt{\sin\phi}}d\phi \cdot (1 + i\tan(\beta\pi/2)) = \int_0^{\pi}\frac{\cos(\beta\phi)}{\sqrt{\sin\phi}}d\phi \cdot \frac{e^{i\beta\pi/2}}{\cos(\beta\pi/2)}$
+
+Now I need $\int_0^{\pi}\frac{\cos(\beta\phi)}{\sqrt{\sin\phi}}d\phi$. There's a known formula:
+
+$\int_0^{\pi} (\sin\phi)^{s-1} e^{i\beta\phi} d\phi = \frac{\pi e^{i\beta\pi/2} \Gamma(s)}{2^{s-1}\Gamma((s+1+i\beta)/2)\Gamma((s+1-i\beta)/2)} \cdot \frac{1}{\text{something}}$...
+
+Actually, let me use a different approach. There's a standard result:
+
+$\int_0^{\pi} (\sin\phi)^{\nu-1} e^{i\mu\phi} d\phi = \frac{\pi \Gamma(\nu) e^{i\mu\pi/2}}{2^{\nu-1} \Gamma\left(\frac{\nu+\mu+1}{2}\right) \Gamma\left(\frac{\nu-\mu+1}{2}\right)} \cdot \frac{1}{\cos(\mu\pi/2)}$
+
+Hmm, I'm not sure about the exact formula. Let me try a different approach.
+
+$\int_0^{\pi} (\sin\phi)^{s-1} d\phi = B(s/2, 1/2) = \frac{\sqrt{\pi}\,\Gamma(s/2)}{\Gamma((s+1)/2)}$ (for the case $\beta = 0$).
+
+For general $\beta$, I can use the substitution $t = e^{2i\phi}$ or use the formula involving the Beta function with complex arguments.
+
+Actually, let me use a different substitution. Let $u = \sin^2\phi$, then $\phi = \arcsin(\sqrt{u})$, $d\phi = \frac{du}{2\sqrt{u(1-u)}}$, $\sin\phi = \sqrt{u}$.
+
+$\int_0^{\pi} (\sin\phi)^{s-1} e^{i\beta\phi} d\phi = \int_0^1 u^{(s-1)/2} e^{i\beta\arcsin(\sqrt{u})} \frac{du}{\sqrt{u(1-u)}}$
+
+This doesn't simplify nicely because of the $\arcsin$ in the exponent.
+
+Let me try yet another approach. Use the identity:
+
+$\int_0^{\pi} (\sin\phi)^{s-1} e^{i\beta\phi} d\phi = \frac{\pi e^{i\beta\pi/2}}{2^{s-1}} \cdot \frac{\Gamma(s)}{\Gamma\

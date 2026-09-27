@@ -1,0 +1,1800 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   Suppose $u$ is a harmonic function on the exterior of the unit disk, $u \in \text{har}(\mathbb{C} \setminus \mathbb{D})$, that vanishes on the boundary of the unit disk and at infinity. Prove that $u$ is identically zero in $\mathbb{C} \setminus \mathbb{D}$.       — 题目文本
+#   Okay, so I need to prove that a harmonic function u defined on the exterior of the unit disk, which is harmonic there, vanishes on the boundary (so when |z|=1) and also at infinity, must be identically zero everywhere in the exterior of the unit disk. Hmm, harmonic functions... Okay, harmonic functions satisfy the mean value property, right? So maybe that's useful. Also, since it's defined on the exterior of the unit disk, maybe I can use some kind of transformation to turn it into a problem on the unit disk? Because the exterior of the unit disk is kind of like the unit disk with the origin removed if we invert the coordinates. Let me think.
+
+If I take the inversion in the unit circle, that is, consider the transformation w = 1/z. Then the exterior of the unit disk in the z-plane (|z| > 1) corresponds to the punctured unit disk in the w-plane (0 < |w| < 1). The boundary |z| =1 becomes |w|=1, and the point at infinity in the z-plane becomes w=0. So maybe by transforming u(z) into a function on the punctured unit disk in the w-plane, I can extend it to the entire unit disk and apply some theorem?
+
+Wait, the function u is harmonic on the exterior of the unit disk, which under inversion becomes harmonic on the punctured unit disk. But harmonicity is preserved under conformal mappings, right? Because harmonic functions are preserved under conformal transformations. So if u(z) is harmonic in |z| >1, then u(1/w) should be harmonic in 0 < |w| <1. But u vanishes on |z|=1, so u(1/w) vanishes on |w|=1. Also, u tends to zero as |z| tends to infinity, which corresponds to w approaching zero. So u(1/w) tends to zero as w approaches zero. So the transformed function, let's call it v(w) = u(1/w), is harmonic in the punctured unit disk 0 < |w| <1, continuous on the closure (since it's zero on the boundary |w|=1 and as w approaches 0), and is harmonic except possibly at w=0. But since v(w) tends to zero as w approaches 0, maybe we can extend v(w) to w=0 by defining v(0)=0, making v(w) harmonic in the entire unit disk |w| <=1?
+
+Wait, there's a theorem called removable singularity theorem for harmonic functions. If a harmonic function is defined in a punctured disk and has a removable singularity at the center, which in this case, since the limit exists (tends to zero) as w approaches 0, then we can extend v(w) to be harmonic at w=0. So then v(w) is harmonic on the entire unit disk |w| <1, continuous on the closed disk, and zero on the boundary |w|=1. Then by the maximum principle for harmonic functions, the maximum and minimum of v(w) in the closed disk occur on the boundary. But the boundary values are zero, so v(w) is identically zero in the unit disk. Therefore, u(z) is identically zero in the exterior of the unit disk.
+
+Wait, is that right? Let me check. So if v(w) is harmonic in the unit disk with v=0 on the boundary, then yes, by the maximum and minimum principle, since harmonic functions attain their maxima and minima on the boundary if the domain is bounded, then v must be zero everywhere. Then since u(z) = v(1/z), u(z) is zero everywhere. That seems to work. But maybe I need to be more careful about the removable singularity part.
+
+So, to recall, if a function is harmonic in a punctured disk around a point and is bounded near that point, then the singularity is removable. In this case, v(w) tends to zero as w approaches 0, so it's bounded (since it's going to zero), so the singularity at w=0 is removable. Therefore, v(w) can be extended to a harmonic function on the entire disk. Then applying the maximum principle: since the extended v(w) is harmonic on the closed unit disk, and zero on the boundary, it must be zero everywhere. Hence, u(z) is zero everywhere in the exterior disk.
+
+Alternatively, maybe I can use the maximum principle directly on the exterior domain. But usually, the maximum principle for harmonic functions requires the domain to be bounded. The exterior of the unit disk is unbounded, but since u tends to zero at infinity, perhaps we can still apply some version of the maximum principle. Let me think.
+
+Suppose u is harmonic in the exterior of the unit disk, continuous up to the boundary, and tends to zero at infinity. Suppose u is not identically zero. Then, if u attains a positive maximum or a negative minimum in the exterior domain, but since it's going to zero at infinity, any extremum would have to be attained somewhere in the exterior. But wait, harmonic functions on unbounded domains can have their extrema at infinity. Hmm. However, since u tends to zero at infinity, for any epsilon >0, there exists R such that |u(z)| < epsilon for |z| > R. So if u has a maximum in the closed exterior disk (|z| >=1), it must be attained either on the boundary |z|=1 or somewhere in the interior |z| >1. But since u is zero on |z|=1, and tends to zero at infinity, if there's a point where u is positive, say, then near that point, u would be positive, but approaching zero as we go to infinity. So the maximum would have to be attained somewhere in the exterior. But harmonic functions don't have local maxima or minima unless they are constant. Therefore, if u is non-constant, it cannot have local maxima or minima. But since u is zero on the boundary and at infinity, if u were positive somewhere, it would have to have a maximum somewhere, which contradicts the maximum principle. Therefore, u must be constant, and since it's zero on the boundary and at infinity, it must be zero everywhere.
+
+Wait, that seems like a different approach but also valid. So using the maximum principle on the unbounded domain, with the condition at infinity. But I need to make sure that the maximum principle applies here. In some textbooks, the maximum principle for unbounded domains requires the function to be bounded, which u is, since it tends to zero at infinity. So in this case, the maximum principle would state that the supremum of |u| is attained either on the boundary or at infinity. But since |u| is zero on the boundary and at infinity, then |u| must be zero everywhere. Hmm, that seems a more straightforward approach.
+
+So in summary, since u is harmonic on the exterior domain, continuous up to the boundary, vanishes on the boundary and at infinity, and harmonic functions on such domains satisfy the maximum principle where the maximum is attained on the boundary or at infinity. Since both are zero, u must be identically zero.
+
+Alternatively, using the inversion transformation to map the problem to a bounded domain, then applying the standard maximum principle. Either way, the conclusion is the same.
+
+Another approach might be using the mean value property. Since u is harmonic, for any point z in the exterior of the unit disk, the average of u over any circle centered at z with radius r (as long as the circle stays within the domain). But since u tends to zero at infinity, maybe integrating over large circles? Not sure. Let's see.
+
+Suppose we take a point z with |z| >1. Then, for any r >0 such that the circle of radius r around z doesn't intersect the unit disk. Wait, but the unit disk is in the interior, so if |z| >1, and r is small enough, then the circle of radius r around z is entirely in |z| >1. But the mean value property says that u(z) is equal to the average over that circle. However, how does that help? Maybe if we take large r? If we take a circle of radius R around the origin, with R > |z|, then the average over that circle would tend to zero as R tends to infinity, since u tends to zero. But how does that relate to u(z)?
+
+Alternatively, using the Poisson integral formula for the exterior domain. Wait, the Poisson formula is usually for the unit disk or the upper half-plane. For exterior domains, maybe there's a modified Poisson formula. Let me recall.
+
+For the exterior of the unit disk, harmonic functions can be represented using the Poisson integral formula with a negative term, or perhaps using a Laurent series expansion. Since u is harmonic in |z| >1 and vanishes at infinity, perhaps its Laurent series expansion has only negative powers. Wait, harmonic functions in the plane can be represented as the real part of a holomorphic function, right? So if u is harmonic in |z| >1, then it can be written as the real part of a holomorphic function f(z) defined there. Since u tends to zero at infinity, then f(z) must tend to a purely imaginary constant as z tends to infinity, but since we can adjust constants, maybe f(z) tends to zero. Wait, if u tends to zero, then the real part of f(z) tends to zero. So f(z) tends to a purely imaginary constant. But we can subtract that constant to make f(z) tend to zero. So perhaps f(z) is analytic at infinity? Let me recall that if a function is analytic at infinity, it has a Laurent series expansion in negative powers of z. So if f(z) is analytic in |z| >1 and tends to zero as z tends to infinity, then f(z) can be written as a sum from n=1 to infinity of a_n z^{-n}. Therefore, the Laurent series of u(z) would be the real part of such a function, hence a series with terms like r^{-n} cos(nθ) and r^{-n} sin(nθ).
+
+But u is also zero on the boundary |z|=1. So when r=1, u(1, θ) = 0. Therefore, substituting r=1 into the Laurent series, we get the Fourier series of the zero function. Therefore, all the coefficients must be zero. Hence, the Laurent series is identically zero, so u is zero everywhere.
+
+Wait, that seems like another valid approach. Let me elaborate. Suppose u is harmonic in |z| >1, vanishes on |z|=1, and tends to zero as |z| approaches infinity. Then, in the annulus (if we consider |z| >1 as an annulus extending to infinity), the Laurent series expansion of u in terms of r^{-n} e^{inθ} would hold. But since u tends to zero as r approaches infinity, all the coefficients for non-negative powers must be zero. Wait, actually, in the Laurent series for harmonic functions in the exterior domain, we have terms like r^{n} and r^{-n}, but because u tends to zero at infinity, the terms with positive powers of r (i.e., r^{n}) must vanish, leaving only terms with r^{-n}. But when r=1, the boundary condition u=0 would force all those coefficients to be zero as well. Therefore, the entire series is zero, hence u=0.
+
+Yes, that's another way. So using the Laurent expansion for harmonic functions in the exterior domain, combining the boundary condition at |z|=1 and the condition at infinity to conclude all coefficients are zero.
+
+So, in summary, there are multiple approaches: using inversion to map to the unit disk and applying maximum principle, using the maximum principle directly on the exterior domain with the condition at infinity, or using Laurent series expansion and Fourier analysis. All lead to the conclusion that u must be identically zero.
+
+I think the most straightforward is the inversion method, transforming the problem into the unit disk, extending the function to the puncture point, then using maximum principle. Let me write that one more carefully.
+
+Define w = 1/z, so that the exterior of the unit disk |z| >1 corresponds to the punctured unit disk 0 < |w| <1. Define v(w) = u(1/w). Then v is harmonic in 0 < |w| <1. Since u tends to zero as |z| approaches infinity, v(w) tends to zero as w approaches 0. Therefore, v(w) is bounded near w=0 (since it goes to zero), so by the removable singularity theorem for harmonic functions, v(w) can be extended to a harmonic function on the entire unit disk |w| <1. The extended function, which we still call v(w), is harmonic in |w| <1, continuous on |w| <=1, and equal to zero on |w|=1 (since u is zero on |z|=1). By the maximum principle for harmonic functions on the unit disk, v(w) must attain its maximum and minimum on the boundary |w|=1. But since v(w)=0 on the boundary, the maximum and minimum are both zero. Therefore, v(w) is identically zero in the unit disk, which implies u(z) = v(1/z) is identically zero in |z| >1. Hence, u is zero everywhere in the exterior of the unit disk.
+
+Therefore, the conclusion is that u must be identically zero.
+
+**Final Answer**
+\boxed{0}
+</think>
+
+To prove that a harmonic function \( u \) on the exterior of the unit disk \( \mathbb{C} \setminus \mathbb{D} \), which vanishes on the boundary of the unit disk and at infinity, is identically zero, we can use the following steps:
+
+1. **Inversion Transformation**: Consider the transformation \( w = 1/z \). This maps the exterior of the unit disk \( |z| > 1 \) to the punctured unit disk \( 0 < |w| < 1 \). The boundary \( |z| = 1 \) maps to \( |w| = 1 \), and the point at infinity maps to \( w = 0 \).
+
+2. **Define Transformed Function**: Define \( v(w) = u(1/w) \). Since \( u \) is harmonic on \( |z| > 1 \), \( v(w) \) is harmonic on \( 0 < |w| < 1 \). Additionally, \( u \) vanishing on \( |z| = 1 \) implies \( v \) vanishes on \( |w| = 1 \), and \( u \) tending to zero at infinity implies \( v(w) \to 0 \) as \( w \to 0 \).
+
+3. **Removable Singularity**: Since \( v(w) \) is harmonic in \( 0 < |w| < 1 \) and bounded near \( w = 0 \) (as it tends to zero), the singularity at \( w = 0 \) is removable. Thus, \( v(w) \) can be extended to a harmonic function on the entire unit disk \( |w| \leq 1 \).
+
+4. **Maximum Principle**: The extended function \( v(w) \) is harmonic on \( |w| \leq 1 \), continuous on the closed disk, and zero on the boundary \( |w| = 1 \). By the maximum principle for harmonic functions, the maximum and minimum of \( v(w) \) on the closed disk must occur on the boundary. Since \( v(w) = 0 \) on the boundary, \( v(w) \) must be identically zero in the entire unit disk.
+
+5. **Conclusion**: Since \( v(w) \) is identically zero, \( u(z) = v(1/z) \) must be identically zero in the exterior of the unit disk \( |z| > 1 \).
+
+Thus, we conclude that \( u \) is identically zero in \( \mathbb{C} \setminus \mathbb{D} \).
+
+\[
+\boxed{0}
+\]  — 标准解答
+#   Let me analyze this problem carefully. This is a topology/algebraic geometry problem about the blow-up of CP^3 at a planar nodal cubic curve.
+
+Let me think about the setup:
+- We have CP^3
+- We blow up along a planar nodal cubic curve C (a cubic curve with a node, lying in some plane P ≅ CP^2 inside CP^3)
+- The blow-up replaces the curve C with some exceptional divisor
+- At a smooth point of C, the blow-up of CP^3 along C locally replaces C with a CP^1-bundle (the projectivized normal bundle)
+- At the node, the situation is more complicated. The node is a singular point of C, so we need to understand what the "blow-up" does there.
+
+Wait, let me re-read the problem. "the blow-up of CP^3 at a planar nodal cubic curve" - this is the blow-up of CP^3 along the curve C.
+
+The problem mentions Q, "the smooth quadric surface replacing the node in the blow-up." So at the nodal point, the exceptional divisor over the node is a smooth quadric surface Q ≅ CP^1 × CP^1.
+
+Let me think about this more carefully.
+
+The curve C is a nodal cubic in a plane P ⊂ CP^3. The node is a point p where C has a node singularity (locally like xy = 0 in the plane).
+
+When we blow up CP^3 along C, we need to understand the exceptional divisor. Since C is singular at the node, the blow-up along the singular curve is more subtle.
+
+Actually, let me reconsider. The blow-up of a variety along a subvariety is defined by the ideal sheaf. Even if the subvariety is singular, the blow-up is well-defined via the Rees construction.
+
+Let me think about the local structure near the node.
+
+Near the node p, the curve C looks like two branches crossing. In the plane P, locally C is given by xy = 0 (plus higher order terms, but for a node it's exactly a node, so locally analytically it's xy = 0 in CP^2, and then CP^3 locally is CP^2 × A^1, say with coordinate z for the normal direction to P).
+
+So locally near p, C is defined by the ideal (xy, z) in A^3 (with coordinates x, y, z where x, y are in the plane and z is normal to the plane).
+
+The blow-up of A^3 along the ideal (xy, z)...
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+Actually, the problem says Q is "the smooth quadric surface replacing the node in the blow-up." This suggests that the exceptional divisor over the node is a smooth quadric surface Q ≅ CP^1 × CP^1.
+
+Let me think about the structure of the blow-up more carefully.
+
+The blow-up $\tilde{X}$ of CP^3 along C. The exceptional divisor E is a divisor in $\tilde{X}$. Over smooth points of C, E is a CP^1-bundle (projectivized normal bundle). Over the node, the fiber of E is some surface, which the problem identifies as a smooth quadric Q.
+
+Now, the question asks about the rank of the image of $H_2(Q) \to H_2(\tilde{X})$.
+
+$H_2(Q) \cong H_2(\mathbb{CP}^1 \times \mathbb{CP}^1) \cong \mathbb{Z}^2$, generated by the two rulings (let's call them $\ell_1$ and $\ell_2$, the two families of lines on the quadric).
+
+So the question is: what is the rank of the image of this map? It could be 0, 1, or 2.
+
+Let me think about the geometry.
+
+The curve C lies in a plane P ⊂ CP^3. At the node p, C has two branches (tangent directions) in P. Let's call these two tangent directions $t_1$ and $t_2$.
+
+The quadric Q ≅ CP^1 × CP^1 has two rulings. I expect these two rulings correspond to:
+1. The two tangent directions of the branches of C at the node (within the plane P)
+2. The normal direction to the plane P (or something related to the normal bundle)
+
+Let me think more carefully about the local blow-up.
+
+Near the node, C is locally defined by the ideal $I = (xy, z)$ in $\mathbb{A}^3$ with coordinates $(x, y, z)$, where:
+- $x, y$ are coordinates in the plane P (the node is $x = y = 0$ locally, with branches along $x$-axis and $y$-axis)
+- $z$ is the coordinate normal to P
+
+The blow-up of $\mathbb{A}^3$ along $I = (xy, z)$:
+
+The Rees algebra is $\mathbb{A}^3 \times \text{Proj}(\bigoplus I^n/I^{n+1} \cdot t^n)$... actually, the blow-up is $\text{Proj}(\bigoplus_{n \geq 0} I^n)$ over $\mathbb{A}^3$.
+
+Let me think about this differently. The blow-up along $I = (xy, z)$ can be covered by charts corresponding to the generators $xy$ and $z$.
+
+Chart 1 (z-chart): We set $z \cdot t = z$ (i.e., the generator $z$). In this chart, $xy = z \cdot s$ for some new coordinate $s$. So we have coordinates $(x, y, z, s)$ with $xy = zs$. The exceptional divisor is $z = 0$, which gives $xy = 0$, i.e., $x = 0$ or $y = 0$. So in this chart, the exceptional divisor has two components meeting along $x = y = z = 0$.
+
+Hmm wait, that doesn't immediately give a smooth quadric. Let me reconsider.
+
+Actually, let me reconsider the problem. Maybe the blow-up is not along the singular curve directly, but rather some resolution or specific construction.
+
+Actually, re-reading: "the blow-up of CP^3 at a planar nodal cubic curve." This is the standard blow-up along the curve C (with its reduced structure, defined by the ideal sheaf of C in CP^3).
+
+Let me reconsider the local computation. The ideal of C near the node in A^3 is $I = (xy, z)$ (assuming the node is analytically locally $xy = 0$ in the plane, and $z$ is the normal coordinate).
+
+The blow-up $\text{Bl}_I \mathbb{A}^3$ is the closure of the graph of the map $\mathbb{A}^3 \setminus V(I) \to \mathbb{P}^1$ given by $(x,y,z) \mapsto [xy : z]$.
+
+So the blow-up is $\{(x,y,z,[u:v]) : xv \cdot y = zu\} \subset \mathbb{A}^3 \times \mathbb{P}^1$, i.e., $xyv = zu$.
+
+The exceptional divisor is over $V(I) = V(xy, z) = \{z = 0, xy = 0\}$, which is the union of the $x$-axis and $y$-axis in the plane $z = 0$.
+
+On the exceptional divisor: $z = 0$ and $xy = 0$, so $xyv = 0$, which is automatically satisfied. The exceptional fiber over a point $(x_0, 0, 0)$ with $x_0 \neq 0$ (on the $x$-axis branch): $z = 0, y = 0$, so $0 = 0$, and $[u:v]$ is free. So the fiber is $\mathbb{P}^1$.
+
+Similarly over $(0, y_0, 0)$ with $y_0 \neq 0$: fiber is $\mathbb{P}^1$.
+
+Over the origin $(0,0,0)$: $z = 0, x = 0, y = 0$, so $0 = 0$, and $[u:v]$ is free. So the fiber is also $\mathbb{P}^1$.
+
+Wait, so the exceptional fiber over the node is just $\mathbb{P}^1$, not a quadric surface. That contradicts the problem statement.
+
+Hmm, let me reconsider. Maybe I'm wrong about the local model. 
+
+Actually, wait. The issue is that the blow-up along a singular subscheme can be more complicated. Let me reconsider.
+
+Actually, the ideal $(xy, z)$ defines the reduced curve near the node (two branches crossing). But actually, the ideal of the nodal cubic curve in CP^3 near the node...
+
+The nodal cubic C lies in a plane P. In P ≅ CP^2, C is defined by a cubic equation $f(x,y) = 0$ (in affine coordinates) where $f$ has a node at the origin, so $f = xy + \text{higher order}$. But the actual ideal of C in CP^3 is generated by the equation of the plane and the equation of the cubic in the plane.
+
+So near the node, the ideal of C in A^3 is $(z, f(x,y))$ where $f(x,y) = xy + \text{cubic terms}$, and $z$ is the normal coordinate to the plane.
+
+Since we're working locally/analytically, we can change coordinates to make $f = xy$ (by the analytic local structure of a node). So the ideal is indeed $(z, xy)$.
+
+But as I computed, the blow-up along $(z, xy)$ gives exceptional fiber $\mathbb{P}^1$ over the node, not a quadric surface.
+
+So maybe the problem is describing a different construction. Let me re-read.
+
+"the blow-up of CP^3 at a planar nodal cubic curve, where Q is the smooth quadric surface replacing the node in the blow-up."
+
+Hmm, maybe "replacing the node" doesn't mean the fiber over the node, but rather the component of the exceptional divisor that sits over the node region. Or maybe the blow-up is done in a different way.
+
+Actually, wait. Let me reconsider. Maybe the blow-up is not along the ideal $(z, xy)$ but along some other ideal. Or maybe the problem is considering the blow-up of CP^3 along the curve, but the curve is embedded in a specific way.
+
+Actually, I think I need to reconsider. The blow-up of a smooth variety along a singular subvariety can have exceptional divisors that are not just projectivized normal bundles. The exceptional divisor is $\text{Proj}(\bigoplus I^n/I^{n+1})$, which is the projectivized normal cone, not the projectivized normal bundle.
+
+Let me recompute. The blow-up of $\mathbb{A}^3$ along $I = (z, xy)$.
+
+The exceptional divisor is $E = \text{Proj}(\bigoplus_{n \geq 0} I^n/I^{n+1})$ over $V(I)$.
+
+$V(I) = \{z = 0, xy = 0\}$, which is the union of two lines $L_1 = \{y = z = 0\}$ and $L_2 = \{x = z = 0\}$ meeting at the origin.
+
+The conormal sheaf $I/I^2$ is generated by $z$ and $xy$ modulo $I^2 = (z^2, xyz, x^2y^2)$.
+
+At a point on $L_1 \setminus \{0\}$ (say $x = a \neq 0, y = 0, z = 0$): $I/I^2$ is generated by $z$ and $xy = ay$ (since $x = a$), so it's a free module of rank 2. The fiber of $I/I^2$ is 2-dimensional, so the projectivized normal cone fiber is $\mathbb{P}^1$. This makes sense: the normal bundle of the smooth curve has rank 2, and the projectivization is $\mathbb{P}^1$.
+
+At the origin: $I/I^2$ is generated by $z$ and $xy$ with relations from $I^2$. The fiber of $I/I^2$ at the origin is $I/\mathfrak{m}I = (z, xy)/(x,y,z)(z, xy) = (z, xy)/(xz, yz, x^2y, xy^2, z^2, xyz)$. 
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+The blow-up of $\mathbb{A}^3$ along $I = (z, xy)$ is $\text{Proj}(\mathbb{A}^3 \times \text{Spec}(\bigoplus I^n t^n))$.
+
+As I said, this is $\{(x,y,z,[u:v]) \in \mathbb{A}^3 \times \mathbb{P}^1 : xyv = zu\}$.
+
+The exceptional divisor is the preimage of $V(I)$. Over a point $(x_0, y_0, z_0) \in V(I)$:
+- If $x_0 \neq 0, y_0 = 0, z_0 = 0$: the condition is $0 = 0$, so $[u:v]$ is free → fiber is $\mathbb{P}^1$.
+- If $x_0 = 0, y_0 \neq 0, z_0 = 0$: similarly, fiber is $\mathbb{P}^1$.
+- If $x_0 = y_0 = z_0 = 0$: the condition is $0 = 0$, so $[u:v]$ is free → fiber is $\mathbb{P}^1$.
+
+So the entire exceptional divisor is a $\mathbb{P}^1$-bundle over $V(I)$ (which is a reducible curve). Over the node (origin), the fiber is $\mathbb{P}^1$.
+
+This gives a $\mathbb{P}^1$-bundle, not a quadric surface. So the problem must be describing something different.
+
+Let me reconsider. Perhaps the problem is about a different kind of blow-up, or perhaps I'm misunderstanding the geometry.
+
+Wait, maybe the issue is that the blow-up along the singular curve is singular, and the problem is about some resolution or the normalization of the blow-up. Or maybe the problem is about blowing up CP^3 at the node first, and then along the proper transform of the curve.
+
+Actually, let me reconsider the problem statement: "the blow-up of CP^3 at a planar nodal cubic curve." Maybe "at" means "at the points of" or "centered at," which is the standard blow-up along the curve.
+
+Alternatively, maybe the problem is considering a weighted blow-up or a blow-up along a non-reduced structure.
+
+Actually, let me reconsider. Maybe the problem is about a specific well-known construction in algebraic geometry. Let me think about what kind of blow-up would produce a quadric surface over the node.
+
+A quadric surface $\mathbb{CP}^1 \times \mathbb{CP}^1$ has dimension 2. The exceptional divisor over a curve in a 3-fold should be... well, the exceptional divisor has dimension 2 (it's a divisor in the 3-fold $\tilde{X}$). Over a smooth point of the curve, the fiber is $\mathbb{P}^1$ (dimension 1), and the exceptional divisor is a $\mathbb{P}^1$-bundle over the curve (dimension 2). Over the node, if the fiber jumps to dimension 2, that would be a quadric surface.
+
+But in my computation, the fiber over the node is $\mathbb{P}^1$, same as over smooth points. So the fiber doesn't jump.
+
+Hmm, but wait. Maybe I need to think about this more carefully. The blow-up along $I = (z, xy)$ might not be the right model. Let me think about what the ideal of the nodal cubic in CP^3 actually is.
+
+The nodal cubic $C$ lies in a plane $P \subset \mathbb{CP}^3$. The ideal of $C$ in $\mathbb{CP}^3$ is $I_C = (L, F)$ where $L$ is the linear form defining $P$ and $F$ is the cubic form defining $C$ within $P$.
+
+Near the node, in local coordinates where $P$ is $z = 0$ and the node is at the origin, $I_C = (z, f(x,y))$ where $f$ is a cubic with a node at the origin, so $f = xy + (\text{degree 3 terms})$.
+
+Now, the blow-up along $(z, f)$ where $f = xy + \ldots$ is different from the blow-up along $(z, xy)$ because the higher-order terms matter for the blow-up (the blow-up depends on the full ideal, not just the linear part).
+
+Wait, but analytically locally, we can change coordinates to make $f = xy$ (by the Morse lemma / analytic coordinate change for a node). So the blow-up along $(z, f)$ is analytically isomorphic to the blow-up along $(z, xy)$.
+
+So my computation should be correct, and the fiber over the node is $\mathbb{P}^1$.
+
+Unless... the problem is not about the blow-up along the reduced curve, but about some other construction. Let me think about what would give a quadric surface.
+
+A quadric surface $\mathbb{P}^1 \times \mathbb{P}^1$ would arise as the exceptional divisor of a blow-up of a smooth 3-fold at a point (the blow-up of $\mathbb{A}^3$ at the origin gives exceptional divisor $\mathbb{P}^2$, not $\mathbb{P}^1 \times \mathbb{P}^1$). To get $\mathbb{P}^1 \times \mathbb{P}^1$, we'd need to blow up something else.
+
+Actually, $\mathbb{P}^1 \times \mathbb{P}^1$ is the exceptional divisor when we blow up a smooth 3-fold along a smooth curve, and the fiber is $\mathbb{P}^1$... no, that gives a $\mathbb{P}^1$-bundle, not $\mathbb{P}^1 \times \mathbb{P}^1$.
+
+$\mathbb{P}^1 \times \mathbb{P}^1$ arises as the exceptional divisor of the blow-up of a smooth 4-fold at a point, or the blow-up of a smooth 3-fold along a smooth point (giving $\mathbb{P}^2$)... no.
+
+Actually, $\mathbb{P}^1 \times \mathbb{P}^1$ is the fiber product $\mathbb{P}^1 \times \mathbb{P}^1$. It could arise as:
+- The blow-up of $\mathbb{A}^2$ at a point gives exceptional $\mathbb{P}^1$, not $\mathbb{P}^1 \times \mathbb{P}^1$.
+- The blow-up of $\mathbb{P}^2 \times \mathbb{P}^2$ along $\mathbb{P}^2 \times \{pt\}$... no.
+
+Hmm, let me think about when $\mathbb{P}^1 \times \mathbb{P}^1$ appears as an exceptional divisor.
+
+If we blow up a smooth 3-fold $X$ at a point $p$, the exceptional divisor is $\mathbb{P}^2$. If we blow up $X$ along a smooth curve, the exceptional divisor is a $\mathbb{P}^1$-bundle over the curve.
+
+To get $\mathbb{P}^1 \times \mathbb{P}^1$ as an exceptional divisor, we could:
+- Blow up a smooth 3-fold along a smooth curve, and the fiber over a specific point is $\mathbb{P}^1$ (not the whole exceptional divisor).
+- The exceptional divisor of blowing up a 4-fold at a point is $\mathbb{P}^3$.
+
+Actually, $\mathbb{P}^1 \times \mathbb{P}^1$ can appear as the exceptional divisor when blowing up a 3-fold along a curve, if the normal bundle splits as $\mathcal{O} \oplus \mathcal{O}$... no, that gives a $\mathbb{P}^1$-bundle which is $\mathbb{P}^1 \times C$ locally.
+
+Wait, I think the key insight might be different. Let me reconsider the problem.
+
+Maybe the construction is:
+1. Start with $\mathbb{CP}^3$ containing a plane $P$ with a nodal cubic $C \subset P$.
+2. Blow up $\mathbb{CP}^3$ along $C$.
+3. The resulting 3-fold $\tilde{X}$ has an exceptional divisor $E$.
+4. Over the node, something special happens with $E$, and there's a quadric surface $Q$ involved.
+
+But as I computed, the fiber over the node is $\mathbb{P}^1$, not a quadric. So maybe the "quadric surface replacing the node" is not a fiber but a component of the exceptional divisor.
+
+Actually, let me reconsider. Maybe the blow-up along the singular curve produces a singular 3-fold, and the exceptional divisor has multiple components, one of which is a quadric surface.
+
+Let me recompute more carefully. The blow-up of $\mathbb{A}^3$ along $I = (z, xy)$:
+
+This is $\text{Proj}(\mathbb{A}^3 \times \text{Spec}(\bigoplus_{n \geq 0} I^n))$.
+
+$I = (z, xy)$, $I^2 = (z^2, xyz, x^2y^2)$, etc.
+
+The blow-up is covered by two charts:
+
+Chart $z$: Set $z$ as the generator. The chart is $\text{Spec}(\mathbb{A}^3[\frac{xy}{z}])$. Let $s = xy/z$. Then the chart is $\text{Spec}(k[x,y,z,s]/(xy - zs))$. The exceptional divisor in this chart is $z = 0$, which gives $xy = 0$, i.e., the union of $\{x=0, z=0\}$ and $\{y=0, z=0\}$.
+
+Chart $xy$: Set $xy$ as the generator. The chart is $\text{Spec}(\mathbb{A}^3[\frac{z}{xy}])$. Let $t = z/(xy)$. Then the chart is $\text{Spec}(k[x,y,z,t]/(z - xyt))$. The exceptional divisor is where $xy = 0$ and $z = 0$ (since $z = xyt$, if $xy = 0$ then $z = 0$). So the exceptional divisor is $\{xy = 0, z = 0\} = \{x=0, z=0\} \cup \{y=0, z=0\}$.
+
+In both charts, the exceptional divisor is the union of two components. These two components are the proper transforms of the two branches of the curve (well, they're the exceptional divisors over the two branches).
+
+Actually, the exceptional divisor $E$ is a $\mathbb{P}^1$-bundle over $V(I) = L_1 \cup L_2$ (the two branches). Over the node (origin), the two components of $E$ meet.
+
+Let me think about the global picture. The curve $C$ is a nodal cubic, which topologically is a pinched torus (a sphere with two points identified, or equivalently $S^2$ with a pinch). The normalization $\tilde{C}$ is $\mathbb{P}^1$ (a rational curve), and the node is where two points of $\tilde{C}$ are identified.
+
+The exceptional divisor $E$ is a $\mathbb{P}^1$-bundle over $C$. Since $C$ is singular at the node, we need to be careful. Over the smooth part of $C$, $E$ is a $\mathbb{P}^1$-bundle. Over the node, the fiber is $\mathbb{P}^1$ (as computed).
+
+But the two branches of $C$ at the node give two "sheets" of $E$ that meet over the node. The exceptional divisor $E$ is obtained by taking a $\mathbb{P}^1$-bundle over the normalization $\tilde{C} \cong \mathbb{P}^1$ and then identifying the fibers over the two preimages of the node.
+
+Hmm, actually that's not quite right either. Let me think again.
+
+The exceptional divisor is $\text{Proj}(\bigoplus I^n/I^{n+1})$ over $C$. Over the smooth part of $C$, this is $\mathbb{P}(N_{C/\mathbb{CP}^3})$, the projectivized normal bundle. The normal bundle of $C$ in $\mathbb{CP}^3$ at smooth points has rank 2 (since $C$ is a curve in a 3-fold), so the fibers are $\mathbb{P}^1$.
+
+Over the node, the normal cone (not bundle) determines the fiber. The fiber of the normal cone at the node is $\text{Spec}(\bigoplus I^n/(I^{n+1} + \mathfrak{m}I^n))$... this is the normal cone to the node in $\mathbb{A}^3$, restricted to the node.
+
+Actually, the fiber of the exceptional divisor over the node is $\text{Proj}(\bigoplus I^n / (I^{n+1} + \mathfrak{m}_p \cdot I^n))$ where $\mathfrak{m}_p = (x, y, z)$ is the maximal ideal at the node.
+
+$I = (z, xy)$, $\mathfrak{m}_p = (x, y, z)$.
+
+$I^n / (I^{n+1} + \mathfrak{m}_p I^n)$:
+
+$I^1 = (z, xy)$, $I^2 = (z^2, xyz, x^2y^2)$, $\mathfrak{m}_p I^1 = (xz, yz, z^2, x^2y, xy^2, xyz)$.
+
+$I^1 / (I^2 + \mathfrak{m}_p I^1) = (z, xy) / (z^2, xyz, x^2y^2, xz, yz, x^2y, xy^2, z^2, xyz)$.
+
+The generators $z$ and $xy$ survive (they're not in the denominator since the denominator consists of degree 2 elements in $x, y, z$). So this is a 2-dimensional vector space spanned by (the classes of) $z$ and $xy$.
+
+For $n = 2$: $I^2 = (z^2, xyz, x^2y^2)$. $\mathfrak{m}_p I^2 = (xz^2, yz^2, z^3, x^2yz, xy^2z, xyz^2, x^3y^2, x^2y^3, \ldots)$. $I^3 = (z^3, xyz^2, x^2y^2z, x^3y^3, \ldots)$.
+
+$I^2 / (I^3 + \mathfrak{m}_p I^2)$: The generators of $I^2$ are $z^2, xyz, x^2y^2$. 
+- $z^2$: is it in $I^3 + \mathfrak{m}_p I^2$? $z^2 \in \mathfrak{m}_p I^2$? $\mathfrak{m}_p I^2$ contains $xz^2, yz^2, z^3, \ldots$ but not $z^2$ itself (since $z^2 \notin (x,y,z) \cdot I^2$ unless $z^2 = z \cdot z$ with $z \in \mathfrak{m}_p$ and $z \in I^2$... wait, $z \in \mathfrak{m}_p$ and $z \in I$ but is $z \in I^2$? $I^2 = (z^2, xyz, x^2y^2)$, so $z \notin I^2$. So $z^2 = z \cdot z$ where $z \in \mathfrak{m}_p$ and $z \in I$ but $z \notin I^2$. So $z^2 \notin \mathfrak{m}_p \cdot I^2$ (since $\mathfrak{m}_p \cdot I^2$ requires the second factor to be in $I^2$). And $z^2 \in I^3$? $I^3 = I \cdot I^2 = (z, xy) \cdot (z^2, xyz, x^2y^2) = (z^3, xyz^2, x^2y^2z, xyz^2, x^2y^2z, x^3y^3)$. So $z^2 \notin I^3$. So $z^2$ survives.
+- $xyz$: $xyz \in \mathfrak{m}_p I^2$? $xyz = x \cdot yz$ where $x \in \mathfrak{m}_p$ and $yz \in I^2$? $yz \in I^2 = (z^2, xyz, x^2y^2)$? No, $yz$ is not in $I^2$. $xyz = z \cdot xy$ where $z \in \mathfrak{m}_p$ and $xy \in I^2$? $xy \in I^2 = (z^2, xyz, x^2y^2)$? No, $xy \notin I^2$. So $xyz \notin \mathfrak{m}_p I^2$. And $xyz \in I^3$? $I^3$ contains $xyz^2$ and $x^2y^2z$ but not $xyz$. So $xyz$ survives.
+- $x^2y^2$: $x^2y^2 \in \mathfrak{m}_p I^2$? $x^2y^2 = x \cdot xy^2$ where $xy^2 \in I^2$? $xy^2 \notin I^2$. $x^2y^2 = xy \cdot xy$ where $xy \in \mathfrak{m}_p$ and $xy \in I^2$? $xy \in I^2$? No. So $x^2y^2 \notin \mathfrak{m}_p I^2$. And $x^2y^2 \in I^3$? $I^3$ contains $x^3y^3$ but not $x^2y^2$. So $x^2y^2$ survives.
+
+So $I^2 / (I^3 + \mathfrak{m}_p I^2)$ is 3-dimensional, spanned by $z^2, xyz, x^2y^2$.
+
+In general, $I^n / (I^{n+1} + \mathfrak{m}_p I^n)$ is spanned by monomials $z^a (xy)^b$ with $a + b = n$ (since $I^n$ is generated by $z^a (xy)^b$ with $a + b = n$). These are $z^n, z^{n-1}(xy), \ldots, (xy)^n$, which is $n+1$ generators.
+
+So the graded ring $\bigoplus I^n / (I^{n+1} + \mathfrak{m}_p I^n)$ is $k[z, xy]$ (a polynomial ring in 2 variables), and $\text{Proj}$ of this is $\mathbb{P}^1$.
+
+So the fiber of the exceptional divisor over the node is $\mathbb{P}^1$, confirming my earlier computation.
+
+This means the exceptional divisor is a $\mathbb{P}^1$-bundle over $C$ (even over the node), and there's no quadric surface.
+
+So I must be misunderstanding the problem. Let me reconsider.
+
+Maybe the problem is about a different construction. Perhaps:
+1. First blow up the node (point) in $\mathbb{CP}^3$, getting exceptional $\mathbb{P}^2$.
+2. Then blow up the proper transform of $C$.
+3. The proper transform of $C$ in the first blow-up is smooth (the node is resolved).
+4. The second blow-up gives an exceptional divisor that's a $\mathbb{P}^1$-bundle over the resolved curve.
+5. The preimage of the node in this two-step process involves the $\mathbb{P}^2$ from step 1 and the $\mathbb{P}^1$-bundle from step 2, and their interaction might produce a quadric.
+
+Or maybe the construction is:
+1. Blow up $\mathbb{CP}^3$ along the plane $P$ containing $C$. This gives exceptional divisor $E_1 \cong P \cong \mathbb{CP}^2$.
+2. The proper transform of $C$ in the blow-up is... well, $C \subset P$, so blowing up $P$ would affect $C$.
+
+Hmm, this is getting complicated. Let me think about what construction gives a quadric surface $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$ "replacing the node."
+
+Actually, I think the key might be that the blow-up of $\mathbb{CP}^3$ along the singular curve $C$ produces a singular 3-fold, and the problem is about the exceptional divisor which might have a more complicated structure than I computed.
+
+Wait, but I showed the blow-up is $\{(x,y,z,[u:v]) : xyv = zu\}$, which is actually singular! Let me check.
+
+The blow-up $\text{Bl}_I \mathbb{A}^3 = \{(x,y,z,[u:v]) : xyv = zu\} \subset \mathbb{A}^3 \times \mathbb{P}^1$.
+
+In the chart $v = 1$: $\{(x,y,z,u) : xy = zu\}$. This is the hypersurface $xy - zu = 0$ in $\mathbb{A}^4$. The singular locus is where all partial derivatives vanish: $\partial_x = y = 0$, $\partial_y = x = 0$, $\partial_z = -u = 0$, $\partial_u = -z = 0$. So the singular locus is $x = y = z = u = 0$, which is the origin. So the blow-up is singular at the node!
+
+In the chart $u = 1$: $\{(x,y,z,v) : xyv = z\}$, i.e., $z = xyv$. This is smooth (it's just $\mathbb{A}^3$ with coordinates $x, y, v$).
+
+So the blow-up is singular, with singularity at the preimage of the node in the $v = 1$ chart. The singular point is the origin in the chart $\{xy = zu\}$.
+
+The singularity $xy = zu$ is the $A_1$ surface singularity (3-dimensional node, or conifold singularity). This is a well-known singularity.
+
+Now, the small resolution of the conifold $xy = zu$ replaces the singular point with a $\mathbb{P}^1$, while the blow-up of the singular point (large resolution) replaces it with a $\mathbb{P}^1 \times \mathbb{P}^1$ (quadric surface)!
+
+So the picture is:
+1. Blow up $\mathbb{CP}^3$ along $C$ → get $\tilde{X}$, which has a conifold singularity at the preimage of the node.
+2. Resolve the conifold singularity by blowing up the singular point → the exceptional divisor is a smooth quadric $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+Wait, but the problem says "the blow-up of $\mathbb{CP}^3$ at a planar nodal cubic curve, where $Q$ is the smooth quadric surface replacing the node in the blow-up." This suggests $Q$ is part of the blow-up, not a separate resolution step.
+
+Hmm, but maybe the problem is considering the blow-up of the singular 3-fold $\tilde{X}$ at the conifold point, and $Q$ is the exceptional divisor of this second blow-up. Or maybe the problem is considering the composition: blow up $\mathbb{CP}^3$ along $C$, then blow up the resulting singular point.
+
+Actually, re-reading the problem: "the blow-up of $\mathbb{CP}^3$ at a planar nodal cubic curve, where $Q$ is the smooth quadric surface replacing the node in the blow-up."
+
+I think "the blow-up" here refers to the resolved 3-fold, and $Q$ is the quadric that appears when we resolve the conifold singularity. The problem is asking about the homology of the resolved 3-fold $\tilde{X}$ (which includes $Q$ as a divisor).
+
+Actually, let me reconsider. Maybe the problem is about the blow-up of $\mathbb{CP}^3$ along the curve $C$ where we take the blow-up in a way that resolves the singularity. Or maybe the problem is using "blow-up" loosely to mean the resolved variety.
+
+Let me just go with the interpretation that $\tilde{X}$ is the resolved 3-fold, obtained by:
+1. Blowing up $\mathbb{CP}^3$ along $C$ → singular 3-fold with a conifold point.
+2. Blowing up the conifold point → smooth 3-fold $\tilde{X}$ with exceptional quadric $Q$.
+
+And the question is about the rank of the image of $H_2(Q) \to H_2(\tilde{X})$.
+
+Actually, wait. Let me reconsider whether the problem might be about a different construction. 
+
+Another possibility: the blow-up of $\mathbb{CP}^3$ along the ideal of $C$ might not be the same as the blow-up along $(z, xy)$ locally. The ideal of $C$ in $\mathbb{CP}^3$ is $(L, F)$ where $L$ is the equation of the plane and $F$ is the cubic. Near the node, this is $(z, f(x,y))$ where $f$ is a nodal cubic. The blow-up along $(z, f)$ where $f = xy + \text{cubic terms}$ might be different from the blow-up along $(z, xy)$.
+
+But as I argued, analytically locally, we can change coordinates to make $f = xy$, so the blow-ups are analytically isomorphic. The conifold singularity $xy = zu$ appears in either case.
+
+OK here's another thought. Maybe the problem is considering the blow-up of $\mathbb{CP}^3$ along the *scheme* defined by the ideal $(L, F)$, but where we consider the blow-up as a variety (possibly singular), and $Q$ is not the exceptional divisor of a second blow-up but rather a component of the exceptional divisor of the first blow-up.
+
+But I showed the exceptional divisor is a $\mathbb{P}^1$-bundle over $C$, with no quadric component. So this doesn't work.
+
+Let me try yet another interpretation. Maybe the problem is about:
+1. Blow up $\mathbb{CP}^3$ at the node $p$ (a point blow-up) → exceptional divisor $\mathbb{P}^2$.
+2. The proper transform of $C$ in this blow-up is the normalization of $C$ (the node is resolved).
+3. Blow up the proper transform of $C$ → exceptional divisor is a $\mathbb{P}^1$-bundle over $\mathbb{P}^1$.
+4. The preimage of the node is the intersection of the $\mathbb{P}^2$ from step 1 and the $\mathbb{P}^1$-bundle from step 3, which might be a quadric.
+
+Hmm, let me think about this. After step 1, the exceptional divisor is $E_1 \cong \mathbb{P}^2$, and the proper transform $\tilde{C}$ of $C$ is a smooth rational curve (the normalization). The proper transform $\tilde{C}$ intersects $E_1$ in two points (corresponding to the two tangent directions of the branches at the node).
+
+After step 2, we blow up $\tilde{C}$ (which is smooth). The exceptional divisor $E_2$ is a $\mathbb{P}^1$-bundle over $\tilde{C} \cong \mathbb{P}^1$. Over the two points where $\tilde{C}$ meets $E_1$, the exceptional divisor $E_2$ has fibers that are $\mathbb{P}^1$'s, and these fibers lie in $E_1$ (which is $\mathbb{P}^2$).
+
+The proper transform of $E_1$ after step 2 is $E_1$ blown up at two points, which is $\mathbb{P}^2$ blown up at two points. This is a del Pezzo surface of degree 7, which is $\mathbb{P}^2$ blown up at 2 points, and it's also a rational surface.
+
+The preimage of the node $p$ in the composition is: the proper transform of $E_1$ (which is $\mathbb{P}^2$ blown up at 2 points) together with the two fibers of $E_2$ over the intersection points. This doesn't immediately give a quadric surface.
+
+Hmm, this doesn't seem right either.
+
+Let me try another approach. Let me think about what the conifold resolution gives.
+
+The conifold singularity is $xy = zw$ in $\mathbb{A}^4$ (I'll use $w$ instead of $u$). The singular point is the origin.
+
+The blow-up of the origin in this 3-fold: the blow-up of $\mathbb{A}^4$ at the origin is $\{(x,y,z,w,[a:b:c:d])\}$, and the proper transform of $xy = zw$ is the blow-up. The exceptional divisor is the intersection of the proper transform with the exceptional $\mathbb{P}^3$, which is the quadric $\{xy = zw\} \cap \mathbb{P}^3 = \{[a:b:c:d] : ab = cd\} \subset \mathbb{P}^3$, which is a smooth quadric surface $\cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+So the blow-up of the conifold at its singular point gives a smooth 3-fold with exceptional divisor $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+So the construction is:
+1. Blow up $\mathbb{CP}^3$ along $C$ → get a 3-fold $Y$ with a conifold singularity at the preimage of the node.
+2. Blow up $Y$ at the conifold point → get smooth 3-fold $\tilde{X}$ with exceptional quadric $Q$.
+
+And the question is about $H_2(Q) \to H_2(\tilde{X})$.
+
+Now, $H_2(Q) \cong \mathbb{Z}^2$, generated by the two rulings of the quadric.
+
+To determine the rank of the image of $H_2(Q) \to H_2(\tilde{X})$, I need to understand which classes in $H_2(Q)$ survive in $H_2(\tilde{X})$.
+
+Let me think about the topology. The quadric $Q$ is the exceptional divisor of the blow-up of the conifold point. The two rulings of $Q$ correspond to the two small resolutions of the conifold.
+
+In the conifold $xy = zw$, the two rulings of the exceptional quadric correspond to:
+- One ruling: the $\mathbb{P}^1$'s that are contracted in one small resolution.
+- The other ruling: the $\mathbb{P}^1$'s that are contracted in the other small resolution.
+
+The key question is: which of these $\mathbb{P}^1$ classes are homologically nontrivial in $\tilde{X}$?
+
+Let me think about this more carefully in the context of the global geometry.
+
+The conifold singularity in $Y$ (the blow-up of $\mathbb{CP}^3$ along $C$) arises at the preimage of the node. The local equation is $xy = zw$ (or $xy = zu$ as I had before).
+
+The two rulings of the exceptional quadric $Q$ in the blow-up of the conifold correspond to:
+1. Lines in one ruling: these are the $\mathbb{P}^1$'s that can be contracted to get a small resolution.
+2. Lines in the other ruling: these are the $\mathbb{P}^1$'s that can be contracted to get the other small resolution.
+
+Now, in the global 3-fold $\tilde{X}$, the question is whether these $\mathbb{P}^1$ classes bound (i.e., are boundaries of 3-chains) or not.
+
+Let me think about the relationship between $Q$ and the rest of $\tilde{X}$.
+
+In $\tilde{X}$, the quadric $Q$ is a divisor. It intersects the proper transform of the exceptional divisor $E$ (from the blow-up along $C$). The exceptional divisor $E$ is a $\mathbb{P}^1$-bundle over $C$, and over the node, $E$ has a fiber $\mathbb{P}^1$ that passes through the conifold point. After resolving the conifold, this fiber $\mathbb{P}^1$ is replaced by... something involving $Q$.
+
+Let me think about this more carefully.
+
+In $Y$ (before resolving the conifold), the exceptional divisor $E$ is a $\mathbb{P}^1$-bundle over $C$. Over the node, the fiber is $\mathbb{P}^1$, and this $\mathbb{P}^1$ passes through the conifold point (which is a single point on this $\mathbb{P}^1$).
+
+After blowing up the conifold point to get $\tilde{X}$, the proper transform of this fiber $\mathbb{P}^1$ is $\mathbb{P}^1$ blown up at a point, which is... well, $\mathbb{P}^1$ blown up at a point is still $\mathbb{P}^1$ (blowing up a point on a curve doesn't change it). Wait, no. The fiber $\mathbb{P}^1$ in $E$ passes through the conifold point. When we blow up the conifold point, the proper transform of this $\mathbb{P}^1$ is the blow-up of $\mathbb{P}^1$ at a point, which is still $\mathbb{P}^1$ (since blowing up a smooth point on a curve gives an isomorphic curve). But the exceptional divisor $Q$ intersects this proper transform in a point.
+
+Hmm, let me think about this differently. Let me consider the local model.
+
+In the conifold $xy = zw$, consider a curve passing through the origin. For instance, the curve $\gamma_1: x = t, y = 0, z = 0, w = 0$ (i.e., the $x$-axis). This lies on the conifold (since $xy = 0 = zw$). After blowing up the origin, the proper transform of $\gamma_1$ meets the exceptional quadric $Q$ at the point $[1:0:0:0] \in Q$.
+
+Similarly, the curve $\gamma_2: x = 0, y = t, z = 0, w = 0$ (the $y$-axis) lies on the conifold and meets $Q$ at $[0:1:0:0]$.
+
+Now, in the global picture, the exceptional divisor $E$ (from the blow-up along $C$) is a $\mathbb{P}^1$-bundle over $C$. The fiber over the node is a $\mathbb{P}^1$ that passes through the conifold point. Locally near the conifold point, this $\mathbb{P}^1$ corresponds to a curve through the origin in the conifold.
+
+Which curve? The fiber of $E$ over the node is $\text{Proj}(k[z, xy]) = \mathbb{P}^1$ with coordinates $[z : xy]$. In the conifold $xy = zu$ (using $u$ instead of $w$), this $\mathbb{P}^1$ is the set of points $(0, 0, 0, 0, [u:v])$ in the chart... wait, let me be more careful.
+
+The blow-up of $\mathbb{A}^3$ along $(z, xy)$ is $\{(x,y,z,[u:v]) : xyv = zu\} \subset \mathbb{A}^3 \times \mathbb{P}^1$. The conifold singularity is at the origin $(0,0,0,[u:v])$ where $xyv = zu$ becomes $0 = 0$, so any $[u:v]$ works. Wait, that means the entire fiber over the origin is $\mathbb{P}^1$, and every point on this $\mathbb{P}^1$ is a singular point?
+
+Let me recheck. The blow-up is $\{(x,y,z,[u:v]) : xyv = zu\}$. In the chart $v = 1$: $\{xy = zu\} \subset \mathbb{A}^4$ (coordinates $x,y,z,u$). The singular locus is $x = y = z = u = 0$, a single point.
+
+In the chart $u = 1$: $\{xyv = z\} \subset \mathbb{A}^4$ (coordinates $x,y,z,v$), i.e., $z = xyv$. This is smooth.
+
+The fiber over the origin $(0,0,0)$ in $\mathbb{A}^3$ is $\{[u:v] : 0 = 0\} = \mathbb{P}^1$. In the chart $v = 1$, this is the point $(0,0,0,0)$ (the singular point). In the chart $u = 1$, this is the point $(0,0,0,v)$ for any $v$, i.e., the $v$-axis... wait, no. Let me be more careful.
+
+The fiber over $(0,0,0) \in \mathbb{A}^3$ is $\{(0,0,0,[u:v]) : 0 = 0\} = \{0\} \times \mathbb{P}^1$. In the chart $v = 1$ (i.e., $v \neq 0$), this is the point $(x,y,z,u) = (0,0,0,0)$. In the chart $u = 1$ (i.e., $u \neq 0$), this is the point $(x,y,z,v) = (0,0,0,v)$... but wait, $v = 1/u \cdot v$... I'm getting confused with coordinates.
+
+Let me use homogeneous coordinates $[u:v]$ on $\mathbb{P}^1$. The blow-up is $\{(x,y,z,[u:v]) : xyv = zu\}$.
+
+Chart $v \neq 0$ (set $v = 1$): coordinates $(x,y,z,u)$ with $xy = zu$. The fiber over $(0,0,0)$ is the point $(0,0,0,0)$.
+
+Chart $u \neq 0$ (set $u = 1$): coordinates $(x,y,z,v)$ with $xyv = z$. The fiber over $(0,0,0)$ is the point $(0,0,0,0)$ (since $z = xyv = 0$ and $x = y = 0$).
+
+Wait, so the fiber over the origin is a single point in each chart? That can't be right if the fiber is $\mathbb{P}^1$.
+
+Oh, I see the issue. The fiber over the origin is $\{(0,0,0,[u:v])\} \cong \mathbb{P}^1$. In the chart $v = 1$, the point $[u:v] = [u:1]$ corresponds to $(x,y,z,u) = (0,0,0,u)$, but we need $xy = zu$, i.e., $0 = 0$, so $u$ is free. So the fiber is the $u$-axis, which is $\mathbb{A}^1$. Adding the point at infinity (from the $u = 1$ chart), we get $\mathbb{P}^1$.
+
+In the chart $v = 1$, the fiber is $\{(0,0,0,u) : u \in \mathbb{A}^1\}$, which is the $u$-axis. The singular point of the conifold $xy = zu$ is at $(0,0,0,0)$, which is one point on this $\mathbb{P}^1$.
+
+In the chart $u = 1$, the fiber is $\{(0,0,0,v) : v \in \mathbb{A}^1\}$ (since $z = xyv = 0$), which is the $v$-axis. This is the other chart of the same $\mathbb{P}^1$.
+
+So the fiber $\mathbb{P}^1$ over the node is mostly smooth, except for one point (the conifold point at $u = 0$ in the $v = 1$ chart, which is $[u:v] = [0:1]$).
+
+Now, when we blow up the conifold point, we replace this single point with a quadric $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$. The proper transform of the fiber $\mathbb{P}^1$ (which is part of the exceptional divisor $E$) now meets $Q$ at some point(s).
+
+Let me think about how the fiber $\mathbb{P}^1$ meets $Q$.
+
+The conifold is $xy = zu$ in $\mathbb{A}^4$ (coordinates $x, y, z, u$). The fiber $\mathbb{P}^1$ over the node is the $u$-axis $\{(0,0,0,u)\}$ (in the $v = 1$ chart). This is the curve $x = y = z = 0$.
+
+When we blow up the origin in the conifold, the exceptional quadric is $Q = \{[a:b:c:d] \in \mathbb{P}^3 : ab = cd\}$ (where $[a:b:c:d]$ are the homogeneous coordinates of the blow-up of $\mathbb{A}^4$ at the origin).
+
+The proper transform of the $u$-axis ($x = y = z = 0$) meets $Q$ at the point where $[a:b:c:d] = [0:0:0:1]$ (since the $u$-axis is in the $d$-direction). Check: $ab = cd$ gives $0 = 0$. Yes, $[0:0:0:1] \in Q$.
+
+So the fiber $\mathbb{P}^1$ (part of $E$) meets $Q$ at the single point $[0:0:0:1]$.
+
+Now, the two rulings of $Q = \{ab = cd\} \subset \mathbb{P}^3$:
+
+The quadric $ab = cd$ in $\mathbb{P}^3$ (with coordinates $[a:b:c:d]$) has two rulings. One way to see them: $ab = cd$ can be written as $\det\begin{pmatrix} a & c \\ d & b \end{pmatrix} = 0$, so the quadric is the image of $\mathbb{P}^1 \times \mathbb{P}^1 \hookrightarrow \mathbb{P}^3$ via the Segre embedding $([s:t],[p:q]) \mapsto [sp : tq : sq : tp]$... let me check: $ab = (sp)(tq) = stpq$ and $cd = (sq)(tp) = stpq$. Yes, $ab = cd$. ✓
+
+So the two rulings are:
+- Ruling 1: fix $[s:t]$, vary $[p:q]$ → lines of the form $\{[sp:tq:sq:tp] : [p:q] \in \mathbb{P}^1\}$.
+- Ruling 2: fix $[p:q]$, vary $[s:t]$ → lines of the form $\{[sp:tq:sq:tp] : [s:t] \in \mathbb{P}^1\}$.
+
+The point $[0:0:0:1]$: we need $sp = 0, tq = 0, sq = 0, tp = 1$. From $tp = 1$, we need $t \neq 0$ and $p \neq 0$. From $sp = 0$ and $p \neq 0$, we get $s = 0$. From $tq = 0$ and $t \neq 0$, we get $q = 0$. From $sq = 0$: $0 = 0$ ✓. So $[s:t] = [0:1]$ and $[p:q] = [1:0]$.
+
+The point $[0:0:0:1]$ lies on:
+- Ruling 1 line: fix $[s:t] = [0:1]$, vary $[p:q]$: $\{[0:q:0:p] : [p:q] \in \mathbb{P}^1\} = \{[0:q:0:p]\}$. This is the line $a = c = 0$ in $\mathbb{P}^3$.
+- Ruling 2 line: fix $[p:q] = [1:0]$, vary $[s:t]$: $\{[s:0:0:t] : [s:t] \in \mathbb{P}^1\}$. This is the line $b = c = 0$ in $\mathbb{P}^3$.
+
+Now, the fiber $\mathbb{P}^1$ of $E$ over the node meets $Q$ at $[0:0:0:1]$. The question is: which ruling does this $\mathbb{P}^1$ belong to (or is tangent to)?
+
+Actually, the fiber $\mathbb{P}^1$ is not contained in $Q$; it just meets $Q$ at a point. The question is about the homology class of the curves in $Q$ and whether they bound in $\tilde{X}$.
+
+Let me think about this differently. The key question is: in $\tilde{X}$, are the two ruling classes in $H_2(Q)$ homologically trivial or not?
+
+A class $\alpha \in H_2(Q)$ maps to zero in $H_2(\tilde{X})$ if and only if $\alpha$ is the boundary of a 3-chain in $\tilde{X}$, i.e., there exists a 3-chain $W$ in $\tilde{X}$ with $\partial W = \alpha$ (as a cycle in $Q \subset \tilde{X}$).
+
+Equivalently, $\alpha$ maps to zero in $H_2(\tilde{X})$ if and only if $\alpha$ is homologous to zero in $\tilde{X}$.
+
+Let me think about what 3-chains could bound the ruling classes.
+
+The quadric $Q$ is a divisor in $\tilde{X}$. The normal bundle of $Q$ in $\tilde{X}$ is $\mathcal{O}_Q(-1)$ (since $Q$ is the exceptional divisor of a blow-up of a point, the normal bundle is $\mathcal{O}(-1)$).
+
+Now, consider a line $\ell$ in one ruling of $Q$. The self-intersection of $\ell$ in $Q$ is $0$ (since lines in a ruling are disjoint). The normal bundle of $\ell$ in $\tilde{X}$ has degree $\deg(N_{\ell/\tilde{X}}) = \deg(N_{\ell/Q}) + \deg(N_{Q/\tilde{X}}|_\ell) = 0 + (-1) = -1$.
+
+A curve with normal bundle of degree $-1$ in a 3-fold can be contracted (it's an exceptional curve of the first kind in the 3-fold sense). This means $\ell$ can be contracted, and in particular, $\ell$ is homologically nontrivial (it can't be a boundary, because if it were, we could contract it to a point and the homology would be trivial, but the contraction of a $(-1)$-curve gives a smooth point, and the curve is nontrivial in homology).
+
+Wait, actually, that's not quite right. A $(-1)$-curve in a 3-fold can be contracted, but that doesn't directly tell us about homology. Let me think more carefully.
+
+If $\ell$ is a rational curve with $N_{\ell/\tilde{X}} \cong \mathcal{O}(-1) \oplus \mathcal{O}$, then $\ell$ can be contracted to a smooth point, and the contraction is the blow-up of a smooth point. In this case, $\ell$ generates a new $H_2$ class (the blow-up of a smooth point in a 3-fold adds a $\mathbb{Z}$ to $H_2$, generated by the line in the exceptional $\mathbb{P}^2$... wait, but $Q$ is not $\mathbb{P}^2$).
+
+Hmm, let me reconsider. The normal bundle of $\ell$ in $\tilde{X}$ might not split as $\mathcal{O}(-1) \oplus \mathcal{O}$. Let me compute more carefully.
+
+$N_{\ell/\tilde{X}}$ has rank 2. We have the exact sequence:
+$0 \to N_{\ell/Q} \to N_{\ell/\tilde{X}} \to N_{Q/\tilde{X}}|_\ell \to 0$
+
+$N_{\ell/Q}$: if $\ell$ is a line in a ruling, then $N_{\ell/Q} \cong \mathcal{O}_{\mathbb{P}^1}$ (since the ruling gives a fibration, and the normal bundle of a fiber is trivial).
+
+$N_{Q/\tilde{X}}|_\ell = \mathcal{O}_Q(-1)|_\ell = \mathcal{O}_{\mathbb{P}^1}(-1)$ (since $Q$ is the exceptional divisor of a point blow-up, $N_{Q/\tilde{X}} = \mathcal{O}_Q(-1)$, and $\mathcal{O}_Q(1)|_\ell = \mathcal{O}_{\mathbb{P}^1}(1)$ for a line in $Q$).
+
+So $0 \to \mathcal{O} \to N_{\ell/\tilde{X}} \to \mathcal{O}(-1) \to 0$.
+
+This sequence splits (since $\text{Ext}^1(\mathcal{O}(-1), \mathcal{O}) = H^1(\mathcal{O}(1)) = 0$), so $N_{\ell/\tilde{X}} \cong \mathcal{O} \oplus \mathcal{O}(-1)$.
+
+A curve with normal bundle $\mathcal{O} \oplus \mathcal{O}(-1)$ can be contracted to a smooth point (this is the blow-up of a smooth point). So $\ell$ is an exceptional curve of the first kind.
+
+Now, when we contract $\ell$, we get a smooth 3-fold $Z$, and $\tilde{X}$ is the blow-up of $Z$ at a smooth point, with exceptional divisor... wait, the blow-up of a smooth point in a 3-fold gives exceptional divisor $\mathbb{P}^2$, not $\mathbb{P}^1 \times \mathbb{P}^1$. So contracting a single $\ell$ doesn't give the right picture.
+
+Actually, the contraction of $\ell$ (a single line in a ruling) gives a 3-fold where the image of $Q$ becomes $\mathbb{P}^2$ (the quadric with one ruling contracted is $\mathbb{P}^2$). This is one of the two small resolutions of the conifold followed by... no.
+
+Actually, I think I'm overcomplicating this. Let me think about the topology more directly.
+
+The key point is: the conifold singularity has two small resolutions, each contracting one ruling of the quadric. The blow-up of the conifold point (which gives $Q$) is related to both small resolutions.
+
+In the small resolution that contracts ruling 1, the lines of ruling 1 are contracted to points, so they are homologically trivial in that resolution. The lines of ruling 2 survive as nontrivial curves.
+
+Similarly, in the small resolution that contracts ruling 2, the lines of ruling 2 are contracted, and the lines of ruling 1 survive.
+
+Now, in the blow-up $\tilde{X}$ (which is the large resolution), both rulings are present. The question is whether either ruling class is homologically trivial in $\tilde{X}$.
+
+Let me think about this using the long exact sequence of the pair $(\tilde{X}, Q)$:
+
+$\cdots \to H_3(\tilde{X}, Q) \to H_2(Q) \to H_2(\tilde{X}) \to H_2(\tilde{X}, Q) \to \cdots$
+
+The image of $H_2(Q) \to H_2(\tilde{X})$ has rank = $\text{rank}(H_2(Q)) - \text{rank}(\text{image of } H_3(\tilde{X}, Q) \to H_2(Q))$.
+
+By Lefschetz duality (since $\tilde{X}$ is a 6-manifold and $Q$ is a divisor), $H_3(\tilde{X}, Q) \cong H^3(\tilde{X} \setminus Q)$... hmm, this is getting complicated.
+
+Let me try a different approach. Let me think about the topology of $\tilde{X}$ in terms of the topology of $\mathbb{CP}^3$ and the blow-up process.
+
+Actually, let me think about what $\tilde{X}$ is topologically. We start with $\mathbb{CP}^3$ and blow up along a curve $C$ (a nodal cubic). The blow-up along a smooth curve $C'$ in a 3-fold replaces $C'$ with a $\mathbb{P}^1$-bundle, and the effect on homology is:
+- $H_2$ gains a generator (the fiber of the $\mathbb{P}^1$-bundle).
+- $H_4$ gains a generator (the exceptional divisor itself, or rather the class of the exceptional divisor).
+
+But our curve $C$ is singular (nodal), so the blow-up is more complicated. The blow-up $Y$ is singular (has a conifold point), and then we resolve by blowing up the conifold point to get $\tilde{X}$.
+
+Let me compute $H_2(\tilde{X})$ by thinking about the topology.
+
+First, let me think about the normalization of $C$. The nodal cubic $C$ has normalization $\nu: \mathbb{P}^1 \to C$, which identifies two points $p_1, p_2 \in \mathbb{P}^1$ to the node $p \in C$.
+
+Topologically, $C$ is obtained from $S^2$ (=$\mathbb{P}^1$) by identifying two points, giving a "pinched torus" or "figure-eight" like space. Actually, $S^2$ with two points identified is homotopy equivalent to $S^2 \vee S^1$. So $H_1(C) \cong \mathbb{Z}$ and $H_2(C) \cong \mathbb{Z}$.
+
+Now, the blow-up of $\mathbb{CP}^3$ along $C$:
+
+For a smooth curve $C'$ of genus $g$ in $\mathbb{CP}^3$, the blow-up $\text{Bl}_{C'} \mathbb{CP}^3$ has:
+$H_2 \cong \mathbb{Z}^2$ (generated by the class of a line in $\mathbb{CP}^3$ and the fiber of the exceptional divisor).
+$H_4 \cong \mathbb{Z}^2$ (generated by the class of a plane in $\mathbb{CP}^3$ and the exceptional divisor).
+
+For our singular curve $C$, the situation is different because the blow-up $Y$ is singular. After resolving to get $\tilde{X}$, we need to account for the additional exceptional divisor $Q$.
+
+Let me try to compute $H_*(\tilde{X})$ using the Mayer-Vietoris sequence or by understanding the topology directly.
+
+Actually, let me think about this more carefully. The 3-fold $\tilde{X}$ is obtained from $\mathbb{CP}^3$ by:
+1. Removing the curve $C$ and replacing it with the exceptional divisor $E$ (a $\mathbb{P}^1$-bundle over $C$, but with a conifold singularity at the node).
+2. Resolving the conifold singularity by replacing the singular point with $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+This is getting quite involved. Let me try to think about it from the perspective of the two small resolutions.
+
+The conifold singularity has two small resolutions, call them $X_1$ and $X_2$. In $X_1$, one ruling of $Q$ is contracted (say ruling 1), and in $X_2$, the other ruling is contracted (ruling 2).
+
+The large resolution $\tilde{X}$ (blow-up of the conifold point) dominates both small resolutions: $\tilde{X} \to X_1$ contracts ruling 1, and $\tilde{X} \to X_2$ contracts ruling 2.
+
+Now, in $X_1$, the contracted ruling 1 is homologically trivial (it's contracted to a point). The ruling 2 survives in $X_1$ as a nontrivial class (it's the exceptional $\mathbb{P}^1$ of the small resolution).
+
+Similarly, in $X_2$, ruling 2 is trivial and ruling 1 is nontrivial.
+
+In $\tilde{X}$, both rulings are present. The map $\tilde{X} \to X_1$ contracts ruling 1, which means ruling 1 is in the kernel of $H_2(\tilde{X}) \to H_2(X_1)$. But this doesn't mean ruling 1 is trivial in $H_2(\tilde{X})$; it just means it's in the kernel.
+
+Actually, when we contract a $\mathbb{P}^1$ with normal bundle $\mathcal{O}(-1) \oplus \mathcal{O}$ to a smooth point, the effect on homology is: $H_2(\tilde{X}) \cong H_2(X_1) \oplus \mathbb{Z}$, where the extra $\mathbb{Z}$ is generated by the contracted $\mathbb{P}^1$ (ruling 1). This is because the blow-up of a smooth point in a 3-fold adds a $\mathbb{Z}$ to $H_2$ (generated by a line in the exceptional $\mathbb{P}^2$)... but wait, the exceptional divisor here is $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$, not $\mathbb{P}^2$.
+
+Hmm, the contraction $\tilde{X} \to X_1$ contracts one ruling of $Q$. The image of $Q$ in $X_1$ is $\mathbb{P}^2$ (the quadric with one ruling contracted is $\mathbb{P}^2$, via the projection $\mathbb{P}^1 \times \mathbb{P}^1 \to \mathbb{P}^2$). And $X_1 \to Y$ (the singular 3-fold) contracts this $\mathbb{P}^2$ to the conifold point... no, that's the blow-up, not a small resolution.
+
+Let me reconsider. The small resolution $X_1$ is obtained from $Y$ (the singular 3-fold) by replacing the conifold point with a $\mathbb{P}^1$ (one ruling). The large resolution $\tilde{X}$ is obtained from $Y$ by replacing the conifold point with $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+The map $\tilde{X} \to X_1$ is the blow-up of $X_1$ along the exceptional $\mathbb{P}^1$ (the one introduced by the small resolution). The exceptional divisor of this blow-up is a $\mathbb{P}^1$-bundle over $\mathbb{P}^1$, which is $\mathbb{P}^1 \times \mathbb{P}^1$ (if the normal bundle is $\mathcal{O} \oplus \mathcal{O}$) or the Hirzebruch surface $\mathbb{F}_n$ for some $n$.
+
+Actually, the normal bundle of the exceptional $\mathbb{P}^1$ in the small resolution $X_1$ is $\mathcal{O}(-1) \oplus \mathcal{O}(-1)$ (this is the standard normal bundle for the small resolution of a conifold). So the blow-up of $X_1$ along this $\mathbb{P}^1$ has exceptional divisor $\mathbb{P}(\mathcal{O}(-1) \oplus \mathcal{O}(-1)) = \mathbb{P}(\mathcal{O} \oplus \mathcal{O}) = \mathbb{P}^1 \times \mathbb{P}^1$ (since projectivization doesn't change when we tensor by a line bundle). Wait, $\mathbb{P}(\mathcal{O}(-1) \oplus \mathcal{O}(-1)) = \mathbb{P}(\mathcal{O} \oplus \mathcal{O}) = \mathbb{P}^1 \times \mathbb{P}^1$. Yes.
+
+So $\tilde{X} \to X_1$ is the blow-up of $X_1$ along a $\mathbb{P}^1$ with normal bundle $\mathcal{O}(-1) \oplus \mathcal{O}(-1)$. The exceptional divisor is $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+Now, the effect of blowing up a curve $\gamma \cong \mathbb{P}^1$ with normal bundle $\mathcal{O}(-1) \oplus \mathcal{O}(-1)$ on homology:
+
+The blow-up of a 3-fold along a curve $\gamma$ replaces $\gamma$ with a $\mathbb{P}^1$-bundle. The effect on $H_2$ is: we lose the class $[\gamma]$ (if it was nonzero) and gain the class of the fiber $[f]$ of the $\mathbb{P}^1$-bundle. But if $[\gamma] = 0$ in $H_2(X_1)$ (which it might be, since $\gamma$ is the exceptional curve of the small resolution), then we just gain $[f]$.
+
+Actually, let me think about this more carefully using the blow-up formula.
+
+For the blow-up $\pi: \tilde{X} \to X_1$ along a curve $\gamma$:
+$H_2(\tilde{X}) \cong \pi^* H_2(X_1) \oplus \mathbb{Z} \cdot [f]$
+
+where $[f]$ is the class of a fiber of the exceptional divisor $Q \to \gamma$. But which fiber? The fibers of $Q \to \gamma$ are the lines in one ruling (say ruling 2, the one that survives in $X_1$). Wait, no. Let me think again.
+
+$Q \cong \mathbb{P}^1 \times \mathbb{P}^1$, and the map $Q \to \gamma \cong \mathbb{P}^1$ is the projection onto one factor. The fibers are the lines in the other ruling.
+
+If $Q = \mathbb{P}^1 \times \mathbb{P}^1$ with factors $(\text{ruling 1}, \text{ruling 2})$, and the map $\tilde{X} \to X_1$ contracts ruling 1 (the lines of ruling 1 are the fibers of $Q \to X_1$... no, the map $Q \to \gamma$ is the projection onto the ruling 2 factor, and the fibers are lines of ruling 1. These fibers are contracted by $\tilde{X} \to X_1$... no, that doesn't make sense either.
+
+Let me be more precise. The small resolution $X_1$ has an exceptional $\mathbb{P}^1$, call it $\gamma$. The blow-up $\tilde{X} \to X_1$ along $\gamma$ has exceptional divisor $Q = \mathbb{P}(N_{\gamma/X_1}) = \mathbb{P}(\mathcal{O}(-1) \oplus \mathcal{O}(-1))$. The map $Q \to \gamma$ is the $\mathbb{P}^1$-bundle projection. The fibers of $Q \to \gamma$ are $\mathbb{P}^1$'s, and these are the "new" curves introduced by the blow-up.
+
+Now, $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$. The two rulings are:
+- Ruling A: the fibers of $Q \to \gamma$ (these are the "vertical" $\mathbb{P}^1$'s, the fibers of the $\mathbb{P}^1$-bundle).
+- Ruling B: the "horizontal" $\mathbb{P}^1$'s (sections of $Q \to \gamma$, or more precisely, the other ruling).
+
+The blow-up formula says:
+$H_2(\tilde{X}) \cong \pi^* H_2(X_1) \oplus \mathbb{Z} \cdot [f_A]$
+
+where $[f_A]$ is the class of a fiber of ruling A. The class $[\gamma]$ in $H_2(X_1)$ pulls back to $[f_B]$ (a line of ruling B, which is a section of $Q \to \gamma$), up to a multiple.
+
+More precisely, $\pi^*[\gamma] = [f_B] + d \cdot [f_A]$ for some integer $d$ related to the normal bundle. Actually, the pullback of $[\gamma]$ is the class of a curve in $\tilde{X}$ that maps to $\gamma$, which is a section of $Q \to \gamma$, i.e., a line of ruling B. So $\pi^*[\gamma] = [f_B]$ (assuming the section has the right class).
+
+Wait, I need to be more careful. The pullback $\pi^*[\gamma]$ is the class of the preimage of $\gamma$ under $\pi$, which is the entire exceptional divisor $Q$ (a surface, not a curve). That's in $H_4$, not $H_2$.
+
+For $H_2$, the blow-up formula for a 3-fold along a curve says:
+$H_2(\tilde{X}) \cong H_2(X_1) \oplus \mathbb{Z} \cdot [f]$
+
+where $[f]$ is the fiber class, and the map $\pi_*: H_2(\tilde{X}) \to H_2(X_1)$ sends $[f]$ to $0$ and is the identity on $H_2(X_1)$.
+
+The inclusion $Q \hookrightarrow \tilde{X}$ induces $H_2(Q) \to H_2(\tilde{X})$. We have $H_2(Q) \cong \mathbb{Z} \cdot [f_A] \oplus \mathbb{Z} \cdot [f_B]$.
+
+$[f_A]$ (the fiber of $Q \to \gamma$) maps to the new generator $[f]$ in $H_2(\tilde{X})$.
+
+$[f_B]$ (a section of $Q \to \gamma$, i.e., a line of the other ruling) maps to... well, $[f_B]$ is a curve in $\tilde{X}$ that projects to $\gamma$ in $X_1$. So $\pi_*[f_B] = [\gamma]$ (possibly up to multiplicity, but since $f_B$ maps isomorphically to $\gamma$, we get $\pi_*[f_B] = [\gamma]$).
+
+So the map $H_2(Q) \to H_2(\tilde{X})$ sends:
+$[f_A] \mapsto [f]$ (the new generator)
+$[f_B] \mapsto \pi^*[\gamma]$... wait, no. The map $H_2(Q) \to H_2(\tilde{X})$ is just the inclusion-induced map. $[f_B]$ is a curve in $Q \subset \tilde{X}$, and its class in $H_2(\tilde{X})$ is some element. Under the decomposition $H_2(\tilde{X}) \cong H_2(X_1) \oplus \mathbb{Z}[f]$, we have $[f_B] = ([\gamma], 0)$ (since $\pi_*[f_B] = [\gamma]$ and $[f_B]$ has no component in the $[f]$ direction... actually, I need to check this).
+
+Hmm, let me think about this differently. The decomposition $H_2(\tilde{X}) \cong \pi^*H_2(X_1) \oplus \mathbb{Z}[f_A]$ means that every class $\alpha \in H_2(\tilde{X})$ can be written as $\pi^*\beta + n[f_A]$ where $\beta = \pi_*\alpha \in H_2(X_1)$ and $n$ is some integer.
+
+For $[f_A]$: $\pi_*[f_A] = 0$ (since $f_A$ is a fiber, contracted to a point), so $[f_A] = 0 + 1 \cdot [f_A]$. ✓
+
+For $[f_B]$: $\pi_*[f_B] = [\gamma]$ (since $f_B$ maps isomorphically to $\gamma$). So $[f_B] = \pi^*[\gamma] + n[f_A]$ for some $n$. To determine $n$, we need to compute the intersection of $[f_B]$ with the exceptional divisor $Q$.
+
+The intersection number $[f_B] \cdot [Q]$: $f_B$ is a curve in $Q$, and $Q$ is a divisor. The intersection of a curve contained in a divisor with the divisor is $\deg(N_{Q/\tilde{X}}|_{f_B})$. We have $N_{Q/\tilde{X}} = \mathcal{O}_Q(-1)$ (the exceptional divisor of a blow-up has normal bundle $\mathcal{O}(-1)$). So $[f_B] \cdot [Q] = \deg(\mathcal{O}_Q(-1)|_{f_B}) = -\deg(\mathcal{O}_Q(1)|_{f_B})$.
+
+Now, $\mathcal{O}_Q(1)$ is the tautological line bundle of the projectivized normal bundle $Q = \mathbb{P}(N_{\gamma/X_1})$. For a section $f_B$ of $Q \to \gamma$, $\mathcal{O}_Q(1)|_{f_B} = N_{\gamma/X_1}|_{f_B}$... hmm, actually, $\mathcal{O}_Q(1)$ restricted to a fiber $f_A$ is $\mathcal{O}_{\mathbb{P}^1}(1)$, and restricted to a section depends on the section.
+
+This is getting complicated. Let me try a more direct approach.
+
+Actually, let me step back and think about the global topology.
+
+The 3-fold $\tilde{X}$ is obtained from $\mathbb{CP}^3$ by a sequence of blow-ups. Let me think about what $H_2(\tilde{X})$ is.
+
+First, $H_2(\mathbb{CP}^3) \cong \mathbb{Z}$, generated by the class of a line $[L]$.
+
+When we blow up along a curve $C$, we (roughly) remove $C$ and glue in a $\mathbb{P}^1$-bundle over $C$. The effect on $H_2$ is to add a generator (the fiber class) if $C$ is smooth.
+
+For a smooth curve $C$ of genus $g$ in $\mathbb{CP}^3$:
+$H_2(\text{Bl}_C \mathbb{CP}^3) \cong \mathbb{Z}[L] \oplus \mathbb{Z}[f]$
+where $[f]$ is the fiber of the exceptional divisor. The class $[C]$ in $H_2(\mathbb{CP}^3)$ is $d[L]$ where $d = \deg(C)$, and in the blow-up, $[C]$ is replaced by the exceptional divisor (in $H_4$), while $[f]$ is the new $H_2$ class.
+
+For our singular curve $C$ (nodal cubic), the blow-up $Y$ is singular, and after resolving, $\tilde{X}$ has additional topology from the resolution.
+
+Let me try to compute $H_2(\tilde{X})$ by understanding the topology of the resolution.
+
+The conifold singularity in $Y$ is at a single point. The resolution $\tilde{X} \to Y$ replaces this point with $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+The effect on homology of replacing a point with $Q$: topologically, we remove a small ball around the conifold point and glue in something. The conifold point has a neighborhood that is a cone over $S^2 \times S^3$ (the link of the conifold). The resolution replaces this with a disk bundle over $S^2$ (or something similar).
+
+Actually, the topology of the conifold resolution is well-studied. The conifold singularity has link $S^2 \times S^3$. The small resolution replaces the cone over $S^2 \times S^3$ with a disk bundle over $S^2$ (with Euler class $-1$), which has boundary $S^2 \times S^3$ (well, a lens space or $S^2 \times S^3$ depending on the Euler class). The large resolution (blow-up) replaces it with something that has $Q = S^2 \times S^2$ in the middle.
+
+The effect on $H_2$ of the small resolution: we add one $\mathbb{Z}$ (the $S^2$ of the disk bundle). The effect on $H_2$ of the large resolution: we add... let me think.
+
+The large resolution replaces the cone over $S^2 \times S^3$ with a neighborhood of $Q = S^2 \times S^2$ in $\tilde{X}$. The neighborhood of $Q$ in $\tilde{X}$ is the disk bundle of $\mathcal{O}_Q(-1)$, which has boundary... the circle bundle of $\mathcal{O}_Q(-1)$, which is the link $S^2 \times S^3$ (or a quotient thereof).
+
+The Mayer-Vietoris sequence for $\tilde{X} = (\tilde{X} \setminus \text{int}(N(Q))) \cup N(Q)$, where $N(Q)$ is a tubular neighborhood of $Q$:
+
+$H_2(\partial N(Q)) \to H_2(\tilde{X} \setminus \text{int}(N(Q))) \oplus H_2(N(Q)) \to H_2(\tilde{X}) \to H_1(\partial N(Q)) \to \cdots$
+
+$N(Q)$ deformation retracts to $Q$, so $H_2(N(Q)) \cong H_2(Q) \cong \mathbb{Z}^2$.
+
+$\partial N(Q)$ is the circle bundle over $Q$ with Chern class $c_1(\mathcal{O}_Q(-1)) = -h$ where $h$ is the hyperplane class. The Gysin sequence for the circle bundle $S^1 \to \partial N(Q) \to Q$:
+
+$H_2(Q) \xrightarrow{\cup c_1} H_4(Q) \to H_2(\partial N(Q)) \to H_1(Q) \to \cdots$
+
+Wait, the Gysin sequence for an $S^1$-bundle with Chern class $e$:
+$\cdots \to H_k(Q) \xrightarrow{\cup e} H_{k+2}(Q) \to H_{k+1}(\partial N) \to H_{k-1}(Q) \to \cdots$
+
+Hmm, I don't think I have the Gysin sequence quite right. Let me use the Thom-Gysin sequence for the circle bundle $\pi: \partial N \to Q$ with Euler class $e = c_1 \in H^2(Q)$:
+
+$\cdots \to H_{k}(Q) \xrightarrow{\pi^*} H_{k}(\partial N) \xrightarrow{\pi_*} H_{k-1}(Q) \xrightarrow{\wedge e} H_{k+1}(Q) \to \cdots$
+
+For $k = 2$:
+$H_2(Q) \xrightarrow{\pi^*} H_2(\partial N) \xrightarrow{\pi_*} H_1(Q) \xrightarrow{\wedge e} H_3(Q)$
+
+$H_1(Q) = 0$ (since $Q = S^2 \times S^2$ is simply connected) and $H_3(Q) = 0$. So $H_2(\partial N) \cong H_2(Q) \cong \mathbb{Z}^2$.
+
+Wait, that doesn't seem right. Let me reconsider. The Gysin sequence for an $S^1$-bundle:
+
+$\cdots \to H^{k}(Q) \xrightarrow{\wedge e} H^{k+2}(Q) \xrightarrow{\pi^*} H^{k+2}(\partial N) \to H^{k+1}(Q) \to \cdots$
+
+By Poincaré duality on $Q$ (a 4-manifold), $H^k(Q) \cong H_{4-k}(Q)$.
+
+$H^2(Q) \cong \mathbb{Z}^2$ (generated by $h_1, h_2$, the two ruling classes).
+$H^4(Q) \cong \mathbb{Z}$ (generated by the fundamental class).
+$e = c_1(\mathcal{O}_Q(-1)) = -(h_1 + h_2)$ (since $\mathcal{O}_Q(1)$ restricts to $\mathcal{O}(1)$ on each ruling, so $c_1 = h_1 + h_2$; wait, I need to be more careful).
+
+Actually, $Q = \mathbb{P}^1 \times \mathbb{P}^1$ and $\mathcal{O}_Q(1)$ is the tautological bundle of the projectivized normal bundle. The normal bundle of $\gamma$ in $X_1$ is $\mathcal{O}(-1) \oplus \mathcal{O}(-1)$, so $Q = \mathbb{P}(\mathcal{O}(-1) \oplus \mathcal{O}(-1))$ and $\mathcal{O}_Q(1)$ is the tautological quotient bundle.
+
+For $Q = \mathbb{P}(E)$ where $E = \mathcal{O}(-1) \oplus \mathcal{O}(-1)$ over $\gamma = \mathbb{P}^1$, we have $\text{Pic}(Q) \cong \mathbb{Z}^2$ generated by $\mathcal{O}_Q(1)$ and $\pi^*\mathcal{O}_{\gamma}(1)$ where $\pi: Q \to \gamma$.
+
+The two rulings of $Q = \mathbb{P}^1 \times \mathbb{P}^1$:
+- Ruling A (fibers of $Q \to \gamma$): these are the fibers of the $\mathbb{P}^1$-bundle. $\mathcal{O}_Q(1)|_{f_A} = \mathcal{O}_{\mathbb{P}^1}(1)$.
+- Ruling B (sections): $\mathcal{O}_Q(1)|_{f_B} = E|_{f_B}$... hmm, this depends on the section.
+
+Actually, let me use the standard description. $Q = \mathbb{P}^1 \times \mathbb{P}^1$ with projections $p_1, p_2$. Let $a = p_1^*[\text{pt}]$ and $b = p_2^*[\text{pt}]$ be the classes of the two rulings in $H_2(Q)$. Then $H^2(Q) \cong \mathbb{Z} \cdot \alpha \oplus \mathbb{Z} \cdot \beta$ where $\alpha = p_1^*c_1(\mathcal{O}(1))$ and $\beta = p_2^*c_1(\mathcal{O}(1))$, with $\alpha \cdot a = 1, \alpha \cdot b = 0, \beta \cdot a = 0, \beta \cdot b = 1$.
+
+The normal bundle of $Q$ in $\tilde{X}$ is $\mathcal{O}_Q(-1)$, and $c_1(\mathcal{O}_Q(1)) = \alpha + \beta$ (since $\mathcal{O}_Q(1)$ restricts to $\mathcal{O}(1)$ on each ruling). So $e = c_1(N_{Q/\tilde{X}}) = -(\alpha + \beta)$.
+
+Now, the Gysin sequence for the circle bundle $\partial N \to Q$ with Euler class $e = -(\alpha + \beta)$:
+
+$H^2(Q) \xrightarrow{\wedge e} H^4(Q)$: $\alpha \mapsto \alpha \wedge (-\alpha - \beta) = -\alpha\beta$ (which is $-1$ times the fundamental class), $\beta \mapsto \beta \wedge (-\alpha - \beta) = -\alpha\beta$ (also $-1$ times the fundamental class).
+
+So the map $\wedge e: \mathbb{Z}^2 \to \mathbb{Z}$ sends $(m, n) \mapsto -(m + n)$.
+
+The kernel is $\{(m, n) : m + n = 0\} \cong \mathbb{Z}$, generated by $(1, -1)$.
+
+The Gysin sequence:
+$H^2(Q) \xrightarrow{\wedge e} H^4(Q) \xrightarrow{\pi^*} H^4(\partial N) \to H^3(Q) = 0$
+
+So $H^4(\partial N) \cong H^4(Q) / \text{image}(\wedge e) = \mathbb{Z} / \mathbb{Z} = 0$ (since $\wedge e$ is surjective: $(m,n) \mapsto -(m+n)$ is surjective).
+
+And $H^3(\partial N)$: from the sequence $H^3(Q) = 0 \to H^3(\partial N) \to H^2(Q) \xrightarrow{\wedge e} H^4(Q)$, we get $H^3(\partial N) \cong \ker(\wedge e) \cong \mathbb{Z}$.
+
+Also, $H^2(\partial N)$: from $H^0(Q) \xrightarrow{\wedge e} H^2(Q) \xrightarrow{\pi^*} H^2(\partial N) \to H^1(Q) = 0$, we get $H^2(\partial N) \cong H^2(Q) / \text{image}(H^0(Q) \xrightarrow{\wedge e})$. The map $H^0(Q) \to H^2(Q)$ sends $1 \mapsto e = -(\alpha + \beta)$. So $H^2(\partial N) \cong \mathbb{Z}^2 / \mathbb{Z}(\alpha + \beta) \cong \mathbb{Z}$.
+
+By Poincaré duality on $\partial N$ (a 5-manifold), $H_k(\partial N) \cong H^{5-k}(\partial N)$:
+- $H_3(\partial N) \cong H^2(\partial N) \cong \mathbb{Z}$
+- $H_2(\partial N) \cong H^3(\partial N) \cong \mathbb{Z}$
+- $H_1(\partial N) \cong H^4(\partial N) = 0$
+- $H_4(\partial N) \cong H^1(\partial N) = 0$ (since $H^1(\partial N) \cong H_1(\partial N) / \text{torsion}$... wait, I should use the homology Gysin sequence instead).
+
+Actually, let me use the homology Gysin sequence for the circle bundle. The circle bundle $\pi: \partial N \to Q$ with Euler class $e$:
+
+$\cdots \to H_k(Q) \xrightarrow{\cap e} H_{k-2}(Q) \xrightarrow{\pi_*} H_{k-1}(\partial N) \xrightarrow{\pi^*} H_{k-1}(Q) \to \cdots$
+
+Hmm, I'm getting confused with the exact sequences. Let me just use the known result for the topology of the conifold.
+
+The link of the conifold singularity is $S^2 \times S^3$ (or $S^5$ in the case of a node in $\mathbb{C}^3$... no, the conifold $xy = zw$ in $\mathbb{C}^4$ has link $S^2 \times S^3$).
+
+Actually, the link of $xy = zw$ at the origin: intersect with a small sphere $S^5 \subset \mathbb{C}^4$. The link is $\{(x,y,z,w) \in S^5 : xy = zw\}$. This is known to be $S^2 \times S^3$ (or more precisely, $T^*S^3$ restricted to the sphere, which is $S^2 \times S^3$).
+
+Hmm, actually, I recall that the link of the conifold is $S^2 \times S^3$, and $H_2(S^2 \times S^3) \cong \mathbb{Z}$, $H_3(S^2 \times S^3) \cong \mathbb{Z}$.
+
+Wait, but I computed above that $H_2(\partial N) \cong \mathbb{Z}$ and $H_3(\partial N) \cong \mathbb{Z}$, which is consistent with $\partial N \cong S^2 \times S^3$.
+
+Now, the Mayer-Vietoris sequence for $\tilde{X} = A \cup B$ where $A = \tilde{X} \setminus \text{int}(N(Q))$ and $B = N(Q)$, with $A \cap B = \partial N(Q) \cong S^2 \times S^3$:
+
+$H_3(\partial N) \to H_3(A) \oplus H_3(B) \to H_3(\tilde{X}) \to H_2(\partial N) \to H_2(A) \oplus H_2(B) \to H_2(\tilde{X}) \to H_1(\partial N) \to \cdots$
+
+$B = N(Q) \simeq Q$, so $H_2(B) = H_2(Q) = \mathbb{Z}^2$, $H_3(B) = H_3(Q) = 0$.
+
+$A = \tilde{X} \setminus \text{int}(N(Q)) \simeq Y \setminus \{p\}$ (where $p$ is the conifold point), since removing the interior of the tubular neighborhood of $Q$ gives us the complement of a ball around $p$ in $Y$.
+
+Actually, $A$ is the complement of a neighborhood of $Q$ in $\tilde{X}$, which is the same as $Y$ with a neighborhood of the conifold point removed. And $Y$ with a neighborhood of $p$ removed is the same as $Y \setminus \{p\}$ up to homotopy (since the neighborhood is contractible to $p$... well, the neighborhood is a cone over $S^2 \times S^3$, which is contractible).
+
+So $A \simeq Y \setminus \{p\}$.
+
+Now, $Y$ is the blow-up of $\mathbb{CP}^3$ along $C$, which is singular at $p$ (the preimage of the node). $Y \setminus \{p\}$ is the smooth part of $Y$.
+
+To compute $H_*(Y \setminus \{p\})$, I can use the long exact sequence of the pair $(Y, Y \setminus \{p\})$:
+
+$\cdots \to H_k(Y \setminus \{p\}) \to H_k(Y) \to H_k(Y, Y \setminus \{p\}) \to H_{k-1}(Y \setminus \{p\}) \to \cdots$
+
+$H_k(Y, Y \setminus \{p\}) \cong H_k(\text{cone over } S^2 \times S^3, S^2 \times S^3) \cong \tilde{H}_{k-1}(S^2 \times S^3)$ (by excision and the long exact sequence of the cone).
+
+So $H_k(Y, Y \setminus \{p\}) \cong \tilde{H}_{k-1}(S^2 \times S^3)$:
+- $k = 3$: $\tilde{H}_2(S^2 \times S^3) = \mathbb{Z}$
+- $k = 4$: $\tilde{H}_3(S^2 \times S^3) = \mathbb{Z}$
+- Other $k$: $0$.
+
+So:
+$H_4(Y \setminus \{p\}) \to H_4(Y) \to \mathbb{Z} \to H_3(Y \setminus \{p\}) \to H_3(Y) \to 0$
+$H_3(Y \setminus \{p\}) \to H_3(Y) \to 0$ (since $H_2(Y, Y \setminus \{p\}) = \tilde{H}_1(S^2 \times S^3) = 0$)
+
+Wait, let me be more careful:
+$H_4(Y, Y \setminus \{p\}) = \mathbb{Z}$ (from $\tilde{H}_3(S^2 \times S^3) = \mathbb{Z}$)
+$H_3(Y, Y \setminus \{p\}) = \mathbb{Z}$ (from $\tilde{H}_2(S^2 \times S^3) = \mathbb{Z}$)
+$H_k(Y, Y \setminus \{p\}) = 0$ for $k \neq 3, 4$.
+
+The long exact sequence:
+$\cdots \to H_4(Y \setminus \{p\}) \to H_4(Y) \xrightarrow{\delta} \mathbb{Z} \to H_3(Y \setminus \{p\}) \to H_3(Y) \to \mathbb{Z} \to H_2(Y \setminus \{p\}) \to H_2(Y) \to 0 \to H_1(Y \setminus \{p\}) \to H_1(Y) \to 0$
+
+From the end: $H_1(Y \setminus \{p\}) \cong H_1(Y)$.
+
+And: $0 \to H_2(Y \setminus \{p\}) \to H_2(Y) \to 0$, so $H_2(Y \setminus \{p\}) \cong H_2(Y)$.
+
+Wait, that's from $H_3(Y, Y \setminus \{p\}) = \mathbb{Z} \to H_2(Y \setminus \{p\}) \to H_2(Y) \to H_2(Y, Y \setminus \{p\}) = 0$.
+
+So the sequence is $\mathbb{Z} \xrightarrow{\alpha} H_2(Y \setminus \{p\}) \to H_2(Y) \to 0$.
+
+This gives $H_2(Y \setminus \{p\}) / \text{image}(\alpha) \cong H_2(Y)$, i.e., $H_2(Y \setminus \{p\}) \cong H_2(Y) \oplus \text{image}(\alpha)$ (if the sequence splits, which it does since these are free abelian groups).
+
+Hmm, I need to know $H_2(Y)$ and $H_3(Y)$ to proceed. Let me compute the homology of $Y$ (the blow-up of $\mathbb{CP}^3$ along the nodal cubic $C$).
+
+$Y$ is a singular 3-fold with a single conifold singularity. Away from the singularity, $Y$ is smooth. The singularity is at a single point.
+
+To compute $H_*(Y)$, I can use the fact that $Y$ is obtained from $\mathbb{CP}^3$ by blowing up along $C$. Even though $C$ is singular, the blow-up is a well-defined projective variety.
+
+For the blow-up of a smooth 3-fold along a (possibly singular) curve, the homology can be computed using the blow-up formula. But I need to be careful because $C$ is singular.
+
+Let me think about the topology of the blow-up differently. The blow-up $\pi: Y \to \mathbb{CP}^3$ is an isomorphism away from $C$, and the preimage of $C$ is the exceptional divisor $E$.
+
+$E$ is a $\mathbb{P}^1$-bundle over $C$ (in the sense that $E = \text{Proj}(\bigoplus I^n/I^{n+1})$ over $C$). Over smooth points of $C$, $E$ is a $\mathbb{P}^1$-bundle. Over the node, the fiber is $\mathbb{P}^1$ (as computed).
+
+The topology of $E$: $E$ is a $\mathbb{P}^1$-bundle over $C$ (topologically). Since $C$ is a nodal cubic (topologically $S^2 \vee S^1$), $E$ is a $\mathbb{P}^1$-bundle over $S^2 \vee S^1$.
+
+Actually, $E$ is the projectivization of the normal cone of $C$ in $\mathbb{CP}^3$. Over the smooth part of $C$, this is $\mathbb{P}(N_{C/\mathbb{CP}^3})$, the projectivized normal bundle. The normal bundle of $C$ (smooth part) in $\mathbb{CP}^3$ has rank 2.
+
+For a curve in $\mathbb{CP}^3$, the normal bundle fits in:
+$0 \to T_C \to T_{\mathbb{CP}^3}|_C \to N_{C/\mathbb{CP}^3} \to 0$
+
+For a smooth curve of degree $d$ and genus $g$ in $\mathbb{CP}^3$:
+$\deg(N_{C/\mathbb{CP}^3}) = \deg(T_{\mathbb{CP}^3}|_C) - \deg(T_C) = (3(d+1) + 2g - 2) - (2 - 2g) = ... $
+
+Hmm, actually, $c_1(T_{\mathbb{CP}^3}) = 4H$ where $H$ is the hyperplane class. So $\deg(T_{\mathbb{CP}^3}|_C) = 4d$. And $\deg(T_C) = 2 - 2g$. So $\deg(N_{C/\mathbb{CP}^3}) = 4d - (2 - 2g) = 4d + 2g - 2$.
+
+For our nodal cubic: $d = 3        — AI历史解题过程（thinking）
+#   deepmath_103k_00015522         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>deepmath_103k_00015522</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Suppose $u$ is a harmonic function on the exterior of the unit disk, $u \in \text{har}(\mathbb{C} \setminus \mathbb{D})$, that vanishes on the boundary of the unit disk and at infinity. Prove that $u$ is identically zero in $\mathbb{C} \setminus \mathbb{D}$.
+
+## Standard Solution
+
+Okay, so I need to prove that a harmonic function u defined on the exterior of the unit disk, which is harmonic there, vanishes on the boundary (so when |z|=1) and also at infinity, must be identically zero everywhere in the exterior of the unit disk. Hmm, harmonic functions... Okay, harmonic functions satisfy the mean value property, right? So maybe that's useful. Also, since it's defined on the exterior of the unit disk, maybe I can use some kind of transformation to turn it into a problem on the unit disk? Because the exterior of the unit disk is kind of like the unit disk with the origin removed if we invert the coordinates. Let me think.
+
+If I take the inversion in the unit circle, that is, consider the transformation w = 1/z. Then the exterior of the unit disk in the z-plane (|z| > 1) corresponds to the punctured unit disk in the w-plane (0 < |w| < 1). The boundary |z| =1 becomes |w|=1, and the point at infinity in the z-plane becomes w=0. So maybe by transforming u(z) into a function on the punctured unit disk in the w-plane, I can extend it to the entire unit disk and apply some theorem?
+
+Wait, the function u is harmonic on the exterior of the unit disk, which under inversion becomes harmonic on the punctured unit disk. But harmonicity is preserved under conformal mappings, right? Because harmonic functions are preserved under conformal transformations. So if u(z) is harmonic in |z| >1, then u(1/w) should be harmonic in 0 < |w| <1. But u vanishes on |z|=1, so u(1/w) vanishes on |w|=1. Also, u tends to zero as |z| tends to infinity, which corresponds to w approaching zero. So u(1/w) tends to zero as w approaches zero. So the transformed function, let's call it v(w) = u(1/w), is harmonic in the punctured unit disk 0 < |w| <1, continuous on the closure (since it's zero on the boundary |w|=1 and as w approaches 0), and is harmonic except possibly at w=0. But since v(w) tends to zero as w approaches 0, maybe we can extend v(w) to w=0 by defining v(0)=0, making v(w) harmonic in the entire unit disk |w| <=1?
+
+Wait, there's a theorem called removable singularity theorem for harmonic functions. If a harmonic function is defined in a punctured disk and has a removable singularity at the center, which in this case, since the limit exists (tends to zero) as w approaches 0, then we can extend v(w) to be harmonic at w=0. So then v(w) is harmonic on the entire unit disk |w| <1, continuous on the closed disk, and zero on the boundary |w|=1. Then by the maximum principle for harmonic functions, the maximum and minimum of v(w) in the closed disk occur on the boundary. But the boundary values are zero, so v(w) is identically zero in the unit disk. Therefore, u(z) is identically zero in the exterior of the unit disk.
+
+Wait, is that right? Let me check. So if v(w) is harmonic in the unit disk with v=0 on the boundary, then yes, by the maximum and minimum principle, since harmonic functions attain their maxima and minima on the boundary if the domain is bounded, then v must be zero everywhere. Then since u(z) = v(1/z), u(z) is zero everywhere. That seems to work. But maybe I need to be more careful about the removable singularity part.
+
+So, to recall, if a function is harmonic in a punctured disk around a point and is bounded near that point, then the singularity is removable. In this case, v(w) tends to zero as w approaches 0, so it's bounded (since it's going to zero), so the singularity at w=0 is removable. Therefore, v(w) can be extended to a harmonic function on the entire disk. Then applying the maximum principle: since the extended v(w) is harmonic on the closed unit disk, and zero on the boundary, it must be zero everywhere. Hence, u(z) is zero everywhere in the exterior disk.
+
+Alternatively, maybe I can use the maximum principle directly on the exterior domain. But usually, the maximum principle for harmonic functions requires the domain to be bounded. The exterior of the unit disk is unbounded, but since u tends to zero at infinity, perhaps we can still apply some version of the maximum principle. Let me think.
+
+Suppose u is harmonic in the exterior of the unit disk, continuous up to the boundary, and tends to zero at infinity. Suppose u is not identically zero. Then, if u attains a positive maximum or a negative minimum in the exterior domain, but since it's going to zero at infinity, any extremum would have to be attained somewhere in the exterior. But wait, harmonic functions on unbounded domains can have their extrema at infinity. Hmm. However, since u tends to zero at infinity, for any epsilon >0, there exists R such that |u(z)| < epsilon for |z| > R. So if u has a maximum in the closed exterior disk (|z| >=1), it must be attained either on the boundary |z|=1 or somewhere in the interior |z| >1. But since u is zero on |z|=1, and tends to zero at infinity, if there's a point where u is positive, say, then near that point, u would be positive, but approaching zero as we go to infinity. So the maximum would have to be attained somewhere in the exterior. But harmonic functions don't have local maxima or minima unless they are constant. Therefore, if u is non-constant, it cannot have local maxima or minima. But since u is zero on the boundary and at infinity, if u were positive somewhere, it would have to have a maximum somewhere, which contradicts the maximum principle. Therefore, u must be constant, and since it's zero on the boundary and at infinity, it must be zero everywhere.
+
+Wait, that seems like a different approach but also valid. So using the maximum principle on the unbounded domain, with the condition at infinity. But I need to make sure that the maximum principle applies here. In some textbooks, the maximum principle for unbounded domains requires the function to be bounded, which u is, since it tends to zero at infinity. So in this case, the maximum principle would state that the supremum of |u| is attained either on the boundary or at infinity. But since |u| is zero on the boundary and at infinity, then |u| must be zero everywhere. Hmm, that seems a more straightforward approach.
+
+So in summary, since u is harmonic on the exterior domain, continuous up to the boundary, vanishes on the boundary and at infinity, and harmonic functions on such domains satisfy the maximum principle where the maximum is attained on the boundary or at infinity. Since both are zero, u must be identically zero.
+
+Alternatively, using the inversion transformation to map the problem to a bounded domain, then applying the standard maximum principle. Either way, the conclusion is the same.
+
+Another approach might be using the mean value property. Since u is harmonic, for any point z in the exterior of the unit disk, the average of u over any circle centered at z with radius r (as long as the circle stays within the domain). But since u tends to zero at infinity, maybe integrating over large circles? Not sure. Let's see.
+
+Suppose we take a point z with |z| >1. Then, for any r >0 such that the circle of radius r around z doesn't intersect the unit disk. Wait, but the unit disk is in the interior, so if |z| >1, and r is small enough, then the circle of radius r around z is entirely in |z| >1. But the mean value property says that u(z) is equal to the average over that circle. However, how does that help? Maybe if we take large r? If we take a circle of radius R around the origin, with R > |z|, then the average over that circle would tend to zero as R tends to infinity, since u tends to zero. But how does that relate to u(z)?
+
+Alternatively, using the Poisson integral formula for the exterior domain. Wait, the Poisson formula is usually for the unit disk or the upper half-plane. For exterior domains, maybe there's a modified Poisson formula. Let me recall.
+
+For the exterior of the unit disk, harmonic functions can be represented using the Poisson integral formula with a negative term, or perhaps using a Laurent series expansion. Since u is harmonic in |z| >1 and vanishes at infinity, perhaps its Laurent series expansion has only negative powers. Wait, harmonic functions in the plane can be represented as the real part of a holomorphic function, right? So if u is harmonic in |z| >1, then it can be written as the real part of a holomorphic function f(z) defined there. Since u tends to zero at infinity, then f(z) must tend to a purely imaginary constant as z tends to infinity, but since we can adjust constants, maybe f(z) tends to zero. Wait, if u tends to zero, then the real part of f(z) tends to zero. So f(z) tends to a purely imaginary constant. But we can subtract that constant to make f(z) tend to zero. So perhaps f(z) is analytic at infinity? Let me recall that if a function is analytic at infinity, it has a Laurent series expansion in negative powers of z. So if f(z) is analytic in |z| >1 and tends to zero as z tends to infinity, then f(z) can be written as a sum from n=1 to infinity of a_n z^{-n}. Therefore, the Laurent series of u(z) would be the real part of such a function, hence a series with terms like r^{-n} cos(nθ) and r^{-n} sin(nθ).
+
+But u is also zero on the boundary |z|=1. So when r=1, u(1, θ) = 0. Therefore, substituting r=1 into the Laurent series, we get the Fourier series of the zero function. Therefore, all the coefficients must be zero. Hence, the Laurent series is identically zero, so u is zero everywhere.
+
+Wait, that seems like another valid approach. Let me elaborate. Suppose u is harmonic in |z| >1, vanishes on |z|=1, and tends to zero as |z| approaches infinity. Then, in the annulus (if we consider |z| >1 as an annulus extending to infinity), the Laurent series expansion of u in terms of r^{-n} e^{inθ} would hold. But since u tends to zero as r approaches infinity, all the coefficients for non-negative powers must be zero. Wait, actually, in the Laurent series for harmonic functions in the exterior domain, we have terms like r^{n} and r^{-n}, but because u tends to zero at infinity, the terms with positive powers of r (i.e., r^{n}) must vanish, leaving only terms with r^{-n}. But when r=1, the boundary condition u=0 would force all those coefficients to be zero as well. Therefore, the entire series is zero, hence u=0.
+
+Yes, that's another way. So using the Laurent expansion for harmonic functions in the exterior domain, combining the boundary condition at |z|=1 and the condition at infinity to conclude all coefficients are zero.
+
+So, in summary, there are multiple approaches: using inversion to map to the unit disk and applying maximum principle, using the maximum principle directly on the exterior domain with the condition at infinity, or using Laurent series expansion and Fourier analysis. All lead to the conclusion that u must be identically zero.
+
+I think the most straightforward is the inversion method, transforming the problem into the unit disk, extending the function to the puncture point, then using maximum principle. Let me write that one more carefully.
+
+Define w = 1/z, so that the exterior of the unit disk |z| >1 corresponds to the punctured unit disk 0 < |w| <1. Define v(w) = u(1/w). Then v is harmonic in 0 < |w| <1. Since u tends to zero as |z| approaches infinity, v(w) tends to zero as w approaches 0. Therefore, v(w) is bounded near w=0 (since it goes to zero), so by the removable singularity theorem for harmonic functions, v(w) can be extended to a harmonic function on the entire unit disk |w| <1. The extended function, which we still call v(w), is harmonic in |w| <1, continuous on |w| <=1, and equal to zero on |w|=1 (since u is zero on |z|=1). By the maximum principle for harmonic functions on the unit disk, v(w) must attain its maximum and minimum on the boundary |w|=1. But since v(w)=0 on the boundary, the maximum and minimum are both zero. Therefore, v(w) is identically zero in the unit disk, which implies u(z) = v(1/z) is identically zero in |z| >1. Hence, u is zero everywhere in the exterior of the unit disk.
+
+Therefore, the conclusion is that u must be identically zero.
+
+**Final Answer**
+\boxed{0}
+</think>
+
+To prove that a harmonic function \( u \) on the exterior of the unit disk \( \mathbb{C} \setminus \mathbb{D} \), which vanishes on the boundary of the unit disk and at infinity, is identically zero, we can use the following steps:
+
+1. **Inversion Transformation**: Consider the transformation \( w = 1/z \). This maps the exterior of the unit disk \( |z| > 1 \) to the punctured unit disk \( 0 < |w| < 1 \). The boundary \( |z| = 1 \) maps to \( |w| = 1 \), and the point at infinity maps to \( w = 0 \).
+
+2. **Define Transformed Function**: Define \( v(w) = u(1/w) \). Since \( u \) is harmonic on \( |z| > 1 \), \( v(w) \) is harmonic on \( 0 < |w| < 1 \). Additionally, \( u \) vanishing on \( |z| = 1 \) implies \( v \) vanishes on \( |w| = 1 \), and \( u \) tending to zero at infinity implies \( v(w) \to 0 \) as \( w \to 0 \).
+
+3. **Removable Singularity**: Since \( v(w) \) is harmonic in \( 0 < |w| < 1 \) and bounded near \( w = 0 \) (as it tends to zero), the singularity at \( w = 0 \) is removable. Thus, \( v(w) \) can be extended to a harmonic function on the entire unit disk \( |w| \leq 1 \).
+
+4. **Maximum Principle**: The extended function \( v(w) \) is harmonic on \( |w| \leq 1 \), continuous on the closed disk, and zero on the boundary \( |w| = 1 \). By the maximum principle for harmonic functions, the maximum and minimum of \( v(w) \) on the closed disk must occur on the boundary. Since \( v(w) = 0 \) on the boundary, \( v(w) \) must be identically zero in the entire unit disk.
+
+5. **Conclusion**: Since \( v(w) \) is identically zero, \( u(z) = v(1/z) \) must be identically zero in the exterior of the unit disk \( |z| > 1 \).
+
+Thus, we conclude that \( u \) is identically zero in \( \mathbb{C} \setminus \mathbb{D} \).
+
+\[
+\boxed{0}
+\]
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully. This is a topology/algebraic geometry problem about the blow-up of CP^3 at a planar nodal cubic curve.
+
+Let me think about the setup:
+- We have CP^3
+- We blow up along a planar nodal cubic curve C (a cubic curve with a node, lying in some plane P ≅ CP^2 inside CP^3)
+- The blow-up replaces the curve C with some exceptional divisor
+- At a smooth point of C, the blow-up of CP^3 along C locally replaces C with a CP^1-bundle (the projectivized normal bundle)
+- At the node, the situation is more complicated. The node is a singular point of C, so we need to understand what the "blow-up" does there.
+
+Wait, let me re-read the problem. "the blow-up of CP^3 at a planar nodal cubic curve" - this is the blow-up of CP^3 along the curve C.
+
+The problem mentions Q, "the smooth quadric surface replacing the node in the blow-up." So at the nodal point, the exceptional divisor over the node is a smooth quadric surface Q ≅ CP^1 × CP^1.
+
+Let me think about this more carefully.
+
+The curve C is a nodal cubic in a plane P ⊂ CP^3. The node is a point p where C has a node singularity (locally like xy = 0 in the plane).
+
+When we blow up CP^3 along C, we need to understand the exceptional divisor. Since C is singular at the node, the blow-up along the singular curve is more subtle.
+
+Actually, let me reconsider. The blow-up of a variety along a subvariety is defined by the ideal sheaf. Even if the subvariety is singular, the blow-up is well-defined via the Rees construction.
+
+Let me think about the local structure near the node.
+
+Near the node p, the curve C looks like two branches crossing. In the plane P, locally C is given by xy = 0 (plus higher order terms, but for a node it's exactly a node, so locally analytically it's xy = 0 in CP^2, and then CP^3 locally is CP^2 × A^1, say with coordinate z for the normal direction to P).
+
+So locally near p, C is defined by the ideal (xy, z) in A^3 (with coordinates x, y, z where x, y are in the plane and z is normal to the plane).
+
+The blow-up of A^3 along the ideal (xy, z)...
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+Actually, the problem says Q is "the smooth quadric surface replacing the node in the blow-up." This suggests that the exceptional divisor over the node is a smooth quadric surface Q ≅ CP^1 × CP^1.
+
+Let me think about the structure of the blow-up more carefully.
+
+The blow-up $\tilde{X}$ of CP^3 along C. The exceptional divisor E is a divisor in $\tilde{X}$. Over smooth points of C, E is a CP^1-bundle (projectivized normal bundle). Over the node, the fiber of E is some surface, which the problem identifies as a smooth quadric Q.
+
+Now, the question asks about the rank of the image of $H_2(Q) \to H_2(\tilde{X})$.
+
+$H_2(Q) \cong H_2(\mathbb{CP}^1 \times \mathbb{CP}^1) \cong \mathbb{Z}^2$, generated by the two rulings (let's call them $\ell_1$ and $\ell_2$, the two families of lines on the quadric).
+
+So the question is: what is the rank of the image of this map? It could be 0, 1, or 2.
+
+Let me think about the geometry.
+
+The curve C lies in a plane P ⊂ CP^3. At the node p, C has two branches (tangent directions) in P. Let's call these two tangent directions $t_1$ and $t_2$.
+
+The quadric Q ≅ CP^1 × CP^1 has two rulings. I expect these two rulings correspond to:
+1. The two tangent directions of the branches of C at the node (within the plane P)
+2. The normal direction to the plane P (or something related to the normal bundle)
+
+Let me think more carefully about the local blow-up.
+
+Near the node, C is locally defined by the ideal $I = (xy, z)$ in $\mathbb{A}^3$ with coordinates $(x, y, z)$, where:
+- $x, y$ are coordinates in the plane P (the node is $x = y = 0$ locally, with branches along $x$-axis and $y$-axis)
+- $z$ is the coordinate normal to P
+
+The blow-up of $\mathbb{A}^3$ along $I = (xy, z)$:
+
+The Rees algebra is $\mathbb{A}^3 \times \text{Proj}(\bigoplus I^n/I^{n+1} \cdot t^n)$... actually, the blow-up is $\text{Proj}(\bigoplus_{n \geq 0} I^n)$ over $\mathbb{A}^3$.
+
+Let me think about this differently. The blow-up along $I = (xy, z)$ can be covered by charts corresponding to the generators $xy$ and $z$.
+
+Chart 1 (z-chart): We set $z \cdot t = z$ (i.e., the generator $z$). In this chart, $xy = z \cdot s$ for some new coordinate $s$. So we have coordinates $(x, y, z, s)$ with $xy = zs$. The exceptional divisor is $z = 0$, which gives $xy = 0$, i.e., $x = 0$ or $y = 0$. So in this chart, the exceptional divisor has two components meeting along $x = y = z = 0$.
+
+Hmm wait, that doesn't immediately give a smooth quadric. Let me reconsider.
+
+Actually, let me reconsider the problem. Maybe the blow-up is not along the singular curve directly, but rather some resolution or specific construction.
+
+Actually, re-reading: "the blow-up of CP^3 at a planar nodal cubic curve." This is the standard blow-up along the curve C (with its reduced structure, defined by the ideal sheaf of C in CP^3).
+
+Let me reconsider the local computation. The ideal of C near the node in A^3 is $I = (xy, z)$ (assuming the node is analytically locally $xy = 0$ in the plane, and $z$ is the normal coordinate).
+
+The blow-up $\text{Bl}_I \mathbb{A}^3$ is the closure of the graph of the map $\mathbb{A}^3 \setminus V(I) \to \mathbb{P}^1$ given by $(x,y,z) \mapsto [xy : z]$.
+
+So the blow-up is $\{(x,y,z,[u:v]) : xv \cdot y = zu\} \subset \mathbb{A}^3 \times \mathbb{P}^1$, i.e., $xyv = zu$.
+
+The exceptional divisor is over $V(I) = V(xy, z) = \{z = 0, xy = 0\}$, which is the union of the $x$-axis and $y$-axis in the plane $z = 0$.
+
+On the exceptional divisor: $z = 0$ and $xy = 0$, so $xyv = 0$, which is automatically satisfied. The exceptional fiber over a point $(x_0, 0, 0)$ with $x_0 \neq 0$ (on the $x$-axis branch): $z = 0, y = 0$, so $0 = 0$, and $[u:v]$ is free. So the fiber is $\mathbb{P}^1$.
+
+Similarly over $(0, y_0, 0)$ with $y_0 \neq 0$: fiber is $\mathbb{P}^1$.
+
+Over the origin $(0,0,0)$: $z = 0, x = 0, y = 0$, so $0 = 0$, and $[u:v]$ is free. So the fiber is also $\mathbb{P}^1$.
+
+Wait, so the exceptional fiber over the node is just $\mathbb{P}^1$, not a quadric surface. That contradicts the problem statement.
+
+Hmm, let me reconsider. Maybe I'm wrong about the local model. 
+
+Actually, wait. The issue is that the blow-up along a singular subscheme can be more complicated. Let me reconsider.
+
+Actually, the ideal $(xy, z)$ defines the reduced curve near the node (two branches crossing). But actually, the ideal of the nodal cubic curve in CP^3 near the node...
+
+The nodal cubic C lies in a plane P. In P ≅ CP^2, C is defined by a cubic equation $f(x,y) = 0$ (in affine coordinates) where $f$ has a node at the origin, so $f = xy + \text{higher order}$. But the actual ideal of C in CP^3 is generated by the equation of the plane and the equation of the cubic in the plane.
+
+So near the node, the ideal of C in A^3 is $(z, f(x,y))$ where $f(x,y) = xy + \text{cubic terms}$, and $z$ is the normal coordinate to the plane.
+
+Since we're working locally/analytically, we can change coordinates to make $f = xy$ (by the analytic local structure of a node). So the ideal is indeed $(z, xy)$.
+
+But as I computed, the blow-up along $(z, xy)$ gives exceptional fiber $\mathbb{P}^1$ over the node, not a quadric surface.
+
+So maybe the problem is describing a different construction. Let me re-read.
+
+"the blow-up of CP^3 at a planar nodal cubic curve, where Q is the smooth quadric surface replacing the node in the blow-up."
+
+Hmm, maybe "replacing the node" doesn't mean the fiber over the node, but rather the component of the exceptional divisor that sits over the node region. Or maybe the blow-up is done in a different way.
+
+Actually, wait. Let me reconsider. Maybe the blow-up is not along the ideal $(z, xy)$ but along some other ideal. Or maybe the problem is considering the blow-up of CP^3 along the curve, but the curve is embedded in a specific way.
+
+Actually, I think I need to reconsider. The blow-up of a smooth variety along a singular subvariety can have exceptional divisors that are not just projectivized normal bundles. The exceptional divisor is $\text{Proj}(\bigoplus I^n/I^{n+1})$, which is the projectivized normal cone, not the projectivized normal bundle.
+
+Let me recompute. The blow-up of $\mathbb{A}^3$ along $I = (z, xy)$.
+
+The exceptional divisor is $E = \text{Proj}(\bigoplus_{n \geq 0} I^n/I^{n+1})$ over $V(I)$.
+
+$V(I) = \{z = 0, xy = 0\}$, which is the union of two lines $L_1 = \{y = z = 0\}$ and $L_2 = \{x = z = 0\}$ meeting at the origin.
+
+The conormal sheaf $I/I^2$ is generated by $z$ and $xy$ modulo $I^2 = (z^2, xyz, x^2y^2)$.
+
+At a point on $L_1 \setminus \{0\}$ (say $x = a \neq 0, y = 0, z = 0$): $I/I^2$ is generated by $z$ and $xy = ay$ (since $x = a$), so it's a free module of rank 2. The fiber of $I/I^2$ is 2-dimensional, so the projectivized normal cone fiber is $\mathbb{P}^1$. This makes sense: the normal bundle of the smooth curve has rank 2, and the projectivization is $\mathbb{P}^1$.
+
+At the origin: $I/I^2$ is generated by $z$ and $xy$ with relations from $I^2$. The fiber of $I/I^2$ at the origin is $I/\mathfrak{m}I = (z, xy)/(x,y,z)(z, xy) = (z, xy)/(xz, yz, x^2y, xy^2, z^2, xyz)$. 
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+The blow-up of $\mathbb{A}^3$ along $I = (z, xy)$ is $\text{Proj}(\mathbb{A}^3 \times \text{Spec}(\bigoplus I^n t^n))$.
+
+As I said, this is $\{(x,y,z,[u:v]) \in \mathbb{A}^3 \times \mathbb{P}^1 : xyv = zu\}$.
+
+The exceptional divisor is the preimage of $V(I)$. Over a point $(x_0, y_0, z_0) \in V(I)$:
+- If $x_0 \neq 0, y_0 = 0, z_0 = 0$: the condition is $0 = 0$, so $[u:v]$ is free → fiber is $\mathbb{P}^1$.
+- If $x_0 = 0, y_0 \neq 0, z_0 = 0$: similarly, fiber is $\mathbb{P}^1$.
+- If $x_0 = y_0 = z_0 = 0$: the condition is $0 = 0$, so $[u:v]$ is free → fiber is $\mathbb{P}^1$.
+
+So the entire exceptional divisor is a $\mathbb{P}^1$-bundle over $V(I)$ (which is a reducible curve). Over the node (origin), the fiber is $\mathbb{P}^1$.
+
+This gives a $\mathbb{P}^1$-bundle, not a quadric surface. So the problem must be describing something different.
+
+Let me reconsider. Perhaps the problem is about a different kind of blow-up, or perhaps I'm misunderstanding the geometry.
+
+Wait, maybe the issue is that the blow-up along the singular curve is singular, and the problem is about some resolution or the normalization of the blow-up. Or maybe the problem is about blowing up CP^3 at the node first, and then along the proper transform of the curve.
+
+Actually, let me reconsider the problem statement: "the blow-up of CP^3 at a planar nodal cubic curve." Maybe "at" means "at the points of" or "centered at," which is the standard blow-up along the curve.
+
+Alternatively, maybe the problem is considering a weighted blow-up or a blow-up along a non-reduced structure.
+
+Actually, let me reconsider. Maybe the problem is about a specific well-known construction in algebraic geometry. Let me think about what kind of blow-up would produce a quadric surface over the node.
+
+A quadric surface $\mathbb{CP}^1 \times \mathbb{CP}^1$ has dimension 2. The exceptional divisor over a curve in a 3-fold should be... well, the exceptional divisor has dimension 2 (it's a divisor in the 3-fold $\tilde{X}$). Over a smooth point of the curve, the fiber is $\mathbb{P}^1$ (dimension 1), and the exceptional divisor is a $\mathbb{P}^1$-bundle over the curve (dimension 2). Over the node, if the fiber jumps to dimension 2, that would be a quadric surface.
+
+But in my computation, the fiber over the node is $\mathbb{P}^1$, same as over smooth points. So the fiber doesn't jump.
+
+Hmm, but wait. Maybe I need to think about this more carefully. The blow-up along $I = (z, xy)$ might not be the right model. Let me think about what the ideal of the nodal cubic in CP^3 actually is.
+
+The nodal cubic $C$ lies in a plane $P \subset \mathbb{CP}^3$. The ideal of $C$ in $\mathbb{CP}^3$ is $I_C = (L, F)$ where $L$ is the linear form defining $P$ and $F$ is the cubic form defining $C$ within $P$.
+
+Near the node, in local coordinates where $P$ is $z = 0$ and the node is at the origin, $I_C = (z, f(x,y))$ where $f$ is a cubic with a node at the origin, so $f = xy + (\text{degree 3 terms})$.
+
+Now, the blow-up along $(z, f)$ where $f = xy + \ldots$ is different from the blow-up along $(z, xy)$ because the higher-order terms matter for the blow-up (the blow-up depends on the full ideal, not just the linear part).
+
+Wait, but analytically locally, we can change coordinates to make $f = xy$ (by the Morse lemma / analytic coordinate change for a node). So the blow-up along $(z, f)$ is analytically isomorphic to the blow-up along $(z, xy)$.
+
+So my computation should be correct, and the fiber over the node is $\mathbb{P}^1$.
+
+Unless... the problem is not about the blow-up along the reduced curve, but about some other construction. Let me think about what would give a quadric surface.
+
+A quadric surface $\mathbb{P}^1 \times \mathbb{P}^1$ would arise as the exceptional divisor of a blow-up of a smooth 3-fold at a point (the blow-up of $\mathbb{A}^3$ at the origin gives exceptional divisor $\mathbb{P}^2$, not $\mathbb{P}^1 \times \mathbb{P}^1$). To get $\mathbb{P}^1 \times \mathbb{P}^1$, we'd need to blow up something else.
+
+Actually, $\mathbb{P}^1 \times \mathbb{P}^1$ is the exceptional divisor when we blow up a smooth 3-fold along a smooth curve, and the fiber is $\mathbb{P}^1$... no, that gives a $\mathbb{P}^1$-bundle, not $\mathbb{P}^1 \times \mathbb{P}^1$.
+
+$\mathbb{P}^1 \times \mathbb{P}^1$ arises as the exceptional divisor of the blow-up of a smooth 4-fold at a point, or the blow-up of a smooth 3-fold along a smooth point (giving $\mathbb{P}^2$)... no.
+
+Actually, $\mathbb{P}^1 \times \mathbb{P}^1$ is the fiber product $\mathbb{P}^1 \times \mathbb{P}^1$. It could arise as:
+- The blow-up of $\mathbb{A}^2$ at a point gives exceptional $\mathbb{P}^1$, not $\mathbb{P}^1 \times \mathbb{P}^1$.
+- The blow-up of $\mathbb{P}^2 \times \mathbb{P}^2$ along $\mathbb{P}^2 \times \{pt\}$... no.
+
+Hmm, let me think about when $\mathbb{P}^1 \times \mathbb{P}^1$ appears as an exceptional divisor.
+
+If we blow up a smooth 3-fold $X$ at a point $p$, the exceptional divisor is $\mathbb{P}^2$. If we blow up $X$ along a smooth curve, the exceptional divisor is a $\mathbb{P}^1$-bundle over the curve.
+
+To get $\mathbb{P}^1 \times \mathbb{P}^1$ as an exceptional divisor, we could:
+- Blow up a smooth 3-fold along a smooth curve, and the fiber over a specific point is $\mathbb{P}^1$ (not the whole exceptional divisor).
+- The exceptional divisor of blowing up a 4-fold at a point is $\mathbb{P}^3$.
+
+Actually, $\mathbb{P}^1 \times \mathbb{P}^1$ can appear as the exceptional divisor when blowing up a 3-fold along a curve, if the normal bundle splits as $\mathcal{O} \oplus \mathcal{O}$... no, that gives a $\mathbb{P}^1$-bundle which is $\mathbb{P}^1 \times C$ locally.
+
+Wait, I think the key insight might be different. Let me reconsider the problem.
+
+Maybe the construction is:
+1. Start with $\mathbb{CP}^3$ containing a plane $P$ with a nodal cubic $C \subset P$.
+2. Blow up $\mathbb{CP}^3$ along $C$.
+3. The resulting 3-fold $\tilde{X}$ has an exceptional divisor $E$.
+4. Over the node, something special happens with $E$, and there's a quadric surface $Q$ involved.
+
+But as I computed, the fiber over the node is $\mathbb{P}^1$, not a quadric. So maybe the "quadric surface replacing the node" is not a fiber but a component of the exceptional divisor.
+
+Actually, let me reconsider. Maybe the blow-up along the singular curve produces a singular 3-fold, and the exceptional divisor has multiple components, one of which is a quadric surface.
+
+Let me recompute more carefully. The blow-up of $\mathbb{A}^3$ along $I = (z, xy)$:
+
+This is $\text{Proj}(\mathbb{A}^3 \times \text{Spec}(\bigoplus_{n \geq 0} I^n))$.
+
+$I = (z, xy)$, $I^2 = (z^2, xyz, x^2y^2)$, etc.
+
+The blow-up is covered by two charts:
+
+Chart $z$: Set $z$ as the generator. The chart is $\text{Spec}(\mathbb{A}^3[\frac{xy}{z}])$. Let $s = xy/z$. Then the chart is $\text{Spec}(k[x,y,z,s]/(xy - zs))$. The exceptional divisor in this chart is $z = 0$, which gives $xy = 0$, i.e., the union of $\{x=0, z=0\}$ and $\{y=0, z=0\}$.
+
+Chart $xy$: Set $xy$ as the generator. The chart is $\text{Spec}(\mathbb{A}^3[\frac{z}{xy}])$. Let $t = z/(xy)$. Then the chart is $\text{Spec}(k[x,y,z,t]/(z - xyt))$. The exceptional divisor is where $xy = 0$ and $z = 0$ (since $z = xyt$, if $xy = 0$ then $z = 0$). So the exceptional divisor is $\{xy = 0, z = 0\} = \{x=0, z=0\} \cup \{y=0, z=0\}$.
+
+In both charts, the exceptional divisor is the union of two components. These two components are the proper transforms of the two branches of the curve (well, they're the exceptional divisors over the two branches).
+
+Actually, the exceptional divisor $E$ is a $\mathbb{P}^1$-bundle over $V(I) = L_1 \cup L_2$ (the two branches). Over the node (origin), the two components of $E$ meet.
+
+Let me think about the global picture. The curve $C$ is a nodal cubic, which topologically is a pinched torus (a sphere with two points identified, or equivalently $S^2$ with a pinch). The normalization $\tilde{C}$ is $\mathbb{P}^1$ (a rational curve), and the node is where two points of $\tilde{C}$ are identified.
+
+The exceptional divisor $E$ is a $\mathbb{P}^1$-bundle over $C$. Since $C$ is singular at the node, we need to be careful. Over the smooth part of $C$, $E$ is a $\mathbb{P}^1$-bundle. Over the node, the fiber is $\mathbb{P}^1$ (as computed).
+
+But the two branches of $C$ at the node give two "sheets" of $E$ that meet over the node. The exceptional divisor $E$ is obtained by taking a $\mathbb{P}^1$-bundle over the normalization $\tilde{C} \cong \mathbb{P}^1$ and then identifying the fibers over the two preimages of the node.
+
+Hmm, actually that's not quite right either. Let me think again.
+
+The exceptional divisor is $\text{Proj}(\bigoplus I^n/I^{n+1})$ over $C$. Over the smooth part of $C$, this is $\mathbb{P}(N_{C/\mathbb{CP}^3})$, the projectivized normal bundle. The normal bundle of $C$ in $\mathbb{CP}^3$ at smooth points has rank 2 (since $C$ is a curve in a 3-fold), so the fibers are $\mathbb{P}^1$.
+
+Over the node, the normal cone (not bundle) determines the fiber. The fiber of the normal cone at the node is $\text{Spec}(\bigoplus I^n/(I^{n+1} + \mathfrak{m}I^n))$... this is the normal cone to the node in $\mathbb{A}^3$, restricted to the node.
+
+Actually, the fiber of the exceptional divisor over the node is $\text{Proj}(\bigoplus I^n / (I^{n+1} + \mathfrak{m}_p \cdot I^n))$ where $\mathfrak{m}_p = (x, y, z)$ is the maximal ideal at the node.
+
+$I = (z, xy)$, $\mathfrak{m}_p = (x, y, z)$.
+
+$I^n / (I^{n+1} + \mathfrak{m}_p I^n)$:
+
+$I^1 = (z, xy)$, $I^2 = (z^2, xyz, x^2y^2)$, $\mathfrak{m}_p I^1 = (xz, yz, z^2, x^2y, xy^2, xyz)$.
+
+$I^1 / (I^2 + \mathfrak{m}_p I^1) = (z, xy) / (z^2, xyz, x^2y^2, xz, yz, x^2y, xy^2, z^2, xyz)$.
+
+The generators $z$ and $xy$ survive (they're not in the denominator since the denominator consists of degree 2 elements in $x, y, z$). So this is a 2-dimensional vector space spanned by (the classes of) $z$ and $xy$.
+
+For $n = 2$: $I^2 = (z^2, xyz, x^2y^2)$. $\mathfrak{m}_p I^2 = (xz^2, yz^2, z^3, x^2yz, xy^2z, xyz^2, x^3y^2, x^2y^3, \ldots)$. $I^3 = (z^3, xyz^2, x^2y^2z, x^3y^3, \ldots)$.
+
+$I^2 / (I^3 + \mathfrak{m}_p I^2)$: The generators of $I^2$ are $z^2, xyz, x^2y^2$. 
+- $z^2$: is it in $I^3 + \mathfrak{m}_p I^2$? $z^2 \in \mathfrak{m}_p I^2$? $\mathfrak{m}_p I^2$ contains $xz^2, yz^2, z^3, \ldots$ but not $z^2$ itself (since $z^2 \notin (x,y,z) \cdot I^2$ unless $z^2 = z \cdot z$ with $z \in \mathfrak{m}_p$ and $z \in I^2$... wait, $z \in \mathfrak{m}_p$ and $z \in I$ but is $z \in I^2$? $I^2 = (z^2, xyz, x^2y^2)$, so $z \notin I^2$. So $z^2 = z \cdot z$ where $z \in \mathfrak{m}_p$ and $z \in I$ but $z \notin I^2$. So $z^2 \notin \mathfrak{m}_p \cdot I^2$ (since $\mathfrak{m}_p \cdot I^2$ requires the second factor to be in $I^2$). And $z^2 \in I^3$? $I^3 = I \cdot I^2 = (z, xy) \cdot (z^2, xyz, x^2y^2) = (z^3, xyz^2, x^2y^2z, xyz^2, x^2y^2z, x^3y^3)$. So $z^2 \notin I^3$. So $z^2$ survives.
+- $xyz$: $xyz \in \mathfrak{m}_p I^2$? $xyz = x \cdot yz$ where $x \in \mathfrak{m}_p$ and $yz \in I^2$? $yz \in I^2 = (z^2, xyz, x^2y^2)$? No, $yz$ is not in $I^2$. $xyz = z \cdot xy$ where $z \in \mathfrak{m}_p$ and $xy \in I^2$? $xy \in I^2 = (z^2, xyz, x^2y^2)$? No, $xy \notin I^2$. So $xyz \notin \mathfrak{m}_p I^2$. And $xyz \in I^3$? $I^3$ contains $xyz^2$ and $x^2y^2z$ but not $xyz$. So $xyz$ survives.
+- $x^2y^2$: $x^2y^2 \in \mathfrak{m}_p I^2$? $x^2y^2 = x \cdot xy^2$ where $xy^2 \in I^2$? $xy^2 \notin I^2$. $x^2y^2 = xy \cdot xy$ where $xy \in \mathfrak{m}_p$ and $xy \in I^2$? $xy \in I^2$? No. So $x^2y^2 \notin \mathfrak{m}_p I^2$. And $x^2y^2 \in I^3$? $I^3$ contains $x^3y^3$ but not $x^2y^2$. So $x^2y^2$ survives.
+
+So $I^2 / (I^3 + \mathfrak{m}_p I^2)$ is 3-dimensional, spanned by $z^2, xyz, x^2y^2$.
+
+In general, $I^n / (I^{n+1} + \mathfrak{m}_p I^n)$ is spanned by monomials $z^a (xy)^b$ with $a + b = n$ (since $I^n$ is generated by $z^a (xy)^b$ with $a + b = n$). These are $z^n, z^{n-1}(xy), \ldots, (xy)^n$, which is $n+1$ generators.
+
+So the graded ring $\bigoplus I^n / (I^{n+1} + \mathfrak{m}_p I^n)$ is $k[z, xy]$ (a polynomial ring in 2 variables), and $\text{Proj}$ of this is $\mathbb{P}^1$.
+
+So the fiber of the exceptional divisor over the node is $\mathbb{P}^1$, confirming my earlier computation.
+
+This means the exceptional divisor is a $\mathbb{P}^1$-bundle over $C$ (even over the node), and there's no quadric surface.
+
+So I must be misunderstanding the problem. Let me reconsider.
+
+Maybe the problem is about a different construction. Perhaps:
+1. First blow up the node (point) in $\mathbb{CP}^3$, getting exceptional $\mathbb{P}^2$.
+2. Then blow up the proper transform of $C$.
+3. The proper transform of $C$ in the first blow-up is smooth (the node is resolved).
+4. The second blow-up gives an exceptional divisor that's a $\mathbb{P}^1$-bundle over the resolved curve.
+5. The preimage of the node in this two-step process involves the $\mathbb{P}^2$ from step 1 and the $\mathbb{P}^1$-bundle from step 2, and their interaction might produce a quadric.
+
+Or maybe the construction is:
+1. Blow up $\mathbb{CP}^3$ along the plane $P$ containing $C$. This gives exceptional divisor $E_1 \cong P \cong \mathbb{CP}^2$.
+2. The proper transform of $C$ in the blow-up is... well, $C \subset P$, so blowing up $P$ would affect $C$.
+
+Hmm, this is getting complicated. Let me think about what construction gives a quadric surface $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$ "replacing the node."
+
+Actually, I think the key might be that the blow-up of $\mathbb{CP}^3$ along the singular curve $C$ produces a singular 3-fold, and the problem is about the exceptional divisor which might have a more complicated structure than I computed.
+
+Wait, but I showed the blow-up is $\{(x,y,z,[u:v]) : xyv = zu\}$, which is actually singular! Let me check.
+
+The blow-up $\text{Bl}_I \mathbb{A}^3 = \{(x,y,z,[u:v]) : xyv = zu\} \subset \mathbb{A}^3 \times \mathbb{P}^1$.
+
+In the chart $v = 1$: $\{(x,y,z,u) : xy = zu\}$. This is the hypersurface $xy - zu = 0$ in $\mathbb{A}^4$. The singular locus is where all partial derivatives vanish: $\partial_x = y = 0$, $\partial_y = x = 0$, $\partial_z = -u = 0$, $\partial_u = -z = 0$. So the singular locus is $x = y = z = u = 0$, which is the origin. So the blow-up is singular at the node!
+
+In the chart $u = 1$: $\{(x,y,z,v) : xyv = z\}$, i.e., $z = xyv$. This is smooth (it's just $\mathbb{A}^3$ with coordinates $x, y, v$).
+
+So the blow-up is singular, with singularity at the preimage of the node in the $v = 1$ chart. The singular point is the origin in the chart $\{xy = zu\}$.
+
+The singularity $xy = zu$ is the $A_1$ surface singularity (3-dimensional node, or conifold singularity). This is a well-known singularity.
+
+Now, the small resolution of the conifold $xy = zu$ replaces the singular point with a $\mathbb{P}^1$, while the blow-up of the singular point (large resolution) replaces it with a $\mathbb{P}^1 \times \mathbb{P}^1$ (quadric surface)!
+
+So the picture is:
+1. Blow up $\mathbb{CP}^3$ along $C$ → get $\tilde{X}$, which has a conifold singularity at the preimage of the node.
+2. Resolve the conifold singularity by blowing up the singular point → the exceptional divisor is a smooth quadric $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+Wait, but the problem says "the blow-up of $\mathbb{CP}^3$ at a planar nodal cubic curve, where $Q$ is the smooth quadric surface replacing the node in the blow-up." This suggests $Q$ is part of the blow-up, not a separate resolution step.
+
+Hmm, but maybe the problem is considering the blow-up of the singular 3-fold $\tilde{X}$ at the conifold point, and $Q$ is the exceptional divisor of this second blow-up. Or maybe the problem is considering the composition: blow up $\mathbb{CP}^3$ along $C$, then blow up the resulting singular point.
+
+Actually, re-reading the problem: "the blow-up of $\mathbb{CP}^3$ at a planar nodal cubic curve, where $Q$ is the smooth quadric surface replacing the node in the blow-up."
+
+I think "the blow-up" here refers to the resolved 3-fold, and $Q$ is the quadric that appears when we resolve the conifold singularity. The problem is asking about the homology of the resolved 3-fold $\tilde{X}$ (which includes $Q$ as a divisor).
+
+Actually, let me reconsider. Maybe the problem is about the blow-up of $\mathbb{CP}^3$ along the curve $C$ where we take the blow-up in a way that resolves the singularity. Or maybe the problem is using "blow-up" loosely to mean the resolved variety.
+
+Let me just go with the interpretation that $\tilde{X}$ is the resolved 3-fold, obtained by:
+1. Blowing up $\mathbb{CP}^3$ along $C$ → singular 3-fold with a conifold point.
+2. Blowing up the conifold point → smooth 3-fold $\tilde{X}$ with exceptional quadric $Q$.
+
+And the question is about the rank of the image of $H_2(Q) \to H_2(\tilde{X})$.
+
+Actually, wait. Let me reconsider whether the problem might be about a different construction. 
+
+Another possibility: the blow-up of $\mathbb{CP}^3$ along the ideal of $C$ might not be the same as the blow-up along $(z, xy)$ locally. The ideal of $C$ in $\mathbb{CP}^3$ is $(L, F)$ where $L$ is the equation of the plane and $F$ is the cubic. Near the node, this is $(z, f(x,y))$ where $f$ is a nodal cubic. The blow-up along $(z, f)$ where $f = xy + \text{cubic terms}$ might be different from the blow-up along $(z, xy)$.
+
+But as I argued, analytically locally, we can change coordinates to make $f = xy$, so the blow-ups are analytically isomorphic. The conifold singularity $xy = zu$ appears in either case.
+
+OK here's another thought. Maybe the problem is considering the blow-up of $\mathbb{CP}^3$ along the *scheme* defined by the ideal $(L, F)$, but where we consider the blow-up as a variety (possibly singular), and $Q$ is not the exceptional divisor of a second blow-up but rather a component of the exceptional divisor of the first blow-up.
+
+But I showed the exceptional divisor is a $\mathbb{P}^1$-bundle over $C$, with no quadric component. So this doesn't work.
+
+Let me try yet another interpretation. Maybe the problem is about:
+1. Blow up $\mathbb{CP}^3$ at the node $p$ (a point blow-up) → exceptional divisor $\mathbb{P}^2$.
+2. The proper transform of $C$ in this blow-up is the normalization of $C$ (the node is resolved).
+3. Blow up the proper transform of $C$ → exceptional divisor is a $\mathbb{P}^1$-bundle over $\mathbb{P}^1$.
+4. The preimage of the node is the intersection of the $\mathbb{P}^2$ from step 1 and the $\mathbb{P}^1$-bundle from step 3, which might be a quadric.
+
+Hmm, let me think about this. After step 1, the exceptional divisor is $E_1 \cong \mathbb{P}^2$, and the proper transform $\tilde{C}$ of $C$ is a smooth rational curve (the normalization). The proper transform $\tilde{C}$ intersects $E_1$ in two points (corresponding to the two tangent directions of the branches at the node).
+
+After step 2, we blow up $\tilde{C}$ (which is smooth). The exceptional divisor $E_2$ is a $\mathbb{P}^1$-bundle over $\tilde{C} \cong \mathbb{P}^1$. Over the two points where $\tilde{C}$ meets $E_1$, the exceptional divisor $E_2$ has fibers that are $\mathbb{P}^1$'s, and these fibers lie in $E_1$ (which is $\mathbb{P}^2$).
+
+The proper transform of $E_1$ after step 2 is $E_1$ blown up at two points, which is $\mathbb{P}^2$ blown up at two points. This is a del Pezzo surface of degree 7, which is $\mathbb{P}^2$ blown up at 2 points, and it's also a rational surface.
+
+The preimage of the node $p$ in the composition is: the proper transform of $E_1$ (which is $\mathbb{P}^2$ blown up at 2 points) together with the two fibers of $E_2$ over the intersection points. This doesn't immediately give a quadric surface.
+
+Hmm, this doesn't seem right either.
+
+Let me try another approach. Let me think about what the conifold resolution gives.
+
+The conifold singularity is $xy = zw$ in $\mathbb{A}^4$ (I'll use $w$ instead of $u$). The singular point is the origin.
+
+The blow-up of the origin in this 3-fold: the blow-up of $\mathbb{A}^4$ at the origin is $\{(x,y,z,w,[a:b:c:d])\}$, and the proper transform of $xy = zw$ is the blow-up. The exceptional divisor is the intersection of the proper transform with the exceptional $\mathbb{P}^3$, which is the quadric $\{xy = zw\} \cap \mathbb{P}^3 = \{[a:b:c:d] : ab = cd\} \subset \mathbb{P}^3$, which is a smooth quadric surface $\cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+So the blow-up of the conifold at its singular point gives a smooth 3-fold with exceptional divisor $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+So the construction is:
+1. Blow up $\mathbb{CP}^3$ along $C$ → get a 3-fold $Y$ with a conifold singularity at the preimage of the node.
+2. Blow up $Y$ at the conifold point → get smooth 3-fold $\tilde{X}$ with exceptional quadric $Q$.
+
+And the question is about $H_2(Q) \to H_2(\tilde{X})$.
+
+Now, $H_2(Q) \cong \mathbb{Z}^2$, generated by the two rulings of the quadric.
+
+To determine the rank of the image of $H_2(Q) \to H_2(\tilde{X})$, I need to understand which classes in $H_2(Q)$ survive in $H_2(\tilde{X})$.
+
+Let me think about the topology. The quadric $Q$ is the exceptional divisor of the blow-up of the conifold point. The two rulings of $Q$ correspond to the two small resolutions of the conifold.
+
+In the conifold $xy = zw$, the two rulings of the exceptional quadric correspond to:
+- One ruling: the $\mathbb{P}^1$'s that are contracted in one small resolution.
+- The other ruling: the $\mathbb{P}^1$'s that are contracted in the other small resolution.
+
+The key question is: which of these $\mathbb{P}^1$ classes are homologically nontrivial in $\tilde{X}$?
+
+Let me think about this more carefully in the context of the global geometry.
+
+The conifold singularity in $Y$ (the blow-up of $\mathbb{CP}^3$ along $C$) arises at the preimage of the node. The local equation is $xy = zw$ (or $xy = zu$ as I had before).
+
+The two rulings of the exceptional quadric $Q$ in the blow-up of the conifold correspond to:
+1. Lines in one ruling: these are the $\mathbb{P}^1$'s that can be contracted to get a small resolution.
+2. Lines in the other ruling: these are the $\mathbb{P}^1$'s that can be contracted to get the other small resolution.
+
+Now, in the global 3-fold $\tilde{X}$, the question is whether these $\mathbb{P}^1$ classes bound (i.e., are boundaries of 3-chains) or not.
+
+Let me think about the relationship between $Q$ and the rest of $\tilde{X}$.
+
+In $\tilde{X}$, the quadric $Q$ is a divisor. It intersects the proper transform of the exceptional divisor $E$ (from the blow-up along $C$). The exceptional divisor $E$ is a $\mathbb{P}^1$-bundle over $C$, and over the node, $E$ has a fiber $\mathbb{P}^1$ that passes through the conifold point. After resolving the conifold, this fiber $\mathbb{P}^1$ is replaced by... something involving $Q$.
+
+Let me think about this more carefully.
+
+In $Y$ (before resolving the conifold), the exceptional divisor $E$ is a $\mathbb{P}^1$-bundle over $C$. Over the node, the fiber is $\mathbb{P}^1$, and this $\mathbb{P}^1$ passes through the conifold point (which is a single point on this $\mathbb{P}^1$).
+
+After blowing up the conifold point to get $\tilde{X}$, the proper transform of this fiber $\mathbb{P}^1$ is $\mathbb{P}^1$ blown up at a point, which is... well, $\mathbb{P}^1$ blown up at a point is still $\mathbb{P}^1$ (blowing up a point on a curve doesn't change it). Wait, no. The fiber $\mathbb{P}^1$ in $E$ passes through the conifold point. When we blow up the conifold point, the proper transform of this $\mathbb{P}^1$ is the blow-up of $\mathbb{P}^1$ at a point, which is still $\mathbb{P}^1$ (since blowing up a smooth point on a curve gives an isomorphic curve). But the exceptional divisor $Q$ intersects this proper transform in a point.
+
+Hmm, let me think about this differently. Let me consider the local model.
+
+In the conifold $xy = zw$, consider a curve passing through the origin. For instance, the curve $\gamma_1: x = t, y = 0, z = 0, w = 0$ (i.e., the $x$-axis). This lies on the conifold (since $xy = 0 = zw$). After blowing up the origin, the proper transform of $\gamma_1$ meets the exceptional quadric $Q$ at the point $[1:0:0:0] \in Q$.
+
+Similarly, the curve $\gamma_2: x = 0, y = t, z = 0, w = 0$ (the $y$-axis) lies on the conifold and meets $Q$ at $[0:1:0:0]$.
+
+Now, in the global picture, the exceptional divisor $E$ (from the blow-up along $C$) is a $\mathbb{P}^1$-bundle over $C$. The fiber over the node is a $\mathbb{P}^1$ that passes through the conifold point. Locally near the conifold point, this $\mathbb{P}^1$ corresponds to a curve through the origin in the conifold.
+
+Which curve? The fiber of $E$ over the node is $\text{Proj}(k[z, xy]) = \mathbb{P}^1$ with coordinates $[z : xy]$. In the conifold $xy = zu$ (using $u$ instead of $w$), this $\mathbb{P}^1$ is the set of points $(0, 0, 0, 0, [u:v])$ in the chart... wait, let me be more careful.
+
+The blow-up of $\mathbb{A}^3$ along $(z, xy)$ is $\{(x,y,z,[u:v]) : xyv = zu\} \subset \mathbb{A}^3 \times \mathbb{P}^1$. The conifold singularity is at the origin $(0,0,0,[u:v])$ where $xyv = zu$ becomes $0 = 0$, so any $[u:v]$ works. Wait, that means the entire fiber over the origin is $\mathbb{P}^1$, and every point on this $\mathbb{P}^1$ is a singular point?
+
+Let me recheck. The blow-up is $\{(x,y,z,[u:v]) : xyv = zu\}$. In the chart $v = 1$: $\{xy = zu\} \subset \mathbb{A}^4$ (coordinates $x,y,z,u$). The singular locus is $x = y = z = u = 0$, a single point.
+
+In the chart $u = 1$: $\{xyv = z\} \subset \mathbb{A}^4$ (coordinates $x,y,z,v$), i.e., $z = xyv$. This is smooth.
+
+The fiber over the origin $(0,0,0)$ in $\mathbb{A}^3$ is $\{[u:v] : 0 = 0\} = \mathbb{P}^1$. In the chart $v = 1$, this is the point $(0,0,0,0)$ (the singular point). In the chart $u = 1$, this is the point $(0,0,0,v)$ for any $v$, i.e., the $v$-axis... wait, no. Let me be more careful.
+
+The fiber over $(0,0,0) \in \mathbb{A}^3$ is $\{(0,0,0,[u:v]) : 0 = 0\} = \{0\} \times \mathbb{P}^1$. In the chart $v = 1$ (i.e., $v \neq 0$), this is the point $(x,y,z,u) = (0,0,0,0)$. In the chart $u = 1$ (i.e., $u \neq 0$), this is the point $(x,y,z,v) = (0,0,0,v)$... but wait, $v = 1/u \cdot v$... I'm getting confused with coordinates.
+
+Let me use homogeneous coordinates $[u:v]$ on $\mathbb{P}^1$. The blow-up is $\{(x,y,z,[u:v]) : xyv = zu\}$.
+
+Chart $v \neq 0$ (set $v = 1$): coordinates $(x,y,z,u)$ with $xy = zu$. The fiber over $(0,0,0)$ is the point $(0,0,0,0)$.
+
+Chart $u \neq 0$ (set $u = 1$): coordinates $(x,y,z,v)$ with $xyv = z$. The fiber over $(0,0,0)$ is the point $(0,0,0,0)$ (since $z = xyv = 0$ and $x = y = 0$).
+
+Wait, so the fiber over the origin is a single point in each chart? That can't be right if the fiber is $\mathbb{P}^1$.
+
+Oh, I see the issue. The fiber over the origin is $\{(0,0,0,[u:v])\} \cong \mathbb{P}^1$. In the chart $v = 1$, the point $[u:v] = [u:1]$ corresponds to $(x,y,z,u) = (0,0,0,u)$, but we need $xy = zu$, i.e., $0 = 0$, so $u$ is free. So the fiber is the $u$-axis, which is $\mathbb{A}^1$. Adding the point at infinity (from the $u = 1$ chart), we get $\mathbb{P}^1$.
+
+In the chart $v = 1$, the fiber is $\{(0,0,0,u) : u \in \mathbb{A}^1\}$, which is the $u$-axis. The singular point of the conifold $xy = zu$ is at $(0,0,0,0)$, which is one point on this $\mathbb{P}^1$.
+
+In the chart $u = 1$, the fiber is $\{(0,0,0,v) : v \in \mathbb{A}^1\}$ (since $z = xyv = 0$), which is the $v$-axis. This is the other chart of the same $\mathbb{P}^1$.
+
+So the fiber $\mathbb{P}^1$ over the node is mostly smooth, except for one point (the conifold point at $u = 0$ in the $v = 1$ chart, which is $[u:v] = [0:1]$).
+
+Now, when we blow up the conifold point, we replace this single point with a quadric $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$. The proper transform of the fiber $\mathbb{P}^1$ (which is part of the exceptional divisor $E$) now meets $Q$ at some point(s).
+
+Let me think about how the fiber $\mathbb{P}^1$ meets $Q$.
+
+The conifold is $xy = zu$ in $\mathbb{A}^4$ (coordinates $x, y, z, u$). The fiber $\mathbb{P}^1$ over the node is the $u$-axis $\{(0,0,0,u)\}$ (in the $v = 1$ chart). This is the curve $x = y = z = 0$.
+
+When we blow up the origin in the conifold, the exceptional quadric is $Q = \{[a:b:c:d] \in \mathbb{P}^3 : ab = cd\}$ (where $[a:b:c:d]$ are the homogeneous coordinates of the blow-up of $\mathbb{A}^4$ at the origin).
+
+The proper transform of the $u$-axis ($x = y = z = 0$) meets $Q$ at the point where $[a:b:c:d] = [0:0:0:1]$ (since the $u$-axis is in the $d$-direction). Check: $ab = cd$ gives $0 = 0$. Yes, $[0:0:0:1] \in Q$.
+
+So the fiber $\mathbb{P}^1$ (part of $E$) meets $Q$ at the single point $[0:0:0:1]$.
+
+Now, the two rulings of $Q = \{ab = cd\} \subset \mathbb{P}^3$:
+
+The quadric $ab = cd$ in $\mathbb{P}^3$ (with coordinates $[a:b:c:d]$) has two rulings. One way to see them: $ab = cd$ can be written as $\det\begin{pmatrix} a & c \\ d & b \end{pmatrix} = 0$, so the quadric is the image of $\mathbb{P}^1 \times \mathbb{P}^1 \hookrightarrow \mathbb{P}^3$ via the Segre embedding $([s:t],[p:q]) \mapsto [sp : tq : sq : tp]$... let me check: $ab = (sp)(tq) = stpq$ and $cd = (sq)(tp) = stpq$. Yes, $ab = cd$. ✓
+
+So the two rulings are:
+- Ruling 1: fix $[s:t]$, vary $[p:q]$ → lines of the form $\{[sp:tq:sq:tp] : [p:q] \in \mathbb{P}^1\}$.
+- Ruling 2: fix $[p:q]$, vary $[s:t]$ → lines of the form $\{[sp:tq:sq:tp] : [s:t] \in \mathbb{P}^1\}$.
+
+The point $[0:0:0:1]$: we need $sp = 0, tq = 0, sq = 0, tp = 1$. From $tp = 1$, we need $t \neq 0$ and $p \neq 0$. From $sp = 0$ and $p \neq 0$, we get $s = 0$. From $tq = 0$ and $t \neq 0$, we get $q = 0$. From $sq = 0$: $0 = 0$ ✓. So $[s:t] = [0:1]$ and $[p:q] = [1:0]$.
+
+The point $[0:0:0:1]$ lies on:
+- Ruling 1 line: fix $[s:t] = [0:1]$, vary $[p:q]$: $\{[0:q:0:p] : [p:q] \in \mathbb{P}^1\} = \{[0:q:0:p]\}$. This is the line $a = c = 0$ in $\mathbb{P}^3$.
+- Ruling 2 line: fix $[p:q] = [1:0]$, vary $[s:t]$: $\{[s:0:0:t] : [s:t] \in \mathbb{P}^1\}$. This is the line $b = c = 0$ in $\mathbb{P}^3$.
+
+Now, the fiber $\mathbb{P}^1$ of $E$ over the node meets $Q$ at $[0:0:0:1]$. The question is: which ruling does this $\mathbb{P}^1$ belong to (or is tangent to)?
+
+Actually, the fiber $\mathbb{P}^1$ is not contained in $Q$; it just meets $Q$ at a point. The question is about the homology class of the curves in $Q$ and whether they bound in $\tilde{X}$.
+
+Let me think about this differently. The key question is: in $\tilde{X}$, are the two ruling classes in $H_2(Q)$ homologically trivial or not?
+
+A class $\alpha \in H_2(Q)$ maps to zero in $H_2(\tilde{X})$ if and only if $\alpha$ is the boundary of a 3-chain in $\tilde{X}$, i.e., there exists a 3-chain $W$ in $\tilde{X}$ with $\partial W = \alpha$ (as a cycle in $Q \subset \tilde{X}$).
+
+Equivalently, $\alpha$ maps to zero in $H_2(\tilde{X})$ if and only if $\alpha$ is homologous to zero in $\tilde{X}$.
+
+Let me think about what 3-chains could bound the ruling classes.
+
+The quadric $Q$ is a divisor in $\tilde{X}$. The normal bundle of $Q$ in $\tilde{X}$ is $\mathcal{O}_Q(-1)$ (since $Q$ is the exceptional divisor of a blow-up of a point, the normal bundle is $\mathcal{O}(-1)$).
+
+Now, consider a line $\ell$ in one ruling of $Q$. The self-intersection of $\ell$ in $Q$ is $0$ (since lines in a ruling are disjoint). The normal bundle of $\ell$ in $\tilde{X}$ has degree $\deg(N_{\ell/\tilde{X}}) = \deg(N_{\ell/Q}) + \deg(N_{Q/\tilde{X}}|_\ell) = 0 + (-1) = -1$.
+
+A curve with normal bundle of degree $-1$ in a 3-fold can be contracted (it's an exceptional curve of the first kind in the 3-fold sense). This means $\ell$ can be contracted, and in particular, $\ell$ is homologically nontrivial (it can't be a boundary, because if it were, we could contract it to a point and the homology would be trivial, but the contraction of a $(-1)$-curve gives a smooth point, and the curve is nontrivial in homology).
+
+Wait, actually, that's not quite right. A $(-1)$-curve in a 3-fold can be contracted, but that doesn't directly tell us about homology. Let me think more carefully.
+
+If $\ell$ is a rational curve with $N_{\ell/\tilde{X}} \cong \mathcal{O}(-1) \oplus \mathcal{O}$, then $\ell$ can be contracted to a smooth point, and the contraction is the blow-up of a smooth point. In this case, $\ell$ generates a new $H_2$ class (the blow-up of a smooth point in a 3-fold adds a $\mathbb{Z}$ to $H_2$, generated by the line in the exceptional $\mathbb{P}^2$... wait, but $Q$ is not $\mathbb{P}^2$).
+
+Hmm, let me reconsider. The normal bundle of $\ell$ in $\tilde{X}$ might not split as $\mathcal{O}(-1) \oplus \mathcal{O}$. Let me compute more carefully.
+
+$N_{\ell/\tilde{X}}$ has rank 2. We have the exact sequence:
+$0 \to N_{\ell/Q} \to N_{\ell/\tilde{X}} \to N_{Q/\tilde{X}}|_\ell \to 0$
+
+$N_{\ell/Q}$: if $\ell$ is a line in a ruling, then $N_{\ell/Q} \cong \mathcal{O}_{\mathbb{P}^1}$ (since the ruling gives a fibration, and the normal bundle of a fiber is trivial).
+
+$N_{Q/\tilde{X}}|_\ell = \mathcal{O}_Q(-1)|_\ell = \mathcal{O}_{\mathbb{P}^1}(-1)$ (since $Q$ is the exceptional divisor of a point blow-up, $N_{Q/\tilde{X}} = \mathcal{O}_Q(-1)$, and $\mathcal{O}_Q(1)|_\ell = \mathcal{O}_{\mathbb{P}^1}(1)$ for a line in $Q$).
+
+So $0 \to \mathcal{O} \to N_{\ell/\tilde{X}} \to \mathcal{O}(-1) \to 0$.
+
+This sequence splits (since $\text{Ext}^1(\mathcal{O}(-1), \mathcal{O}) = H^1(\mathcal{O}(1)) = 0$), so $N_{\ell/\tilde{X}} \cong \mathcal{O} \oplus \mathcal{O}(-1)$.
+
+A curve with normal bundle $\mathcal{O} \oplus \mathcal{O}(-1)$ can be contracted to a smooth point (this is the blow-up of a smooth point). So $\ell$ is an exceptional curve of the first kind.
+
+Now, when we contract $\ell$, we get a smooth 3-fold $Z$, and $\tilde{X}$ is the blow-up of $Z$ at a smooth point, with exceptional divisor... wait, the blow-up of a smooth point in a 3-fold gives exceptional divisor $\mathbb{P}^2$, not $\mathbb{P}^1 \times \mathbb{P}^1$. So contracting a single $\ell$ doesn't give the right picture.
+
+Actually, the contraction of $\ell$ (a single line in a ruling) gives a 3-fold where the image of $Q$ becomes $\mathbb{P}^2$ (the quadric with one ruling contracted is $\mathbb{P}^2$). This is one of the two small resolutions of the conifold followed by... no.
+
+Actually, I think I'm overcomplicating this. Let me think about the topology more directly.
+
+The key point is: the conifold singularity has two small resolutions, each contracting one ruling of the quadric. The blow-up of the conifold point (which gives $Q$) is related to both small resolutions.
+
+In the small resolution that contracts ruling 1, the lines of ruling 1 are contracted to points, so they are homologically trivial in that resolution. The lines of ruling 2 survive as nontrivial curves.
+
+Similarly, in the small resolution that contracts ruling 2, the lines of ruling 2 are contracted, and the lines of ruling 1 survive.
+
+Now, in the blow-up $\tilde{X}$ (which is the large resolution), both rulings are present. The question is whether either ruling class is homologically trivial in $\tilde{X}$.
+
+Let me think about this using the long exact sequence of the pair $(\tilde{X}, Q)$:
+
+$\cdots \to H_3(\tilde{X}, Q) \to H_2(Q) \to H_2(\tilde{X}) \to H_2(\tilde{X}, Q) \to \cdots$
+
+The image of $H_2(Q) \to H_2(\tilde{X})$ has rank = $\text{rank}(H_2(Q)) - \text{rank}(\text{image of } H_3(\tilde{X}, Q) \to H_2(Q))$.
+
+By Lefschetz duality (since $\tilde{X}$ is a 6-manifold and $Q$ is a divisor), $H_3(\tilde{X}, Q) \cong H^3(\tilde{X} \setminus Q)$... hmm, this is getting complicated.
+
+Let me try a different approach. Let me think about the topology of $\tilde{X}$ in terms of the topology of $\mathbb{CP}^3$ and the blow-up process.
+
+Actually, let me think about what $\tilde{X}$ is topologically. We start with $\mathbb{CP}^3$ and blow up along a curve $C$ (a nodal cubic). The blow-up along a smooth curve $C'$ in a 3-fold replaces $C'$ with a $\mathbb{P}^1$-bundle, and the effect on homology is:
+- $H_2$ gains a generator (the fiber of the $\mathbb{P}^1$-bundle).
+- $H_4$ gains a generator (the exceptional divisor itself, or rather the class of the exceptional divisor).
+
+But our curve $C$ is singular (nodal), so the blow-up is more complicated. The blow-up $Y$ is singular (has a conifold point), and then we resolve by blowing up the conifold point to get $\tilde{X}$.
+
+Let me compute $H_2(\tilde{X})$ by thinking about the topology.
+
+First, let me think about the normalization of $C$. The nodal cubic $C$ has normalization $\nu: \mathbb{P}^1 \to C$, which identifies two points $p_1, p_2 \in \mathbb{P}^1$ to the node $p \in C$.
+
+Topologically, $C$ is obtained from $S^2$ (=$\mathbb{P}^1$) by identifying two points, giving a "pinched torus" or "figure-eight" like space. Actually, $S^2$ with two points identified is homotopy equivalent to $S^2 \vee S^1$. So $H_1(C) \cong \mathbb{Z}$ and $H_2(C) \cong \mathbb{Z}$.
+
+Now, the blow-up of $\mathbb{CP}^3$ along $C$:
+
+For a smooth curve $C'$ of genus $g$ in $\mathbb{CP}^3$, the blow-up $\text{Bl}_{C'} \mathbb{CP}^3$ has:
+$H_2 \cong \mathbb{Z}^2$ (generated by the class of a line in $\mathbb{CP}^3$ and the fiber of the exceptional divisor).
+$H_4 \cong \mathbb{Z}^2$ (generated by the class of a plane in $\mathbb{CP}^3$ and the exceptional divisor).
+
+For our singular curve $C$, the situation is different because the blow-up $Y$ is singular. After resolving to get $\tilde{X}$, we need to account for the additional exceptional divisor $Q$.
+
+Let me try to compute $H_*(\tilde{X})$ using the Mayer-Vietoris sequence or by understanding the topology directly.
+
+Actually, let me think about this more carefully. The 3-fold $\tilde{X}$ is obtained from $\mathbb{CP}^3$ by:
+1. Removing the curve $C$ and replacing it with the exceptional divisor $E$ (a $\mathbb{P}^1$-bundle over $C$, but with a conifold singularity at the node).
+2. Resolving the conifold singularity by replacing the singular point with $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+This is getting quite involved. Let me try to think about it from the perspective of the two small resolutions.
+
+The conifold singularity has two small resolutions, call them $X_1$ and $X_2$. In $X_1$, one ruling of $Q$ is contracted (say ruling 1), and in $X_2$, the other ruling is contracted (ruling 2).
+
+The large resolution $\tilde{X}$ (blow-up of the conifold point) dominates both small resolutions: $\tilde{X} \to X_1$ contracts ruling 1, and $\tilde{X} \to X_2$ contracts ruling 2.
+
+Now, in $X_1$, the contracted ruling 1 is homologically trivial (it's contracted to a point). The ruling 2 survives in $X_1$ as a nontrivial class (it's the exceptional $\mathbb{P}^1$ of the small resolution).
+
+Similarly, in $X_2$, ruling 2 is trivial and ruling 1 is nontrivial.
+
+In $\tilde{X}$, both rulings are present. The map $\tilde{X} \to X_1$ contracts ruling 1, which means ruling 1 is in the kernel of $H_2(\tilde{X}) \to H_2(X_1)$. But this doesn't mean ruling 1 is trivial in $H_2(\tilde{X})$; it just means it's in the kernel.
+
+Actually, when we contract a $\mathbb{P}^1$ with normal bundle $\mathcal{O}(-1) \oplus \mathcal{O}$ to a smooth point, the effect on homology is: $H_2(\tilde{X}) \cong H_2(X_1) \oplus \mathbb{Z}$, where the extra $\mathbb{Z}$ is generated by the contracted $\mathbb{P}^1$ (ruling 1). This is because the blow-up of a smooth point in a 3-fold adds a $\mathbb{Z}$ to $H_2$ (generated by a line in the exceptional $\mathbb{P}^2$)... but wait, the exceptional divisor here is $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$, not $\mathbb{P}^2$.
+
+Hmm, the contraction $\tilde{X} \to X_1$ contracts one ruling of $Q$. The image of $Q$ in $X_1$ is $\mathbb{P}^2$ (the quadric with one ruling contracted is $\mathbb{P}^2$, via the projection $\mathbb{P}^1 \times \mathbb{P}^1 \to \mathbb{P}^2$). And $X_1 \to Y$ (the singular 3-fold) contracts this $\mathbb{P}^2$ to the conifold point... no, that's the blow-up, not a small resolution.
+
+Let me reconsider. The small resolution $X_1$ is obtained from $Y$ (the singular 3-fold) by replacing the conifold point with a $\mathbb{P}^1$ (one ruling). The large resolution $\tilde{X}$ is obtained from $Y$ by replacing the conifold point with $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+The map $\tilde{X} \to X_1$ is the blow-up of $X_1$ along the exceptional $\mathbb{P}^1$ (the one introduced by the small resolution). The exceptional divisor of this blow-up is a $\mathbb{P}^1$-bundle over $\mathbb{P}^1$, which is $\mathbb{P}^1 \times \mathbb{P}^1$ (if the normal bundle is $\mathcal{O} \oplus \mathcal{O}$) or the Hirzebruch surface $\mathbb{F}_n$ for some $n$.
+
+Actually, the normal bundle of the exceptional $\mathbb{P}^1$ in the small resolution $X_1$ is $\mathcal{O}(-1) \oplus \mathcal{O}(-1)$ (this is the standard normal bundle for the small resolution of a conifold). So the blow-up of $X_1$ along this $\mathbb{P}^1$ has exceptional divisor $\mathbb{P}(\mathcal{O}(-1) \oplus \mathcal{O}(-1)) = \mathbb{P}(\mathcal{O} \oplus \mathcal{O}) = \mathbb{P}^1 \times \mathbb{P}^1$ (since projectivization doesn't change when we tensor by a line bundle). Wait, $\mathbb{P}(\mathcal{O}(-1) \oplus \mathcal{O}(-1)) = \mathbb{P}(\mathcal{O} \oplus \mathcal{O}) = \mathbb{P}^1 \times \mathbb{P}^1$. Yes.
+
+So $\tilde{X} \to X_1$ is the blow-up of $X_1$ along a $\mathbb{P}^1$ with normal bundle $\mathcal{O}(-1) \oplus \mathcal{O}(-1)$. The exceptional divisor is $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+Now, the effect of blowing up a curve $\gamma \cong \mathbb{P}^1$ with normal bundle $\mathcal{O}(-1) \oplus \mathcal{O}(-1)$ on homology:
+
+The blow-up of a 3-fold along a curve $\gamma$ replaces $\gamma$ with a $\mathbb{P}^1$-bundle. The effect on $H_2$ is: we lose the class $[\gamma]$ (if it was nonzero) and gain the class of the fiber $[f]$ of the $\mathbb{P}^1$-bundle. But if $[\gamma] = 0$ in $H_2(X_1)$ (which it might be, since $\gamma$ is the exceptional curve of the small resolution), then we just gain $[f]$.
+
+Actually, let me think about this more carefully using the blow-up formula.
+
+For the blow-up $\pi: \tilde{X} \to X_1$ along a curve $\gamma$:
+$H_2(\tilde{X}) \cong \pi^* H_2(X_1) \oplus \mathbb{Z} \cdot [f]$
+
+where $[f]$ is the class of a fiber of the exceptional divisor $Q \to \gamma$. But which fiber? The fibers of $Q \to \gamma$ are the lines in one ruling (say ruling 2, the one that survives in $X_1$). Wait, no. Let me think again.
+
+$Q \cong \mathbb{P}^1 \times \mathbb{P}^1$, and the map $Q \to \gamma \cong \mathbb{P}^1$ is the projection onto one factor. The fibers are the lines in the other ruling.
+
+If $Q = \mathbb{P}^1 \times \mathbb{P}^1$ with factors $(\text{ruling 1}, \text{ruling 2})$, and the map $\tilde{X} \to X_1$ contracts ruling 1 (the lines of ruling 1 are the fibers of $Q \to X_1$... no, the map $Q \to \gamma$ is the projection onto the ruling 2 factor, and the fibers are lines of ruling 1. These fibers are contracted by $\tilde{X} \to X_1$... no, that doesn't make sense either.
+
+Let me be more precise. The small resolution $X_1$ has an exceptional $\mathbb{P}^1$, call it $\gamma$. The blow-up $\tilde{X} \to X_1$ along $\gamma$ has exceptional divisor $Q = \mathbb{P}(N_{\gamma/X_1}) = \mathbb{P}(\mathcal{O}(-1) \oplus \mathcal{O}(-1))$. The map $Q \to \gamma$ is the $\mathbb{P}^1$-bundle projection. The fibers of $Q \to \gamma$ are $\mathbb{P}^1$'s, and these are the "new" curves introduced by the blow-up.
+
+Now, $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$. The two rulings are:
+- Ruling A: the fibers of $Q \to \gamma$ (these are the "vertical" $\mathbb{P}^1$'s, the fibers of the $\mathbb{P}^1$-bundle).
+- Ruling B: the "horizontal" $\mathbb{P}^1$'s (sections of $Q \to \gamma$, or more precisely, the other ruling).
+
+The blow-up formula says:
+$H_2(\tilde{X}) \cong \pi^* H_2(X_1) \oplus \mathbb{Z} \cdot [f_A]$
+
+where $[f_A]$ is the class of a fiber of ruling A. The class $[\gamma]$ in $H_2(X_1)$ pulls back to $[f_B]$ (a line of ruling B, which is a section of $Q \to \gamma$), up to a multiple.
+
+More precisely, $\pi^*[\gamma] = [f_B] + d \cdot [f_A]$ for some integer $d$ related to the normal bundle. Actually, the pullback of $[\gamma]$ is the class of a curve in $\tilde{X}$ that maps to $\gamma$, which is a section of $Q \to \gamma$, i.e., a line of ruling B. So $\pi^*[\gamma] = [f_B]$ (assuming the section has the right class).
+
+Wait, I need to be more careful. The pullback $\pi^*[\gamma]$ is the class of the preimage of $\gamma$ under $\pi$, which is the entire exceptional divisor $Q$ (a surface, not a curve). That's in $H_4$, not $H_2$.
+
+For $H_2$, the blow-up formula for a 3-fold along a curve says:
+$H_2(\tilde{X}) \cong H_2(X_1) \oplus \mathbb{Z} \cdot [f]$
+
+where $[f]$ is the fiber class, and the map $\pi_*: H_2(\tilde{X}) \to H_2(X_1)$ sends $[f]$ to $0$ and is the identity on $H_2(X_1)$.
+
+The inclusion $Q \hookrightarrow \tilde{X}$ induces $H_2(Q) \to H_2(\tilde{X})$. We have $H_2(Q) \cong \mathbb{Z} \cdot [f_A] \oplus \mathbb{Z} \cdot [f_B]$.
+
+$[f_A]$ (the fiber of $Q \to \gamma$) maps to the new generator $[f]$ in $H_2(\tilde{X})$.
+
+$[f_B]$ (a section of $Q \to \gamma$, i.e., a line of the other ruling) maps to... well, $[f_B]$ is a curve in $\tilde{X}$ that projects to $\gamma$ in $X_1$. So $\pi_*[f_B] = [\gamma]$ (possibly up to multiplicity, but since $f_B$ maps isomorphically to $\gamma$, we get $\pi_*[f_B] = [\gamma]$).
+
+So the map $H_2(Q) \to H_2(\tilde{X})$ sends:
+$[f_A] \mapsto [f]$ (the new generator)
+$[f_B] \mapsto \pi^*[\gamma]$... wait, no. The map $H_2(Q) \to H_2(\tilde{X})$ is just the inclusion-induced map. $[f_B]$ is a curve in $Q \subset \tilde{X}$, and its class in $H_2(\tilde{X})$ is some element. Under the decomposition $H_2(\tilde{X}) \cong H_2(X_1) \oplus \mathbb{Z}[f]$, we have $[f_B] = ([\gamma], 0)$ (since $\pi_*[f_B] = [\gamma]$ and $[f_B]$ has no component in the $[f]$ direction... actually, I need to check this).
+
+Hmm, let me think about this differently. The decomposition $H_2(\tilde{X}) \cong \pi^*H_2(X_1) \oplus \mathbb{Z}[f_A]$ means that every class $\alpha \in H_2(\tilde{X})$ can be written as $\pi^*\beta + n[f_A]$ where $\beta = \pi_*\alpha \in H_2(X_1)$ and $n$ is some integer.
+
+For $[f_A]$: $\pi_*[f_A] = 0$ (since $f_A$ is a fiber, contracted to a point), so $[f_A] = 0 + 1 \cdot [f_A]$. ✓
+
+For $[f_B]$: $\pi_*[f_B] = [\gamma]$ (since $f_B$ maps isomorphically to $\gamma$). So $[f_B] = \pi^*[\gamma] + n[f_A]$ for some $n$. To determine $n$, we need to compute the intersection of $[f_B]$ with the exceptional divisor $Q$.
+
+The intersection number $[f_B] \cdot [Q]$: $f_B$ is a curve in $Q$, and $Q$ is a divisor. The intersection of a curve contained in a divisor with the divisor is $\deg(N_{Q/\tilde{X}}|_{f_B})$. We have $N_{Q/\tilde{X}} = \mathcal{O}_Q(-1)$ (the exceptional divisor of a blow-up has normal bundle $\mathcal{O}(-1)$). So $[f_B] \cdot [Q] = \deg(\mathcal{O}_Q(-1)|_{f_B}) = -\deg(\mathcal{O}_Q(1)|_{f_B})$.
+
+Now, $\mathcal{O}_Q(1)$ is the tautological line bundle of the projectivized normal bundle $Q = \mathbb{P}(N_{\gamma/X_1})$. For a section $f_B$ of $Q \to \gamma$, $\mathcal{O}_Q(1)|_{f_B} = N_{\gamma/X_1}|_{f_B}$... hmm, actually, $\mathcal{O}_Q(1)$ restricted to a fiber $f_A$ is $\mathcal{O}_{\mathbb{P}^1}(1)$, and restricted to a section depends on the section.
+
+This is getting complicated. Let me try a more direct approach.
+
+Actually, let me step back and think about the global topology.
+
+The 3-fold $\tilde{X}$ is obtained from $\mathbb{CP}^3$ by a sequence of blow-ups. Let me think about what $H_2(\tilde{X})$ is.
+
+First, $H_2(\mathbb{CP}^3) \cong \mathbb{Z}$, generated by the class of a line $[L]$.
+
+When we blow up along a curve $C$, we (roughly) remove $C$ and glue in a $\mathbb{P}^1$-bundle over $C$. The effect on $H_2$ is to add a generator (the fiber class) if $C$ is smooth.
+
+For a smooth curve $C$ of genus $g$ in $\mathbb{CP}^3$:
+$H_2(\text{Bl}_C \mathbb{CP}^3) \cong \mathbb{Z}[L] \oplus \mathbb{Z}[f]$
+where $[f]$ is the fiber of the exceptional divisor. The class $[C]$ in $H_2(\mathbb{CP}^3)$ is $d[L]$ where $d = \deg(C)$, and in the blow-up, $[C]$ is replaced by the exceptional divisor (in $H_4$), while $[f]$ is the new $H_2$ class.
+
+For our singular curve $C$ (nodal cubic), the blow-up $Y$ is singular, and after resolving, $\tilde{X}$ has additional topology from the resolution.
+
+Let me try to compute $H_2(\tilde{X})$ by understanding the topology of the resolution.
+
+The conifold singularity in $Y$ is at a single point. The resolution $\tilde{X} \to Y$ replaces this point with $Q \cong \mathbb{P}^1 \times \mathbb{P}^1$.
+
+The effect on homology of replacing a point with $Q$: topologically, we remove a small ball around the conifold point and glue in something. The conifold point has a neighborhood that is a cone over $S^2 \times S^3$ (the link of the conifold). The resolution replaces this with a disk bundle over $S^2$ (or something similar).
+
+Actually, the topology of the conifold resolution is well-studied. The conifold singularity has link $S^2 \times S^3$. The small resolution replaces the cone over $S^2 \times S^3$ with a disk bundle over $S^2$ (with Euler class $-1$), which has boundary $S^2 \times S^3$ (well, a lens space or $S^2 \times S^3$ depending on the Euler class). The large resolution (blow-up) replaces it with something that has $Q = S^2 \times S^2$ in the middle.
+
+The effect on $H_2$ of the small resolution: we add one $\mathbb{Z}$ (the $S^2$ of the disk bundle). The effect on $H_2$ of the large resolution: we add... let me think.
+
+The large resolution replaces the cone over $S^2 \times S^3$ with a neighborhood of $Q = S^2 \times S^2$ in $\tilde{X}$. The neighborhood of $Q$ in $\tilde{X}$ is the disk bundle of $\mathcal{O}_Q(-1)$, which has boundary... the circle bundle of $\mathcal{O}_Q(-1)$, which is the link $S^2 \times S^3$ (or a quotient thereof).
+
+The Mayer-Vietoris sequence for $\tilde{X} = (\tilde{X} \setminus \text{int}(N(Q))) \cup N(Q)$, where $N(Q)$ is a tubular neighborhood of $Q$:
+
+$H_2(\partial N(Q)) \to H_2(\tilde{X} \setminus \text{int}(N(Q))) \oplus H_2(N(Q)) \to H_2(\tilde{X}) \to H_1(\partial N(Q)) \to \cdots$
+
+$N(Q)$ deformation retracts to $Q$, so $H_2(N(Q)) \cong H_2(Q) \cong \mathbb{Z}^2$.
+
+$\partial N(Q)$ is the circle bundle over $Q$ with Chern class $c_1(\mathcal{O}_Q(-1)) = -h$ where $h$ is the hyperplane class. The Gysin sequence for the circle bundle $S^1 \to \partial N(Q) \to Q$:
+
+$H_2(Q) \xrightarrow{\cup c_1} H_4(Q) \to H_2(\partial N(Q)) \to H_1(Q) \to \cdots$
+
+Wait, the Gysin sequence for an $S^1$-bundle with Chern class $e$:
+$\cdots \to H_k(Q) \xrightarrow{\cup e} H_{k+2}(Q) \to H_{k+1}(\partial N) \to H_{k-1}(Q) \to \cdots$
+
+Hmm, I don't think I have the Gysin sequence quite right. Let me use the Thom-Gysin sequence for the circle bundle $\pi: \partial N \to Q$ with Euler class $e = c_1 \in H^2(Q)$:
+
+$\cdots \to H_{k}(Q) \xrightarrow{\pi^*} H_{k}(\partial N) \xrightarrow{\pi_*} H_{k-1}(Q) \xrightarrow{\wedge e} H_{k+1}(Q) \to \cdots$
+
+For $k = 2$:
+$H_2(Q) \xrightarrow{\pi^*} H_2(\partial N) \xrightarrow{\pi_*} H_1(Q) \xrightarrow{\wedge e} H_3(Q)$
+
+$H_1(Q) = 0$ (since $Q = S^2 \times S^2$ is simply connected) and $H_3(Q) = 0$. So $H_2(\partial N) \cong H_2(Q) \cong \mathbb{Z}^2$.
+
+Wait, that doesn't seem right. Let me reconsider. The Gysin sequence for an $S^1$-bundle:
+
+$\cdots \to H^{k}(Q) \xrightarrow{\wedge e} H^{k+2}(Q) \xrightarrow{\pi^*} H^{k+2}(\partial N) \to H^{k+1}(Q) \to \cdots$
+
+By Poincaré duality on $Q$ (a 4-manifold), $H^k(Q) \cong H_{4-k}(Q)$.
+
+$H^2(Q) \cong \mathbb{Z}^2$ (generated by $h_1, h_2$, the two ruling classes).
+$H^4(Q) \cong \mathbb{Z}$ (generated by the fundamental class).
+$e = c_1(\mathcal{O}_Q(-1)) = -(h_1 + h_2)$ (since $\mathcal{O}_Q(1)$ restricts to $\mathcal{O}(1)$ on each ruling, so $c_1 = h_1 + h_2$; wait, I need to be more careful).
+
+Actually, $Q = \mathbb{P}^1 \times \mathbb{P}^1$ and $\mathcal{O}_Q(1)$ is the tautological bundle of the projectivized normal bundle. The normal bundle of $\gamma$ in $X_1$ is $\mathcal{O}(-1) \oplus \mathcal{O}(-1)$, so $Q = \mathbb{P}(\mathcal{O}(-1) \oplus \mathcal{O}(-1))$ and $\mathcal{O}_Q(1)$ is the tautological quotient bundle.
+
+For $Q = \mathbb{P}(E)$ where $E = \mathcal{O}(-1) \oplus \mathcal{O}(-1)$ over $\gamma = \mathbb{P}^1$, we have $\text{Pic}(Q) \cong \mathbb{Z}^2$ generated by $\mathcal{O}_Q(1)$ and $\pi^*\mathcal{O}_{\gamma}(1)$ where $\pi: Q \to \gamma$.
+
+The two rulings of $Q = \mathbb{P}^1 \times \mathbb{P}^1$:
+- Ruling A (fibers of $Q \to \gamma$): these are the fibers of the $\mathbb{P}^1$-bundle. $\mathcal{O}_Q(1)|_{f_A} = \mathcal{O}_{\mathbb{P}^1}(1)$.
+- Ruling B (sections): $\mathcal{O}_Q(1)|_{f_B} = E|_{f_B}$... hmm, this depends on the section.
+
+Actually, let me use the standard description. $Q = \mathbb{P}^1 \times \mathbb{P}^1$ with projections $p_1, p_2$. Let $a = p_1^*[\text{pt}]$ and $b = p_2^*[\text{pt}]$ be the classes of the two rulings in $H_2(Q)$. Then $H^2(Q) \cong \mathbb{Z} \cdot \alpha \oplus \mathbb{Z} \cdot \beta$ where $\alpha = p_1^*c_1(\mathcal{O}(1))$ and $\beta = p_2^*c_1(\mathcal{O}(1))$, with $\alpha \cdot a = 1, \alpha \cdot b = 0, \beta \cdot a = 0, \beta \cdot b = 1$.
+
+The normal bundle of $Q$ in $\tilde{X}$ is $\mathcal{O}_Q(-1)$, and $c_1(\mathcal{O}_Q(1)) = \alpha + \beta$ (since $\mathcal{O}_Q(1)$ restricts to $\mathcal{O}(1)$ on each ruling). So $e = c_1(N_{Q/\tilde{X}}) = -(\alpha + \beta)$.
+
+Now, the Gysin sequence for the circle bundle $\partial N \to Q$ with Euler class $e = -(\alpha + \beta)$:
+
+$H^2(Q) \xrightarrow{\wedge e} H^4(Q)$: $\alpha \mapsto \alpha \wedge (-\alpha - \beta) = -\alpha\beta$ (which is $-1$ times the fundamental class), $\beta \mapsto \beta \wedge (-\alpha - \beta) = -\alpha\beta$ (also $-1$ times the fundamental class).
+
+So the map $\wedge e: \mathbb{Z}^2 \to \mathbb{Z}$ sends $(m, n) \mapsto -(m + n)$.
+
+The kernel is $\{(m, n) : m + n = 0\} \cong \mathbb{Z}$, generated by $(1, -1)$.
+
+The Gysin sequence:
+$H^2(Q) \xrightarrow{\wedge e} H^4(Q) \xrightarrow{\pi^*} H^4(\partial N) \to H^3(Q) = 0$
+
+So $H^4(\partial N) \cong H^4(Q) / \text{image}(\wedge e) = \mathbb{Z} / \mathbb{Z} = 0$ (since $\wedge e$ is surjective: $(m,n) \mapsto -(m+n)$ is surjective).
+
+And $H^3(\partial N)$: from the sequence $H^3(Q) = 0 \to H^3(\partial N) \to H^2(Q) \xrightarrow{\wedge e} H^4(Q)$, we get $H^3(\partial N) \cong \ker(\wedge e) \cong \mathbb{Z}$.
+
+Also, $H^2(\partial N)$: from $H^0(Q) \xrightarrow{\wedge e} H^2(Q) \xrightarrow{\pi^*} H^2(\partial N) \to H^1(Q) = 0$, we get $H^2(\partial N) \cong H^2(Q) / \text{image}(H^0(Q) \xrightarrow{\wedge e})$. The map $H^0(Q) \to H^2(Q)$ sends $1 \mapsto e = -(\alpha + \beta)$. So $H^2(\partial N) \cong \mathbb{Z}^2 / \mathbb{Z}(\alpha + \beta) \cong \mathbb{Z}$.
+
+By Poincaré duality on $\partial N$ (a 5-manifold), $H_k(\partial N) \cong H^{5-k}(\partial N)$:
+- $H_3(\partial N) \cong H^2(\partial N) \cong \mathbb{Z}$
+- $H_2(\partial N) \cong H^3(\partial N) \cong \mathbb{Z}$
+- $H_1(\partial N) \cong H^4(\partial N) = 0$
+- $H_4(\partial N) \cong H^1(\partial N) = 0$ (since $H^1(\partial N) \cong H_1(\partial N) / \text{torsion}$... wait, I should use the homology Gysin sequence instead).
+
+Actually, let me use the homology Gysin sequence for the circle bundle. The circle bundle $\pi: \partial N \to Q$ with Euler class $e$:
+
+$\cdots \to H_k(Q) \xrightarrow{\cap e} H_{k-2}(Q) \xrightarrow{\pi_*} H_{k-1}(\partial N) \xrightarrow{\pi^*} H_{k-1}(Q) \to \cdots$
+
+Hmm, I'm getting confused with the exact sequences. Let me just use the known result for the topology of the conifold.
+
+The link of the conifold singularity is $S^2 \times S^3$ (or $S^5$ in the case of a node in $\mathbb{C}^3$... no, the conifold $xy = zw$ in $\mathbb{C}^4$ has link $S^2 \times S^3$).
+
+Actually, the link of $xy = zw$ at the origin: intersect with a small sphere $S^5 \subset \mathbb{C}^4$. The link is $\{(x,y,z,w) \in S^5 : xy = zw\}$. This is known to be $S^2 \times S^3$ (or more precisely, $T^*S^3$ restricted to the sphere, which is $S^2 \times S^3$).
+
+Hmm, actually, I recall that the link of the conifold is $S^2 \times S^3$, and $H_2(S^2 \times S^3) \cong \mathbb{Z}$, $H_3(S^2 \times S^3) \cong \mathbb{Z}$.
+
+Wait, but I computed above that $H_2(\partial N) \cong \mathbb{Z}$ and $H_3(\partial N) \cong \mathbb{Z}$, which is consistent with $\partial N \cong S^2 \times S^3$.
+
+Now, the Mayer-Vietoris sequence for $\tilde{X} = A \cup B$ where $A = \tilde{X} \setminus \text{int}(N(Q))$ and $B = N(Q)$, with $A \cap B = \partial N(Q) \cong S^2 \times S^3$:
+
+$H_3(\partial N) \to H_3(A) \oplus H_3(B) \to H_3(\tilde{X}) \to H_2(\partial N) \to H_2(A) \oplus H_2(B) \to H_2(\tilde{X}) \to H_1(\partial N) \to \cdots$
+
+$B = N(Q) \simeq Q$, so $H_2(B) = H_2(Q) = \mathbb{Z}^2$, $H_3(B) = H_3(Q) = 0$.
+
+$A = \tilde{X} \setminus \text{int}(N(Q)) \simeq Y \setminus \{p\}$ (where $p$ is the conifold point), since removing the interior of the tubular neighborhood of $Q$ gives us the complement of a ball around $p$ in $Y$.
+
+Actually, $A$ is the complement of a neighborhood of $Q$ in $\tilde{X}$, which is the same as $Y$ with a neighborhood of the conifold point removed. And $Y$ with a neighborhood of $p$ removed is the same as $Y \setminus \{p\}$ up to homotopy (since the neighborhood is contractible to $p$... well, the neighborhood is a cone over $S^2 \times S^3$, which is contractible).
+
+So $A \simeq Y \setminus \{p\}$.
+
+Now, $Y$ is the blow-up of $\mathbb{CP}^3$ along $C$, which is singular at $p$ (the preimage of the node). $Y \setminus \{p\}$ is the smooth part of $Y$.
+
+To compute $H_*(Y \setminus \{p\})$, I can use the long exact sequence of the pair $(Y, Y \setminus \{p\})$:
+
+$\cdots \to H_k(Y \setminus \{p\}) \to H_k(Y) \to H_k(Y, Y \setminus \{p\}) \to H_{k-1}(Y \setminus \{p\}) \to \cdots$
+
+$H_k(Y, Y \setminus \{p\}) \cong H_k(\text{cone over } S^2 \times S^3, S^2 \times S^3) \cong \tilde{H}_{k-1}(S^2 \times S^3)$ (by excision and the long exact sequence of the cone).
+
+So $H_k(Y, Y \setminus \{p\}) \cong \tilde{H}_{k-1}(S^2 \times S^3)$:
+- $k = 3$: $\tilde{H}_2(S^2 \times S^3) = \mathbb{Z}$
+- $k = 4$: $\tilde{H}_3(S^2 \times S^3) = \mathbb{Z}$
+- Other $k$: $0$.
+
+So:
+$H_4(Y \setminus \{p\}) \to H_4(Y) \to \mathbb{Z} \to H_3(Y \setminus \{p\}) \to H_3(Y) \to 0$
+$H_3(Y \setminus \{p\}) \to H_3(Y) \to 0$ (since $H_2(Y, Y \setminus \{p\}) = \tilde{H}_1(S^2 \times S^3) = 0$)
+
+Wait, let me be more careful:
+$H_4(Y, Y \setminus \{p\}) = \mathbb{Z}$ (from $\tilde{H}_3(S^2 \times S^3) = \mathbb{Z}$)
+$H_3(Y, Y \setminus \{p\}) = \mathbb{Z}$ (from $\tilde{H}_2(S^2 \times S^3) = \mathbb{Z}$)
+$H_k(Y, Y \setminus \{p\}) = 0$ for $k \neq 3, 4$.
+
+The long exact sequence:
+$\cdots \to H_4(Y \setminus \{p\}) \to H_4(Y) \xrightarrow{\delta} \mathbb{Z} \to H_3(Y \setminus \{p\}) \to H_3(Y) \to \mathbb{Z} \to H_2(Y \setminus \{p\}) \to H_2(Y) \to 0 \to H_1(Y \setminus \{p\}) \to H_1(Y) \to 0$
+
+From the end: $H_1(Y \setminus \{p\}) \cong H_1(Y)$.
+
+And: $0 \to H_2(Y \setminus \{p\}) \to H_2(Y) \to 0$, so $H_2(Y \setminus \{p\}) \cong H_2(Y)$.
+
+Wait, that's from $H_3(Y, Y \setminus \{p\}) = \mathbb{Z} \to H_2(Y \setminus \{p\}) \to H_2(Y) \to H_2(Y, Y \setminus \{p\}) = 0$.
+
+So the sequence is $\mathbb{Z} \xrightarrow{\alpha} H_2(Y \setminus \{p\}) \to H_2(Y) \to 0$.
+
+This gives $H_2(Y \setminus \{p\}) / \text{image}(\alpha) \cong H_2(Y)$, i.e., $H_2(Y \setminus \{p\}) \cong H_2(Y) \oplus \text{image}(\alpha)$ (if the sequence splits, which it does since these are free abelian groups).
+
+Hmm, I need to know $H_2(Y)$ and $H_3(Y)$ to proceed. Let me compute the homology of $Y$ (the blow-up of $\mathbb{CP}^3$ along the nodal cubic $C$).
+
+$Y$ is a singular 3-fold with a single conifold singularity. Away from the singularity, $Y$ is smooth. The singularity is at a single point.
+
+To compute $H_*(Y)$, I can use the fact that $Y$ is obtained from $\mathbb{CP}^3$ by blowing up along $C$. Even though $C$ is singular, the blow-up is a well-defined projective variety.
+
+For the blow-up of a smooth 3-fold along a (possibly singular) curve, the homology can be computed using the blow-up formula. But I need to be careful because $C$ is singular.
+
+Let me think about the topology of the blow-up differently. The blow-up $\pi: Y \to \mathbb{CP}^3$ is an isomorphism away from $C$, and the preimage of $C$ is the exceptional divisor $E$.
+
+$E$ is a $\mathbb{P}^1$-bundle over $C$ (in the sense that $E = \text{Proj}(\bigoplus I^n/I^{n+1})$ over $C$). Over smooth points of $C$, $E$ is a $\mathbb{P}^1$-bundle. Over the node, the fiber is $\mathbb{P}^1$ (as computed).
+
+The topology of $E$: $E$ is a $\mathbb{P}^1$-bundle over $C$ (topologically). Since $C$ is a nodal cubic (topologically $S^2 \vee S^1$), $E$ is a $\mathbb{P}^1$-bundle over $S^2 \vee S^1$.
+
+Actually, $E$ is the projectivization of the normal cone of $C$ in $\mathbb{CP}^3$. Over the smooth part of $C$, this is $\mathbb{P}(N_{C/\mathbb{CP}^3})$, the projectivized normal bundle. The normal bundle of $C$ (smooth part) in $\mathbb{CP}^3$ has rank 2.
+
+For a curve in $\mathbb{CP}^3$, the normal bundle fits in:
+$0 \to T_C \to T_{\mathbb{CP}^3}|_C \to N_{C/\mathbb{CP}^3} \to 0$
+
+For a smooth curve of degree $d$ and genus $g$ in $\mathbb{CP}^3$:
+$\deg(N_{C/\mathbb{CP}^3}) = \deg(T_{\mathbb{CP}^3}|_C) - \deg(T_C) = (3(d+1) + 2g - 2) - (2 - 2g) = ... $
+
+Hmm, actually, $c_1(T_{\mathbb{CP}^3}) = 4H$ where $H$ is the hyperplane class. So $\deg(T_{\mathbb{CP}^3}|_C) = 4d$. And $\deg(T_C) = 2 - 2g$. So $\deg(N_{C/\mathbb{CP}^3}) = 4d - (2 - 2g) = 4d + 2g - 2$.
+
+For our nodal cubic: $d = 3

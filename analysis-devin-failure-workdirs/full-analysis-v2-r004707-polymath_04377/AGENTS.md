@@ -1,0 +1,1097 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_04377</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Consider pairs of functions $(f, g)$ from the set of nonnegative integers to itself such that
+[list]
+[*] $f(0) + f(1) + f(2) + \cdots + f(42) \le 2022$;
+[*] for any integers $a \ge b \ge 0$, we have $g(a+b) \le f(a) + f(b)$.
+[/list]
+Determine the maximum possible value of $g(0) + g(1) + g(2) + \cdots + g(84)$ over all such pairs of functions.
+
+[i]Evan Chen (adapting from TST3, by Sean Li)[/i]
+
+## Standard Solution
+
+To determine the maximum possible value of \( g(0) + g(1) + g(2) + \cdots + g(84) \) over all pairs of functions \((f, g)\) that satisfy the given conditions, we need to carefully analyze the constraints and derive the optimal functions \(f\) and \(g\).
+
+1. **Constraints Analysis**:
+   - The first constraint is:
+     \[
+     f(0) + f(1) + f(2) + \cdots + f(42) \le 2022
+     \]
+   - The second constraint is:
+     \[
+     g(a+b) \le f(a) + f(b) \quad \text{for any integers } a \ge b \ge 0
+     \]
+
+2. **Constructing \(f\) and \(g\)**:
+   - We need to find functions \(f\) and \(g\) that maximize \( g(0) + g(1) + g(2) + \cdots + g(84) \).
+   - Consider the construction \( f(x) = \max(68 - x, 27) \) and \( g(x) = \max(136 - x, 54) \).
+
+3. **Verification of Constraints**:
+   - First, verify the sum of \(f(x)\) over the range \(0\) to \(42\):
+     \[
+     \sum_{x=0}^{42} f(x) = \sum_{x=0}^{27} (68 - x) + \sum_{x=28}^{42} 27
+     \]
+     - For \(x = 0\) to \(27\):
+       \[
+       \sum_{x=0}^{27} (68 - x) = 68 \times 28 - \sum_{x=0}^{27} x = 1904 - \frac{27 \times 28}{2} = 1904 - 378 = 1526
+       \]
+     - For \(x = 28\) to \(42\):
+       \[
+       \sum_{x=28}^{42} 27 = 27 \times 15 = 405
+       \]
+     - Total sum:
+       \[
+       1526 + 405 = 1931 \le 2022
+       \]
+     - Thus, the first constraint is satisfied.
+
+   - Next, verify the second constraint \( g(a+b) \le f(a) + f(b) \):
+     - For \( g(x) = \max(136 - x, 54) \) and \( f(x) = \max(68 - x, 27) \):
+       - If \( a + b \le 68 \):
+         \[
+         g(a+b) = 136 - (a + b) \le (68 - a) + (68 - b) = f(a) + f(b)
+         \]
+       - If \( a + b > 68 \):
+         \[
+         g(a+b) = 54 \le f(a) + f(b) \quad \text{(since } f(a) \ge 27 \text{ and } f(b) \ge 27 \text{)}
+         \]
+     - Thus, the second constraint is also satisfied.
+
+4. **Calculating the Sum of \(g(x)\)**:
+   - We need to calculate \( \sum_{x=0}^{84} g(x) \):
+     \[
+     \sum_{x=0}^{84} g(x) = \sum_{x=0}^{54} (136 - x) + \sum_{x=55}^{84} 54
+     \]
+     - For \(x = 0\) to \(54\):
+       \[
+       \sum_{x=0}^{54} (136 - x) = 136 \times 55 - \sum_{x=0}^{54} x = 7480 - \frac{54 \times 55}{2} = 7480 - 1485 = 5995
+       \]
+     - For \(x = 55\) to \(84\):
+       \[
+       \sum_{x=55}^{84} 54 = 54 \times 30 = 1620
+       \]
+     - Total sum:
+       \[
+       5995 + 1620 = 7615
+       \]
+
+5. **Conclusion**:
+   - The maximum possible value of \( g(0) + g(1) + g(2) + \cdots + g(84) \) is \( \boxed{7993} \).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. It's a competition math problem about functions f, g from nonnegative integers to nonnegative integers.
+
+Constraints:
+1. f(0) + f(1) + ... + f(42) ≤ 2022
+2. For all a ≥ b ≥ 0: g(a+b) ≤ f(a) + f(b)
+
+Maximize g(0) + g(1) + ... + g(84).
+
+Let me think about this. This is from Evan Chen adapting TST3 by Sean Li.
+
+Let me think about the structure. We want to maximize the sum of g over 0..84, subject to g(a+b) ≤ f(a)+f(b) for a ≥ b ≥ 0, and sum of f over 0..42 ≤ 2022.
+
+Note g maps to nonnegative integers, f maps to nonnegative integers.
+
+The constraint g(a+b) ≤ f(a)+f(b) for all a≥b≥0. For a given n = a+b, the tightest constraint is g(n) ≤ min over a≥b≥0, a+b=n of f(a)+f(b).
+
+So g(n) ≤ min_{a+b=n, a≥b≥0} f(a)+f(b).
+
+To maximize sum of g, we set g(n) = min_{a+b=n, a≥b≥0} f(a)+f(b) for n=0..84.
+
+So we want to maximize sum_{n=0}^{84} min_{a+b=n, a≥b≥0} f(a)+f(b) subject to sum_{i=0}^{42} f(i) ≤ 2022, f(i) ≥ 0 integers.
+
+Let me define h(n) = min_{a+b=n, a≥b≥0} f(a)+f(b). For n ≤ 42, a ranges from ceil(n/2) to n, b = n-a. Actually a ≥ b means a ≥ n/2, so a from ceil(n/2) to n. But also b ≥ 0 means a ≤ n. And we need a, b in domain... f is defined on all nonneg integers, but only f(0..42) is constrained in sum. For n ≤ 84, a can be up to 84, but f(a) for a > 42 is unconstrained by the sum—but wait, f maps nonneg integers to nonneg integers, and only the sum f(0)+...+f(42) ≤ 2022 is constrained. f(43), f(44), ... can be anything nonneg.
+
+Hmm, but to maximize g, we'd want f(a) for a > 42 to be large? No wait, g(n) = min of f(a)+f(b). Making f(a) larger for a>42 doesn't help the min; it could only help if those terms are the binding constraint. Actually making f large elsewhere doesn't hurt the min (min only goes up if all terms go up). But the min is determined by the smallest f(a)+f(b).
+
+Actually, for n ≤ 84, the pairs (a,b) with a+b=n, a≥b≥0 include pairs where a can be as large as n (b=0). If n ≤ 84, a can be up to 84. For a > 42, f(a) is free (unconstrained). So we can set f(a) = ∞ effectively (very large) for a > 42, making those pairs non-binding. So the binding constraints come from pairs where both a,b ≤ 42.
+
+Wait, but we need a+b = n. For n ≤ 42, all pairs have a,b ≤ 42. For 42 < n ≤ 84, some pairs have a > 42. We can make f(a) huge for a > 42, so those pairs don't bind. The binding pairs are those with a ≤ 42 and b ≤ 42, i.e., a ≤ 42 and b = n - a ≤ 42, so a ≥ n - 42. Combined with a ≥ n/2 (from a ≥ b), we get a ∈ [max(ceil(n/2), n-42), min(n, 42)].
+
+For n ≤ 42: a ∈ [ceil(n/2), n], all ≤ 42. Binding.
+For 42 < n ≤ 84: a ∈ [n-42, 42] (and a ≥ n/2 is automatic since n-42 ≥ n/2 when n ≥ 84... let me check: n-42 ≥ n/2 iff n ≥ 84. So for n < 84, n-42 < n/2, so a ∈ [ceil(n/2), 42]). For n = 84: a ∈ [42, 42], just a=42, b=42.
+
+So effectively:
+- For n ≤ 42: h(n) = min_{a=ceil(n/2)..n} f(a)+f(n-a)
+- For 42 < n ≤ 84: h(n) = min_{a=ceil(n/2)..42} f(a)+f(n-a) (since n-a ≤ 42 automatically when a ≥ n-42, and a ≤ 42)
+
+Actually let me reconsider. For 42 < n ≤ 84, a ranges from ceil(n/2) to 42 (since a ≤ 42 for binding, and a ≥ ceil(n/2) from a ≥ b). And b = n - a ranges from n-42 to floor(n/2), all ≤ 42. Good.
+
+So the problem reduces to: choose nonneg integers f(0),...,f(42) with sum ≤ 2022, to maximize:
+
+S = sum_{n=0}^{42} min_{a=ceil(n/2)..n} (f(a)+f(n-a)) + sum_{n=43}^{84} min_{a=ceil(n/2)..42} (f(a)+f(n-a))
+
+This is a complex optimization. Let me think about what structure is optimal.
+
+Let me think about small cases or patterns. 
+
+Actually, let me think about it differently. The key insight in these problems is often about "convexity" or specific constructions.
+
+Let me think about the dual / lower bound approach. 
+
+Consider the sum S = sum_{n=0}^{84} g(n) where g(n) = min_{a+b=n, a≥b} f(a)+f(b) (with f(a)=∞ for a>42 effectively, but actually we set f(a) large for a>42).
+
+Hmm, let me think about an upper bound. 
+
+For each n, g(n) ≤ f(a) + f(b) for every valid pair (a,b) with a+b=n. So if we take a weighted sum of these inequalities, we can bound sum g(n).
+
+Specifically, sum_{n=0}^{84} g(n) ≤ sum_{n=0}^{84} sum_{(a,b): a+b=n, a≥b≥0} c_{n,a,b} (f(a)+f(b)) for any nonneg weights with... no, that's not right because g(n) ≤ each individual f(a)+f(b), so g(n) ≤ min, and sum of min ≤ min of sum... 
+
+Let me think about it as: for each n, pick one specific pair (a_n, b_n) with a_n + b_n = n, a_n ≥ b_n. Then g(n) ≤ f(a_n) + f(b_n). So S ≤ sum_n (f(a_n) + f(b_n)) = sum_i f(i) * (number of times i appears as a_n or b_n).
+
+To get the best upper bound, we want to choose pairs (a_n, b_n) for each n to minimize the maximum coefficient on any f(i), subject to sum f(i) ≤ 2022.
+
+Wait, but we also need the pairs to only use i ≤ 42 (since f(i) for i > 42 can be made arbitrarily large, using them in the bound would be useless). Actually, for n ≤ 42, any pair (a,b) with a+b=n has a,b ≤ 42. For n > 42, we need a pair with a+b=n and a,b ≤ 42, which requires a ∈ [n-42, 42] and b = n-a ∈ [n-42, 42]... wait b = n - a, for b ≤ 42 we need a ≥ n-42, and a ≤ 42. Also a ≥ b means a ≥ n/2. So for n > 42, we need a ∈ [max(ceil(n/2), n-42), 42]. This is nonempty when max(ceil(n/2), n-42) ≤ 42, i.e., n-42 ≤ 42 (n ≤ 84) and ceil(n/2) ≤ 42 (n ≤ 84). Good, so for all n ≤ 84, we can find a pair with both ≤ 42.
+
+So the upper bound approach: choose pairs (a_n, b_n) for n=0..84, each with a_n+b_n=n, a_n≥b_n≥0, a_n,b_n ≤ 42. Then S ≤ sum_{n} (f(a_n)+f(b_n)) = sum_{i=0}^{42} c_i f(i) where c_i = |{n : a_n = i or b_n = i}|.
+
+To minimize the bound given sum f(i) ≤ 2022, we'd allocate all weight to the f(i) with smallest c_i. So S ≤ 2022 * min_i c_i... no, S ≤ sum c_i f(i) ≤ (max c_i) * sum f(i) if we want an upper bound... no.
+
+Actually S ≤ sum c_i f(i). Given sum f(i) ≤ 2022 and f(i) ≥ 0, the maximum of sum c_i f(i) is 2022 * max_i c_i (put all weight on the i with largest c_i). But that's an upper bound on S that's not tight necessarily.
+
+Hmm wait, I'm confusing directions. Let me reconsider.
+
+We have g(n) ≤ f(a_n) + f(b_n) for our chosen pairs. So S = sum g(n) ≤ sum (f(a_n)+f(b_n)) = sum c_i f(i). 
+
+Now the adversary (who chooses f) wants to maximize S, so they want to maximize sum c_i f(i) subject to sum f(i) ≤ 2022. That gives 2022 * max c_i. But wait, the adversary also has to deal with ALL the min constraints, not just our chosen pairs. So the actual max S could be less than 2022 * max c_i.
+
+To get the best upper bound, we (the bounder) choose pairs to minimize max c_i. Then S ≤ 2022 * (min over pair choices of max c_i).
+
+Let me think about what min max c_i we can achieve. We have 85 pairs (n=0..84), each pair contributes 2 to the total count (or 1 if a_n = b_n). Total count = sum c_i = sum_n (number of distinct elements in {a_n, b_n}). If a_n ≠ b_n, contributes 2; if a_n = b_n (n even, a=b=n/2), contributes 1.
+
+There are 43 even values of n (0,2,...,84) and 42 odd values. For even n, we could choose a=b=n/2 (contributing 1) or a≠b (contributing 2). For odd n, must have a≠b, contributing 2.
+
+If we always choose a=b for even n: total count = 43*1 + 42*2 = 43 + 84 = 127. Distributed over 43 values (0..42), average c_i = 127/43 ≈ 2.95. So max c_i ≥ 3.
+
+If we choose a≠b for all n: total count = 85*2 = 170, average = 170/43 ≈ 3.95, max ≥ 4.
+
+So using a=b for even n is better. Can we achieve max c_i = 3?
+
+With total 127 over 43 slots, if max is 3, we need 127 = sum c_i with each c_i ≤ 3. 43*3 = 129 ≥ 127. So we need c_i ≤ 3 and sum = 127. That means 41 slots with c_i=3 and 2 slots with c_i=2 (41*3+2*2 = 123+4=127). Or other combinations. So it's feasible in terms of counting.
+
+But can we actually construct such a pairing? This is a combinatorial design question.
+
+Let me think about it. For n=0: a=b=0. For n=1: a=1,b=0. For n=2: a=b=1 or a=2,b=0. Etc.
+
+Actually, let me think about whether max c_i = 3 is achievable and whether the bound 2022*3 = 6066 is tight.
+
+Hmm, but this upper bound might not be tight. The actual answer could be lower. Let me think more carefully.
+
+Actually, let me reconsider. The upper bound S ≤ sum c_i f(i) ≤ 2022 * max c_i is valid. If we can achieve max c_i = 3, then S ≤ 6066. But is 6066 achievable?
+
+For the lower bound, we need to construct f and g achieving S = 6066 (or close). 
+
+Let me think about the construction. If we set f(i) = c for all i (constant), then sum f = 43c ≤ 2022, so c ≤ 47 (43*47 = 2021). Then g(n) = min_{a+b=n} 2c = 2c for all n (since f is constant). So S = 85 * 2c = 170c. With c=47, S = 170*47 = 7990. Wait that's way more than 6066!
+
+Hmm, that can't be right. Let me recheck. If f(i) = 47 for all i=0..42, sum = 43*47 = 2021 ≤ 2022. Then g(n) = min_{a+b=n, a≥b≥0, a,b≤42} (f(a)+f(b)) = 94 for all n where a valid pair exists (n=0..84). So S = 85 * 94 = 7990.
+
+But the upper bound said S ≤ 6066. Contradiction! So my upper bound reasoning is wrong.
+
+Let me recheck. The issue: when I choose pairs (a_n, b_n), I have g(n) ≤ f(a_n) + f(b_n). With f constant = 47, f(a_n)+f(b_n) = 94 for all pairs. So S ≤ 85*94 = 7990. And sum c_i f(i) = 47 * sum c_i = 47 * 127 = 5969 (if using a=b for even n). But 7990 > 5969?!
+
+Oh I see the error. When a_n = b_n, f(a_n)+f(b_n) = 2f(a_n), but c_{a_n} only counts 1 (since a_n = b_n, it's the same index). So sum c_i f(i) = sum_n (f(a_n) + f(b_n)) but when a_n=b_n, c_{a_n} should count 2, not 1, because f(a_n)+f(b_n) = 2f(a_n).
+
+I made an error. c_i = number of times i appears across all a_n and b_n, counting multiplicity. So if a_n = b_n = i, that's 2 appearances. Let me redo.
+
+c_i = sum_n (1_{a_n=i} + 1_{b_n=i}). When a_n = b_n = i, this contributes 2. So total sum c_i = sum_n 2 = 170 always (since each pair contributes 2 to the total, regardless of whether a=b).
+
+So sum c_i = 170, over 43 slots, average = 170/43 ≈ 3.95, max ≥ 4.
+
+So the upper bound is S ≤ 2022 * max c_i, and we want to minimize max c_i. With 170 over 43 slots, max ≥ ceil(170/43) = ceil(3.95) = 4.
+
+Can we achieve max c_i = 4? 43*4 = 172 ≥ 170. So we need sum c_i = 170 with each ≤ 4. 41 slots with 4 and 2 slots with 3: 41*4+2*3 = 164+6=170. Yes.
+
+So if we can construct pairs with max c_i = 4, then S ≤ 2022 * 4 = 8088.
+
+But with constant f = 47, we got S = 7990. And 7990 < 8088, so the bound is consistent but not tight.
+
+Hmm, can we do better than constant f? Let me think.
+
+Actually, let me reconsider the problem. The constant construction gives 7990. Can we beat it?
+
+With constant f, g(n) = 2*47 = 94 for all n, S = 85*94 = 7990.
+
+What if we make f non-constant? The min over pairs means g(n) is limited by the smallest f(a)+f(b). If we make some f values smaller, those become bottlenecks. If we make some larger, it doesn't help the min. So it seems like constant f might be optimal or near-optimal.
+
+But wait, we have 2022 budget and 43 values. 2022/43 = 47.02..., so constant 47 uses 2021, wasting 1. We could make one f value 48: sum = 42*47 + 48 = 1974 + 48 = 2022. But then g(n) for pairs involving that value could be higher, but g is still limited by the min, which is still 94 (from pairs not involving the 48). So no improvement.
+
+Actually, to increase g(n), we need ALL pairs (a,b) with a+b=n to have f(a)+f(b) large. The bottleneck is the pair with smallest sum. So increasing one f value doesn't help unless it's the bottleneck for every n it participates in.
+
+Hmm, so maybe the optimal is not constant. Let me think differently.
+
+Let me think about which f values are "bottlenecks." For n even, the pair (n/2, n/2) gives 2f(n/2). For n odd, the pair ((n+1)/2, (n-1)/2) gives f((n+1)/2)+f((n-1)/2).
+
+Actually, for the min to be large, we need all f values to be large, because each f(i) appears as a bottleneck for n=2i (the pair (i,i)).
+
+So g(2i) ≤ 2f(i) for i=0..42. And g(2i+1) ≤ f(i+1)+f(i) for i=0..41 (pair (i+1,i)). Also g(2i+1) ≤ f(i+1+k)+f(i-k) for other k, but the tightest is usually the "center" pair.
+
+If we want to maximize S = sum g(n), and g is determined by mins, let's think about what happens if we set g(n) = 2f(n/2) for even n and g(n) = f((n+1)/2)+f((n-1)/2) for odd n, and check that these are indeed the minimums.
+
+For this to work, we need f(a)+f(b) ≥ f(n/2)+f(n/2) for all a+b=n when n is even, i.e., f is "concave" in some sense... actually we need f(a)+f(n-a) ≥ 2f(n/2) for all a, which means f is concave (by Jensen's inequality for the discrete case). Similarly for odd n.
+
+If f is concave (f(i+1)-f(i) is non-increasing), then the minimum of f(a)+f(b) over a+b=n is achieved at the center (a=b or a=b+1). So g(n) = 2f(n/2) for even n, g(n) = f((n+1)/2)+f((n-1)/2) for odd n.
+
+Then S = sum_{i=0}^{42} 2f(i) + sum_{i=0}^{41} (f(i+1)+f(i)) = 2*sum_{i=0}^{42} f(i) + sum_{i=0}^{41} f(i+1) + sum_{i=0}^{41} f(i)
+= 2*sum_{i=0}^{42} f(i) + sum_{i=1}^{42} f(i) + sum_{i=0}^{41} f(i)
+= 2*sum_{i=0}^{42} f(i) + (sum_{i=0}^{42} f(i) - f(0)) + (sum_{i=0}^{42} f(i) - f(42))
+= 4*sum_{i=0}^{42} f(i) - f(0) - f(42)
+
+So S = 4*T - f(0) - f(42) where T = sum f(i) ≤ 2022.
+
+To maximize, we want T large and f(0), f(42) small. But f must be concave and nonneg integers.
+
+If f(0) = f(42) = 0 and f is concave, then S = 4T. With T = 2022, S = 8088. But can we have a concave f with f(0)=f(42)=0, f ≥ 0, and sum = 2022?
+
+A concave function with f(0)=f(42)=0 that's nonneg... the simplest is f(i) = c*i*(42-i)/something. But it needs to be integer-valued and concave.
+
+Wait, but we also need g(n) to be achievable, i.e., g(n) = min f(a)+f(b), and we need g to map to nonneg integers (which it does since f maps to nonneg integers).
+
+But hold on, we also need to check: for n > 42 (i.e., 43 ≤ n ≤ 84), the center pair might involve indices > 42. For n = 84, center is (42,42), fine. For n = 83, center is (42,41), fine. For n = 43, center is (22,21) or (21,22), fine. Actually for n ≤ 84, the center pair (n/2, n/2) or ((n+1)/2, (n-1)/2) always has both indices ≤ 42. Good.
+
+But we also need f(a) for a > 42 to be large enough that they don't create a smaller min. Since we set f(a) = ∞ (or very large) for a > 42, and for n ≤ 84, pairs with a > 42 have b = n - a < 42, so f(a)+f(b) = ∞ + f(b) = ∞, which is not the min. So those don't bind. Good.
+
+So the question reduces to: maximize 4T - f(0) - f(42) where f is concave, nonneg, integer-valued, f(0), f(42) ≥ 0, T = sum f(i) ≤ 2022.
+
+Wait, but I need to double-check that with concave f, the center pair really gives the minimum. For even n=2i, we need f(a)+f(2i-a) ≥ 2f(i) for all a. Since f is concave, by the discrete Jensen's inequality, f(a)+f(2i-a) ≥ 2f(i) when a and 2i-a are symmetric around i. Yes, this is exactly the definition of concavity (midpoint concavity implies this for integer points). Actually, for discrete concavity (f(i+1)-f(i) non-increasing), we have f(i+k)+f(i-k) ≥ 2f(i) for all k. This is true because:
+
+f(i+k) - f(i) = sum_{j=0}^{k-1} (f(i+j+1)-f(i+j)) and f(i) - f(i-k) = sum_{j=0}^{k-1} (f(i-j+1)-f(i-j))... hmm, let me think again.
+
+f(i+k) + f(i-k) - 2f(i) = [f(i+k)-f(i)] - [f(i)-f(i-k)] = sum_{j=1}^{k} d(i+j-1) - sum_{j=1}^{k} d(i-j) where d(m) = f(m+1)-f(m).
+
+Since d is non-increasing (concavity), d(i+j-1) ≤ d(i-j) for j ≥ 1 (because i+j-1 ≥ i-j+1 > i-j when j ≥ 1... wait i+j-1 vs i-j: i+j-1 ≥ i-j iff 2j ≥ 1, true for j ≥ 1). So each term d(i+j-1) ≤ d(i-j), hence the sum is ≤ 0, meaning f(i+k)+f(i-k) ≤ 2f(i).
+
+Wait, that gives f(i+k)+f(i-k) ≤ 2f(i), which means the center is the MAXIMUM, not the minimum! So for concave f, the center pair gives the maximum of f(a)+f(b), and the minimum is at the endpoints!
+
+I had it backwards. For concave f, min_{a+b=n} f(a)+f(b) is at the extremes (a=n, b=0 or a=0, b=n), giving f(n)+f(0) or f(0)+f(n). For convex f, the center gives the minimum.
+
+So I need f to be CONVEX (f(i+1)-f(i) non-decreasing) for the center to be the minimum.
+
+Let me redo. If f is convex, then min_{a+b=n, a≥b} f(a)+f(b) = f(ceil(n/2))+f(floor(n/2)).
+
+For even n=2i: min = 2f(i).
+For odd n=2i+1: min = f(i+1)+f(i).
+
+Then S = sum_{i=0}^{42} 2f(i) + sum_{i=0}^{41} (f(i)+f(i+1)) = same computation as before = 4T - f(0) - f(42).
+
+But now f is convex, nonneg, integer-valued, with f(0), f(42) ≥ 0. To maximize 4T - f(0) - f(42), we want T large, f(0) and f(42) small.
+
+For convex f with f(0) = f(42) = 0, f must be ≤ 0 everywhere (since convex function with endpoints 0 is ≤ 0 in between). But f ≥ 0, so f ≡ 0. That gives S = 0. Bad.
+
+For convex f, the function is "bowed upward," so the minimum is in the middle and maximum at endpoints. To have f ≥ 0 and convex, we need f(0) and f(42) to be the largest values, and the middle to be small.
+
+So with convex f, f(0) and f(42) are large, and S = 4T - f(0) - f(42) has the penalty terms being large. Let's see: if f is convex with f(0) = f(42) = M and f minimized in the middle, then T ≈ 43 * (something) and f(0)+f(42) = 2M.
+
+Actually, let me think about this differently. Maybe neither purely convex nor concave is optimal. Let me reconsider.
+
+The general problem: maximize sum_{n=0}^{84} min_{a+b=n, a≥b≥0, a,b≤42} (f(a)+f(b)) subject to sum f(i) ≤ 2022, f(i) ≥ 0 integers.
+
+This is a linear programming problem (after relaxing integrality). Let me think about its structure.
+
+Actually, let me think about it as: we want to choose f to maximize sum of mins. Each min is over a set of linear functions. This is a concave function of f (sum of mins of linear functions is concave). So we're maximizing a concave function over a convex set (simplex). The maximum of a concave function over a convex set is at an extreme point... no wait, concave functions achieve maximum at interior points typically. Actually, maximizing a concave function is a convex optimization problem, and the optimum can be in the interior.
+
+Hmm, let me think about the constant solution again. f(i) = 47 for all i. This gives g(n) = 94 for all n, S = 7990. 
+
+Can we do better? Let me think about what happens if we perturb. 
+
+Consider the LP relaxation. The dual might give insight.
+
+Actually, let me think about it more carefully. The answer 7990 = 85 * 94 = 85 * 2 * 47. And 47 = floor(2022/43). 
+
+What if 2022 were exactly divisible by 43? 43*47 = 2021, so 2022 = 43*47 + 1. With constant f=47, we waste 1 unit. If we could use it... but adding 1 to any single f(i) doesn't help because the min is still 94.
+
+What if we use a non-constant f? Let's think about small perturbations. Suppose f(i) = 47 + ε_i. The min for g(n) is min over pairs. If all ε_i = 0, min = 94. If we increase some f values, the min doesn't change (still 94 from the pairs where both are 47). If we decrease some, the min decreases. So any perturbation from constant either keeps S the same or decreases it. 
+
+Wait, that's not quite right. If we increase some f values and decrease others, keeping sum = 2022, the decreased ones create new bottlenecks. Let me think...
+
+If f(i) = 47 + δ_i with sum δ_i = 1 (using the extra unit) and some δ_i positive, some negative. The min for g(n) is min over pairs (47+δ_a + 47+δ_b) = 94 + min over pairs (δ_a + δ_b). If any δ is negative, say δ_j < 0, then for n = 2j, the pair (j,j) gives 94 + 2δ_j < 94. So g(2j) < 94. This decreases S.
+
+To avoid decreasing any g(n), we need all δ_i ≥ 0, but then sum δ_i = 1 means we add 1 to one f value, and the mins don't change (since the min is over pairs, and only one pair might increase). Actually, if we add 1 to f(j), then for n=2j, the pair (j,j) gives 94+2, but other pairs for n=2j still give 94 (if they don't involve j). So g(2j) is still 94 (min doesn't change). For n where all pairs involve j... that's only n=2j (pair (j,j)) and n=2j±1 (pairs (j,j±1) and (j±1,j)). For n=2j, other pairs like (j+1,j-1) give 94. So g(2j) = 94 still. For n=2j+1, pair (j+1,j) gives 95, but pair (j+2,j-1) gives 94. So g(2j+1) = 94. So adding 1 to one f value doesn't help at all.
+
+So it seems like 7990 might be the answer? But wait, maybe a radically non-constant f could do better.
+
+Let me think about it differently. Consider the LP:
+
+maximize sum_{n=0}^{84} t_n
+subject to t_n ≤ f(a) + f(b) for all n, all (a,b) with a+b=n, a≥b≥0, a,b≤42
+sum_{i=0}^{42} f(i) ≤ 2022
+f(i) ≥ 0, t_n ≥ 0
+
+The dual: Let me think about what the dual looks like. Actually, let me think about it combinatorially.
+
+For the upper bound, we choose for each n a distribution over pairs (a,b), i.e., weights w_{n,a,b} ≥ 0 with sum_{(a,b)} w_{n,a,b} = 1 (for each n). Then t_n ≤ sum w_{n,a,b} (f(a)+f(b)), so sum t_n ≤ sum_n sum_{a,b} w_{n,a,b} (f(a)+f(b)) = sum_i f(i) * (sum_{n} sum_{(a,b)∋i} w_{n,a,b}).
+
+Let c_i = sum_n sum_{(a,b)∋i} w_{n,a,b}. Then sum t_n ≤ sum c_i f(i) ≤ (max c_i) * sum f(i) ≤ (max c_i) * 2022.
+
+To minimize max c_i: total sum of c_i = sum_n sum_{(a,b)} w_{n,a,b} * 2 = 2 * 85 = 170 (each n contributes sum of weights = 1, times 2 for two endpoints). Over 43 slots, min max c_i ≥ 170/43 ≈ 3.95, so ≥ 4.
+
+If max c_i = 4 is achievable, then S ≤ 4 * 2022 = 8088.
+
+But we showed constant f gives 7990 < 8088. So either 8088 is not tight, or there's a better construction.
+
+Hmm, let me think about whether we can achieve S closer to 8088.
+
+The gap is 8088 - 7990 = 98. 
+
+Let me think about what construction could beat constant f. 
+
+Actually, I realize the upper bound of 8088 might not be tight because the dual might not be achievable. Let me think about whether max c_i = 4 is achievable and whether the corresponding primal is achievable.
+
+For the upper bound to be tight (S = 8088), we need:
+1. A dual solution with max c_i = 4 (so S ≤ 8088)
+2. A primal solution with S = 8088 (so S ≥ 8088)
+
+For the primal, we need f with sum = 2022 and sum g(n) = 8088. Since S = 4T - f(0) - f(42) (in the convex case), we'd need 4*2022 - f(0) - f(42) = 8088, so f(0)+f(42) = 8088 - 8088 = 0, meaning f(0) = f(42) = 0. But with convex f and f(0)=f(42)=0, f must be ≤ 0, contradicting f ≥ 0 (unless f ≡ 0). So the convex approach can't achieve 8088.
+
+Hmm, so maybe the answer isn't 8088. Let me reconsider.
+
+The formula S = 4T - f(0) - f(42) assumed the center pair is the minimum (convex f). But maybe a non-convex f could do better?
+
+Let me think about this more carefully. The problem is to maximize a concave function (sum of mins) over a polytope. The optimal solution might have a specific structure.
+
+Let me try to think about it from the perspective of specific constructions.
+
+Construction 1: Constant f = 47. S = 7990.
+
+Construction 2: Let me try f(i) = 0 for i=0 and i=42, and f(i) = c for 1 ≤ i ≤ 41. Sum = 41c ≤ 2022, c ≤ 49 (41*49 = 2009). With c = 49, sum = 2009, 13 units wasted. 
+
+Now g(n) = min over pairs. For n=0: pair (0,0), g(0) = 0. For n=84: pair (42,42), g(84) = 0. For n=1: pairs (1,0), g(1) = f(1)+f(0) = 49. For n=2: pairs (1,1) and (2,0), g(2) = min(98, 49) = 49. Hmm, (2,0) gives f(2)+f(0) = 49+0 = 49. So g(2) = 49.
+
+This is bad because f(0)=0 creates bottlenecks. Every pair involving 0 gives a small value.
+
+Construction 3: What about making f(0) and f(42) large (since they appear in many pairs as bottlenecks for extreme n)?
+
+For n=0: only pair (0,0), g(0) = 2f(0).
+For n=1: pairs (1,0), g(1) = f(1)+f(0).
+For n=84: only pair (42,42), g(84) = 2f(42).
+For n=83: pairs (42,41), g(83) = f(42)+f(41).
+
+The endpoints n=0 and n=84 are special: they have only one pair each. So g(0) = 2f(0) and g(84) = 2f(42). These are "free" in the sense that they only depend on one f value.
+
+For n=1: g(1) = f(1)+f(0) (only pair (1,0)). Wait, are there other pairs? a+b=1, a≥b≥0: (1,0). That's the only one. So g(1) = f(1)+f(0). Similarly g(83) = f(42)+f(41) (only pair (42,41)).
+
+For n=2: pairs (2,0) and (1,1). g(2) = min(f(2)+f(0), 2f(1)).
+For n=82: pairs (42,40) and (41,41). g(82) = min(f(42)+f(40), 2f(41)).
+
+So the number of pairs for n is: for n ≤ 42, the number of pairs is floor(n/2)+1. For n > 42, it's floor((84-n)/2)+1. So n=0 and n=84 have 1 pair, n=1 and n=83 have 1 pair, n=2 and n=82 have 2 pairs, ..., n=42 has 22 pairs (a=21..42, b=21..0).
+
+The n values near 0 and 84 have few pairs, so they're easy to make large (just need the few f values involved to be large). The n values near 42 have many pairs, so they're hard to make large (need all f values to be large).
+
+This suggests a non-constant f might be better: make f values near 0 and 42 large (to boost g for n near 0 and 84), and f values in the middle smaller.
+
+But wait, the middle f values are needed for g(n) near n=42, which has many pairs. If middle f values are small, g(42) is small. But g(42) is just one term. The trade-off is: reducing middle f values saves budget that can be spent on endpoint f values, boosting many g(n) near the endpoints.
+
+Hmm, this is getting complex. Let me think about it as an LP and try to find the optimal structure.
+
+Let me consider a symmetric solution: f(i) = f(42-i). This is natural by symmetry of the problem (the problem is symmetric under i → 42-i, since g(n) for n and 84-n have the same structure).
+
+With f symmetric, let me think about the structure. Let me parametrize f as a function on {0, 1, ..., 21} (with f(i) = f(42-i)).
+
+Actually, let me think about the problem differently. Let me consider the "fractional" version where f can be real-valued, and then round.
+
+The LP is:
+max sum_{n=0}^{84} t_n
+s.t. t_n ≤ f(a) + f(b) for all valid (a,b) for each n
+sum f(i) ≤ 2022
+f, t ≥ 0
+
+By LP duality, the optimal value equals:
+min 2022 * λ + sum_i μ_i * 0 (wait, let me be more careful)
+
+Actually, let me write the dual properly. 
+
+Primal (P):
+max sum_n t_n
+s.t. t_n - f(a) - f(b) ≤ 0 for all n, (a,b) valid for n  [dual var: w_{n,a,b} ≥ 0]
+sum_i f(i) ≤ 2022  [dual var: λ ≥ 0]
+f(i) ≥ 0  [dual var: μ_i ≥ 0]
+t_n ≥ 0  [dual var: ν_n ≥ 0]
+
+Dual (D):
+min 2022 λ
+s.t. λ - sum_{n,(a,b)∋i} w_{n,a,b} + μ_i = 0 for all i  (from f(i) column)
+     -sum_{(a,b) for n} w_{n,a,b} + ν_n = -1 for all n  (from t_n column, since coeff of t_n in objective is 1)
+     w, λ, μ, ν ≥ 0
+
+From the t_n constraint: ν_n = sum_{(a,b) for n} w_{n,a,b} - 1 ≥ 0, so sum_{(a,b) for n} w_{n,a,b} ≥ 1.
+
+From the f(i) constraint: μ_i = sum_{n,(a,b)∋i} w_{n,a,b} - λ ≥ 0, so sum_{n,(a,b)∋i} w_{n,a,b} ≥ λ. And μ_i ≥ 0 means c_i := sum_{n,(a,b)∋i} w_{n,a,b} ≥ λ.
+
+Objective: min 2022 λ, with λ ≤ c_i for all i, and sum_{(a,b) for n} w_{n,a,b} ≥ 1 for all n.
+
+To minimize 2022 λ, we want λ as small as possible, but λ ≤ min_i c_i. And c_i = sum_{n,(a,b)∋i} w_{n,a,b}.
+
+We want to maximize min_i c_i subject to sum_{(a,b) for n} w_{n,a,b} ≥ 1 for all n, w ≥ 0.
+
+Wait, we want to minimize λ, and λ ≤ c_i for all i. So λ = min_i c_i. We want to maximize min_i c_i.
+
+sum of all c_i = sum_i sum_{n,(a,b)∋i} w_{n,a,b} = sum_n sum_{(a,b) for n} w_{n,a,b} * 2 ≥ 2 * 85 = 170.
+
+So min_i c_i ≤ 170/43 ≈ 3.95, hence min_i c_i ≤ 3 (since we need... wait, c_i can be fractional). Actually in the LP, w can be fractional, so min_i c_i ≤ 170/43.
+
+So the dual optimal value is 2022 * (170/43) = 2022 * 170 / 43.
+
+Let me compute: 2022 / 43 = 47.023..., 2022 * 170 / 43 = 2022 * 170 / 43.
+
+2022 * 170 = 343740. 343740 / 43 = 7994.88...
+
+Hmm, so the LP optimal is 343740/43 ≈ 7994.88. But the integer optimal must be ≤ this, and the constant construction gives 7990.
+
+Wait, but the LP allows fractional f. Let me check: can we achieve 343740/43 with fractional f?
+
+If the dual optimum is 343740/43, then by strong duality, the primal LP optimum is also 343740/43. But we need integer f and g. The integer optimum ≤ LP optimum = 343740/43 ≈ 7994.88, so integer optimum ≤ 7994.
+
+But the constant construction gives 7990. Can we do better with integers?
+
+Hmm wait, let me re-examine. The LP has min_i c_i ≤ 170/43. Can we achieve min_i c_i = 170/43? That requires all c_i = 170/43, i.e., perfectly balanced. This requires a fractional solution w.
+
+For the primal, achieving 343740/43 requires a specific f. Let me think about what f achieves this.
+
+If all c_i are equal (= 170/43), then by complementary slackness, all f(i) > 0 (since c_i = λ for all i, μ_i = 0). And the optimal f should satisfy... 
+
+Actually, let me think about it differently. If the dual has all c_i equal, then the primal optimal f should be proportional to... hmm.
+
+Let me think about the primal directly. We want to maximize sum t_n with t_n ≤ f(a)+f(b) for all pairs, sum f ≤ 2022.
+
+If we set f(i) = 2022/43 for all i (constant, fractional), then t_n = 2 * 2022/43 = 4044/43 for all n, and S = 85 * 4044/43 = 343740/43. And sum f = 2022. So this achieves the LP optimum! Great.
+
+So the LP optimum is 343740/43 ≈ 7994.88, achieved by constant f = 2022/43.
+
+Now for the integer problem, we need f(i) nonneg integers with sum ≤ 2022, and g(n) nonneg integers. The integer optimum ≤ floor(343740/43) = floor(7994.88) = 7994.
+
+But can we achieve 7994 with integers? Or is the answer 7990 (from constant f=47)?
+
+Let me think more carefully. With f(i) = 47 for all i (sum 2021), g(n) = 94, S = 7990. We have 1 unit of budget unused.
+
+Can we use that 1 unit to increase S? As I argued, adding 1 to a single f(i) doesn't help because the min doesn't change.
+
+What if we use a non-constant f? Let me think about whether we can get S > 7990.
+
+Let me try f(i) = 48 for some i and 47 for others, with sum = 2022. So one f value is 48, rest are 47. As argued, this doesn't change any g(n) because every n has at least one pair not involving the 48. So S = 7990.
+
+What about f(i) = 48 for two values and 46 for one? Sum = 2*48 + 40*47 + 46 = 96 + 1880 + 46 = 2022. Now the 46 creates a bottleneck: g(2i) ≤ 2*46 = 92 for the i where f(i)=46. And g(2i±1) ≤ 46+47 = 93. So we lose at least 2 on g(2i) and 1 on g(2i±1). That's worse.
+
+What about a more clever distribution? Let me think about the structure of the optimal integer solution.
+
+The LP optimal is constant f. The integer optimal is likely close to constant. The issue is that with 43 values and budget 2022 = 43*47 + 1, we can't make all f values equal (they'd be 47 with 1 leftover).
+
+Hmm, but maybe a non-constant f can do better by exploiting the structure of which pairs exist for each n.
+
+Let me think about it more carefully. The key observation: n=0 has only pair (0,0), and n=84 has only pair (42,42). So g(0) = 2f(0) and g(84) = 2f(42) are "free" - they only depend on one f value. Similarly, n=1 has only pair (1,0), so g(1) = f(0)+f(1). And n=83 has only pair (42,41), so g(83) = f(42)+f(41).
+
+The n values with few pairs (near 0 and 84) are "easy" to satisfy. The n values with many pairs (near 42) are "hard."
+
+In the constant solution, all g(n) = 94. But the easy n values (near 0 and 84) could potentially be made larger if we allocate more budget to f(0) and f(42). The question is whether the gain from easy n values outweighs the loss from hard n values.
+
+Let me try a specific construction. Suppose f(0) = f(42) = a, and f(i) = b for 1 ≤ i ≤ 41. Sum = 2a + 41b ≤ 2022.
+
+g(0) = 2a, g(84) = 2a.
+g(1) = a + b, g(83) = a + b.
+g(2) = min(a+b, 2b) [pairs (2,0) and (1,1)]. If a ≥ b, then min = a+b... no, (2,0) gives f(2)+f(0) = b+a, (1,1) gives 2b. So g(2) = min(a+b, 2b) = 2b if a ≥ b, or a+b if a < b.
+
+If a > b: g(2) = 2b. g(3) = min(f(3)+f(0), f(2)+f(1)) = min(b+a, 2b) = 2b. In general, for n ≥ 2 (and n ≤ 82), the min will be 2b (from pairs not involving 0 or 42), as long as a > b. For n=2, pair (1,1) gives 2b. For n=3, pair (2,1) gives 2b. Etc.
+
+Wait, but for n=2, we also have pair (2,0) giving a+b > 2b. So g(2) = 2b. For n=82, pair (41,41) gives 2b, pair (42,40) gives a+b > 2b. So g(82) = 2b.
+
+For n=42 (middle), pairs include (21,21) giving 2b, (22,20) giving 2b, etc. All give 2b (since all middle values are b). Also (42,0) gives a+a = 2a > 2b. So g(42) = 2b.
+
+So with a > b:
+- g(0) = g(84) = 2a
+- g(1) = g(83) = a + b
+- g(n) = 2b for 2 ≤ n ≤ 82
+
+S = 2*(2a) + 2*(a+b) + 81*(2b) = 4a + 2a + 2b + 162b = 6a + 164b.
+
+Constraint: 2a + 41b ≤ 2022, a > b ≥ 0, integers.
+
+Maximize 6a + 164b. From constraint, a = (2022 - 41b)/2. Then S = 6*(2022-41b)/2 + 164b = 3*(2022-41b) + 164b = 6066 - 123b + 164b = 6066 + 41b.
+
+So S = 6066 + 41b, and we need a > b, i.e., (2022-41b)/2 > b, i.e., 2022 - 41b > 2b, i.e., 2022 > 43b, i.e., b < 2022/43 = 47.02..., so b ≤ 47.
+
+Also a must be a nonneg integer, so 2022 - 41b must be even. 2022 is even, 41b is even iff b is even. So b must be even for a to be integer. Wait, a = (2022 - 41b)/2. For a to be integer, 2022 - 41b must be even. 2022 is even, so 41b must be even, so b must be even.
+
+With b = 46 (even, ≤ 47): a = (2022 - 41*46)/2 = (2022 - 1886)/2 = 136/2 = 68. a = 68 > 46 = b. ✓
+S = 6066 + 41*46 = 6066 + 1886 = 7952. That's less than 7990!
+
+With b = 47: a = (2022 - 41*47)/2 = (2022 - 1927)/2 = 95/2 = 47.5. Not integer.
+
+With b = 46: S = 7952 < 7990. Worse.
+
+Hmm, so this construction is worse. The issue is that by making a > b, we gain on g(0), g(1), g(83), g(84) but lose on all 81 middle terms.
+
+Let me try a = b (constant): S = 6*47 + 164*47 = 282 + 7708 = 7990. Wait, let me recompute. With a = b = 47: S = 6*47 + 164*47 = (6+164)*47 = 170*47 = 7990. Yes, matches.
+
+With the formula S = 6066 + 41b for a > b, the maximum is at b = 46 giving 7952. So the constant is better.
+
+What about a < b? Then:
+g(0) = 2a, g(84) = 2a.
+g(1) = a + b, g(83) = a + b.
+g(2) = min(a+b, 2b) = a+b (since a < b).
+g(3) = min(a+b, 2b) = a+b.
+...
+Actually for n=2: pairs (2,0) giving b+a, (1,1) giving 2b. min = a+b since a < b means a+b < 2b.
+For n=3: pairs (3,0) giving b+a, (2,1) giving 2b. min = a+b.
+For general n (2 ≤ n ≤ 42): pair (n,0) gives f(n)+f(0) = b+a (if n ≥ 1, f(n)=b). Other pairs give 2b or b+b=2b. So min = a+b.
+
+Wait, but for n=42: pair (42,0) gives a+a = 2a. Other pairs give 2b. So g(42) = min(2a, 2b) = 2a (since a < b).
+
+Hmm, I need to be more careful. For n=42, the pairs are (a,b) with a+b=42, a≥b≥0, a,b ≤ 42. These include (42,0), (41,1), ..., (21,21). f(42)=a, f(0)=a, f(i)=b for 1≤i≤41. So:
+- (42,0): f(42)+f(0) = 2a
+- (41,1): f(41)+f(1) = 2b
+- (40,2): 2b
+- ...
+- (21,21): 2b
+
+So g(42) = min(2a, 2b) = 2a.
+
+For n=41: pairs (41,0), (40,1), ..., (21,20). 
+- (41,0): b + a
+- (40,1): 2b
+- ...
+- (21,20): 2b
+g(41) = min(a+b, 2b) = a+b (since a < b).
+
+For n=43: pairs (42,1), (41,2), ..., (22,21).
+- (42,1): a + b
+- (41,2): 2b
+- ...
+g(43) = min(a+b, 2b) = a+b.
+
+For n=44: pairs (42,2), (41,3), ..., (22,22).
+- (42,2): a + b
+- (41,3): 2b
+- ...
+- (22,22): 2b
+g(44) = a+b.
+
+In general, for a < b:
+- g(0) = g(84) = 2a
+- g(42) = 2a (from pair (42,0) and (0,42)... wait (42,0) with a=42, b=0, a≥b ✓, gives f(42)+f(0)=2a)
+
+Hmm wait, for n=42, pair (42,0) gives 2a, and all other pairs give 2b > 2a. So g(42) = 2a.
+
+For n=84: only pair (42,42), g(84) = 2a.
+
+For n=43: pair (42,1) gives a+b, others give 2b. g(43) = a+b.
+For n=41: pair (41,0) gives a+b, others give 2b. g(41) = a+b.
+
+For n=2: pair (2,0) gives a+b, (1,1) gives 2b. g(2) = a+b.
+For n=82: pair (42,40) gives a+b, (41,41) gives 2b. g(82) = a+b.
+
+So for a < b:
+- g(0) = g(42) = g(84) = 2a (3 terms)
+- g(n) = a+b for all other n (82 terms)
+
+S = 3*(2a) + 82*(a+b) = 6a + 82a + 82b = 88a + 82b.
+
+Constraint: 2a + 41b ≤ 2022, a < b, a ≥ 0, b ≥ 0, integers.
+
+Maximize 88a + 82b. From constraint: b = (2022 - 2a)/41. S = 88a + 82*(2022-2a)/41 = 88a + 2*(2022-2a) = 88a + 4044 - 4a = 84a + 4044.
+
+So S = 84a + 4044, with a < b = (2022-2a)/41, i.e., a < (2022-2a)/41, i.e., 41a < 2022-2a, i.e., 43a < 2022, i.e., a < 47.02, so a ≤ 47.
+
+Also b must be integer: (2022-2a) divisible by 41. 2022 = 41*49 + 13. So 2022 - 2a ≡ 13 - 2a (mod 41). Need 13 - 2a ≡ 0 (mod 41), i.e., 2a ≡ 13 (mod 41), i.e., a ≡ 13 * 2^{-1} (mod 41). 2^{-1} mod 41 = 21 (since 2*21=42≡1). So a ≡ 13*21 = 273 ≡ 273 - 6*41 = 273-246 = 27 (mod 41). So a ≡ 27 (mod 41).
+
+With a ≤ 47 and a ≡ 27 (mod 41): a = 27. Then b = (2022 - 54)/41 = 1968/41 = 48. Check a < b: 27 < 48 ✓. S = 84*27 + 4044 = 2268 + 4044 = 6312. That's way less than 7990.
+
+Or a = 27 - 41 = -14, negative, not valid. So only a = 27 in range, giving S = 6312. Much worse.
+
+So the a < b case is bad. The constant case (a = b = 47) giving 7990 seems best so far.
+
+Let me try a more general construction. Instead of just 2 levels, let me think about what the optimal f looks like.
+
+Actually, let me reconsider the LP. The LP optimal is constant f = 2022/43, giving S = 343740/43 ≈ 7994.88. The integer optimum is at most 7994. The constant integer solution gives 7990. Can we do better?
+
+Let me think about it more carefully. Maybe a solution where some f values are 48 and some are 47, but arranged cleverly.
+
+With f(i) ∈ {47, 48}, sum = 2022 = 43*47 + 1, so exactly one f value is 48 and the rest are 47. As argued, this gives S = 7990 (the 48 doesn't help any min).
+
+What if we allow f values to be 46 and 48? E.g., one 48, one 46, rest 47. Sum = 48 + 46 + 41*47 = 48 + 46 + 1927 = 2021. Need sum = 2022, so add 1 more: one 49, one 46, rest 47: 49 + 46 + 41*47 = 49+46+1927 = 2022. 
+
+Now g(n) = min over pairs. The 46 is a bottleneck. For n = 2i where f(i) = 46, g(2i) ≤ 92. For n = 2i±1, g ≤ 46+47 = 93. The 49 doesn't help any min (since every n has a pair avoiding the 49). So we lose 2 on g(2i) and 1 on each g(2i-1), g(2i+1) (if they exist). Net loss ≥ 2 + 1 + 1 = 4, gain 0. S ≤ 7990 - 4 = 7986. Worse.
+
+So having any f value below 47 hurts more than having f values above 47 helps. This suggests the optimal is to have all f values ≥ 47, but sum = 2022 = 43*47 + 1 means we can have at most one 48 and rest 47 (sum 2021) or... wait, 43*47 = 2021, so to get sum 2022 with all ≥ 47, we need one 48 and 42 47's. Sum = 48 + 42*47 = 48 + 1974 = 2022. ✓
+
+But as argued, this gives S = 7990. Can we get S = 7991 or more?
+
+The issue is that with one 48 and rest 47, every g(n) = 94 (since every n has a pair of two 47's). To get g(n) > 94 for some n, we need ALL pairs for that n to sum to > 94, i.e., all pairs to involve the 48. But for n with multiple pairs (n ≥ 2), there's always a pair not involving the 48. Only n=0 (pair (0,0)) and n=84 (pair (42,42)) have a single pair.
+
+So if f(0) = 48 and rest 47: g(0) = 96, all other g(n) = 94. S = 96 + 84*94 = 96 + 7896 = 7992. Wait! That's better than 7990!
+
+Let me double-check. f(0) = 48, f(1) = ... = f(42) = 47. Sum = 48 + 42*47 = 48 + 1974 = 2022. ✓
+
+g(0) = 2*f(0) = 96 (only pair (0,0)).
+g(1) = f(1) + f(0) = 47 + 48 = 95 (only pair (1,0)). Wait, is (1,0) the only pair for n=1? a+b=1, a≥b≥0: (1,0). Yes. So g(1) = 95.
+
+Hmm wait, so g(1) = 95 too! Let me recheck.
+
+For n=1: only pair is (1,0). f(1)+f(0) = 47+48 = 95. So g(1) = 95.
+
+For n=2: pairs (2,0) and (1,1). f(2)+f(0) = 47+48 = 95. f(1)+f(1) = 94. g(2) = min(95, 94) = 94.
+
+For n=0: g(0) = 96.
+For n=1: g(1) = 95.
+For n=2..84: g(n) = 94 (since there's always a pair of two 47's).
+
+Wait, n=84: only pair (42,42). f(42) = 47. g(84) = 94.
+n=83: only pair (42,41). f(42)+f(41) = 47+47 = 94. g(83) = 94.
+
+So S = 96 + 95 + 83*94 = 96 + 95 + 7802 = 7993.
+
+Hmm wait, let me recount. n=0: 96. n=1: 95. n=2 to n=84: that's 83 values, each 94. S = 96 + 95 + 83*94 = 96 + 95 + 7802 = 7993.
+
+That's better than 7990! Can we do even better?
+
+What if f(0) = 48 and f(42) = 48? Then sum = 2*48 + 41*47 = 96 + 1927 = 2023 > 2022. Too much.
+
+f(0) = 48, f(42) = 48, one of the middle = 46: sum = 48+48+46+40*47 = 48+48+46+1880 = 2022. 
+
+g(0) = 96, g(84) = 96, g(1) = 95, g(83) = 95.
+But the 46 creates a bottleneck. Say f(k) = 46 for some 1 ≤ k ≤ 41.
+g(2k) ≤ 92, g(2k-1) ≤ 93, g(2k+1) ≤ 93.
+
+If k is not 0, 1, 41, or 42, then:
+- g(2k) = 92 (was 94, loss 2)
+- g(2k-1) = 93 (was 94, loss 1) [if 2k-1 ≥ 2]
+- g(2k+1) = 93 (was 94, loss 1) [if 2k+1 ≤ 83]
+
+But wait, I need to check if the 48's affect these. For g(2k), pairs include (2k, 0) giving f(2k)+f(0) = 46+48 = 94, (k,k) giving 92, etc. So g(2k) = 92. For g(2k-1), pairs include (2k-1, 0) giving 47+48=95, (k, k-1) giving 46+47=93, etc. So g(2k-1) = 93.
+
+S = 96 + 95 + 96 + 95 + (83 - 3)*94 + 92 + 93 + 93
+Wait, let me be more careful. n=0: 96, n=1: 95, n=83: 95, n=84: 96. n=2k: 92, n=2k-1: 93, n=2k+1: 93. All other n: 94.
+
+But I need to make sure 2k, 2k-1, 2k+1 don't overlap with 0, 1, 83, 84. If k is in the middle (say k=21), then 2k=42, 2k-1=41, 2k+1=43, none overlap with 0,1,83,84.
+
+S = 96 + 95 + 92 + 93 + 93 + 95 + 96 + (85 - 7)*94
+= 96 + 95 + 92 + 93 + 93 + 95 + 96 + 78*94
+= 660 + 7332
+= 7992.
+
+Hmm, 7992 < 7993. So the single 48 at f(0) is better.
+
+What about f(0) = 49, and compensate? 49 + 42*47 = 49 + 1974 = 2023 > 2022. Need to reduce one by 1: f(0) = 49, one middle = 46, rest 47. Sum = 49 + 46 + 41*47 = 49+46+1927 = 2022.
+
+g(0) = 98, g(1) = 49+47 = 96. 
+The 46 at position k: g(2k) = 92, g(2k-1) = 93, g(2k+1) = 93.
+But also need to check: does the 49 at position 0 affect g(2k)? Pair (2k, 0) gives f(2k)+f(0) = 47+49 = 96, pair (k,k) gives 92. So g(2k) = 92. 
+
+For n=2: pair (2,0) gives 47+49=96, (1,1) gives 94. g(2) = 94.
+For n=3: pair (3,0) gives 47+49=96, (2,1) gives 94. g(3) = 94.
+
+So g(n) = 94 for n=2..82 except around 2k.
+
+S = 98 + 96 + 92 + 93 + 93 + (85-7)*94 = 98+96+92+93+93 + 78*94 = 472 + 7332 = 7804. Worse!
+
+The 46 creates too much loss. Let me try f(0) = 48, f(1) = 48, rest 47. Sum = 48+48+41*47 = 96+1927 = 2023 > 2022. Need to reduce: f(0)=48, f(1)=48, one middle=46, rest 47. Sum = 48+48+46+40*47 = 2022.
+
+g(0) = 96, g(1) = 48+48 = 96, g(2) = min(f(2)+f(0), f(1)+f(1)) = min(47+48, 96) = min(95, 96) = 95. g(3) = min(f(3)+f(0), f(2)+f(1)) = min(95, 95) = 95.
+
+The 46 at position k (k ≥ 2): g(2k) = 92, g(2k±1) = 93.
+
+S = 96 + 96 + 95 + 95 + 92 + 93 + 93 + (85-7)*94 = 560 + 7332 = 7892. Worse.
+
+OK so the issue is that having any value below 47 is very costly. The best so far is f(0) = 48, rest 47, giving S = 7993.
+
+Can we do better? What about f(0) = 48, f(42) = 48, and reduce two middle values? That's sum = 96 + 41*47 = 96 + 1927 = 2023, need to reduce by 1. So one middle = 46. Sum = 48+48+46+40*47 = 2022.
+
+g(0) = 96, g(84) = 96, g(1) = 95, g(83) = 95.
+46 at position k: g(2k) = 92, g(2k±1) = 93.
+S = 96+96+95+95+92+93+93 + 78*94 = 660 + 7332 = 7992. Less than 7993.
+
+What about putting the 48 at position 0 and 42, and 46 at position 0 or 42? That doesn't make sense.
+
+Let me try f(0) = 48, f(42) = 47, and all others 47, but use the extra 1 differently. We have sum = 48 + 42*47 = 2022. That's the case we already did, S = 7993.
+
+What if f(0) = 48, and we also set f(1) = 48, but reduce f(42) to 46? Sum = 48+48+46+40*47 = 2022.
+
+g(0) = 96, g(1) = 96, g(2) = min(47+48, 96) = 95, g(84) = 2*46 = 92, g(83) = 46+47 = 93.
+
+Hmm, g(84) = 92 is a big loss. S = 96+96+95+92+93 + 81*94 = 472 + 7614 = 8086? Wait let me recount.
+
+n=0: 96, n=1: 96, n=2: 95, n=83: 93, n=84: 92. That's 5 special values. The rest (80 values) are 94.
+
+But wait, I need to check n=82: pair (42,40) gives 46+47=93, (41,41) gives 94. g(82) = 93. And n=81: pair (42,39) gives 46+47=93, (41,40) gives 94. g(81) = 93.
+
+Hmm, f(42) = 46 affects many g(n) near n=84. Let me be more careful.
+
+f(42) = 46. For n=84: g(84) = 2*46 = 92. For n=83: g(83) = f(42)+f(41) = 46+47 = 93. For n=82: pairs (42,40) and (41,41). g(82) = min(46+47, 94) = 93. For n=81: pairs (42,39), (41,40). g(81) = min(46+47, 94) = 93. ... For n=43: pairs (42,1), (41,2), ..., (22,21). g(43) = min(46+47, 94) = 93. For n=42: pairs (42,0), (41,1), ..., (21,21). g(42) = min(46+48, 94) = 94.
+
+So f(42) = 46 affects g(n) for n = 43 to 84 (42 values), making them 93 instead of 94 (except g(84) = 92 and g(42) = 94). Wait:
+
+n=84: 92 (loss 2)
+n=43 to 83: 93 (loss 1 each, 41 values)
+n=42: 94 (no loss, because pair (42,0) gives 46+48=94, and (21,21) gives 94)
+
+So loss from f(42)=46: 2 + 41*1 = 43.
+Gain from f(0)=48, f(1)=48: g(0) = 96 (gain 2), g(1) = 96 (gain 2), g(2) = 95 (gain 1). Total gain = 5.
+
+Net: 5 - 43 = -38. S = 7990 - 38 = 7952. Worse.
+
+OK so reducing any f value below 47 is very costly because it affects many g(n) values. The best strategy is to keep all f values ≥ 47 and put the extra 1 on f(0) (or f(42)).
+
+With f(0) = 48, rest 47: S = 7993. Can we verify this is optimal?
+
+Let me think about the upper bound more carefully. We need a tighter upper bound than 8088.
+
+Let me think about the dual again. The LP dual has optimum 343740/43 ≈ 7994.88. So the integer optimum ≤ 7994.
+
+Can we achieve 7994? We need S ≥ 7994 with integer f, g.
+
+From the construction f(0) = 48, rest 47, we get S = 7993. Can we get 7994?
+
+What if f(0) = 48, f(42) = 48, and we reduce one middle value by 1 and increase another by 1? No, that doesn't change the sum.
+
+Actually, with sum = 2022 and 43 values all ≥ 47, we need 43*47 = 2021, so we have 1 extra to distribute. We can either:
+(a) One value is 48, rest 47. Sum = 2022.
+(b) One value is 49, one is 46, rest 47. Sum = 2022. But 46 < 47, costly.
+
+So option (a) is the only way to keep all ≥ 47. And the best placement of the 48 is at position 0 or 42 (by symmetry), giving S = 7993.
+
+But wait, what if we allow some f values to be less than 47 but compensate cleverly? We showed that's costly. Let me see if there's a clever arrangement.
+
+Actually, let me reconsider. What if we don't require all f ≥ 47? Let me think about the problem more generally.
+
+Let me think about the dual more carefully to get a tight upper bound for the integer problem.
+
+Actually, let me think about specific upper bound constructions. 
+
+For the upper bound, I want to choose weights w_{n,a,b} ≥ 0 with sum_{(a,b) for n} w_{n,a,b} = 1 for each n, minimizing max_i c_i where c_i = sum_{n,(a,b)∋i} w_{n,a,b}.
+
+The LP optimum has all c_i = 170/43. For an integer upper bound, I might need a different approach.
+
+Actually, let me think about whether 7994 is achievable. We need sum g(n) = 7994 with sum f ≤ 2022.
+
+From the LP, the optimal fractional solution has f(i) = 2022/43 for all i, giving g(n) = 2*2022/43 for all n, S = 85 * 2 * 2022/43 = 343740/43 ≈ 7994.88.
+
+For integer solutions, we need g(n) to be integers. 2*2022/43 = 4044/43 ≈ 94.047. So g(n) = 94 for most n, and we need some g(n) = 95 to reach 7994.
+
+7994 = 85 * 94 + 84 = 7990 + 4. Wait, 85*94 = 7990. 7994 - 7990 = 4. So we need 4 extra, i.e., 4 of the g(n) to be 95 instead of 94 (or one to be 98, etc.).
+
+With f(0) = 48, rest 47: g(0) = 96 (extra 2), g(1) = 95 (extra 1), total extra = 3. S = 7993.
+
+To get extra 4, we need g(0) = 96, g(1) = 95, and one more g(n) = 95. But g(2) = min(f(2)+f(0), 2f(1)) = min(47+48, 94) = 94. To make g(2) = 95, we need both f(2)+f(0) ≥ 95 and 2f(1) ≥ 95. f(2)+f(0) = 47+48 = 95 ✓. 2f(1) = 94 < 95 ✗. So we need f(1) ≥ 48. But then sum = f(0)+f(1)+41*47 = 48+48+1927 = 2023 > 2022.
+
+So we'd need to reduce some other f value. If f(0)=48, f(1)=48, f(k)=46 for some k≥2, rest 47. Sum = 2022.
+
+g(0) = 96, g(1) = 96, g(2) = min(47+48, 96) = 95. But f(k)=46 causes losses. g(2k) = 92 (loss 2), g(2k-1) = 93 (loss 1), g(2k+1) = 93 (loss 1). 
+
+If k=2: g(4) = 92, g(3) = 93, g(5) = 93. But also g(2) = min(f(2)+f(0), 2f(1)) = min(46+48, 96) = 94. So g(2) = 94, not 95! Because f(2) = 46.
+
+Hmm, so putting the 46 at position 2 ruins g(2). Let me try k=21 (middle).
+
+f(0)=48, f(1)=48, f(21)=46, rest 47. Sum = 48+48+46+40*47 = 2022.
+
+g(0) = 96, g(1) = 96, g(2) = min(47+48, 96) = 95.
+g(42) = min(f(42)+f(0), f(21)+f(21), ...) = min(47+48, 92, ...) = 92. Loss 2.
+g(41) = min(f(41)+f(0), f(21)+f(20), ...) = min(47+48, 46+47, ...) = 93. Loss 1.
+g(43) = min(f(42)+f(1), f(21)+f(22), ...) = min(47+48, 46+47, ...) = 93. Loss 1.
+
+Extra: g(0) +2, g(1) +2, g(2) +1 = +5. Loss: g(42) -2, g(41) -1, g(43) -1 = -4. Net = +1. S = 7991. Worse than 7993.
+
+What about k=41? f(0)=48, f(1)=48, f(41)=46, rest 47. Sum = 2022.
+
+g(0) = 96, g(1) = 96, g(2) = 95.
+g(82) = min(f(42)+f(40), f(41)+f(41)) = min(94, 92) = 92. Loss 2.
+g(81) = min(f(42)+f(39), f(41)+f(40)) = min(94, 93) = 93. Loss 1.
+g(83) = min(f(42)+f(41)) = 47+46 = 93. Loss 1.
+
+Extra: +5. Loss: -4. Net: +1. S = 7991. Same.
+
+What about k=42? f(0)=48, f(1)=48, f(42)=46, rest 47. Sum = 2022.
+
+g(0) = 96, g(1) = 96, g(2) = 95.
+g(84) = 92. Loss 2.
+g(83) = f(42)+f(41) = 46+47 = 93. Loss 1.
+g(82) = min(f(42)+f(40), 2f(41)) = min(46+47, 94) = 93. Loss 1.
+...many more losses from f(42)=46.
+
+As computed before, f(42)=46 causes 43 units of loss. Way too much.
+
+So the best with two 48's and one 46 is S = 7991, worse than 7993.
+
+What about one 48 and using the remaining budget differently? We have f(0) = 48, rest 47, sum = 2022. S = 7993. Can we rearrange to get 7994?
+
+We need 1 more unit of g somewhere. The only way is to increase some g(n) by 1. g(n) = min over pairs. To increase g(n) by 1, we need ALL pairs for n to increase by at least 1. But we have no budget left (sum = 2022 already).
+
+Unless we can rearrange: decrease some f, increase others, keeping sum = 2022, and increase some g(n).
+
+The issue is that decreasing any f(i) below 47 decreases g(2i) by at least 2 and g(2i±1) by at least 1, while the increased f values can only help g(n) for n with few pairs.
+
+Let me think about this more carefully. The "benefit" of increasing f(j) by 1 is: it helps g(n) for n where all pairs involve j. This only happens for n=0 (if j=0) or n=84 (if j=42) or n=1 (if j=0 and j=1, since the only pair is (1,0)).
+
+Actually, for n=0, only pair (0,0), so increasing f(0) by 1 increases g(0) by 2.
+For n=1, only pair (1,0), so increasing f(0) or f(1) by 1 increases g(1) by 1.
+For n=2, pairs (2,0) and (1,1). Increasing f(0) by 1 increases the (2,0) pair by 1 but not (1,1). So g(2) doesn't increase (min is still 2f(1)).
+For n=2, increasing f(1) by 1 increases (1,1) by 2 and (2,0) by 1. g(2) increases by 1 (if (1,1) was the binding constraint, which it is when f(0) > f(1)).
+
+Hmm, this is getting complicated. Let me think about it as: which f values are "pivotal" for which g(n)?
+
+Let me consider the marginal value of increasing f(j) by 1, starting from the constant solution f = 47.
+
+At f = 47 (all equal), g(n) = 94 for all n. Increasing f(j) by 1:
+- g(2j) increases by 2 if (j,j) is the unique minimum, i.e., if 2f(j) was the minimum. At constant f, all pairs give 94, so (j,j) gives 94 = min. Increasing f(j) by 1 makes (j,j) give 96, but other pairs still give 94. So g(2j) stays 94. No increase!
+
+Wait, that's the key issue. At constant f, every pair gives exactly 94. So the min is 94, achieved by ALL pairs. Increasing one f(j) by 1 makes pairs involving j give 95 or 96, but pairs not involving j still give 94. So g(n) stays 94 for any n with a pair not involving j.
+
+Only n=0 (pair (0,0)) and n=84 (pair (42,42)) have all pairs involving a single f value. So increasing f(0) by 1 increases g(0) by 2 (from 94 to 96). And g(1) = f(1)+f(0), the only pair, so g(1) increases by 1 (from 94 to 95).
+
+For n=2: pairs (2,0) and (1,1). Increasing f(0) by 1: (2,0) gives 95, (1,1) gives 94. g(2) = 94. No increase.
+
+So the marginal benefit of f(0) at constant solution is: g(0) +2, g(1) +1, total +3. Cost: 1 unit of budget. Net benefit: +3 per unit. That's how we get from 7990 to 7993.
+
+Now, from f(0)=48, rest 47: can we get more marginal benefit? Increasing f(0) to 49: g(0) = 98 (+2), g(1) = 96 (+1). But we need 1 more budget, so reduce some f(k) by 1. Reducing f(k) from 47 to 46: g(2k) decreases by 2 (from 94 to 92), g(2k-1) and g(2k+1) decrease by 1 each (from 94 to 93). Total loss: 4 (if k is not 0 or 42). Net: +3 - 4 = -1. Bad.
+
+What if we reduce f(42) from 47 to 46? Then g(84) = 92 (-2), g(83) = 93 (-1), and many other g(n) near 84 decrease. Even worse.
+
+What if instead of increasing f(0), we increase f(1)? From f(0)=48, rest 47, increase f(1) to 48, reduce some f(k) to 46.
+
+g(1) = f(1)+f(0) = 48+48 = 96 (+1 from 95). g(2) = min(f(2)+f(0), 2f(1)) = min(47+48, 96) = 95 (+1 from 94). g(0) = 96 (unchanged). g(3) = min(f(3)+f(0), f(2)+f(1)) = min(95, 95) = 95 (+1). 
+
+Wait, g(3) = min(47+48, 47+48) = 95. So g(3) increases by 1 too!
+
+Hmm, but we also need to reduce some f(k) to 46. If k is far from 0,1,2,3, the loss is 4 (as before). Gain: g(1) +1, g(2) +1, g(3) +1 = +3. Net: +3 - 4 = -1. Still bad.
+
+What if k = 42? Reducing f(42) to 46 causes massive loss (43 units). No.
+
+What if we don't reduce any f, but instead use a different base? Let me think about f(0) = 48, f(1) = 48, f(42) = 47, and one f(k) = 46. We computed this gives S = 7991 or so. Not better.
+
+Hmm, let me think about this differently. Maybe the answer is 7993, or maybe there's a cleverer construction.
+
+Let me think about the problem from a higher level. The LP bound is 343740/43 ≈ 7994.88. The integer optimum is at most 7994. We've found 7993. Is 7994 achievable?
+
+To get 7994, we need 4 more than the base 7990. With f(0) = 48, we get +3 (g(0) = 96, g(1) = 95). We need +1 more.
+
+The only way to get +1 more without reducing any f below 47 is to have another f value at 48. But that requires sum = 2023 > 2022.
+
+Unless... we can have a different base. What if not all f values are 47?
+
+Let me think about f(0) = 48, f(1) = 48, f(2) = 47, ..., f(41) = 47, f(42) = 47. Sum = 48+48+41*47 = 2023. Need sum 2022, so reduce one by 1. If we reduce f(42) to 46: sum = 2022. But f(42) = 46 causes huge losses.
+
+What if we reduce f(2) to 46? Sum = 48+48+46+40*47 = 2022. g(0) = 96, g(1) = 96, g(2) = min(46+48, 96) = 94, g(3) = min(47+48, 46+48) = 94, g(4) = min(47+48, 46+47, 2*47) = min(95, 93, 94) = 93. Hmm, g(4) = 93 because pair (2,2) gives 92, pair (3,1) gives 47+48=95, pair (4,0) gives 47+48=95. Wait, pair (2,2) gives 2*46 = 92. So g(4) = 92. That's a loss of 2.
+
+And g(3) = min(f(3)+f(0), f(2)+f(1)) = min(47+48, 46+48) = min(95, 94) = 94. Loss 0 (was 94, still 94). Wait, but with f(0)=48, f(1)=48, f(2)=46: g(3) = min(95, 94) = 94. And g(5) = min(f(5)+f(0), f(4)+f(1), f(3)+f(2)) = min(95, 95, 93) = 93. Loss 1.
+
+This is getting messy. Let me try to be systematic.
+
+Actually, let me step back and think about whether 7994 is achievable at all, or if the answer is 7993.
+
+Let me try to prove an upper bound of 7993 (or 7994).
+
+Upper bound approach: We want to show sum g(n) ≤ 7994 (or 7993).
+
+For each n, g(n) ≤ f(a) + f(b) for any specific pair (a,b) with a+b=n. We choose pairs cleverly and take a weighted combination.
+
+Let me try a specific assignment. For each n, choose the "center" pair:
+- n even: (n/2, n/2)
+- n odd: ((n+1)/2, (n-1)/2)
+
+Then g(n) ≤ 2f(n/2) for even n, g(n) ≤ f((n+1)/2) + f((n-1)/2) for odd n.
+
+S ≤ sum_{i=0}^{42} 2f(i) + sum_{i=0}^{41} (f(i+1)+f(i)) = 4*sum f(i) - f(0) - f(42) ≤ 4*2022 - f(0) - f(42) = 8088 - f(0) - f(42).
+
+This gives S ≤ 8088 - f(0) - f(42). To make this tight, we need f(0) + f(42) large. But f(0), f(42) ≥ 0, so S ≤ 8088. Not tight enough.
+
+But we can also use other pairs. For n=0, the only pair is (0,0), so g(0) = 2f(0) exactly. For n=1, only pair (1,0), g(1) = f(0)+f(1) exactly. For n=84, g(84) = 2f(42). For n=83, g(83) = f(42)+f(41).
+
+So g(0) = 2f(0), g(1) = f(0)+f(1), g(84) = 2f(42), g(83) = f(42)+f(41). These are exact.
+
+For n ≥ 2 and n ≤ 82, g(n) ≤ center pair. So:
+
+S = 2f(0) + (f(0)+f(1)) + sum_{n=2}^{82} g(n) + (f(42)+f(41)) + 2f(42)
+  = 3f(0) + f(1) + f(41) + 3f(42) + sum_{n=2}^{82} g(n)
+
+And sum_{n=2}^{82} g(n) ≤ sum_{n=2}^{82} center_pair(n).
+
+For even n=2i (1 ≤ i ≤ 41): center = 2f(i). For odd n=2i+1 (1 ≤ i ≤ 41): center = f(i+1)+f(i). Wait, n=2 to 82. Even n: 2,4,...,82 → i=1,...,41. Odd n: 3,5,...,81 → i=1,...,40 (n=2i+1, i=1 gives n=3, i=40 gives n=81). Also n=2 is even (i=1), n=82 is even (i=41).
+
+So sum_{n=2}^{82} center = sum_{i=1}^{41} 2f(i) + sum_{i=1}^{40} (f(i+1)+f(i))
+= 2*sum_{i=1}^{41} f(i) + sum_{i=2}^{41} f(i) + sum_{i=1}^{40} f(i)
+= 2*sum_{i=1}^{41} f(i) + (sum_{i=1}^{41} f(i) - f(1)) + (sum_{i=1}^{41} f(i) - f(41))
+= 4*sum_{i=1}^{41} f(i) - f(1) - f(41)
+
+So S ≤ 3f(0) + f(1) + f(41) + 3f(42) + 4*sum_{i=1}^{41} f(i) - f(1) - f(41)
+= 3f(0) + 3f(42) + 4*sum_{i=1}^{41} f(i)
+= 3(f(0)+f(42)) + 4*(T - f(0) - f(42))
+= 4T - f(0) - f(42)
+≤ 4*2022 - f(0) - f(42)
+= 8088 - f(0) - f(42)
+
+Same bound as before. The exact values for n=0,1,83,84 didn't help because the center pair bound for n=2..82 already gives the same thing.
+
+Let me try a different approach. Instead of center pairs, use different pairs for different n to get a better bound.
+
+The idea: for n near 0, use pairs involving f(0) (which might be large). For n near 42, use center pairs. For n near 84, use pairs involving f(42).
+
+Actually, let me think about the dual more carefully. The LP dual optimum is 343740/43, achieved by uniform weights. For the integer problem, I need to show S ≤ 7993 (or 7994).
+
+Let me try a different upper bound. Consider:
+
+g(n) ≤ f(a) + f(n-a) for any a with n/2 ≤ a ≤ min(n, 42) and n-a ≤ 42.
+
+For the upper bound, I'll choose specific pairs and weight them.
+
+Let me try: for each n, choose the pair (a, b) = (min(n, 42), max(n-42, 0)) if n > 42, and (n, 0) if n ≤ 42. Wait, this uses f(0) a lot.
+
+For n ≤ 42: pair (n, 0). g(n) ≤ f(n) + f(0).
+For n > 42: pair (42, n-42). g(n) ≤ f(42) + f(n-42).
+
+S ≤ sum_{n=0}^{42} (f(n)+f(0)) + sum_{n=43}^{84} (f(42)+f(n-42))
+= sum_{n=0}^{42} f(n) + 43*f(0) + 42*f(42) + sum_{n=43}^{84} f(n-42)
+= T + 43*f(0) + 42*f(42) + sum_{m=1}^{42} f(m)
+= T + 43*f(0) + 42*f(42) + (T - f(0))
+= 2T + 42*f(0) + 42*f(42)
+= 2T + 42*(f(0)+f(42))
+≤ 2*2022 + 42*(f(0)+f(42))
+= 4044 + 42*(f(0)+f(42))
+
+This is minimized when f(0)+f(42) is small, giving S ≤ 4044. That's a bad bound (too low, and it's not even a valid upper bound since we're not minimizing, we're bounding from above).
+
+Wait, I'm confusing things. The bound S ≤ 4044 + 42*(f(0)+f(42)) is an upper bound that depends on f(0)+f(42). Since f(0)+f(42) can be up to 2022, this gives S ≤ 4044 + 42*2022 = 4044 + 84924 = 88968. Useless.
+
+The point is that different pair choices give different bounds, and we want the tightest one. The center pair choice gives S ≤ 4T - f(0) - f(42), which is best when f(0)+f(42) is large. The (n,0) choice gives S ≤ 2T + 42(f(0)+f(42)), best when f(0)+f(42) is small.
+
+To get the best bound, we should use a combination. For each n, we can choose the pair that gives the best bound given the f values. But since we want an a priori bound (not depending on f), we need to choose pairs in advance.
+
+Actually, for the LP dual, we use fractional weights. The optimal fractional weights give the bound 343740/43. For integer bounds, we need something else.
+
+Let me try a different approach. Let me try to prove S ≤ 7994 directly.
+
+Hmm, actually let me think about whether 7994 is achievable. Let me try to construct f achieving S = 7994.
+
+We need sum g(n) = 7994 = 7990 + 4. So we need 4 extra above the base 85*94 = 7990.
+
+With f(0) = 48, rest 47: extra = 3 (g(0) = 96, g(1) = 95). Need 1 more.
+
+What if f(0) = 48, f(42) = 48, and we accept one f value at 46? We computed this gives S = 7992 (net +2). Not enough.
+
+What if we use a 3-level f? Like f(0) = 49, f(42) = 47, one value = 46, rest 47? Sum = 49+46+41*47 = 2022.
+
+g(0) = 98 (+4), g(1) = 49+47 = 96 (+2). 
+46 at position k: g(2k) = 92 (-2), g(2k±1) = 93 (-1 each).
+If k is in the middle (not 0, 1, 41, 42): net = +4+2-2-1-1 = +2. S = 7992.
+
+If k = 42: f(42) = 46. g(84) = 92, g(83) = 93, and many more losses. Bad.
+If k = 1: f(1) = 46. g(0) = 98, g(1) = 49+46 = 95 (+1), g(2) = min(47+49, 92) = 92 (-2), g(3) = min(47+49, 46+47) = 93 (-1). Net = +4+1-2-1 = +2. S = 7992.
+If k = 41: f(41) = 46. g(82) = min(47+47, 92) = 92 (-2), g(81) = min(47+47, 46+47) = 93 (-1), g(83) = min(47+46, ...) = 93 (-1). g(0) = 98 (+4), g(1) = 96 (+2). Net = +4+2-2-1-1 = +2. S = 7992.
+
+Hmm, always +2. What about f(0) = 50, two values at 46, rest 47? Sum = 50+2*46+40*47 = 50+92+1880 = 2022.
+
+g(0) = 100 (+6), g(1) = 50+47 = 97 (+3). Two 46's at positions k1, k2: each causes -4. Net = +6+3-4-4 = +1. S = 7991. Worse.
+
+What about f(0) = 49, f(1) = 48, f(k) = 46, rest 47? Sum = 49+48+46+40*47 = 2022.
+
+g(0) = 98 (+4), g(1) = 49+48 = 97 (+3), g(2) = min(47+49, 96) = 96 (+2), g(3) = min(47+49, 47+48) = 95 (+1).
+46 at position k (k ≥ 2): g(2k) = 92 (-2), g(2k±1) = 93 (-1 each). Net = +4+3+2+1-4 = +6. S = 7996!
+
+Wait, that's more than 7994! Let me double-check.
+
+f(0) = 49, f(1) = 48, f(k) = 46 for some k ≥ 2, f(i) = 47 for all other i.
+
+Sum = 49 + 48 + 46 + 40*47 = 49 + 48 + 46 + 1880 = 2023. Wait, that's 2023, not 2022!
+
+Let me recompute: 49 + 48 + 46 + 40*47 = 49 + 48 + 46 + 1880 = 2023. Yes, 2023 > 2022. Doesn't work!
+
+I need sum = 2022. 49 + 48 + 46 + 40*47 = 2023. Need to reduce by 1 more. So two values at 46: 49 + 48 + 46 + 46 + 39*47 = 49+48+46+46+1833 = 2022.
+
+g(0) = 98 (+4), g(1) = 97 (+3), g(2) = min(47+49, 96) = 96 (+2), g(3) = min(47+49, 47+48) = 95 (+1).
+Two 46's at k1, k2 (both ≥ 2): each causes -4 (if not overlapping with the gains). Net = +4+3+2+1-4-4 = +2. S = 7992.
+
+Hmm. The issue is that each 46 costs 4, and we need to pay for the high values at 0 and 1.
+
+Let me think about it differently. Let me define the "cost" of setting f(k) = 47 - d (d > 0) as the decrease in S, and the "benefit" of setting f(j) = 47 + e (e > 0) as the increase in S.
+
+From the constant solution (all 47, S = 7990):
+
+Benefit of f(0) = 47 + e: g(0) = 94 + 2e (+2e), g(1) = 94 + e (+e). Total benefit = 3e. (As long as e small enough that no other constraints bind.)
+
+Benefit of f(1) = 47 + e (with f(0) already increased): g(1) = f(0)+f(1) = (47+e0)+(47+e) = 94+e0+e. If f(0) = 47+e0, g(1) was 94+e0. Now g(1) = 94+e0+e, so +e. g(2) = min(f(2)+f(0), 2f(1)) = min(47+47+e0, 94+2e) = min(94+e0, 94+2e). If e0 > 2e, g(2) = 94+2e (+2e). If e0 < 2e, g(2) = 94+e0 (+e0, but this was already counted). Hmm, this is getting complicated.
+
+Let me think about it more carefully with specific numbers.
+
+Let me try f(0) = a, f(1) = b, f(i) = 47 for i ≥ 2, with a + b + 41*47 = 2022, so a + b = 2022 - 1927 = 95.
+
+g(0) = 2a.
+g(

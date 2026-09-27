@@ -1,0 +1,996 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_03452</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Petya colors 2006 points located on a circle in 17 colors. Then Kolya draws chords with endpoints at the marked points, ensuring that the endpoints of any chord are of the same color and that the chords do not intersect (including at their endpoints). Kolya wants to draw as many chords as possible, while Petya tries to prevent him from doing so. What is the maximum number of chords that Kolya can definitely draw?
+
+## Standard Solution
+
+Note that \(2006 = 17 \times 118\); therefore, there will be 2 colors in which a total of at least \(2 \times 118 = 236\) points are colored.
+
+We will prove by induction on \(k\) that through \(2k-1\) points of two colors, it is always possible to draw \(k-1\) non-intersecting chords with endpoints of the same color. The base case is obvious. Let \(k > 2\). Then among the points, we take two adjacent points of the same color. We connect them with a chord, remove it, and apply the induction hypothesis to the remaining points.
+
+Choosing 235 points of two colors and applying this statement, we find that Kolya will always be able to draw 117 chords. It remains to provide an example where more chords cannot be drawn.
+
+Let there be \(17k\) points on the circle. Let Petya color each point in the color corresponding to the remainder of its number when divided by 17. We will prove by induction on \(k\) that through these points, no more than \(k-1\) chords can be drawn while satisfying the condition. The base case is obvious; we will prove the transition. Suppose a certain number of chords have been drawn. Considering two connected points \(A\) and \(B\) that are closest to each other, we obtain such a chord \(AB\) that on one of the arcs into which it divides the circle, there are no endpoints of other drawn chords. Now we will erase the chord \(AB\) and remove all points of this arc from the circle, including one of the endpoints of the chord. We have returned to the original coloring of \(17l\) points with \(l < k\). They are connected by no more than \(l-1\) chords, so initially, there were no more than \(l-1+1 \leq k-1\) chords, which is what was required.
+
+Thus, the maximum number of chords that Kolya can definitely draw is \(\boxed{117}\).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. It's a combinatorics problem about coloring points on a circle and drawing non-intersecting chords.
+
+Problem: 2006 points on a circle, colored in 17 colors. Kolya draws chords with endpoints of the same color, non-intersecting (including at endpoints - so they form a matching). Kolya wants to maximize, Petya wants to minimize. Find the guaranteed number of chords.
+
+First, let me check for answer leaks. The problem text is clean - just the problem statement. No leaked answers.
+
+Let me think about this carefully.
+
+We have 2006 points on a circle in 17 colors. We want to find a non-crossing matching where each chord connects two points of the same color. The question is the minimax: what's the maximum Kolya can guarantee regardless of Petya's coloring?
+
+Let me think about the structure. Points on a circle, non-crossing chords with same-color endpoints. This is like finding a non-crossing perfect matching within each color, but we want to maximize total chords.
+
+Key insight: Non-crossing chords on a circle. If we have a set of points on a circle and we want to draw non-crossing chords, the maximum number of non-crossing chords among $n$ points is $\lfloor n/2 \rfloor$ (a maximum matching). But here we're constrained: chords must connect same-color points.
+
+Let me think about what Petya can do to minimize, and what Kolya can guarantee.
+
+Let me think about small cases first to build intuition.
+
+Actually, let me think about this more carefully. The answer should be $\lfloor 2006/17 \rfloor \cdot \lfloor \lfloor 2006/17\rfloor / 2 \rfloor$... no, that's not right either.
+
+Let me think about it differently. Consider the points in circular order. We want to find a non-crossing matching where matched pairs have the same color.
+
+Approach: Think of it as a game. Petya colors, Kolya draws.
+
+Let me think about the pigeonhole principle. With 2006 points and 17 colors, by pigeonhole, some color has at least $\lceil 2006/17 \rceil = 118$ points (since $2006 = 17 \times 118$, exactly 118 each if evenly distributed). Wait, $17 \times 118 = 2006$. So if evenly distributed, each color has exactly 118 points.
+
+For a single color with $n$ points on a circle, the maximum non-crossing matching is $\lfloor n/2 \rfloor$. But we're not restricted to one color - we can use multiple colors, but the chords from different colors also can't cross each other.
+
+Hmm, this is the key constraint. Chords from ALL colors must be mutually non-crossing.
+
+So the question is: given a 2-coloring... no, 17-coloring of 2006 points on a circle, what is the minimum over all colorings of the maximum non-crossing same-color matching?
+
+Let me think about the answer. I suspect it's related to $\lfloor 2006/34 \rfloor = 59$ or something like that.
+
+Let me think about upper bounds (Petya's strategy) and lower bounds (Kolya's strategy).
+
+Upper bound (Petya minimizes): Petya wants to arrange colors so that any non-crossing same-color matching is small.
+
+One strategy for Petya: arrange points so that same-color points are "spread out" making it hard to draw non-crossing chords.
+
+Actually, let me think about a simpler version. Consider 2 colors and $n$ points. What's the guaranteed number of non-crossing same-color chords?
+
+For 2 colors: Let's say we have $n$ points colored red/blue. We want a non-crossing matching with same-color pairs. 
+
+Hmm, let me think about the case where colors alternate: R, B, R, B, ... Then no two adjacent points have the same color. But we can still draw chords. For example, with R B R B R B (6 points), we can draw chord from point 1 to point 3 (both R), and from point 2 to point 4 (both B). These don't cross. Then we have points 5, 6 left. Point 5 is R, point 6 is B. Can't match. So 2 chords from 6 points.
+
+Actually wait, with alternating R B R B R B, the R points are at positions 1, 3, 5 and B points at 2, 4, 6. We can match (1,3) and (2,4) - non-crossing. Or (1,5) and (2,6) - these would cross! (1,5) and (2,6): on the circle, 1-5 and 2-6, these cross. So (1,3) and (2,4) works, giving 2 chords. Can we do better? (3,5) and (2,4) - these cross since 2,4 separates 3 from 5... actually 2,3,4,5 in order, chord 2-4 and 3-5 cross. So max is 2 from 6 points with alternating colors.
+
+With $n$ points alternating 2 colors, we get $\lfloor n/2 \rfloor - 1$? Let me check: 6 points → 2 chords = 6/2 - 1 = 2. 4 points RBRB → match (1,3) → 1 chord = 4/2 - 1 = 1. 8 points RBRBRBRB → (1,3),(2,4),(5,7),(6,8) → 4 chords = 8/2 - 0? Hmm, that's 4. Wait, (1,3),(2,4) don't cross. (5,7),(6,8) don't cross. And (1,3),(2,4) don't cross (5,7),(6,8) since they're in different arcs. So 4 chords from 8 points. That's $n/2$.
+
+Hmm wait, so alternating doesn't seem that bad for Kolya. Let me reconsider.
+
+Actually with 8 points RBRBRBRB: positions 1,3,5,7 are R; 2,4,6,8 are B. We can match (1,3),(5,7) for R and (2,4),(6,8) for B. All non-crossing. 4 chords = 8/2. So alternating is actually good for Kolya!
+
+So what's a bad coloring for Kolya? 
+
+Let me think differently. Consider the problem as: we have a circular sequence of colors. We want to find a maximum non-crossing matching where each pair has the same color.
+
+A non-crossing matching on a circle: if we think of the points in order $1, 2, \ldots, n$ around the circle, a non-crossing matching means: if we match $i$ with $j$ and $k$ with $l$ where $i < k$, then either $j < k$ (both endpoints of first pair before both of second) or $i < k < l < j$ (second pair nested inside first). Actually, non-crossing on a circle means the matching is "non-crossing" in the usual sense.
+
+For a linear arrangement, a non-crossing matching is one where no two chords cross. On a circle, it's similar but we also need to consider the "wrap-around".
+
+Let me think about this problem more carefully.
+
+Actually, I recall that this type of problem (from a competition, likely Russian olympiad given the names Petya and Kolya) has a clean answer.
+
+Let me think about the answer. With $n$ points and $k$ colors, the answer might be $\lfloor n/(2k) \rfloor$ or $\lfloor (n-k)/(2k) \rfloor$ or something.
+
+$n = 2006$, $k = 17$. $2006 / 34 = 59$. So maybe the answer is 59?
+
+Let me try to verify with small cases.
+
+Case: $n = 4$, $k = 2$. $\lfloor 4/4 \rfloor = 1$. Is the answer 1?
+
+With 4 points and 2 colors, can Petya force at most 1 chord? And can Kolya always get at least 1?
+
+Kolya can always get at least 1: by pigeonhole, some color appears at least 2 times, so at least one chord is possible (any single chord is non-crossing). So Kolya gets ≥ 1.
+
+Can Petya force at most 1? Color: R R B B (two adjacent reds, two adjacent blues). Then Kolya can match (1,2) for R and (3,4) for B. These don't cross. So 2 chords. Petya can't force 1 here.
+
+What about R B R B? Then Kolya matches (1,3) for R and (2,4) for B. But (1,3) and (2,4) cross! So Kolya can only get 1 chord. So Petya can force at most 1 with R B R B.
+
+And Kolya can always get at least 1 (pigeonhole). So the answer for $n=4, k=2$ is 1. This matches $\lfloor 4/4 \rfloor = 1$.
+
+Case: $n = 6$, $k = 2$. $\lfloor 6/4 \rfloor = 1$. Is the answer 1 or 2?
+
+Petya's strategy: R B R B R B. Kolya can match (1,3) and (2,4) - non-crossing, 2 chords. Or can he do better? (1,3),(2,4) → 2 chords. Can he get 3? Need 6 points matched, 3 chords. (1,3),(2,4),(5,?) - 5 is R, 6 is B. No same-color pair for 5,6. So max is 2.
+
+Wait, but I said the answer might be $\lfloor 6/4 \rfloor = 1$. But Kolya gets 2 with RBRBRB. So either the answer is 2, or Petya has a better strategy.
+
+Let me think of another coloring: R R R B B B. Kolya can match (1,2),(3,?) for R... (1,2) and then (3,?) - 3 is R, but 4,5,6 are B. So (1,2) for R, (4,5) for B. Non-crossing. 2 chords. Or (1,3),(2,?) - 2 is R, but (1,3) and (2,?) would need 2 to match with another R, but the only R's are 1,2,3. So (1,3) uses up 1 and 3, leaving 2 unmatched for R. Then (4,5) for B. 2 chords. Or (1,2),(4,5) → 2. Or (2,3),(4,5) → 2. Or (1,3),(4,6) → 2 (non-crossing). Or (1,2),(5,6) → 2. Seems like max is 2 (well, we have 3 R's and 3 B's, so max possible is 1+1=2 since $\lfloor 3/2 \rfloor = 1$ for each).
+
+Hmm wait, with 3 R's we can get 1 chord, with 3 B's we can get 1 chord, total 2. But can they be non-crossing? (1,2) and (4,5): yes, non-crossing. So 2.
+
+What about R B B R B R? Positions: 1=R, 2=B, 3=B, 4=R, 5=B, 6=R. R at {1,4,6}, B at {2,3,5}. 
+- B: (2,3) - adjacent, easy. 
+- R: (1,4) or (1,6) or (4,6). 
+- (2,3) and (1,4): do they cross? 1,2,3,4 in order. Chord 2-3 is inside chord 1-4. Non-crossing (nested). So 2 chords.
+- (2,3) and (4,6): 2,3,4,6 in order. Chord 2-3 and chord 4-6 don't cross (disjoint arcs). 2 chords.
+- (2,3) and (1,6): on the circle, 1-6 is a chord. 2-3 is between 1 and 6. Non-crossing (nested). 2 chords.
+So always 2.
+
+Can Petya force only 1? Seems hard with 6 points and 2 colors. Let me try R B R R B R. R at {1,3,4,6}, B at {2,5}. 
+- B: (2,5) - 1 chord.
+- R: (1,3),(4,6) - non-crossing. 2 chords. Plus (2,5) for B. (1,3),(2,5),(4,6) - do these cross? 1,2,3,4,5,6. (1,3) and (2,5): 2 is between 1 and 3, but 5 is outside. So they cross! 
+- (1,3) and (4,6): non-crossing. (2,5) crosses (1,3) since 2 is inside 1-3 and 5 is outside. (2,5) and (4,6): 4 is between 2 and 5, 6 is outside. Crosses.
+- So we can do (1,3),(4,6) for R = 2 chords, or (2,5) for B + one R chord. (2,5) and (3,4): 3,4 between 2 and 5. Non-crossing (nested). But 3 and 4 are both R. So (2,5) and (3,4) = 2 chords. Or (2,5) and (1,6): 1 is outside 2-5, 6 is outside 2-5. On the circle, 1 and 6 are on the same side (the arc from 5 to 2 going through 6,1). So (1,6) doesn't cross (2,5). 2 chords.
+So still 2.
+
+I think with 6 points and 2 colors, Kolya can always get 2. So the answer for $n=6, k=2$ is 2, not $\lfloor 6/4 \rfloor = 1$.
+
+Hmm, so my formula $\lfloor n/(2k) \rfloor$ is wrong. Let me reconsider.
+
+With $n=4, k=2$: answer 1. With $n=6, k=2$: answer 2.
+
+$\lfloor (n-k)/(2) \rfloor$? For $n=4,k=2$: $\lfloor 2/2 \rfloor = 1$. For $n=6,k=2$: $\lfloor 4/2 \rfloor = 2$. Hmm, that works but seems odd.
+
+Actually, let me think about it as $\lfloor n/2 \rfloor - \lfloor k/2 \rfloor$? For $n=4,k=2$: $2 - 1 = 1$. For $n=6,k=2$: $3 - 1 = 2$. For $n=2006, k=17$: $1003 - 8 = 995$. That seems too high.
+
+Let me think more carefully about the problem structure.
+
+Actually, I think the key insight is about "blocks" of consecutive same-colored points.
+
+Let me reconsider. The problem is about non-crossing matchings on a circle with color constraints.
+
+Let me think about it from the perspective of the circular sequence. We have a circular sequence of colors $c_1, c_2, \ldots, c_n$ (where $n = 2006$). We want to find a maximum non-crossing matching where each matched pair has the same color.
+
+A non-crossing matching on a circle can be thought of as follows: we can "cut" the circle at some point to make it a line, and then find a non-crossing matching on the line. But actually, non-crossing on a circle is slightly different from non-crossing on a line.
+
+Let me think about this differently. 
+
+Key observation: A non-crossing matching on $n$ points on a circle can be built greedily. If there exist two adjacent points (on the circle) of the same color, we can match them and remove them, then continue. This is because matching two adjacent points doesn't block any other matching (the chord between adjacent points doesn't cross any other chord).
+
+So the greedy strategy: repeatedly find two adjacent same-colored points, match them, remove them. Continue until no two adjacent points have the same color.
+
+When no two adjacent points have the same color, the remaining points form a sequence where consecutive points have different colors. At this point, we need a different strategy.
+
+If all remaining points have alternating colors (no two adjacent same), then we have a sequence like $c_1, c_2, \ldots, c_m$ where $c_i \neq c_{i+1}$ for all $i$ (cyclically). In this case, can we draw any non-crossing same-color chord?
+
+Yes! We can match non-adjacent same-colored points. For example, if $c_1 = c_3$ (which is possible even though $c_1 \neq c_2$ and $c_2 \neq c_3$), we can match points 1 and 3. This chord doesn't cross any chord we might draw between points 4 and beyond (on the other side).
+
+But the question is: what's the minimum number of chords Kolya can guarantee?
+
+Let me think about Petya's optimal strategy. Petya wants to minimize the maximum non-crossing same-color matching.
+
+I think the key is: Petya should make the coloring such that same-colored points are as "interleaved" as possible.
+
+Let me think about the problem from the perspective of the answer for the original problem. $n = 2006$, $k = 17$.
+
+I've seen similar problems. Let me think about the answer being $\lfloor n/2 \rfloor - k + 1 = 1003 - 17 + 1 = 987$? That seems too high.
+
+Or maybe the answer is $\lfloor (n - k) / 2 \rfloor = \lfloor (2006 - 17) / 2 \rfloor = \lfloor 1989/2 \rfloor = 994$? Also seems high.
+
+Let me think more carefully with small cases.
+
+$n = 4, k = 2$: answer is 1. $\lfloor (4-2)/2 \rfloor = 1$. ✓
+$n = 6, k = 2$: answer is 2. $\lfloor (6-2)/2 \rfloor = 2$. ✓
+
+Let me check $n = 4, k = 3$. $\lfloor (4-3)/2 \rfloor = 0$. Is the answer 0?
+
+With 4 points and 3 colors, Petya can color: 1=A, 2=B, 3=C, 4=A. Then Kolya can match (1,4) - 1 chord. So answer ≥ 1.
+
+Or Petya colors: 1=A, 2=B, 3=C, 4=A. Same thing. Kolya gets 1.
+
+Can Petya force 0? Color all 4 differently? No, only 3 colors for 4 points, so by pigeonhole at least 2 share a color. Those 2 can always be matched (single chord is always non-crossing). So answer ≥ 1.
+
+Can Petya force at most 1? With 4 points, 3 colors: at most 2 points share a color (since $4/3 < 2$). So at most 1 pair per color, and at most 1 color has a pair. So at most 1 chord. Answer = 1.
+
+But $\lfloor (4-3)/2 \rfloor = 0 \neq 1$. So the formula $\lfloor (n-k)/2 \rfloor$ is wrong.
+
+Hmm. Let me reconsider.
+
+$n=4, k=3$: answer 1. $n=4, k=2$: answer 1. $n=6, k=2$: answer 2.
+
+Let me try $n=6, k=3$. What's the answer?
+
+Petya's strategy: make it hard. Color: A B C A B C. Same colors at positions {1,4}, {2,5}, {3,6}. 
+- (1,4) and (2,5): 1,2,4,5. Chord 1-4 and 2-5: 2 is between 1 and 4, 5 is outside. Cross!
+- (1,4) and (3,6): 1,3,4,6. 3 is between 1 and 4, 6 is outside. Cross!
+- (2,5) and (3,6): 2,3,5,6. 3 is between 2 and 5, 6 is outside. Cross!
+- So any two chords cross. Kolya gets at most 1.
+
+Can Kolya always get at least 1? Yes, by pigeonhole (6 points, 3 colors → some color appears ≥ 2). So answer for $n=6, k=3$ is 1.
+
+$\lfloor (6-3)/2 \rfloor = 1$. ✓! And $\lfloor (4-3)/2 \rfloor = 0 \neq 1$. ✗.
+
+Hmm, so the formula works for $n=6,k=3$ but not $n=4,k=3$.
+
+Let me reconsider $n=4, k=3$. Actually, with 4 points and 3 colors, by pigeonhole, at least $\lceil 4/3 \rceil = 2$ points share a color. So at least 1 chord. And at most 1 chord (since at most 2 points can share a color when $n < 2k$... wait, $4 < 2 \times 3 = 6$, so yes at most 2 per color, so at most 1 chord per color, and at most... well, multiple colors could have pairs. With 4 points and 3 colors: e.g., A A B B. Then (1,2) and (3,4) = 2 chords. So Petya wouldn't do this.
+
+Petya would do A B C A (or A B A C, etc.) where only one color repeats. Then 1 chord max. So answer = 1.
+
+But $\lfloor (4-3)/2 \rfloor = 0$. So formula is wrong for this case.
+
+Let me try another formula. How about $\lfloor n/2 \rfloor - k + 1$?
+- $n=4, k=2$: $2 - 1 = 1$. ✓
+- $n=6, k=2$: $3 - 1 = 2$. ✓
+- $n=4, k=3$: $2 - 2 = 0$. ✗ (answer is 1)
+- $n=6, k=3$: $3 - 2 = 1$. ✓
+
+Hmm, fails for $n=4, k=3$.
+
+How about $\max(1, \lfloor n/2 \rfloor - k + 1)$ when $n \geq k$? That's ad hoc.
+
+Let me think about this more carefully.
+
+Actually, let me reconsider. The problem says "the maximum number of chords that Kolya can definitely draw." This is the minimax: $\min_{\text{colorings}} \max_{\text{matchings}} |\text{matching}|$.
+
+Let me think about Petya's strategy more carefully.
+
+Petya's strategy: Arrange the 2006 points so that the coloring is "as alternating as possible." Specifically, if Petya can arrange the colors in a sequence where same-colored points are maximally spread out, it's harder for Kolya.
+
+The extreme case: Petya uses a sequence like $1, 2, 3, \ldots, 17, 1, 2, 3, \ldots, 17, \ldots$ (repeating all 17 colors in order). Since $2006 = 17 \times 118$, each color appears exactly 118 times, and they're evenly spaced.
+
+In this arrangement, same-colored points are 17 positions apart. Any chord connecting same-colored points spans at least 16 other points. 
+
+Now, for non-crossing chords: if we have two chords connecting same-colored points, they must not cross. In the evenly spaced arrangement, this is very restrictive.
+
+Let me think about what Kolya can do with the arrangement $1,2,\ldots,17,1,2,\ldots,17,\ldots$ (118 repetitions).
+
+Consider color 1 at positions $1, 18, 35, \ldots, 1 + 17 \times 117 = 1990$. These are 118 points evenly spaced 17 apart.
+
+A non-crossing matching among these 118 points (ignoring other colors for now): we can match adjacent pairs $(1, 18), (35, 52), \ldots$ Each such chord spans 17 positions. Two such chords $(1, 18)$ and $(35, 52)$: positions 1, 18, 35, 52. Chord 1-18 and chord 35-52: 18 < 35, so they don't cross. Good.
+
+So from color 1, we can get $\lfloor 118/2 \rfloor = 59$ chords. But these chords occupy positions 1-18, 35-52, etc., and the space between them (positions 19-34, 53-68, etc.) is available for other colors.
+
+But wait, the chords from color 1 divide the circle into regions, and chords from other colors must fit within these regions without crossing.
+
+Actually, this is getting complicated. Let me think about it differently.
+
+Let me think about the problem as a whole. The key insight might be:
+
+Claim: The answer is $\lfloor n/2 \rfloor - (k-1) = \lfloor 2006/2 \rfloor - 16 = 1003 - 16 = 987$.
+
+Wait, let me check: $n=4, k=2$: $2 - 1 = 1$. ✓. $n=6, k=2$: $3 - 1 = 2$. ✓. $n=6, k=3$: $3 - 2 = 1$. ✓. $n=4, k=3$: $2 - 2 = 0$. ✗ (answer is 1).
+
+Still fails for $n=4, k=3$. But maybe the formula is $\lfloor (n-k)/2 \rfloor + \epsilon$ or something.
+
+Actually, wait. For $n=4, k=3$: the answer is 1 because we can always find at least one same-color pair (pigeonhole). And the formula $\lfloor n/2 \rfloor - (k-1) = 0$ fails because it doesn't account for the pigeonhole lower bound.
+
+Actually, maybe the correct formula is $\lfloor (n-k+1)/2 \rfloor$?
+- $n=4, k=2$: $\lfloor 3/2 \rfloor = 1$. ✓
+- $n=6, k=2$: $\lfloor 5/2 \rfloor = 2$. ✓
+- $n=4, k=3$: $\lfloor 2/2 \rfloor = 1$. ✓
+- $n=6, k=3$: $\lfloor 4/2 \rfloor = 2$. ✗ (answer is 1)
+
+Nope, fails for $n=6, k=3$.
+
+Hmm. Let me re-examine $n=6, k=3$ more carefully.
+
+Coloring: A B C A B C (positions 1-6). Same colors: A at {1,4}, B at {2,5}, C at {3,6}.
+
+Can Kolya get 2 chords? He needs two non-crossing same-color chords.
+- (1,4) and (2,5): cross (2 is between 1 and 4, 5 is outside).
+- (1,4) and (3,6): cross (3 is between 1 and 4, 6 is outside).
+- (2,5) and (3,6): cross (3 is between 2 and 5, 6 is outside).
+- (1,4) and (2,5): on the circle, 1-4 divides circle into {2,3} and {5,6}. Point 2 is on one side, point 5 on the other. So they cross.
+
+What about non-adjacent matching? Like (1,4) only - that's 1 chord. Or can we use the circular structure? On the circle, (1,4) and (5,2) = (2,5): same as before, crosses.
+
+What about (1,4) and (5,3) = (3,5)? But 3 is C and 5 is B. Different colors. No.
+
+I think with A B C A B C, Kolya can only get 1 chord. So the answer for $n=6, k=3$ is 1.
+
+But what about a different coloring? Petya wants to minimize, so she'd choose A B C A B C. Can Kolya always get at least 1? Yes (pigeonhole). So answer = 1.
+
+Now, is there a coloring where Kolya gets 0? No, pigeonhole guarantees at least 1 pair.
+
+So for $n=6, k=3$: answer = 1.
+
+Let me try to find the pattern:
+- $n=4, k=2$: 1
+- $n=4, k=3$: 1
+- $n=6, k=2$: 2
+- $n=6, k=3$: 1
+
+Let me try $n=8, k=2$. Coloring: A B A B A B A B. A at {1,3,5,7}, B at {2,4,6,8}. 
+- (1,3),(5,7) for A and (2,4),(6,8) for B. All non-crossing. 4 chords.
+- Can we do better? Max matching is 4 (8 points). So 4.
+But Petya would choose a worse coloring. What about A A A A B B B B? Then (1,2),(3,4) for A and (5,6),(7,8) for B. 4 chords. Same.
+
+What about A B B A A B B A? A at {1,4,5,8}, B at {2,3,6,7}. 
+- (2,3),(6,7) for B. (1,4) or (4,5) or (5,8) or (1,5) or (1,8) for A.
+- (2,3),(6,7),(1,4): 1,2,3,4 - (2,3) nested in (1,4). Non-crossing. (6,7) separate. 3 chords.
+- (2,3),(6,7),(4,5): 4,5 between 3 and 6. (4,5) and (6,7) non-crossing. (2,3) and (4,5) non-crossing. 3 chords.
+- (2,3),(6,7),(1,4),(5,8): (1,4) and (5,8): 1,4,5,8. Non-crossing. (2,3) inside (1,4). (6,7) inside (5,8). 4 chords!
+So Kolya gets 4 with this coloring too.
+
+I think for $n=8, k=2$, the answer is 4. Let me check if Petya can do better.
+
+A B A B A B A B: Kolya gets (1,3),(2,4),(5,7),(6,8) = 4. 
+
+What about A B A A B A B B? A at {1,3,4,6}, B at {2,5,7,8}.
+- (7,8) for B. (3,4) for A. (1,6) for A? 1,3,4,6: (3,4) inside (1,6). Non-crossing. (7,8) separate. (2,5) for B: 2,5. (1,6) and (2,5): 2 inside 1-6, 5 inside 1-6. Nested. Non-crossing. So (1,6),(2,5),(3,4),(7,8) = 4 chords.
+
+Seems like for $n=8, k=2$, answer is 4 = $n/2$.
+
+Hmm, but for $n=4, k=2$, answer is 1 ≠ $4/2 = 2$. So something changes.
+
+Wait, let me recheck $n=4, k=2$. Coloring A B A B. A at {1,3}, B at {2,4}. (1,3) and (2,4): on the circle, 1,2,3,4. Chord 1-3 and chord 2-4 cross (2 is between 1 and 3, 4 is outside). So only 1 chord. 
+
+But for $n=8, k=2$, coloring A B A B A B A B, we get 4 chords. The difference is that with 8 points, we can group them into blocks of 4 and handle each block.
+
+Actually, the key difference: with 4 points A B A B, the two same-color pairs "interleave" perfectly, so any two chords cross. With 8 points A B A B A B A B, we can pair (1,3),(2,4) in the first block and (5,7),(6,8) in the second block, and these blocks don't interfere.
+
+So the issue with $n=4, k=2$ is that there's only one "block" and the interleaving prevents 2 chords.
+
+This suggests the answer depends on the structure in a more complex way.
+
+Let me think about this problem from a higher level.
+
+I think the answer is $\lfloor n/2 \rfloor - (k-1) = 1003 - 16 = 987$.
+
+Wait, but this failed for $n=4, k=3$. Let me recheck: $\lfloor 4/2 \rfloor - 2 = 0$. But the answer is 1.
+
+Hmm, but maybe for $n=4, k=3$, the answer is actually 0? No, pigeonhole says at least 2 points share a color, so at least 1 chord.
+
+Unless... wait, the problem says "chords do not intersect (including at their endpoints)." So chords can't share endpoints. A single chord is always fine. So with at least 2 same-colored points, we get at least 1 chord. So the answer is at least 1 for $n=4, k=3$.
+
+But $\lfloor n/2 \rfloor - (k-1) = 0$ for $n=4, k=3$. So the formula is wrong, or the formula has a different form.
+
+Let me reconsider. Maybe the answer is $\lfloor (n - 2(k-1)) / 2 \rfloor = \lfloor (n - 2k + 2) / 2 \rfloor$?
+- $n=4, k=2$: $\lfloor 2/2 \rfloor = 1$. ✓
+- $n=6, k=2$: $\lfloor 4/2 \rfloor = 2$. ✓
+- $n=4, k=3$: $\lfloor 0/2 \rfloor = 0$. ✗
+- $n=6, k=3$: $\lfloor 2/2 \rfloor = 1$. ✓
+
+Still fails for $n=4, k=3$.
+
+OK here's another thought. Maybe the formula is $\lfloor n/2 \rfloor - k + 1$ but with the understanding that it's $\geq 0$, and the actual answer is $\max(0, \lfloor n/2 \rfloor - k + 1)$ but also $\geq 1$ when $n > k$ (by pigeonhole, at least one pair exists).
+
+Actually, for the original problem, $n = 2006$ and $k = 17$, so $\lfloor 2006/2 \rfloor - 16 = 1003 - 16 = 987$. This is large, so the edge cases don't matter.
+
+But I need to verify this formula more carefully.
+
+Let me think about why the answer might be $\lfloor n/2 \rfloor - (k-1)$.
+
+Upper bound (Petya's strategy): Petya arranges colors as $1, 2, 3, \ldots, k, 1, 2, 3, \ldots, k, \ldots$ (repeating). With $n = k \cdot m$ (where $m = n/k$), each color appears $m$ times, evenly spaced.
+
+In this arrangement, any non-crossing same-color matching has at most $\lfloor n/2 \rfloor - (k-1)$ chords.
+
+Why? Consider the $k$ points $1, 2, \ldots, k$ (the first occurrence of each color). These $k$ points must all be unmatched or matched to points outside $\{1, \ldots, k\}$. If point $i$ (color $i$) is matched to some point $j > k$, the chord $i$-$j$ "blocks" the arc from $i$ to $j$. 
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+Actually, I think the key lemma is:
+
+Lemma: In a non-crossing matching on $n$ points on a circle, if we look at the unmatched points, they divide the circle into arcs. The matching chords divide the circle into regions.
+
+Let me think about it from the perspective of "how many points must remain unmatched."
+
+In any non-crossing matching on $n$ points, the number of unmatched points is $n - 2m$ where $m$ is the number of chords. We want to show that at least $2(k-1)$ points must remain unmatched, giving $m \leq (n - 2(k-1))/2 = (n - 2k + 2)/2$.
+
+And for the lower bound, Kolya can always achieve $\lfloor (n - 2k + 2)/2 \rfloor$ chords.
+
+Let me think about the upper bound more carefully.
+
+Petya's strategy: arrange colors as $c_1, c_2, \ldots, c_n$ where $c_i = (i \mod k) + 1$ (or similar, cycling through all $k$ colors). So the sequence is $1, 2, \ldots, k, 1, 2, \ldots, k, \ldots$.
+
+Now, consider any non-crossing same-color matching. I claim at least $2(k-1)$ points are unmatched.
+
+Consider the first $k$ points (positions $1, 2, \ldots, k$), one of each color. Consider also the last $k$ points. Actually, let me think about this differently.
+
+Consider the $k$ points at positions $1, 2, \ldots, k$. Each has a distinct color. For any chord in the matching, it connects two same-colored points. A chord from position $i$ (where $1 \leq i \leq k$) must connect to another position $j$ with the same color, i.e., $j = i + mk$ for some positive integer $m$ (or $j = i - mk$ but since $i \leq k$, $j < 1$ is impossible, so $j > k$).
+
+Now, the chords from positions $1, \ldots, k$ go to positions $> k$. Each such chord "uses up" one of the first $k$ points and one point beyond. The key constraint is non-crossing.
+
+If we have chords from positions $i_1$ and $i_2$ (where $1 \leq i_1 < i_2 \leq k$) to positions $j_1$ and $j_2$ (where $j_1, j_2 > k$), for non-crossing we need: either $j_1 < j_2$ (both chords "parallel") or $j_1 > j_2$ with nesting. Actually, for non-crossing on a line (if we cut the circle at some point): if $i_1 < i_2$ and $j_1 < j_2$, non-crossing requires $j_1 < i_2$ (disjoint) or $i_1 < j_2 < j_1$ (nesting, but $j_2 < j_1$ contradicts $j_1 < j_2$). Hmm, let me be more careful.
+
+On a line (not circle), non-crossing chords: $i_1 < i_2$. Chord 1: $(i_1, j_1)$, Chord 2: $(i_2, j_2)$. Non-crossing means: either $j_1 < i_2$ (chord 1 entirely before chord 2) or $i_1 < i_2 < j_2 < j_1$ (chord 2 nested inside chord 1). Crossing happens when $i_1 < i_2 < j_1 < j_2$.
+
+But on a circle, it's more complex. Let me think about the circle.
+
+Actually, let me think about this problem differently. Let me consider the "circular" version.
+
+On a circle with $n$ points, a non-crossing matching is a set of chords that don't cross. The maximum non-crossing matching has $\lfloor n/2 \rfloor$ chords (match adjacent pairs).
+
+Now, the constraint is that each chord connects same-colored points. The question is the minimax.
+
+Let me think about the problem from the perspective of "runs" of the same color.
+
+Actually, let me try a completely different approach. Let me think about what happens when we have a "rainbow" segment.
+
+Definition: A "rainbow" of length $k$ is a sequence of $k$ consecutive points, all of different colors.
+
+Key observation: In a non-crossing same-color matching, a rainbow of length $k$ can contribute at most $\lfloor k/2 \rfloor$ chords... no, actually 0 chords from within the rainbow (since all colors are different). But points in the rainbow can be matched to points outside.
+
+Hmm, let me think about this differently.
+
+Let me consider the problem as follows. We have a circular sequence of colors. We want to find a maximum non-crossing matching where each pair has the same color.
+
+I'll think about the "greedy" approach: find two adjacent same-colored points, match them, remove them, repeat. When no adjacent same-colored points remain, we have a "alternating" sequence (no two adjacent same). Then we need to match non-adjacent same-colored points.
+
+In the alternating phase, the sequence has the property that consecutive points have different colors. The length of this alternating sequence is some $m$. We need to find a non-crossing matching in this alternating sequence.
+
+In an alternating sequence of length $m$ on a circle, what's the maximum non-crossing same-color matching?
+
+For an alternating sequence (no two adjacent same color) on a circle, the maximum non-crossing same-color matching is... let me think.
+
+If the sequence is $c_1, c_2, \ldots, c_m$ (circular, $c_i \neq c_{i+1}$), a non-crossing matching pairs $c_i$ with $c_j$ where $c_i = c_j$ and $|i - j| > 1$ (not adjacent). The matching must be non-crossing.
+
+For a linear alternating sequence, the maximum non-crossing same-color matching can be computed by DP. But for the minimax, we need to consider the worst case.
+
+In the worst case for the alternating phase, the sequence might be $1, 2, 3, \ldots, k, 1, 2, 3, \ldots, k, \ldots$ (cycling through all colors). In this case, same-colored points are $k$ apart.
+
+For such a sequence of length $m$ (where $m$ is a multiple of $k$), the maximum non-crossing same-color matching is $m/2 - k/2$... I'm not sure. Let me think about small cases.
+
+Alternating sequence $1, 2, 1, 2$ (length 4, $k=2$): same colors at {1,3} and {2,4}. (1,3) and (2,4) cross. So max 1 chord. $m/2 - (k-1) = 2 - 1 = 1$. ✓
+
+Alternating sequence $1, 2, 1, 2, 1, 2$ (length 6, $k=2$): same colors at {1,3,5} and {2,4,6}. (1,3),(2,4) non-crossing (on a line). On a circle? 1,2,3,4,5,6. (1,3) and (2,4): 2 between 1 and 3, 4 outside. Cross? On the circle, chord 1-3 and chord 2-4: yes they cross. But (1,3) and (4,6): 1,3,4,6. Non-crossing. And (2,4)... wait, 4 is used. Let me redo.
+
+On a circle with 6 points: 1,2,3,4,5,6. Colors: 1,2,1,2,1,2.
+- Match (1,3) for color 1 and (4,6) for color 1: that's 2 chords for color 1, using points 1,3,4,6. Then color 2 has points 2,5. Match (2,5). Does (2,5) cross (1,3) or (4,6)? (1,3): 2 is between 1 and 3, 5 is outside. Cross!
+- Match (1,3) and (2,4): cross (as shown).
+- Match (1,5) and (2,4): 1,2,4,5. (1,5) and (2,4): 2,4 between 1 and 5. Nested. Non-crossing! Then 3 and 6 are color 1 and 2 respectively. Can't match. So 2 chords.
+- Match (1,5) and (2,6): 1,2,5,6. (1,5) and (2,6): 2 between 1 and 5, 6 outside. Cross!
+- Match (3,5) and (2,6): 2,3,5,6. (3,5) and (2,6): 2 outside 3-5, 6 outside 3-5. On the circle, 2 and 6 are on the same arc (from 5 to 3 going through 6,1,2). So (2,6) doesn't cross (3,5). Non-crossing! Then 1 and 4 are color 1 and 2. Can't match. 2 chords.
+- Match (3,5) and (4,6): 3,4,5,6. (3,5) and (4,6): 4 between 3 and 5, 6 outside. Cross!
+- Match (1,3) and (5,?) - 5 is color 1, but 1 and 3 already used. OK so max is 2. $m/2 - (k-1) = 3 - 1 = 2$. ✓
+
+Alternating sequence $1, 2, 3, 1, 2, 3$ (length 6, $k=3$): same colors at {1,4}, {2,5}, {3,6}. Any two chords cross (as shown earlier). Max 1 chord. $m/2 - (k-1) = 3 - 2 = 1$. ✓
+
+So the pattern for the alternating phase is: max non-crossing same-color matching = $m/2 - (k-1)$ when $m$ is even and a multiple of $k$.
+
+More generally, for an alternating circular sequence of length $m$ with $k$ colors, the max non-crossing same-color matching is $\lfloor m/2 \rfloor - (k-1)$ (assuming $m \geq 2k$).
+
+Now, the overall problem: Petya colors $n$ points, Kolya finds max non-crossing same-color matching.
+
+The greedy approach: match adjacent same-colored pairs first, then deal with the alternating remainder.
+
+If Petya colors to minimize, she should make the sequence as alternating as possible. The worst case for Kolya is when the entire sequence is alternating (no two adjacent same color). In that case, the max matching is $\lfloor n/2 \rfloor - (k-1)$.
+
+But can Petya always make the entire sequence alternating? Only if no color appears more than $\lceil n/2 \rceil$ times. With $n = 2006$ and $k = 17$, the maximum any color can appear while keeping the sequence alternating is $\lceil 2006/2 \rceil = 1003$. Since $2006/17 \approx 118$, Petya can easily make the sequence alternating (each color appears about 118 times, well below 1003).
+
+So Petya's strategy: make the entire sequence alternating (no two adjacent same color). Then Kolya's max matching is $\lfloor n/2 \rfloor - (k-1) = 1003 - 16 = 987$.
+
+But wait, I need to verify that:
+1. Petya can always make an alternating sequence (no two adjacent same color) with $n$ points and $k$ colors.
+2. In an alternating sequence, the max non-crossing same-color matching is exactly $\lfloor n/2 \rfloor - (k-1)$.
+3. Kolya can always achieve $\lfloor n/2 \rfloor - (k-1)$ regardless of Petya's coloring.
+
+For (1): An alternating sequence on a circle exists iff no color appears more than $\lfloor n/2 \rfloor$ times. Petya controls the coloring, so she can distribute colors evenly. With $n = 2006$ and $k = 17$, each color appears at most $\lceil 2006/17 \rceil = 118$ times, which is $\leq 1003$. So yes, Petya can make an alternating sequence.
+
+For (2): I need to prove that in an alternating circular sequence of length $n$ with $k$ colors, the max non-crossing same-color matching is $\lfloor n/2 \rfloor - (k-1)$.
+
+For (3): I need to prove that for ANY coloring (not just alternating), Kolya can achieve at least $\lfloor n/2 \rfloor - (k-1)$.
+
+Let me work on (3) first, as it's the lower bound.
+
+Lower bound: For any coloring of $n$ points on a circle with $k$ colors, there exists a non-crossing same-color matching of size at least $\lfloor n/2 \rfloor - (k-1)$.
+
+Proof approach: Use the greedy algorithm. Repeatedly find two adjacent same-colored points and match them. Each such match removes 2 points and adds 1 chord. Continue until no adjacent same-colored points exist.
+
+Let $r$ be the number of chords from this greedy phase. Then $2r$ points are removed, leaving $n - 2r$ points in an alternating sequence.
+
+In the alternating phase, we have $m = n - 2r$ points with no two adjacent same-colored. We need to find a non-crossing same-color matching in this alternating sequence.
+
+Claim: In an alternating circular sequence of length $m$ with $k$ colors, there exists a non-crossing same-color matching of size at least $\lfloor m/2 \rfloor - (k-1)$.
+
+If this claim is true, then total chords $\geq r + \lfloor m/2 \rfloor - (k-1) = r + \lfloor (n-2r)/2 \rfloor - (k-1) = r + \lfloor n/2 \rfloor - r - (k-1) = \lfloor n/2 \rfloor - (k-1)$.
+
+So the key is proving the claim about alternating sequences.
+
+Claim: In an alternating circular sequence of length $m$ with $k$ colors (no two adjacent same color), there exists a non-crossing same-color matching of size at least $\lfloor m/2 \rfloor - (k-1)$.
+
+Hmm, but I also need to show this is tight (upper bound), i.e., Petya can achieve an alternating sequence where the max matching is exactly $\lfloor m/2 \rfloor - (k-1)$.
+
+Let me think about the claim for alternating sequences.
+
+In an alternating sequence, no two adjacent points have the same color. We want a non-crossing same-color matching.
+
+Approach: Consider the sequence $c_1, c_2, \ldots, c_m$ (circular). Since it's alternating, $c_i \neq c_{i+1}$ for all $i$ (mod $m$).
+
+For a non-crossing matching, we can think of it as: cut the circle at some point to make a line, then find a non-crossing matching on the line. The cut can be chosen optimally.
+
+On a line $c_1, c_2, \ldots, c_m$, a non-crossing matching can be found by DP. But we want a lower bound.
+
+Hmm, let me think about a specific approach. 
+
+Consider the alternating sequence. Pick any point, say $c_1$. It has some color, say color $a$. Find the nearest point of color $a$ in one direction, say $c_j$ (where $j > 1$ and $c_j = a$, and no $c_l = a$ for $1 < l < j$). Match $(1, j)$. This chord divides the circle into two arcs: $\{2, \ldots, j-1\}$ and $\{j+1, \ldots, m\}$. Each arc is a smaller alternating sequence. Recurse.
+
+But this might not give a good bound. Let me think differently.
+
+Actually, let me think about the problem from the perspective of the upper bound (Petya's strategy) and lower bound (Kolya's strategy) separately.
+
+Upper bound: Petya uses the repeating sequence $1, 2, \ldots, k, 1, 2, \ldots, k, \ldots$ (length $n = km$ where $m = n/k$). I need to show that any non-crossing same-color matching has at most $\lfloor n/2 \rfloor - (k-1)$ chords.
+
+Lower bound: For any coloring, Kolya can achieve at least $\lfloor n/2 \rfloor - (k-1)$ chords.
+
+Let me focus on the upper bound first.
+
+Upper bound with repeating sequence $1, 2, \ldots, k, 1, 2, \ldots, k, \ldots$:
+
+Consider the $k$ points at positions $1, 2, \ldots, k$ (first occurrence of each color). In any non-crossing matching, consider how many of these $k$ points are matched.
+
+If point $i$ (color $i$) is matched, it must be matched to another point of color $i$, which is at position $i + jk$ for some $j \geq 1$ (i.e., position $i + k, i + 2k, \ldots$).
+
+Now, the key insight: in a non-crossing matching, the chords from the first $k$ points must be "nested" or "non-overlapping" in a specific way.
+
+Actually, let me think about it more carefully. Consider the $k$ points $1, 2, \ldots, k$. Suppose some of them are matched to points beyond position $k$. The chords from these points go "outward." For non-crossing, these outward chords must be nested or non-overlapping.
+
+Claim: At most 1 of the first $k$ points can be matched. Wait, that's too strong. Let me check.
+
+With $k = 2$, sequence $1, 2, 1, 2, 1, 2$ (length 6). First 2 points: positions 1 (color 1) and 2 (color 2). Can both be matched? (1, 3) and (2, 4): cross. (1, 5) and (2, 4): 1,2,4,5. (1,5) and (2,4): 2,4 inside 1-5. Non-crossing! So both can be matched. But then 3 and 6 remain, colors 1 and 2, can't match. So 2 chords total.
+
+Hmm, so 2 out of the first $k=2$ points are matched, and we get 2 chords = $6/2 - 1 = 2$. OK so the claim "at most 1" is wrong.
+
+Let me think about this differently.
+
+Alternative approach for upper bound: 
+
+Consider the repeating sequence $1, 2, \ldots, k, 1, 2, \ldots, k, \ldots$ of length $n = km$. 
+
+In any non-crossing matching, look at the "gaps" between consecutive matched pairs. Actually, let me think about the number of unmatched points.
+
+In a non-crossing matching on a circle, the unmatched points divide the circle into arcs. Each arc contains some points, and within each arc, the matched points form a non-crossing matching.
+
+Actually, here's a cleaner approach. Let me think about the problem in terms of a "cut."
+
+Cut the circle at some point to get a linear sequence. A non-crossing matching on the circle becomes a non-crossing matching on the line (with the constraint that no chord "wraps around" the cut). By choosing the cut at an unmatched point, we can always convert a circular non-crossing matching to a linear one.
+
+So WLOG, we can think of the problem on a line.
+
+On a line $c_1, c_2, \ldots, c_n$, a non-crossing same-color matching. We want to find the maximum.
+
+For the repeating sequence $1, 2, \ldots, k, 1, 2, \ldots, k, \ldots$ on a line of length $n = km$:
+
+I claim the maximum non-crossing same-color matching is $m(k-1)/2$... no, let me think again.
+
+Hmm, actually, I realize the circular vs. linear distinction matters. Let me be more careful.
+
+Let me think about the upper bound differently.
+
+Consider the repeating sequence on a circle: $1, 2, \ldots, k, 1, 2, \ldots, k, \ldots$ ($m$ repetitions, $n = km$).
+
+Observation: Between any two consecutive occurrences of color $i$ (which are $k$ apart), there are $k-1$ points of other colors. If we match two occurrences of color $i$ that are $k$ apart (adjacent occurrences), the chord "encloses" $k-1$ points. These enclosed points can only be matched among themselves (for non-crossing).
+
+Now, think of it this way: each chord "uses" 2 points and "blocks" some region. The most efficient chords are those that enclose the fewest points.
+
+A chord between adjacent occurrences of the same color encloses $k-1$ points. If we use such a chord, the $k-1$ enclosed points must be matched among themselves (or left unmatched). But these $k-1$ points all have different colors (since they're part of the repeating sequence $1, 2, \ldots, k$ minus one color), so no two have the same color. Thus, none of them can be matched!
+
+So if we match adjacent occurrences (distance $k$), we "waste" $k-1$ points. Each such chord uses $2 + (k-1) = k+1$ points (2 matched + $k-1$ wasted) and gives 1 chord.
+
+Alternatively, we can match occurrences that are $2k$ apart. Such a chord encloses $2k-1$ points, which include 2 occurrences of each color (except the matched color). These can potentially be matched among themselves.
+
+This is getting complex. Let me try a different approach.
+
+Let me think about the problem using the concept of "non-crossing matching on a circle" and the structure of the repeating coloring.
+
+Actually, let me try to prove the upper bound by showing that in the repeating sequence, at least $2(k-1)$ points must be unmatched.
+
+Consider the repeating sequence $1, 2, \ldots, k, 1, 2, \ldots, k, \ldots$ on a circle of $n = km$ points.
+
+Look at the first block: positions $1, 2, \ldots, k$ (colors $1, 2, \ldots, k$). 
+
+Case 1: All $k$ points in the first block are unmatched. Then we've found $k$ unmatched points. We need $k-1$ more.
+
+Case 2: Some point in the first block is matched. Say point $i$ (color $i$) is matched to point $j$ (color $i$, so $j = i + lk$ for some $l \geq 1$). The chord $(i, j)$ divides the circle into two arcs. One arc contains positions $i+1, \ldots, j-1$ (which includes $k-1$ points from the first block, plus other points). The other arc contains the rest.
+
+Hmm, this is getting complicated. Let me try a completely different approach.
+
+Let me look at this from the perspective of the "Erdős–Szekeres" type argument or a direct combinatorial argument.
+
+Alternative approach: Think of the non-crossing matching as a parenthesization.
+
+On a line, a non-crossing matching is like a well-parenthesized expression. Each chord is like a pair of parentheses.
+
+For the repeating sequence $1, 2, \ldots, k, 1, 2, \ldots, k, \ldots$ on a line of length $n$:
+
+Consider the maximum non-crossing same-color matching. I'll prove by induction on $n$ that it's at most $\lfloor n/2 \rfloor - (k-1)$ (for $n \geq 2k$).
+
+Base case: $n = 2k$. Sequence: $1, 2, \ldots, k, 1, 2, \ldots, k$. Same colors at positions $(i, i+k)$ for $i = 1, \ldots, k$. Any two chords $(i, i+k)$ and $(j, j+k)$ with $i < j$: $i < j < i+k < j+k$ (since $j \leq k$ and $i+k \geq k+1 > j$). So they cross! Thus at most 1 chord. $\lfloor 2k/2 \rfloor - (k-1) = k - k + 1 = 1$. ✓
+
+Inductive step: Assume the result for all smaller $n$ (multiples of $k$, $\geq 2k$). Consider $n = km$ with $m \geq 3$.
+
+In the maximum non-crossing matching, consider the "outermost" chord, i.e., a chord $(i, j)$ such that no other chord encloses it. WLOG (by rotating), say $i = 1$ (color 1) and $j = 1 + lk$ for some $l \geq 1$ (the $l$-th occurrence of color 1).
+
+The chord $(1, 1+lk)$ divides the line into:
+- Inside: positions $2, \ldots, lk$ (length $lk - 1$)
+- Outside: positions $lk + 2, \ldots, n$ (length $n - lk - 1$)
+
+Wait, I'm on a line, so it divides into the inside (positions 2 to $j-1$) and the outside (positions $j+1$ to $n$). The inside has $j - 2 = lk - 1$ points and the outside has $n - j = n - 1 - lk$ points.
+
+The inside is a sequence of length $lk - 1$, which is not a multiple of $k$. Hmm, this complicates things.
+
+Actually, the inside is positions $2, 3, \ldots, lk$, which is the sequence $2, 3, \ldots, k, 1, 2, \ldots, k, \ldots, 1$ (a cyclic shift of the repeating pattern, of length $lk - 1$). This is not a clean multiple of $k$.
+
+This approach is getting messy. Let me try yet another approach.
+
+Let me think about the problem on the circle directly.
+
+On the circle with the repeating sequence, consider any non-crossing same-color matching. I want to show at least $2(k-1)$ points are unmatched.
+
+Consider the $k$ "gaps" between consecutive occurrences of color 1. Each gap has $k-1$ points (of colors $2, 3, \ldots, k$). Actually, between consecutive occurrences of color 1 (which are $k$ apart), there are exactly $k-1$ points.
+
+Now, in the non-crossing matching, consider the chords involving color 1. Each such chord connects two occurrences of color 1. If we have $t$ chords involving color 1, they use $2t$ occurrences of color 1 and divide the circle into $t$ regions (if $t \geq 1$) or leave the circle as one piece (if $t = 0$).
+
+Hmm, I think I need a cleaner argument. Let me try to think about this problem from scratch.
+
+Let me reconsider. Maybe the answer isn't $\lfloor n/2 \rfloor - (k-1)$. Let me look at the small cases again:
+
+- $n=4, k=2$: answer 1. $\lfloor 4/2 \rfloor - 1 = 1$. ✓
+- $n=6, k=2$: answer 2. $\lfloor 6/2 \rfloor - 1 = 2$. ✓
+- $n=4, k=3$: answer 1. $\lfloor 4/2 \rfloor - 2 = 0$. ✗
+- $n=6, k=3$: answer 1. $\lfloor 6/2 \rfloor - 2 = 1$. ✓
+- $n=8, k=2$: answer 4. $\lfloor 8/2 \rfloor - 1 = 3$. ✗ (I think the answer is 4, not 3)
+
+Wait, let me recheck $n=8, k=2$. With coloring A B A B A B A B, I showed Kolya gets 4 chords: (1,3),(2,4),(5,7),(6,8). So the answer is at least 4. Can Petya force fewer?
+
+What if Petya uses A B A A B A B B? I showed Kolya gets 4 here too.
+
+What about A A B A B B A B? A at {1,2,4,7}, B at {3,5,6,8}.
+- (1,2) for A. (5,6) for B. (4,7) for A: 4,5,6,7. (5,6) inside (4,7). Non-crossing. (1,2) separate. (3,8) for B: 3,8. (1,2),(3,8),(4,7),(5,6): 1,2,3,4,5,6,7,8. (3,8) encloses 4,5,6,7. (4,7) inside (3,8). (5,6) inside (4,7). (1,2) separate. All non-crossing! 4 chords.
+
+What about A B A B B A B A? A at {1,3,6,8}, B at {2,4,5,7}.
+- (1,3) for A. (4,5) for B. (6,8) for A: 6,7,8. (6,8) and (4,5): non-crossing. (1,3) and (4,5): non-crossing. (1,3),(4,5),(6,8) = 3 chords. Can we do better?
+- (2,4) for B, (5,7) for B: 2,4,5,7. (2,4) and (5,7): non-crossing. (1,3) for A, (6,8) for A: non-crossing with each other and with B chords? (1,3),(2,4),(5,7),(6,8): 1,2,3,4,5,6,7,8. (1,3) and (2,4): 2 between 1 and 3, 4 outside. Cross!
+- (1,3),(5,7),(6,8): (5,7) and (6,8): 6 between 5 and 7, 8 outside. Cross!
+- (1,8) for A, (2,4) for B, (5,7) for B: (1,8) encloses everything. (2,4) and (5,7) inside. Non-crossing. 3 chords. Plus (3,6) for A? 3 and 6 are both A. (3,6) inside (1,8). (2,4) and (3,6): 2,3,4,6. (2,4) and (3,6): 3 between 2 and 4, 6 outside. Cross!
+- (1,8),(2,4),(5,7) = 3. Or (1,8),(3,6) = 2 + (2,4) or (5,7) = 3. Or (1,8),(2,5),(4,7)... 2 and 5 are B? No, 2 is B, 5 is B. (2,5) and (4,7): 4 is B, 7 is B. (2,5) and (4,7): 2,4,5,7. 4 between 2 and 5, 7 outside. Cross!
+- (1,6) for A, (8,3) for A = (3,8): 1,3,6,8. (1,6) and (3,8): 3 between 1 and 6, 8 outside. Cross!
+- (1,6),(2,4),(5,7): (1,6) encloses 2,3,4,5. (2,4) inside. (5,7): 5 inside 1-6, 7 outside. Cross!
+- (3,6) for A, (1,8) for A: (1,8) encloses everything, (3,6) inside. Non-crossing. (2,4) for B, (5,7) for B: (2,4) and (5,7) inside (1,8), non-crossing with each other. (2,4) and (3,6): 2,3,4,6. Cross!
+- (3,8) for A, (1,6) for A: cross (shown above).
+- (1,3) for A, (6,8) for A, (2,5) for B, (4,7) for B: (2,5) and (4,7): cross. (1,3) and (2,5): 2 between 1 and 3, 5 outside. Cross.
+- (1,3) for A, (6,8) for A, (4,5) for B: (4,5) and (6,8): non-crossing. (1,3) and (4,5): non-crossing. 3 chords. Can we add (2,7) for B? 2 and 7 are B. (2,7): encloses 3,4,5,6. (1,3): 1 outside 2-7, 3 inside. Cross!
+- So max seems to be 3 for this coloring.
+
+Wait, so with A B A B B A B A, Kolya gets only 3? Let me double-check.
+
+A at {1,3,6,8}, B at {2,4,5,7}. 
+
+Let me try (1,3),(4,5),(6,8): 1,3,4,5,6,8. (1,3) and (4,5): non-crossing. (4,5) and (6,8): non-crossing. (1,3) and (6,8): non-crossing. 3 chords. Can we add a B chord? B at {2,4,5,7}. 4 and 5 are used. So B at {2,7}. (2,7): 2,7. (1,3) and (2,7): 2 between 1 and 3, 7 outside. Cross! (6,8) and (2,7): 2 outside 6-8, 7 between 6 and 8. Cross! So can't add.
+
+Try (1,8),(2,4),(5,7): (1,8) encloses all. (2,4) and (5,7) inside, non-crossing. 3 chords. Add (3,6) for A? (3,6) inside (1,8). (2,4) and (3,6): 2,3,4,6. 3 between 2 and 4, 6 outside. Cross! Can't add.
+
+Try (1,6),(2,4),(7,8)... 7 is B, 8 is A. No. (1,6),(5,7),(8,3)=(3,8): (1,6) and (3,8): cross.
+
+Try (3,8),(4,5): (3,8) encloses 4,5,6,7. (4,5) inside. Non-crossing. (1,2)? 1 is A, 2 is B. No. (1,6)? (1,6) and (3,8): cross. (6,7)? 6 is A, 7 is B. No. (2,7)? (2,7) and (3,8): 2 outside 3-8, 7 inside. Cross. So 2 chords + maybe (1,6)? Cross with (3,8). 2 chords only. Worse.
+
+Try (1,8),(3,6),(2,4): (1,8) encloses all. (3,6) inside. (2,4) and (3,6): 2,3,4,6. 3 between 2 and 4, 6 outside. Cross! 
+
+Try (1,8),(3,6),(5,7): (1,8) encloses all. (3,6) and (5,7): 3,5,6,7. 5 between 3 and 6, 7 outside. Cross!
+
+Try (1,8),(2,5),(4,7): (2,5) and (4,7): 2,4,5,7. 4 between 2 and 5, 7 outside. Cross!
+
+Try (1,8),(2,7),(3,6): (2,7) encloses 3,4,5,6. (3,6) inside (2,7). Non-crossing. (1,8) encloses all. Non-crossing. 3 chords. Can we add? 4 and 5 are B. (4,5) inside (3,6)? 3,4,5,6. (4,5) inside (3,6). Non-crossing with (3,6), (2,7), (1,8). 4 chords!
+
+Wait! (1,8),(2,7),(3,6),(4,5): all nested! 1,2,3,4,5,6,7,8. (1,8) outermost, (2,7) inside, (3,6) inside, (4,5) innermost. All non-crossing! 4 chords!
+
+So Kolya gets 4 with A B A B B A B A. I was wrong earlier. The nesting trick works.
+
+So for $n=8, k=2$, the answer is 4 = $8/2$. But $\lfloor 8/2 \rfloor - 1 = 3 \neq 4$.
+
+Hmm, so the formula $\lfloor n/2 \rfloor - (k-1)$ gives 3 for $n=8, k=2$, but the actual answer is 4. So the formula is wrong!
+
+Let me reconsider. Maybe the answer is just $\lfloor n/2 \rfloor$ when $k = 2$ and $n \geq 6$? But for $n=4, k=2$, the answer is 1, not 2.
+
+Wait, for $n=4, k=2$, coloring A B A B. Can Kolya use the nesting trick? (1,4) for A and (2,3) for B: (1,4) encloses 2,3. (2,3) inside. Non-crossing! 2 chords!
+
+Wait, I think I made an error earlier! Let me recheck $n=4, k=2$, coloring A B A B.
+
+A at {1,3}, B at {2,4}. 
+- (1,3) for A, (2,4) for B: cross (2 between 1 and 3, 4 outside).
+- (1,3) for A only: 1 chord.
+- (2,4) for B only: 1 chord.
+- (1,3) and (2,4): cross. So max 1.
+
+But what about the nesting? (1,4) would be A... no, 1 is A and 4 is B. Different colors. So we can't do (1,4).
+
+The nesting trick works when we can pair the outermost points. But in A B A B, the outermost pair (1,4) has different colors. So nesting doesn't work here.
+
+In A B A B B A B A (n=8), the outermost pair (1,8) has the same color (A). That's why nesting works.
+
+So the key is whether the sequence is a "palindrome" or has some symmetry that allows nesting.
+
+For the repeating sequence $1, 2, \ldots, k, 1, 2, \ldots, k, \ldots$, the outermost pair (positions 1 and $n$) has colors 1 and $k$ (if $n = km$). These are different (for $k \geq 2$). So the nesting trick doesn't directly apply.
+
+But for $n=8, k=2$, the repeating sequence is A B A B A B A B. Positions 1 and 8: A and B. Different. So (1,8) can't be a chord. But I showed that with a different coloring A B A B B A B A, Kolya gets 4. The question is: can Petya force fewer than 4?
+
+With A B A B A B A B (the repeating/alternating sequence), what's the max?
+A at {1,3,5,7}, B at {2,4,6,8}.
+- (1,3),(5,7) for A and (2,4),(6,8) for B: all non-crossing. 4 chords.
+- So Kolya gets 4 even with the alternating sequence.
+
+So for $n=8, k=2$, Kolya always gets 4 = $n/2$. The formula $\lfloor n/2 \rfloor - (k-1) = 3$ is wrong.
+
+Let me recheck $n=4, k=2$ with alternating A B A B. Max is 1 (as shown). $n/2 = 2 \neq 1$. And $n=6, k=2$ with A B A B A B: max is 2 (as shown). $n/2 = 3 \neq 2$.
+
+So the pattern for $k=2$:
+- $n=4$: 1
+- $n=6$: 2
+- $n=8$: 4
+
+Hmm, $n=4: 1$, $n=6: 2$, $n=8: 4$. The differences are 1, 2. Not obvious.
+
+Wait, let me recheck $n=6, k=2$ with A B A B A B more carefully.
+A at {1,3,5}, B at {2,4,6}.
+- (1,3),(2,4): cross (2 between 1 and 3, 4 outside).
+- (1,3),(4,6): non-crossing. Then 2 and 5: B and A. Can't match. 2 chords.
+- (1,5),(2,4): 1,2,4,5. (1,5) encloses 2,3,4. (2,4) inside. Non-crossing. Then 3 and 6: A and B. Can't match. 2 chords.
+- (3,5),(2,4): 2,3,4,5. (3,5) and (2,4): 3 between 2 and 4, 5 outside. Cross!
+- (3,5),(4,6): 3,4,5,6. (3,5) and (4,6): 4 between 3 and 5, 6 outside. Cross!
+- (3,5),(2,6): 2,3,5,6. (3,5) and (2,6): 2 outside 3-5, 6 outside 3-5. On circle, 2 and 6 on same arc (from 5 to 3 through 6,1,2). Non-crossing! Then 1 and 4: A and B. Can't match. 2 chords.
+- (1,5),(2,6): 1,2,5,6. (1,5) and (2,6): 2 between 1 and 5, 6 outside. Cross!
+- (1,3),(5,?) - 5 is A, but 1 and 3 used. 
+So max is 2 for $n=6, k=2$ with alternating.
+
+Can Petya do better (force fewer than 2)? Let me try A A B A B B.
+A at {1,2,4}, B at {3,5,6}.
+- (1,2) for A, (5,6) for B. Non-crossing. 2 chords. Can we add (3,4)? 3 is B, 4 is A. No. 2 chords.
+- (1,2),(3,5),(4,6): (3,5) and (4,6): 4 between 3 and 5, 6 outside. Cross!
+- (1,4),(5,6): (1,4) and (5,6): non-crossing. (2,3)? 2 is A, 3 is B. No. 2 chords.
+- (2,4),(5,6): non-crossing. (1,3)? 1 is A, 3 is B. No. 2 chords.
+So max is 2.
+
+What about A B B A B A? A at {1,4,6}, B at {2,3,5}.
+- (2,3) for B, (4,6) for A: 2,3,4,6. (2,3) and (4,6): non-crossing. (1,?) - 1 is A, 4 and 6 used. (5,?) - 5 is B, 2 and 3 used. 2 chords.
+- (1,4) for A, (2,3) for B: (1,4) encloses 2,3. (2,3) inside. Non-crossing. (5,6)? 5 is B, 6 is A. No. 2 chords.
+- (1,6) for A, (2,3) for B: (1,6) encloses 2,3,4,5. (2,3) inside. Non-crossing. (4,5)? 4 is A, 5 is B. No. 2 chords.
+- (1,6),(2,5),(3,4): (2,5) and (3,4): 3,4 inside 2-5. Non-crossing. (1,6) encloses all. But 3 is B, 4 is A. Different colors! Can't match (3,4).
+- (1,6),(2,5): (1,6) encloses 2,3,4,5. (2,5) inside. Non-crossing. (3,4)? Different colors. 2 chords.
+So max is 2.
+
+It seems like for $n=6, k=2$, the answer is 2 regardless of coloring. Let me check if Petya can force 1.
+
+A B A B A B: Kolya gets 2 (shown). A A A B B B: Kolya gets (1,2),(3,?) - 3 is A, (3,?) no other A available except... A at {1,2,3}. (1,2) for A, (4,5) for B. Non-crossing. 2 chords. Or (2,3),(4,5) = 2. Or (1,3),(4,6) = 2 (non-crossing). So 2.
+
+I can't find a coloring of 6 points with 2 colors that forces only 1 chord. So the answer for $n=6, k=2$ is 2.
+
+Now let me reconsider the pattern:
+- $n=4, k=2$: 1
+- $n=6, k=2$: 2
+- $n=8, k=2$: 4
+
+Hmm, $n=8$ gives 4 = $n/2$. But $n=4$ gives 1 and $n=6$ gives 2. 
+
+Wait, maybe I should check $n=8$ more carefully. Can Petya force fewer than 4?
+
+Let me try the coloring A B A B A B A B (perfectly alternating). Kolya gets (1,3),(2,4),(5,7),(6,8) = 4. Can Petya do better?
+
+What about A B A A B A B B? A at {1,3,4,6}, B at {2,5,7,8}.
+- (7,8) for B, (3,4) for A, (1,6) for A, (2,5) for B: (1,6) encloses 2,3,4,5. (2,5) inside. (3,4) inside. (7,8) outside. All non-crossing! 4 chords.
+
+What about A A B B A A B B? A at {1,2,5,6}, B at {3,4,7,8}.
+- (1,2),(5,6) for A, (3,4),(7,8) for B. All non-crossing. 4 chords.
+
+What about A B B A B A A B? A at {1,4,6,7}, B at {2,3,5,8}.
+- (2,3) for B, (6,7) for A, (1,4) for A, (5,8) for B: (1,4) encloses 2,3. (2,3) inside. (5,8) encloses 6,7. (6,7) inside. (1,4) and (5,8): non-crossing. 4 chords!
+
+It really seems like for $n=8, k=2$, the answer is always 4. Let me try to find a counterexample.
+
+A B A B B A A B? A at {1,3,6,7}, B at {2,4,5,8}.
+- (6,7) for A, (4,5) for B, (1,3) for A, (2,8) for B: (1,3) and (2,8): 2 between 1 and 3, 8 outside. Cross!
+- (6,7),(4,5),(1,3),(2,8): (1,3) and (2,8) cross. 
+- (6,7),(4,5),(1,8): 1 is A, 8 is B. No.
+- (6,7),(4,5),(1,3): 3 chords. Can we add a B chord? B at {2,8}. (2,8): (1,3) and (2,8): cross. (4,5) and (2,8): 2 outside 4-5, 8 outside 4-5. On circle, 2 and 8 on same arc? 4,5,6,7,8,1,2,3. From 5 to 4 going through 6,7,8,1,2,3: 8 and 2 are on this arc. So (2,8) doesn't cross (4,5). (6,7) and (2,8): 6,7 inside 2-8? 2,3,4,5,6,7,8. Yes, 6,7 inside. Non-crossing. (1,3) and (2,8): 1,2,3,8. 2 between 1 and 3, 8 outside. Cross!
+- So (2,8) crosses (1,3). Without (1,3): (6,7),(4,5),(2,8) = 3 chords. Can we add (1,3)? Cross with (2,8). So 3.
+- (1,7) for A, (6,?) - 6 is A, 7 used. (1,7) and (3,6): 1,3,6,7. (1,7) encloses 2-6. (3,6) inside. Non-crossing. (2,8) for B, (4,5) for B: (2,8) and (4,5): 4,5 inside 2-8. Non-crossing. (1,7) and (2,8): 2 inside 1-7, 8 outside. Cross!
+- (1,7),(3,6),(4,5) = 3. (2,8) crosses (1,7). 
+- (1,6) for A, (3,7) for A: 1,3,6,7. (1,6) and (3,7): 3 between 1 and 6, 7 outside. Cross!
+- (1,3),(6,7),(2,8),(4,5): (1,3) and (2,8) cross.
+- (3,6) for A, (1,7) for A: (1,7) encloses 2-6. (3,6) inside. Non-crossing. (2,8) for B: (1,7) and (2,8): cross. (4,5) for B: (3,6) and (4,5): 4,5 inside 3-6. Non-crossing. (1,7) and (4,5): inside. Non-crossing. So (1,7),(3,6),(4,5) = 3. 
+- (3,7),(4,5),(1,6): (3,7) and (1,6): 1 outside 3-7, 6 inside. Cross!
+- (1,3),(4,5),(6,7),(2,8): (1,3) and (2,8) cross.
+- (1,3),(4,8),(5,6)... 4 is B, 8 is B. (4,8) and (5,6): 5,6 inside 4-8. Non-crossing. (1,3) and (4,8): non-crossing. (2,5)? 2 is B, 5 is B. But 5 used. (2,?) - only 8 left for B, but 8 used. So (1,3),(4,8) = 2. Plus (6,7) for A: (4,8) and (6,7): 6,7 inside 4-8. Non-crossing. (1,3) and (6,7): non-crossing. 3 chords. Can we add (2,5)? 5 used. No.
+- (2,5) for B, (4,8) for B: 2,4,5,8. (2,5) and (4,8): 4 between 2 and 5, 8 outside. Cross!
+- (2,4) for B, (5,8) for B: 2,4,5,8. (2,4) and (5,8): non-crossing. (1,3) for A, (6,7) for A: non-crossing with each other and with B chords? (1,3),(2,4),(5,8),(6,7): 1,2,3,4,5,6,7,8. (1,3) and (2,4): 2 between 1 and 3, 4 outside. Cross!
+
+Hmm, this coloring A B A B B A A B seems to limit Kolya to 3 chords. Let me verify more carefully.
+
+A at {1,3,6,7}, B at {2,4,5,8}.
+
+Let me systematically try all possible 4-chord matchings. We need to match all 8 points. The A pairs must come from {1,3,6,7} and B pairs from {2,4,5,8}.
+
+A pairings: {(1,3),(6,7)}, {(1,6),(3,7)}, {(1,7),(3,6)}.
+B pairings: {(2,4),(5,8)}, {(2,5),(4,8)}, {(2,8),(4,5)}.
+
+Check all 9 combinations:
+
+1. {(1,3),(6,7)} + {(2,4),(5,8)}: (1,3) & (2,4): cross. ✗
+2. {(1,3),(6,7)} + {(2,5),(4,8)}: (1,3) & (2,5): 2 inside 1-3, 5 outside. Cross. ✗
+3. {(1,3),(6,7)} + {(2,8),(4,5)}: (1,3) & (2,8): 2 inside 1-3, 8 outside. Cross. ✗
+4. {(1,6),(3,7)} + {(2,4),(5,8)}: (1,6) & (3,7): 3 inside 1-6, 7 outside. Cross. ✗
+5. {(1,6),(3,7)} + {(2,5),(4,8)}: (1,6) & (3,7): cross. ✗
+6. {(1,6),(3,7)} + {(2,8),(4,5)}: (1,6) & (3,7): cross. ✗
+7. {(1,7),(3,6)} + {(2,4),(5,8)}: (1,7) encloses 2-6. (3,6) inside. (2,4) inside. (5,8): 5 inside 1-7, 8 outside. Cross! ✗
+8. {(1,7),(3,6)} + {(2,5),(4,8)}: (1,7) encloses 2-6. (3,6) inside. (2,5) inside. (4,8): 4 inside 1-7, 8 outside. Cross! ✗
+9. {(1,7),(3,6)} + {(2,8),(4,5)}: (1,7) & (2,8): 2 inside 1-7, 8 outside. Cross. ✗
+
+All 9 combinations fail! So Kolya cannot get 4 chords with this coloring. The max is 3.
+
+So for $n=8, k=2$, Petya can force at most 3 (using coloring A B A B B A A B or similar). And Kolya can always get at least 3 (I need to verify this).
+
+So the answer for $n=8, k=2$ is 3, not 4! And $\lfloor 8/2 \rfloor - (k-1) = 4 - 1 = 3$. ✓!
+
+I made an error earlier when I thought Kolya could get 4 with the alternating coloring. Let me recheck: with A B A B A B A B, Kolya gets (1,3),(2,4),(5,7),(6,8). Let me verify this is non-crossing.
+
+(1,3): chord from 1 to 3.
+(2,4): chord from 2 to 4.
+On the circle 1,2,3,4,5,6,7,8: (1,3) and (2,4): 2 is between 1 and 3, 4 is outside (between 3 and 1 going the other way). So they cross!
+
+I was wrong! (1,3) and (2,4) DO cross on the circle. I was thinking of them on a line, but on a circle, they cross.
+
+So with A B A B A B A B, (1,3) and (2,4) cross. Let me redo.
+
+A at {1,3,5,7}, B at {2,4,6,8}.
+- (1,3),(5,7) for A: non-crossing (1,3 and 5,7 are in separate arcs). (2,4),(6,8) for B: non-crossing. But do (1,3) and (2,4) cross? 1,2,3,4: 2 between 1 and 3, 4 outside. Cross!
+- (1,3),(5,7),(6,8): (1,3) and (6,8): non-crossing. (5,7) and (6,8): 6 between 5 and 7, 8 outside. Cross!
+- (1,3),(5,7),(2,8): (1,3) and (2,8): 2 between 1 and 3, 8 outside. Cross!
+- (1,3),(5,7) only: 2 chords. Can we add B? B at {2,4,6,8}. (2,4): crosses (1,3). (6,8): crosses (5,7). (2,8): crosses (1,3). (2,6): 2,6. (1,3) and (2,6): 2 inside 1-3, 6 outside. Cross. (4,8): 4,8. (1,3) and (4,8): non-crossing. (5,7) and (4,8): 4 outside 5-7, 8 outside 5-7. On circle, 4 and 8 on same arc (from 7 to 5 through 8,1,2,3,4). Non-crossing! So (1,3),(5,7),(4,8) = 3 chords. Can we add more? B at {2,6}. (2,6): (1,3) and (2,6): cross. (4,8) and (2,6): 2,4,6,8. (4,8) and (2,6): 4 between 2 and 6, 8 outside. Cross! So 3 chords.
+- (1,7),(3,5) for A: (1,7) encloses 2-6. (3,5) inside. Non-crossing. (2,4),(6,8) for B: (2,4) inside (1,7). (6,8): 6 inside 1-7, 8 outside. Cross! (2,8),(4,6): (2,8) and (1,7): 2 inside 1-7, 8 outside. Cross! (2,6),(4,8): (2,6) inside (1,7). (4,8): 4 inside, 8 outside. Cross! (2,4) only: (2,4) inside (1,7). (3,5) and (2,4): 2,3,4,5. (3,5) and (2,4): 3 between 2 and 4, 5 outside. Cross! Hmm. (4,6) for B: (3,5) and (4,6): 4 between 3 and 5, 6 outside. Cross! So (1,7),(3,5) = 2 chords + maybe (2,4)? Cross with (3,5). (4,6)? Cross with (3,5). (6,8)? Cross with (1,7). (2,8)? Cross with (1,7). So 2 chords only. Worse.
+- (1,5),(3,7) for A: (1,5) and (3,7): 3 inside 1-5, 7 outside. Cross!
+- (1,5),(2,4),(6,8): (1,5) encloses 2,3,4. (2,4) inside. Non-crossing. (6,8) outside. Non-crossing. 3 chords. Can add (3,7)? (1,5) and (3,7): cross. So 3.
+- (1,5),(2,6),(4,8): (1,5) and (2,6): 2 inside 1-5, 6 outside. Cross!
+- (3,7),(2,4),(6,8): (3,7) and (2,4): 2 outside 3-7, 4 inside. Cross!
+- (3,7),(2,8),(4,6): (3,7) and (2,8): 2 outside 3-7, 8 outside. On circle, 2 and 8 on same arc (7 to 3 through 8,1,2). Non-crossing. (4,6) inside (3,7). Non-crossing. (2,8) and (4,6): 4,6 inside 2-8. Non-crossing. 3 chords! Can add (1,5)? (3,7) and (1,5): 1 outside 3-7, 5 inside. Cross! So 3.
+- (1,7),(2,8),(3,5),(4,6): (1,7) and (2,8): 2 inside 1-7, 8 outside. Cross!
+
+So with A B A B A B A B, max is 3. And with A B A B B A A B, max is also 3. So the answer for $n=8, k=2$ is 3 = $\lfloor 8/2 \rfloor - 1$. ✓!
+
+Great, so the formula $\lfloor n/2 \rfloor - (k-1)$ works for:
+- $n=4, k=2$: $2 - 1 = 1$. ✓
+- $n=6, k=2$: $3 - 1 = 2$. ✓
+- $n=8, k=2$: $4 - 1 = 3$. ✓
+- $n=6, k=3$: $3 - 2 = 1$. ✓
+- $n=4, k=3$: $2 - 2 = 0$. ✗ (answer is 1)
+
+The only issue is $n=4, k=3$ where the formula gives 0 but the answer is 1. This is because with $n < 2k$, the pigeonhole principle still guarantees at least 1 chord. But for $n \geq 2k$, the formula seems to work.
+
+For our problem, $n = 2006$ and $k = 17$, and $n \gg 2k$, so the formula should apply.
+
+Answer: $\lfloor 2006/2 \rfloor - (17 - 1) = 1003 - 16 = 987$.
+
+Now I need to prove this rigorously. Let me structure the proof.
+
+**Upper bound (Petya's strategy):** Petya colors the points in the repeating pattern $1, 2, 3, \ldots, 17, 1, 2, 3, \ldots, 17, \ldots$ Since $2006 = 17 \times 118$, each color appears exactly 118 times.
+
+I need to show that any non-crossing same-color matching has at most 987 chords.
+
+**Lower bound (Kolya's strategy):** For any coloring, Kolya can find a non-crossing same-color matching of at least 987 chords.
+
+Let me prove the lower bound first.
+
+**Lower bound proof:**
+
+We use a greedy algorithm. Consider the $n$ points on the circle. 
+
+Step 1: While there exist two adjacent points of the same color, match them and remove both. Continue until no two adjacent points have the same color.
+
+Let $r$ be the number of chords drawn in this step. The remaining $m = n - 2r$ points form an alternating circular sequence (no two adjacent same color).
+
+Step 2: In the alternating sequence of $m$ points, find a non-crossing same-color matching of size at least $\lfloor m/2 \rfloor - (k-1)$.
+
+Total chords: $r + \lfloor m/2 \rfloor - (k-1) = r + \lfloor (n - 2r)/2 \rfloor - (k-1) = r + \lfloor n/2 \rfloor - r - (k-1) = \lfloor n/2 \rfloor - (k-1)$.
+
+So the key lemma is:
+
+**Lemma:** In an alternating circular sequence of $m$ points colored with $k$ colors (no two adjacent same color), there exists a non-crossing same-color matching of size at least $\lfloor m/2 \rfloor - (k-1)$ (assuming $m \geq 2k$).
+
+**Proof of Lemma:** 
+
+Hmm, I need to think about this. Let me consider the alternating sequence $c_1, c_2, \ldots, c_m$ on a circle, where $c_i \neq c_{i+1}$ (mod $m$).
+
+Approach: Cut the circle at some point to make a line. On the line, find a non-crossing same-color matching.
+
+On a line $c_1, c_2, \ldots, c_m$, we can use a greedy/DP approach. But I want a clean lower bound.
+
+Alternative approach: Use induction on $m$.
+
+Base case: $m = 2k$. The alternating sequence has $k$ colors, each appearing (roughly) twice. Actually, with $m = 2k$ and alternating, the sequence could be $1, 2, \ldots, k, 1, 2, \ldots, k$ (each color twice) or other patterns. In the worst case (for Kolya), it's $1, 2, \ldots, k, 1, 2, \ldots, k$. As shown, any two same-color chords cross, so max is 1 = $k - (k-1) = 1$. ✓
+
+Inductive step: $m > 2k$. 
+
+Hmm, induction seems tricky because the structure of the alternating sequence varies.
+
+Let me try a different approach for the lemma.
+
+**Approach via "ear removal":**
+
+In an alternating circular sequence, consider any three consecutive points $c_{i-1}, c_i, c_{i+1}$. Since the sequence is alternating, $c_{i-1} \neq c_i$ and $c_i \neq c_{i+1}$. But $c_{i-1}$ might equal $c_{i+1}$.
+
+If $c_{i-1} = c_{i+1}$, we can match points $i-1$ and $i+1$ (they have the same color and are separated by one point). This chord encloses only point $i$. After matching, remove points $i-1, i, i+1$ and replace with... well, remove $i-1$ and $i+1$ (matched), and $i$ is now adjacent to $i-2$ and $i+2$. The sequence remains alternating (since $c_{i-2} \neq c_{i-1}$ and $c_{i-1} \neq c_i$, but we need $c_{i-2} \neq c_i$ after removal, which might not hold).
+
+This is getting complicated. Let me try yet another approach.
+
+**Approach via cutting the circle:**
+
+Cut the circle at a point to get a line. On the line, a non-crossing matching is easier to reason about.
+
+Claim: On a line of $m$ points with an alternating coloring (no two adjacent same), the maximum non-crossing same-color matching is at least $\lfloor m/2 \rfloor - (k-1)$.
+
+Proof: By induction on $m$.
+
+Base: $m = 2k$. Worst case: $1, 2, \ldots, k, 1, 2, \ldots, k$. On a line, (1, k+1) and (2, k+2): 1 < 2 < k+1 < k+2. Cross! So at most 1 chord. $\lfloor 2k/2 \rfloor - (k-1) = 1$. ✓
+
+But wait,

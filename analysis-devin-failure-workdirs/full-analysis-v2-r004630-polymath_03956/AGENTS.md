@@ -1,0 +1,898 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_03956</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Triangle \(ABC\) is such that \(AB = 15\), \(BC = 22\), and \(AC = 20\). Let \(D\), \(E\), \(F\) lie on \(BC\), \(AC\), and \(AB\), respectively, so that \(AD\), \(BE\), \(CF\) all contain a point \(K\). Let \(L\) be the second intersection of the circumcircles of \(BFK\) and \(CEK\). Suppose that \(\frac{AK}{KD} = \frac{11}{7}\), and \(BD = 6\). If \(KL^2 = \frac{a}{b}\), where \(a\), \(b\) are relatively prime integers, find \(a + b\).
+
+## Standard Solution
+
+First, by Menelaus's theorem, we can compute that \(\frac{AK}{KD} \cdot \frac{DC}{CB} \cdot \frac{BF}{FA} = 1\), which implies that \(\frac{BF}{FA} = \frac{7}{11} \cdot \frac{22}{16} = \frac{7}{8}\). Therefore, by Ceva's theorem, it follows that \(\frac{AE}{EC} = \frac{AF}{FB} \cdot \frac{BD}{DC} = \frac{8}{7} \cdot \frac{6}{16} = \frac{3}{7}\). From here, we see that \(AF = 8\), \(AE = 6\). In particular, notice that by the power of a point, since \(AE \cdot AC = 120 = AB \cdot AF\), it follows that \(A\) lies on the radical axes of these circles; in particular, notice that \(A\), \(K\), \(L\) are collinear.
+
+Now, notice that the length of \(AD\), by Stewart's theorem, is such that \(BD \cdot DC \cdot BC + AD^2 \cdot BC = AC^2 \cdot BD + AB^2 \cdot CD\). Plugging in the values we computed, it follows that \(6 \cdot 16 \cdot 22 + AD^2 \cdot 22 = 20^2 \cdot 6 + 15^2 \cdot 16 = 3600 + 2400 = 6000\). In particular, it follows that \(AD^2 = \frac{6000 - 96 \cdot 22}{22} = \frac{3888}{22} = \frac{1944}{11}\), or that \(AD = 18 \sqrt{\frac{6}{11}}\). In particular, this means that \(AK = \sqrt{66}\). Therefore, computing the power of \(A\) again, we see that \(AK \cdot AL = 120\) too, meaning that it follows that \(AL = \frac{120}{\sqrt{66}} = \frac{20 \sqrt{66}}{11}\). Hence, it follows that \(KL = \frac{9 \sqrt{66}}{11}\), and so that \(KL^2 = \frac{486}{11} = 497\).
+
+\(\boxed{497}\)
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this geometry problem. Let me set up coordinates and work through it carefully.
+
+Triangle ABC with AB=15, BC=22, AC=20. D on BC with BD=6, so DC=16. K on AD with AK/KD = 11/7. AD, BE, CF concurrent at K. L is second intersection of circumcircles of BFK and CEK. Find KL².
+
+Let me set up coordinates. Place B at origin, C at (22,0). BD=6 means D=(6,0).
+
+A: AB=15, AC=20. So A=(x,y) with x²+y²=225, (x-22)²+y²=400. Subtract: (x-22)²-x²=175 → -44x+484=175 → 44x=309 → x=309/44. y²=225-(309/44)²=225-95481/1936=(435600-95481)/1936=340119/1936. 
+
+340119 = ? Let me factor. 340119/3=113373, /3=37791, /3=12597, /3=4199, 4199=13·323=13·17·19. So 340119=3⁴·13·17·19=81·4199. 1936=44²=16·121=2⁴·11². No common factors. So y=√(340119/1936)=√340119/44.
+
+Hmm, let me double check. 4199=13·323=13·17·19. Yes.
+
+So A=(309/44, √340119/44).
+
+D=(6,0)=(264/44,0). AD vector = (309/44-264/44, √340119/44) = (45/44, √340119/44).
+
+AK/KD=11/7, so K divides AD such that K = A + (11/18)(D-A) = (7A+11D)/18.
+
+K_x = (7·309/44 + 11·264/44)/18 = (2163+2904)/(44·18) = 5067/(792) = 5067/792. Simplify: /3=1689/264, /3=563/88. So K_x=563/88.
+
+K_y = (7·√340119/44 + 0)/18 = 7√340119/(44·18)=7√340119/792=7√340119/792. Simplify /... 792=8·99=8·9·11. 7 and 792 share nothing. =7√340119/792. Hmm let me keep as 7√340119/792.
+
+Actually let me reconsider — maybe use 88 denominator. 792=9·88. So K_y=7√340119/(9·88). And K_x=563/88.
+
+K=(563/88, 7√340119/792).
+
+Now E on AC, F on AB, with BE, CF passing through K. Let me find E and F.
+
+E on AC: E = A + t(C-A) for some t. BE passes through K means B, K, E collinear. B=(0,0). So E is on line BK. Line BK: direction K. E = s·K for some s, and E on AC.
+
+E on AC: E = (1-t)A + tC. Also E=sK.
+
+Similarly F on AB: F=(1-u)A+uB=(1-u)A, and F on line CK: F = C + v(K-C).
+
+Let me compute. Actually for the circumcircles, I need coordinates of B,F,K and C,E,K. B and K are known. F on AB and on line CK.
+
+Let me find F. F on AB: F = (1-u)A (since B=origin). F on line CK: F = C + v(K-C) = (1-v)C + vK.
+
+(1-u)A = (1-v)C + vK.
+
+A=(309/44, √340119/44), C=(22,0), K=(563/88, 7√340119/792).
+
+x: (1-u)·309/44 = (1-v)·22 + v·563/88
+y: (1-u)·√340119/44 = v·7√340119/792
+
+From y: (1-u)/44 = 7v/792 → (1-u) = 7v·44/792 = 7v/18. So 1-u=7v/18, u=1-7v/18.
+
+From x: (1-u)·309/44 = 22(1-v) + v·563/88.
+(7v/18)·309/44 = 22-22v+563v/88.
+7v·309/(18·44) = 22 + v(-22+563/88) = 22 + v((-1936+563)/88)=22+v(-1373/88).
+Left: 2163v/792 = 721v/264.
+So 721v/264 = 22 - 1373v/88.
+721v/264 + 1373v/88 = 22. 1373/88=4119/264. So (721+4119)v/264=22 → 4840v/264=22 → v=22·264/4840=5808/4840. Simplify /8=726/605. /11=66/55=6/5. So v=6/5.
+
+Then 1-u=7·(6/5)/18=42/90=7/15. u=8/15. F=(1-u)A=(7/15)A=(7·309/(15·44), 7√340119/(15·44))=(2163/660, 7√340119/660). Simplify x: 2163/660=/3=721/220. So F=(721/220, 7√340119/660).
+
+Check F on AB: AF/FB? F=(7/15)A so F is 7/15 of way from B... actually F=(7/15)A means BF/BA=7/15, AF/AB=8/15. OK.
+
+Now E. E on AC, E=sK (line from B). E=(1-t)A+tC, E=sK.
+
+y: (1-t)·√340119/44 = s·7√340119/792 → (1-t)/44=7s/792 → 1-t=7s/18.
+x: (1-t)·309/44 + t·22 = s·563/88.
+(7s/18)·309/44 + 22t = 563s/88.
+7s·309/792 + 22t = 563s/88.
+2163s/792=721s/264. 563/88=1689/264.
+721s/264 + 22t = 1689s/88 = 5067s/264.
+22t = (5067-721)s/264=4346s/264=2173s/132. t=2173s/(132·22)=2173s/2904.
+
+Also 1-t=7s/18 → t=1-7s/18. So 1-7s/18=2173s/2904. 2904-7s·2904/18... let me: 1 = 7s/18+2173s/2904. 7/18=1120/288... wait 2904/18=161.33, not integer. Let me use common denom. 7s/18 = 7s·2904/18/s... let me just compute: 7/18 = ? /2904. 2904/18=161.333. Hmm 18·161=2898, not 2904. So 2904 isn't divisible by 18. Let me recheck.
+
+2904=22·132=22·132. 132=12·11. 2904=2³·3·11². 18=2·3². 2904/18=2904/18=161.33. So gcd... Let me redo. 7s/18 + 2173s/2904 = 1. Common denom = lcm(18,2904). 2904=2³·3·11², 18=2·3². lcm=2³·3²·11²=8712. 
+7s/18=7s·484/8712=3388s/8712. 2173s/2904=2173s·3/8712=6519s/8712. Sum=(3388+6519)s/8712=9907s/8712=1. s=8712/9907.
+
+Hmm, let me double-check 2173. 4346/2=2173. 4346=4346. 5067-721=4346. 5067=563·9, 721=7·103. 5067-721=4346. 4346/2=2173. 2173 prime? 2173/7=310.4, /11=197.5, /13=167.2, /17=127.8, /19=114.4, /23=94.5, /29=74.9, /31=70.1, /37=58.7, /41=53, 41·53=2173! So 2173=41·53.
+
+9907=9907. /41=241.6, /53=187.1. Hmm. Let me check 9907/7=1415.3, /11=900.6, /13=762.1, /17=582.8, /19=521.4, /23=430.7, /29=341.6, /31=319.6, /37=267.8, /41=241.6, /43=230.4, /47=210.8, /53=187.1, /97=102.1... Let me try 9907/97=102.1, /101=98.1. Hmm. Actually let me recompute 9907. 3388+6519=9907. Yes.
+
+Let me verify s differently. Actually let me just verify with Menelaus/Ceva. We have cevians AD, BE, CF concurrent at K. By Ceva: (BD/DC)(CE/EA)(AF/FB)=1. BD/DC=6/16=3/8. AF/FB: F=(7/15)A means BF=7/15·AB, AF=8/15·AB, so AF/FB=8/7. So (3/8)(CE/EA)(8/7)=1 → CE/EA=7/3. So E divides CA with CE:EA=7:3, i.e. E=(3/10)A+(7/10)C... wait CE/EA=7/3 means E is closer to A? CE=7k, EA=3k, CA=10k. E = A + (CE/CA)(C-A)=A+(7/10)(C-A)=(3/10)A+(7/10)C.
+
+Let me recompute. E=(3/10)A+(7/10)C. E_x=3·309/(10·44)+7·22/10=927/440+154/10=927/440+6776/440=7703/440. E_y=3√340119/(10·44)=3√340119/440.
+
+Check E on line BK: E=sK. E_x/K_x=(7703/440)/(563/88)=7703·88/(440·563)=7703/(5·563)=7703/2815. E_y/K_y=(3√340119/440)/(7√340119/792)=3·792/(440·7)=2376/3080=108/140=27/35. 
+
+7703/2815 vs 27/35. 27/35=27·... 2815/35=80.43, not integer. 2815=5·563. 563 prime? 563/7=80.4,/11=51.2,/13=43.3,/17=33.1,/19=29.6,/23=24.5. 563 prime. So 7703/2815 should equal 27/35? 27·2815=76005, 35·7703=269605. Not equal! So E is NOT on line BK?!
+
+Wait, that means my Ceva check is wrong, or my F is wrong. Let me recheck.
+
+Hmm, actually the issue: K is given as a specific point on AD (with AK/KD=11/7) and D given (BD=6). Then E and F are determined by concurrency: BE and CF pass through K. So E is the intersection of line BK with AC, and F is intersection of line CK with AB. Ceva should be automatically satisfied. Let me recheck my F computation and Ceva.
+
+Actually wait — I computed F from line CK ∩ AB, getting v=6/5, F=(7/15)A. Let me verify Ceva with BD/DC=6/16, and the E from line BK∩AC.
+
+But I got inconsistency. Let me recheck F. Actually let me recheck whether K is correct. K=(7A+11D)/18 since AK:KD=11:7 means K is 11/18 from A to D. K=A+(11/18)(D-A)=(7/18)A+(11/18)D. Yes K=(7A+11D)/18. Good.
+
+Let me recompute E from line BK ∩ AC directly and check Ceva, and recompute F.
+
+Actually, let me recheck the F computation. F on AB, F=(1-u)A (B=origin). F on line CK: F=C+v(K-C).
+
+y-equation: (1-u)·A_y = v·K_y (since C_y=0). A_y=√340119/44, K_y=7√340119/792. So (1-u)/44=7v/792 → 1-u=7v·44/792=7v/18. ✓.
+
+x: (1-u)·A_x = 22+v(K_x-22). K_x=563/88, K_x-22=563/88-1936/88=-1373/88. (7v/18)·(309/44)=22+v(-1373/88).
+2163v/792=22-1373v/88. 2163/792=721/264. 1373/88=4119/264.
+721v/264+4119v/264=22 → 4840v/264=22 → v=22·264/4840=5808/4840=6/5. ✓.
+
+So F=(1-u)A with 1-u=7·(6/5)/18=42/90=7/15. F=(7/15)A. BF/BA=7/15, AF/FB=(1-7/15)/(7/15)=(8/15)/(7/15)=8/7. ✓.
+
+Now Ceva: (BD/DC)(CE/EA)(AF/FB)=1 → (6/16)(CE/EA)(8/7)=1 → (3/8)(8/7)(CE/EA)=1 → (3/7)(CE/EA)=1 → CE/EA=7/3. ✓.
+
+So E: CE:EA=7:3. E=(3/10)A+(7/10)C. Let me recheck E on line BK.
+
+E=(3/10)A+(7/10)C. Is E collinear with B(0,0) and K? Need E=sK.
+E_x = (3/10)(309/44)+(7/10)(22) = 927/440 + 154/10 = 927/440+6776/440=7703/440.
+E_y = (3/10)(√340119/44) = 3√340119/440.
+K_x=563/88=2815/440. K_y=7√340119/792.
+
+E_x/K_x = 7703/2815. E_y/K_y = (3/440)/(7/792)=3·792/(440·7)=2376/3080=594/770=297/385=27/35.
+
+7703/2815: 2815=5·563. Is 7703=27·2815/35=27·563/7=15201/7=2171.57? No. So not collinear!
+
+So there's an error somewhere. Let me recheck K_y. K=(7A+11D)/18. K_y=7·A_y/18=7·(√340119/44)/18=7√340119/(44·18)=7√340119/792. ✓.
+
+Hmm, so Ceva says CE/EA=7/3 but direct line computation says E isn't on BK. Contradiction means one of my values is wrong. Let me recheck D and K_x.
+
+D=(6,0). K_x=(7·309/44+11·6)/18=(2163/44+66)/18=(2163/44+2904/44)/18=5067/(44·18)=5067/792. 5067/792: /3=1689/264,/3=563/88. ✓. K_x=563/88.
+
+Now line BK from B(0,0) to K(563/88, 7√340119/792). Direction (563/88, 7√340119/792). Slope = (7√340119/792)/(563/88)=7√340119·88/(792·563)=7√340119/(9·563)=7√340119/5067.
+
+E_y/E_x = (3√340119/440)/(7703/440)=3√340119/7703.
+
+For collinearity: 3/7703 = 7/5067 → 3·5067=7·7703 → 15201=53921. No!
+
+So indeed E from Ceva ≠ E from line. This means Ceva isn't satisfied, which means... the problem states AD, BE, CF concurrent at K, with D fixed (BD=6) and K fixed (AK/KD=11/7). For concurrency, E and F are determined. Ceva MUST hold. So either my triangle coords are wrong or D position.
+
+Wait — maybe I have the wrong D. BD=6, and BC=22, so D is on BC with BD=6. D=(6,0) if B=(0,0),C=(22,0). That's right.
+
+Let me recompute A. AB=15: x²+y²=225. AC=20: (x-22)²+y²=400. Subtract: (x-22)²-x²=175 → -44x+484=175 → 44x=309 → x=309/44=7.0227. y²=225-49.318=175.68. y=13.255. Check AC: (7.02-22)²+175.68=(-14.98)²+175.68=224.4+175.68=400.08≈400 ✓ (rounding).
+
+Let me verify Ceva numerically. K=(7A+11D)/18. Numerically A=(7.0227,13.255), D=(6,0). K=(7·7.0227+11·6, 7·13.255)/18=(49.16+66,92.79)/18=(115.16,92.79)/18=(6.398,5.155).
+
+Line BK slope=5.155/6.398=0.8057. Line through B: y=0.8057x. Intersect AC. AC from (7.0227,13.255) to (22,0). Parametrize: (7.0227+14.977t, 13.255(1-t)). y=0.8057x: 13.255(1-t)=0.8057(7.0227+14.977t)=5.661+12.066t. 13.255-13.255t=5.661+12.066t → 7.594=25.321t → t=0.3000. So E at t=0.3: CE/EA... E=(1-t)A+tC, t=0.3 means EA... E=A+0.3(C-A), so AE=0.3·AC, EC=0.7·AC. CE/EA=0.7/0.3=7/3. ✓!! 
+
+So Ceva IS satisfied. So where's my algebra error? E=(3/10)A+(7/10)C, t=0.3. E_x=0.3·7.0227+0.7·22=2.107+15.4=17.507. E_y=0.3·13.255=3.977.
+
+But I computed E_x=7703/440=17.507 and E_y=3√340119/440. √340119≈583.2. 3·583.2/440=1749.6/440=3.976. ✓.
+
+K_x=563/88=6.3977, K_y=7·583.2/792=4082.4/792=5.155. ✓.
+
+E_x/K_x=17.507/6.3977=2.736. E_y/K_y=3.977/5.155=0.7714=27/35=0.7714. ✓!! 
+
+But 7703/2815=2.736 and 27/35=0.7714. These aren't equal! 2.736≠0.7714. 
+
+OH WAIT. E=sK means E_x=s·K_x AND E_y=s·K_y with the SAME s. E_x/K_x=2.736, E_y/K_y=0.7714. These differ! So E is NOT on line BK?! But numerically the line intersection gave t=0.3...
+
+Let me recheck numerically. Line BK: y=0.8057x. E=(17.507,3.977). 0.8057·17.507=14.10. But E_y=3.977. 14.10≠3.977!! 
+
+So E is NOT on line BK. But my line intersection calculation said t=0.3. Let me redo. AC: (7.0227+14.977t, 13.255-13.255t). Set y=0.8057x: 13.255-13.255t=0.8057(7.0227+14.977t)=5.661+12.066t. 13.255-5.661=13.255t+12.066t → 7.594=25.321t → t=0.30. Then point=(7.0227+4.493,13.255-3.977)=(11.516,9.278). 
+
+Oh! I made an arithmetic error. At t=0.3, E=(11.516,9.278), NOT (17.507,3.977). I confused the parametrization. E=(1-t)A+tC with t=0.3: E=0.7·A+0.3·C=(0.7·7.0227+0.3·22, 0.7·13.255)=(4.916+6.6,9.279)=(11.516,9.279). 
+
+So E=(7/10)A+(3/10)C, NOT (3/10)A+(7/10)C! I had the ratio backwards.
+
+CE/EA=7/3: E divides CA. CE=7k,EA=3k. E = A + (AE/AC)(C-A) where AE=3k,AC=10k. So E=A+0.3(C-A)=0.7A+0.3C. Yes! E=(7/10)A+(3/10)C. I wrote it wrong before.
+
+So E_x=(7/10)(309/44)+(3/10)(22)=2163/440+66/10=2163/440+2904/440=5067/440. E_y=(7/10)(√340119/44)=7√340119/440.
+
+Check: E_x/K_x=(5067/440)/(563/88)=5067·88/(440·563)=5067/(5·563)=5067/2815. 5067=9·563. So =9/5=1.8. E_y/K_y=(7√340119/440)/(7√340119/792)=792/440=9/5=1.8. ✓!! s=9/5.
+
+Great. So E=(7/10)A+(3/10)C, and E=(9/5)K.
+
+Now I have all points. Let me find the circumcircles of BFK and CEK, then their second intersection L, then KL².
+
+This is computationally heavy. Let me use a coordinate approach with exact arithmetic, or use the radical axis.
+
+Circumcircle of BFK: passes through B=(0,0), F, K. Since B is origin, circle equation: x²+y²+ux+vy=0 (w=0).
+
+Circumcircle of CEK: passes through C=(22,0), E, K. Circle: x²+y²+px+qy+r=0.
+
+Both pass through K. Their radical axis is the line through K and L. The radical axis is obtained by subtracting the two circle equations.
+
+Let me compute. Let me use exact fractions. To simplify, let me use a substitution. Let me denote h=√340119. Then:
+
+A=(309/44, h/44)
+B=(0,0)
+C=(22,0)
+D=(6,0)
+K=(563/88, 7h/792)
+F=(7/15)A=(721/220, 7h/660)
+E=(7/10)A+(3/10)C=(5067/440, 7h/440)
+
+Let me verify F: F=(7/15)A=(7·309/(15·44), 7h/(15·44))=(2163/660,7h/660)=(721/220,7h/660). ✓.
+
+Circle 1 (BFK): x²+y²+u₁x+v₁y=0.
+Plug F: F_x²+F_y²+u₁F_x+v₁F_y=0.
+Plug K: K_x²+K_y²+u₁K_x+v₁K_y=0.
+
+F_x²+F_y² = (721/220)²+(7h/660)² = 721²/48400 + 49·340119/435600.
+721²=519841. 49·340119=16665831.
+Common denom 435600=9·48400. 519841/48400=519841·9/435600=4678569/435600. Sum=(4678569+16665831)/435600=21344400/435600. =21344400/435600. /100=213444/4356. /4=53361/1089. /3=17787/363. /3=5929/121. 5929=77²=5929. 121=11². So =5929/121=49. 
+
+So |F|²=49. That makes sense: F on AB, BF=7/15·15=7. |F|=7. ✓.
+
+K_x²+K_y²=(563/88)²+(7h/792)²=563²/7744+49·340119/627264.
+563²=316969. 49·340119=16665831.
+627264=792²=627264. 7744=88². 627264/7744=81. So 316969/7744=316969·81/627264=256745... let me compute 316969·81=316969·80+316969=25357520+316969=25674489. Sum=(25674489+16665831)/627264=42340320/627264. /16=2646270/39204. /6=441045/6534. /3=147015/2178. /3=49005/726. /3=16335/242. 16335/242: /11=1485/22. So |K|²=1485/22.
+
+Check: BK length. K=(6.398,5.155). |K|²=40.93+26.58=67.51. 1485/22=67.5. ✓.
+
+Circle 1 equations:
+49 + u₁·(721/220) + v₁·(7h/660) = 0 ... (i)
+1485/22 + u₁·(563/88) + v₁·(7h/792) = 0 ... (ii)
+
+From (i): u₁·721/220 + v₁·7h/660 = -49.
+From (ii): u₁·563/88 + v₁·7h/792 = -1485/22.
+
+Let me solve. Multiply (i) by 660/(7h): v₁ = (-49 - u₁·721/220)·660/(7h). Messy. Let me eliminate v₁.
+
+(i)·792: u₁·721·792/220 + v₁·7h·792/660 = -49·792. 792/220=198/55=18/5. 792/660=6/5. So u₁·721·18/5 + v₁·7h·6/5=-38808. → u₁·12978/5+v₁·42h/5=-38808. ×5: u₁·12978+v₁·42h=-194040. ...(I)
+
+(ii)·660: u₁·563·660/88+v₁·7h·660/792=-1485·660/22. 660/88=15/2. 660/792=5/6. 660/22=30. So u₁·563·15/2+v₁·7h·5/6=-44550. ×6: u₁·563·45+v₁·35h=-267300. u₁·25335+v₁·35h=-267300. ...(II)
+
+(I): u₁·12978+v₁·42h=-194040.
+(II): u₁·25335+v₁·35h=-267300.
+
+Eliminate v₁: (I)·5, (II)·6: 
+(I)·5: u₁·64890+v₁·210h=-970200.
+(II)·6: u₁·152010+v₁·210h=-1603800.
+Subtract: u₁·(152010-64890)=-1603800+970200=-633600. u₁·87120=-633600. u₁=-633600/87120. Simplify: /10=63360/8712. /8=7920/1089. /9=880/121. So u₁=-880/121.
+
+Then from (II): -880/121·25335+v₁·35h=-267300. 880·25335/121=880·25335/121. 25335/121=209.38... 121·209=25289, 25335-25289=46. So 25335/121=209+46/121. Hmm let me compute 880·25335=22,294,800. /121. 121·184300=222,803,00... let me just: 22294800/121. 121·184258=22294818, close. Hmm let me recompute 880·25335. 25335·800=20268000, 25335·80=2026800, total=22294800. /121: 121·184258=22294818≠22294800. So 22294800/121=184258-18/121... not clean. Let me recheck.
+
+Actually, let me recheck u₁. 87120: 87120=121·720. So 633600/87120=633600/(121·720)=880/121. ✓. u₁=-880/121.
+
+From (II): u₁·25335 = -880·25335/121. 25335=5·5067=5·9·563=45·563. So 880·45·563/121=39600·563/121. 39600/121=327.27...not clean. Hmm, 121=11². 39600=39600, /11=3600, /11=327.27. So 39600 not div by 121. 
+
+So u₁·25335=-39600·563/121. Then v₁·35h=-267300+39600·563/121. -267300=-267300·121/121=-32343300/121. 39600·563=22294800. So v₁·35h=(-32343300+22294800)/121=-10048500/121. v₁=-10048500/(121·35h)=-10048500/(4235h). 10048500/4235: /5=2009700/847. 847=7·121. 2009700/847=/7=287100/121. So v₁=-287100/(121h)=-287100/(121h). 287100/121=2372.7... 121·2372=287012, +88. Not clean. Hmm.
+
+Let me double-check (II). (ii)·660: u₁·563·(660/88)+v₁·7h·(660/792)=-1485·(660/22). 660/88=7.5=15/2. 660/792=0.8333=5/6. 660/22=30. So u₁·563·15/2+v₁·7h·5/6=-1485·30=-44550. Multiply by 6: u₁·563·45+v₁·7h·5=-267300. u₁·25335+v₁·35h=-267300. ✓.
+
+(I): (i)·792: u₁·721·(792/220)+v₁·7h·(792/660)=-49·792. 792/220=3.6=18/5. 792/660=1.2=6/5. -49·792=-38808. u₁·721·18/5+v₁·7h·6/5=-38808. ×5: u₁·12978+v₁·42h=-194040. ✓.
+
+(I)·5: u₁·64890+v₁·210h=-970200.
+(II)·6: u₁·152010+v₁·210h=-1603800.
+Subtract (II·6)-(I·5): u₁·87120=-633600. u₁=-633600/87120=-880/121. ✓.
+
+v₁ from (I): v₁·42h=-194040-u₁·12978=-194040+880·12978/121. 880·12978=11,420,640. /121. 12978=12978. 12978/121=107.25...not clean. 121·107=12947, remainder 31. Hmm.
+
+Let me try: 11420640/121. 121·94400=11,442,400 > 11,420,640. 121·94400=11442400. 11420640-11442400=-21760. So 94400-21760/121=94400-180=94220 approx. Not clean. 
+
+Hmm, this is getting ugly. Let me reconsider — maybe there's a cleaner approach. Actually, the answer should be rational (KL²=a/b). Let me think about whether there's a smarter method.
+
+Alternative: Use the property of Miquel points / spiral similarities. L is the Miquel point of the complete quadrilateral formed by lines... Actually L is the second intersection of circles (BFK) and (CEK). 
+
+There's a known result: If AD, BE, CF are concurrent cevians through K, and L is the second intersection of circles (BFK) and (CEK), then A, K, L are related... Actually there's a result that K, L are isogonal conjugates w.r.t. angle A or something? No.
+
+Actually, the Miquel point of the cevian configuration: circles (BFK), (CEK), and also (AEK)... wait. Let me think. The four lines AB, AC, BE, CF form a complete quadrilateral with vertices B, A, E, F, and intersection of BE∩CF=K, AB∩AC=A, AB∩BE=B, AC∩CF=C, AB∩CF=F, AC∩BE=E. The Miquel point of this complete quadrilateral lies on circles (ABK)... hmm, let me think more carefully.
+
+Actually, the complete quadrilateral formed by lines AB, AC, BK(=BE), CK(=CF). The four lines: AB, AC, BK, CK. Their 6 intersection points: A=AB∩AC, B=AB∩BK, C=AC∩CK, K=BK∩CK, E=AC∩BK, F=AB∩CK. The Miquel point M lies on circles (ABK), (ACK), (AEF), (BCEF)... no. The Miquel point of complete quadrilateral lies on the 4 circles formed by triples of the 4 lines. The 4 triangles: (AB,BK,CK)→vertices B,K,F→circle BFK; (AC,BK,CK)→vertices E,K,C→circle CEK; (AB,AC,BK)→vertices A,B,E→circle ABE; (AB,AC,CK)→vertices A,F,C→circle AFC. 
+
+So the Miquel point M lies on circles (BFK), (CEK), (ABE), (AFC). L is the second intersection of (BFK) and (CEK), so L=M (the Miquel point), and L also lies on circles (ABE) and (AFC).
+
+So L lies on circle (ABE) and circle (AFC). That's useful! 
+
+Now, L lies on circle through A, B, E and circle through A, F, C. Both pass through A. So L is the second intersection of circles (ABE) and (AFC).
+
+This might be easier to compute, or there might be a known formula.
+
+Actually, there's a beautiful result: the Miquel point L of the cevian complete quadrilateral satisfies that K and L are isogonal conjugates with respect to triangle ABC! Let me verify this claim.
+
+The isogonal conjugate of K w.r.t. triangle ABC: if K has cevian traces D, E, F, then the isogonal conjugate K* has cevian traces D', E', F' where e.g. ∠BAK = ∠CAK*, etc. 
+
+Hmm, actually I recall that the Miquel point of the cevian quadrilateral and the point K are isogonal conjugates. Let me think about whether this is true.
+
+Consider the Miquel point L on circle (ABE). ∠ALB = ∠AEB (since L on circle ABE, inscribed angles subtending AB... wait, ∠ALB and ∠AEB both subtend arc AB). Actually ∠ALB = ∠AEB or its supplement. And L on circle (AFC): ∠ALC = ∠AFC.
+
+Hmm, let me think about the isogonal conjugate property differently. 
+
+If L is the isogonal conjugate of K, then ∠LAC = ∠BAK and ∠LAB = ∠CAK, etc.
+
+L on circle (ABE): ∠(LA, LB) = ∠(EA, EB) [angles subtending arc AB]. ∠AEB is the angle at E in triangle AEB. Since E is on AC, ∠AEB = angle between EA(=CA direction) and EB. 
+
+Hmm, this is getting complicated. Let me just try to verify numerically whether L = isogonal conjugate of K.
+
+Actually, let me just compute L directly using the two circles (ABE) and (AFC), which might be cleaner since A, B, C are nicer.
+
+Actually, all approaches require similar computation. Let me just push through with coordinates but use circle (ABE) and (AFC).
+
+Circle (ABE): passes through A, B=(0,0), E. Equation: x²+y²+u₂x+v₂y=0 (since B=origin).
+Circle (AFC): passes through A, F, C=(22,0). Equation: x²+y²+u₃x+v₃y+w₃=0.
+
+Both pass through A and L. Radical axis: subtract → line through A and L.
+
+Hmm, still messy. Let me just use the isogonal conjugate approach and verify numerically, then if it works, compute KL² using the isogonal conjugate.
+
+Let me compute numerically first to get the answer, then verify.
+
+Numerical: A=(7.0227,13.255), B=(0,0), C=(22,0), K=(6.3977,5.155).
+
+Isogonal conjugate of K w.r.t. triangle ABC. 
+
+The isogonal conjugate: reflect lines AK, BK, CK about the angle bisectors at A, B, C respectively; they concur at K*.
+
+Alternatively, use barycentric coordinates. If K has barycentric coordinates (u:v:w), then K* has barycentric coordinates (a²/u : b²/v : c²/w) where a=BC, b=CA, c=AB.
+
+Here a=BC=22, b=CA=20, c=AB=15.
+
+K's barycentric coordinates: K=(7A+11D)/18, D on BC with BD:DC=6:16=3:8, so D=(8B+3C)/11 in barycentric... wait D=(8/11)B+(3/11)C? BD:DC=3:8 means D=(8B+3C)/(3+8)... no. D divides BC with BD=6,DC=16. D = B + (6/22)(C-B) = (16/22)B+(6/22)C=(8/11)B+(3/11)C. So barycentric D=(0:8:3).
+
+K=(7/18)A+(11/18)D=(7/18)A+(11/18)((8/11)B+(3/11)C)=(7/18)A+(8/18)B+(3/18)C. So K barycentric = (7:8:3). 
+
+Check: 7+8+3=18. ✓. And AK/KD: K=(7A+11D)/18, so K is 11/18 from A to D, AK/KD=11/7. ✓.
+
+Isogonal conjugate K* barycentric = (a²/7 : b²/8 : c²/3) = (484/7 : 400/8 : 225/3) = (484/7 : 50 : 75).
+
+Compute: 484/7≈69.14, 50, 75. Sum=69.14+125=194.14. 
+
+K* barycentric = (484/7 : 50 : 75). Multiply by 7: (484 : 350 : 525). Sum=484+350+525=1359.
+
+K* = (484·A + 350·B + 525·C)/1359.
+
+Numerically: x=(484·7.0227+350·0+525·22)/1359=(3398.99+11550)/1359=14948.99/1359=10.998. y=(484·13.255)/1359=6415.42/1359=4.721.
+
+So K*≈(10.998,4.721). 
+
+Now let me compute L numerically from circles (BFK) and (CEK) and check if L=K*.
+
+Circle (BFK): B=(0,0), F=(7/15)A=(3.277,6.186), K=(6.398,5.155). 
+Circle through origin: x²+y²+ux+vy=0.
+F: 3.277²+6.186²+3.277u+6.186v=0 → 10.74+38.27+3.277u+6.186v=0 → 49.01+3.277u+6.186v=0.
+K: 6.398²+5.155²+6.398u+5.155v=0 → 40.93+26.58+6.398u+5.155v=0 → 67.51+6.398u+5.155v=0.
+
+Solve: 3.277u+6.186v=-49.01; 6.398u+5.155v=-67.51.
+From first: u=(-49.01-6.186v)/3.277=-14.96-1.889v.
+Sub: 6.398(-14.96-1.889v)+5.155v=-67.51 → -95.71-12.09v+5.155v=-67.51 → -6.935v=28.20 → v=-4.066. u=-14.96-1.889(-4.066)=-14.96+7.68=-7.28.
+
+Circle1: x²+y²-7.28x-4.066y=0.
+
+Circle (CEK): C=(22,0), E=(11.516,9.279), K=(6.398,5.155).
+x²+y²+px+qy+r=0.
+C: 484+22p+r=0 → r=-484-22p.
+E: 11.516²+9.279²+11.516p+9.279q+r=0 → 132.62+86.10+11.516p+9.279q-484-22p=0 → -265.28-10.484p+9.279q=0.
+K: 6.398²+5.155²+6.398p+5.155q+r=0 → 67.51+6.398p+5.155q-484-22p=0 → -416.49-15.602p+5.155q=0.
+
+From E eq: 9.279q=265.28+10.484p → q=28.59+1.1304p.
+Sub into K: -416.49-15.602p+5.155(28.59+1.1304p)=0 → -416.49-15.602p+147.40+5.827p=0 → -269.09-9.775p=0 → p=-27.53. q=28.59+1.1304(-27.53)=28.59-31.12=-2.53. r=-484-22(-27.53)=-484+605.66=121.66.
+
+Circle2: x²+y²-27.53x-2.53y+121.66=0.
+
+Radical axis (Circle1-Circle2): (-7.28+27.53)x+(-4.066+2.53)y-121.66=0 → 20.25x-1.536y-121.66=0.
+
+K should be on this: 20.25·6.398-1.536·5.155-121.66=129.56-7.916-121.66=0. -0.016≈0 ✓.
+
+L is the other intersection. L on radical axis: y=(20.25x-121.66)/1.536. And on Circle1: x²+y²-7.28x-4.066y=0.
+
+Check if K*=(10.998,4.721) is on radical axis: 20.25·10.998-1.536·4.721-121.66=222.71-7.25-121.66=93.80≠0. So K* is NOT on the radical axis, meaning K*≠L. So the isogonal conjugate conjecture is WRONG.
+
+Hmm. OK so let me just compute L directly.
+
+Radical axis: 20.25x-1.536y-121.66=0 → y=(20.25x-121.66)/1.536=13.184x-79.20.
+
+Sub into Circle1: x²+(13.184x-79.20)²-7.28x-4.066(13.184x-79.20)=0.
+x²+173.82x²-2087.9x+6272.6-7.28x-53.61x+322.0=0.
+174.82x²-2148.8x+6594.6=0.
+x²-12.291x+37.736=0.
+Roots: x=(12.291±√(151.07-150.94))/2=(12.291±√0.13)/2=(12.291±0.361)/2. x=6.326 or x=6.065.
+
+Hmm, both roots near 6.3? K_x=6.398. That doesn't match well. Let me recompute more carefully — I think numerical errors are accumulating. Let me redo with more precision or use exact arithmetic.
+
+Actually, the two intersection points of the circles are K and L. K_x=6.398. The other root should be L_x. From quadratic, product of roots=37.736, so L_x=37.736/6.398=5.898. Sum=12.291, L_x=12.291-6.398=5.893. So L_x≈5.895.
+
+L_y=13.184·5.895-79.20=77.72-79.20=-1.48.
+
+So L≈(5.895,-1.48). KL²=(6.398-5.895)²+(5.155+1.48)²=(0.503)²+(6.635)²=0.253+44.02=44.27.
+
+Hmm, let me get more precise. This is too error-prone numerically. Let me do exact computation.
+
+Let me use exact fractions throughout. Let h=√340119.
+
+Points:
+B=(0,0), C=(22,0)
+A=(309/44, h/44)
+K=(563/88, 7h/792)
+F=(721/220, 7h/660)
+E=(5067/440, 7h/440)
+
+Circle1 (BFK): x²+y²+u₁x+v₁y=0.
+We found u₁=-880/121. Let me recompute v₁ exactly.
+
+From (I): u₁·12978+v₁·42h=-194040.
+u₁=-880/121. u₁·12978=-880·12978/121. 12978=12978. 12978/121: 121·107=12947, 12978-12947=31. So 12978=121·107+31. Not divisible. 880·12978=11,420,640. /121: not integer.
+
+Hmm. Let me recheck. Actually, let me recompute using a cleaner method. Since B=origin and |F|²=49, |K|²=1485/22:
+
+Circle1: x²+y²+u₁x+v₁y=0.
+At F: 49+u₁·(721/220)+v₁·(7h/660)=0.
+At K: 1485/22+u₁·(563/88)+v₁·(7h/792)=0.
+
+Let me multiply first eq by 660/(7h) and second by 792/(7h) to isolate v₁... actually let me just solve the 2×2.
+
+Let a=721/220, b=7h/660, c=563/88, d=7h/792. 
+49+u₁a+v₁b=0, 1485/22+u₁c+v₁d=0.
+u₁a+v₁b=-49, u₁c+v₁d=-1485/22.
+
+Determinant Δ=ad-bc=(721/220)(7h/792)-(7h/660)(563/88)=7h[721/(220·792)-563/(660·88)].
+220·792=174240. 660·88=58080. 174240/58080=3. So =7h[721/174240-563·3/174240]=7h[(721-1689)/174240]=7h·(-968)/174240=-6776h/174240. 
+6776/174240: /8=847/21780. 847=7·121. 21780=7·... 21780/7=3111.43. /11=1980. So 21780=11·1980=11·11·180=121·180. So 847/21780=(7·121)/(121·180)=7/180. So Δ=-7h·7/180·... wait let me redo. -6776h/174240. 6776=8·847=8·7·121. 174240=8·21780=8·121·180. So 6776/174240=(7·121)/(121·180)=7/180. Δ=-7h/180.
+
+u₁=( (-49)d-(-1485/22)b )/Δ = (-49d+1485b/22)/Δ.
+d=7h/792, b=7h/660.
+-49·7h/792=-343h/792. 1485/22·7h/660=10395h/(22·660)=10395h/14520. 10395/14520: /15=693/968. /11=63/88. So =63h/88.
+-343h/792: 343/792=343/792. 792=8·99. 343=7³. No common. =343h/792.
+63/88=63·9/792=567/792. So -343h/792+567h/792=224h/792=28h/99.
+u₁=(28h/99)/(-7h/180)=28h/99·(-180)/(7h)=-28·180/(99·7)=-5040/693=-720/99=-80/11.
+
+Hmm, I get u₁=-80/11 now, different from -880/121 before! -80/11=-880/121. Same thing! -80/11=-8.7·... -80/11≈-7.27. -880/121≈-7.27. Yes same. OK good, -80/11=-880/121. ✓.
+
+v₁=( a·(-1485/22)-c·(-49) )/Δ = (-1485a/22+49c)/Δ.
+a=721/220, c=563/88.
+-1485·721/(22·220)=-1070685/4840. 49·563/88=27587/88.
+Common denom 4840=55·88. 27587/88=27587·55/4840=1517285/4840.
+-1070685+1517285=446600. /4840=446600/4840=44660/484=11165/121. 
+v₁=(11165/121)/(-7h/180)=11165/121·(-180)/(7h)=-11165·180/(121·7h)=-2009700/(847h).
+2009700/847: 847=7·121. 2009700/7=287100. 287100/121=2372.7...not integer. Hmm. 287100/121: 121·2372=287012, remainder 88. So 287100/121=2372+88/121. Not clean.
+
+So v₁=-2009700/(847h). Let me rationalize: v₁=-2009700h/(847·340119). This is ugly. Let me keep v₁=-2009700/(847h) for now.
+
+Hmm, this is getting really messy. Let me try a different approach entirely.
+
+Let me use the Miquel point property and power of a point, or use the formula for KL directly.
+
+Actually, let me reconsider. Since L is the Miquel point, L lies on circles (ABE) and (AFC). Let me use those two circles instead — maybe cleaner.
+
+Circle (ABE): A, B=(0,0), E. x²+y²+u₂x+v₂y=0.
+Circle (AFC): A, F, C=(22,0). x²+y²+u₃x+v₃y+w₃=0.
+
+L is second intersection of these two (besides A).
+
+Actually, even better: let me use the radical axis of circles (BFK) and (CEK), which passes through K and L. And I can find L as the second intersection of this radical axis with either circle.
+
+But the computation is heavy either way. Let me try to use a computational shortcut: use the fact that L is Miquel point and compute via circles (ABE) and (AFC).
+
+Actually, you know what, let me just carefully do the exact computation with the radical axis of circles 1 and 2, find the quadratic, and extract KL².
+
+Let me use a cleaner coordinate system. Let me place things to simplify. Actually, let me use the radical axis approach but keep exact.
+
+Circle1: x²+y²+u₁x+v₁y=0 with u₁=-80/11, v₁=-2009700/(847h).
+
+Let me simplify v₁. 2009700/(847h). 847=7·121. 2009700=2009700. /7=287100. So =287100/(121h). 287100=287100. /11=26100. /11=2372.7. So 287100=11²·2372+88... not clean. 287100/121: 121·2372=287012, 287100-287012=88. So 287100=121·2372+88. Not divisible. 
+
+Hmm wait, let me double-check v₁ computation. 
+
+v₁ = (-1485a/22 + 49c)/Δ where Δ=ad-bc.
+
+Actually the formula for a 2×2 system:
+u₁a+v₁b=-49 ... (1)
+u₁c+v₁d=-1485/22 ... (2)
+
+v₁ = (a·(-1485/22) - c·(-49)) / (a·d - b·c) ... Cramer's: v₁ = (a·(RHS2) - c·(RHS1))/(a·d-b·c)? 
+
+No. System: [a b; c d][u;v]=[-49; -1485/22]. By Cramer: v = (a·(-1485/22) - c·(-49))/(ad-bc). Yes that's what I had.
+
+Numerator: a·(-1485/22)-c·(-49) = -1485a/22+49c. ✓.
+
+a=721/220, c=563/88.
+-1485·721/(22·220): 1485·721. 1485·700=1039500, 1485·21=31185, total=1070685. /4840.
+49·563/88: 49·563=27587. /88.
+-1070685/4840+27587/88. 4840/88=55. 27587/88=27587·55/4840=1517285/4840.
+1517285-1070685=446600. 446600/4840. /40=11165/121. ✓.
+
+So numerator=11165/121. Δ=ad-bc=-7h/180.
+v₁=(11165/121)/(-7h/180)=-11165·180/(121·7h)=-2009700/(847h).
+
+11165=5·2233=5·2233. 2233=2233. /7=319. 2233/7=319. So 11165=5·7·319=35·319. 319=11·29. So 11165=5·7·11·29.
+2009700=11165·180=5·7·11·29·180=5·7·11·29·4·9·5=... =2²·3²·5²·7·11·29.
+847=7·121=7·11².
+2009700/847=(2²·3²·5²·7·11·29)/(7·11²)=(2²·3²·5²·29)/11=(4·9·25·29)/11=26100/11.
+So v₁=-(26100/11)/h=-26100/(11h).
+
+So v₁=-26100/(11h). Rationalize: v₁=-26100h/(11·340119)=-26100h/3741309. 26100/3741309... 3741309=11·340119=11·81·4199=11·81·13·17·19. 26100=261·100=9·29·100=2²·3²·5²·29. No common factors with 3741309 (which has 11,3,13,17,19). Wait 3741309=11·340119, 340119=81·4199=3⁴·13·17·19. So 3741309=11·3⁴·13·17·19. 26100=2²·3²·5²·29. Common: 3². So 26100/3741309=(2²·5²·29)/(11·3²·13·17·19)=2900/(11·9·4199)=2900/(415701). Hmm still ugly.
+
+OK the exact computation is very messy. Let me just be very careful with numerical computation using high precision, or use a slightly different strategy.
+
+Let me reconsider. Maybe I should use a projective/barycentric approach for KL².
+
+Actually, let me look for a formula. There's a known result for the Miquel point of a cevian configuration. Let me recall.
+
+Given triangle ABC with cevians AD, BE, CF concurrent at K (barycentric p:q:r), the Miquel point L of the complete quadrilateral. There might be a formula for KL in terms of the triangle and p:q:r.
+
+Actually, I recall a result: the Miquel point L and K satisfy that ∠BLC = ∠BKC + ∠A or something... and there's a relation involving the circumradius.
+
+Alternatively, let me use the following approach. L lies on circle (BFK). So ∠BLK = ∠BFK (or supplement). And L lies on circle (CEK), so ∠CLK = ∠CEK. Also L on circle (ABE): ∠BLA = ∠BEA. And L on circle (AFC): ∠FLA... hmm.
+
+Let me try yet another approach: compute L using the two circles (ABE) and (AFC) and find KL², but do it numerically with high precision to identify the fraction.
+
+Let me redo numerically with more care.
+
+A=(309/44, √340119/44). √340119: 583.2²=340122.24, so √340119≈583.19757. Let me get more digits. 583.2²=340122.24. Need 340119. Diff=-3.24. d(√)/dx=1/(2·583.2)=0.000857. So √340119≈583.2-3.24·0.000857=583.2-0.00278=583.19722. Check: 583.19722²=583.19722². 583²=339889, 2·583·0.19722=229.99, 0.19722²=0.0389. Total≈340119.03. Close. So h≈583.1972.
+
+A=(7.02273, 13.25448). [309/44=7.022727, 583.1972/44=13.25448]
+K=(563/88, 7h/792). 563/88=6.397727. 7·583.1972/792=4082.38/792=5.15401. K=(6.39773,5.15401).
+F=(721/220,7h/660). 721/220=3.277273. 7·583.1972/660=4082.38/660=6.18512. F=(3.27727,6.18512).
+E=(5067/440,7h/440). 5067/440=11.515909. 7·583.1972/440=4082.38/440=9.27814. E=(11.51591,9.27814).
+
+Circle1 (BFK): x²+y²+u₁x+v₁y=0.
+|F|²=3.27727²+6.18512²=10.7405+38.2557=48.9962≈49. ✓.
+|K|²=6.39773²+5.15401²=40.9310+26.5639=67.4949≈1485/22=67.5. ✓.
+
+49+u₁·3.27727+v₁·6.18512=0
+67.5+u₁·6.39773+v₁·5.15401=0
+
+u₁=-80/11=-7.272727. Check: 49-7.27273·3.27727+v₁·6.18512=0 → 49-23.8364+v₁·6.18512=0 → 25.1636+v₁·6.18512=0 → v₁=-4.0685.
+v₁=-26100/(11h)=-26100/(11·583.1972)=-26100/6415.17=-4.0685. ✓.
+
+Circle2 (CEK): x²+y²+u₂x+v₂y+w₂=0, passes through C=(22,0), E, K.
+C: 484+22u₂+w₂=0 → w₂=-484-22u₂.
+E: |E|²+u₂·E_x+v₂·E_y+w₂=0. |E|²=11.51591²+9.27814²=132.616+86.084=218.700.
+218.700+11.51591u₂+9.27814v₂-484-22u₂=0 → -265.300-10.48409u₂+9.27814v₂=0. ...(a)
+K: 67.5+6.39773u₂+5.15401v₂-484-22u₂=0 → -416.5-15.60227u₂+5.15401v₂=0. ...(b)
+
+From (a): 9.27814v₂=265.300+10.48409u₂ → v₂=28.5966+1.13005u₂.
+(b): -416.5-15.60227u₂+5.15401(28.5966+1.13005u₂)=0 → -416.5-15.60227u₂+147.393+5.82425u₂=0 → -269.107-9.77802u₂=0 → u₂=-27.5210.
+v₂=28.5966+1.13005·(-27.5210)=28.5966-31.1005=-2.5039.
+w₂=-484-22·(-27.5210)=-484+605.462=121.462.
+
+Circle2: x²+y²-27.5210x-2.5039y+121.462=0.
+
+Radical axis (C1-C2): (u₁-u₂)x+(v₁-v₂)y-w₂=0.
+u₁-u₂=-7.27273+27.5210=20.2483.
+v₁-v₂=-4.0685+2.5039=-1.5646.
+-w₂=-121.462.
+20.2483x-1.5646y-121.462=0.
+
+Check K: 20.2483·6.39773-1.5646·5.15401-121.462=129.551-8.064-121.462=0.025. ≈0 ✓ (small numerical error).
+
+y=(20.2483x-121.462)/1.5646=12.9419x-77.638.
+
+Sub into Circle1: x²+y²-7.27273x-4.0685y=0.
+y=12.9419x-77.638.
+y²=167.493x²-2010.0x+6027.7.
+x²+167.493x²-2010.0x+6027.7-7.27273x-4.0685(12.9419x-77.638)=0.
+168.493x²-2010.0x+6027.7-7.27273x-52.642x+315.78=0.
+168.493x²-2069.9x+6343.5=0.
+x²-12.285x+37.654=0.
+Discriminant=12.285²-4·37.654=150.92-150.62=0.30. √=0.548.
+x=(12.285±0.548)/2. x₁=6.417,x₂=5.869.
+
+K_x=6.3977. Hmm, x₁=6.417 close to K but not exact (numerical error). L_x=5.869.
+
+This numerical approach has too much error because the discriminant is tiny (the two roots are close). Let me be more precise.
+
+Actually the issue is that K and L are close in x-coordinate, making the discriminant small and error-sensitive. Let me use exact arithmetic.
+
+Let me set up the exact computation. I'll use the radical axis and substitute into Circle1.
+
+Circle1: x²+y²+u₁x+v₁y=0, u₁=-80/11, v₁=-26100/(11h).
+
+Circle2: x²+y²+u₂x+v₂y+w₂=0.
+
+Let me compute u₂, v₂, w₂ exactly.
+
+Circle2 through C=(22,0): 484+22u₂+w₂=0 → w₂=-484-22u₂.
+Through E=(5067/440, 7h/440): |E|²+u₂E_x+v₂E_y+w₂=0.
+Through K=(563/88,7h/792): |K|²+u₂K_x+v₂K_y+w₂=0.
+
+|E|²: E=(7/10)A+(3/10)C. |E|²=E_x²+E_y²=(5067/440)²+(7h/440)²=(5067²+49·340119)/193600.
+5067²=25674489. 49·340119=16665831. Sum=42340320. /193600. 42340320/193600: /100=423403.2/1936. Let me: 193600·218.7=42,337,920. 42340320-42337920=2400. 2400/193600=0.0124. So |E|²=218.7124... Let me do exact: 42340320/193600. /16=2646270/12100. /10=264627/1210. /11=24057/110. 24057/110=218.7. 24057=110·218+77=24000+77. So 24057/110=218+77/110=218.7. Hmm 77/110=0.7. So =218.7=2187/10. Let me verify: 2187/10·193600=2187·19360=42,340,320. Yes! |E|²=2187/10.
+
+Hmm interesting. Let me double check: 2187=3⁷. 
+
+OK so |E|²=2187/10.
+
+|K|²=1485/22 (computed earlier).
+
+E equation: 2187/10+u₂·(5067/440)+v₂·(7h/440)+w₂=0. w₂=-484-22u₂.
+2187/10+5067u₂/440+7hv₂/440-484-22u₂=0.
+2187/10-484=(2187-4840)/10=-2653/10.
+5067/440-22=5067/440-9680/440=-4613/440.
+So: -2653/10-4613u₂/440+7hv₂/440=0. ...(a)
+Multiply by 440: -2653·44-4613u₂+7hv₂=0. 2653·44=116932. 
+7hv₂=116932+4613u₂. ...(a')
+
+K equation: 1485/22+u₂·(563/88)+v₂·(7h/792)+w₂=0.
+1485/22+563u₂/88+7hv₂/792-484-22u₂=0.
+1485/22-484=(1485-10648)/22=-9163/22.
+563/88-22=563/88-1936/88=-1373/88.
+-9163/22-1373u₂/88+7hv₂/792=0. ...(b)
+Multiply by 792: -9163·36-1373·9u₂+7hv₂=0. 9163·36=329868. 1373·9=12357.
+7hv₂=329868+12357u₂. ...(b')
+
+From (a') and (b'):
+7hv₂=116932+4613u₂=329868+12357u₂.
+116932+4613u₂=329868+12357u₂ → 4613u₂-12357u₂=329868-116932 → -7744u₂=212936 → u₂=-212936/7744.
+7744=88². 212936/7744: /8=26617/968. 968=8·121. 26617/121=220.0? 121·220=26620. 26617≠26620. 26617/121=219.97. Hmm. 26617=26617. /11=2419.7. Not div by 11. So 212936/7744: let me try /4=53234/1936. /4=13308.5/484. Not integer. /2=106468/3872. /2=53234/1936. /2=26617/968. 26617 prime? /7=3802.4,/11=2419.7,/13=2047.5,/17=1565.7,/19=1400.9,/23=1157.3,/29=918,/31=858.6,/37=719.4,/41=649.4,/43=619. /163=163.4. Hmm. 26617/163=163.4. Let me try 26617/97=274.4. Actually let me just check: is 212936 divisible by 88? 212936/88=2419.7. No. By 8: 212936/8=26617. By 88²=7744: no.
+
+So u₂=-212936/7744=-26617/968. Let me simplify: gcd(26617,968). 968=8·121=2³·11². 26617 odd, not div by 11 (26617/11=2419.7). So gcd=1. u₂=-26617/968.
+
+Numerically: 26617/968=27.497. Close to 27.521 (numerical had error). OK.
+
+7hv₂=116932+4613·(-26617/968)=116932-4613·26617/968.
+4613·26617: 4613·26000=119,938,000; 4613·617=2,845,821; total=122,783,821.
+116932=116932·968/968=113,190,976/968.
+113190976-122783821=-9592845. /968.
+7hv₂=-9592845/968. v₂=-9592845/(968·7h)=-9592845/(6776h).
+9592845/6776: 6776=8·847=8·7·121. 9592845/7=1370406.4. Not div by 7. /11=872076.8. /121=79279.5. Hmm. Let me check 9592845: /3=3197615,/3=1065871.8. /5=1918569. So 9592845=5·1918569. 1918569/3=639523. 639523/7=91360.4. /11=58138.5. Hmm. 
+
+This is incredibly messy. Let me step back and think if there's a fundamentally better approach.
+
+Let me reconsider the problem. Maybe use trigonometric/angle chasing to find KL.
+
+L is Miquel point. L on circle (ABE) and (AFC).
+
+Key property: L on circle (ABE) means ∠ALB = ∠AEB. L on circle (AFC) means ∠ALC = ∠AFC. Also L on circle (BFK): ∠BLK=∠BFK. L on circle (CEK): ∠CLK=∠CEK.
+
+Let me think about ∠BLC. ∠BLC = ∠BLA + ∠ALC = ∠BEA + ∠AFC (with appropriate signs).
+
+Hmm, this is getting complicated with signs. Let me think about using the formula for the distance from Miquel point.
+
+Actually, there's a cleaner known result. Let me recall: for the Miquel point M of cevians through point P in triangle ABC, there's a relation:
+PM = ... involving the circumradius R and distances.
+
+Actually, I think the key result is:
+
+**The Miquel point L of the complete quadrilateral formed by cevians AD, BE, CF (concurrent at K) satisfies: K and L are inverse with respect to the circumcircle of ABC, i.e., OK · OL = R² where O is circumcenter.** 
+
+Hmm, not sure. Let me think differently.
+
+Actually, let me recall a specific result. There's a theorem that says: if K is a point inside triangle ABC with cevian traces D, E, F, and L is the Miquel point of the complete quadrilateral (AB, AC, BE, CF), then:
+
+∠BLC = ∠BKC - ∠A (or +∠A)
+
+and K, L are related by: the triangles BLC and BKC are related...
+
+Actually, I recall now: **K and L are isogonal conjugates in triangle BKC's... no.**
+
+Let me just try the direct computation but more cleverly. Let me use the radical axis and compute the product of roots to get KL².
+
+The radical axis of Circle1 and Circle2 is a line through K and L. Let me parametrize points on this line as P(t) = K + t·d where d is the direction of the radical axis. Then K corresponds to t=0 and L to t=t_L. Substituting into Circle1 (which passes through K), we get a quadratic in t with one root t=0 and the other t=t_L. Then KL² = t_L² · |d|².
+
+This might be cleaner. Let me find the direction of the radical axis.
+
+Radical axis: (u₁-u₂)x+(v₁-v₂)y+(w₁-w₂)=0 where w₁=0, w₂=-484-22u₂.
+So (u₁-u₂)x+(v₁-v₂)y+(484+22u₂)=0.
+
+Direction d is perpendicular to normal (u₁-u₂, v₁-v₂), so d=(v₁-v₂, -(u₁-u₂))=(v₁-v₂, u₂-u₁).
+
+Let me compute u₁-u₂ and v₁-v₂.
+
+u₁=-80/11=-80·88/968=-7040/968. u₂=-26617/968.
+u₁-u₂=(-7040+26617)/968=19577/968.
+u₂-u₁=-19577/968.
+
+v₁=-26100/(11h). v₂=-9592845/(6776h).
+v₁-v₂=-26100/(11h)+9592845/(6776h)=[-26100·6776/(11·6776)+9592845·11/(6776·11)]/(... )h... let me get common denom 11·6776h. Actually 6776=616·11=6776. 6776/11=616. So 11·6776=74536. 
+-26100/(11h)=-26100·6776/(11·6776h)=-176,883,600/(74536h).
+9592845/(6776h)=9592845·11/(74536h)=105,521,295/(74536h).
+v₁-v₂=(-176883600+105521295)/(74536h)=-71362305/(74536h).
+74536=11·6776=11·8·847=88·847=88·7·121=74536. 
+71362305/74536: let me simplify. 71362305/7=10194615. 74536/7=10648. 10194615/7=1456373.6. /11=926783.2. Hmm. 10648=8·1331=8·11³. 10194615/11=926783.2. Not div by 11. So 71362305/(74536h)=10194615/(10648h). 10648=8·11³. 10194615: /5=2038923. /3=3398205,/3=1132735,/3=377578.3. So 10194615=5·2038923=5·3·679641=15·679641. 679641/3=226547. 226547/7=32363.9. /11=20595.2. /13=17426.7. Hmm. This is hopeless to simplify nicely.
+
+I think the exact arithmetic is just inherently messy for this problem. Let me go back to high-precision numerical and identify the fraction.
+
+Let me use more careful numerics. The problem is the discriminant is small. Let me use the parametric approach: P(t)=K+t·d, find t_L, then KL²=t_L²|d|².
+
+Actually, let me use a different parametrization to avoid the small-discriminant issue. Instead of intersecting the radical axis with a circle, let me directly compute L as the second intersection of circles (ABE) and (AFC). These two circles both pass through A, so their intersections are A and L. A and L might be far apart, giving better numerical stability.
+
+Circle (ABE): through A, B=(0,0), E. x²+y²+u₃x+v₃y=0.
+Circle (AFC): through A, F, C=(22,0). x²+y²+u₄x+v₄y+w₄=0.
+
+Let me compute these.
+
+Circle (ABE): B at origin. |A|²=225 (since AB=15). |E|²=2187/10.
+225+u₃·A_x+v₃·A_y=0 → u₃·(309/44)+v₃·(h/44)=-225. ...(i)
+2187/10+u₃·(5067/440)+v₃·(7h/440)=0 → u₃·5067/440+v₃·7h/440=-2187/10. ...(ii)
+
+From (i)·440: u₃·3090+v₃·10h=-99000. ...(I)
+From (ii)·440: u₃·5067+v₃·7h=-95928. ...(II) [2187/10·440=2187·44=96228... wait 2187·44=96228. Let me recompute. 2187/10·440=2187·44=96228. So -96228.]
+
+Hmm let me redo (ii): 2187/10+u₃·5067/440+v₃·7h/440=0. Multiply by 440: 2187·44+5067u₃+7hv₃=0. 2187·44=96228. So 5067u₃+7hv₃=-96228. ...(II)
+
+(I): 3090u₃+10hv₃=-99000.
+(II): 5067u₃+7hv₃=-96228.
+
+Eliminate v₃: (I)·7, (II)·10:
+(I)·7: 21630u₃+70hv₃=-693000.
+(II)·10: 50670u₃+70hv₃=-962280.
+Subtract: 30040u₃=-269280 → u₃=-269280/30040=-26928/3004=-6732/751.
+751=751. 6732/751=8.96. 751·8=6008, 6732-6008=724. So 6732/751=8+724/751. Not clean. Hmm. 751 prime? 751/7=107.3,/11=68.3,/13=57.8,/17=44.2,/19=39.5,/23=32.7. 751 is prime. 6732=6732. /2=3366,/2=1683,/3=561,/3=187=11·17. So 6732=2²·3²·11·17. 751 prime, no common. u₃=-6732/751.
+
+Hmm, 751 is ugly. Let me double-check. 
+
+(I)·7: 3090·7=21630, 10·7=70, -99000·7=-693000. ✓.
+(II)·10: 5067·10=50670, 7·10=70, -96228·10=-962280. ✓.
+50670-21630=29040. Wait, I wrote 30040. Let me recompute: 50670-21630=29040. Not 30040!
+
+So 29040u₃=-962280+693000=-269280. u₃=-269280/29040. /10=26928/2904. /8=3366/363. /3=1122/121. 1122/121: 121·9=1089, 1122-1089=33. 1122/121=9+33/121=9+3/11=102/11. So u₃=-102/11.
+
+OK that's much cleaner! u₃=-102/11.
+
+From (I): 3090·(-102/11)+10hv₃=-99000. 3090·102/11=315180/11=28652.7... 3090/11=280.9. Hmm. 3090=11·280+10. Not div by 11. Let me compute 3090·102=315180. /11=28652.7. 
+
+-315180/11+10hv₃=-99000. 10hv₃=-99000+315180/11=(-1089000+315180)/11=-773820/11. v₃=-773820/(110h)=-77382/(11h). 77382/11=7034.7. 77382=77382. /2=38691,/3=12897,/3=4299,/3=1433. 1433=1433. /7=204.7,/11=130.3,/13=110.2. 1433 prime? /31=46.2,/37=38.7. Hmm. 77382=2·3³·1433. 11 doesn't divide. So v₃=-77382/(11h). 
+
+Hmm. Let me double check by computing 77382 differently. Actually let me recheck: 10hv₃=-773820/11. v₃=-773820/(110h)=-77382/(11h). 
+
+Numerically: u₃=-102/11=-9.2727. v₃=-77382/(11·583.197)=-77382/6415.17=-12.060.
+
+Circle (ABE): x²+y²-9.2727x-12.060y=0. Check A: 225-9.2727·7.0227-12.060·13.254=225-65.12-159.88=0.00. ✓.
+
+Circle (AFC): through A, F, C=(22,0). x²+y²+u₄x+v₄y+w₄=0.
+C: 484+22u₄+w₄=0 → w₄=-484-22u₄.
+A: 225+u₄·(309/44)+v₄·(h/44)+w₄=0 → 225+309u₄/44+hv₄/44-484-22u₄=0 → -259+(309/44-22)u₄+hv₄/44=0. 309/44-22=309/44-968/44=-659/44. So -259-659u₄/44+hv₄/44=0. ...(iii)
+F: |F|²+u₄F_x+v₄F_y+w₄=0. |F|²=49. F=(721/220,7h/660).
+49+721u₄/220+7hv₄/660-484-22u₄=0 → -435+(721/220-22)u₄+7hv₄/660=0. 721/220-22=721/220-4840/220=-4119/220. So -435-4119u₄/220+7hv₄/660=0. ...(iv)
+
+From (iii)·44: -259·44-659u₄+hv₄=0 → -11396-659u₄+hv₄=0 → hv₄=11396+659u₄. ...(III)
+From (iv)·660: -435·660-4119·3u₄+7hv₄=0 → -287100-12357u₄+7hv₄=0 → 7hv₄=287100+12357u₄. ...(IV)
+
+From (III): 7hv₄=7·11396+7·659u₄=79772+4613u₄.
+Set equal to (IV): 79772+4613u₄=287100+12357u₄ → 4613u₄-12357u₄=287100-79772 → -7744u₄=207328 → u₄=-207328/7744.
+7744=88². 207328/7744: /8=25916/968. /8=3239.5/121. /4=6479/242. 6479/242: 242=2·121. 6479/11=589. 589/11=53.5. So 6479=11·589=11·19·31. 242=2·121=2·11². 6479/242=11·19·31/(2·11²)=19·31/(2·11)=589/22. So u₄=-589/22.
+
+Check: 589/22=26.77. Numerically should be around... let me verify later.
+
+From (III): hv₄=11396+659·(-589/22)=11396-659·589/22. 659·589=659·589. 659·500=329500,659·89=58651, total=388151. /22=17643.2. 11396-17643.2=-6247.2. v₄=-6247.2/h=-6247.2/583.197=-10.715.
+
+Let me get exact: hv₄=11396-388151/22=(11396·22-388151)/22=(250712-388151)/22=-137439/22. v₄=-137439/(22h). 137439=137439. /3=45813,/3=15271. 15271/7=2181.6,/11=1388.3,/13=1174.7. 15271 prime? /17=898.3,/19=803.7,/23=664,/29=526.6,/31=492.6,/37=412.7,/41=372.5,/43=355.1,/47=324.9,/53=288.1,/59=258.8,/61=250.3,/67=228,/71=215.2,/73=209.2,/79=193.3,/83=184,/89=171.6,/97=157.4,/101=151.2,/103=148.3,/107=142.8,/109=140.1,/113=135.1. √15271≈123.6. Try /113=135.1. /127=120.2. So 15271 might be prime. Anyway, v₄=-137439/(22h). 137439=9·15271. 22=2·11. No common. 
+
+w₄=-484-22·(-589/22)=-484+589=105.
+
+So Circle (AFC): x²+y²-(589/22)x-(137439/(22h))y+105=0.
+
+Now L is the second intersection of Circle (ABE) and Circle (AFC).
+
+Circle (ABE): x²+y²-(102/11)x-(77382/(11h))y=0.
+Circle (AFC): x²+y²-(589/22)x-(137439/(22h))y+105=0.
+
+Radical axis: subtract (AFC) from (ABE):
+[(-102/11)-(-589/22)]x+[(-77382/(11h))-(-137439/(22h))]y+0-105=0.
+x-coeff: -102/11+589/22=(-204+589)/22=385/22=35/2.
+y-coeff: -77382/(11h)+137439/(22h)=(-154764+137439)/(22h)=-17325/(22h).
+So: (35/2)x-17325/(22h)y-105=0.
+Multiply by 22: 385x-17325y/h-2310=0. Or multiply by 22h: 385h·x... let me keep: (35/2)x-(17325/(22h))y-105=0.
+
+Multiply by 2: 35x-17325/(11h)·y-210=0. 
+35x-210=17325y/(11h). x-6=17325y/(385h)=45y/(11h) [17325/385=45]. 
+So x=6+45y/(11h). 
+
+Check A: A_x=309/44=7.0227, A_y=h/44=13.254. 6+45·(h/44)/(11h)=6+45/(44·11)=6+45/484=6+0.0930=6.093. But A_x=7.0227. Not equal! So A is not on radical axis?? But A is on both circles, so it must be on the radical axis!
+
+Error somewhere. Let me recheck.
+
+Oh wait, both circles pass through A, so A is on the radical axis. Let me recheck the radical axis computation.
+
+Circle (ABE): x²+y²+u₃x+v₃y=0, u₃=-102/11, v₃=-77382/(11h).
+Circle (AFC): x²+y²+u₄x+v₄y+w₄=0, u₄=-589/22, v₄=-137439/(22h), w₄=105.
+
+Radical axis = (ABE)-(AFC): (u₃-u₄)x+(v₃-v₄)y-w₄=0.
+u₃-u₄=-102/11-(-589/22)=-102/11+589/22=(-204+589)/22=385/22=35/2. ✓.
+v₃-v₄=-77382/(11h)-(-137439/(22h))=-77382/(11h)+137439/(22h)=(-154764+137439)/(22h)=-17325/(22h). ✓.
+-w₄=-105.
+
+So (35/2)x-17325/(22h)y-105=0.
+
+Check A=(309/44, h/44): (35/2)(309/44)-17325/(22h)·(h/44)-105=35·309/88-17325/(22·44)-105=10815/88-17325/968-105.
+10815/88=10815·11/968=118965/968. 17325/968. 118965-17325=101640. 101640/968=105.0? 968·105=101640. Yes! So 101640/968-105=105-105=0. ✓!! 
+
+I made an arithmetic error before. Let me redo: x=6+45y/(11h). Check A: 6+45·(h/44)/(11h)=6+45/(484)=6+0.09298=6.093. But A_x=7.023. 
+
+But the radical axis check passed. So my simplification x=6+45y/(11h) must be wrong. Let me redo.
+
+(35/2)x-17325/(22h)y-105=0.
+(35/2)x=105+17325y/(22h).
+x=105·2/35+17325·2y/(22h·35)=6+34650y/(770h)=6+45y/(11h). [34650/770=45]. 
+
+Check: x=6+45y/(11h). At A: y=h/44. x=6+45·h/(44·11h)=6+45/484=6.093. But A_x=7.023. Contradiction!
+
+But the direct check worked: (35/2)(309/44)-17325/(22h)(h/44)-105=0. Let me recompute (35/2)(309/44)=35·309/(2·44)=10815/88=122.897. 17325/(22h)·(h/44)=17325/(22·44)=17325/968=17.898. 122.897-17.898-105=-0.001≈0. ✓.
+
+Now x=6+45y/(11h): 6+45·(h/44)/(11h)=6+45/(44·11)=6+45/484=6.093. But (35/2)·6.093=106.63. 106.63-105=1.63. And 17325y/(22h)=17325·(h/44)/(22h)=17325/(968)=17.898. 1.63≠17.898. So x=6+45y/(11h) is WRONG.
+
+Let me redo the algebra. (35/2)x-17325y/(22h)-105=0. → (35/2)x=105+17325y/(22h). → x=2·105/35+2·17325y/(35·22h)=210/35+34650y/(770h)=6+45y/(11h).
+
+But plugging A_y=h/44: x=6+45/(11·44)=6+45/484=6.093≠7.023. Yet direct substitution gives 0. Contradiction means algebra error. Let me recheck 34650/770. 34650/770=45.0. 770·45=34650. ✓. 
+
+Hmm, but 2·17325=34650 and 35·22=770. 34650/770=45. So x=6+45y/(11h). And at A this gives 6.093≠7.023. But direct check says A is on the line. 
+
+Wait, let me recompute direct check more carefully. (35/2)(309/44)=35·309/(88)=10815/88. 10815/88=122.897727...
+17325/(22h)·(h/44)=17325/(22·44)=17325/968=17.89762...
+122.897727-17.89762-105=0.000107≈0. ✓.
+
+Now x=6+45y/(11h) at A: x=6+45/(11·44)=6+45/484=6+0.092975=6.092975.
+(35/2)·6.092975=106.627.
+17325/(22h)·(h/44)=17.89762.
+106.627-17.898-105=-16.27≠0.
+
+So x=6+45y/(11h) does NOT satisfy the equation at A, but the original equation does. So my algebra is wrong. Let me recheck.
+
+(35/2)x=105+17325y/(22h)
+x=105·(2/35)+17325y·(2/(22h·35))
+=210/35+34650y/(770h)
+=6+45y/(11h)
+
+Hmm wait, 2/(22·35)=2/770. 17325·2/770=34650/770=45. And 22h in denom, so 45/(11h)·... no: 34650y/(770h)=45y/(11h)·... 770=70·11. 34650/770=45. So 34650y/(770h)=45y/(11h)·(1/... )? 
+
+34650y/(770h). 770=7·110=7·11·10. 34650/770: 34

@@ -1,0 +1,1119 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_01019</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+(a) A function $f: \mathbb{Z} \rightarrow \mathbb{Z}$ is called $\mathbb{Z}$-good if it satisfies $f(a^{2}+b)=f(b^{2}+a)$ for all $a, b \in \mathbb{Z}$. Determine the largest possible number of distinct values that can occur among $f(1), f(2), \ldots, f(2023)$, where $f$ is a $\mathbb{Z}$-good function.
+(b) A function $f: \mathbb{Z}_{>0} \rightarrow \mathbb{Z}_{>0}$ is called $\mathbb{Z}_{>0}$-good if it satisfies $f(a^{2}+b)=f(b^{2}+a)$ for all $a, b \in \mathbb{Z}_{>0}$. Determine the largest possible number of distinct values that can occur among $f(1), f(2), \ldots, f(2023)$, where $f$ is a $\mathbb{Z}_{>0}$-good function.
+
+Let $N_a$ and $N_b$ be the answers to parts (a) and (b) respectively. Compute $N_a + N_b$.
+
+## Standard Solution
+
+For part (a), the solution shows that $f$ must be constant on even integers and constant on odd integers, meaning at most 2 distinct values are possible. Thus $N_a = 2$.
+For part (b), an integer $n$ has its value fixed by a smaller integer $m$ if $n = b^2 + a$ and $m = a^2 + b$ for some $a, b \in \mathbb{Z}_{>0}$. The solution identifies that the number of distinct values is the number of integers in $\{1, \dots, 2023\}$ that do not have such a parent.
+The number of such integers is calculated as $|S| + \sum_{i=2}^{43}(i+2) + (87-44+1)$, where $S=\{1, 2, 3, 4\}$.
+$|S| = 4$.
+$\sum_{i=2}^{43}(i+2) = \sum_{j=4}^{45} j = \frac{45 \cdot 46}{2} - \frac{3 \cdot 4}{2} = 1035 - 6 = 1029$.
+$87 - 44 + 1 = 44$.
+$N_b = 4 + 1029 + 44 = 1077$.
+The final sum is $N_a + N_b = 2 + 1077 = 1079$.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We need to find $\mathbb{Z}$-good functions $f:\mathbb{Z}\to\mathbb{Z}$ satisfying $f(a^2+b)=f(b^2+a)$ for all $a,b\in\mathbb{Z}$, and determine the maximum number of distinct values among $f(1),\ldots,f(2023)$.
+
+Similarly for part (b) with $f:\mathbb{Z}_{>0}\to\mathbb{Z}_{>0}$.
+
+Let me think about the equivalence relation. Define $x \sim y$ if $f(x)=f(y)$ for all good $f$. The number of distinct values is the number of equivalence classes that intersect $\{1,\ldots,2023\}$.
+
+The relation: $a^2+b \sim b^2+a$ for all $a,b$.
+
+Let me understand the equivalence relation generated by $a^2+b \sim b^2+a$.
+
+Let me think about what this generates. We have the operation: from $(a,b)$, we get $a^2+b \sim b^2+a$.
+
+Let me try small values.
+
+With $a=0$ (in part a, $a\in\mathbb{Z}$): $0+b = b \sim b^2+0 = b^2$. So $b \sim b^2$ for all $b\in\mathbb{Z}$.
+
+With $a=1$: $1+b \sim b^2+1$, i.e., $b+1 \sim b^2+1$.
+
+With $a=-1$: $1+b \sim b^2-1$, i.e., $b+1 \sim b^2-1$.
+
+From $a=0$: $n \sim n^2$ for all $n$.
+
+So $n \sim n^2 \sim n^4 \sim \ldots$ and also $n^2 \sim n$, etc.
+
+From $a=1$: $n+1 \sim n^2+1$. Combined with $n^2 \sim n$ (from $a=0$), we get $n+1 \sim n^2+1 \sim n$ (applying $a=0$ relation to $n^2+1$? No, $a=0$ gives $m \sim m^2$, so $(n^2+1) \sim (n^2+1)^2$... hmm, that's not directly $n$).
+
+Wait, let me be more careful. The relation $a=0$ gives $b \sim b^2$. So $n \sim n^2$.
+
+From $a=1$: $1+b \sim b^2+1$. Let $c = b+1$, so $b = c-1$, and $b^2+1 = (c-1)^2+1 = c^2-2c+2$. So $c \sim c^2-2c+2$.
+
+Hmm, let me think differently. 
+
+From $a=0$: $n \sim n^2$ for all $n$.
+From $a=1$: $n+1 \sim n^2+1$.
+From $a=-1$: $n+1 \sim n^2-1$.
+
+So from $a=1$ and $a=-1$: $n^2+1 \sim n+1 \sim n^2-1$, thus $n^2+1 \sim n^2-1$, i.e., $n^2-1 \sim n^2+1$.
+
+Using $a=0$ on $n^2+1$: $n^2+1 \sim (n^2+1)^2 = n^4+2n^2+1$.
+Using $a=0$ on $n^2-1$: $n^2-1 \sim (n^2-1)^2 = n^4-2n^2+1$.
+
+So $n^4+2n^2+1 \sim n^4-2n^2+1$, meaning these differ by $4n^2$.
+
+Hmm, this is getting complicated. Let me think about it more structurally.
+
+The key relation is $a^2+b \sim b^2+a$, i.e., $a^2-a \sim b^2-b$ when... no wait. $a^2+b$ and $b^2+a$. The difference is $(a^2+b)-(b^2+a) = a^2-b^2+b-a = (a-b)(a+b) - (a-b) = (a-b)(a+b-1)$.
+
+So $a^2+b - (b^2+a) = (a-b)(a+b-1)$.
+
+So the relation says: $x \sim y$ where $x - y = (a-b)(a+b-1)$ for some $a,b$ with $x = a^2+b, y = b^2+a$.
+
+Hmm, but the relation isn't just about differences; it's about specific values.
+
+Let me think about this differently. Consider the map $\phi(a,b) = a^2+b$. The relation identifies $a^2+b$ with $b^2+a$.
+
+Let me consider: what is the range of $a^2+b$ as $a,b$ range over $\mathbb{Z}$? For fixed $a$, $a^2+b$ ranges over all of $\mathbb{Z}$ (as $b$ ranges over $\mathbb{Z}$). So every integer is of the form $a^2+b$.
+
+Given an integer $n$, we can write $n = a^2 + b$ with $b = n - a^2$ for any $a$. Then $n \sim b^2+a = (n-a^2)^2+a$.
+
+So $n \sim (n-a^2)^2 + a$ for all $a \in \mathbb{Z}$.
+
+Let me denote $g_a(n) = (n-a^2)^2 + a$. Then $n \sim g_a(n)$ for all $a$.
+
+With $a=0$: $g_0(n) = n^2$. So $n \sim n^2$.
+With $a=1$: $g_1(n) = (n-1)^2+1 = n^2-2n+2$.
+With $a=-1$: $g_{-1}(n) = (n-1)^2-1 = n^2-2n$.
+
+So $n \sim n^2-2n+2$ and $n \sim n^2-2n$.
+
+From these two: $n^2-2n \sim n \sim n^2-2n+2$, so $n^2-2n \sim n^2-2n+2$.
+
+Let $m = n^2-2n = (n-1)^2-1$. Then $m \sim m+2$.
+
+So for any $m$ of the form $(n-1)^2-1$, we have $m \sim m+2$.
+
+$(n-1)^2-1$ for $n \in \mathbb{Z}$: $n=0 \Rightarrow 0$, $n=1 \Rightarrow -1$, $n=2 \Rightarrow 0$, $n=3 \Rightarrow 3$, $n=-1 \Rightarrow 3$, $n=4 \Rightarrow 8$, $n=-2 \Rightarrow 8$, etc.
+
+So the values of $(n-1)^2-1$ are: $-1, 0, 3, 8, 15, 24, \ldots$ i.e., $k^2-1$ for $k \geq 0$ (where $k = n-1$).
+
+So for $m = k^2-1$ (any $k \in \mathbb{Z}$, so $m \in \{-1, 0, 3, 8, 15, 24, \ldots\}$), we have $m \sim m+2$.
+
+This means: $-1 \sim 1$, $0 \sim 2$, $3 \sim 5$, $8 \sim 10$, $15 \sim 17$, etc.
+
+But we can chain these. From $n \sim n^2$ and other relations, we can potentially connect more.
+
+Let me think about this more carefully. We have:
+1. $n \sim n^2$ (from $a=0$)
+2. $n \sim n^2-2n+2$ (from $a=1$), i.e., $n \sim (n-1)^2+1$
+3. $n \sim n^2-2n$ (from $a=-1$), i.e., $n \sim (n-1)^2-1$
+
+From (1) and (3): $n^2 \sim n \sim (n-1)^2-1$, so $n^2 \sim (n-1)^2-1 = n^2-2n$.
+Thus $n^2 \sim n^2-2n$, i.e., $n^2 \sim n^2-2n$.
+
+Similarly from (1) and (2): $n^2 \sim (n-1)^2+1 = n^2-2n+2$.
+
+So $n^2-2n \sim n^2 \sim n^2-2n+2$, confirming $n^2-2n \sim n^2-2n+2$.
+
+Now, from $n \sim n^2$ and $n \sim (n-1)^2-1$:
+$(n-1)^2-1 \sim n \sim n^2$, so $(n-1)^2-1 \sim n^2$.
+$(n-1)^2-1 = n^2-2n$, and $n^2 \sim n^2-2n$ (already known).
+
+Let me try to figure out the equivalence classes more concretely.
+
+From $n \sim n^2$: This connects $n$ with $n^2$, $n^4$, etc. Also $n \sim n^2 \sim n$ (since $n^2 \sim (n^2)^2 = n^4$, and also $n^2 \sim n$ by applying $a=0$ with $b=n^2$: $n^2 \sim (n^2)^2 = n^4$; and $a=0$ with $b = n$: $n \sim n^2$). So $n \sim n^2 \sim n^4 \sim \ldots$.
+
+For $n = 2$: $2 \sim 4 \sim 16 \sim 256 \sim \ldots$
+For $n = 3$: $3 \sim 9 \sim 81 \sim \ldots$
+For $n = 5$: $5 \sim 25 \sim 625 \sim \ldots$
+
+From $n^2-2n \sim n^2-2n+2$ (i.e., $(n-1)^2-1 \sim (n-1)^2+1$):
+- $n=2$: $0 \sim 2$. So $0 \sim 2 \sim 4 \sim 16 \sim \ldots$
+- $n=3$: $3 \sim 5$. So $3 \sim 5 \sim 25 \sim 625 \sim \ldots$ and $3 \sim 9 \sim 81 \sim \ldots$
+- $n=4$: $8 \sim 10$. 
+- $n=5$: $15 \sim 17$.
+- $n=0$: $0 \sim 2$ (same as $n=2$ since $(0-1)^2-1=0$).
+- $n=1$: $-1 \sim 1$. So $-1 \sim 1 \sim 1 \sim 1$ (since $1 \sim 1^2 = 1$). So $-1 \sim 1$.
+- $n=-1$: $3 \sim 5$ (same as $n=3$).
+
+So far:
+- Class containing 0: $\{0, 2, 4, 16, 256, \ldots\}$
+- Class containing 1: $\{-1, 1\}$
+- Class containing 3: $\{3, 5, 9, 25, 81, 625, \ldots\}$
+- Class containing 8: $\{8, 10, 64, 100, \ldots\}$ (since $8 \sim 10$, $8 \sim 64$, $10 \sim 100$)
+
+Wait, $8 \sim 8^2 = 64$ and $10 \sim 100$. And $8 \sim 10$. So $\{8, 10, 64, 100, \ldots\}$.
+
+But also, can we connect different classes? Let me check if there are other relations.
+
+We have $n \sim (n-a^2)^2+a$ for all $a$. Let me try $a=2$: $n \sim (n-4)^2+2 = n^2-8n+18$.
+
+For $n=8$: $8 \sim 64-64+18 = 18$. So $8 \sim 18$.
+For $n=10$: $10 \sim 100-80+18 = 38$. So $10 \sim 38$.
+
+So the class of 8 now includes 18, and 18 connects to $18^2 = 324$, etc.
+
+For $n=0$: $0 \sim 0-0+18 = 18$. So $0 \sim 18$! 
+
+Wait, that means $0 \sim 18$ and $8 \sim 18$, so $0 \sim 8$!
+
+Let me verify: $a=2, b = n - a^2 = 0 - 4 = -4$. Then $a^2+b = 4+(-4) = 0$ and $b^2+a = 16+2 = 18$. So $0 \sim 18$. ✓
+
+And $a=2, b = 8-4 = 4$: $a^2+b = 4+4 = 8$ and $b^2+a = 16+2 = 18$. So $8 \sim 18$. ✓
+
+So $0 \sim 18 \sim 8$, meaning the classes of 0 and 8 merge!
+
+So $\{0, 2, 4, 8, 10, 16, 18, 64, 100, 256, 324, \ldots\}$ are all in one class.
+
+Hmm, this is getting complex. Let me think about this more systematically.
+
+We have $n \sim (n-a^2)^2 + a$ for all $a \in \mathbb{Z}$.
+
+Let me think about what values $(n-a^2)^2 + a$ can take. For a given $n$, as $a$ varies, $a^2$ takes values $0, 1, 4, 9, 16, \ldots$, so $n - a^2$ takes values $n, n-1, n-4, n-9, \ldots$, and then we square and add $a$.
+
+This is quite complex. Let me think about the problem from a higher level.
+
+The relation $a^2+b \sim b^2+a$ can be rewritten. Let $u = a^2+b$ and $v = b^2+a$. Note that $u - v = (a-b)(a+b-1)$.
+
+Actually, let me think about it in terms of the "quadratic form" structure. 
+
+Consider $h(a) = a^2 - a = a(a-1)$. Then $a^2+b = h(a) + a + b$ and $b^2+a = h(b) + a + b$. So $a^2+b \sim b^2+a$ becomes $h(a) + (a+b) \sim h(b) + (a+b)$.
+
+So if we let $s = a+b$ and note that $h(a) + s \sim h(b) + s$ where $b = s - a$.
+
+So $h(a) + s \sim h(s-a) + s$ for all $a, s$.
+
+This means: for any $s$, the values $\{h(a) + s : a \in \mathbb{Z}\}$ are all equivalent to each other (since for any $a, a'$, we can set $b = s - a$ and $b' = s - a'$, and $h(a)+s \sim h(b)+s \sim h(a')+s$... wait, not exactly, because we need $h(a)+s \sim h(b)+s$ where $b = s-a$, and then $h(a')+s \sim h(b')+s$ where $b' = s-a'$. But $h(b)+s$ and $h(b')+s$ aren't directly connected unless we chain through a common element.
+
+Actually, let me re-examine. We have $h(a) + s \sim h(s-a) + s$ for all $a, s$. So for fixed $s$, the set $\{h(a) + s : a \in \mathbb{Z}\}$ has the property that $h(a)+s \sim h(s-a)+s$ for each $a$. 
+
+Note that $h(s-a) = (s-a)(s-a-1) = (s-a)(s-a-1)$. And $h(a) = a(a-1)$.
+
+So for fixed $s$, we have $a(a-1) + s \sim (s-a)(s-a-1) + s$ for all $a$.
+
+The values $a(a-1)$ for $a \in \mathbb{Z}$ are: $0, 0, 2, 6, 12, 20, 30, \ldots$ (i.e., $a(a-1)$ for $a = 0, 1, 2, 3, \ldots$) and also for negative $a$: $a=-1: 2, a=-2: 6, \ldots$ (same values by symmetry $h(a) = h(1-a)$).
+
+So $h(a)$ takes values $\{0, 2, 6, 12, 20, 30, 42, \ldots\} = \{k(k-1) : k \geq 1\} = \{k^2-k : k \geq 1\}$, which are the pronic numbers (twice triangular numbers).
+
+Actually $h(a) = a(a-1)$ and $h(1-a) = (1-a)(-a) = a(a-1) = h(a)$. So $h$ is symmetric about $a = 1/2$.
+
+The values of $h$ are $0, 2, 6, 12, 20, 30, \ldots$ (for $a = 0, 1, 2, 3, 4, 5, \ldots$) and the same for negative.
+
+Now, for fixed $s$, the relation $h(a) + s \sim h(s-a) + s$ connects pairs. Note $h(s-a)$: if $a$ ranges over all integers, $s-a$ also ranges over all integers, so $\{h(s-a) : a \in \mathbb{Z}\} = \{h(a) : a \in \mathbb{Z}\}$. So the relation just says that within the set $\{h(a) + s : a \in \mathbb{Z}\}$, certain pairs are equivalent.
+
+Specifically, $h(a)+s \sim h(s-a)+s$. The map $a \mapsto s-a$ is an involution, so this pairs up elements (or fixes them when $a = s-a$, i.e., $a = s/2$).
+
+But we can also chain: $h(a)+s \sim h(s-a)+s$, and then $h(s-a)+s \sim h(s-(s-a))+s = h(a)+s$, which is just the same relation. So for fixed $s$, the relation only gives us pairs, not longer chains directly.
+
+But we can use different values of $s$! The same integer $n$ can be written as $h(a)+s$ for different $s$ and $a$. Specifically, $n = h(a) + s$ means $s = n - h(a)$, and for each valid $a$ (such that $h(a) \leq n$ if we want $s$ to be... well, $s$ can be anything), we get a different $s$.
+
+So $n = h(a) + s$ with $s = n - h(a)$. Then $n \sim h(s-a) + s = h(n - h(a) - a) + n - h(a)$.
+
+Let me compute: $s - a = n - h(a) - a = n - a(a-1) - a = n - a^2$. So $h(s-a) = h(n-a^2) = (n-a^2)(n-a^2-1)$.
+
+And $s = n - h(a) = n - a(a-1) = n - a^2 + a$.
+
+So $n \sim (n-a^2)(n-a^2-1) + n - a^2 + a$.
+
+Let $m = n - a^2$. Then $n \sim m(m-1) + m + a = m^2 + a$. But $m = n - a^2$, so $m^2 + a = (n-a^2)^2 + a = g_a(n)$. This is consistent with what we had before.
+
+OK so let me think about this differently. Let me try to understand the structure by computing equivalence classes for small numbers.
+
+Let me use the relation $n \sim g_a(n) = (n-a^2)^2 + a$ for various $a$.
+
+Starting with $n = 0$:
+- $a=0$: $0 \sim 0$
+- $a=1$: $0 \sim (0-1)^2+1 = 2$
+- $a=-1$: $0 \sim (0-1)^2-1 = 0$
+- $a=2$: $0 \sim (0-4)^2+2 = 18$
+- $a=-2$: $0 \sim (0-4)^2-2 = 14$
+- $a=3$: $0 \sim (0-9)^2+3 = 84$
+- $a=-3$: $0 \sim (0-9)^2-3 = 78$
+
+So $0 \sim 2 \sim 14 \sim 18 \sim 78 \sim 84 \sim \ldots$
+
+Starting with $n = 1$:
+- $a=0$: $1 \sim 1$
+- $a=1$: $1 \sim (1-1)^2+1 = 1$
+- $a=-1$: $1 \sim (1-1)^2-1 = -1$
+- $a=2$: $1 \sim (1-4)^2+2 = 11$
+- $a=-2$: $1 \sim (1-4)^2-2 = 7$
+- $a=3$: $1 \sim (1-9)^2+3 = 67$
+- $a=-3$: $1 \sim (1-9)^2-3 = 61$
+
+So $1 \sim -1 \sim 7 \sim 11 \sim 61 \sim 67 \sim \ldots$
+
+Starting with $n = 3$:
+- $a=0$: $3 \sim 9$
+- $a=1$: $3 \sim (3-1)^2+1 = 5$
+- $a=-1$: $3 \sim (3-1)^2-1 = 3$
+- $a=2$: $3 \sim (3-4)^2+2 = 3$
+- $a=-2$: $3 \sim (3-4)^2-2 = -1$
+
+So $3 \sim 9 \sim 5 \sim -1 \sim 1 \sim 7 \sim 11 \sim \ldots$
+
+So the classes of 1 and 3 merge! $1 \sim -1 \sim 3 \sim 5 \sim 7 \sim 9 \sim 11 \sim \ldots$
+
+Let me check $n = 5$:
+- $a=0$: $5 \sim 25$
+- $a=1$: $5 \sim (5-1)^2+1 = 17$
+- $a=-1$: $5 \sim (5-1)^2-1 = 15$
+- $a=2$: $5 \sim (5-4)^2+2 = 3$
+- $a=-2$: $5 \sim (5-4)^2-2 = -1$
+
+So $5 \sim 3 \sim 15 \sim 17 \sim 25 \sim \ldots$ All in the class of 1.
+
+$n = 7$:
+- $a=0$: $7 \sim 49$
+- $a=1$: $7 \sim 37$
+- $a=2$: $7 \sim (7-4)^2+2 = 11$
+- $a=3$: $7 \sim (7-9)^2+3 = 7$
+
+So $7 \sim 11 \sim 37 \sim 49 \sim \ldots$ All in the class of 1.
+
+$n = 9$:
+- $a=0$: $9 \sim 81$
+- $a=1$: $9 \sim 65$
+- $a=2$: $9 \sim (9-4)^2+2 = 27$
+- $a=3$: $9 \sim (9-9)^2+3 = 3$
+
+So $9 \sim 3 \sim 27 \sim 65 \sim 81 \sim \ldots$ In the class of 1.
+
+So it seems like all odd numbers might be in one class. Let me check $n = 13$:
+- $a=0$: $13 \sim 169$
+- $a=1$: $13 \sim 145$
+- $a=2$: $13 \sim (13-4)^2+2 = 83$
+- $a=3$: $13 \sim (13-9)^2+3 = 19$
+- $a=-3$: $13 \sim (13-9)^2-3 = 13$
+
+So $13 \sim 19 \sim 83 \sim 145 \sim 169 \sim \ldots$
+
+Is 19 connected to the class of 1? $19$:
+- $a=2$: $19 \sim (19-4)^2+2 = 227$
+- $a=3$: $19 \sim (19-9)^2+3 = 103$
+- $a=4$: $19 \sim (19-16)^2+4 = 13$
+
+So $19 \sim 13$, which we already knew. Let me try to connect 13 to the class of 1.
+
+$13 \sim 19$ (from $a=3$). $19 \sim ?$. Let me try $a=4$ for $n=19$: $19 \sim (19-16)^2+4 = 13$. Already known.
+
+$a=5$ for $n=19$: $19 \sim (19-25)^2+5 = 41$.
+$a=5$ for $n=13$: $13 \sim (13-25)^2+5 = 149$.
+
+$n=41$:
+- $a=0$: $41 \sim 1681$
+- $a=3$: $41 \sim (41-9)^2+3 = 1027$
+- $a=4$: $41 \sim (41-16)^2+4 = 629$
+- $a=5$: $41 \sim (41-25)^2+5 = 261$
+- $a=6$: $41 \sim (41-36)^2+6 = 31$
+- $a=7$: $41 \sim (41-49)^2+6... wait, a=7: (41-49)^2+7 = 64+7 = 71$.
+
+$41 \sim 31$. Is 31 in the class of 1?
+
+$n=31$:
+- $a=0$: $31 \sim 961$
+- $a=1$: $31 \sim 871$
+- $a=2$: $31 \sim (31-4)^2+2 = 731$
+- $a=3$: $31 \sim (31-9)^2+3 = 487$
+- $a=4$: $31 \sim (31-16)^2+4 = 229$
+- $a=5$: $31 \sim (31-25)^2+5 = 41$
+- $a=6$: $31 \sim (31-36)^2+6 = 31$
+
+So $31 \sim 41 \sim 19 \sim 13$. Still not connected to 1.
+
+Let me try to see if 13 connects to something in the class of 1.
+
+$n=13, a=-1$: $13 \sim (13-1)^2-1 = 143$.
+$n=143, a=...$: $143 \sim ?$. 
+$a=11$: $(143-121)^2+11 = 484+11 = 495$.
+$a=12$: $(143-144)^2+12 = 13$. So $143 \sim 13$. Already known.
+
+Hmm. Let me try a different approach. Let me check if 13 can reach an odd number in the class of 1.
+
+The class of 1 so far includes: $\{-1, 1, 3, 5, 7, 9, 11, 15, 17, 25, 27, 37, 49, 61, 65, 67, 81, \ldots\}$.
+
+Is 13 in this class? Let me try more aggressively.
+
+$n=13, a=-2$: $13 \sim (13-4)^2-2 = 79$.
+$n=79, a=...$: 
+$a=8$: $(79-64)^2+8 = 225+8 = 233$.
+$a=9$: $(79-81)^2+9 = 13$. Already known.
+$a=7$: $(79-49)^2+7 = 907$.
+
+$n=233$:
+$a=15$: $(233-225)^2+15 = 79$. Known.
+$a=16$: $(233-256)^2+16 = 545$.
+
+Hmm, this doesn't seem to connect easily. Let me think about whether there's a pattern.
+
+Let me reconsider. The values in the class of 1 that I've found: $-1, 1, 3, 5, 7, 9, 11, 15, 17, 25, 27, 37, 49, 61, 65, 67, 81, \ldots$
+
+And the class of 0: $0, 2, 4, 8, 10, 14, 16, 18, 64, 78, 84, 100, \ldots$
+
+Wait, let me check: is 6 in the class of 0 or 1?
+
+$n=6$:
+- $a=0$: $6 \sim 36$
+- $a=1$: $6 \sim (6-1)^2+1 = 26$
+- $a=2$: $6 \sim (6-4)^2+2 = 6$
+- $a=-1$: $6 \sim (6-1)^2-1 = 24$
+- $a=-2$: $6 \sim (6-4)^2-2 = 2$
+
+So $6 \sim 2 \sim 0$. So 6 is in the class of 0!
+
+$n=12$:
+- $a=0$: $12 \sim 144$
+- $a=1$: $12 \sim 122$
+- $a=2$: $12 \sim (12-4)^2+2 = 66$
+- $a=3$: $12 \sim (12-9)^2+3 = 12$
+- $a=-1$: $12 \sim (12-1)^2-1 = 120$
+- $a=-2$: $12 \sim (12-4)^2-2 = 62$
+- $a=-3$: $12 \sim (12-9)^2-3 = 6$
+
+So $12 \sim 6 \sim 2 \sim 0$. So 12 is in the class of 0!
+
+$n=20$:
+- $a=0$: $20 \sim 400$
+- $a=2$: $20 \sim (20-4)^2+2 = 258$
+- $a=3$: $20 \sim (20-9)^2+3 = 124$
+- $a=4$: $20 \sim (20-16)^2+4 = 20$
+- $a=-2$: $20 \sim (20-4)^2-2 = 254$
+- $a=-3$: $20 \sim (20-9)^2-3 = 118$
+- $a=-4$: $20 \sim (20-16)^2-4 = 12$
+
+So $20 \sim 12 \sim 0$. Class of 0!
+
+So it seems like all even numbers are in the class of 0, and all odd numbers... let me check if 13 is connected.
+
+Actually wait. Let me check $n=13$ more carefully. Let me try $a=-3$: $13 \sim (13-9)^2-3 = 13$. No. $a=3$: $13 \sim (13-9)^2+3 = 19$. 
+
+Let me try to see if 19 connects to an odd number in class 1.
+
+$19, a=3$: $19 \sim (19-9)^2+3 = 103$.
+$19, a=-3$: $19 \sim (19-9)^2-3 = 97$.
+$19, a=4$: $19 \sim (19-16)^2+4 = 13$.
+$19, a=-4$: $19 \sim (19-16)^2-4 = 5$.
+
+$19 \sim 5$! And 5 is in the class of 1!
+
+So $13 \sim 19 \sim 5 \sim 1$. So 13 is in the class of 1!
+
+Great, so let me reconsider. Maybe ALL odd numbers are in one class and ALL even numbers are in one class?
+
+Let me check $n=21$:
+- $a=0$: $21 \sim 441$
+- $a=1$: $21 \sim 401$
+- $a=2$: $21 \sim (21-4)^2+2 = 291$
+- $a=3$: $21 \sim (21-9)^2+3 = 147$
+- $a=4$: $21 \sim (21-16)^2+4 = 29$
+- $a=5$: $21 \sim (21-25)^2+5 = 21$
+- $a=-4$: $21 \sim (21-16)^2-4 = 21$
+- $a=-5$: $21 \sim (21-25)^2-5 = 11$
+
+$21 \sim 11 \sim 1$. So 21 is in the class of 1. ✓
+
+Let me check $n=23$:
+- $a=5$: $23 \sim (23-25)^2+5 = 9$
+So $23 \sim 9 \sim 1$. ✓
+
+$n=29$:
+- $a=5$: $29 \sim (29-25)^2+5 = 21 \sim 1$. ✓
+
+$n=33$:
+- $a=6$: $33 \sim (33-36)^2+6 = 15 \sim 1$. ✓
+
+It really looks like all odd numbers are in one class and all even numbers are in one class. Let me try to prove this.
+
+Claim: For part (a), all even numbers are equivalent, and all odd numbers are equivalent.
+
+To show all even numbers are equivalent, it suffices to show that $2k \sim 0$ for all $k$, or equivalently, that we can reduce any even number to 0.
+
+Similarly for odd numbers, show $2k+1 \sim 1$ for all $k$.
+
+Let me think about the relation $n \sim (n-a^2)^2 + a$ more carefully.
+
+For even $n$: choose $a$ such that $a^2$ is close to $n$. If $n = 2k$, choose $a$ such that $a^2 \leq n < (a+1)^2$, i.e., $a = \lfloor \sqrt{n} \rfloor$. Then $n - a^2 = r$ where $0 \leq r < 2a+1$. And $(n-a^2)^2 + a = r^2 + a$.
+
+If $r$ is small, $r^2 + a$ could be much smaller than $n$ (when $n$ is large). This gives us a way to reduce.
+
+Actually, let me think about it differently. We showed:
+- $n \sim n^2$ (from $a=0$)
+- $n \sim (n-1)^2 + 1$ (from $a=1$), i.e., $n \sim n^2 - 2n + 2$
+- $n \sim (n-1)^2 - 1$ (from $a=-1$), i.e., $n \sim n^2 - 2n$
+
+From $n \sim n^2$ and $n \sim n^2 - 2n$: $n^2 \sim n^2 - 2n$, so $n^2 \sim n^2 - 2n$.
+
+Let $m = n^2 - 2n = (n-1)^2 - 1$. Then $m \sim m + 2$ (since $n^2 - 2n \sim n^2 - 2n + 2$).
+
+So for any $m$ of the form $(n-1)^2 - 1$, we have $m \sim m+2$.
+
+The values $(n-1)^2 - 1$ for $n \in \mathbb{Z}$ are: $-1, 0, 3, 8, 15, 24, 35, 48, \ldots$ (i.e., $k^2 - 1$ for $k \geq 0$).
+
+So:
+- $-1 \sim 1$ (from $k=0$)
+- $0 \sim 2$ (from $k=1$)
+- $3 \sim 5$ (from $k=2$)
+- $8 \sim 10$ (from $k=3$)
+- $15 \sim 17$ (from $k=4$)
+- $24 \sim 26$ (from $k=5$)
+- $35 \sim 37$ (from $k=6$)
+- $48 \sim 50$ (from $k=7$)
+- etc.
+
+Now, from $n \sim n^2$, we also get:
+- $2 \sim 4 \sim 16 \sim 256 \sim \ldots$
+- $4 \sim 16$
+- $6 \sim 36$
+- $8 \sim 64$
+- $10 \sim 100$
+- etc.
+
+And from $n \sim n^2 - 2n$ (i.e., $n \sim (n-1)^2 - 1$):
+- $0 \sim 0$
+- $1 \sim -1$
+- $2 \sim 0$ (since $(2-1)^2-1 = 0$)
+- $3 \sim 3$ (since $(3-1)^2-1 = 3$)
+- $4 \sim 8$ (since $(4-1)^2-1 = 8$)
+- $5 \sim 15$ (since $(5-1)^2-1 = 15$)
+- $6 \sim 24$ (since $(6-1)^2-1 = 24$)
+- $7 \sim 35$ (since $(7-1)^2-1 = 35$)
+- $8 \sim 48$ (since $(8-1)^2-1 = 48$)
+- etc.
+
+So:
+- $2 \sim 0$ (from $n=2$, $a=-1$)
+- $4 \sim 8$ (from $n=4$, $a=-1$)
+- $6 \sim 24$ (from $n=6$, $a=-1$), and $24 \sim 26$ (from $k=5$), and $6 \sim 36$ (from $a=0$)
+- $8 \sim 48$ (from $n=8$, $a=-1$), and $48 \sim 50$ (from $k=7$)
+
+Now let me trace the even class:
+- $0 \sim 2$ (from $k=1$)
+- $2 \sim 0$ (confirmed)
+- $4 \sim 8$ (from $n=4, a=-1$)
+- $8 \sim 10$ (from $k=3$)
+- $8 \sim 48$ (from $n=8, a=-1$)
+- $10 \sim 100$ (from $a=0$)
+- $4 \sim 16$ (from $a=0$)
+- $16 \sim 256$ (from $a=0$)
+
+So $0 \sim 2 \sim 4 \sim 8 \sim 10 \sim 16 \sim 48 \sim 50 \sim 100 \sim 256 \sim \ldots$
+
+But what about 6? $6 \sim 2$ (from $n=6, a=-2$: $(6-4)^2-2 = 2$). So $6 \sim 2 \sim 0$. ✓
+
+What about 12? $12 \sim 6$ (from $n=12, a=-3$: $(12-9)^2-3 = 6$). So $12 \sim 6 \sim 0$. ✓
+
+What about 14? $14 \sim ?$. From $n=14, a=-3$: $(14-9)^2-3 = 22$. From $n=14, a=3$: $(14-9)^2+3 = 28$. From $n=14, a=-2$: $(14-4)^2-2 = 98$. From $n=14, a=2$: $(14-4)^2+2 = 102$. From $n=14, a=-1$: $(14-1)^2-1 = 168$. From $n=14, a=0$: $14 \sim 196$. From $n=14, a=-4$: $(14-16)^2-4 = 0$. So $14 \sim 0$! ✓
+
+What about 18? $18 \sim 0$ (from $n=0, a=2$: $(0-4)^2+2 = 18$). ✓
+
+What about 20? $20 \sim 12$ (from $n=20, a=-4$: $(20-16)^2-4 = 12$). $12 \sim 0$. ✓
+
+What about 22? $22 \sim ?$. From $n=22, a=-4$: $(22-16)^2-4 = 32$. From $n=22, a=4$: $(22-16)^2+4 = 40$. From $n=22, a=-5$: $(22-25)^2-5 = 4$. So $22 \sim 4 \sim 0$. ✓
+
+What about 26? $26 \sim 24$ (from $k=5$). $24 \sim 6$ (from $n=6, a=-1$: $(6-1)^2-1 = 24$, so $6 \sim 24$). $6 \sim 0$. ✓
+
+What about 28? $28 \sim ?$. From $n=28, a=-5$: $(28-25)^2-5 = 4$. So $28 \sim 4 \sim 0$. ✓
+
+What about 30? $30 \sim ?$. From $n=30, a=-5$: $(30-25)^2-5 = 20$. $20 \sim 0$. ✓
+
+What about 32? $32 \sim ?$. From $n=32, a=-5$: $(32-25)^2-5 = 44$. From $n=32, a=-6$: $(32-36)^2-6 = -2$. From $n=32, a=6$: $(32-36)^2+6 = 22$. $22 \sim 0$. ✓
+
+Hmm, $32 \sim -2$. And $-2 \sim ?$. From $n=-2, a=0$: $-2 \sim 4$. So $-2 \sim 4 \sim 0$. ✓
+
+OK so it really seems like all even numbers are in one class. Let me try to prove this in general.
+
+For even $n = 2k$, we want to show $n \sim 0$.
+
+Strategy: Use $n \sim (n-a^2)^2 + a$ with $a$ chosen so that $n - a^2$ is small.
+
+If $n$ is even and we choose $a$ even with $a^2$ close to $n$, then $n - a^2$ is even, and $(n-a^2)^2 + a$ is even. So we stay in the even world.
+
+More specifically, let $a$ be the nearest even integer to $\sqrt{n}$ (or the nearest integer with the right parity). Then $|n - a^2| \leq a$ (approximately), so $(n-a^2)^2 + a \leq a^2 + a \approx n + \sqrt{n}$, which isn't necessarily smaller.
+
+Hmm, let me think differently. Actually, let me try to use the relation $n \sim (n-a^2)^2 - a$ (using $-a$ instead of $a$, which corresponds to the relation with $a$ replaced by $-a$; actually $g_{-a}(n) = (n-a^2)^2 - a$).
+
+So $n \sim (n-a^2)^2 + a$ and $n \sim (n-a^2)^2 - a$.
+
+Thus $(n-a^2)^2 + a \sim (n-a^2)^2 - a$, meaning $(n-a^2)^2 + a \sim (n-a^2)^2 - a$, a difference of $2a$.
+
+So for any $n$ and any $a$, $(n-a^2)^2 + a \sim (n-a^2)^2 - a$.
+
+Let $m = (n-a^2)^2$. Then $m + a \sim m - a$ for $m$ of the form $(n-a^2)^2$.
+
+But actually, we can be more general. We have $n \sim (n-a^2)^2 + a$ and $n \sim (n-a^2)^2 - a$ (the latter from using $-a$). So $(n-a^2)^2 + a \sim n \sim (n-a^2)^2 - a$.
+
+This means: for any $n$ and $a$, the numbers $(n-a^2)^2 + a$ and $(n-a^2)^2 - a$ are equivalent, and they differ by $2a$.
+
+Now, the set of values $(n-a^2)^2$ as $a$ varies: for $a = 0, 1, 2, \ldots$, we get $n^2, (n-1)^2, (n-4)^2, (n-9)^2, \ldots$
+
+So we can get pairs $(m+a, m-a)$ equivalent where $m = (n-a^2)^2$ and the gap is $2a$.
+
+This is quite powerful. Let me think about what this gives us.
+
+For $n$ even, choosing $a$ even: $n - a^2$ is even, $(n-a^2)^2$ is divisible by 4, and we get $(n-a^2)^2 + a \sim (n-a^2)^2 - a$ where both are even, differing by $2a$.
+
+Actually, I think the key insight might be simpler. Let me reconsider.
+
+We have $n \sim n^2$ (from $a=0$). And $n \sim (n-1)^2 - 1$ (from $a=-1$), i.e., $n \sim n^2 - 2n$.
+
+So $n^2 \sim n^2 - 2n$. Let $p = n^2$, then $p \sim p - 2n$ where $n = \sqrt{p}$ (when $p$ is a perfect square). But this only works when $p$ is a perfect square.
+
+Hmm, but we also have $n \sim (n-a^2)^2 + a$ for any $a$. Let me think about what happens when we choose $a$ such that $n - a^2 = \pm 1$ or $\pm 2$ or $0$.
+
+If $n - a^2 = 0$, i.e., $n = a^2$: $n \sim 0 + a = a = \sqrt{n}$ (or $-\sqrt{n}$). So $a^2 \sim a$.
+
+If $n - a^2 = 1$, i.e., $n = a^2 + 1$: $n \sim 1 + a$. So $a^2 + 1 \sim a + 1$, i.e., $a^2 + 1 \sim a + 1$.
+
+If $n - a^2 = -1$, i.e., $n = a^2 - 1$: $n \sim 1 + a$. So $a^2 - 1 \sim a + 1$.
+
+If $n - a^2 = 2$, i.e., $n = a^2 + 2$: $n \sim 4 + a$. So $a^2 + 2 \sim a + 4$.
+
+If $n - a^2 = -2$, i.e., $n = a^2 - 2$: $n \sim 4 + a$. So $a^2 - 2 \sim a + 4$.
+
+So:
+- $a^2 \sim a$ (from $n = a^2$, $r=0$)
+- $a^2 + 1 \sim a + 1$ (from $r=1$)
+- $a^2 - 1 \sim a + 1$ (from $r=-1$)
+- $a^2 + 2 \sim a + 4$ (from $r=2$)
+- $a^2 - 2 \sim a + 4$ (from $r=-2$)
+- $a^2 + r \sim r^2 + a$ (general, from $r = n - a^2$)
+
+The relation $a^2 \sim a$ is very powerful! It means $n^2 \sim n$ for all $n$ (which we already knew from $a=0$).
+
+But also $a^2 + r \sim r^2 + a$ for all $a, r$ (this is just the original relation with $b = r$ and $a$ as is: $a^2 + r \sim r^2 + a$). So this is just the original relation restated.
+
+OK so the original relation is $a^2 + b \sim b^2 + a$ for all $a, b$. Let me think about this as: the function $T(a,b) = (b, a)$ acts on the pair, and $a^2+b \sim b^2+a$.
+
+Let me think about the orbits. Starting from $(a,b)$, we get $a^2+b \sim b^2+a$. Now, $a^2+b$ can be written as $c^2 + d$ for various $c, d$, and then $c^2+d \sim d^2+c$.
+
+This is essentially saying: $n \sim m$ whenever there exist $a, b$ with $n = a^2+b, m = b^2+a$.
+
+Let me think about the problem in terms of the function $h(x) = x^2 - x = x(x-1)$. We have $a^2 + b = h(a) + a + b$ and $b^2 + a = h(b) + a + b$. So $h(a) + s \sim h(b) + s$ where $s = a+b$.
+
+So for any $s$, the values $\{h(a) + s : a \in \mathbb{Z}\}$ are all in the same equivalence class (since $h(a) + s \sim h(b) + s$ for any $a, b$ with $a + b = s$... wait, no. The relation is $h(a) + s \sim h(b) + s$ where $b = s - a$. So for fixed $s$, $h(a) + s \sim h(s-a) + s$.
+
+But $h(s-a) = (s-a)(s-a-1)$. And the map $a \mapsto s-a$ is an involution. So for fixed $s$, we get pairs: $h(a)+s \sim h(s-a)+s$.
+
+Now, $h(a) = a(a-1)$ and $h(s-a) = (s-a)(s-a-1)$. Note that $h(a) + h(s-a) = a(a-1) + (s-a)(s-a-1) = a^2 - a + s^2 - 2sa + a^2 - s + a = 2a^2 - 2sa + s^2 - s$. And $h(a) - h(s-a) = a(a-1) - (s-a)(s-a-1) = a^2-a - s^2+2sa-a^2+s-a = 2sa - 2a - s^2 + s = (2a-s)(s) - (2a-s) = ... $ let me just compute: $= 2a(s-1) - s(s-1) = (s-1)(2a-s)$.
+
+So $h(a) - h(s-a) = (s-1)(2a-s)$.
+
+The values $h(a)$ for $a \in \mathbb{Z}$ are $\{0, 2, 6, 12, 20, 30, 42, \ldots\}$ (pronic numbers). For fixed $s$, the relation pairs $h(a)+s$ with $h(s-a)+s$, and the difference is $(s-1)(2a-s)$.
+
+For $s = 0$: $h(a) \sim h(-a) = h(a+1) \cdot ... $ wait, $h(-a) = (-a)(-a-1) = a(a+1) = h(a+1)$. So $h(a) \sim h(a+1)$ for all $a$ (when $s=0$, $b = -a$, and $h(a) + 0 \sim h(-a) + 0$, i.e., $a(a-1) \sim a(a+1)$).
+
+So $a(a-1) \sim a(a+1)$ for all $a$. The difference is $2a$.
+
+For $a = 1$: $0 \sim 2$.
+For $a = 2$: $2 \sim 6$.
+For $a = 3$: $6 \sim 12$.
+For $a = 4$: $12 \sim 20$.
+Etc.
+
+So $0 \sim 2 \sim 6 \sim 12 \sim 20 \sim 30 \sim 42 \sim \ldots$ All pronic numbers are equivalent!
+
+But wait, these are all even. And we showed $0 \sim 2 \sim 4 \sim 8 \sim \ldots$ So the class of 0 contains all pronic numbers and more.
+
+For $s = 1$: $h(a) + 1 \sim h(1-a) + 1$. $h(1-a) = (1-a)(-a) = a(a-1) = h(a)$. So $h(a)+1 \sim h(a)+1$, trivial.
+
+For $s = 2$: $h(a) + 2 \sim h(2-a) + 2$. $h(2-a) = (2-a)(1-a) = a^2-3a+2$. $h(a) = a^2-a$. Difference: $h(a) - h(2-a) = (a^2-a) - (a^2-3a+2) = 2a-2 = 2(a-1)$.
+
+So $h(a)+2 \sim h(a)+2 - 2(a-1) = h(a) - 2a + 4$.
+
+For $a=0$: $2 \sim 0+2 = 2$, $h(0)+2 = 2$, $h(2)+2 = 6+2 = 8$. So $2 \sim 8$.
+For $a=1$: $h(1)+2 = 2$, $h(1)+2 = 2$. Trivial.
+For $a=2$: $h(2)+2 = 8$, $h(0)+2 = 2$. Same as $a=0$.
+For $a=3$: $h(3)+2 = 14$, $h(-1)+2 = 2+2 = 4$. So $14 \sim 4$.
+For $a=4$: $h(4)+2 = 22$, $h(-2)+2 = 6+2 = 8$. So $22 \sim 8$.
+For $a=5$: $h(5)+2 = 32$, $h(-3)+2 = 12+2 = 14$. So $32 \sim 14 \sim 4$.
+
+So from $s=2$: $2 \sim 8$, $14 \sim 4$, $22 \sim 8$, $32 \sim 14 \sim 4$, etc.
+
+Combined with $s=0$ results: $0 \sim 2 \sim 6 \sim 12 \sim 20 \sim 30 \sim \ldots$ and $2 \sim 8$, $4 \sim 14$, $8 \sim 22$, $14 \sim 32$, etc.
+
+So the even class contains: $0, 2, 4, 6, 8, 12, 14, 20, 22, 30, 32, \ldots$ Let me check if 10 is there. $10 = h(?) + s$? $10 = 8 + 2 = h(3)+1+... $ hmm. $10 = h(a)+s$ for $s=2, a$: $h(a) = 8$, so $a=3$ or $a=-2$. Then $10 \sim h(2-3)+2 = h(-1)+2 = 2+2 = 4$. So $10 \sim 4$! ✓
+
+Wait, I need to be more careful. $s=2, a=3$: $h(3)+2 = 12+2 = 14$ and $h(2-3)+2 = h(-1)+2 = 2+2 = 4$. So $14 \sim 4$. But I want 10.
+
+$10 = h(a) + s$. Let me try $s = 10, a = 0$: $h(0) + 10 = 10$, $h(10) + 10 = 90+10 = 100$. So $10 \sim 100$. And $100 \sim 10$ (from $a=0$: $10 \sim 100$). Not helpful directly.
+
+$10 = h(a) + s$ with $s = 4, a$: $h(a) = 6$, $a = 3$ or $a = -2$. Then $10 \sim h(4-3)+4 = h(1)+4 = 0+4 = 4$. So $10 \sim 4$! ✓
+
+So $10 \sim 4 \sim 0$. 
+
+So far the even class contains: $0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, \ldots$ It seems like all even numbers.
+
+Let me try to prove that all even numbers are in one class.
+
+Claim: For any even $n$, $n \sim 0$.
+
+Proof approach: We have $h(a) + s \sim h(s-a) + s$ for all $a, s$. The values $h(a)$ are $\{0, 2, 6, 12, 20, \ldots\}$. 
+
+For $s = 0$: $h(a) \sim h(-a) = h(a+1)$, so consecutive pronic numbers are equivalent: $0 \sim 2 \sim 6 \sim 12 \sim 20 \sim 30 \sim \ldots$
+
+Now, any even number $n$ can be written as $h(a) + s$ for some even $s$ and some $a$ (since $h(a)$ is always even, $n$ even means $s$ even). Then $n = h(a) + s \sim h(s-a) + s$. 
+
+The difference $h(a) - h(s-a) = (s-1)(2a-s)$. If $s$ is even, then $s-1$ is odd, and $2a - s$ is even (since $s$ is even), so the difference is even. Good, we stay in even numbers.
+
+Now, $h(s-a) + s = (s-a)(s-a-1) + s$. Let me denote this as $F(a, s)$.
+
+We want to show that by choosing appropriate $a$ and $s$, we can reduce $n$ to 0.
+
+Hmm, let me try a different approach. Let me use the relation $a^2 + b \sim b^2 + a$ directly.
+
+For even $n$, write $n = a^2 + b$ where $a$ is even and $b = n - a^2$ (which is even). Then $n \sim b^2 + a = (n-a^2)^2 + a$.
+
+Choose $a$ to be the largest even integer with $a^2 \leq n$. Then $r = n - a^2$ satisfies $0 \leq r < (a+2)^2 - a^2 = 4a+4$. And $n \sim r^2 + a$.
+
+If $r = 0$: $n = a^2 \sim a$. Since $a < a^2 = n$ (for $a \geq 2$), this reduces $n$.
+If $r > 0$: $n \sim r^2 + a$. We have $r < 4a+4$ and $r^2 + a$. If $r$ is small (say $r \leq a$), then $r^2 + a \leq a^2 + a < n + a$, which might not be smaller.
+
+Hmm, this reduction doesn't always decrease. Let me think more carefully.
+
+Actually, let me try a completely different approach. Let me consider the relation modulo 2.
+
+$a^2 + b \equiv a + b \pmod{2}$ and $b^2 + a \equiv b + a \pmod{2}$. So $a^2+b$ and $b^2+a$ always have the same parity. This means the relation preserves parity. So even and odd numbers are in separate classes. Good, this confirms there are at least 2 classes.
+
+Now, can we show there are exactly 2 classes (for part a)?
+
+Let me try to show that all even numbers are equivalent by showing $2k \sim 0$ for all $k \geq 0$ (and similarly for negative).
+
+Key relations:
+1. $n \sim n^2$ (from $a=0, b=n$)
+2. $n \sim (n-1)^2 - 1 = n^2 - 2n$ (from $a=-1, b=n-1$; check: $(-1)^2 + (n-1) = n$ and $(n-1)^2 + (-1) = n^2-2n$). ✓
+3. $n \sim (n-1)^2 + 1 = n^2 - 2n + 2$ (from $a=1, b=n-1$; check: $1+(n-1) = n$ and $(n-1)^2+1 = n^2-2n+2$). ✓
+
+From 1 and 2: $n^2 \sim n \sim n^2 - 2n$, so $n^2 \sim n^2 - 2n$.
+From 1 and 3: $n^2 \sim n \sim n^2 - 2n + 2$, so $n^2 \sim n^2 - 2n + 2$.
+Thus $n^2 - 2n \sim n^2 - 2n + 2$.
+
+Let $m = n^2 - 2n = (n-1)^2 - 1$. Then $m \sim m + 2$ for $m \in \{-1, 0, 3, 8, 15, 24, 35, 48, \ldots\}$ (values of $(n-1)^2-1$).
+
+Now, from relation 2: $n \sim n^2 - 2n$. For even $n$, $n^2 - 2n$ is even. And $n^2 - 2n = (n-1)^2 - 1$, which is in the set where $m \sim m+2$.
+
+So for even $n$: $n \sim (n-1)^2 - 1 \sim (n-1)^2 + 1$ (using $m \sim m+2$ with $m = (n-1)^2-1$).
+
+And $(n-1)^2 + 1 = n^2 - 2n + 2$. Also $n \sim n^2$ (relation 1).
+
+So $n \sim n^2$ and $n \sim n^2 - 2n$ and $n^2 - 2n \sim n^2 - 2n + 2$.
+
+Now, the key: from $n \sim n^2 - 2n$, we can reduce. For $n \geq 4$ (even), $n^2 - 2n = n(n-2) \geq n \cdot 2 = 2n > n$ (for $n > 2$). So this goes up, not down.
+
+But from $n \sim n^2$ and $n^2 \sim n^2 - 2n$ (which is $(n-1)^2-1$ and thus $\sim (n-1)^2+1 = n^2-2n+2$), we get $n \sim n^2 - 2n + 2$.
+
+Hmm, all these go up for large $n$. Let me think about going down.
+
+From $n \sim n^2$ (relation 1): if $n > 1$, $n^2 > n$, so this goes up. But if $0 < n < 1$... no, we're in integers.
+
+From $a^2 \sim a$ (relation with $b=0$: $a^2 + 0 \sim 0 + a$, so $a^2 \sim a$): this reduces $a^2$ to $a$ for $|a| \geq 2$.
+
+So $n^2 \sim n$ means we can go down from $n^2$ to $n$. But we need to go from $n$ to something smaller.
+
+Let me use the general relation: $n \sim (n - a^2)^2 + a$. Choose $a$ such that $a^2$ is close to $n$ but slightly less. Then $n - a^2 = r$ is small and positive, and $n \sim r^2 + a$.
+
+For $n$ even, choose $a$ even with $a^2 \leq n < (a+2)^2$. Then $r = n - a^2$ with $0 \leq r \leq 4a+3$. And $n \sim r^2 + a$.
+
+If $r = 0$: $n = a^2 \sim a$, and $a = \sqrt{n} < n$ for $n > 1$. Great, reduces.
+If $r = 2$: $n \sim 4 + a$. Since $a \approx \sqrt{n}$, this is $\approx \sqrt{n} + 4$, much smaller than $n$ for large $n$.
+If $r = 4$: $n \sim 16 + a \approx \sqrt{n} + 16$.
+If $r$ is larger, say $r \approx 2a$: $n \sim 4a^2 + a \approx 4n + \sqrt{n}$, which is bigger. Not good.
+
+So the reduction works when $r$ is small. But $r$ can be up to $4a+3 \approx 4\sqrt{n}$, and $r^2$ can be up to $\approx 16n$, which is bigger.
+
+So we need to be smarter. Let me use both $a$ and $-a$:
+
+$n \sim (n-a^2)^2 + a$ and $n \sim (n-a^2)^2 - a$.
+
+So $(n-a^2)^2 + a \sim (n-a^2)^2 - a$, meaning these two numbers (differing by $2a$) are equivalent.
+
+Now, let's think about it this way. For even $n$, we want to show $n \sim 0$. 
+
+Let me try induction. Base cases: $0 \sim 0$, $2 \sim 0$ (shown above). 
+
+Inductive step: Assume all even numbers less than $n$ are $\sim 0$. Show $n \sim 0$.
+
+For even $n \geq 4$, choose $a$ (even) to be the largest even integer with $a^2 \leq n$. Then $r = n - a^2$ is even and $0 \leq r \leq 4a$ (since $(a+2)^2 - a^2 = 4a+4$ and $n < (a+2)^2$ so $r < 4a+4$, and $r$ is even so $r \leq 4a$).
+
+Case 1: $r = 0$. Then $n = a^2 \sim a$. Since $a$ is even and $a < a^2 = n$ (for $a \geq 2$), by induction $a \sim 0$, so $n \sim 0$.
+
+Case 2: $r > 0$. Then $n \sim r^2 + a$. We need $r^2 + a < n$ to apply induction.
+
+$r^2 + a < n = a^2 + r$ iff $r^2 - r < a^2 - a$ iff $r(r-1) < a(a-1)$ iff $h(r) < h(a)$.
+
+Since $r \leq 4a$ and $h(r) = r(r-1) \leq 4a(4a-1) = 16a^2 - 4a$, while $h(a) = a(a-1) = a^2 - a$. So $h(r) < h(a)$ requires $16a^2 - 4a < a^2 - a$, i.e., $15a^2 < 3a$, i.e., $a < 1/5$. This fails for $a \geq 1$.
+
+So the direct approach doesn't work for large $r$. We need a different strategy.
+
+Let me think about using the $m \sim m+2$ relation more aggressively.
+
+We know $m \sim m+2$ for $m \in \{-1, 0, 3, 8, 15, 24, 35, 48, 63, 80, 99, \ldots\}$ (i.e., $m = k^2-1$ for $k \geq 0$).
+
+So:
+- $0 \sim 2$
+- $3 \sim 5$
+- $8 \sim 10$
+- $15 \sim 17$
+- $24 \sim 26$
+- $35 \sim 37$
+- $48 \sim 50$
+- $63 \sim 65$
+- $80 \sim 82$
+- $99 \sim 101$
+- etc.
+
+And we know $n \sim n^2$ and $n \sim (n-1)^2 - 1$.
+
+From $n \sim (n-1)^2 - 1$: for even $n$, $(n-1)^2 - 1$ is even, and it's of the form $k^2 - 1$ (with $k = n-1$), so $(n-1)^2 - 1 \sim (n-1)^2 + 1$.
+
+So $n \sim (n-1)^2 - 1 \sim (n-1)^2 + 1 = n^2 - 2n + 2$.
+
+Also $n \sim n^2$. So $n^2 \sim n^2 - 2n + 2$, i.e., $n^2 \sim n^2 - 2n + 2$.
+
+And $n^2 - 2n \sim n^2 - 2n + 2$ (from the $m \sim m+2$ relation with $m = (n-1)^2-1 = n^2-2n$).
+
+So $n^2 \sim n^2 - 2n \sim n^2 - 2n + 2$. And $n \sim n^2$, $n \sim n^2 - 2n$.
+
+Now, from $n \sim n^2$ and $n^2 \sim n^2 - 2n + 2$: $n \sim n^2 - 2n + 2$.
+
+From $n \sim n^2 - 2n$ (directly) and $n \sim n^2 - 2n + 2$ (just derived).
+
+Now, $n^2 - 2n + 2 = (n-1)^2 + 1$. And $(n-1)^2 + 1 \sim (n-1)^2 - 1 = n^2 - 2n$ (from $m \sim m+2$ with $m = (n-1)^2-1$). This is circular.
+
+Let me try yet another approach. Let me use the relation $a^2 + b \sim b^2 + a$ with specific choices to build a chain.
+
+Actually, let me try to use the relation $n \sim (n - a^2)^2 + a$ with $a$ chosen so that $n - a^2 = \pm 1$ (for odd $n$) or $n - a^2 = \pm 2$ (for even $n$).
+
+For even $n$: if $n - a^2 = 2$ for some even $a$, then $n = a^2 + 2$ and $n \sim 4 + a$. Since $a$ is even and $a = \sqrt{n-2}$, we have $n \sim 4 + \sqrt{n-2}$, which is much smaller.
+
+But $n - a^2 = 2$ requires $n - 2$ to be a perfect square. Not all even $n$ satisfy this.
+
+More generally, for even $n$, we can choose $a$ even with $a^2 \leq n$, and $r = n - a^2$ is even. Then $n \sim r^2 + a$. If $r$ is small, this is a big reduction.
+
+The issue is when $r$ is large (close to $4a$). In that case, maybe we should use $a+2$ instead: $r' = n - (a+2)^2 = r - 4a - 4$, which is negative. Then $n \sim r'^2 + (a+2) = (r-4a-4)^2 + a + 2$. Since $|r'| = 4a+4-r$ and $r \leq 4a$, we have $|r'| \geq 4$. And $r'^2 = (4a+4-r)^2$.
+
+If $r$ is close to $4a$, then $r' = r - 4a - 4$ is close to $-4$, so $r'^2 \approx 16$ and $n \sim 16 + a + 2 = a + 18 \approx \sqrt{n} + 18$, a big reduction.
+
+If $r$ is close to $2a$ (the middle), then both $r$ and $|r'|$ are about $2a$, and $r^2 \approx 4a^2 \approx 4n$, which is bigger. So the middle case is problematic.
+
+But in the middle case, we can use a different $a$. For even $n$, we can also use odd $a$ (but then $r = n - a^2$ is odd, and $r^2 + a$ is odd + odd = even, so we stay in even numbers). Wait, $r$ is odd, $r^2$ is odd, $a$ is odd, so $r^2 + a$ is even. Good.
+
+So for even $n$, we can use any $a$ (even or odd), and $r = n - a^2$ has the same parity as $a$ (since $n$ is even and $a^2 \equiv a \pmod 2$), and $r^2 + a$ has parity $a + a = 0 \pmod 2$. So we always stay even. Good.
+
+So for even $n$, we can choose $a$ to be the nearest integer to $\sqrt{n}$ (of any parity). Then $|r| = |n - a^2| \leq a$ (approximately, since $|n - a^2| \leq |(a+1)^2 - a^2|/2 = a + 1/2$, so $|r| \leq a$).
+
+Then $n \sim r^2 + a$ where $|r| \leq a \approx \sqrt{n}$, so $r^2 \leq a^2 \approx n$ and $r^2 + a \leq n + \sqrt{n}$. This is not necessarily smaller.
+
+Hmm. But $r^2 + a$ vs $n = a^2 + r$: $r^2 + a < a^2 + r$ iff $r^2 - r < a^2 - a$ iff $h(r) < h(a)$. Since $|r| \leq a$, we have $h(|r|) \leq h(a)$ (as $h$ is increasing for positive arguments). And $h(r) = h(|r|)$ when $r > 0$ (since $h(r) = r(r-1)$ and for $r > 0$, $h(r) = h(r)$; for $r < 0$, $h(r) = r(r-1) = |r|(|r|+1) = h(|r|+1)$... wait.
+
+$h(r) = r(r-1)$. For $r \geq 0$: $h(r) = r(r-1)$. For $r < 0$: $h(r) = r(r-1) = (-|r|)(-|r|-1) = |r|(|r|+1) = h(|r|+1)$.
+
+So if $r < 0$, $h(r) = h(|r|+1)$. And $|r| \leq a$ means $|r|+1 \leq a+1$, so $h(r) = h(|r|+1) \leq h(a+1) = a(a+1) = h(a) + 2a$. So $h(r) \leq h(a) + 2a$, which means $h(r) \geq h(a)$ is possible.
+
+So when $r < 0$ and $|r|$ is close to $a$, $h(r) = h(|r|+1) \approx h(a+1) > h(a)$, and $r^2 + a > n$. Not good.
+
+When $r > 0$ and $r \leq a$, $h(r) \leq h(a)$, so $r^2 + a \leq n$. And equality only when $r = a$, i.e., $n = a^2 + a = a(a+1)$, which is a pronic number.
+
+So for $n$ not a pronic number, and choosing $a = \lfloor \sqrt{n} \rfloor$ with $r = n - a^2 > 0$ and $r \leq a$ (which happens when $n \leq a^2 + a$, i.e., $n$ is in the first half of the interval $[a^2, (a+1)^2)$), we get $n \sim r^2 + a < n$.
+
+For $n$ in the second half ($a^2 + a < n < (a+1)^2$), we have $r > a$, and the reduction goes the wrong way. But we can use $a+1$ instead: $r' = n - (a+1)^2 < 0$ and $|r'| = (a+1)^2 - n < (a+1)^2 - (a^2+a) = a+1$. So $|r'| \leq a$ and $r' < 0$.
+
+$n \sim r'^2 + (a+1) = |r'|^2 + a + 1$. And $h(|r'|) \leq h(a) < h(a+1)$, so $|r'|^2 + a + 1 < (a+1)^2 + |r'| = ... $ wait, let me redo: $|r'|^2 + (a+1) < n$ iff $h(|r'|) < h(a+1)$. Since $|r'| \leq a < a+1$, $h(|r'|) \leq h(a) < h(a+1)$. So yes, $|r'|^2 + a + 1 < n$.
+
+But wait, we need $|r'|^2 + a + 1$ to be even (to stay in the even class). $|r'| = |n - (a+1)^2|$. Since $n$ is even, $|r'| \equiv (a+1)^2 \equiv a+1 \pmod 2$. And $|r'|^2 + (a+1) \equiv (a+1) + (a+1) = 2(a+1) \equiv 0 \pmod 2$. Good, it's even.
+
+So for any even $n$ that is not a pronic number, we can find $a$ such that $n \sim r^2 + a$ where $r^2 + a$ is even and $r^2 + a < n$.
+
+For pronic numbers $n = a(a+1)$ (which are always even): $n = a^2 + a$, so $r = a$ and $n \sim a^2 + a = n$. That's trivial. But we can use a different $a$.
+
+For $n = a(a+1)$ (pronic, even), try using $a-1$: $r = n - (a-1)^2 = a^2+a - a^2+2a-1 = 3a-1$. Then $n \sim (3a-1)^2 + (a-1) = 9a^2-6a+1+a-1 = 9a^2-5a$. For $a \geq 1$, this is bigger. Not good.
+
+Try $a+1$: $r = n - (a+1)^2 = a^2+a - a^2-2a-1 = -a-1$. $|r| = a+1$. $n \sim (a+1)^2 + (a+1) = (a+1)(a+2)$. This is the next pronic number, bigger.
+
+Try $a+2$: $r = a^2+a - (a+2)^2 = a^2+a-a^2-4a-4 = -3a-4$. $|r| = 3a+4$. $n \sim (3a+4)^2 + (a+2) = 9a^2+24a+16+a+2 = 9a^2+25a+18$. Much bigger.
+
+Hmm, for pronic numbers, the nearest square approach gives $r = a$ (trivial) or $r = -(a+1)$ (gives next pronic). Let me try $a-2$ (for $a \geq 2$): $r = a^2+a - (a-2)^2 = a^2+a - a^2+4a-4 = 5a-4$. $n \sim (5a-4)^2 + (a-2) = 25a^2-40a+16+a-2 = 25a^2-39a+14$. Bigger for $a \geq 2$.
+
+What about using the $m \sim m+2$ relation? Pronic numbers are $h(a+1) = a(a+1)$. And we showed $h(a) \sim h(a+1)$ (from $s=0$). So all pronic numbers are equivalent: $0 \sim 2 \sim 6 \sim 12 \sim 20 \sim 30 \sim \ldots$
+
+And $0$ is in the even class. So all pronic numbers are in the even class.
+
+But we need to show that non-pronic even numbers are also in the even class. We showed that for non-pronic even $n$, we can reduce to a smaller even number. By induction, this smaller even number is in the even class (eventually reaching a pronic number or 0).
+
+Wait, but the reduction might not terminate at a pronic number. Let me check: we reduce $n$ to $r^2 + a$ where $r^2 + a < n$. Is $r^2 + a$ necessarily non-pronic? Not necessarily. But if it is pronic, it's in the class. If not, we reduce again. Since the value strictly decreases, we eventually reach 0 or a pronic number, all of which are in the even class.
+
+Actually, we need to be careful: the reduction gives $n \sim r^2 + a$ where $r^2 + a < n$ and $r^2 + a$ is even and non-negative. But could $r^2 + a$ be negative? No, since $r^2 \geq 0$ and $a \geq 0$ (we chose $a \geq 0$). Actually, when $r < 0$, we use $a+1 \geq 1$, so $r^2 + (a+1) \geq 1 > 0$. And it's even, so $\geq 2$ (or 0). 
+
+Wait, could $r^2 + a = 0$? That requires $r = 0$ and $a = 0$, i.e., $n = 0$. So for $n > 0$, $r^2 + a > 0$.
+
+So by induction, all even $n \geq 0$ are in the class of 0. For negative even $n$: $n \sim n^2$ (from $a=0$), and $n^2$ is a positive even number, which is in the class of 0. So negative even numbers are also in the class of 0.
+
+Now for odd numbers: similar argument. For odd $n$, choose $a$ odd (so $r = n - a^2$ is even) or $a$ even (so $r$ is odd). In either case, $r^2 + a$ has parity $r + a = (n - a^2) + a = n - a(a-1) = n - h(a)$. Since $h(a)$ is always even, $r^2 + a \equiv n \pmod 2$, which is odd. Good, we stay in odd numbers.
+
+Wait, let me recheck: $r^2 + a \pmod 2$. $r = n - a^2$, so $r \equiv n - a \pmod 2$ (since $a^2 \equiv a$). Then $r^2 \equiv r \equiv n - a \pmod 2$. So $r^2 + a \equiv n - a + a = n \pmod 2$. So yes, $r^2 + a$ has the same parity as $n$. Good.
+
+For odd $n$, the same reduction argument works: choose $a = \lfloor \sqrt{n} \rfloor$ (or $a+1$ if $n$ is in the second half), and $n \sim r^2 + a < n$ (when $n$ is not pronic). Since $r^2 + a$ is odd and smaller, by induction it's in the class of 1 (or some base odd number).
+
+For the base case: $1 \sim 1$ (trivially). And $-1 \sim 1$ (from $n=1, a=-1$: $1 \sim (1-1)^2-1 = -1$). And $3 \sim 5$ (from $m \sim m+2$ with $m=3$). And $3 \sim 1$? Let me check: $n=3, a=-2$: $3 \sim (3-4)^2-2 = -1 \sim 1$. So $3 \sim 1$. ✓
+
+And pronic numbers $a(a+1)$ are always even, so odd numbers are never pronic. So the reduction always works for odd $n > 1$ (there's no pronic obstruction).
+
+Wait, actually I need to double-check the pronic case for odd numbers. Pronic numbers are $k(k+1)$ which are always even. So no odd number is pronic. Therefore, the reduction always works for odd $n > 1$, and we can always reduce to a smaller odd number, eventually reaching 1.
+
+For negative odd $n$: $n \sim n^2$ (positive odd), which is in the class of 1.
+
+So for part (a), there are exactly 2 equivalence classes: even numbers and odd numbers. The number of distinct values among $f(1), \ldots, f(2023)$ is at most 2, and this is achievable (e.g., $f(n) = n \mod 2$).
+
+Wait, but we need $f: \mathbb{Z} \to \mathbb{Z}$. The function $f(n) = n \mod 2$ (mapping to 0 or 1) works. Let me verify: $f(a^2+b) = (a^2+b) \mod 2 = (a+b) \mod 2$ and $f(b^2+a) = (b^2+a) \mod 2 = (b+a) \mod 2$. Equal. ✓
+
+So $N_a = 2$.
+
+Hmm wait, but I should double-check my proof that all even numbers are equivalent. Let me re-examine the key step.
+
+The reduction: for even $n$ that is not pronic, we find $a$ such that $n \sim r^2 + a$ where $r^2 + a$ is even, $0 \leq r^2 + a < n$.
+
+Case 1: $n$ is in the first half of $[a^2, (a+1)^2)$, i.e., $a^2 \leq n \leq a^2 + a$ (where $a = \lfloor\sqrt{n}\rfloor$). Then $r = n - a^2$ with $0 \leq r \leq a$. If $r = a$, then $n = a^2 + a = a(a+1)$ is pronic, excluded. So $0 \leq r < a$, and $h(r) < h(a)$ (for $r < a$, both non-negative), so $r^2 + a < a^2 + r = n$. ✓
+
+But wait, we need $r^2 + a$ to be even. $r = n - a^2$. If $n$ is even and $a$ is even, $r$ is even, $r^2$ is even, $r^2 + a$ is even. ✓. If $n$ is even and $a$ is odd, $r$ is odd, $r^2$ is odd, $r^2 + a$ is even. ✓. So $r^2 + a$ is always even when $n$ is even. Good.
+
+Case 2: $n$ is in the second half, i.e., $a^2 + a < n < (a+1)^2$ (where $a = \lfloor\sqrt{n}\rfloor$). We use $a' = a+1$. Then $r' = n - (a+1)^2 < 0$ and $|r'| = (a+1)^2 - n$. Since $n > a^2 + a = a(a+1)$, $|r'| < (a+1)^2 - a(a+1) = (a+1)(a+1-a) = a+1$. So $|r'| \leq a$ (since $|r'|$ is an integer and $|r'| < a+1$). And $|r'| \geq 1$ (since $n < (a+1)^2$).
+
+Now, $n \sim r'^2 + (a+1) = |r'|^2 + (a+1)$. We need $|r'|^2 + (a+1) < n$.
+
+$|r'|^2 + (a+1) < n = (a+1)^2 - |r'|$ iff $|r'|^2 + |r'| < (a+1)^2 - (a+1)$ iff $h(|r'|) < h(a+1)$. Since $|r'| \leq a < a+1$, $h(|r'|) \leq h(a) < h(a+1)$. ✓
+
+And $|r'|^2 + (a+1)$ is even when $n$ is even (same parity argument). ✓
+
+But we also need $|r'|^2 + (a+1) \geq 0$, which is obvious since $|r'| \geq 0$ and $a+1 \geq 1$.
+
+Could $|r'|^2 + (a+1) = 0$? No, since $a+1 \geq 1$.
+
+So the reduction always gives a smaller positive even number (or 0 if $n = 0$). By strong induction, all even $n \geq 0$ are equivalent to 0.
+
+Now, I need to handle the case where $r^2 + a$ might be 0. If $n$ is even and $n > 0$, can $r^2 + a = 0$? Only if $r = 0$ and $a = 0$, meaning $n = 0$. So for $n > 0$, $r^2 + a > 0$.
+
+Actually, in Case 1 with $r = 0$: $n = a^2 \sim 0 + a = a$. And $a < a^2 = n$ for $a \geq 2$. For $a = 0$: $n = 0$, base case. For $a = 1$: $n = 1$, but $n$ is even so this can't happen. So for even $n > 0$, $a \geq 2$ when $r = 0$, and $a < n$. ✓
+
+So the induction works. All even numbers are equivalent, all odd numbers are equivalent, and $N_a = 2$.
+
+Now for part (b): $f: \mathbb{Z}_{>0} \to \mathbb{Z}_{>0}$ with $f(a^2+b) = f(b^2+a)$ for all $a, b \in \mathbb{Z}_{>0}$.
+
+The key difference is that $a, b > 0$, so we can't use $a = 0$ or $b = 0$ or negative values.
+
+The relation is: $a^2 + b \sim b^2 + a$ for all $a, b \in \mathbb{Z}_{>0}$.
+
+Let me figure out the equivalence classes.
+
+With $a = b$: $a^2 + a \sim a^2 + a$, trivial.
+
+With $a = 1$: $1 + b \sim b^2 + 1$, i.e., $b+1 \sim b^2+1$ for all $b \geq 1$.
+With $b = 1$: $a^2 + 1 \sim 1 + a$, i.e., $a^2+1 \sim a+1$ for all $a \geq 1$.
+
+So $a^2 + 1 \sim a + 1$ for all $a \geq 1$. This means:
+- $2 \sim 2$ (a=1)
+- $5 \sim 3$ (a=2)
+- $10 \sim 4$ (a=3)
+- $17 \sim 5$ (a=4)
+- $26 \sim 6$ (a=5)
+- $37 \sim 7$ (a=6)
+- $50 \sim 8$ (a=7)
+- $65 \sim 9$ (a=8)
+- $82 \sim 10$ (a=9)
+- etc.
+
+So $a^2 + 1 \sim a + 1$. This is powerful: it reduces $a^2+1$ to $a+1$.
+
+With $a = 2, b = 1$: $5 \sim 3$ (same as above).
+With $a = 2, b = 2$: $6 \sim 6$, trivial.
+With $a = 2, b = 3$: $7 \sim 11$.
+With $a = 2, b = 4$: $8 \sim 18$.
+With $a = 2, b = 5$: $9 \sim 27$.
+With $a = 3, b = 2$: $11 \sim 7$ (same as above).
+With $a = 3, b = 3$: $12 \sim 12$, trivial.
+With $a = 3, b = 4$: $13 \sim 19$.
+With $a = 3, b = 5$: $14 \sim 28$.
+With $a = 4, b = 2$: $18 \sim 8$ (same as above).
+With $a = 4, b = 3$: $19 \sim 13$ (same as above).
+With $a = 4, b = 4$: $20 \sim 20$, trivial.
+With $a = 4, b = 5$: $21 \sim 29$.
+
+Let me also use $a = 1$: $b+1 \sim b^2+1$.
+- $b=1$: $2 \sim 2$
+- $b=2$: $3 \sim 5$
+- $b=3$: $4 \sim 10$
+- $b=4$: $5 \sim 17$
+- $b=5$: $6 \sim 26$
+- $b=6$: $7 \sim 37$
+- $b=7$: $8 \sim 50$
+- $b=8$: $9 \sim 65$
+- $b=9$: $10 \sim 82$
+
+So from $a=1$ (or $b=1$): $n+1 \sim n^2+1$ for $n \geq 1$, i.e., $m \sim (m-1)^2+1$ for $m \geq 2$.
+
+This means:
+- $3 \sim 5$
+- $4 \sim 10$
+- $5 \sim 17$
+- $6 \sim 26$
+- $7 \sim 37$
+- $8 \sim 50$
+- $9 \sim 65$
+- $10 \sim 82$
+
+And from $b=1$ (or $a=1$): $a^2+1 \sim a+1$, i.e., $m \sim$ something. This is the same relation (just swap $a$ and $b$).
+
+Now, $3 \sim 5$ and $5 \sim 17$ and $17 \sim ?$. From $a=1, b=16$: $17 \sim 257$. From $b=1, a=4$: $17 \sim 5$ (already known). From $a=4, b=1$: $17 \sim 5$.
+
+$4 \sim 10$ and $10 \sim 82$ and $10 \sim ?$. From $b=1, a=3$: $10 \sim 4$. From $a=3, b=1$: $10 \sim 4$. From $a=1, b=9$: $10 \sim 82$.
+
+$4 \sim 10 \sim 82$. And $82 \sim ?$. From $b=1, a=9$: $82 \sim 10$. From $a=9, b=1$: $82 \sim 10$.
+
+Also, $a=2, b=9$: $13 \sim 83$. And $a=9, b=2$: $83 \sim 13$.
+
+Let me think about what the equivalence classes look like.
+
+From $a^2+1 \sim a+1$: this reduces $a^2+1$ to $a+1$. So any number of the form $a^2+1$ (for $a \geq 1$) is equivalent to $a+1$.
+
+Numbers of the form $a^2+1$: $2, 5, 10, 17, 26, 37, 50, 65, 82, 101, \ldots$
+
+So $2 \sim 2$, $5 \sim 3$, $10 \sim 4$, $17 \sim 5 \sim 3$, $26 \sim 6$, $37 \sim 7$, $50 \sim 8$, $65 \sim 9$, $82 \sim 10 \sim 4$, $101 \sim 11$, etc.
+
+So:
+- $3 \sim 5 \sim 17 \sim 257 \sim \ldots$
+- $4 \sim 10 \sim 82 \sim \ldots$
+- $6 \sim 26 \sim ?$
+- $7 \sim 37 \sim ?$
+- $8 \sim 50 \sim ?$
+- $9 \sim 65 \sim ?$
+- $11 \sim 101 \sim ?$
+
+Now, from $a=2, b=3$: $7 \sim 11$. So $7 \sim 11 \sim 101 \sim ?$ and $7 \sim 37$. So $\{7, 11, 37, 101, \ldots\}$ are equivalent.
+
+From $a=2, b=4$: $8 \sim 18$. And $18 \sim ?$. From $b=1, a=...$: $18 = a^2+1$? $a^2 = 17$, not a perfect square. From $a=1, b=17$: $18 \sim 290$. From $a=4, b=2$: $18 \sim 8$ (known). From $a=2, b=4$: $8 \sim 18$ (known).
+
+$18 = a^2 + b$ for various $(a,b)$ with $a,b \geq 1$:
+- $a=1, b=17$: $18 \sim 290$
+- $a=2, b=14$: $18 \sim 198$
+- $a=3, b=9$: $18 \sim 84$
+- $a=4, b=2$: $18 \sim 8$ (known)
+
+So $18 \sim 84$. And $84 \sim ?$. $84 = a^2+b$:
+- $a=1, b=83$: $84 \sim 6970$
+- $a=2, b=80$: $84 \sim 6402$
+- $a=3, b=75$: $84 \sim 5628$
+- $a=4, b=68$: $84 \sim 4628$
+- $a=5, b=59$: $84 \sim 3486$
+- $a=6, b=48$: $84 \sim 2304+6 = 2310$
+- $a=7, b=35$: $84 \sim 1225+7 = 1232$
+- $a=8, b=20$: $84 \sim 400+8 = 408$
+- $a=9, b=3$: $84 \sim 9+9 = 18$ (known)
+
+So $84 \sim 408$. And $408 \sim ?$. This is getting large. Let me try to find smaller connections.
+
+$8 \sim 18 \sim 50 \sim ?$. Wait, $8 \sim 50$ (from $a=1, b=7$: $8 \sim 50$). And $50 \sim 8$ (from $b=1, a=7$: $50 \sim 8$). So $8 \sim 50$. And $8 \sim 18$. So $\{8, 18, 50, 84, \ldots\}$.
+
+Also, $8 \sim 50$ and $50 = 7^2+1 \sim 7+1 = 8$. Consistent.
+
+Now, is 8 connected to 4? $4 \sim 10 \sim 82 \sim \ldots$ and $8 \sim 18 \sim 50 \sim 84 \sim \ldots$. Are these the same class?
+
+From $a=2, b=2$: $6 \sim 6$, trivial. From $a=2, b=7$: $11 \sim 51$. $11 \sim 7$ (known), so $7 \sim 51$. And $51 \sim ?$. $51 = a^2+b$: $a=1, b=50$: $51 \sim 2501$. $a=2, b=47$: $51 \sim 2209+2 = 2211$. $a=3, b=42$: $51 \sim 1764+3 = 1767$. $a=4, b=35$: $51 \sim 1225+4 = 1229$. $a=5, b=26$: $51 \sim 676+5 = 681$. $a=6, b=15$: $51 \sim 225+6 = 231$. $a=7, b=2$: $51 \sim 4+7 = 11$ (known).
+
+$51 \sim 231$. $231 \sim ?$. $a=1, b=230$: $231 \sim 52900+1 = 52901$. $a=15, b=6$: $231 \sim 36+15 = 51$ (known). $a=2, b=227$: huge. Let me try $a=15, b=6$: $225+6 = 231$ and $36+15 = 51$. Known.
+
+Let me try to find if 4 and 8 are connected through some chain.
+
+$4 \sim 10$. $10 \sim 82$. $82 \sim ?$. $82 = a^2+b$: $a=9, b=1$: $82 \sim 10$ (known). $a=1, b=81$: $82 \sim 6562$. $a=2, b=78$: $82 \sim 6084+2 = 6086$. $a=3, b=73$: $82 \sim 5329+3 = 5332$. $a=4, b=66$: $82 \sim 4356+4 = 4360$. $a=5, b=57$: $82 \sim 3249+5 = 3254$. $a=6, b=46$: $82 \sim 2116+6 = 2122$. $a=7, b=33$: $82 \sim 1089+7 = 1096$. $a=8, b=18$: $82 \sim 324+8 = 332$.
+
+$82 \sim 332$. $332 \sim ?$. $a=18, b=8$: $324+8=332$ and $64+18=82$. Known. $a=2, b=328$: huge. $a=1, b=331$: $332 \sim 109562$. 
+
+Hmm, let me try a different approach. Let me see if I can connect 4 to 2.
+
+$2 \sim 2$ (trivially, from $a=1,b=1$). What is 2 equivalent to?
+
+$2 = a^2+b$ with $a,b \geq 1$: only $a=1, b=1$: $2 \sim 2$. So 2 is only related to itself through this pair. But 2 might be connected through chains.
+
+Is 2 connected to anything else? We need $2 = a^2+b$ or $2 = b^2+a$ for some $a,b \geq 1$. $a^2+b = 2$ with $a,b \geq 1$: only $a=1, b=1$. $b^2+a = 2$: only $b=1, a=1$. So the only relation involving 2 is $2 \sim 2$. So 2 is isolated!
+
+What about

@@ -1,0 +1,1824 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   Simple graph $G$ has $19998$ vertices. For any subgraph $\bar G$ of $G$ with $9999$ vertices, $\bar G$ has at least $9999$ edges. Find the minimum number of edges in $G$       — 题目文本
+#   To find the minimum number of edges in a graph \( G \) with 19998 vertices such that any subgraph \(\bar{G}\) with 9999 vertices has at least 9999 edges, we can use the following approach:
+
+1. **Restate the problem in terms of \( N \):**
+   Let \( N = 3333 \). We need to prove that if a graph \( G \) has \( 6N \) vertices and every induced \( 3N \)-vertex subgraph has at least \( 3N \) edges, then \( G \) has at least \( 15N \) edges.
+
+2. **Construct a graph with \( 6N \) vertices:**
+   Consider \( N \) disjoint copies of \( K_6 \) (complete graph on 6 vertices). Label these copies from 1 to \( N \). Each \( K_6 \) has \( \binom{6}{2} = 15 \) edges.
+
+3. **Verify the edge count in subgraphs:**
+   For any induced subgraph with \( 3N \) vertices, suppose there are \( x_i \) vertices in the \( i \)-th \( K_6 \). By Jensen's inequality, the number of edges is at least:
+   \[
+   \sum_{i=1}^N \binom{x_i}{2} \geq N \binom{3}{2} = 3N
+   \]
+   This construction works, and we need to prove that at least \( 15N \) edges are required.
+
+4. **Key claim (Caro-Wei type):**
+   Given any graph \( A \) where the \( i \)-th vertex has degree \( d_i \), there exists an induced subgraph \( A' \) with at least \( \sum_i \frac{3}{\max(d_i, 2) + 1} \) vertices such that in \( A' \), every vertex has degree at most 2.
+
+5. **Proof of the claim:**
+   Place the vertices in a random order and construct \( A' \) greedily: if a vertex appears before all but at most 2 of its neighbors, add it. The probability that vertex \( i \) appears before all but at most 2 of its neighbors is \( \frac{3}{\max(d_i, 2) + 1} \). By linearity of expectation, we can get some \( A' \) with at least \( \sum_i \frac{3}{\max(d_i, 2) + 1} \) vertices.
+
+6. **Return to the main problem:**
+   Let \( G' \) be the graph formed by hiding every degree 0 or 1 vertex from \( G \); suppose \( k \) vertices are hidden. If \( k \geq 3N \), we get a contradiction by selecting \( \bar{G} \) to be some \( 3N \) vertices that were hidden.
+
+7. **Induced subgraph with degree constraints:**
+   If there exists an induced subgraph \( \bar{G'} \) of \( G' \) with at least \( 3N - k + 1 \) vertices such that each vertex in \( \bar{G'} \) has degree at most 2, then there exists an induced subgraph \( \bar{G} \) of \( G \) with \( 3N \) vertices with fewer than \( 3N \) edges.
+
+8. **Average degree calculation:**
+   Let \( d = \frac{1}{6N - k} \sum_i d_i \) be the average degree of a non-hidden vertex in \( G \). By the key claim, we need:
+   \[
+   \sum_i \frac{3}{\max(d_i', 2) + 1} \leq 3N - k \implies \sum_i \frac{3}{d_i + 1} \leq 3N - k
+   \]
+   Using Jensen's inequality:
+   \[
+   \frac{3(6N - k)}{d + 1} \leq 3N - k \implies d \geq \frac{15N - 2k}{3N - k}
+   \]
+
+9. **Edge count in \( G \):**
+   Considering only vertices in \( G' \), the number of edges in \( G \) is at least:
+   \[
+   \frac{1}{2}(6N - k) \left( \frac{15N - 2k}{3N - k} \right) = 15N + \frac{3Nk + 2k^2}{2(3N - k)} \geq 15N
+   \]
+
+Thus, the minimum number of edges in \( G \) is \( 15N = 15 \times 3333 = 49995 \).
+
+The final answer is \( \boxed{49995} \).  — 标准解答
+#   Let me solve this problem. The problem: Simple graph G has 19998 vertices. For any subgraph $\bar G$ of G with 9999 vertices, $\bar G$ has at least 9999 edges. Find the minimum number of edges in G.
+
+Let me think about this carefully.
+
+Let n = 19998, so n/2 = 9999. The condition is that every induced subgraph on 9999 vertices has at least 9999 edges. We want to minimize the total number of edges m.
+
+Let me think about this using a counting argument. Consider a random subset S of 9999 vertices. The expected number of edges in the induced subgraph on S is...Actually, let me think about it differently. For each edge e = {u,v}, the probability that both endpoints are in a random 9999-subset S is C(19996, 9997)/C(19998, 9999) = (9999 * 9998)/(19998 * 19997). Wait let me compute.
+
+The number of 9999-subsets containing both u and v: C(19996, 9997). Total: C(19998, 9999). So probability = C(19996,9997)/C(19998,9999) = [19996!/(9997! * 9999!)] / [19998!/(9999! * 9999!)] = [19996! * 9999!] / [9997! * 19998!] = (9999 * 9998) / (19998 * 19997).
+
+So expected edges in random 9999-subset = m * (9999*9998)/(19998*19997).
+
+Since every 9999-subset has ≥ 9999 edges, the average is ≥ 9999. So:
+m * (9999*9998)/(19998*19997) ≥ 9999
+m ≥ 9999 * (19998*19997)/(9999*9998) = (19998*19997)/9998 = 19998 * 19997 / 9998.
+
+19998 = 2 * 9999. 9998 = 2 * 4999. So 19998/9998 = 9999/4999. So m ≥ 9999 * 19997 / 4999.
+
+Hmm, 19997 = 4*4999 + 1 = 19996 + 1. So 19997/4999 = 4 + 1/4999. So m ≥ 9999 * (4 + 1/4999) = 9999*4 + 9999/4999 = 39996 + 9999/4999.
+
+9999/4999 = 2 + 1/4999. So m ≥ 39996 + 2 + 1/4999 = 39998 + 1/4999.
+
+So m ≥ 39999 (rounding up since m is integer). Wait, 39998 + 1/4999, so m ≥ 39999? No, m ≥ 39998.0002..., so m ≥ 39999.
+
+Hmm wait, that gives a lower bound of 39999. But is this tight? Let me reconsider.
+
+Actually, the averaging argument gives a lower bound, but it might not be tight. Let me think about whether we can achieve this.
+
+Actually, let me reconsider. The averaging bound gives m ≥ 39999 (since m must be an integer ≥ 39998.0002). But can we achieve m = 39999? That seems unlikely to be tight from averaging alone.
+
+Let me think about this problem more carefully. This is a classic type of extremal graph problem.
+
+Let me reconsider. Let the vertices be partitioned into two sets A and B of 9999 each. Consider the edges within A, within B, and between A and B.
+
+Actually, let me think about a cleaner approach. Let's think about what structure minimizes edges while ensuring every 9999-subset has ≥ 9999 edges.
+
+Consider a graph where we have a clique on some set and the rest are isolated. If we have a clique on k vertices, then a 9999-subset that includes t vertices from the clique has C(t,2) edges. The worst case is when we pick as few clique vertices as possible. If 9999-subset picks t vertices from clique (t ≤ k) and 9999-t from the rest, we need C(t,2) ≥ 9999, so t(t-1)/2 ≥ 9999, t(t-1) ≥ 19998, t ≥ 142 (since 141*140 = 19740 < 19998, 142*141 = 20022 ≥ 19998). So t ≥ 142.
+
+The worst case: pick 9999-t from the non-clique vertices. We need 9999-t ≤ 19998-k, i.e., t ≥ 9999 - (19998-k) = k - 9999. So the minimum t we can pick is max(0, k-9999). We need this minimum t to satisfy C(t,2) ≥ 9999.
+
+If k ≥ 9999, min t = k - 9999. Need C(k-9999, 2) ≥ 9999. Let s = k - 9999. Need s(s-1)/2 ≥ 9999, s ≥ 142. So k ≥ 9999 + 142 = 10141. Number of edges = C(10141, 2) = 10141*10140/2 = huge. That's way more than 39999.
+
+So the clique approach is bad. The averaging bound suggests ~39999 edges, which is much smaller.
+
+Let me think about the tight construction. The averaging bound gives m ≥ 39999. Let me think about whether a regular or near-regular graph achieves this.
+
+Consider a graph where every vertex has the same degree d. Then m = 19998*d/2 = 9999*d. The expected number of edges in a random 9999-subset is m * (9999*9998)/(19998*19997) = 9999*d * (9999*9998)/(19998*19997).
+
+For this to be ≥ 9999: d * (9999*9998)/(19998*19997) ≥ 1, d ≥ (19998*19997)/(9999*9998) = (2*9999*19997)/(9999*9998) = 2*19997/9998 = 39994/9998 = 4.0002... So d ≥ 5? No wait, d ≥ 39994/9998 ≈ 4.0002, so d ≥ 5? No, d ≥ 5 is wrong. d ≥ 4.0002 means d ≥ 5? No, d must be integer, d ≥ 5? No! 4.0002 means d ≥ 5? No, d ≥ 5 is too much. d ≥ 5? Actually d ≥ 4.0002 means the smallest integer d satisfying this is d = 5? No! 4 < 4.0002, so d ≥ 5. Wait, 4.0002 > 4, so d = 4 doesn't work, d = 5 works. Hmm, but that gives m = 9999*5 = 49995, which is more than 39999.
+
+Hmm, so a regular graph with d=4 gives expected edges = 9999*4*(9999*9998)/(19998*19997) = 9999 * 4 * (9999*9998)/(19998*19997). Let me compute 4*(9999*9998)/(19998*19997) = 4 * 9998*9999 / (19998*19997). 19998 = 2*9999, so = 4 * 9998 / (2 * 19997) = 2 * 9998/19997 = 19996/19997 < 1. So expected edges = 9999 * 19996/19997 < 9999. So d=4 regular graph has average < 9999, meaning some 9999-subset has < 9999 edges. So d=4 is not enough for regular graphs.
+
+d=5: expected = 9999 * 5 * (9999*9998)/(19998*19997) = 9999 * 5*9998/(2*19997) = 9999 * 49990/39994 = 9999 * 1.250... > 9999. So average is fine, but we need EVERY subset to have ≥ 9999, not just average.
+
+So the question is about the minimum over all 9999-subsets, not the average. The averaging gives a lower bound of 39999, but the actual minimum might be higher.
+
+Let me reconsider. This is related to the concept of "expansion" or "edge expansion" of the graph.
+
+Let me think about it differently. Let's use a more refined counting argument.
+
+For a 9999-subset S, let e(S) be the number of edges in the induced subgraph. We need e(S) ≥ 9999 for all S.
+
+Consider the complement: let T = V \ S, |T| = 9999. Then e(S) = m - e(T) - e(S,T) where e(S,T) is the number of edges between S and T. Actually, e(S) + e(T) + e(S,T) = m. So e(S) = m - e(T) - e(S,T).
+
+Hmm, this is symmetric. Let me think about it as: for every partition of V into two equal halves S, T (each 9999), we need e(S) ≥ 9999 and e(T) ≥ 9999.
+
+Actually the condition is for every 9999-subset, which includes both S and T = V\S. So both e(S) ≥ 9999 and e(T) ≥ 9999.
+
+Now, e(S) + e(T) + e(S,T) = m. So m ≥ 9999 + 9999 + e(S,T) ≥ 19998 + e(S,T). To minimize m, we want to minimize e(S,T) over all balanced partitions. But e(S,T) ≥ 0, so m ≥ 19998. But this is weaker than the averaging bound of 39999.
+
+Hmm wait, but we also need e(S) ≥ 9999 for ALL 9999-subsets, not just balanced partitions. A 9999-subset is exactly half the vertices, so it's always a balanced partition. OK so the condition is: for every way to split V into two halves, both halves have ≥ 9999 edges.
+
+Let me think about this more carefully using the averaging / convexity approach.
+
+Actually, let me reconsider the averaging bound. We computed m ≥ 39999. Let me think about whether this is achievable.
+
+Consider a 4-regular graph on 19998 vertices. Then m = 19998*4/2 = 39996. The average number of edges in a 9999-subset is 39996 * (9999*9998)/(19998*19997) = 39996 * 9998/(2*19997) = 39996 * 9998/39994 = 39996 * 0.99990... ≈ 39992. Wait that doesn't seem right.
+
+Let me recompute. m = 39996. Expected edges in random 9999-subset = 39996 * (9999*9998)/(19998*19997).
+
+(9999*9998)/(19998*19997) = (9999*9998)/((2*9999)*19997) = 9998/(2*19997) = 9998/39994 = 0.25000...
+
+So expected = 39996 * 0.25 = 9999. So the average is exactly 9999! But we need every subset to have ≥ 9999, which means every subset must have exactly 9999 (since the average is 9999 and all are ≥ 9999). So we need a 4-regular graph where every 9999-subset has exactly 9999 edges.
+
+That's a very strong condition. Is there a 4-regular graph on 19998 vertices where every 9999-subset induces exactly 9999 edges?
+
+For every 9999-subset S to have exactly 9999 edges, we need e(S) = 9999 for all S. This means e(S) is constant for all 9999-subsets. This is a very special property.
+
+If e(S) is constant for all k-subsets, then the graph must be regular (which it is, 4-regular) and... actually, for e(S) to be constant for all k-subsets, we need the graph to be "k-uniform" in some sense. 
+
+Actually, e(S) = sum over edges of indicator(both endpoints in S). For this to be constant for all S of size k, we need... by a theorem, if the number of edges in every k-subset is the same, then the graph is either complete or empty (for 1 < k < n-1). Wait, that's not quite right either.
+
+Hmm, actually I think for e(S) to be constant for all k-subsets where 2 ≤ k ≤ n-2, the graph must be regular AND satisfy additional conditions. Actually, let me think about this differently.
+
+Consider two k-subsets S and S' that differ by one vertex: S = A ∪ {u}, S' = A ∪ {v} where |A| = k-1 and u, v ∉ A. Then e(S) - e(S') = deg_A(u) - deg_A(v) where deg_A means the number of neighbors in A. For e(S) = e(S'), we need deg_A(u) = deg_A(v) for all such A, u, v.
+
+This means: for any set A of k-1 vertices not containing u or v, the number of neighbors of u in A equals the number of neighbors of v in A. 
+
+Take A to be any (k-1)-subset of V \ {u, v}. Then deg_A(u) = deg_A(v). This means u and v have the same number of neighbors in every (k-1)-subset of V \ {u,v}. 
+
+If u and v are adjacent, then in V \ {u,v}, u has deg(u)-1 neighbors and v has deg(v)-1 neighbors (excluding each other). If they're not adjacent, u has deg(u) neighbors and v has deg(v) neighbors in V\{u,v}.
+
+For the count in every (k-1)-subset to be equal, we need deg(u)-1 = deg(v)-1 if adjacent (so deg(u)=deg(v), already true for regular), or deg(u) = deg(v) if not adjacent (also true). But we need more: the number of neighbors in every (k-1)-subset must be equal, not just the total.
+
+This is a very strong condition. For a 4-regular graph, take u, v non-adjacent. u has 4 neighbors in V\{u,v}, v has 4 neighbors in V\{u,v}. For every (k-1)-subset A of V\{u,v} (where k-1 = 9998), the number of u's neighbors in A equals the number of v's neighbors in A.
+
+Consider A that contains all 4 neighbors of u but none of v's neighbors (if possible). Then deg_A(u) = 4, deg_A(v) = 0. For this to work, we'd need 4 = 0, contradiction. But can we find such an A? We need |A| = 9998, A ⊆ V\{u,v} (which has 19996 vertices), A contains all 4 neighbors of u, A contains none of the 4 neighbors of v. This is possible if the 4 neighbors of u and 4 neighbors of v don't overlap too much, and 9998 ≤ 19996 - 4 = 19992. Yes, 9998 ≤ 19992, so we can choose A to include u's 4 neighbors and exclude v's 4 neighbors (as long as they don't all overlap). Even if they overlap completely, we'd have 4 common neighbors, and we can include those 4 and exclude nothing... hmm, if u and v share all 4 neighbors, then including u's neighbors = including v's neighbors, so deg_A(u) = deg_A(v) always. But if they share fewer than 4 neighbors, we can find A where deg_A(u) ≠ deg_A(v).
+
+So for the condition to hold, every pair of non-adjacent vertices must share all their neighbors, and every pair of adjacent vertices must share all their other neighbors. This is extremely restrictive. Essentially, the graph would need to be a disjoint union of cliques or complete bipartite graphs or similar.
+
+For a 4-regular graph, this seems impossible unless it's a very special structure. For instance, K_5 has degree 4, and a disjoint union of K_5's would be 4-regular. 19998 / 5 = 3999.6, not integer. So that doesn't work.
+
+What about K_{5,5}? That's 5-regular, not 4-regular.
+
+Hmm, let me reconsider. Maybe the answer isn't 39996.
+
+Let me reconsider the problem. The averaging bound gives m ≥ 39999 (since the average must be ≥ 9999, and the average is m * (9999*9998)/(19998*19997) = m * 9998/(2*19997) = m * 9998/39994 = m/4.0002...).
+
+Wait let me redo this. m * (9999*9998)/(19998*19997) ≥ 9999.
+m * 9998/(2*19997) ≥ 9999
+m ≥ 9999 * 2 * 19997 / 9998 = 9999 * 39994 / 9998 = 9999 * 39994/9998.
+39994/9998 = 4 - (9998*4 - 39994)/9998 = 4 - (39992-39994)/9998 = 4 + 2/9998 = 4 + 1/4999.
+So m ≥ 9999 * (4 + 1/4999) = 39996 + 9999/4999 = 39996 + 2 + 1/4999 = 39998 + 1/4999.
+So m ≥ 39999 (rounding up).
+
+So the lower bound from averaging is 39999.
+
+Now, can we achieve m = 39999? Or do we need more?
+
+Let me think about this differently. Let me consider a graph that's "almost" 4-regular. 
+
+Actually, let me think about the problem from a different angle. Let me consider the dual/complementary view.
+
+For each 9999-subset S, e(S) ≥ 9999. Equivalently, for each 9999-subset T (= V\S), e(T) ≥ 9999.
+
+Now, consider the sum over all 9999-subsets S of e(S). This equals m * C(19996, 9997) (each edge is in C(19996, 9997) subsets). The number of 9999-subsets is C(19998, 9999). So the average is m * C(19996,9997)/C(19998,9999) = m * (9999*9998)/(19998*19997).
+
+We need this average ≥ 9999, giving m ≥ 39999.
+
+But this is just a necessary condition. The question is whether it's sufficient, i.e., whether there exists a graph with 39999 edges where every 9999-subset has ≥ 9999 edges.
+
+Hmm, let me think about small cases to get intuition.
+
+Small case: n = 4, k = 2. Every 2-subset (edge) has at least 2 edges. But a 2-vertex subgraph can have at most 1 edge. So this is impossible! Wait, the problem says "at least 9999 edges" for a 9999-vertex subgraph. For n=4, k=2, we'd need every 2-vertex subgraph to have at least 2 edges, but max is 1. So the small case n=4 doesn't work.
+
+Let me try n = 6, k = 3. Every 3-subset has at least 3 edges. A 3-vertex graph has at most 3 edges (triangle). So every 3-subset must be a triangle. That means the graph is K_6, with 15 edges. Averaging bound: m * (3*2)/(6*5) = m/5 ≥ 3, m ≥ 15. And K_6 has 15 edges. So the averaging bound is tight here!
+
+n = 8, k = 4. Every 4-subset has at least 4 edges. Averaging: m * (4*3)/(8*7) = m * 12/56 = m * 3/14 ≥ 4, m ≥ 56/3 = 18.67, m ≥ 19. Can we achieve 19? Hmm, not sure.
+
+Actually, let me reconsider. For n=6, k=3, the answer is 15 = C(6,2), the complete graph. That's because every 3-subset must be a triangle, forcing the complete graph.
+
+For our problem, n = 19998, k = 9999, and we need every 9999-subset to have ≥ 9999 edges. The maximum edges in a 9999-vertex graph is C(9999,2) = 9999*9998/2 ≈ 50 million, so 9999 is far from the maximum. So the constraint is not as tight as the n=6 case.
+
+Let me think about this more carefully. The key question is: is the averaging bound tight, or do we need more edges?
+
+Let me think about a construction. Consider a graph G on 19998 vertices. Partition the vertices into two groups A and B, each of size 9999. 
+
+Idea: Make G a complete bipartite graph K_{9999, 9999}. Then m = 9999^2 = 99980001. Way too many edges.
+
+Idea: Make G 4-regular with m = 39996. Then the average is exactly 9999. But we need every subset to have ≥ 9999, which means every subset has exactly 9999. As argued, this is very restrictive and likely impossible for most 4-regular graphs.
+
+What if we use m = 39999? Then the average is 39999 * 9998/(2*19997) = 39999 * 9998/39994 = 39999 * (1 - (39994-9998*... )) hmm let me just compute.
+
+39999 * 9998 / 39994 = 39999 * 9998 / 39994. 
+
+39994 = 2 * 19997. 9998 = 2 * 4999. So 9998/39994 = 4999/19997.
+
+39999 * 4999/19997 = 39999 * 4999 / 19997.
+
+19997 = 4 * 4999 + 1. So 4999/19997 = 1/(4 + 1/4999) = 4999/19997.
+
+39999 * 4999 / 19997. Let me compute 39999 * 4999 = 39999 * 5000 - 39999 = 199995000 - 39999 = 199955001. 199955001 / 19997 = ? 19997 * 10000 = 199970000. 199970000 - 199955001 = 14999. 19997 * 10000 - 14999 = ... so 199955001/19997 = 10000 - 14999/19997 = 10000 - 0.7500... = 9999.25.
+
+So the average with m = 39999 is 9999.25. So on average, subsets have 9999.25 edges. We need every subset to have ≥ 9999. Since the average is 9999.25 and we need min ≥ 9999, it's conceivable but not guaranteed.
+
+Hmm, this is getting complicated. Let me think about it from a different angle.
+
+Let me think about what graph structure could work. 
+
+Key insight: Consider a graph where we want to minimize edges while ensuring every half has enough edges. The "worst case" subset is the one that minimizes internal edges. 
+
+Think about it in terms of degrees. For a subset S, e(S) = (sum of degrees of vertices in S - number of edges from S to V\S) / 2. Actually, e(S) = (sum_{v in S} deg(v) - e(S, V\S)) / 2.
+
+To make e(S) large for all S, we want degrees to be large and the cut e(S, V\S) to be small. But these are in tension.
+
+Let me think about a specific construction. Consider the complete graph K_{19998}. That has too many edges. 
+
+What about a "blown-up" structure? Let me think about a graph where vertices are arranged in a circle and each vertex is connected to its 2 nearest neighbors on each side (a 4-regular circulant graph). Then m = 39996. But as argued, the average is exactly 9999, so we'd need every 9999-subset to have exactly 9999 edges, which is very unlikely for this graph.
+
+Let me think about this problem differently. Maybe the answer is not 39999 but something else.
+
+Actually, let me reconsider. Let me think about the problem in terms of the complement graph.
+
+Let H be the complement of G. H has 19998 vertices and M = C(19998,2) - m edges. The condition "every 9999-subset of G has ≥ 9999 edges" translates to: every 9999-subset S has e_G(S) ≥ 9999, i.e., C(9999,2) - e_H(S) ≥ 9999, i.e., e_H(S) ≤ C(9999,2) - 9999 = 9999*9998/2 - 9999 = 9999*(9998/2 - 1) = 9999 * 4998 = 49990002 - 9999 = 49980003. Hmm, that's a lot. This doesn't seem to simplify things.
+
+Let me try yet another approach. Let me think about the problem in terms of a linear algebra / design theory argument.
+
+Actually, let me reconsider the problem. I think the key is to find the right construction and prove it's optimal.
+
+Let me think about a graph that is a disjoint union of cliques. If G is a disjoint union of cliques of size s, then m = (19998/s) * C(s,2) = 19998 * (s-1)/2 = 9999 * (s-1). For a 9999-subset S, the number of edges is sum over cliques of C(t_i, 2) where t_i is the number of vertices chosen from clique i, sum t_i = 9999. To minimize this, we want to spread vertices as evenly as possible across cliques. If 19998/s cliques each of size s, and we pick 9999 vertices, the minimum edges occur when we pick t_i = floor(9999 / (19998/s)) or ceil. If s divides 9999 evenly... 19998/s cliques, each gets 9999/(19998/s) = 9999*s/19998 = s/2 vertices. If s is even, each clique contributes s/2 vertices, and edges per clique = C(s/2, 2) = (s/2)(s/2-1)/2 = s(s-2)/8. Total edges = (19998/s) * s(s-2)/8 = 19998(s-2)/8 = 9999(s-2)/4.
+
+We need 9999(s-2)/4 ≥ 9999, so (s-2)/4 ≥ 1, s ≥ 6. With s = 6: m = 9999 * 5 = 49995. With s = 6, each clique contributes C(3,2) = 3 edges, total = (19998/6) * 3 = 3333 * 3 = 9999. So with s = 6, every balanced subset (picking exactly 3 from each K_6) has exactly 9999 edges. But what if the subset doesn't pick exactly 3 from each? If we pick more from some cliques and less from others, by convexity of C(t,2), the total edges increases. So the minimum is indeed 9999 when we pick 3 from each.
+
+But wait, we need 19998/6 = 3333 to be an integer, which it is. And we need to be able to pick exactly 3 from each of 3333 cliques, giving 3*3333 = 9999 vertices. Yes! So with G = disjoint union of 3333 copies of K_6, m = 3333 * 15 = 49995, and every 9999-subset has ≥ 9999 edges (with equality when exactly 3 from each K_6).
+
+But 49995 > 39999, so this is not optimal.
+
+Can we do better? Let me think about other constructions.
+
+What about a disjoint union of complete bipartite graphs? K_{a,a} has 2a vertices and a^2 edges, each vertex has degree a. If we use K_{a,a} blocks, m = (19998/(2a)) * a^2 = 19998 * a / 2 = 9999 * a. For a 9999-subset, picking t vertices from a block of 2a, the edges contributed are at most... well, if we pick t_i from block i (with t_i ≤ 2a), the edges are at most t_i^2/4 (by AM-GM on the bipartition). Actually for K_{a,a}, if we pick x from one side and y from the other (x+y = t, x ≤ a, y ≤ a), edges = xy. To minimize xy given x+y = t, we want x or y to be as extreme as possible. If t ≤ a, we can set y = 0, x = t, giving 0 edges. So this is bad— we can pick vertices all from one side of each bipartite graph and get 0 edges.
+
+So complete bipartite graphs don't work well here.
+
+Let me think about other structures. What about a graph that's "almost complete" on a small set and sparse elsewhere?
+
+Actually, let me reconsider. The averaging bound gives 39999. Let me think about whether we can get close to this.
+
+Consider a graph where we have 19998 vertices, and we want every 9999-subset to have ≥ 9999 edges. 
+
+Let me think about a random 4-regular graph. The expected number of edges in a 9999-subset is 9999 (as computed). But the variance would be positive, so some subsets would have fewer than 9999 edges. So a random 4-regular graph doesn't work.
+
+What about a 5-regular graph? m = 9999 * 5 = 49995. Average = 49995 * 9998/39994 = 49995 * 4999/19997 ≈ 49995 * 0.25 = 12498.75. So average is ~12499, well above 9999. But we need every subset, not just average. With a 5-regular graph, the minimum could still be below 9999 for some subset.
+
+Hmm, but 49995 is the same as the K_6 construction. Let me think about whether we can do better than 49995.
+
+Let me think about a different construction. What if we use a graph that's a union of cycles? A cycle on n vertices has n edges and is 2-regular. If G is a union of cycles covering all 19998 vertices, m = 19998. Average edges in 9999-subset = 19998 * 9998/39994 = 19998/4.0002 ≈ 4999. Way below 9999. Not enough.
+
+What about a 4-regular graph that's a union of K_5's? 19998/5 is not integer. Union of K_4,4? That's 4-regular bipartite, but as discussed, bipartite is bad.
+
+What about a union of K_5 minus an edge? K_5 - e has 5 vertices, 9 edges, degrees 3,3,4,4,4. Not regular.
+
+Let me think about this more carefully. The K_6 construction gives 49995. Can we beat this?
+
+What if we use a mix? Like some K_6's and some other structures?
+
+Actually, let me think about the problem more carefully using a linear programming / duality approach.
+
+We want to minimize m = |E(G)| subject to: for every 9999-subset S, e_G(S) ≥ 9999.
+
+By LP duality (or the fractional version), the minimum of m subject to these constraints is related to finding a "fractional covering" of the constraints.
+
+Actually, the averaging argument IS the LP relaxation. The dual is: find a probability distribution on 9999-subsets such that every edge is covered with the same probability. The uniform distribution gives every edge covered with probability (9999*9998)/(19998*19997), and the bound is m ≥ 9999 / ((9999*9998)/(19998*19997)) = 9999 * 19998*19997/(9999*9998) = 19998*19997/9998 = 39998 + 1/4999, so m ≥ 39999.
+
+But this is the fractional relaxation. The integer optimum could be higher. The question is whether there's an integrality gap.
+
+For the K_6 construction, m = 49995, which is well above 39999. So either the true answer is between 39999 and 49995, or the K_6 construction is not optimal.
+
+Let me think about better constructions.
+
+Idea: What if we use a graph based on a combinatorial design? 
+
+Idea: Consider the graph where V = {1, ..., 19998} and we connect i to j if i ≡ j (mod something) or some algebraic condition.
+
+Actually, let me think about this differently. Let me consider a graph that is the disjoint union of 9999 edges (i.e., a perfect matching). Then m = 9999. A 9999-subset that picks one vertex from each edge has 0 edges. Not enough.
+
+What about a disjoint union of 6666 triangles? 6666 * 3 = 19998. m = 6666 * 3 = 19998. Wait, 19998/3 = 6666. Each triangle has 3 edges. A 9999-subset picking 1 or 2 vertices from each triangle: if we pick 2 from some and 1 from others, edges = (number of triangles with 2 picked) * 1. To minimize, pick 1 from each: but 6666 < 9999, so we must pick 2 from at least 9999 - 6666 = 3333 triangles. Actually, we pick 9999 vertices from 6666 triangles. If we pick t_i ∈ {0,1,2,3} from triangle i with sum = 9999. Edges = sum of C(t_i, 2). To minimize, we want t_i as equal as possible. 9999/6666 = 1.5, so pick 1 from half and 2 from half: 3333 triangles with 1 (0 edges) and 3333 with 2 (1 edge each) = 3333 edges. Plus we need 3333*1 + 3333*2 = 3333 + 6666 = 9999. Yes. So minimum edges = 3333 < 9999. Not enough.
+
+What about disjoint union of K_7? 19998/7 = 2856.86, not integer.
+
+K_6 works as shown. What about mixing K_6 with something else?
+
+Actually, let me reconsider. With K_6 blocks, we get exactly 9999 edges in the worst case. The total is 49995. Can we do better with a non-clique-based construction?
+
+Let me think about a graph where each vertex has degree 4, but structured so that every 9999-subset has ≥ 9999 edges. As argued, this requires every 9999-subset to have exactly 9999 edges (since average = 9999). This is a very strong condition.
+
+Actually, let me reconsider whether a 4-regular graph can have this property. Consider the graph G = K_6 □ ... no, let me think about a specific 4-regular graph.
+
+Consider the complete graph K_5. It's 4-regular on 5 vertices. If we take a "blow-up" or some product...
+
+Actually, here's an idea. Consider the graph that is the "tensor product" or "strong product" of some graphs. Or consider a Cayley graph.
+
+Let me think about a specific 4-regular graph: the complete graph K_5, blown up. Actually, let me think about the graph K_{5,5} minus a perfect matching. That's 4-regular on 10 vertices with 20 edges. Hmm.
+
+Actually, let me think about the graph that is a disjoint union of K_5's. 19998/5 = 3999.6, not integer. So we can't use all K_5's.
+
+What about 3999 copies of K_5 (19995 vertices) plus a K_3 (3 vertices)? Total 19998 vertices. m = 3999*10 + 3 = 39993. Now, a 9999-subset: we need to pick 9999 vertices from 3999 K_5's and 1 K_3. From each K_5, we can pick 0-5 vertices. From K_3, 0-3. To minimize edges, pick as evenly as possible. From K_5's: 9999/3999 ≈ 2.5, so pick 2 from some and 3 from others. If we pick 2 from x K_5's and 3 from (3999-x) K_5's: 2x + 3(3999-x) = 9999 - t where t is from K_3. Let's say t = 0 (pick nothing from K_3). Then 2x + 3(3999-x) = 9999, 2x + 11997 - 3x = 9999, -x = -1998, x = 1998. So pick 2 from 1998 K_5's and 3 from 2001 K_5's. Edges = 1998*C(2,2) + 2001*C(3,2) = 1998*1 + 2001*3 = 1998 + 6003 = 8001. That's less than 9999!
+
+So this doesn't work. The K_5 + K_3 construction gives worst case 8001 < 9999.
+
+Hmm. So K_6 blocks are better because they're "denser" per vertex.
+
+Let me reconsider. With K_s blocks, the worst case for a 9999-subset is when we pick s/2 from each (if s is even and 19998/s blocks). Edges per block = C(s/2, 2) = s(s-2)/8. Total = (19998/s) * s(s-2)/8 = 19998(s-2)/8 = 9999(s-2)/4. Need ≥ 9999: (s-2)/4 ≥ 1, s ≥ 6. Total edges m = (19998/s) * C(s,2) = 19998(s-1)/2 = 9999(s-1).
+
+For s = 6: m = 9999 * 5 = 49995, worst case = 9999.
+For s = 8: m = 9999 * 7 = 69993, worst case = 9999 * 6/4 = 14998.5 → 9999*1.5 = 14998.5. More edges, same constraint. Worse.
+For s = 10: m = 9999 * 9 = 89991. Even worse.
+
+So among clique blocks, s = 6 is optimal. But maybe non-clique structures are better.
+
+What if we use a non-clique block? Consider a graph H on s vertices with e edges. If we take 19998/s copies, m = (19998/s) * e. For a 9999-subset picking s/2 from each block, edges = (19998/s) * e(H[s/2]) where e(H[s/2]) is the minimum number of edges in a s/2-vertex subset of H. We need (19998/s) * e(H[s/2]) ≥ 9999, i.e., e(H[s/2]) ≥ 9999 * s / 19998 = s/2.
+
+So we need: a graph H on s vertices (s even, s | 19998) such that every s/2-subset of H has ≥ s/2 edges, and we want to minimize e(H) (then m = (19998/s) * e(H)).
+
+The averaging bound for H: e(H) * (s/2)(s/2-1)/(s(s-1)) ≥ s/2, e(H) * (s/2-1)/(2(s-1)) ≥ s/2, e(H) ≥ s/2 * 2(s-1)/(s/2-1) = s(s-1)/(s/2-1) = s(s-1)/((s-2)/2) = 2s(s-1)/(s-2).
+
+For s = 6: e(H) ≥ 2*6*5/4 = 15. So e(H) ≥ 15 = C(6,2), meaning H = K_6. So for s = 6, the clique is forced!
+
+For s = 4: e(H) ≥ 2*4*3/2 = 12. But C(4,2) = 6 < 12. Impossible! So s = 4 blocks can't work.
+
+For s = 8: e(H) ≥ 2*8*7/6 = 112/6 = 18.67, e(H) ≥ 19. C(8,2) = 28. So we need a graph on 8 vertices with ≥ 19 edges where every 4-subset has ≥ 4 edges. m = (19998/8) * 19 = 2499.75 * 19... wait, 19998/8 = 2499.75, not integer. So s = 8 doesn't divide 19998.
+
+19998 = 2 * 3 * 3333 = 2 * 3 * 3 * 1111 = 2 * 3^2 * 1111 = 2 * 9 * 1111. 1111 = 11 * 101. So 19998 = 2 * 3^2 * 11 * 101.
+
+Even divisors: 2, 6, 18, 22, 66, 198, 202, 606, 1818, 2222, 6666, 19998. Also 2*9=18, 2*11=22, 2*101=202, 2*3*11=66, 2*3*101=606, 2*9*11=198, 2*9*101=1818, 2*11*101=2222, 2*3*11*101=6666, 2*9*11*101=19998. Also 2*3=6, 2*3*3=18, 2*3*11=66, 2*3*101=606, 2*9*11=198, 2*9*101=1818, 2*3*3*11=198, 2*3*3*101=1818, 2*3*11*101=6666, 2*9*11*101=19998, 2*11*101=2222.
+
+So possible even values of s: 2, 6, 18, 22, 66, 198, 202, 606, 1818, 2222, 6666, 19998.
+
+For s = 18: e(H) ≥ 2*18*17/16 = 612/16 = 38.25, e(H) ≥ 39. C(18,2) = 153. m = (19998/18) * 39 = 1111 * 39 = 43329. That's less than 49995!
+
+But wait, we need to check that such a graph H exists: a graph on 18 vertices with 39 edges where every 9-subset has ≥ 9 edges. And also, we need the worst case to be when we pick exactly 9 from each block. But actually, the worst case might not be picking exactly s/2 from each block. Let me reconsider.
+
+Actually, the block construction argument is more subtle. When we pick a 9999-subset from the disjoint union of blocks, we don't have to pick exactly s/2 from each block. We could pick more from some and less from others. By convexity, the minimum total edges is achieved when the distribution is as "spread out" as possible, but this depends on the structure of each block.
+
+Hmm, this is getting complicated. Let me think about whether the block approach can actually beat 49995.
+
+For s = 18, if we can find H on 18 vertices with 39 edges where every 9-subset has ≥ 9 edges, then m = 1111 * 39 = 43329 < 49995. But we also need to verify that the global worst case (picking 9999 vertices from 1111 blocks) is ≥ 9999.
+
+If every 9-subset of H has ≥ 9 edges, and we pick t_i from block i with sum t_i = 9999, the total edges is sum e_i(t_i) where e_i(t_i) is the minimum edges in a t_i-subset of block i. By convexity of the function f(t) = min edges in t-subset (is it convex?), the minimum of sum f(t_i) subject to sum t_i = 9999 is achieved when all t_i are equal, i.e., t_i = 9999/1111 = 9. So the worst case is indeed picking 9 from each block, giving 1111 * 9 = 9999 edges. 
+
+But wait, is f(t) = min edges in t-subset convex? For a clique K_s, f(t) = C(t,2) = t(t-1)/2, which is convex. For general graphs, f(t) might not be convex. Hmm.
+
+Actually, for the block construction to work, we need: for any choice of t_i (0 ≤ t_i ≤ s, sum = 9999), sum of (min edges in t_i-subset of H) ≥ 9999. This is a stronger condition than just every 9-subset having ≥ 9 edges.
+
+But if f(t) is convex and f(9) = 9, then by Jensen's inequality, sum f(t_i) ≥ 1111 * f(9999/1111) = 1111 * f(9) = 1111 * 9 = 9999. So convexity would suffice.
+
+Is f(t) convex for a graph H? f(t) = min_{S, |S|=t} e(S). This is the minimum number of edges in a t-vertex induced subgraph. I believe this is indeed convex in t (it's a well-known result that the function giving the minimum number of edges in a k-vertex subgraph is convex). Actually, I'm not sure about this. Let me think...
+
+For a complete graph, f(t) = C(t,2), convex. For an empty graph, f(t) = 0, convex (trivially). For a path on 4 vertices, f(0)=0, f(1)=0, f(2)=0, f(3)=1, f(4)=3. Differences: 0, 0, 1, 2. Increasing, so convex. For a star on 4 vertices, f(0)=0, f(1)=0, f(2)=0 (pick two leaves), f(3)=2 (must include center + 2 leaves), f(4)=3. Differences: 0, 0, 2, 1. Not convex! 0, 0, 2, 1 - the differences are not non-decreasing (2 then 1).
+
+So f(t) is NOT always convex. This means the block construction argument is more subtle.
+
+However, for the specific case where we need every 9-subset to have ≥ 9 edges, and we're looking at picking from blocks, the worst case might not be picking exactly 9 from each.
+
+This is getting quite involved. Let me step back and think about the problem from a higher level.
+
+Actually, I wonder if the answer is simply 39999, achieved by some clever construction, or if it's higher.
+
+Let me reconsider the averaging bound. The averaging bound gives m ≥ 39999. The question is whether this is achievable.
+
+Let me think about a construction that might achieve close to 39999.
+
+Consider a 4-regular graph on 19998 vertices with 39996 edges. The average number of edges in a 9999-subset is exactly 9999. For every subset to have ≥ 9999, we need every subset to have exactly 9999. As I argued, this requires a very special graph.
+
+What 4-regular graph has the property that every 9999-subset has exactly 9999 edges?
+
+This means e(S) = 9999 for all |S| = 9999. Equivalently, e(S) is constant for all 9999-subsets.
+
+A graph where e(S) is constant for all k-subsets is called a "k-isoregular" graph or has a "regular" edge distribution. By a result in algebraic graph theory, if e(S) is constant for all k-subsets for some 2 ≤ k ≤ n-2, then the graph is "strongly regular" or has some special algebraic structure.
+
+Actually, I recall that if the number of edges in every k-subset is the same, then the graph must be either complete or empty. Wait, is that true? Let me think again.
+
+No, that's not true. Consider a graph that is a disjoint union of two K_3's (6 vertices, 6 edges). For 3-subsets: picking all 3 from one K_3 gives 3 edges, picking 2 from one and 1 from the other gives 1 edge. So e(S) is not constant. 
+
+What about the Petersen graph? It's 3-regular on 10 vertices with 15 edges. For 5-subsets, is e(S) constant? I don't think so.
+
+Actually, I think the only graphs where e(S) is constant for all k-subsets (2 ≤ k ≤ n-2) are the complete and empty graphs. This is a consequence of the theory of association schemes or the "first-order" rigidity of the edge count.
+
+Let me prove this. Suppose e(S) is constant for all k-subsets, 2 ≤ k ≤ n-2. Consider two k-subsets S, S' that differ by one element: S = A ∪ {u}, S' = A ∪ {v}, |A| = k-1, u,v ∉ A. Then e(S) - e(S') = (number of neighbors of u in A) - (number of neighbors of v in A) = 0. So for every (k-1)-subset A not containing u or v, the number of neighbors of u in A equals the number of neighbors of v in A.
+
+Now, fix u ≠ v. For every (k-1)-subset A of V \ {u,v}, |N(u) ∩ A| = |N(v) ∩ A|.
+
+Let a = |N(u) \ ({v} ∪ N(v))|, b = |N(v) \ ({u} ∪ N(u))|, c = |N(u) ∩ N(v) \ {u,v}| (common neighbors, excluding u,v themselves), d = |{u,v} ∩ N(u)| (whether v is a neighbor of u), e = |{u,v} ∩ N(v)| (whether u is a neighbor of v). Note d = e (either they're adjacent or not).
+
+In V \ {u,v}, u has deg(u) - d neighbors, v has deg(v) - e = deg(v) - d neighbors. For |N(u) ∩ A| = |N(v) ∩ A| for all A, we need the neighbors of u and v in V \ {u,v} to be "equidistributed" with respect to all (k-1)-subsets.
+
+This means: for every (k-1)-subset A of V \ {u,v}, |N(u) ∩ A| = |N(v) ∩ A|. 
+
+Let X = N(u) \ (N(v) ∪ {v}) (neighbors of u that are not neighbors of v and not v), Y = N(v) \ (N(u) ∪ {u}) (neighbors of v that are not neighbors of u and not u), Z = N(u) ∩ N(v) (common neighbors, in V \ {u,v}), W = V \ ({u,v} ∪ N(u) ∪ N(v)) (non-neighbors of both).
+
+|X| = a, |Y| = b, |Z| = c, |W| = n - 2 - a - b - c.
+
+|N(u) ∩ A| = |X ∩ A| + |Z ∩ A|, |N(v) ∩ A| = |Y ∩ A| + |Z ∩ A|.
+
+So we need |X ∩ A| = |Y ∩ A| for all (k-1)-subsets A of V \ {u,v}.
+
+This means: for every (k-1)-subset A of V \ {u,v}, the number of elements of X in A equals the number of elements of Y in A.
+
+If a ≠ b, say a > b, then we can choose A containing all of Y and min(a, k-1) elements of X. If k-1 ≥ a, A contains all a elements of X and all b elements of Y, so |X ∩ A| = a, |Y ∩ A| = b, a ≠ b, contradiction. If k-1 < a, we can choose A with k-1 elements all from X (if a ≥ k-1), giving |X ∩ A| = k-1, |Y ∩ A| = 0, contradiction (as long as b > 0 or k-1 > 0). 
+
+Wait, we need to be more careful. We need A to be a (k-1)-subset of V \ {u,v}, which has n-2 elements. As long as k-1 ≤ n-2 (which is true since k ≤ n-2 means k-1 ≤ n-3 < n-2), we can choose A freely.
+
+If a > 0, choose A to include one element from X and no elements from Y (as long as k-1 ≥ 1 and there's room). Then |X ∩ A| ≥ 1, |Y ∩ A| = 0, contradiction. Unless a = b = 0.
+
+Wait, but we need A to have exactly k-1 elements. If k-1 ≥ 1, we can include one element from X and fill the rest from W (or Z). As long as |W ∪ Z| ≥ k-2, which is true for large enough n. So if a > 0, we get a contradiction. Similarly if b > 0. So a = b = 0.
+
+This means: for every pair u, v, N(u) \ ({v} ∪ N(v)) = ∅ and N(v) \ ({u} ∪ N(u)) = ∅. In other words, N(u) \ {v} ⊆ N(v) and N(v) \ {u} ⊆ N(u). So N(u) \ {v} = N(v) \ {u} (since both inclusions hold). This means u and v have the same neighbors except possibly each other.
+
+If u and v are adjacent: N(u) \ {v} = N(v) \ {u}, so N(u) = (N(v) \ {u}) ∪ {v} and N(v) = (N(u) \ {v}) ∪ {u}. Since N(u) \ {v} = N(v) \ {u}, let's call this set C. Then N(u) = C ∪ {v}, N(v) = C ∪ {u}. So deg(u) = |C| + 1 = deg(v). And every vertex in C is adjacent to both u and v.
+
+If u and v are not adjacent: N(u) \ {v} = N(u) (since v ∉ N(u)), N(v) \ {u} = N(v). So N(u) = N(v). They have exactly the same neighbors.
+
+So the graph has the property that any two vertices have the same closed neighborhood (if adjacent) or the same open neighborhood (if non-adjacent). This is a very strong condition.
+
+This means the graph is a "blow-up" of a smaller graph where each vertex is replaced by a clique or independent set. Specifically, the relation "u ~ v iff N(u) \ {v} = N(v) \ {u}" is an equivalence relation, and each equivalence class is either a clique or an independent set, and the quotient graph is... 
+
+Actually, this is the structure of a "complete multipartite graph" or "complete graph with twins." Let me think about this more carefully.
+
+If all vertices have the same neighbors (up to the adjacency between them), then the graph is determined by a partition of vertices into "twin classes" where vertices in the same class have the same neighbors outside the class, and within the class, they're either all adjacent (clique class) or all non-adjacent (independent class). Between classes, it's either complete or empty.
+
+For a 4-regular graph with this property: each vertex has degree 4. If a twin class has size t and is a clique, each vertex in it has t-1 neighbors within the class and 4-(t-1) = 5-t neighbors outside. If it's an independent set, each vertex has 0 neighbors within and 4 outside.
+
+This is getting complicated. Let me just check: does a 4-regular graph on 19998 vertices with constant e(S) for all 9999-subsets exist?
+
+Given the strong structural constraint, such a graph would be a "blow-up" of a small graph. The smallest possibility: a twin class of size t that's a clique, with each vertex having 5-t neighbors outside. For t = 5, each vertex has 0 neighbors outside, so the class is an isolated K_5. For t = 1, each vertex has 4 neighbors outside (no twins). Etc.
+
+If the graph is a disjoint union of K_5's, we need 19998/5 to be integer, which it's not. So a 4-regular graph with this property on 19998 vertices likely doesn't exist (since 5 ∤ 19998).
+
+What about a graph with twin classes of different types? E.g., some K_5 classes and some other classes. But then the graph wouldn't be regular unless all classes give the same degree.
+
+I think for 4-regular graphs with the "constant e(S)" property, the only option on 19998 vertices would be a disjoint union of K_5's, which requires 5 | 19998. Since 19998 = 2 * 9999 = 2 * 3 * 3333 = 2 * 3^2 * 1111 = 2 * 9 * 1111, and 1111 = 11 * 101, we have 19998 = 2 * 3^2 * 11 * 101. 5 does not divide 19998. So no 4-regular graph with constant e(S) exists on 19998 vertices.
+
+This means m = 39996 is not achievable. What about m = 39997, 39998, 39999?
+
+With m = 39999, the average is 9999.25. We need every 9999-subset to have ≥ 9999 edges. The average being 9999.25 means the "slack" is 0.25 per subset on average. This is very tight.
+
+Hmm, I think the answer might be higher than 39999. Let me think about this differently.
+
+Let me consider the problem from the perspective of the "deficiency" of each subset. For a 9999-subset S, define def(S) = 9999 - e(S). We need def(S) ≤ 0 for all S. 
+
+Consider the sum of e(S) over all S and the sum of e(S)^2. By the second moment method, if we can bound the variance, we can determine when all e(S) ≥ 9999.
+
+Actually, let me think about this problem differently. Let me consider a specific construction and compute.
+
+Construction: Take 3333 copies of K_6. m = 3333 * 15 = 49995. Every 9999-subset has ≥ 9999 edges (with equality when picking 3 from each K_6). This works but gives 49995.
+
+Can we do better? Let me think about a "hybrid" construction.
+
+What if we use 3332 copies of K_6 (19992 vertices) and one K_6 (6 vertices)? That's just 3333 copies, same thing.
+
+What if we use some K_6's and some other blocks? E.g., 3330 K_6's (19980 vertices) and one K_18 (18 vertices). Total: 19998. m = 3330 * 15 + e(K_18) = 49950 + 153 = 50103. Worse.
+
+What if we use a non-clique block that's more efficient? For a block of size s, the "efficiency" is e(H) / (min edges in s/2-subset). We want to minimize e(H) while ensuring min edges in s/2-subset ≥ s/2.
+
+For K_6: e = 15, min edges in 3-subset = 3. Efficiency = 15/3 = 5.
+For a 6-vertex graph with fewer edges: can we have a 6-vertex graph with, say, 12 edges where every 3-subset has ≥ 3 edges? A 3-subset has ≥ 3 edges means it's a triangle. So every 3-subset must be a triangle, meaning the graph is K_6. So for s = 6, we need K_6.
+
+What about s = 18? We need an 18-vertex graph H with e(H) edges where every 9-subset has ≥ 9 edges, minimizing e(H). The averaging bound gives e(H) ≥ 2*18*17/16 = 38.25, so e(H) ≥ 39. Can we achieve 39?
+
+If we can find such H with 39 edges, then m = 1111 * 39 = 43329 < 49995. But we also need the global condition (not just within blocks).
+
+Hmm, but even if every 9-subset of H has ≥ 9 edges, we need to verify the global condition. As I discussed, if f(t) = min edges in t-subset of H is convex, then the global minimum is at t = 9 for each block. But f might not be convex.
+
+Let me think about whether we can find an 18-vertex graph with 39 edges where every 9-subset has ≥ 9 edges.
+
+The averaging bound says average edges in 9-subset = 39 * (9*8)/(18*17) = 39 * 72/306 = 39 * 0.2353 = 9.176. So average is 9.176, and we need min ≥ 9. This is tight but possible.
+
+What graph on 18 vertices with 39 edges has every 9-subset with ≥ 9 edges? 
+
+39 edges on 18 vertices: average degree = 78/18 = 4.33. So it's between 4-regular (36 edges) and 5-regular (45 edges).
+
+Hmm, this is getting very involved. Let me think about whether there's a cleaner approach to the original problem.
+
+Actually, let me reconsider the problem. Maybe I should think about it in terms of a more direct argument.
+
+Let me re-read the problem: "Simple graph G has 19998 vertices. For any subgraph $\bar G$ of G with 9999 vertices, $\bar G$ has at least 9999 edges. Find the minimum number of edges in G."
+
+I think "subgraph" here means "induced subgraph" (taking a subset of vertices and all edges between them). Actually, "subgraph with 9999 vertices" could mean any subgraph on 9999 vertices, not necessarily induced. But if it's any subgraph, then we could always take a subgraph with 0 edges (just the vertices), so the condition would be impossible. So it must mean induced subgraph.
+
+OK so the condition is: every induced subgraph on 9999 vertices has ≥ 9999 edges.
+
+Let me think about this problem using a cleaner approach. 
+
+Let me consider the complement. Let d(v) be the degree of v in G. For a 9999-subset S, e(S) = (1/2) * sum_{v in S} (d(v) - |N(v) ∩ (V\S)|) = (1/2) * (sum_{v in S} d(v) - e(S, V\S)).
+
+Hmm, this doesn't immediately simplify.
+
+Let me try a different approach. Consider the "edge expansion" of the graph. For a set S of 9999 vertices, e(S) ≥ 9999. Note that e(S) = (sum_{v in S} d(v) - e(S, V\S)) / 2. So sum_{v in S} d(v) - e(S, V\S) ≥ 2 * 9999 = 19998.
+
+Also, e(S) + e(V\S) + e(S, V\S) = m, and both e(S) ≥ 9999 and e(V\S) ≥ 9999, so e(S, V\S) ≤ m - 19998.
+
+Now, sum_{v in S} d(v) = 2*e(S) + e(S, V\S) ≥ 2*9999 + e(S, V\S). And sum_{v in V\S} d(v) = 2*e(V\S) + e(S, V\S) ≥ 2*9999 + e(S, V\S).
+
+Adding: sum of all degrees = 2m ≥ 4*9999 + 2*e(S, V\S), so e(S, V\S) ≤ m - 2*9999 = m - 19998. Which we already knew.
+
+Let me try to think about this problem using a specific powerful technique.
+
+Technique: Double counting with a clever weight function.
+
+For each 9999-subset S, e(S) ≥ 9999. Sum over all S: sum_S e(S) ≥ 9999 * C(19998, 9999). The LHS = m * C(19996, 9997). So m ≥ 9999 * C(19998, 9999) / C(19996, 9997) = 9999 * (19998 * 19997) / (9999 * 9998) = 19998 * 19997 / 9998 = 39998 + 1/4999. So m ≥ 39999.
+
+This is the averaging bound. Now, can we achieve 39999?
+
+Let me think about this more carefully. The answer might be 39999, but we need a construction.
+
+Actually, wait. Let me reconsider. Maybe the answer is not 39999 but something that can be achieved by a nice construction. Let me think about what constructions are known for this type of problem.
+
+This problem is about finding the minimum number of edges in a graph on n vertices such that every n/2-vertex induced subgraph has at least n/2 edges. This is related to the concept of "jumbled" graphs or graphs with good edge expansion.
+
+Let me think about a specific construction: a 4-regular graph that's a disjoint union of cycles of length 6, where each C_6 is "augmented" to be K_6. That's just the K_6 construction.
+
+Alternatively, consider a 4-regular graph that's a "strongly regular graph" or has some algebraic structure.
+
+Actually, let me think about the problem differently. Let me consider the possibility that the answer is 39999 and try to construct such a graph.
+
+With m = 39999, the average number of edges in a 9999-subset is 9999.25. We need every 9999-subset to have ≥ 9999 edges. The "slack" is 0.25 on average. This means most subsets have 9999 or 10000 edges, with the average being 9999.25.
+
+For this to work, we need a graph where the edge count in 9999-subsets is very concentrated around 9999-10000.
+
+Hmm, I think this is very hard to achieve. The variance of e(S) for a random 9999-subset S is typically large (on the order of n or more), so having all values ≥ 9999 when the average is 9999.25 seems very difficult.
+
+Let me compute the variance. For a d-regular graph, Var(e(S)) depends on the structure. For a random d-regular graph, the variance is roughly... well, it depends on the eigenvalues.
+
+Actually, let me think about this differently. For the K_6 construction, the variance is 0 when we pick exactly 3 from each block (all give 9999), but the variance is positive when we pick unevenly. However, the minimum is 9999 (achieved by picking 3 from each), so it works.
+
+For a graph with m = 39999, we'd need the minimum to be ≥ 9999 with average 9999.25. The minimum being so close to the average requires very low variance, which requires a very structured graph.
+
+I think the K_6 construction with m = 49995 might actually be optimal, or close to optimal. But the averaging bound says 39999, so there's a gap.
+
+Let me think about whether there's a better construction than K_6 blocks.
+
+What about using a "fractional" version of the block construction? Instead of disjoint blocks, use a more intertwined structure.
+
+Idea: Consider a graph based on a finite geometry or design. For instance, consider the graph where vertices are points of a projective plane, and edges connect collinear points. But the parameters don't match.
+
+Idea: Consider a Cayley graph on Z_{19998} with connection set {±1, ±2} (a 4-regular circulant). This has 39996 edges. The average is 9999. But the variance is positive, so some 9999-subset has < 9999 edges.
+
+What if we use a Cayley graph on Z_{19998} with connection set {±1, ±2, ±3333}? That's 6-regular, m = 59994. Average = 59994 * 9998/39994 ≈ 15000. Min is likely > 9999 but m is large.
+
+Hmm, I'm not making progress on finding a better construction. Let me think about whether the K_6 construction is actually optimal.
+
+Let me try to prove a better lower bound than 39999.
+
+Better lower bound attempt: Consider a specific family of 9999-subsets that gives a tighter bound.
+
+For each vertex v, consider the 9999-subset S_v = V \ {v and 9998 other vertices}. Hmm, this is just a general 9999-subset.
+
+Let me try a different approach. Consider the following: for each vertex v, let S be a 9999-subset containing v, and T = V \ S (also 9999 vertices). Then e(S) ≥ 9999 and e(T) ≥ 9999, so m = e(S) + e(T) + e(S,T) ≥ 19998 + e(S,T).
+
+Now, e(S,T) = sum_{v in S} (d(v) - deg_S(v)) = sum_{v in S} d(v) - 2*e(S). Similarly, e(S,T) = sum_{v in T} d(v) - 2*e(T).
+
+So m ≥ 19998 + e(S,T) for every balanced partition (S, T). To minimize m, we want to find the partition that minimizes e(S,T), but we need the inequality to hold for ALL partitions. So m ≥ 19998 + max over all balanced partitions of e(S,T)? No, that's wrong. We need m ≥ 19998 + e(S,T) for ALL partitions, so m ≥ 19998 + max_S e(S,T). But max_S e(S,T) could be as large as 9999 * 9999 (if the graph is complete bipartite), so this gives m ≥ 19998 + max e(S,T), which is a very weak bound if max e(S,T) is large.
+
+Wait, no. We need m ≥ 19998 + e(S,T) for every partition, so m ≥ 19998 + min_S e(S,T). The minimum cut over all balanced partitions. But min e(S,T) could be 0 (if the graph is disconnected with two components of size 9999). So this gives m ≥ 19998, which is weaker than the averaging bound.
+
+Hmm. Let me try yet another approach.
+
+Let me think about the problem in terms of the degree sequence. Let d_1 ≤ d_2 ≤ ... ≤ d_{19998} be the degrees. 
+
+For a 9999-subset S, e(S) = (sum_{v in S} d(v) - e(S, V\S)) / 2. To minimize e(S), we want to choose S with small total degree and large cut. But these are somewhat in tension.
+
+Actually, let me think about the "worst case" subset. The subset that minimizes e(S) would tend to include low-degree vertices. 
+
+Consider the 9999 vertices with the smallest degrees: S = {v : d(v) is among the 9999 smallest}. Then sum_{v in S} d(v) is minimized. But e(S, V\S) could be anything.
+
+Hmm, this is hard to bound in general.
+
+Let me try a completely different approach. Let me think about the problem as an integer program and try to find the dual.
+
+We want to minimize m = |E| subject to: for all S with |S| = 9999, e(S) ≥ 9999.
+
+This is equivalent to: for all S with |S| = 9999, sum_{e ∈ E, e ⊆ S} 1 ≥ 9999.
+
+The LP relaxation gives m ≥ 39999 (by the averaging argument). The question is the integrality gap.
+
+For the K_6 construction, m = 49995. Is there a construction with m between 39999 and 49995?
+
+Let me think about a construction based on a 4-regular graph plus a few extra edges.
+
+Take a 4-regular graph on 19998 vertices (39996 edges) and add 3 extra edges (39999 total). The average is 9999.25. We need every 9999-subset to have ≥ 9999. The 4-regular graph has average 9999, so some subsets have < 9999. Adding 3 edges increases the count for subsets containing both endpoints of those edges. But there are many subsets with < 9999, and 3 edges can only help subsets containing both endpoints.
+
+This doesn't seem like it would work. The number of "deficient" subsets (with < 9999 edges) in a 4-regular graph is likely huge, and 3 extra edges can't fix all of them.
+
+Let me reconsider. Maybe the answer is indeed 49995, and the averaging bound of 39999 is not tight.
+
+Let me try to prove a better lower bound.
+
+Approach: Use the fact that the condition must hold for ALL 9999-subsets, not just on average. 
+
+Consider a vertex v with degree d(v). Consider a 9999-subset S that contains v and 9998 of v's non-neighbors (if v has enough non-neighbors). Then v contributes 0 edges to e(S) from its incident edges (since no neighbor of v is in S). The remaining 9998 vertices contribute at most C(9998, 2) edges, but we need the total to be ≥ 9999.
+
+Hmm, this doesn't directly give a useful bound.
+
+Let me try another approach. Consider the 9999 vertices with the smallest degrees. Let S be this set. Then e(S) ≥ 9999. Now, e(S) ≤ (sum_{v in S} d(v)) / 2 (since e(S) = (sum d_S(v)) / 2 ≤ (sum d(v)) / 2 where d_S(v) ≤ d(v)). Wait, that's not right. e(S) = (sum_{v in S} d_S(v)) / 2 where d_S(v) is the degree of v within S. And d_S(v) ≤ d(v), so e(S) ≤ (sum_{v in S} d(v)) / 2. But we need e(S) ≥ 9999, so sum_{v in S} d(v) ≥ 2 * 9999 = 19998. But this is a lower bound on the sum of the 9999 smallest degrees.
+
+The sum of the 9999 smallest degrees ≥ 19998 means the average of the 9999 smallest degrees ≥ 2. So the median degree is ≥ 2 (roughly). This gives sum of all degrees ≥ 19998 * 2 = 39996 (very roughly), so m ≥ 19998. Weaker than the averaging bound.
+
+Let me try to use a more refined argument. 
+
+Consider two complementary 9999-subsets S and T. We have e(S) ≥ 9999, e(T) ≥ 9999, and e(S) + e(T) + e(S,T) = m. So m ≥ 19998 + e(S,T). 
+
+Now, e(S,T) = sum_{v in S} d(v) - 2*e(S) ≤ sum_{v in S} d(v) - 2*9999. Similarly, e(S,T) ≤ sum_{v in T} d(v) - 2*9999.
+
+So e(S,T) ≤ min(sum_{v in S} d(v), sum_{v in T} d(v)) - 19998.
+
+Also, e(S,T) = sum_{v in S} d(v) - 2*e(S) = sum_{v in S} d(v) - 2*e(S). Since e(S) ≥ 9999, e(S,T) ≤ sum_{v in S} d(v) - 19998.
+
+And m = e(S) + e(T) + e(S,T) ≥ 9999 + 9999 + e(S,T). But also m = sum of all degrees / 2.
+
+Hmm, I keep going in circles. Let me try to think about this problem from the perspective of known results.
+
+This problem is asking for the minimum number of edges in an n-vertex graph (n = 19998) such that every n/2-vertex induced subgraph has at least n/2 edges. 
+
+This is related to the concept of "super-edge-connected" or "edge-expander" graphs, but the specific condition is about the number of edges in half the vertices.
+
+Actually, I think this might be related to the following: the minimum number of edges such that the graph is "4999-edge-connected" or has some expansion property. But I'm not sure of the exact connection.
+
+Let me try to think about it from the perspective of the K_6 construction and see if we can prove it's optimal.
+
+Claim: The answer is 49995.
+
+Proof sketch: We need to show m ≥ 49995 and that the K_6 construction achieves 49995.
+
+The K_6 construction achieves 49995 as shown. Now we need to prove m ≥ 49995.
+
+Hmm, but the averaging bound only gives 39999. So we need a stronger argument.
+
+Let me think about a stronger lower bound. 
+
+Consider the following: for each vertex v, consider the 9999-subset S that contains v and is chosen to minimize e(S). 
+
+Actually, let me think about a "local" argument. For each vertex v, consider all 9999-subsets containing v. There are C(19997, 9998) such subsets. The sum of e(S) over these subsets is... each edge {v, w} is in C(19996, 9997) of these subsets (those containing both v and w), and each edge {w, x} not involving v is in C(19995, 9996) of these subsets (those containing w, x, and v). Wait, this is getting complicated.
+
+Let me try a different approach. Let me think about the problem in terms of "fractional arboricity" or "edge density."
+
+Actually, let me try to think about this more carefully using the structure of the problem.
+
+Key observation: The condition is that for every 9999-subset S, e(S) ≥ 9999 = |S|. So the "edge density" e(S)/|S| ≥ 1 for every half-size subset. We want to minimize the total number of edges.
+
+This is related to the concept of the "fractional arboricity" or the "edge-density" of the graph. The arboricity of a graph is the minimum number of forests needed to cover all edges, which by Nash-Williams' theorem is max over all subgraphs H of ceil(e(H)/(v(H)-1)). 
+
+But our condition is about e(S)/|S| ≥ 1, not e(S)/(|S|-1) ≥ something. So it's slightly different.
+
+Hmm, let me think about this differently. 
+
+Consider the following reformulation: we need e(S) ≥ |S| for all S with |S| = 9999. By a result in extremal graph theory, if e(S) ≥ |S| for all S of a given size, then...
+
+Actually, I recall a result that says: if every k-vertex induced subgraph of an n-vertex graph has at least k edges, then the graph has at least n*k/(2*(k-1)) * ... hmm, I don't remember the exact result.
+
+Let me try to think about it from scratch.
+
+Let me consider the "deficiency" approach. For a 9999-subset S, define f(S) = e(S) - 9999. We need f(S) ≥ 0 for all S. We want to minimize m = |E|.
+
+Consider the "most deficient" subset, i.e., the one that minimizes e(S). This subset determines the minimum m.
+
+For the K_6 construction, the minimum e(S) = 9999, achieved by picking 3 from each K_6. The total m = 49995.
+
+Now, can we find a graph with fewer edges where the minimum e(S) is still ≥ 9999?
+
+Let me think about a graph that's "almost" 4-regular but with some structure that ensures the minimum is high.
+
+Consider a 4-regular graph that's a disjoint union of K_{4,4} graphs (complete bipartite, 4-regular). 19998/8 = 2499.75, not integer. So this doesn't work directly.
+
+Consider a 4-regular graph that's a disjoint union of K_5's. 19998/5 is not integer.
+
+Consider a 4-regular graph that's a disjoint union of the 4-regular graph on 6 vertices: K_6 minus a perfect matching. K_6 minus a perfect matching has 6 vertices and 15 - 3 = 12 edges, and is 4-regular. 19998/6 = 3333. So 3333 copies, m = 3333 * 12 = 39996. Average = 9999. But does every 9999-subset have ≥ 9999 edges?
+
+K_6 minus a perfect matching: vertices {1,2,3,4,5,6}, remove edges {1,2}, {3,4}, {5,6}. Remaining edges: all except these 3. So 12 edges. Each vertex has degree 4.
+
+For a 3-subset of this graph, the minimum number of edges: pick {1,3,5} (one from each pair). Edges among {1,3,5}: 1-3, 1-5, 3-5. All present (since we only removed 1-2, 3-4, 5-6). So 3 edges. Pick {1,2,3}: edges 1-3, 2-3 (1-2 removed). So 2 edges. So the minimum for a 3-subset is 2 (pick both from a pair and one other).
+
+So for the disjoint union of 3333 copies of (K_6 minus perfect matching), a 9999-subset picking 3 from each block: if we pick {1,2,3} from each block, we get 2 edges per block, total 3333 * 2 = 6666 < 9999. So this doesn't work!
+
+So K_6 minus matching is not as good as K_6. The K_6 construction works because every 3-subset of K_6 has ≥ 3 edges (it's a clique, so every 3-subset is a triangle with 3 edges).
+
+OK so the key property of K_6 is that every 3-subset has exactly 3 edges (it's a clique). This is what makes the construction work.
+
+Now, can we find a graph H on s vertices (s | 19998, s even) where every s/2-subset has ≥ s/2 edges, and e(H) / (s/2) < 5 (the K_6 ratio)?
+
+For K_6: e(H) = 15, s/2 = 3, ratio = 5. Total m = 3333 * 15 = 49995.
+
+We want e(H) / (s/2) < 5, i.e., e(H) < 5s/2.
+
+For s = 18: we need e(H) < 45 and every 9-subset has ≥ 9 edges. Averaging bound: e(H) ≥ 39. So 39 ≤ e(H) ≤ 44. If we can find such H with 39 edges, m = 1111 * 39 = 43329 < 49995.
+
+But does such H exist? And does the global condition hold?
+
+Let me think about whether an 18-vertex graph with 39 edges and every 9-subset having ≥ 9 edges exists.
+
+39 edges on 18 vertices: average degree 78/18 = 4.33. So some vertices have degree 4 and some 5. Specifically, if x vertices have degree 5 and 18-x have degree 4: 5x + 4(18-x) = 78, x + 72 = 78, x = 6. So 6 vertices of degree 5 and 12 of degree 4.
+
+For every 9-subset to have ≥ 9 edges, with average 9.176, we need the minimum to be ≥ 9. This is tight.
+
+Consider the 9 vertices with the smallest degrees (all degree 4). Their total degree is 36. The number of edges within this set is at most 36/2 = 18, but we need ≥ 9. The number of edges from this set to the other 9 is at least 36 - 2*9 = 18 (if e(S) = 9, then e(S,T) = 36 - 18 = 18). This is feasible.
+
+But we need to actually construct such a graph. This is non-trivial.
+
+Let me think about a specific construction. Consider the graph on 18 vertices that is the "tensor product" or some algebraic construction.
+
+Actually, let me think about a simpler approach. Consider the graph G = K_{9,9} minus a perfect matching. This has 18 vertices, 9*9 - 9 = 72 edges. Way too many.
+
+Consider the graph G = C_{18} (cycle on 18 vertices) plus some chords. C_{18} has 18 edges. Every 9-subset of C_{18} has at least... well, a 9-subset of a cycle can have as few as 0 edges (pick every other vertex). So C_{18} doesn't work.
+
+Consider the graph G = K_{18} with 153 edges. Every 9-subset has C(9,2) = 36 edges. Way more than needed.
+
+What about a 4-regular graph on 18 vertices? 36 edges. Average 9-subset edges = 36 * 72/306 = 36 * 0.2353 = 8.47. Less than 9. So a 4-regular graph on 18 vertices has average < 9, meaning some 9-subset has < 9 edges. Not enough.
+
+What about a graph on 18 vertices with 39 edges (between 4 and 5 regular)? Average = 39 * 72/306 = 9.176. We need min ≥ 9. 
+
+Let me try to construct such a graph. Take a 4-regular graph on 18 vertices (36 edges) and add 3 edges. The 4-regular graph has average 8.47, so some 9-subsets have ≤ 8 edges. Adding 3 edges increases the count for 9-subsets containing both endpoints. Each added edge is in C(16,7) = 11440 9-subsets (out of C(18,9) = 48620). So each edge helps about 23.5% of subsets. Three edges help at most 70.6% of subsets (with overlap). But we need to help all deficient subsets.
+
+The number of deficient subsets (with ≤ 8 edges) in a 4-regular graph could be large. It's hard to fix all of them with just 3 edges.
+
+This suggests that 39 edges might not be enough for s = 18. Let me think about what the minimum is for s = 18.
+
+Actually, let me think about this more carefully. For s = 18, we need every 9-subset to have ≥ 9 edges. What's the minimum number of edges?
+
+This is a smaller version of the same problem: n = 18, k = 9, find min m such that every 9-subset has ≥ 9 edges.
+
+Averaging bound: m ≥ 9 * 18*17/(9*8) = 9 * 306/72 = 9 * 4.25 = 38.25, m ≥ 39.
+
+Can we achieve 39? Or do we need more?
+
+Let me think about the K_6 construction for n = 18: 3 copies of K_6, m = 45. Every 9-subset (picking 3 from each) has 9 edges. So m = 45 works.
+
+Can we do better than 45 for n = 18? The averaging bound says 39. Is 39 achievable?
+
+Let me try to think about n = 6, k = 3 as a test case. Averaging bound: m ≥ 3 * 6*5/(3*2) = 3 * 5 = 15. And K_6 has 15 edges, and it's the only graph where every 3-subset has 3 edges. So the averaging bound is tight for n = 6.
+
+For n = 18, k = 9: averaging bound 39. K_6 construction gives 45. Is 39 achievable?
+
+Hmm, for n = 6, the averaging bound is tight because K_6 is the unique graph with every 3-subset having 3 edges, and it has exactly 15 = averaging bound edges.
+
+For n = 18, is there a graph with 39 edges where every 9-subset has ≥ 9 edges? 
+
+Let me think about a potential construction. Consider the graph on Z_18 where we connect i to i±1, i±2 (circulant graph with connection set {±1, ±2}). This is 4-regular, 36 edges. Not enough (average 8.47).
+
+Add 3 more edges: connect 0-9, 6-15, 3-12 (opposite vertices). Now 39 edges. Does every 9-subset have ≥ 9 edges?
+
+A 9-subset of Z_18 with connection set {±1, ±2, 9}: the edges are between vertices at distance 1, 2, or 9. 
+
+Consider the subset S = {0, 2, 4, 6, 8, 10, 12, 14, 16} (all even vertices). Edges within S: distance 2 edges (0-2, 2-4, ..., 16-0) = 9 edges. Distance 1 edges: none (all even, distance 1 is odd). Distance 9 edges: 0-9 (9 not in S), 2-11 (not in S), etc. None. So e(S) = 9. OK, exactly 9.
+
+Consider S = {0, 1, 2, 3, 4, 5, 6, 7, 8} (first 9). Edges: distance 1: 0-1, 1-2, ..., 7-8 = 8 edges. Distance 2: 0-2, 1-3, ..., 6-8 = 7 edges. Distance 9: 0-9 (not in S), 1-10 (not), ..., 8-17 (not). None. Total = 15. OK.
+
+Consider S = {0, 2, 4, 6, 8, 9, 11, 13, 15}. Edges: distance 1: 8-9 (yes), others? 0-1 (no), 2-3 (no), 4-5 (no), 6-7 (no), 9-10 (no), 11-12 (no), 13-14 (no), 15-16 (no). So 1 edge. Distance 2: 0-2, 2-4, 4-6, 6-8, 9-11, 11-13, 13-15, 15-0 (15-17 is distance 2? 15 to 17 is distance 2, but 17 not in S. 15 to 0 is distance 3 (going 15→16→17→0) or distance 15, so not distance 2. Hmm, in Z_18, distance 2 from 15 is 13 and 17. 13 is in S. So 13-15 is distance 2. Already counted. Let me be more careful.
+
+In Z_18, i is connected to i+1, i-1, i+2, i-2, i+9 (mod 18). So the edges are {i, i+1}, {i, i+2}, {i, i+9} for all i (but each counted once).
+
+For S = {0, 2, 4, 6, 8, 9, 11, 13, 15}:
+- Distance 1 edges within S: {8,9} (8+1=9). Any others? 0+1=1∉S, 2+1=3∉S, 4+1=5∉S, 6+1=7∉S, 9+1=10∉S, 11+1=12∉S, 13+1=14∉S, 15+1=16∉S. So just {8,9}. 1 edge.
+- Distance 2 edges within S: {0,2}, {2,4}, {4,6}, {6,8}, {9,11}, {11,13}, {13,15}, {15,0}? 15+2=17∉S. 0+2=2∈S, so {0,2}. 0-2=16∉S. So {0,2}, {2,4}, {4,6}, {6,8}, {9,11}, {11,13}, {13,15}. 15-2=13∈S, already counted. So 7 edges.
+- Distance 9 edges within S: {0,9} (0+9=9∈S), {2,11} (2+9=11∈S), {4,13} (4+9=13∈S), {6,15} (6+9=15∈S), {8,17} (17∉S), {9,0} (already), {11,2} (already), {13,4} (already), {15,6} (already). So {0,9}, {2,11}, {4,13}, {6,15}. 4 edges.
+
+Total: 1 + 7 + 4 = 12 ≥ 9. OK.
+
+Let me try to find a subset with fewer edges. Consider S = {0, 1, 3, 5, 7, 9, 11, 13, 15} (odd vertices plus 0).
+- Distance 1: {0,1}, {1,0} already. 0+1=1∈S. 1+1=2∉S. 3+1=4∉S. 5+1=6∉S. 7+1=8∉S. 9+1=10∉S. 11+1=12∉S. 13+1=14∉S. 15+1=16∉S. So just {0,1}. 1 edge.
+- Distance 2: 0+2=2∉S. 1+2=3∈S: {1,3}. 3+2=5∈S: {3,5}. 5+2=7∈S: {5,7}. 7+2=9∈S: {7,9}. 9+2=11∈S: {9,11}. 11+2=13∈S: {11,13}. 13+2=15∈S: {13,15}. 15+2=17∉S. So 7 edges.
+- Distance 9: 0+9=9∈S: {0,9}. 1+9=10∉S. 3+9=12∉S. 5+9=14∉S. 7+9=16∉S. 9+0=0 already. 11+2=13, no wait 11+9=20=2∉S. 13+9=22=4∉S. 15+9=24=6∉S. So just {0,9}. 1 edge.
+
+Total: 1 + 7 + 1 = 9. Exactly 9!
+
+Let me try S = {0, 1, 3, 5, 7, 9, 11, 13, 15} more carefully. Actually I just computed 9. Let me try another subset.
+
+S = {1, 3, 5, 7, 9, 11, 13, 15, 17} (all odd vertices).
+- Distance 1: all pairs at distance 1 are (odd, even), so none. 0 edges.
+- Distance 2: 1-3, 3-5, 5-7, 7-9, 9-11, 11-13, 13-15, 15-17, 17-1 (17+2=19=1). So 9 edges.
+- Distance 9: 1+9=10∉S. 3+9=12∉S. 5+9=14∉S. 7+9=16∉S. 9+0=0∉S. 11+2=13, no, 11+9=20=2∉S. 13+9=22=4∉S. 15+9=24=6∉S. 17+9=26=8∉S. So 0 edges.
+
+Total: 0 + 9 + 0 = 9. Exactly 9.
+
+S = {0, 2, 4, 6, 8, 10, 12, 14, 16} (all even vertices).
+- Distance 1: 0 edges (all even).
+- Distance 2: 0-2, 2-4, 4-6, 6-8, 8-10, 10-12, 12-14, 14-16, 16-0 (16+2=18=0). 9 edges.
+- Distance 9: 0+9=9∉S. 2+9=11∉S. etc. All odd, not in S. 0 edges.
+
+Total: 9. Exactly 9.
+
+Interesting, so this circulant graph with 39 edges seems to have every 9-subset with ≥ 9 edges, with equality for the "all odd" and "all even" subsets and some mixed ones.
+
+But I need to verify this more carefully. Let me check a potentially bad subset.
+
+S = {0, 1, 2, 3, 4, 5, 6, 7, 8}:
+- Distance 1: 0-1, 1-2, 2-3, 3-4, 4-5, 5-6, 6-7, 7-8. 8 edges.
+- Distance 2: 0-2, 1-3, 2-4, 3-5, 4-6, 5-7, 6-8. 7 edges.
+- Distance 9: 0-9∉S, 1-10∉S, ..., 8-17∉S. 0 edges.
+Total: 15.
+
+S = {0, 1, 2, 3, 4, 5, 6, 7, 17}:
+- Distance 1: 0-1, 1-2, 2-3, 3-4, 4-5, 5-6, 6-7, 17-0 (17+1=18=0). 8 edges.
+- Distance 2: 0-2, 1-3, 2-4, 3-5, 4-6, 5-7, 17-1 (17+2=19=1). 7 edges.
+- Distance 9: 0-9∉S, 1-10∉S, ..., 7-16∉S, 17-8∉S. 0 edges.
+Total: 15.
+
+S = {0, 1, 2, 3, 4, 5, 6, 16, 17}:
+- Distance 1: 0-1, 1-2, 2-3, 3-4, 4-5, 5-6, 16-17, 17-0. 8 edges.
+- Distance 2: 0-2, 1-3, 2-4, 3-5, 4-6, 16-0 (16+2=18=0), 17-1 (17+2=19=1). 7 edges.
+- Distance 9: 0-9∉S, ..., 6-15∉S, 16-7∉S, 17-8∉S. 0 edges.
+Total: 15.
+
+Hmm, it seems like "contiguous" subsets have many edges. The minimum seems to be 9, achieved by the "alternating" subsets.
+
+Let me check S = {0, 2, 4, 6, 8, 10, 12, 14, 17}:
+- Distance 1: 17-0 (17+1=0). Any others? 0-1∉S, 2-3∉S, etc. Just 17-0. 1 edge.
+- Distance 2: 0-2, 2-4, 4-6, 6-8, 8-10, 10-12, 12-14, 14-16∉S, 17-1∉S. So 7 edges. Wait, 14+2=16∉S. 17-2=15∉S, 17+2=1∉S. So 7 edges.
+- Distance 9: 0-9∉S, 2-11∉S, 4-13∉S, 6-15∉S, 8-17∈S: {8,17}. 10-1∉S, 12-3∉S, 14-5∉S, 17-8 already. So 1 edge.
+Total: 1 + 7 + 1 = 9.
+
+S = {0, 2, 4, 6, 8, 10, 12, 15, 17}:
+- Distance 1: 17-0. 15-16∉S. 1 edge.
+- Distance 2: 0-2, 2-4, 4-6, 6-8, 8-10, 10-12, 12-14∉S, 15-17, 17-1∉S. So 7 + 1 = 8 edges. Wait, 15+2=17∈S, so {15,17}. And 15-2=13∉S. So edges: 0-2, 2-4, 4-6, 6-8, 8-10, 10-12, 15-17. 7 edges.
+- Distance 9: 0-9∉S, 2-11∉S, 4-13∉S, 6-15∈S: {6,15}. 8-17∈S: {8,17}. 10-1∉S, 12-3∉S, 15-6 already, 17-8 already. So 2 edges.
+Total: 1 + 7 + 2 = 10.
+
+S = {0, 2, 4, 6, 9, 11, 13, 15, 17}:
+- Distance 1: 17-0. 8-9? 8∉S. 9-10∉S. 1 edge.
+- Distance 2: 0-2, 2-4, 4-6, 9-11, 11-13, 13-15, 15-17, 17-1∉S. 7 edges.
+- Distance 9: 0-9∈S, 2-11∈S, 4-13∈S, 6-15∈S, 9-0 already, 11-2 already, 13-4 already, 15-6 already, 17-8∉S. 4 edges.
+Total: 1 + 7 + 4 = 12.
+
+S = {0, 3, 5, 7, 9, 11, 13, 15, 17}:
+- Distance 1: 17-0. 0-1∉S. 3-4∉S. 5-6∉S. 7-8∉S. 9-10∉S. 11-12∉S. 13-14∉S. 15-16∉S. 1 edge.
+- Distance 2: 0-2∉S. 3-5, 5-7, 7-9, 9-11, 11-13, 13-15, 15-17, 17-1∉S. 7 edges. Wait, 0+2=2∉S, 0-2=16∉S. 3+2=5∈S, 3-2=1∉S. So {3,5}. 5+2=7: {5,7}. 7+2=9: {7,9}. 9+2=11: {9,11}. 11+2=13: {11,13}. 13+2=15: {13,15}. 15+2=17: {15,17}. 17+2=1∉S. So 7 edges.
+- Distance 9: 0-9∈S, 3-12∉S, 5-14∉S, 7-16∉S, 9-0 already, 11-2∉S, 13-4∉S, 15-6∉S, 17-8∉S. 1 edge.
+Total: 1 + 7 + 1 = 9.
+
+So it seems like the minimum is 9 for this graph. Let me try to find a subset with fewer than 9 edges.
+
+The subsets that achieve 9 seem to be those that are "spread out" with respect to the distance-2 structure. The distance-2 edges form a union of two 9-cycles (even and odd). A 9-subset that picks all from one 9-cycle gets 9 distance-2 edges and 0 distance-1 and 0 distance-9 edges (if it's all even or all odd). A mixed subset gets some distance-1 and distance-9 edges but fewer distance-2 edges.
+
+The key insight is that the distance-2 graph is two disjoint 9-cycles. A 9-subset picks some from each cycle. If it picks a from the even cycle and 9-a from the odd cycle, the distance-2 edges are the edges within each cycle's selected vertices. For a path of a vertices in a 9-cycle, the number of edges is a - (number of connected components). To minimize, maximize components, which means spreading out. But in a 9-cycle, a vertices can form at most a components (if a ≤ 4, since we need gaps). Actually, in a 9-cycle, if we pick a vertices, the minimum number of edges is max(0, a - (9-a)) = max(0, 2a-9) if a > 4 (since we can have at most 9-a gaps, giving at most 9-a components, so edges ≥ a - (9-a) = 2a-9). If a ≤ 4, we can have a components (no two adjacent), so 0 edges.
+
+Wait, in a 9-cycle, picking a vertices: the number of edges among them is a minus the number of "runs" (connected components in the cycle). The maximum number of runs is min(a, 9-a) (we need at least one unselected vertex between runs). So the minimum number of edges is a - min(a, 9-a) = max(0, 2a-9).
+
+So for a 9-subset picking a from the even cycle and 9-a from the odd cycle:
+- Distance-2 edges: max(0, 2a-9) + max(0, 2(9-a)-9) = max(0, 2a-9) + max(0, 9-2a).
+  - If a ≥ 5: max(0, 2a-9) + 0 = 2a-9.
+  - If a ≤ 4: 0        — AI历史解题过程（thinking）
+#   polymath_00276         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_00276</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Simple graph $G$ has $19998$ vertices. For any subgraph $\bar G$ of $G$ with $9999$ vertices, $\bar G$ has at least $9999$ edges. Find the minimum number of edges in $G$
+
+## Standard Solution
+
+To find the minimum number of edges in a graph \( G \) with 19998 vertices such that any subgraph \(\bar{G}\) with 9999 vertices has at least 9999 edges, we can use the following approach:
+
+1. **Restate the problem in terms of \( N \):**
+   Let \( N = 3333 \). We need to prove that if a graph \( G \) has \( 6N \) vertices and every induced \( 3N \)-vertex subgraph has at least \( 3N \) edges, then \( G \) has at least \( 15N \) edges.
+
+2. **Construct a graph with \( 6N \) vertices:**
+   Consider \( N \) disjoint copies of \( K_6 \) (complete graph on 6 vertices). Label these copies from 1 to \( N \). Each \( K_6 \) has \( \binom{6}{2} = 15 \) edges.
+
+3. **Verify the edge count in subgraphs:**
+   For any induced subgraph with \( 3N \) vertices, suppose there are \( x_i \) vertices in the \( i \)-th \( K_6 \). By Jensen's inequality, the number of edges is at least:
+   \[
+   \sum_{i=1}^N \binom{x_i}{2} \geq N \binom{3}{2} = 3N
+   \]
+   This construction works, and we need to prove that at least \( 15N \) edges are required.
+
+4. **Key claim (Caro-Wei type):**
+   Given any graph \( A \) where the \( i \)-th vertex has degree \( d_i \), there exists an induced subgraph \( A' \) with at least \( \sum_i \frac{3}{\max(d_i, 2) + 1} \) vertices such that in \( A' \), every vertex has degree at most 2.
+
+5. **Proof of the claim:**
+   Place the vertices in a random order and construct \( A' \) greedily: if a vertex appears before all but at most 2 of its neighbors, add it. The probability that vertex \( i \) appears before all but at most 2 of its neighbors is \( \frac{3}{\max(d_i, 2) + 1} \). By linearity of expectation, we can get some \( A' \) with at least \( \sum_i \frac{3}{\max(d_i, 2) + 1} \) vertices.
+
+6. **Return to the main problem:**
+   Let \( G' \) be the graph formed by hiding every degree 0 or 1 vertex from \( G \); suppose \( k \) vertices are hidden. If \( k \geq 3N \), we get a contradiction by selecting \( \bar{G} \) to be some \( 3N \) vertices that were hidden.
+
+7. **Induced subgraph with degree constraints:**
+   If there exists an induced subgraph \( \bar{G'} \) of \( G' \) with at least \( 3N - k + 1 \) vertices such that each vertex in \( \bar{G'} \) has degree at most 2, then there exists an induced subgraph \( \bar{G} \) of \( G \) with \( 3N \) vertices with fewer than \( 3N \) edges.
+
+8. **Average degree calculation:**
+   Let \( d = \frac{1}{6N - k} \sum_i d_i \) be the average degree of a non-hidden vertex in \( G \). By the key claim, we need:
+   \[
+   \sum_i \frac{3}{\max(d_i', 2) + 1} \leq 3N - k \implies \sum_i \frac{3}{d_i + 1} \leq 3N - k
+   \]
+   Using Jensen's inequality:
+   \[
+   \frac{3(6N - k)}{d + 1} \leq 3N - k \implies d \geq \frac{15N - 2k}{3N - k}
+   \]
+
+9. **Edge count in \( G \):**
+   Considering only vertices in \( G' \), the number of edges in \( G \) is at least:
+   \[
+   \frac{1}{2}(6N - k) \left( \frac{15N - 2k}{3N - k} \right) = 15N + \frac{3Nk + 2k^2}{2(3N - k)} \geq 15N
+   \]
+
+Thus, the minimum number of edges in \( G \) is \( 15N = 15 \times 3333 = 49995 \).
+
+The final answer is \( \boxed{49995} \).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. The problem: Simple graph G has 19998 vertices. For any subgraph $\bar G$ of G with 9999 vertices, $\bar G$ has at least 9999 edges. Find the minimum number of edges in G.
+
+Let me think about this carefully.
+
+Let n = 19998, so n/2 = 9999. The condition is that every induced subgraph on 9999 vertices has at least 9999 edges. We want to minimize the total number of edges m.
+
+Let me think about this using a counting argument. Consider a random subset S of 9999 vertices. The expected number of edges in the induced subgraph on S is...Actually, let me think about it differently. For each edge e = {u,v}, the probability that both endpoints are in a random 9999-subset S is C(19996, 9997)/C(19998, 9999) = (9999 * 9998)/(19998 * 19997). Wait let me compute.
+
+The number of 9999-subsets containing both u and v: C(19996, 9997). Total: C(19998, 9999). So probability = C(19996,9997)/C(19998,9999) = [19996!/(9997! * 9999!)] / [19998!/(9999! * 9999!)] = [19996! * 9999!] / [9997! * 19998!] = (9999 * 9998) / (19998 * 19997).
+
+So expected edges in random 9999-subset = m * (9999*9998)/(19998*19997).
+
+Since every 9999-subset has ≥ 9999 edges, the average is ≥ 9999. So:
+m * (9999*9998)/(19998*19997) ≥ 9999
+m ≥ 9999 * (19998*19997)/(9999*9998) = (19998*19997)/9998 = 19998 * 19997 / 9998.
+
+19998 = 2 * 9999. 9998 = 2 * 4999. So 19998/9998 = 9999/4999. So m ≥ 9999 * 19997 / 4999.
+
+Hmm, 19997 = 4*4999 + 1 = 19996 + 1. So 19997/4999 = 4 + 1/4999. So m ≥ 9999 * (4 + 1/4999) = 9999*4 + 9999/4999 = 39996 + 9999/4999.
+
+9999/4999 = 2 + 1/4999. So m ≥ 39996 + 2 + 1/4999 = 39998 + 1/4999.
+
+So m ≥ 39999 (rounding up since m is integer). Wait, 39998 + 1/4999, so m ≥ 39999? No, m ≥ 39998.0002..., so m ≥ 39999.
+
+Hmm wait, that gives a lower bound of 39999. But is this tight? Let me reconsider.
+
+Actually, the averaging argument gives a lower bound, but it might not be tight. Let me think about whether we can achieve this.
+
+Actually, let me reconsider. The averaging bound gives m ≥ 39999 (since m must be an integer ≥ 39998.0002). But can we achieve m = 39999? That seems unlikely to be tight from averaging alone.
+
+Let me think about this problem more carefully. This is a classic type of extremal graph problem.
+
+Let me reconsider. Let the vertices be partitioned into two sets A and B of 9999 each. Consider the edges within A, within B, and between A and B.
+
+Actually, let me think about a cleaner approach. Let's think about what structure minimizes edges while ensuring every 9999-subset has ≥ 9999 edges.
+
+Consider a graph where we have a clique on some set and the rest are isolated. If we have a clique on k vertices, then a 9999-subset that includes t vertices from the clique has C(t,2) edges. The worst case is when we pick as few clique vertices as possible. If 9999-subset picks t vertices from clique (t ≤ k) and 9999-t from the rest, we need C(t,2) ≥ 9999, so t(t-1)/2 ≥ 9999, t(t-1) ≥ 19998, t ≥ 142 (since 141*140 = 19740 < 19998, 142*141 = 20022 ≥ 19998). So t ≥ 142.
+
+The worst case: pick 9999-t from the non-clique vertices. We need 9999-t ≤ 19998-k, i.e., t ≥ 9999 - (19998-k) = k - 9999. So the minimum t we can pick is max(0, k-9999). We need this minimum t to satisfy C(t,2) ≥ 9999.
+
+If k ≥ 9999, min t = k - 9999. Need C(k-9999, 2) ≥ 9999. Let s = k - 9999. Need s(s-1)/2 ≥ 9999, s ≥ 142. So k ≥ 9999 + 142 = 10141. Number of edges = C(10141, 2) = 10141*10140/2 = huge. That's way more than 39999.
+
+So the clique approach is bad. The averaging bound suggests ~39999 edges, which is much smaller.
+
+Let me think about the tight construction. The averaging bound gives m ≥ 39999. Let me think about whether a regular or near-regular graph achieves this.
+
+Consider a graph where every vertex has the same degree d. Then m = 19998*d/2 = 9999*d. The expected number of edges in a random 9999-subset is m * (9999*9998)/(19998*19997) = 9999*d * (9999*9998)/(19998*19997).
+
+For this to be ≥ 9999: d * (9999*9998)/(19998*19997) ≥ 1, d ≥ (19998*19997)/(9999*9998) = (2*9999*19997)/(9999*9998) = 2*19997/9998 = 39994/9998 = 4.0002... So d ≥ 5? No wait, d ≥ 39994/9998 ≈ 4.0002, so d ≥ 5? No, d ≥ 5 is wrong. d ≥ 4.0002 means d ≥ 5? No, d must be integer, d ≥ 5? No! 4.0002 means d ≥ 5? No, d ≥ 5 is too much. d ≥ 5? Actually d ≥ 4.0002 means the smallest integer d satisfying this is d = 5? No! 4 < 4.0002, so d ≥ 5. Wait, 4.0002 > 4, so d = 4 doesn't work, d = 5 works. Hmm, but that gives m = 9999*5 = 49995, which is more than 39999.
+
+Hmm, so a regular graph with d=4 gives expected edges = 9999*4*(9999*9998)/(19998*19997) = 9999 * 4 * (9999*9998)/(19998*19997). Let me compute 4*(9999*9998)/(19998*19997) = 4 * 9998*9999 / (19998*19997). 19998 = 2*9999, so = 4 * 9998 / (2 * 19997) = 2 * 9998/19997 = 19996/19997 < 1. So expected edges = 9999 * 19996/19997 < 9999. So d=4 regular graph has average < 9999, meaning some 9999-subset has < 9999 edges. So d=4 is not enough for regular graphs.
+
+d=5: expected = 9999 * 5 * (9999*9998)/(19998*19997) = 9999 * 5*9998/(2*19997) = 9999 * 49990/39994 = 9999 * 1.250... > 9999. So average is fine, but we need EVERY subset to have ≥ 9999, not just average.
+
+So the question is about the minimum over all 9999-subsets, not the average. The averaging gives a lower bound of 39999, but the actual minimum might be higher.
+
+Let me reconsider. This is related to the concept of "expansion" or "edge expansion" of the graph.
+
+Let me think about it differently. Let's use a more refined counting argument.
+
+For a 9999-subset S, let e(S) be the number of edges in the induced subgraph. We need e(S) ≥ 9999 for all S.
+
+Consider the complement: let T = V \ S, |T| = 9999. Then e(S) = m - e(T) - e(S,T) where e(S,T) is the number of edges between S and T. Actually, e(S) + e(T) + e(S,T) = m. So e(S) = m - e(T) - e(S,T).
+
+Hmm, this is symmetric. Let me think about it as: for every partition of V into two equal halves S, T (each 9999), we need e(S) ≥ 9999 and e(T) ≥ 9999.
+
+Actually the condition is for every 9999-subset, which includes both S and T = V\S. So both e(S) ≥ 9999 and e(T) ≥ 9999.
+
+Now, e(S) + e(T) + e(S,T) = m. So m ≥ 9999 + 9999 + e(S,T) ≥ 19998 + e(S,T). To minimize m, we want to minimize e(S,T) over all balanced partitions. But e(S,T) ≥ 0, so m ≥ 19998. But this is weaker than the averaging bound of 39999.
+
+Hmm wait, but we also need e(S) ≥ 9999 for ALL 9999-subsets, not just balanced partitions. A 9999-subset is exactly half the vertices, so it's always a balanced partition. OK so the condition is: for every way to split V into two halves, both halves have ≥ 9999 edges.
+
+Let me think about this more carefully using the averaging / convexity approach.
+
+Actually, let me reconsider the averaging bound. We computed m ≥ 39999. Let me think about whether this is achievable.
+
+Consider a 4-regular graph on 19998 vertices. Then m = 19998*4/2 = 39996. The average number of edges in a 9999-subset is 39996 * (9999*9998)/(19998*19997) = 39996 * 9998/(2*19997) = 39996 * 9998/39994 = 39996 * 0.99990... ≈ 39992. Wait that doesn't seem right.
+
+Let me recompute. m = 39996. Expected edges in random 9999-subset = 39996 * (9999*9998)/(19998*19997).
+
+(9999*9998)/(19998*19997) = (9999*9998)/((2*9999)*19997) = 9998/(2*19997) = 9998/39994 = 0.25000...
+
+So expected = 39996 * 0.25 = 9999. So the average is exactly 9999! But we need every subset to have ≥ 9999, which means every subset must have exactly 9999 (since the average is 9999 and all are ≥ 9999). So we need a 4-regular graph where every 9999-subset has exactly 9999 edges.
+
+That's a very strong condition. Is there a 4-regular graph on 19998 vertices where every 9999-subset induces exactly 9999 edges?
+
+For every 9999-subset S to have exactly 9999 edges, we need e(S) = 9999 for all S. This means e(S) is constant for all 9999-subsets. This is a very special property.
+
+If e(S) is constant for all k-subsets, then the graph must be regular (which it is, 4-regular) and... actually, for e(S) to be constant for all k-subsets, we need the graph to be "k-uniform" in some sense. 
+
+Actually, e(S) = sum over edges of indicator(both endpoints in S). For this to be constant for all S of size k, we need... by a theorem, if the number of edges in every k-subset is the same, then the graph is either complete or empty (for 1 < k < n-1). Wait, that's not quite right either.
+
+Hmm, actually I think for e(S) to be constant for all k-subsets where 2 ≤ k ≤ n-2, the graph must be regular AND satisfy additional conditions. Actually, let me think about this differently.
+
+Consider two k-subsets S and S' that differ by one vertex: S = A ∪ {u}, S' = A ∪ {v} where |A| = k-1 and u, v ∉ A. Then e(S) - e(S') = deg_A(u) - deg_A(v) where deg_A means the number of neighbors in A. For e(S) = e(S'), we need deg_A(u) = deg_A(v) for all such A, u, v.
+
+This means: for any set A of k-1 vertices not containing u or v, the number of neighbors of u in A equals the number of neighbors of v in A. 
+
+Take A to be any (k-1)-subset of V \ {u, v}. Then deg_A(u) = deg_A(v). This means u and v have the same number of neighbors in every (k-1)-subset of V \ {u,v}. 
+
+If u and v are adjacent, then in V \ {u,v}, u has deg(u)-1 neighbors and v has deg(v)-1 neighbors (excluding each other). If they're not adjacent, u has deg(u) neighbors and v has deg(v) neighbors in V\{u,v}.
+
+For the count in every (k-1)-subset to be equal, we need deg(u)-1 = deg(v)-1 if adjacent (so deg(u)=deg(v), already true for regular), or deg(u) = deg(v) if not adjacent (also true). But we need more: the number of neighbors in every (k-1)-subset must be equal, not just the total.
+
+This is a very strong condition. For a 4-regular graph, take u, v non-adjacent. u has 4 neighbors in V\{u,v}, v has 4 neighbors in V\{u,v}. For every (k-1)-subset A of V\{u,v} (where k-1 = 9998), the number of u's neighbors in A equals the number of v's neighbors in A.
+
+Consider A that contains all 4 neighbors of u but none of v's neighbors (if possible). Then deg_A(u) = 4, deg_A(v) = 0. For this to work, we'd need 4 = 0, contradiction. But can we find such an A? We need |A| = 9998, A ⊆ V\{u,v} (which has 19996 vertices), A contains all 4 neighbors of u, A contains none of the 4 neighbors of v. This is possible if the 4 neighbors of u and 4 neighbors of v don't overlap too much, and 9998 ≤ 19996 - 4 = 19992. Yes, 9998 ≤ 19992, so we can choose A to include u's 4 neighbors and exclude v's 4 neighbors (as long as they don't all overlap). Even if they overlap completely, we'd have 4 common neighbors, and we can include those 4 and exclude nothing... hmm, if u and v share all 4 neighbors, then including u's neighbors = including v's neighbors, so deg_A(u) = deg_A(v) always. But if they share fewer than 4 neighbors, we can find A where deg_A(u) ≠ deg_A(v).
+
+So for the condition to hold, every pair of non-adjacent vertices must share all their neighbors, and every pair of adjacent vertices must share all their other neighbors. This is extremely restrictive. Essentially, the graph would need to be a disjoint union of cliques or complete bipartite graphs or similar.
+
+For a 4-regular graph, this seems impossible unless it's a very special structure. For instance, K_5 has degree 4, and a disjoint union of K_5's would be 4-regular. 19998 / 5 = 3999.6, not integer. So that doesn't work.
+
+What about K_{5,5}? That's 5-regular, not 4-regular.
+
+Hmm, let me reconsider. Maybe the answer isn't 39996.
+
+Let me reconsider the problem. The averaging bound gives m ≥ 39999 (since the average must be ≥ 9999, and the average is m * (9999*9998)/(19998*19997) = m * 9998/(2*19997) = m * 9998/39994 = m/4.0002...).
+
+Wait let me redo this. m * (9999*9998)/(19998*19997) ≥ 9999.
+m * 9998/(2*19997) ≥ 9999
+m ≥ 9999 * 2 * 19997 / 9998 = 9999 * 39994 / 9998 = 9999 * 39994/9998.
+39994/9998 = 4 - (9998*4 - 39994)/9998 = 4 - (39992-39994)/9998 = 4 + 2/9998 = 4 + 1/4999.
+So m ≥ 9999 * (4 + 1/4999) = 39996 + 9999/4999 = 39996 + 2 + 1/4999 = 39998 + 1/4999.
+So m ≥ 39999 (rounding up).
+
+So the lower bound from averaging is 39999.
+
+Now, can we achieve m = 39999? Or do we need more?
+
+Let me think about this differently. Let me consider a graph that's "almost" 4-regular. 
+
+Actually, let me think about the problem from a different angle. Let me consider the dual/complementary view.
+
+For each 9999-subset S, e(S) ≥ 9999. Equivalently, for each 9999-subset T (= V\S), e(T) ≥ 9999.
+
+Now, consider the sum over all 9999-subsets S of e(S). This equals m * C(19996, 9997) (each edge is in C(19996, 9997) subsets). The number of 9999-subsets is C(19998, 9999). So the average is m * C(19996,9997)/C(19998,9999) = m * (9999*9998)/(19998*19997).
+
+We need this average ≥ 9999, giving m ≥ 39999.
+
+But this is just a necessary condition. The question is whether it's sufficient, i.e., whether there exists a graph with 39999 edges where every 9999-subset has ≥ 9999 edges.
+
+Hmm, let me think about small cases to get intuition.
+
+Small case: n = 4, k = 2. Every 2-subset (edge) has at least 2 edges. But a 2-vertex subgraph can have at most 1 edge. So this is impossible! Wait, the problem says "at least 9999 edges" for a 9999-vertex subgraph. For n=4, k=2, we'd need every 2-vertex subgraph to have at least 2 edges, but max is 1. So the small case n=4 doesn't work.
+
+Let me try n = 6, k = 3. Every 3-subset has at least 3 edges. A 3-vertex graph has at most 3 edges (triangle). So every 3-subset must be a triangle. That means the graph is K_6, with 15 edges. Averaging bound: m * (3*2)/(6*5) = m/5 ≥ 3, m ≥ 15. And K_6 has 15 edges. So the averaging bound is tight here!
+
+n = 8, k = 4. Every 4-subset has at least 4 edges. Averaging: m * (4*3)/(8*7) = m * 12/56 = m * 3/14 ≥ 4, m ≥ 56/3 = 18.67, m ≥ 19. Can we achieve 19? Hmm, not sure.
+
+Actually, let me reconsider. For n=6, k=3, the answer is 15 = C(6,2), the complete graph. That's because every 3-subset must be a triangle, forcing the complete graph.
+
+For our problem, n = 19998, k = 9999, and we need every 9999-subset to have ≥ 9999 edges. The maximum edges in a 9999-vertex graph is C(9999,2) = 9999*9998/2 ≈ 50 million, so 9999 is far from the maximum. So the constraint is not as tight as the n=6 case.
+
+Let me think about this more carefully. The key question is: is the averaging bound tight, or do we need more edges?
+
+Let me think about a construction. Consider a graph G on 19998 vertices. Partition the vertices into two groups A and B, each of size 9999. 
+
+Idea: Make G a complete bipartite graph K_{9999, 9999}. Then m = 9999^2 = 99980001. Way too many edges.
+
+Idea: Make G 4-regular with m = 39996. Then the average is exactly 9999. But we need every subset to have ≥ 9999, which means every subset has exactly 9999. As argued, this is very restrictive and likely impossible for most 4-regular graphs.
+
+What if we use m = 39999? Then the average is 39999 * 9998/(2*19997) = 39999 * 9998/39994 = 39999 * (1 - (39994-9998*... )) hmm let me just compute.
+
+39999 * 9998 / 39994 = 39999 * 9998 / 39994. 
+
+39994 = 2 * 19997. 9998 = 2 * 4999. So 9998/39994 = 4999/19997.
+
+39999 * 4999/19997 = 39999 * 4999 / 19997.
+
+19997 = 4 * 4999 + 1. So 4999/19997 = 1/(4 + 1/4999) = 4999/19997.
+
+39999 * 4999 / 19997. Let me compute 39999 * 4999 = 39999 * 5000 - 39999 = 199995000 - 39999 = 199955001. 199955001 / 19997 = ? 19997 * 10000 = 199970000. 199970000 - 199955001 = 14999. 19997 * 10000 - 14999 = ... so 199955001/19997 = 10000 - 14999/19997 = 10000 - 0.7500... = 9999.25.
+
+So the average with m = 39999 is 9999.25. So on average, subsets have 9999.25 edges. We need every subset to have ≥ 9999. Since the average is 9999.25 and we need min ≥ 9999, it's conceivable but not guaranteed.
+
+Hmm, this is getting complicated. Let me think about it from a different angle.
+
+Let me think about what graph structure could work. 
+
+Key insight: Consider a graph where we want to minimize edges while ensuring every half has enough edges. The "worst case" subset is the one that minimizes internal edges. 
+
+Think about it in terms of degrees. For a subset S, e(S) = (sum of degrees of vertices in S - number of edges from S to V\S) / 2. Actually, e(S) = (sum_{v in S} deg(v) - e(S, V\S)) / 2.
+
+To make e(S) large for all S, we want degrees to be large and the cut e(S, V\S) to be small. But these are in tension.
+
+Let me think about a specific construction. Consider the complete graph K_{19998}. That has too many edges. 
+
+What about a "blown-up" structure? Let me think about a graph where vertices are arranged in a circle and each vertex is connected to its 2 nearest neighbors on each side (a 4-regular circulant graph). Then m = 39996. But as argued, the average is exactly 9999, so we'd need every 9999-subset to have exactly 9999 edges, which is very unlikely for this graph.
+
+Let me think about this problem differently. Maybe the answer is not 39999 but something else.
+
+Actually, let me reconsider. Let me think about the problem in terms of the complement graph.
+
+Let H be the complement of G. H has 19998 vertices and M = C(19998,2) - m edges. The condition "every 9999-subset of G has ≥ 9999 edges" translates to: every 9999-subset S has e_G(S) ≥ 9999, i.e., C(9999,2) - e_H(S) ≥ 9999, i.e., e_H(S) ≤ C(9999,2) - 9999 = 9999*9998/2 - 9999 = 9999*(9998/2 - 1) = 9999 * 4998 = 49990002 - 9999 = 49980003. Hmm, that's a lot. This doesn't seem to simplify things.
+
+Let me try yet another approach. Let me think about the problem in terms of a linear algebra / design theory argument.
+
+Actually, let me reconsider the problem. I think the key is to find the right construction and prove it's optimal.
+
+Let me think about a graph that is a disjoint union of cliques. If G is a disjoint union of cliques of size s, then m = (19998/s) * C(s,2) = 19998 * (s-1)/2 = 9999 * (s-1). For a 9999-subset S, the number of edges is sum over cliques of C(t_i, 2) where t_i is the number of vertices chosen from clique i, sum t_i = 9999. To minimize this, we want to spread vertices as evenly as possible across cliques. If 19998/s cliques each of size s, and we pick 9999 vertices, the minimum edges occur when we pick t_i = floor(9999 / (19998/s)) or ceil. If s divides 9999 evenly... 19998/s cliques, each gets 9999/(19998/s) = 9999*s/19998 = s/2 vertices. If s is even, each clique contributes s/2 vertices, and edges per clique = C(s/2, 2) = (s/2)(s/2-1)/2 = s(s-2)/8. Total edges = (19998/s) * s(s-2)/8 = 19998(s-2)/8 = 9999(s-2)/4.
+
+We need 9999(s-2)/4 ≥ 9999, so (s-2)/4 ≥ 1, s ≥ 6. With s = 6: m = 9999 * 5 = 49995. With s = 6, each clique contributes C(3,2) = 3 edges, total = (19998/6) * 3 = 3333 * 3 = 9999. So with s = 6, every balanced subset (picking exactly 3 from each K_6) has exactly 9999 edges. But what if the subset doesn't pick exactly 3 from each? If we pick more from some cliques and less from others, by convexity of C(t,2), the total edges increases. So the minimum is indeed 9999 when we pick 3 from each.
+
+But wait, we need 19998/6 = 3333 to be an integer, which it is. And we need to be able to pick exactly 3 from each of 3333 cliques, giving 3*3333 = 9999 vertices. Yes! So with G = disjoint union of 3333 copies of K_6, m = 3333 * 15 = 49995, and every 9999-subset has ≥ 9999 edges (with equality when exactly 3 from each K_6).
+
+But 49995 > 39999, so this is not optimal.
+
+Can we do better? Let me think about other constructions.
+
+What about a disjoint union of complete bipartite graphs? K_{a,a} has 2a vertices and a^2 edges, each vertex has degree a. If we use K_{a,a} blocks, m = (19998/(2a)) * a^2 = 19998 * a / 2 = 9999 * a. For a 9999-subset, picking t vertices from a block of 2a, the edges contributed are at most... well, if we pick t_i from block i (with t_i ≤ 2a), the edges are at most t_i^2/4 (by AM-GM on the bipartition). Actually for K_{a,a}, if we pick x from one side and y from the other (x+y = t, x ≤ a, y ≤ a), edges = xy. To minimize xy given x+y = t, we want x or y to be as extreme as possible. If t ≤ a, we can set y = 0, x = t, giving 0 edges. So this is bad— we can pick vertices all from one side of each bipartite graph and get 0 edges.
+
+So complete bipartite graphs don't work well here.
+
+Let me think about other structures. What about a graph that's "almost complete" on a small set and sparse elsewhere?
+
+Actually, let me reconsider. The averaging bound gives 39999. Let me think about whether we can get close to this.
+
+Consider a graph where we have 19998 vertices, and we want every 9999-subset to have ≥ 9999 edges. 
+
+Let me think about a random 4-regular graph. The expected number of edges in a 9999-subset is 9999 (as computed). But the variance would be positive, so some subsets would have fewer than 9999 edges. So a random 4-regular graph doesn't work.
+
+What about a 5-regular graph? m = 9999 * 5 = 49995. Average = 49995 * 9998/39994 = 49995 * 4999/19997 ≈ 49995 * 0.25 = 12498.75. So average is ~12499, well above 9999. But we need every subset, not just average. With a 5-regular graph, the minimum could still be below 9999 for some subset.
+
+Hmm, but 49995 is the same as the K_6 construction. Let me think about whether we can do better than 49995.
+
+Let me think about a different construction. What if we use a graph that's a union of cycles? A cycle on n vertices has n edges and is 2-regular. If G is a union of cycles covering all 19998 vertices, m = 19998. Average edges in 9999-subset = 19998 * 9998/39994 = 19998/4.0002 ≈ 4999. Way below 9999. Not enough.
+
+What about a 4-regular graph that's a union of K_5's? 19998/5 is not integer. Union of K_4,4? That's 4-regular bipartite, but as discussed, bipartite is bad.
+
+What about a union of K_5 minus an edge? K_5 - e has 5 vertices, 9 edges, degrees 3,3,4,4,4. Not regular.
+
+Let me think about this more carefully. The K_6 construction gives 49995. Can we beat this?
+
+What if we use a mix? Like some K_6's and some other structures?
+
+Actually, let me think about the problem more carefully using a linear programming / duality approach.
+
+We want to minimize m = |E(G)| subject to: for every 9999-subset S, e_G(S) ≥ 9999.
+
+By LP duality (or the fractional version), the minimum of m subject to these constraints is related to finding a "fractional covering" of the constraints.
+
+Actually, the averaging argument IS the LP relaxation. The dual is: find a probability distribution on 9999-subsets such that every edge is covered with the same probability. The uniform distribution gives every edge covered with probability (9999*9998)/(19998*19997), and the bound is m ≥ 9999 / ((9999*9998)/(19998*19997)) = 9999 * 19998*19997/(9999*9998) = 19998*19997/9998 = 39998 + 1/4999, so m ≥ 39999.
+
+But this is the fractional relaxation. The integer optimum could be higher. The question is whether there's an integrality gap.
+
+For the K_6 construction, m = 49995, which is well above 39999. So either the true answer is between 39999 and 49995, or the K_6 construction is not optimal.
+
+Let me think about better constructions.
+
+Idea: What if we use a graph based on a combinatorial design? 
+
+Idea: Consider the graph where V = {1, ..., 19998} and we connect i to j if i ≡ j (mod something) or some algebraic condition.
+
+Actually, let me think about this differently. Let me consider a graph that is the disjoint union of 9999 edges (i.e., a perfect matching). Then m = 9999. A 9999-subset that picks one vertex from each edge has 0 edges. Not enough.
+
+What about a disjoint union of 6666 triangles? 6666 * 3 = 19998. m = 6666 * 3 = 19998. Wait, 19998/3 = 6666. Each triangle has 3 edges. A 9999-subset picking 1 or 2 vertices from each triangle: if we pick 2 from some and 1 from others, edges = (number of triangles with 2 picked) * 1. To minimize, pick 1 from each: but 6666 < 9999, so we must pick 2 from at least 9999 - 6666 = 3333 triangles. Actually, we pick 9999 vertices from 6666 triangles. If we pick t_i ∈ {0,1,2,3} from triangle i with sum = 9999. Edges = sum of C(t_i, 2). To minimize, we want t_i as equal as possible. 9999/6666 = 1.5, so pick 1 from half and 2 from half: 3333 triangles with 1 (0 edges) and 3333 with 2 (1 edge each) = 3333 edges. Plus we need 3333*1 + 3333*2 = 3333 + 6666 = 9999. Yes. So minimum edges = 3333 < 9999. Not enough.
+
+What about disjoint union of K_7? 19998/7 = 2856.86, not integer.
+
+K_6 works as shown. What about mixing K_6 with something else?
+
+Actually, let me reconsider. With K_6 blocks, we get exactly 9999 edges in the worst case. The total is 49995. Can we do better with a non-clique-based construction?
+
+Let me think about a graph where each vertex has degree 4, but structured so that every 9999-subset has ≥ 9999 edges. As argued, this requires every 9999-subset to have exactly 9999 edges (since average = 9999). This is a very strong condition.
+
+Actually, let me reconsider whether a 4-regular graph can have this property. Consider the graph G = K_6 □ ... no, let me think about a specific 4-regular graph.
+
+Consider the complete graph K_5. It's 4-regular on 5 vertices. If we take a "blow-up" or some product...
+
+Actually, here's an idea. Consider the graph that is the "tensor product" or "strong product" of some graphs. Or consider a Cayley graph.
+
+Let me think about a specific 4-regular graph: the complete graph K_5, blown up. Actually, let me think about the graph K_{5,5} minus a perfect matching. That's 4-regular on 10 vertices with 20 edges. Hmm.
+
+Actually, let me think about the graph that is a disjoint union of K_5's. 19998/5 = 3999.6, not integer. So we can't use all K_5's.
+
+What about 3999 copies of K_5 (19995 vertices) plus a K_3 (3 vertices)? Total 19998 vertices. m = 3999*10 + 3 = 39993. Now, a 9999-subset: we need to pick 9999 vertices from 3999 K_5's and 1 K_3. From each K_5, we can pick 0-5 vertices. From K_3, 0-3. To minimize edges, pick as evenly as possible. From K_5's: 9999/3999 ≈ 2.5, so pick 2 from some and 3 from others. If we pick 2 from x K_5's and 3 from (3999-x) K_5's: 2x + 3(3999-x) = 9999 - t where t is from K_3. Let's say t = 0 (pick nothing from K_3). Then 2x + 3(3999-x) = 9999, 2x + 11997 - 3x = 9999, -x = -1998, x = 1998. So pick 2 from 1998 K_5's and 3 from 2001 K_5's. Edges = 1998*C(2,2) + 2001*C(3,2) = 1998*1 + 2001*3 = 1998 + 6003 = 8001. That's less than 9999!
+
+So this doesn't work. The K_5 + K_3 construction gives worst case 8001 < 9999.
+
+Hmm. So K_6 blocks are better because they're "denser" per vertex.
+
+Let me reconsider. With K_s blocks, the worst case for a 9999-subset is when we pick s/2 from each (if s is even and 19998/s blocks). Edges per block = C(s/2, 2) = s(s-2)/8. Total = (19998/s) * s(s-2)/8 = 19998(s-2)/8 = 9999(s-2)/4. Need ≥ 9999: (s-2)/4 ≥ 1, s ≥ 6. Total edges m = (19998/s) * C(s,2) = 19998(s-1)/2 = 9999(s-1).
+
+For s = 6: m = 9999 * 5 = 49995, worst case = 9999.
+For s = 8: m = 9999 * 7 = 69993, worst case = 9999 * 6/4 = 14998.5 → 9999*1.5 = 14998.5. More edges, same constraint. Worse.
+For s = 10: m = 9999 * 9 = 89991. Even worse.
+
+So among clique blocks, s = 6 is optimal. But maybe non-clique structures are better.
+
+What if we use a non-clique block? Consider a graph H on s vertices with e edges. If we take 19998/s copies, m = (19998/s) * e. For a 9999-subset picking s/2 from each block, edges = (19998/s) * e(H[s/2]) where e(H[s/2]) is the minimum number of edges in a s/2-vertex subset of H. We need (19998/s) * e(H[s/2]) ≥ 9999, i.e., e(H[s/2]) ≥ 9999 * s / 19998 = s/2.
+
+So we need: a graph H on s vertices (s even, s | 19998) such that every s/2-subset of H has ≥ s/2 edges, and we want to minimize e(H) (then m = (19998/s) * e(H)).
+
+The averaging bound for H: e(H) * (s/2)(s/2-1)/(s(s-1)) ≥ s/2, e(H) * (s/2-1)/(2(s-1)) ≥ s/2, e(H) ≥ s/2 * 2(s-1)/(s/2-1) = s(s-1)/(s/2-1) = s(s-1)/((s-2)/2) = 2s(s-1)/(s-2).
+
+For s = 6: e(H) ≥ 2*6*5/4 = 15. So e(H) ≥ 15 = C(6,2), meaning H = K_6. So for s = 6, the clique is forced!
+
+For s = 4: e(H) ≥ 2*4*3/2 = 12. But C(4,2) = 6 < 12. Impossible! So s = 4 blocks can't work.
+
+For s = 8: e(H) ≥ 2*8*7/6 = 112/6 = 18.67, e(H) ≥ 19. C(8,2) = 28. So we need a graph on 8 vertices with ≥ 19 edges where every 4-subset has ≥ 4 edges. m = (19998/8) * 19 = 2499.75 * 19... wait, 19998/8 = 2499.75, not integer. So s = 8 doesn't divide 19998.
+
+19998 = 2 * 3 * 3333 = 2 * 3 * 3 * 1111 = 2 * 3^2 * 1111 = 2 * 9 * 1111. 1111 = 11 * 101. So 19998 = 2 * 3^2 * 11 * 101.
+
+Even divisors: 2, 6, 18, 22, 66, 198, 202, 606, 1818, 2222, 6666, 19998. Also 2*9=18, 2*11=22, 2*101=202, 2*3*11=66, 2*3*101=606, 2*9*11=198, 2*9*101=1818, 2*11*101=2222, 2*3*11*101=6666, 2*9*11*101=19998. Also 2*3=6, 2*3*3=18, 2*3*11=66, 2*3*101=606, 2*9*11=198, 2*9*101=1818, 2*3*3*11=198, 2*3*3*101=1818, 2*3*11*101=6666, 2*9*11*101=19998, 2*11*101=2222.
+
+So possible even values of s: 2, 6, 18, 22, 66, 198, 202, 606, 1818, 2222, 6666, 19998.
+
+For s = 18: e(H) ≥ 2*18*17/16 = 612/16 = 38.25, e(H) ≥ 39. C(18,2) = 153. m = (19998/18) * 39 = 1111 * 39 = 43329. That's less than 49995!
+
+But wait, we need to check that such a graph H exists: a graph on 18 vertices with 39 edges where every 9-subset has ≥ 9 edges. And also, we need the worst case to be when we pick exactly 9 from each block. But actually, the worst case might not be picking exactly s/2 from each block. Let me reconsider.
+
+Actually, the block construction argument is more subtle. When we pick a 9999-subset from the disjoint union of blocks, we don't have to pick exactly s/2 from each block. We could pick more from some and less from others. By convexity, the minimum total edges is achieved when the distribution is as "spread out" as possible, but this depends on the structure of each block.
+
+Hmm, this is getting complicated. Let me think about whether the block approach can actually beat 49995.
+
+For s = 18, if we can find H on 18 vertices with 39 edges where every 9-subset has ≥ 9 edges, then m = 1111 * 39 = 43329 < 49995. But we also need to verify that the global worst case (picking 9999 vertices from 1111 blocks) is ≥ 9999.
+
+If every 9-subset of H has ≥ 9 edges, and we pick t_i from block i with sum t_i = 9999, the total edges is sum e_i(t_i) where e_i(t_i) is the minimum edges in a t_i-subset of block i. By convexity of the function f(t) = min edges in t-subset (is it convex?), the minimum of sum f(t_i) subject to sum t_i = 9999 is achieved when all t_i are equal, i.e., t_i = 9999/1111 = 9. So the worst case is indeed picking 9 from each block, giving 1111 * 9 = 9999 edges. 
+
+But wait, is f(t) = min edges in t-subset convex? For a clique K_s, f(t) = C(t,2) = t(t-1)/2, which is convex. For general graphs, f(t) might not be convex. Hmm.
+
+Actually, for the block construction to work, we need: for any choice of t_i (0 ≤ t_i ≤ s, sum = 9999), sum of (min edges in t_i-subset of H) ≥ 9999. This is a stronger condition than just every 9-subset having ≥ 9 edges.
+
+But if f(t) is convex and f(9) = 9, then by Jensen's inequality, sum f(t_i) ≥ 1111 * f(9999/1111) = 1111 * f(9) = 1111 * 9 = 9999. So convexity would suffice.
+
+Is f(t) convex for a graph H? f(t) = min_{S, |S|=t} e(S). This is the minimum number of edges in a t-vertex induced subgraph. I believe this is indeed convex in t (it's a well-known result that the function giving the minimum number of edges in a k-vertex subgraph is convex). Actually, I'm not sure about this. Let me think...
+
+For a complete graph, f(t) = C(t,2), convex. For an empty graph, f(t) = 0, convex (trivially). For a path on 4 vertices, f(0)=0, f(1)=0, f(2)=0, f(3)=1, f(4)=3. Differences: 0, 0, 1, 2. Increasing, so convex. For a star on 4 vertices, f(0)=0, f(1)=0, f(2)=0 (pick two leaves), f(3)=2 (must include center + 2 leaves), f(4)=3. Differences: 0, 0, 2, 1. Not convex! 0, 0, 2, 1 - the differences are not non-decreasing (2 then 1).
+
+So f(t) is NOT always convex. This means the block construction argument is more subtle.
+
+However, for the specific case where we need every 9-subset to have ≥ 9 edges, and we're looking at picking from blocks, the worst case might not be picking exactly 9 from each.
+
+This is getting quite involved. Let me step back and think about the problem from a higher level.
+
+Actually, I wonder if the answer is simply 39999, achieved by some clever construction, or if it's higher.
+
+Let me reconsider the averaging bound. The averaging bound gives m ≥ 39999. The question is whether this is achievable.
+
+Let me think about a construction that might achieve close to 39999.
+
+Consider a 4-regular graph on 19998 vertices with 39996 edges. The average number of edges in a 9999-subset is exactly 9999. For every subset to have ≥ 9999, we need every subset to have exactly 9999. As I argued, this requires a very special graph.
+
+What 4-regular graph has the property that every 9999-subset has exactly 9999 edges?
+
+This means e(S) = 9999 for all |S| = 9999. Equivalently, e(S) is constant for all 9999-subsets.
+
+A graph where e(S) is constant for all k-subsets is called a "k-isoregular" graph or has a "regular" edge distribution. By a result in algebraic graph theory, if e(S) is constant for all k-subsets for some 2 ≤ k ≤ n-2, then the graph is "strongly regular" or has some special algebraic structure.
+
+Actually, I recall that if the number of edges in every k-subset is the same, then the graph must be either complete or empty. Wait, is that true? Let me think again.
+
+No, that's not true. Consider a graph that is a disjoint union of two K_3's (6 vertices, 6 edges). For 3-subsets: picking all 3 from one K_3 gives 3 edges, picking 2 from one and 1 from the other gives 1 edge. So e(S) is not constant. 
+
+What about the Petersen graph? It's 3-regular on 10 vertices with 15 edges. For 5-subsets, is e(S) constant? I don't think so.
+
+Actually, I think the only graphs where e(S) is constant for all k-subsets (2 ≤ k ≤ n-2) are the complete and empty graphs. This is a consequence of the theory of association schemes or the "first-order" rigidity of the edge count.
+
+Let me prove this. Suppose e(S) is constant for all k-subsets, 2 ≤ k ≤ n-2. Consider two k-subsets S, S' that differ by one element: S = A ∪ {u}, S' = A ∪ {v}, |A| = k-1, u,v ∉ A. Then e(S) - e(S') = (number of neighbors of u in A) - (number of neighbors of v in A) = 0. So for every (k-1)-subset A not containing u or v, the number of neighbors of u in A equals the number of neighbors of v in A.
+
+Now, fix u ≠ v. For every (k-1)-subset A of V \ {u,v}, |N(u) ∩ A| = |N(v) ∩ A|.
+
+Let a = |N(u) \ ({v} ∪ N(v))|, b = |N(v) \ ({u} ∪ N(u))|, c = |N(u) ∩ N(v) \ {u,v}| (common neighbors, excluding u,v themselves), d = |{u,v} ∩ N(u)| (whether v is a neighbor of u), e = |{u,v} ∩ N(v)| (whether u is a neighbor of v). Note d = e (either they're adjacent or not).
+
+In V \ {u,v}, u has deg(u) - d neighbors, v has deg(v) - e = deg(v) - d neighbors. For |N(u) ∩ A| = |N(v) ∩ A| for all A, we need the neighbors of u and v in V \ {u,v} to be "equidistributed" with respect to all (k-1)-subsets.
+
+This means: for every (k-1)-subset A of V \ {u,v}, |N(u) ∩ A| = |N(v) ∩ A|. 
+
+Let X = N(u) \ (N(v) ∪ {v}) (neighbors of u that are not neighbors of v and not v), Y = N(v) \ (N(u) ∪ {u}) (neighbors of v that are not neighbors of u and not u), Z = N(u) ∩ N(v) (common neighbors, in V \ {u,v}), W = V \ ({u,v} ∪ N(u) ∪ N(v)) (non-neighbors of both).
+
+|X| = a, |Y| = b, |Z| = c, |W| = n - 2 - a - b - c.
+
+|N(u) ∩ A| = |X ∩ A| + |Z ∩ A|, |N(v) ∩ A| = |Y ∩ A| + |Z ∩ A|.
+
+So we need |X ∩ A| = |Y ∩ A| for all (k-1)-subsets A of V \ {u,v}.
+
+This means: for every (k-1)-subset A of V \ {u,v}, the number of elements of X in A equals the number of elements of Y in A.
+
+If a ≠ b, say a > b, then we can choose A containing all of Y and min(a, k-1) elements of X. If k-1 ≥ a, A contains all a elements of X and all b elements of Y, so |X ∩ A| = a, |Y ∩ A| = b, a ≠ b, contradiction. If k-1 < a, we can choose A with k-1 elements all from X (if a ≥ k-1), giving |X ∩ A| = k-1, |Y ∩ A| = 0, contradiction (as long as b > 0 or k-1 > 0). 
+
+Wait, we need to be more careful. We need A to be a (k-1)-subset of V \ {u,v}, which has n-2 elements. As long as k-1 ≤ n-2 (which is true since k ≤ n-2 means k-1 ≤ n-3 < n-2), we can choose A freely.
+
+If a > 0, choose A to include one element from X and no elements from Y (as long as k-1 ≥ 1 and there's room). Then |X ∩ A| ≥ 1, |Y ∩ A| = 0, contradiction. Unless a = b = 0.
+
+Wait, but we need A to have exactly k-1 elements. If k-1 ≥ 1, we can include one element from X and fill the rest from W (or Z). As long as |W ∪ Z| ≥ k-2, which is true for large enough n. So if a > 0, we get a contradiction. Similarly if b > 0. So a = b = 0.
+
+This means: for every pair u, v, N(u) \ ({v} ∪ N(v)) = ∅ and N(v) \ ({u} ∪ N(u)) = ∅. In other words, N(u) \ {v} ⊆ N(v) and N(v) \ {u} ⊆ N(u). So N(u) \ {v} = N(v) \ {u} (since both inclusions hold). This means u and v have the same neighbors except possibly each other.
+
+If u and v are adjacent: N(u) \ {v} = N(v) \ {u}, so N(u) = (N(v) \ {u}) ∪ {v} and N(v) = (N(u) \ {v}) ∪ {u}. Since N(u) \ {v} = N(v) \ {u}, let's call this set C. Then N(u) = C ∪ {v}, N(v) = C ∪ {u}. So deg(u) = |C| + 1 = deg(v). And every vertex in C is adjacent to both u and v.
+
+If u and v are not adjacent: N(u) \ {v} = N(u) (since v ∉ N(u)), N(v) \ {u} = N(v). So N(u) = N(v). They have exactly the same neighbors.
+
+So the graph has the property that any two vertices have the same closed neighborhood (if adjacent) or the same open neighborhood (if non-adjacent). This is a very strong condition.
+
+This means the graph is a "blow-up" of a smaller graph where each vertex is replaced by a clique or independent set. Specifically, the relation "u ~ v iff N(u) \ {v} = N(v) \ {u}" is an equivalence relation, and each equivalence class is either a clique or an independent set, and the quotient graph is... 
+
+Actually, this is the structure of a "complete multipartite graph" or "complete graph with twins." Let me think about this more carefully.
+
+If all vertices have the same neighbors (up to the adjacency between them), then the graph is determined by a partition of vertices into "twin classes" where vertices in the same class have the same neighbors outside the class, and within the class, they're either all adjacent (clique class) or all non-adjacent (independent class). Between classes, it's either complete or empty.
+
+For a 4-regular graph with this property: each vertex has degree 4. If a twin class has size t and is a clique, each vertex in it has t-1 neighbors within the class and 4-(t-1) = 5-t neighbors outside. If it's an independent set, each vertex has 0 neighbors within and 4 outside.
+
+This is getting complicated. Let me just check: does a 4-regular graph on 19998 vertices with constant e(S) for all 9999-subsets exist?
+
+Given the strong structural constraint, such a graph would be a "blow-up" of a small graph. The smallest possibility: a twin class of size t that's a clique, with each vertex having 5-t neighbors outside. For t = 5, each vertex has 0 neighbors outside, so the class is an isolated K_5. For t = 1, each vertex has 4 neighbors outside (no twins). Etc.
+
+If the graph is a disjoint union of K_5's, we need 19998/5 to be integer, which it's not. So a 4-regular graph with this property on 19998 vertices likely doesn't exist (since 5 ∤ 19998).
+
+What about a graph with twin classes of different types? E.g., some K_5 classes and some other classes. But then the graph wouldn't be regular unless all classes give the same degree.
+
+I think for 4-regular graphs with the "constant e(S)" property, the only option on 19998 vertices would be a disjoint union of K_5's, which requires 5 | 19998. Since 19998 = 2 * 9999 = 2 * 3 * 3333 = 2 * 3^2 * 1111 = 2 * 9 * 1111, and 1111 = 11 * 101, we have 19998 = 2 * 3^2 * 11 * 101. 5 does not divide 19998. So no 4-regular graph with constant e(S) exists on 19998 vertices.
+
+This means m = 39996 is not achievable. What about m = 39997, 39998, 39999?
+
+With m = 39999, the average is 9999.25. We need every 9999-subset to have ≥ 9999 edges. The average being 9999.25 means the "slack" is 0.25 per subset on average. This is very tight.
+
+Hmm, I think the answer might be higher than 39999. Let me think about this differently.
+
+Let me consider the problem from the perspective of the "deficiency" of each subset. For a 9999-subset S, define def(S) = 9999 - e(S). We need def(S) ≤ 0 for all S. 
+
+Consider the sum of e(S) over all S and the sum of e(S)^2. By the second moment method, if we can bound the variance, we can determine when all e(S) ≥ 9999.
+
+Actually, let me think about this problem differently. Let me consider a specific construction and compute.
+
+Construction: Take 3333 copies of K_6. m = 3333 * 15 = 49995. Every 9999-subset has ≥ 9999 edges (with equality when picking 3 from each K_6). This works but gives 49995.
+
+Can we do better? Let me think about a "hybrid" construction.
+
+What if we use 3332 copies of K_6 (19992 vertices) and one K_6 (6 vertices)? That's just 3333 copies, same thing.
+
+What if we use some K_6's and some other blocks? E.g., 3330 K_6's (19980 vertices) and one K_18 (18 vertices). Total: 19998. m = 3330 * 15 + e(K_18) = 49950 + 153 = 50103. Worse.
+
+What if we use a non-clique block that's more efficient? For a block of size s, the "efficiency" is e(H) / (min edges in s/2-subset). We want to minimize e(H) while ensuring min edges in s/2-subset ≥ s/2.
+
+For K_6: e = 15, min edges in 3-subset = 3. Efficiency = 15/3 = 5.
+For a 6-vertex graph with fewer edges: can we have a 6-vertex graph with, say, 12 edges where every 3-subset has ≥ 3 edges? A 3-subset has ≥ 3 edges means it's a triangle. So every 3-subset must be a triangle, meaning the graph is K_6. So for s = 6, we need K_6.
+
+What about s = 18? We need an 18-vertex graph H with e(H) edges where every 9-subset has ≥ 9 edges, minimizing e(H). The averaging bound gives e(H) ≥ 2*18*17/16 = 38.25, so e(H) ≥ 39. Can we achieve 39?
+
+If we can find such H with 39 edges, then m = 1111 * 39 = 43329 < 49995. But we also need the global condition (not just within blocks).
+
+Hmm, but even if every 9-subset of H has ≥ 9 edges, we need to verify the global condition. As I discussed, if f(t) = min edges in t-subset of H is convex, then the global minimum is at t = 9 for each block. But f might not be convex.
+
+Let me think about whether we can find an 18-vertex graph with 39 edges where every 9-subset has ≥ 9 edges.
+
+The averaging bound says average edges in 9-subset = 39 * (9*8)/(18*17) = 39 * 72/306 = 39 * 0.2353 = 9.176. So average is 9.176, and we need min ≥ 9. This is tight but possible.
+
+What graph on 18 vertices with 39 edges has every 9-subset with ≥ 9 edges? 
+
+39 edges on 18 vertices: average degree = 78/18 = 4.33. So it's between 4-regular (36 edges) and 5-regular (45 edges).
+
+Hmm, this is getting very involved. Let me think about whether there's a cleaner approach to the original problem.
+
+Actually, let me reconsider the problem. Maybe I should think about it in terms of a more direct argument.
+
+Let me re-read the problem: "Simple graph G has 19998 vertices. For any subgraph $\bar G$ of G with 9999 vertices, $\bar G$ has at least 9999 edges. Find the minimum number of edges in G."
+
+I think "subgraph" here means "induced subgraph" (taking a subset of vertices and all edges between them). Actually, "subgraph with 9999 vertices" could mean any subgraph on 9999 vertices, not necessarily induced. But if it's any subgraph, then we could always take a subgraph with 0 edges (just the vertices), so the condition would be impossible. So it must mean induced subgraph.
+
+OK so the condition is: every induced subgraph on 9999 vertices has ≥ 9999 edges.
+
+Let me think about this problem using a cleaner approach. 
+
+Let me consider the complement. Let d(v) be the degree of v in G. For a 9999-subset S, e(S) = (1/2) * sum_{v in S} (d(v) - |N(v) ∩ (V\S)|) = (1/2) * (sum_{v in S} d(v) - e(S, V\S)).
+
+Hmm, this doesn't immediately simplify.
+
+Let me try a different approach. Consider the "edge expansion" of the graph. For a set S of 9999 vertices, e(S) ≥ 9999. Note that e(S) = (sum_{v in S} d(v) - e(S, V\S)) / 2. So sum_{v in S} d(v) - e(S, V\S) ≥ 2 * 9999 = 19998.
+
+Also, e(S) + e(V\S) + e(S, V\S) = m, and both e(S) ≥ 9999 and e(V\S) ≥ 9999, so e(S, V\S) ≤ m - 19998.
+
+Now, sum_{v in S} d(v) = 2*e(S) + e(S, V\S) ≥ 2*9999 + e(S, V\S). And sum_{v in V\S} d(v) = 2*e(V\S) + e(S, V\S) ≥ 2*9999 + e(S, V\S).
+
+Adding: sum of all degrees = 2m ≥ 4*9999 + 2*e(S, V\S), so e(S, V\S) ≤ m - 2*9999 = m - 19998. Which we already knew.
+
+Let me try to think about this problem using a specific powerful technique.
+
+Technique: Double counting with a clever weight function.
+
+For each 9999-subset S, e(S) ≥ 9999. Sum over all S: sum_S e(S) ≥ 9999 * C(19998, 9999). The LHS = m * C(19996, 9997). So m ≥ 9999 * C(19998, 9999) / C(19996, 9997) = 9999 * (19998 * 19997) / (9999 * 9998) = 19998 * 19997 / 9998 = 39998 + 1/4999. So m ≥ 39999.
+
+This is the averaging bound. Now, can we achieve 39999?
+
+Let me think about this more carefully. The answer might be 39999, but we need a construction.
+
+Actually, wait. Let me reconsider. Maybe the answer is not 39999 but something that can be achieved by a nice construction. Let me think about what constructions are known for this type of problem.
+
+This problem is about finding the minimum number of edges in a graph on n vertices such that every n/2-vertex induced subgraph has at least n/2 edges. This is related to the concept of "jumbled" graphs or graphs with good edge expansion.
+
+Let me think about a specific construction: a 4-regular graph that's a disjoint union of cycles of length 6, where each C_6 is "augmented" to be K_6. That's just the K_6 construction.
+
+Alternatively, consider a 4-regular graph that's a "strongly regular graph" or has some algebraic structure.
+
+Actually, let me think about the problem differently. Let me consider the possibility that the answer is 39999 and try to construct such a graph.
+
+With m = 39999, the average number of edges in a 9999-subset is 9999.25. We need every 9999-subset to have ≥ 9999 edges. The "slack" is 0.25 on average. This means most subsets have 9999 or 10000 edges, with the average being 9999.25.
+
+For this to work, we need a graph where the edge count in 9999-subsets is very concentrated around 9999-10000.
+
+Hmm, I think this is very hard to achieve. The variance of e(S) for a random 9999-subset S is typically large (on the order of n or more), so having all values ≥ 9999 when the average is 9999.25 seems very difficult.
+
+Let me compute the variance. For a d-regular graph, Var(e(S)) depends on the structure. For a random d-regular graph, the variance is roughly... well, it depends on the eigenvalues.
+
+Actually, let me think about this differently. For the K_6 construction, the variance is 0 when we pick exactly 3 from each block (all give 9999), but the variance is positive when we pick unevenly. However, the minimum is 9999 (achieved by picking 3 from each), so it works.
+
+For a graph with m = 39999, we'd need the minimum to be ≥ 9999 with average 9999.25. The minimum being so close to the average requires very low variance, which requires a very structured graph.
+
+I think the K_6 construction with m = 49995 might actually be optimal, or close to optimal. But the averaging bound says 39999, so there's a gap.
+
+Let me think about whether there's a better construction than K_6 blocks.
+
+What about using a "fractional" version of the block construction? Instead of disjoint blocks, use a more intertwined structure.
+
+Idea: Consider a graph based on a finite geometry or design. For instance, consider the graph where vertices are points of a projective plane, and edges connect collinear points. But the parameters don't match.
+
+Idea: Consider a Cayley graph on Z_{19998} with connection set {±1, ±2} (a 4-regular circulant). This has 39996 edges. The average is 9999. But the variance is positive, so some 9999-subset has < 9999 edges.
+
+What if we use a Cayley graph on Z_{19998} with connection set {±1, ±2, ±3333}? That's 6-regular, m = 59994. Average = 59994 * 9998/39994 ≈ 15000. Min is likely > 9999 but m is large.
+
+Hmm, I'm not making progress on finding a better construction. Let me think about whether the K_6 construction is actually optimal.
+
+Let me try to prove a better lower bound than 39999.
+
+Better lower bound attempt: Consider a specific family of 9999-subsets that gives a tighter bound.
+
+For each vertex v, consider the 9999-subset S_v = V \ {v and 9998 other vertices}. Hmm, this is just a general 9999-subset.
+
+Let me try a different approach. Consider the following: for each vertex v, let S be a 9999-subset containing v, and T = V \ S (also 9999 vertices). Then e(S) ≥ 9999 and e(T) ≥ 9999, so m = e(S) + e(T) + e(S,T) ≥ 19998 + e(S,T).
+
+Now, e(S,T) = sum_{v in S} (d(v) - deg_S(v)) = sum_{v in S} d(v) - 2*e(S). Similarly, e(S,T) = sum_{v in T} d(v) - 2*e(T).
+
+So m ≥ 19998 + e(S,T) for every balanced partition (S, T). To minimize m, we want to find the partition that minimizes e(S,T), but we need the inequality to hold for ALL partitions. So m ≥ 19998 + max over all balanced partitions of e(S,T)? No, that's wrong. We need m ≥ 19998 + e(S,T) for ALL partitions, so m ≥ 19998 + max_S e(S,T). But max_S e(S,T) could be as large as 9999 * 9999 (if the graph is complete bipartite), so this gives m ≥ 19998 + max e(S,T), which is a very weak bound if max e(S,T) is large.
+
+Wait, no. We need m ≥ 19998 + e(S,T) for every partition, so m ≥ 19998 + min_S e(S,T). The minimum cut over all balanced partitions. But min e(S,T) could be 0 (if the graph is disconnected with two components of size 9999). So this gives m ≥ 19998, which is weaker than the averaging bound.
+
+Hmm. Let me try yet another approach.
+
+Let me think about the problem in terms of the degree sequence. Let d_1 ≤ d_2 ≤ ... ≤ d_{19998} be the degrees. 
+
+For a 9999-subset S, e(S) = (sum_{v in S} d(v) - e(S, V\S)) / 2. To minimize e(S), we want to choose S with small total degree and large cut. But these are somewhat in tension.
+
+Actually, let me think about the "worst case" subset. The subset that minimizes e(S) would tend to include low-degree vertices. 
+
+Consider the 9999 vertices with the smallest degrees: S = {v : d(v) is among the 9999 smallest}. Then sum_{v in S} d(v) is minimized. But e(S, V\S) could be anything.
+
+Hmm, this is hard to bound in general.
+
+Let me try a completely different approach. Let me think about the problem as an integer program and try to find the dual.
+
+We want to minimize m = |E| subject to: for all S with |S| = 9999, e(S) ≥ 9999.
+
+This is equivalent to: for all S with |S| = 9999, sum_{e ∈ E, e ⊆ S} 1 ≥ 9999.
+
+The LP relaxation gives m ≥ 39999 (by the averaging argument). The question is the integrality gap.
+
+For the K_6 construction, m = 49995. Is there a construction with m between 39999 and 49995?
+
+Let me think about a construction based on a 4-regular graph plus a few extra edges.
+
+Take a 4-regular graph on 19998 vertices (39996 edges) and add 3 extra edges (39999 total). The average is 9999.25. We need every 9999-subset to have ≥ 9999. The 4-regular graph has average 9999, so some subsets have < 9999. Adding 3 edges increases the count for subsets containing both endpoints of those edges. But there are many subsets with < 9999, and 3 edges can only help subsets containing both endpoints.
+
+This doesn't seem like it would work. The number of "deficient" subsets (with < 9999 edges) in a 4-regular graph is likely huge, and 3 extra edges can't fix all of them.
+
+Let me reconsider. Maybe the answer is indeed 49995, and the averaging bound of 39999 is not tight.
+
+Let me try to prove a better lower bound.
+
+Approach: Use the fact that the condition must hold for ALL 9999-subsets, not just on average. 
+
+Consider a vertex v with degree d(v). Consider a 9999-subset S that contains v and 9998 of v's non-neighbors (if v has enough non-neighbors). Then v contributes 0 edges to e(S) from its incident edges (since no neighbor of v is in S). The remaining 9998 vertices contribute at most C(9998, 2) edges, but we need the total to be ≥ 9999.
+
+Hmm, this doesn't directly give a useful bound.
+
+Let me try another approach. Consider the 9999 vertices with the smallest degrees. Let S be this set. Then e(S) ≥ 9999. Now, e(S) ≤ (sum_{v in S} d(v)) / 2 (since e(S) = (sum d_S(v)) / 2 ≤ (sum d(v)) / 2 where d_S(v) ≤ d(v)). Wait, that's not right. e(S) = (sum_{v in S} d_S(v)) / 2 where d_S(v) is the degree of v within S. And d_S(v) ≤ d(v), so e(S) ≤ (sum_{v in S} d(v)) / 2. But we need e(S) ≥ 9999, so sum_{v in S} d(v) ≥ 2 * 9999 = 19998. But this is a lower bound on the sum of the 9999 smallest degrees.
+
+The sum of the 9999 smallest degrees ≥ 19998 means the average of the 9999 smallest degrees ≥ 2. So the median degree is ≥ 2 (roughly). This gives sum of all degrees ≥ 19998 * 2 = 39996 (very roughly), so m ≥ 19998. Weaker than the averaging bound.
+
+Let me try to use a more refined argument. 
+
+Consider two complementary 9999-subsets S and T. We have e(S) ≥ 9999, e(T) ≥ 9999, and e(S) + e(T) + e(S,T) = m. So m ≥ 19998 + e(S,T). 
+
+Now, e(S,T) = sum_{v in S} d(v) - 2*e(S) ≤ sum_{v in S} d(v) - 2*9999. Similarly, e(S,T) ≤ sum_{v in T} d(v) - 2*9999.
+
+So e(S,T) ≤ min(sum_{v in S} d(v), sum_{v in T} d(v)) - 19998.
+
+Also, e(S,T) = sum_{v in S} d(v) - 2*e(S) = sum_{v in S} d(v) - 2*e(S). Since e(S) ≥ 9999, e(S,T) ≤ sum_{v in S} d(v) - 19998.
+
+And m = e(S) + e(T) + e(S,T) ≥ 9999 + 9999 + e(S,T). But also m = sum of all degrees / 2.
+
+Hmm, I keep going in circles. Let me try to think about this problem from the perspective of known results.
+
+This problem is asking for the minimum number of edges in an n-vertex graph (n = 19998) such that every n/2-vertex induced subgraph has at least n/2 edges. 
+
+This is related to the concept of "super-edge-connected" or "edge-expander" graphs, but the specific condition is about the number of edges in half the vertices.
+
+Actually, I think this might be related to the following: the minimum number of edges such that the graph is "4999-edge-connected" or has some expansion property. But I'm not sure of the exact connection.
+
+Let me try to think about it from the perspective of the K_6 construction and see if we can prove it's optimal.
+
+Claim: The answer is 49995.
+
+Proof sketch: We need to show m ≥ 49995 and that the K_6 construction achieves 49995.
+
+The K_6 construction achieves 49995 as shown. Now we need to prove m ≥ 49995.
+
+Hmm, but the averaging bound only gives 39999. So we need a stronger argument.
+
+Let me think about a stronger lower bound. 
+
+Consider the following: for each vertex v, consider the 9999-subset S that contains v and is chosen to minimize e(S). 
+
+Actually, let me think about a "local" argument. For each vertex v, consider all 9999-subsets containing v. There are C(19997, 9998) such subsets. The sum of e(S) over these subsets is... each edge {v, w} is in C(19996, 9997) of these subsets (those containing both v and w), and each edge {w, x} not involving v is in C(19995, 9996) of these subsets (those containing w, x, and v). Wait, this is getting complicated.
+
+Let me try a different approach. Let me think about the problem in terms of "fractional arboricity" or "edge density."
+
+Actually, let me try to think about this more carefully using the structure of the problem.
+
+Key observation: The condition is that for every 9999-subset S, e(S) ≥ 9999 = |S|. So the "edge density" e(S)/|S| ≥ 1 for every half-size subset. We want to minimize the total number of edges.
+
+This is related to the concept of the "fractional arboricity" or the "edge-density" of the graph. The arboricity of a graph is the minimum number of forests needed to cover all edges, which by Nash-Williams' theorem is max over all subgraphs H of ceil(e(H)/(v(H)-1)). 
+
+But our condition is about e(S)/|S| ≥ 1, not e(S)/(|S|-1) ≥ something. So it's slightly different.
+
+Hmm, let me think about this differently. 
+
+Consider the following reformulation: we need e(S) ≥ |S| for all S with |S| = 9999. By a result in extremal graph theory, if e(S) ≥ |S| for all S of a given size, then...
+
+Actually, I recall a result that says: if every k-vertex induced subgraph of an n-vertex graph has at least k edges, then the graph has at least n*k/(2*(k-1)) * ... hmm, I don't remember the exact result.
+
+Let me try to think about it from scratch.
+
+Let me consider the "deficiency" approach. For a 9999-subset S, define f(S) = e(S) - 9999. We need f(S) ≥ 0 for all S. We want to minimize m = |E|.
+
+Consider the "most deficient" subset, i.e., the one that minimizes e(S). This subset determines the minimum m.
+
+For the K_6 construction, the minimum e(S) = 9999, achieved by picking 3 from each K_6. The total m = 49995.
+
+Now, can we find a graph with fewer edges where the minimum e(S) is still ≥ 9999?
+
+Let me think about a graph that's "almost" 4-regular but with some structure that ensures the minimum is high.
+
+Consider a 4-regular graph that's a disjoint union of K_{4,4} graphs (complete bipartite, 4-regular). 19998/8 = 2499.75, not integer. So this doesn't work directly.
+
+Consider a 4-regular graph that's a disjoint union of K_5's. 19998/5 is not integer.
+
+Consider a 4-regular graph that's a disjoint union of the 4-regular graph on 6 vertices: K_6 minus a perfect matching. K_6 minus a perfect matching has 6 vertices and 15 - 3 = 12 edges, and is 4-regular. 19998/6 = 3333. So 3333 copies, m = 3333 * 12 = 39996. Average = 9999. But does every 9999-subset have ≥ 9999 edges?
+
+K_6 minus a perfect matching: vertices {1,2,3,4,5,6}, remove edges {1,2}, {3,4}, {5,6}. Remaining edges: all except these 3. So 12 edges. Each vertex has degree 4.
+
+For a 3-subset of this graph, the minimum number of edges: pick {1,3,5} (one from each pair). Edges among {1,3,5}: 1-3, 1-5, 3-5. All present (since we only removed 1-2, 3-4, 5-6). So 3 edges. Pick {1,2,3}: edges 1-3, 2-3 (1-2 removed). So 2 edges. So the minimum for a 3-subset is 2 (pick both from a pair and one other).
+
+So for the disjoint union of 3333 copies of (K_6 minus perfect matching), a 9999-subset picking 3 from each block: if we pick {1,2,3} from each block, we get 2 edges per block, total 3333 * 2 = 6666 < 9999. So this doesn't work!
+
+So K_6 minus matching is not as good as K_6. The K_6 construction works because every 3-subset of K_6 has ≥ 3 edges (it's a clique, so every 3-subset is a triangle with 3 edges).
+
+OK so the key property of K_6 is that every 3-subset has exactly 3 edges (it's a clique). This is what makes the construction work.
+
+Now, can we find a graph H on s vertices (s | 19998, s even) where every s/2-subset has ≥ s/2 edges, and e(H) / (s/2) < 5 (the K_6 ratio)?
+
+For K_6: e(H) = 15, s/2 = 3, ratio = 5. Total m = 3333 * 15 = 49995.
+
+We want e(H) / (s/2) < 5, i.e., e(H) < 5s/2.
+
+For s = 18: we need e(H) < 45 and every 9-subset has ≥ 9 edges. Averaging bound: e(H) ≥ 39. So 39 ≤ e(H) ≤ 44. If we can find such H with 39 edges, m = 1111 * 39 = 43329 < 49995.
+
+But does such H exist? And does the global condition hold?
+
+Let me think about whether an 18-vertex graph with 39 edges and every 9-subset having ≥ 9 edges exists.
+
+39 edges on 18 vertices: average degree 78/18 = 4.33. So some vertices have degree 4 and some 5. Specifically, if x vertices have degree 5 and 18-x have degree 4: 5x + 4(18-x) = 78, x + 72 = 78, x = 6. So 6 vertices of degree 5 and 12 of degree 4.
+
+For every 9-subset to have ≥ 9 edges, with average 9.176, we need the minimum to be ≥ 9. This is tight.
+
+Consider the 9 vertices with the smallest degrees (all degree 4). Their total degree is 36. The number of edges within this set is at most 36/2 = 18, but we need ≥ 9. The number of edges from this set to the other 9 is at least 36 - 2*9 = 18 (if e(S) = 9, then e(S,T) = 36 - 18 = 18). This is feasible.
+
+But we need to actually construct such a graph. This is non-trivial.
+
+Let me think about a specific construction. Consider the graph on 18 vertices that is the "tensor product" or some algebraic construction.
+
+Actually, let me think about a simpler approach. Consider the graph G = K_{9,9} minus a perfect matching. This has 18 vertices, 9*9 - 9 = 72 edges. Way too many.
+
+Consider the graph G = C_{18} (cycle on 18 vertices) plus some chords. C_{18} has 18 edges. Every 9-subset of C_{18} has at least... well, a 9-subset of a cycle can have as few as 0 edges (pick every other vertex). So C_{18} doesn't work.
+
+Consider the graph G = K_{18} with 153 edges. Every 9-subset has C(9,2) = 36 edges. Way more than needed.
+
+What about a 4-regular graph on 18 vertices? 36 edges. Average 9-subset edges = 36 * 72/306 = 36 * 0.2353 = 8.47. Less than 9. So a 4-regular graph on 18 vertices has average < 9, meaning some 9-subset has < 9 edges. Not enough.
+
+What about a graph on 18 vertices with 39 edges (between 4 and 5 regular)? Average = 39 * 72/306 = 9.176. We need min ≥ 9. 
+
+Let me try to construct such a graph. Take a 4-regular graph on 18 vertices (36 edges) and add 3 edges. The 4-regular graph has average 8.47, so some 9-subsets have ≤ 8 edges. Adding 3 edges increases the count for 9-subsets containing both endpoints. Each added edge is in C(16,7) = 11440 9-subsets (out of C(18,9) = 48620). So each edge helps about 23.5% of subsets. Three edges help at most 70.6% of subsets (with overlap). But we need to help all deficient subsets.
+
+The number of deficient subsets (with ≤ 8 edges) in a 4-regular graph could be large. It's hard to fix all of them with just 3 edges.
+
+This suggests that 39 edges might not be enough for s = 18. Let me think about what the minimum is for s = 18.
+
+Actually, let me think about this more carefully. For s = 18, we need every 9-subset to have ≥ 9 edges. What's the minimum number of edges?
+
+This is a smaller version of the same problem: n = 18, k = 9, find min m such that every 9-subset has ≥ 9 edges.
+
+Averaging bound: m ≥ 9 * 18*17/(9*8) = 9 * 306/72 = 9 * 4.25 = 38.25, m ≥ 39.
+
+Can we achieve 39? Or do we need more?
+
+Let me think about the K_6 construction for n = 18: 3 copies of K_6, m = 45. Every 9-subset (picking 3 from each) has 9 edges. So m = 45 works.
+
+Can we do better than 45 for n = 18? The averaging bound says 39. Is 39 achievable?
+
+Let me try to think about n = 6, k = 3 as a test case. Averaging bound: m ≥ 3 * 6*5/(3*2) = 3 * 5 = 15. And K_6 has 15 edges, and it's the only graph where every 3-subset has 3 edges. So the averaging bound is tight for n = 6.
+
+For n = 18, k = 9: averaging bound 39. K_6 construction gives 45. Is 39 achievable?
+
+Hmm, for n = 6, the averaging bound is tight because K_6 is the unique graph with every 3-subset having 3 edges, and it has exactly 15 = averaging bound edges.
+
+For n = 18, is there a graph with 39 edges where every 9-subset has ≥ 9 edges? 
+
+Let me think about a potential construction. Consider the graph on Z_18 where we connect i to i±1, i±2 (circulant graph with connection set {±1, ±2}). This is 4-regular, 36 edges. Not enough (average 8.47).
+
+Add 3 more edges: connect 0-9, 6-15, 3-12 (opposite vertices). Now 39 edges. Does every 9-subset have ≥ 9 edges?
+
+A 9-subset of Z_18 with connection set {±1, ±2, 9}: the edges are between vertices at distance 1, 2, or 9. 
+
+Consider the subset S = {0, 2, 4, 6, 8, 10, 12, 14, 16} (all even vertices). Edges within S: distance 2 edges (0-2, 2-4, ..., 16-0) = 9 edges. Distance 1 edges: none (all even, distance 1 is odd). Distance 9 edges: 0-9 (9 not in S), 2-11 (not in S), etc. None. So e(S) = 9. OK, exactly 9.
+
+Consider S = {0, 1, 2, 3, 4, 5, 6, 7, 8} (first 9). Edges: distance 1: 0-1, 1-2, ..., 7-8 = 8 edges. Distance 2: 0-2, 1-3, ..., 6-8 = 7 edges. Distance 9: 0-9 (not in S), 1-10 (not), ..., 8-17 (not). None. Total = 15. OK.
+
+Consider S = {0, 2, 4, 6, 8, 9, 11, 13, 15}. Edges: distance 1: 8-9 (yes), others? 0-1 (no), 2-3 (no), 4-5 (no), 6-7 (no), 9-10 (no), 11-12 (no), 13-14 (no), 15-16 (no). So 1 edge. Distance 2: 0-2, 2-4, 4-6, 6-8, 9-11, 11-13, 13-15, 15-0 (15-17 is distance 2? 15 to 17 is distance 2, but 17 not in S. 15 to 0 is distance 3 (going 15→16→17→0) or distance 15, so not distance 2. Hmm, in Z_18, distance 2 from 15 is 13 and 17. 13 is in S. So 13-15 is distance 2. Already counted. Let me be more careful.
+
+In Z_18, i is connected to i+1, i-1, i+2, i-2, i+9 (mod 18). So the edges are {i, i+1}, {i, i+2}, {i, i+9} for all i (but each counted once).
+
+For S = {0, 2, 4, 6, 8, 9, 11, 13, 15}:
+- Distance 1 edges within S: {8,9} (8+1=9). Any others? 0+1=1∉S, 2+1=3∉S, 4+1=5∉S, 6+1=7∉S, 9+1=10∉S, 11+1=12∉S, 13+1=14∉S, 15+1=16∉S. So just {8,9}. 1 edge.
+- Distance 2 edges within S: {0,2}, {2,4}, {4,6}, {6,8}, {9,11}, {11,13}, {13,15}, {15,0}? 15+2=17∉S. 0+2=2∈S, so {0,2}. 0-2=16∉S. So {0,2}, {2,4}, {4,6}, {6,8}, {9,11}, {11,13}, {13,15}. 15-2=13∈S, already counted. So 7 edges.
+- Distance 9 edges within S: {0,9} (0+9=9∈S), {2,11} (2+9=11∈S), {4,13} (4+9=13∈S), {6,15} (6+9=15∈S), {8,17} (17∉S), {9,0} (already), {11,2} (already), {13,4} (already), {15,6} (already). So {0,9}, {2,11}, {4,13}, {6,15}. 4 edges.
+
+Total: 1 + 7 + 4 = 12 ≥ 9. OK.
+
+Let me try to find a subset with fewer edges. Consider S = {0, 1, 3, 5, 7, 9, 11, 13, 15} (odd vertices plus 0).
+- Distance 1: {0,1}, {1,0} already. 0+1=1∈S. 1+1=2∉S. 3+1=4∉S. 5+1=6∉S. 7+1=8∉S. 9+1=10∉S. 11+1=12∉S. 13+1=14∉S. 15+1=16∉S. So just {0,1}. 1 edge.
+- Distance 2: 0+2=2∉S. 1+2=3∈S: {1,3}. 3+2=5∈S: {3,5}. 5+2=7∈S: {5,7}. 7+2=9∈S: {7,9}. 9+2=11∈S: {9,11}. 11+2=13∈S: {11,13}. 13+2=15∈S: {13,15}. 15+2=17∉S. So 7 edges.
+- Distance 9: 0+9=9∈S: {0,9}. 1+9=10∉S. 3+9=12∉S. 5+9=14∉S. 7+9=16∉S. 9+0=0 already. 11+2=13, no wait 11+9=20=2∉S. 13+9=22=4∉S. 15+9=24=6∉S. So just {0,9}. 1 edge.
+
+Total: 1 + 7 + 1 = 9. Exactly 9!
+
+Let me try S = {0, 1, 3, 5, 7, 9, 11, 13, 15} more carefully. Actually I just computed 9. Let me try another subset.
+
+S = {1, 3, 5, 7, 9, 11, 13, 15, 17} (all odd vertices).
+- Distance 1: all pairs at distance 1 are (odd, even), so none. 0 edges.
+- Distance 2: 1-3, 3-5, 5-7, 7-9, 9-11, 11-13, 13-15, 15-17, 17-1 (17+2=19=1). So 9 edges.
+- Distance 9: 1+9=10∉S. 3+9=12∉S. 5+9=14∉S. 7+9=16∉S. 9+0=0∉S. 11+2=13, no, 11+9=20=2∉S. 13+9=22=4∉S. 15+9=24=6∉S. 17+9=26=8∉S. So 0 edges.
+
+Total: 0 + 9 + 0 = 9. Exactly 9.
+
+S = {0, 2, 4, 6, 8, 10, 12, 14, 16} (all even vertices).
+- Distance 1: 0 edges (all even).
+- Distance 2: 0-2, 2-4, 4-6, 6-8, 8-10, 10-12, 12-14, 14-16, 16-0 (16+2=18=0). 9 edges.
+- Distance 9: 0+9=9∉S. 2+9=11∉S. etc. All odd, not in S. 0 edges.
+
+Total: 9. Exactly 9.
+
+Interesting, so this circulant graph with 39 edges seems to have every 9-subset with ≥ 9 edges, with equality for the "all odd" and "all even" subsets and some mixed ones.
+
+But I need to verify this more carefully. Let me check a potentially bad subset.
+
+S = {0, 1, 2, 3, 4, 5, 6, 7, 8}:
+- Distance 1: 0-1, 1-2, 2-3, 3-4, 4-5, 5-6, 6-7, 7-8. 8 edges.
+- Distance 2: 0-2, 1-3, 2-4, 3-5, 4-6, 5-7, 6-8. 7 edges.
+- Distance 9: 0-9∉S, 1-10∉S, ..., 8-17∉S. 0 edges.
+Total: 15.
+
+S = {0, 1, 2, 3, 4, 5, 6, 7, 17}:
+- Distance 1: 0-1, 1-2, 2-3, 3-4, 4-5, 5-6, 6-7, 17-0 (17+1=18=0). 8 edges.
+- Distance 2: 0-2, 1-3, 2-4, 3-5, 4-6, 5-7, 17-1 (17+2=19=1). 7 edges.
+- Distance 9: 0-9∉S, 1-10∉S, ..., 7-16∉S, 17-8∉S. 0 edges.
+Total: 15.
+
+S = {0, 1, 2, 3, 4, 5, 6, 16, 17}:
+- Distance 1: 0-1, 1-2, 2-3, 3-4, 4-5, 5-6, 16-17, 17-0. 8 edges.
+- Distance 2: 0-2, 1-3, 2-4, 3-5, 4-6, 16-0 (16+2=18=0), 17-1 (17+2=19=1). 7 edges.
+- Distance 9: 0-9∉S, ..., 6-15∉S, 16-7∉S, 17-8∉S. 0 edges.
+Total: 15.
+
+Hmm, it seems like "contiguous" subsets have many edges. The minimum seems to be 9, achieved by the "alternating" subsets.
+
+Let me check S = {0, 2, 4, 6, 8, 10, 12, 14, 17}:
+- Distance 1: 17-0 (17+1=0). Any others? 0-1∉S, 2-3∉S, etc. Just 17-0. 1 edge.
+- Distance 2: 0-2, 2-4, 4-6, 6-8, 8-10, 10-12, 12-14, 14-16∉S, 17-1∉S. So 7 edges. Wait, 14+2=16∉S. 17-2=15∉S, 17+2=1∉S. So 7 edges.
+- Distance 9: 0-9∉S, 2-11∉S, 4-13∉S, 6-15∉S, 8-17∈S: {8,17}. 10-1∉S, 12-3∉S, 14-5∉S, 17-8 already. So 1 edge.
+Total: 1 + 7 + 1 = 9.
+
+S = {0, 2, 4, 6, 8, 10, 12, 15, 17}:
+- Distance 1: 17-0. 15-16∉S. 1 edge.
+- Distance 2: 0-2, 2-4, 4-6, 6-8, 8-10, 10-12, 12-14∉S, 15-17, 17-1∉S. So 7 + 1 = 8 edges. Wait, 15+2=17∈S, so {15,17}. And 15-2=13∉S. So edges: 0-2, 2-4, 4-6, 6-8, 8-10, 10-12, 15-17. 7 edges.
+- Distance 9: 0-9∉S, 2-11∉S, 4-13∉S, 6-15∈S: {6,15}. 8-17∈S: {8,17}. 10-1∉S, 12-3∉S, 15-6 already, 17-8 already. So 2 edges.
+Total: 1 + 7 + 2 = 10.
+
+S = {0, 2, 4, 6, 9, 11, 13, 15, 17}:
+- Distance 1: 17-0. 8-9? 8∉S. 9-10∉S. 1 edge.
+- Distance 2: 0-2, 2-4, 4-6, 9-11, 11-13, 13-15, 15-17, 17-1∉S. 7 edges.
+- Distance 9: 0-9∈S, 2-11∈S, 4-13∈S, 6-15∈S, 9-0 already, 11-2 already, 13-4 already, 15-6 already, 17-8∉S. 4 edges.
+Total: 1 + 7 + 4 = 12.
+
+S = {0, 3, 5, 7, 9, 11, 13, 15, 17}:
+- Distance 1: 17-0. 0-1∉S. 3-4∉S. 5-6∉S. 7-8∉S. 9-10∉S. 11-12∉S. 13-14∉S. 15-16∉S. 1 edge.
+- Distance 2: 0-2∉S. 3-5, 5-7, 7-9, 9-11, 11-13, 13-15, 15-17, 17-1∉S. 7 edges. Wait, 0+2=2∉S, 0-2=16∉S. 3+2=5∈S, 3-2=1∉S. So {3,5}. 5+2=7: {5,7}. 7+2=9: {7,9}. 9+2=11: {9,11}. 11+2=13: {11,13}. 13+2=15: {13,15}. 15+2=17: {15,17}. 17+2=1∉S. So 7 edges.
+- Distance 9: 0-9∈S, 3-12∉S, 5-14∉S, 7-16∉S, 9-0 already, 11-2∉S, 13-4∉S, 15-6∉S, 17-8∉S. 1 edge.
+Total: 1 + 7 + 1 = 9.
+
+So it seems like the minimum is 9 for this graph. Let me try to find a subset with fewer than 9 edges.
+
+The subsets that achieve 9 seem to be those that are "spread out" with respect to the distance-2 structure. The distance-2 edges form a union of two 9-cycles (even and odd). A 9-subset that picks all from one 9-cycle gets 9 distance-2 edges and 0 distance-1 and 0 distance-9 edges (if it's all even or all odd). A mixed subset gets some distance-1 and distance-9 edges but fewer distance-2 edges.
+
+The key insight is that the distance-2 graph is two disjoint 9-cycles. A 9-subset picks some from each cycle. If it picks a from the even cycle and 9-a from the odd cycle, the distance-2 edges are the edges within each cycle's selected vertices. For a path of a vertices in a 9-cycle, the number of edges is a - (number of connected components). To minimize, maximize components, which means spreading out. But in a 9-cycle, a vertices can form at most a components (if a ≤ 4, since we need gaps). Actually, in a 9-cycle, if we pick a vertices, the minimum number of edges is max(0, a - (9-a)) = max(0, 2a-9) if a > 4 (since we can have at most 9-a gaps, giving at most 9-a components, so edges ≥ a - (9-a) = 2a-9). If a ≤ 4, we can have a components (no two adjacent), so 0 edges.
+
+Wait, in a 9-cycle, picking a vertices: the number of edges among them is a minus the number of "runs" (connected components in the cycle). The maximum number of runs is min(a, 9-a) (we need at least one unselected vertex between runs). So the minimum number of edges is a - min(a, 9-a) = max(0, 2a-9).
+
+So for a 9-subset picking a from the even cycle and 9-a from the odd cycle:
+- Distance-2 edges: max(0, 2a-9) + max(0, 2(9-a)-9) = max(0, 2a-9) + max(0, 9-2a).
+  - If a ≥ 5: max(0, 2a-9) + 0 = 2a-9.
+  - If a ≤ 4: 0

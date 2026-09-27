@@ -1,0 +1,1788 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   8. Given a positive integer $n$. Use 26 white unit cubes and 1 black unit cube to form a $3 \times 3 \times 3$ cube. Then use $n^{3}$ such cubes to form a cube with edge length $3 n$. Question: What is the minimum number of white unit cubes that need to be painted red so that each remaining white unit cube is adjacent to at least one red unit cube?       — 题目文本
+#   8. $(n+1) n^{2}$.
+
+Let the unit cube be referred to as a small cube.
+Establish a coordinate system such that the centers of each small cube along the three coordinate axes have coordinates ranging from $1 \sim 3 n$. Each small cube is identified by the coordinates of its center. Thus, a small cube is black if and only if all three of its coordinate values are congruent to 2 modulo 3.
+
+Color the small cube with coordinates $(a, b, c)$ red if: $a$ is a multiple of 3, $b \equiv 2(\bmod 3)$, and $c \equiv 2(\bmod 3)$;
+Color the small cube with coordinates $(1, b, c)$ red if: $b \equiv 2(\bmod 3)$ and $c \equiv 2(\bmod 3)$.
+
+A total of $(n+1) n^{2}$ red small cubes are obtained, and the requirements of the problem are met.
+
+Next, we need to prove that the number of red small cubes cannot be less than $(n+1) n^{2}$.
+For $i=1,2, \cdots, n$, let
+$w_{3 i}=i, w_{3 i-1}=0, w_{3 i-2}=n+1-i$.
+It is easy to see that the sequence $\left\{w_{i}\right\}$ is
+$n, 0,1, n-1,0,2, n-2, \cdots, 1,0, n$.
+On the small cube with coordinates $(a, b, c)$, write $w_{a} w_{b} w_{c}$. Thus, the sum of the numbers written on all small cubes is
+$$
+M=\left(w_{1}+\cdots+w_{3 n}\right)^{3}=n^{3}(n+1)^{3} .
+$$
+
+Define the price of a small cube $X$ as the sum of the numbers written on the small cubes (including $X$ itself) that share a common point with $X$. Thus, in any coloring method, the sum of the numbers written on the red small cubes is not less than $M$.
+
+We now prove: For any white small cube $X$,
+$$
+S(X) \leqslant(n+1)^{2} n \text {. }
+$$
+
+From this, it follows that at least
+$$
+\frac{M}{(n+1)^{2} n}=(n+1) n^{2}
+$$
+
+small cubes must be colored red, which is what we need to prove.
+Let the coordinates of the small cube $X$ be $(a, b, c)$. The small cubes that share a common point with $X$ have a horizontal coordinate equal to $a$ or $a \pm 1$, and similarly for the other two coordinates.
+$$
+\begin{array}{l} 
+\text { Then } S(X) \\
+=\left(w_{a-1}+w_{a}+w_{a+1}\right)\left(w_{b-1}+w_{b}+w_{b+1}\right) . \\
+\left(w_{c-1}+w_{c}+w_{c+1}\right),
+\end{array}
+$$
+
+where, $w_{0}=w_{3 n+1}=0$.
+Notice that,
+$$
+w_{t-1}+w_{t}+w_{t+1}=\left\{\begin{array}{ll}
+n, & t \neq 2(\bmod 3) ; \\
+n+1, & \text { otherwise. }
+\end{array}\right.
+$$
+
+Since the coordinates of the small cube $X$ are not all congruent to 2 modulo 3,
+$$
+S(X) \leqslant(n+1)^{2} n \text {. }
+$$  — 标准解答
+#   Let me solve this problem. We have a 3×3×3 cube made of 27 unit cubes, 26 white and 1 black. Then n³ such cubes form a larger cube of edge length 3n. We need to find the minimum number of white unit cubes to paint red so that each remaining white unit cube is adjacent to at least one red unit cube.
+
+Wait, let me re-read. We use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube. Then use n³ such cubes to form a cube with edge length 3n. So we have n³ copies of the 3×3×3 cube, each containing 1 black unit cube. The total is a 3n × 3n × 3n cube made of unit cubes, where some are black (n³ of them, one per small cube) and the rest are white.
+
+We need to paint some white unit cubes red so that each remaining white unit cube is adjacent to at least one red unit cube. Adjacent means sharing a face (I assume).
+
+So we want a dominating set of the white cubes in the grid graph, where red cubes form the dominating set, and each white cube must be adjacent to a red cube. Black cubes don't need to be dominated (they're not white). Red cubes are painted from white cubes, so red cubes are removed from the "white" set.
+
+Actually, let me think about this more carefully. The question: minimum number of white unit cubes to paint red so that each remaining white cube is adjacent to at least one red cube.
+
+So the red cubes form a set R (subset of white cubes). After painting, the remaining white cubes are W \ R. Each cube in W \ R must be adjacent to at least one cube in R. Black cubes are not required to be adjacent to red.
+
+So we need a dominating set of the white cubes, but only the white cubes need to be dominated (not black), and the dominating set is also from white cubes.
+
+This is a minimum dominating set problem on the subgraph induced by white cubes in the 3n × 3n × 3n grid.
+
+The black cubes: each 3×3×3 block has exactly 1 black cube. The position of the black cube within each 3×3×3 block matters. The problem says "use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube" - it doesn't specify where the black cube is. Hmm, but then "use n³ such cubes to form a cube with edge length 3n". 
+
+I think the question is asking for the minimum over all possible configurations? Or is the black cube position fixed? Let me re-read.
+
+"Use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube. Then use n³ such cubes to form a cube with edge length 3n."
+
+I think "such cubes" means n³ copies of the same 3×3×3 cube (same arrangement). So the black cube is in the same position in each 3×3×3 block. The question asks for the minimum number of white cubes to paint red.
+
+But wait - does the position of the black cube matter for the answer? The problem asks "what is the minimum number" - this should be a function of n. Let me think about whether the answer depends on where the black cube is.
+
+Actually, I think the problem is asking: given this configuration (with the black cube in some position, same in each block), what is the minimum number of white cubes to paint red? And the answer should be in terms of n, and should hold regardless of where the black cube is (or perhaps the answer is the same for any position).
+
+Hmm, let me think about this differently. Let me consider the structure.
+
+The 3n × 3n × 3n grid. The black cubes are at positions that form a periodic pattern - one per 3×3×3 block, at the same relative position. If the black cube is at position (a, b, c) within each block (where a, b, c ∈ {0, 1, 2}), then the black cubes are at positions (3i+a, 3j+b, 3k+c) for i, j, k = 0, ..., n-1.
+
+The total number of unit cubes is (3n)³ = 27n³. Black cubes: n³. White cubes: 27n³ - n³ = 26n³.
+
+We need to find the minimum dominating set of the white cubes (where domination is by adjacency, and only white cubes need to be dominated).
+
+Let me think about the structure. The 3n × 3n × 3n grid graph. We need a dominating set D ⊆ W (white cubes) such that every white cube not in D is adjacent to some cube in D. Black cubes don't need to be dominated.
+
+This is equivalent to: find minimum D ⊆ W such that every w ∈ W \ D has a neighbor in D.
+
+Equivalently, D is a dominating set of the subgraph induced by W, but with the additional constraint that D ⊆ W (which is automatically satisfied since we're dominating the induced subgraph).
+
+Wait, actually, the dominating set of the induced subgraph on W: every vertex in W is either in D or adjacent (in the induced subgraph) to a vertex in D. But adjacency in the induced subgraph means both vertices are in W. So a white cube w is adjacent to a red cube r means w and r share a face and both are white (r is white before being painted red). Black cubes are not in W, so they can't be in D and don't need to be dominated.
+
+So yes, it's the minimum dominating set of the graph induced by white vertices.
+
+Now, the grid graph on 3n × 3n × 3n. The white vertices are all vertices except the n³ black ones. The black ones form a periodic pattern.
+
+Let me think about the case where the black cube is at the center of each 3×3×3 block, i.e., at position (1,1,1) relative to each block. Then black cubes are at (3i+1, 3j+1, 3k+c).
+
+Actually, let me think about this problem more carefully. The key insight might be related to the structure of the 3×3×3 blocks.
+
+Let me consider small cases. For n=1: we have a single 3×3×3 cube with 1 black and 26 white. We need to paint some white red so every remaining white is adjacent to red.
+
+The 3×3×3 grid has 27 cells. One is black. We need a dominating set of the 26 white cells (in the induced subgraph).
+
+The minimum dominating set of a 3×3×3 grid... Let me think. The 3×3×3 grid graph: each cell is adjacent to up to 6 neighbors. The center cell (1,1,1) has 6 neighbors. Corner cells have 3 neighbors. Edge cells have 4 neighbors. Face cells have 5 neighbors.
+
+If the black cell is at the center (1,1,1), then the white cells are all except the center. The center's 6 neighbors are face-center cells. 
+
+For a 3×3×3 grid without any black cells, the minimum dominating set... The grid has 27 cells. A dominating set needs to cover all 27. The center cell dominates 7 cells (itself + 6 neighbors). Each face-center dominates 6 cells. 
+
+Actually, let me think about the general structure differently.
+
+Let me think about what the answer might be. The total number of white cubes is 26n³. We need to dominate them. In a grid graph, a dominating set typically covers about 1/4 to 1/3 of vertices (in 3D, the domination number of the grid is roughly (mnk)/4 or so, but it depends).
+
+Actually, for the 3D grid P_a × P_b × P_c, the domination number is roughly abc/4 but the exact value depends on dimensions.
+
+Hmm, but here we have a specific structure with black cubes removed. Let me think about this differently.
+
+Let me think about the problem in terms of the 3×3×3 blocks. Each block has 27 cells, 1 black, 26 white. The blocks are arranged in an n×n×n pattern. Adjacency between blocks: cells on the boundary of one block are adjacent to cells on the boundary of the neighboring block.
+
+Let me think about a coloring/independence approach. 
+
+Consider the 3n × 3n × 3n grid. Color each cell (x, y, z) by (x mod 3, y mod 3, z mod 3). There are 27 color classes. The black cells all have the same color, say (a, b, c). 
+
+In the grid graph, two adjacent cells differ in exactly one coordinate by 1. So their colors differ in exactly one coordinate by 1 (mod 3). 
+
+Now, a dominating set D: each white cell is either in D or adjacent to a cell in D. 
+
+Let me think about a lower bound. Consider the white cells that are "isolated" from each other in some sense... 
+
+Actually, let me think about this problem from a different angle. 
+
+Consider the 3n × 3n × 3n grid. Partition it into 3×3×3 blocks. Each block has exactly one black cell. 
+
+Key observation: In each 3×3×3 block, the black cell is at position (a,b,c). The 26 white cells in the block need to be dominated. Some can be dominated by red cells in neighboring blocks.
+
+Let me think about the parity/coloring argument. 
+
+Color the cells of the 3n × 3n × 3n grid by (x+y+z) mod 2. This gives a bipartite graph. In a bipartite graph, a dominating set must include at least half of... no, that's not quite right.
+
+Let me think about independent sets. An independent set in the grid graph: no two cells are adjacent. If I is an independent set of white cells, then each cell in I needs to be dominated by a distinct red cell (since one red cell can dominate at most... well, a red cell can dominate multiple independent set cells if they're all adjacent to it, but in an independent set, no two cells share a neighbor... actually that's not true in general).
+
+Hmm, let me think about this more carefully.
+
+Actually, let me consider a specific coloring. Color cell (x,y,z) by (x mod 3, y mod 3, z mod 3). The black cells are all of color (a,b,c). 
+
+Consider the color class (a,b,c) - these are all black, so they don't need to be dominated. 
+
+Now consider the 26 other color classes. Each color class has n³ cells (since the grid is 3n × 3n × 3n, and each color class appears exactly n³ times).
+
+A cell of color (i,j,k) is adjacent to cells of colors that differ in exactly one coordinate by ±1 mod 3. So color (i,j,k) is adjacent to colors (i±1,j,k), (i,j±1,k), (i,j,k±1).
+
+For a dominating set, we need every white cell to be in D or adjacent to D. 
+
+Let me think about which color classes to use for the dominating set. If we pick all cells of certain color classes to be red, then a white cell of color (i,j,k) is dominated if (i,j,k) is a chosen color class, or if one of its 6 neighboring color classes is chosen.
+
+So we need to choose a set S of color classes (from the 26 non-black classes) such that every non-black color class is in S or adjacent to a class in S. And the cost is |S| · n³ (since each class has n³ cells). But wait, we don't need to paint ALL cells of a class red - we could paint a subset. But if we're looking for a lower bound, and for an upper bound we can use full classes.
+
+Hmm, but this approach of using full color classes might not be optimal. Let me think differently.
+
+Actually, let me reconsider. The problem is about a specific grid with specific black cell positions. The answer should be in terms of n. Let me think about what the answer could be.
+
+Let me consider the case where the black cell is at the center of each 3×3×3 block, i.e., (a,b,c) = (1,1,1).
+
+The 3n × 3n × 3n grid with black cells at (3i+1, 3j+1, 3k+1). 
+
+Let me think about the structure within each 3×3×3 block. The block has cells at positions (0,0,0) to (2,2,2) relative to the block. The center (1,1,1) is black. The other 26 are white.
+
+In the 3×3×3 grid, the center is adjacent to the 6 face-centers: (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2). These face-centers are white.
+
+Now, consider a single 3×3×3 block in isolation (n=1). The center is black. We need to dominate 26 white cells. 
+
+The 26 white cells: 8 corners, 12 edge-centers, 6 face-centers.
+
+The face-centers are adjacent to the black center (but the center is black, not red, so it doesn't help dominate). Each face-center is adjacent to 4 edge-centers and the center. 
+
+For n=1, let me compute the minimum dominating set.
+
+The 3×3×3 grid minus center. 26 cells. 
+
+Corners: (0,0,0), (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2) - 8 corners, each with 3 neighbors.
+Edge centers: (0,0,1), (0,1,0), (0,1,2), (0,2,1), (1,0,0), (1,0,2), (1,2,0), (1,2,2), (2,0,1), (2,1,0), (2,1,2), (2,2,1) - 12 edge centers, each with 4 neighbors (one of which might be the center for some).
+Face centers: (0,1,1), (1,0,1), (1,1,0), (1,1,2), (1,2,1), (2,1,1) - 6 face centers, each with 5 neighbors (including center).
+
+Wait, let me recount. For cell (0,1,1): neighbors are (1,1,1)=center(black), (0,0,1), (0,2,1), (0,1,0), (0,1,2). So 4 white neighbors + 1 black = 5 total, 4 white neighbors.
+
+For cell (0,0,0): neighbors are (1,0,0), (0,1,0), (0,0,1). 3 white neighbors.
+
+For cell (0,0,1): neighbors are (1,0,1), (0,0,0), (0,0,2), (0,1,1). 4 white neighbors.
+
+OK so in the induced subgraph on white cells:
+- Corners have degree 3
+- Edge centers have degree 4
+- Face centers have degree 4 (lost one neighbor, the center)
+
+We need a minimum dominating set of this graph.
+
+Let me try to find it. The 6 face centers: each dominates itself + 4 edge centers. So 6 face centers dominate 6 face centers + some edge centers. But edge centers are shared between face centers.
+
+Edge center (0,0,1) is adjacent to face centers (0,1,1) and (1,0,1). So it's dominated by either of those.
+
+Edge center (1,0,0) is adjacent to face centers (1,1,0) and (0,1,0)... wait, (1,0,0) neighbors: (2,0,0), (0,0,0), (1,1,0), (1,0,1). So face centers adjacent to (1,0,0) are (1,1,0) and (1,0,1).
+
+Hmm, this is getting complicated. Let me just think about the general structure.
+
+Actually, let me think about the problem differently. Let me consider the general n case.
+
+The key structural insight: the 3n × 3n × 3n grid is partitioned into n³ blocks of 3×3×3. Each block has 1 black cell. The black cells form a "sublattice" - they're spaced 3 apart in each direction.
+
+Let me think about a dominating set strategy. 
+
+Strategy 1: In each 3×3×3 block, paint certain white cells red to dominate the white cells in that block (and possibly neighboring blocks).
+
+For a single 3×3×3 block (n=1), what's the minimum dominating set of the 26 white cells?
+
+Let me try to compute this. The 26 white cells form a graph. Let me think about it as the 3×3×3 grid graph minus the center vertex.
+
+The 3×3×3 grid graph has 27 vertices and 54 edges (each internal face gives an edge; there are 3·3·2·3 = 54 edges... let me count: edges along x-direction: 2·3·3 = 18, similarly y and z, total 54). Removing the center removes 6 edges (the center has 6 neighbors). So the induced subgraph has 26 vertices and 48 edges.
+
+For the minimum dominating set, let me try some configurations.
+
+Try: the 6 face centers. Each face center dominates itself and its 4 white neighbors. 
+- (0,1,1) dominates: (0,1,1), (0,0,1), (0,2,1), (0,1,0), (0,1,2)
+- (2,1,1) dominates: (2,1,1), (2,0,1), (2,2,1), (2,1,0), (2,1,2)
+- (1,0,1) dominates: (1,0,1), (0,0,1), (2,0,1), (1,0,0), (1,0,2)
+- (1,2,1) dominates: (1,2,1), (0,2,1), (2,2,1), (1,2,0), (1,2,2)
+- (1,1,0) dominates: (1,1,0), (0,1,0), (2,1,0), (1,0,0), (1,2,0)
+- (1,1,2) dominates: (1,1,2), (0,1,2), (2,1,2), (1,0,2), (1,2,2)
+
+Total dominated: 6 face centers + 12 edge centers = 18 cells. But we have 26 white cells, so 8 corners are not dominated. The corners are (0,0,0), (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2). Each corner is adjacent to 3 edge centers, all of which are already dominated but none of which are red. So the corners are not dominated.
+
+We need to dominate the 8 corners. Each corner is adjacent to 3 edge centers. If we make some edge centers red, each red edge center can dominate up to 2 corners (e.g., (0,0,1) is adjacent to corners (0,0,0) and (0,0,2)). 
+
+Edge centers and their adjacent corners:
+- (0,0,1) → (0,0,0), (0,0,2)
+- (0,2,1) → (0,2,0), (0,2,2)
+- (2,0,1) → (2,0,0), (2,0,2)
+- (2,2,1) → (2,2,0), (2,2,2)
+- (0,1,0) → (0,0,0), (0,2,0)
+- (0,1,2) → (0,0,2), (0,2,2)
+- (2,1,0) → (2,0,0), (2,2,0)
+- (2,1,2) → (2,0,2), (2,2,2)
+- (1,0,0) → (0,0,0), (2,0,0)
+- (1,0,2) → (0,0,2), (2,0,2)
+- (1,2,0) → (0,2,0), (2,2,0)
+- (1,2,2) → (0,2,2), (2,2,2)
+
+So the 8 corners and 12 edge centers form a bipartite graph where each edge center is adjacent to 2 corners. This is like a graph where we need to dominate 8 corner vertices using edge centers (or corners themselves).
+
+The 8 corners form a cube. Each corner is adjacent to 3 edge centers. We need to select some vertices (from all 26 white) to dominate the 8 corners. 
+
+If we select 4 edge centers, can we dominate all 8 corners? Each edge center dominates 2 corners. So 4 edge centers could dominate 8 corners if they cover all 8. 
+
+For example: (0,0,1), (0,2,1), (2,0,1), (2,2,1) → covers (0,0,0), (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2). Yes! All 8 corners.
+
+So with 6 face centers + 4 edge centers = 10 red cells, we dominate all 26 white cells. But can we do better?
+
+Can we use fewer than 10? Let me think about lower bounds.
+
+The 8 corners: each has 3 neighbors (all edge centers). To dominate 8 corners, we need at least... each red cell can dominate at most 2 corners (if it's an edge center) or 1 corner (if it's a corner itself, but then it only dominates itself and its 3 edge center neighbors, which might dominate other corners). Actually, a corner can dominate itself + 3 edge centers, and those edge centers are adjacent to other corners, but the corner itself only directly dominates 1 corner (itself). An edge center dominates 2 corners. So to dominate 8 corners, we need at least 4 red cells that are edge centers (each covering 2 corners), or a mix.
+
+Actually, a red corner dominates itself (1 corner) and 3 edge centers (which don't directly dominate other corners - domination is only 1-hop). So a red corner only dominates 1 corner. A red edge center dominates 2 corners. So to dominate 8 corners, we need at least ⌈8/2⌉ = 4 red edge centers (if we only use edge centers) or more if we use corners.
+
+So at least 4 red cells are needed just for the corners. But we also need to dominate the face centers and edge centers.
+
+The 6 face centers: each is adjacent to 4 edge centers and the black center. To dominate a face center, we need it to be red or one of its 4 edge center neighbors to be red. 
+
+If we have 4 red edge centers (for corners), do they dominate all 6 face centers? Let's check with the example: (0,0,1), (0,2,1), (2,0,1), (2,2,1).
+- Face center (0,1,1): adjacent to (0,0,1) ✓ and (0,2,1) ✓
+- Face center (1,0,1): adjacent to (0,0,1) ✓ and (2,0,1) ✓
+- Face center (1,1,0): adjacent to... (0,1,0), (2,1,0), (1,0,0), (1,2,0). None of our 4 red edge centers. ✗
+- Face center (1,1,2): adjacent to (0,1,2), (2,1,2), (1,0,2), (1,2,2). None. ✗
+- Face center (1,2,1): adjacent to (0,2,1) ✓ and (2,2,1) ✓
+- Face center (2,1,1): adjacent to (2,0,1) ✓ and (2,2,1) ✓
+
+So 4 face centers are dominated, 2 are not. We need 2 more red cells for those 2 face centers (either the face centers themselves or their edge center neighbors).
+
+Also, we need to check if all edge centers are dominated. With 4 red edge centers (0,0,1), (0,2,1), (2,0,1), (2,2,1) and 6 face centers... wait, the face centers aren't red in this scenario. Let me reconsider.
+
+If we use 4 red edge centers + 2 red face centers (for the undominated ones), that's 6. But we also need to dominate the remaining edge centers.
+
+Let me reconsider. With red cells = {(0,0,1), (0,2,1), (2,0,1), (2,2,1), (1,1,0), (1,1,2)}:
+- Corners: all 8 dominated by the 4 edge centers ✓
+- Face centers: (0,1,1) by (0,0,1) or (0,2,1) ✓, (1,0,1) by (0,0,1) or (2,0,1) ✓, (1,1,0) is red ✓, (1,1,2) is red ✓, (1,2,1) by (0,2,1) or (2,2,1) ✓, (2,1,1) by (2,0,1) or (2,2,1) ✓
+- Edge centers: (0,0,1) red ✓, (0,2,1) red ✓, (2,0,1) red ✓, (2,2,1) red ✓, (0,1,0) by (1,1,0) ✓, (0,1,2) by (1,1,2) ✓, (2,1,0) by (1,1,0) ✓, (2,1,2) by (1,1,2) ✓, (1,0,0) by (1,1,0) ✓, (1,0,2) by (1,1,2) ✓, (1,2,0) by (1,1,0) ✓, (1,2,2) by (1,1,2) ✓
+
+So all 26 white cells are dominated with 6 red cells! Let me double-check.
+
+Red cells: (0,0,1), (0,2,1), (2,0,1), (2,2,1), (1,1,0), (1,1,2).
+
+Corners:
+- (0,0,0): neighbors (1,0,0), (0,1,0), (0,0,1)✓ → dominated
+- (0,0,2): neighbors (1,0,2), (0,1,2), (0,0,1)✓ → dominated
+- (0,2,0): neighbors (1,2,0), (0,1,0), (0,2,1)✓ → dominated
+- (0,2,2): neighbors (1,2,2), (0,1,2), (0,2,1)✓ → dominated
+- (2,0,0): neighbors (1,0,0), (2,1,0), (2,0,1)✓ → dominated
+- (2,0,2): neighbors (1,0,2), (2,1,2), (2,0,1)✓ → dominated
+- (2,2,0): neighbors (1,2,0), (2,1,0), (2,2,1)✓ → dominated
+- (2,2,2): neighbors (1,2,2), (2,1,2), (2,2,1)✓ → dominated
+
+All corners dominated ✓.
+
+Face centers:
+- (0,1,1): neighbors (0,0,1)✓, (0,2,1)✓, (0,1,0), (0,1,2), (1,1,1)black → dominated
+- (1,0,1): neighbors (0,0,1)✓, (2,0,1)✓, (1,0,0), (1,0,2), (1,1,1)black → dominated
+- (1,1,0): red ✓
+- (1,1,2): red ✓
+- (1,2,1): neighbors (0,2,1)✓, (2,2,1)✓, (1,2,0), (1,2,2), (1,1,1)black → dominated
+- (2,1,1): neighbors (2,0,1)✓, (2,2,1)✓, (2,1,0), (2,1,2), (1,1,1)black → dominated
+
+All face centers dominated ✓.
+
+Edge centers:
+- (0,0,1): red ✓
+- (0,2,1): red ✓
+- (2,0,1): red ✓
+- (2,2,1): red ✓
+- (0,1,0): neighbors (0,0,0), (0,2,0), (0,1,1), (1,1,0)✓ → dominated
+- (0,1,2): neighbors (0,0,2), (0,2,2), (0,1,1), (1,1,2)✓ → dominated
+- (2,1,0): neighbors (2,0,0), (2,2,0), (2,1,1), (1,1,0)✓ → dominated
+- (2,1,2): neighbors (2,0,2), (2,2,2), (2,1,1), (1,1,2)✓ → dominated
+- (1,0,0): neighbors (0,0,0), (2,0,0), (1,0,1), (1,1,0)✓ → dominated
+- (1,0,2): neighbors (0,0,2), (2,0,2), (1,0,1), (1,1,2)✓ → dominated
+- (1,2,0): neighbors (0,2,0), (2,2,0), (1,2,1), (1,1,0)✓ → dominated
+- (1,2,2): neighbors (0,2,2), (2,2,2), (1,2,1), (1,1,2)✓ → dominated
+
+All edge centers dominated ✓.
+
+So 6 red cells suffice for n=1. Can we do with 5?
+
+Let me think about a lower bound. We have 26 white cells. Each red cell dominates at most 5 cells (itself + 4 neighbors, since the center is black and not a neighbor in the white subgraph for face centers; actually, let me think about max degree).
+
+In the induced subgraph on white cells:
+- Face centers have degree 4 (lost the center neighbor)
+- Edge centers have degree 4
+- Corners have degree 3
+
+So each red cell dominates at most 5 cells (itself + 4 neighbors). With 5 red cells, we can dominate at most 25 cells. But we have 26 white cells. So 5 is not enough! We need at least 6.
+
+Wait, but some cells might be dominated by multiple red cells, so the bound is: 5 red cells dominate at most 5×5 = 25 cells, but we need 26. So 5 is not enough, and 6 is the minimum for n=1.
+
+Great, so for n=1, the answer is 6.
+
+Now, can we generalize? For general n, the answer should be 6n³? No wait, that can't be right because neighboring blocks can help dominate each other.
+
+Hmm, let me reconsider. For n=1, the answer is 6. For general n, we have n³ blocks, and the blocks interact at boundaries.
+
+Let me think about the structure. In each 3×3×3 block, we used 6 red cells. But when blocks are adjacent, cells on the boundary of one block are adjacent to cells on the boundary of the neighboring block. So a red cell in one block might dominate white cells in a neighboring block, allowing us to use fewer red cells overall.
+
+But also, the black cell position matters. Let me assume the black cell is at the center (1,1,1) of each block for now.
+
+Actually, wait. The problem says "use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube." It doesn't specify where the black cube goes. Then "use n³ such cubes to form a cube with edge length 3n." I think "such cubes" means identical 3×3×3 cubes, so the black cube is in the same position in each.
+
+The problem asks for the minimum number of white cubes to paint red. This minimum might depend on where the black cube is. But the problem seems to ask for a single answer in terms of n. So either:
+1. The answer is the same regardless of black cube position, or
+2. The problem is asking for the minimum over all possible black cube positions, or
+3. The black cube position is fixed (maybe center?) and the answer depends on it.
+
+I think the problem is asking: given the configuration (with the black cube in some fixed but unspecified position, same in each block), what is the minimum number of white cubes to paint red? And the answer should work for any position of the black cube, or the answer is the same for all positions.
+
+Let me check: does the answer for n=1 depend on the black cube position?
+
+If the black cube is at a corner, say (0,0,0): then the white cells are all except (0,0,0). The cell (0,0,0) had degree 3, so removing it doesn't disconnect anything. The remaining 26 cells: (0,0,0)'s neighbors were (1,0,0), (0,1,0), (0,0,1), which now have degree 4 instead of 5 (they lost a neighbor). The center (1,1,1) now has degree 6 (all neighbors are white). 
+
+Max degree is now 6 (the center). So a red cell at the center dominates 7 cells. With 4 red cells, we could dominate at most 28 > 26. But can we actually do it with 4?
+
+Let me try. Black at (0,0,0). 
+Red at center (1,1,1): dominates (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2) = 7 cells.
+Remaining: 26 - 7 = 19 cells. These are: 8 corners minus (0,0,0) = 7 corners, 12 edge centers, 6 face centers minus 6 already dominated = 0 face centers... wait, the face centers (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2) are all dominated by the center. So remaining are 7 corners + 12 edge centers = 19 cells.
+
+Now I need to dominate these 19 cells with additional red cells. The 7 corners: (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2). Each has 3 neighbors (edge centers). The 12 edge centers each have 4 or 5 neighbors.
+
+This is getting complex. Let me just focus on the case where the black cube is at the center, since that seems most natural and symmetric.
+
+Actually, I realize the problem might have a clean answer. Let me think about it more carefully.
+
+For the center-black case with n=1, we got 6. Let me think about what happens for general n.
+
+The 3n × 3n × 3n grid with black cells at (3i+1, 3j+1, 3k+1). The white cells form a graph. We need the minimum dominating set.
+
+Let me think about a lower bound. Consider the 3×3×3 blocks. In each block, the center is black. The 8 corners of each block: each corner is adjacent to 3 edge-centers within the block, and potentially to cells in neighboring blocks.
+
+Wait, a corner of a block at position (3i, 3j, 3k) (the (0,0,0) corner of block (i,j,k)): its neighbors are (3i+1, 3j, 3k), (3i, 3j+1, 3k), (3i, 3j, 3k+1) - all within the same block. But also, if i > 0, then (3i-1, 3j, 3k) is a neighbor, which is in block (i-1, j, k). 
+
+So corners of blocks on the interior are adjacent to cells in neighboring blocks. This means a red cell in one block can dominate corners of adjacent blocks.
+
+Hmm, this makes the problem more complex. Let me think about it differently.
+
+Let me consider the "interior" cells of each block - cells that are only adjacent to cells within the same block. The center (1,1,1) is black. The face centers (0,1,1), (2,1,1), etc. are adjacent to the center and to edge centers within the block, and also to face centers of neighboring blocks (if on the boundary). 
+
+Actually, face center (0,1,1) of block (i,j,k) is at position (3i, 3j+1, 3k+1). Its neighbors are (3i+1, 3j+1, 3k+1)=center of same block (black), (3i-1, 3j+1, 3k+1)=face center (2,1,1) of block (i-1,j,k) if i>0, (3i, 3j, 3k+1), (3i, 3j+2, 3k+1), (3i, 3j+1, 3k), (3i, 3j+1, 3k+2). So it's adjacent to cells in the same block and potentially a neighboring block.
+
+This is getting very complex. Let me try a different approach.
+
+Let me think about the problem in terms of a periodic structure. The 3n × 3n × 3n grid with period-3 black cells. The white cells form a periodic graph (with period 3 in each direction, and the pattern repeats n times).
+
+For the minimum dominating set, by the periodicity, the optimal solution might also be periodic (with period 3). If so, the answer would be 6n³ (since each period-3 cell has n³ copies, and we use 6 out of 26 non-black classes per period).
+
+But wait, the boundary effects might change things. For large n, the boundary is negligible, and the answer should be approximately 6n³. But for the exact answer, we need to account for boundaries.
+
+Hmm, but actually, the problem says "form a cube with edge length 3n", so the grid is 3n × 3n × 3n, which has boundaries. The boundary cells have fewer neighbors, which might make domination easier or harder.
+
+Let me reconsider. For n=1, the answer is 6 = 6·1³. Let me check n=2.
+
+For n=2, the grid is 6×6×6 with 8 black cells at positions (1,1,1), (1,1,4), (1,4,1), (1,4,4), (4,1,1), (4,1,4), (4,4,1), (4,4,4). Total cells: 216. Black: 8. White: 208.
+
+If the answer is 6n³ = 48, that's a lot. But maybe boundary effects help.
+
+Actually, let me reconsider the problem. Maybe the answer isn't 6n³. Let me think about what happens at block boundaries.
+
+Consider two adjacent blocks in the x-direction: block (0,0,0) and block (1,0,0). The boundary between them is at x=2 and x=3. Cell (2,1,1) is a face center of block 0, and cell (3,1,1) is a face center of block 1. These two are adjacent. 
+
+In our n=1 solution, we used red cells at (0,0,1), (0,2,1), (2,0,1), (2,2,1), (1,1,0), (1,1,2) within each block. For two adjacent blocks, the red cells near the boundary might interact.
+
+But actually, for the n=1 solution, the 6 red cells per block were chosen to dominate all 26 white cells in that block. When blocks are adjacent, some white cells near the boundary might be dominated by red cells in the neighboring block, potentially allowing us to remove some red cells.
+
+But also, the boundary of the entire 3n × 3n × 3n cube has cells with fewer neighbors, which might require more red cells or might make things easier.
+
+This is quite complex. Let me try to think about it from a higher level.
+
+Actually, let me reconsider the problem statement. It says "use n³ such cubes to form a cube with edge length 3n." So we're tiling n³ small cubes (each 3×3×3) into a big n×n×n arrangement, forming a 3n × 3n × 3n cube. The black cube is in the same position in each small cube.
+
+The question asks for the minimum number of white unit cubes to paint red. I believe the answer should be in terms of n.
+
+Let me think about whether the answer depends on the position of the black cube. 
+
+For n=1:
+- Black at center (1,1,1): answer is 6 (as computed above)
+- Black at corner (0,0,0): let me compute
+
+Black at (0,0,0). The 26 white cells. Max degree is 6 (center (1,1,1)). 
+
+Can we dominate with 4 red cells? 4 × 7 = 28 ≥ 26, so it's possible in principle.
+
+Try: red at (1,1,1) [dominates 7: (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2)], red at (2,2,2) [dominates (2,2,2), (1,2,2), (2,1,2), (2,2,1)], red at (0,0,2) [dominates (0,0,2), (0,0,1), (0,1,2)], red at (2,0,0) [dominates (2,0,0), (1,0,0), (2,1,0)].
+
+Dominated so far: (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2), (2,2,2), (1,2,2), (2,1,2), (2,2,1), (0,0,2), (0,0,1), (0,1,2), (2,0,0), (1,0,0), (2,1,0). That's 17 cells.
+
+Remaining: 26 - 17 = 9 cells: (0,2,0), (0,2,1), (0,2,2), (2,0,1), (2,0,2), (0,1,0), (1,0,2), (1,2,0), (2,2,0).
+
+Can one more red cell dominate all 9? No, max is 7. So 4 is not enough with this configuration. Let me try a different configuration.
+
+Actually, let me try to be more systematic. With black at (0,0,0):
+
+The 26 white cells. Let me try 5 red cells.
+
+Actually, the max degree is 6 (center), so 5 red cells can dominate at most 35 cells, but with overlaps, it might not cover 26. Let me try.
+
+Red at (1,1,1): dominates 7 cells.
+Red at (2,2,2): dominates 4 cells (corner, degree 3).
+Red at (0,2,0): dominates 4 cells (corner, degree 3).
+Red at (2,0,2): dominates 4 cells.
+Red at (0,0,2): wait, (0,0,2) is a corner with neighbors (1,0,2), (0,1,2), (0,0,1). But (0,0,0) is black. So degree 3. Dominates 4 cells.
+
+Hmm, let me try a different approach. Let me use the center and some face centers.
+
+Red at (1,1,1): dominates (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2). [7 cells]
+Red at (2,1,1): dominates (2,1,1), (1,1,1)✓, (2,0,1), (2,2,1), (2,1,0), (2,1,2). New: (2,0,1), (2,2,1), (2,1,0), (2,1,2). [4 new]
+Red at (0,1,1): dominates (0,1,1)✓, (1,1,1)✓, (0,0,1), (0,2,1), (0,1,0), (0,1,2). New: (0,0,1), (0,2,1), (0,1,0), (0,1,2). [4 new]
+Red at (1,1,0): dominates (1,1,0)✓, (0,1,0)✓, (2,1,0)✓, (1,0,0), (1,2,0). New: (1,0,0), (1,2,0). [2 new]
+Red at (1,1,2): dominates (1,1,2)✓, (0,1,2)✓, (2,1,2)✓, (1,0,2), (1,2,2). New: (1,0,2), (1,2,2). [2 new]
+
+Total dominated: 7 + 4 + 4 + 2 + 2 = 19. Remaining: 26 - 19 = 7 cells: (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2). These are 7 of the 8 corners (missing (0,0,0) which is black).
+
+Each of these corners has 3 neighbors, all of which are already dominated but not red. So we need more red cells to dominate these corners. Each additional red cell (an edge center) can dominate 2 corners. So we need at least 4 more (⌈7/2⌉ = 4). Total: 5 + 4 = 9. That's worse than the center-black case.
+
+Hmm, but maybe a different strategy works better. Let me try:
+
+Red at (1,1,1): 7 cells.
+Red at (0,0,2): dominates (0,0,2), (0,0,1), (0,1,2), (1,0,2). [4 new: (0,0,2), (0,0,1), (0,1,2), (1,0,2)]
+Wait, (0,0,2) neighbors: (1,0,2), (0,1,2), (0,0,1). And (0,0,0) is black. So degree 3, dominates 4 cells. But (0,0,1) and (0,1,2) might already be dominated by (1,1,1)? No, (0,0,1) is not adjacent to (1,1,1). (0,1,2) is not adjacent to (1,1,1). So new: (0,0,2), (0,0,1), (0,1,2), (1,0,2). [4 new]
+
+Red at (2,2,0): neighbors (1,2,0), (2,1,0), (2,2,1). Degree 3 (since (2,2,0) is a corner... wait, is it? (2,2,0) in a 3×3×3 grid: x=2, y=2, z=0. Neighbors: (1,2,0), (2,1,0), (2,2,1). And (3,2,0) doesn't exist. So degree 3. Dominates: (2,2,0), (1,2,0), (2,1,0), (2,2,1). Are any already dominated? (1,2,0) is not dominated by (1,1,1) (not adjacent). (2,1,0) is not adjacent to (1,1,1). (2,2,1) is not adjacent to (1,1,1). So 4 new.
+
+Red at (0,2,2): neighbors (1,2,2), (0,1,2)✓, (0,2,1). Dominates: (0,2,2), (1,2,2), (0,2,1). (0,1,2) already dominated. 3 new.
+
+Red at (2,0,0): neighbors (1,0,0), (2,1,0)✓, (2,0,1). Dominates: (2,0,0), (1,0,0), (2,0,1). (2,1,0) already dominated. 3 new.
+
+Total: 7 + 4 + 4 + 3 + 3 = 21. Remaining: 26 - 21 = 5: (0,2,0), (2,0,2), (0,1,0), (1,2,1), (2,1,2)... let me list all 26 and check.
+
+All 26 white cells (excluding (0,0,0)):
+Corners: (0,0,2)✓, (0,2,0)?, (0,2,2)✓, (2,0,0)✓, (2,0,2)?, (2,2,0)✓, (2,2,2)?
+Edge centers: (0,0,1)✓, (0,1,0)?, (0,1,2)✓, (0,2,1)✓, (1,0,0)✓, (1,0,2)✓, (1,2,0)✓, (1,2,2)✓, (2,0,1)✓, (2,1,0)✓, (2,1,2)?, (2,2,1)✓
+Face centers: (0,1,1)✓, (1,0,1)✓, (1,1,0)✓, (1,1,2)✓, (1,2,1)?, (2,1,1)✓
+Center: (1,1,1)✓
+
+Remaining: (0,2,0), (2,0,2), (2,2,2), (0,1,0), (2,1,2), (1,2,1). That's 6 cells.
+
+Can one more red cell dominate all 6? No. So we need at least 2 more. Total: 5 + 2 = 7. 
+
+Hmm, this is worse than the center-black case (6). So the answer does depend on the black cube position!
+
+Wait, but maybe I'm not finding the optimal solution for the corner-black case. Let me try harder.
+
+Actually, let me reconsider. For the corner-black case, the center (1,1,1) has degree 6 (all neighbors white). So it's a very powerful dominator. Let me try using it and then being smart about the rest.
+
+Red at (1,1,1): dominates (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2). [7]
+
+Remaining 19: 7 corners + 12 edge centers.
+
+Now, the 7 corners each have 3 neighbors (edge centers). The 12 edge centers each have 4 neighbors (other edge centers, face centers, corners).
+
+Let me think about which edge centers to make red. An edge center dominates itself + its neighbors. Let me see which cells each edge center dominates (among the remaining 19):
+
+(0,0,1): neighbors (1,0,1)✓, (0,0,2), (0,1,1)✓. Among remaining: (0,0,2). Dominates: (0,0,1), (0,0,2). [2 new from remaining]
+(0,1,0): neighbors (0,0,0)black, (0,2,0), (0,1,1)✓, (1,1,0)✓. Among remaining: (0,2,0). Dominates: (0,1,0), (0,2,0). [2]
+(0,1,2): neighbors (0,0,2), (0,2,2), (0,1,1)✓, (1,1,2)✓. Among remaining: (0,0,2), (0,2,2). Dominates: (0,1,2), (0,0,2), (0,2,2). [3]
+(0,2,1): neighbors (0,2,0), (0,2,2), (0,1,1)✓, (1,2,1)✓. Among remaining: (0,2,0), (0,2,2). Dominates: (0,2,1), (0,2,0), (0,2,2). [3]
+(1,0,0): neighbors (0,0,0)black, (2,0,0), (1,0,1)✓, (1,1,0)✓. Among remaining: (2,0,0). Dominates: (1,0,0), (2,0,0). [2]
+(1,0,2): neighbors (0,0,2), (2,0,2), (1,0,1)✓, (1,1,2)✓. Among remaining: (0,0,2), (2,0,2). Dominates: (1,0,2), (0,0,2), (2,0,2). [3]
+(1,2,0): neighbors (0,2,0), (2,2,0), (1,2,1)✓, (1,1,0)✓. Among remaining: (0,2,0), (2,2,0). Dominates: (1,2,0), (0,2,0), (2,2,0). [3]
+(1,2,2): neighbors (0,2,2), (2,2,2), (1,2,1)✓, (1,1,2)✓. Among remaining: (0,2,2), (2,2,2). Dominates: (1,2,2), (0,2,2), (2,2,2). [3]
+(2,0,1): neighbors (2,0,0), (2,0,2), (2,1,1)✓, (1,0,1)✓. Among remaining: (2,0,0), (2,0,2). Dominates: (2,0,1), (2,0,0), (2,0,2). [3]
+(2,1,0): neighbors (2,0,0), (2,2,0), (2,1,1)✓, (1,1,0)✓. Among remaining: (2,0,0), (2,2,0). Dominates: (2,1,0), (2,0,0), (2,2,0). [3]
+(2,1,2): neighbors (2,0,2), (2,2,2), (2,1,1)✓, (1,1,2)✓. Among remaining: (2,0,2), (2,2,2). Dominates: (2,1,2), (2,0,2), (2,2,2). [3]
+(2,2,1): neighbors (2,2,0), (2,2,2), (2,1,1)✓, (1,2,1)✓. Among remaining: (2,2,0), (2,2,2). Dominates: (2,2,1), (2,2,0), (2,2,2). [3]
+
+So the remaining 19 cells are 7 corners + 12 edge centers. Each edge center dominates itself + 2 corners (from the remaining). Each corner dominates itself + 3 edge centers.
+
+To dominate the 7 corners, using edge centers: each edge center covers 2 corners. So we need at least ⌈7/2⌉ = 4 edge centers. But we also need to dominate the edge centers themselves.
+
+If we pick 4 edge centers that cover all 7 corners, and these 4 edge centers also dominate the remaining 8 edge centers, then 4 suffices (total 1 + 4 = 5).
+
+The 7 corners: (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2).
+
+Edge centers and the corners they cover:
+(0,0,1)→(0,0,2); (0,1,0)→(0,2,0); (0,1,2)→(0,0,2),(0,2,2); (0,2,1)→(0,2,0),(0,2,2); (1,0,0)→(2,0,0); (1,0,2)→(0,0,2),(2,0,2); (1,2,0)→(0,2,0),(2,2,0); (1,2,2)→(0,2,2),(2,2,2); (2,0,1)→(2,0,0),(2,0,2); (2,1,0)→(2,0,0),(2,2,0); (2,1,2)→(2,0,2),(2,2,2); (2,2,1)→(2,2,0),(2,2,2).
+
+We need to cover 7 corners with 4 edge centers (each covering 2). Since 4×2=8≥7, it's possible if we can find a matching-like cover.
+
+Try: (0,1,2)→(0,0,2),(0,2,2); (1,2,0)→(0,2,0),(2,2,0); (2,0,1)→(2,0,0),(2,0,2); (2,2,1)→(2,2,0)✓,(2,2,2). Wait, (2,2,0) is already covered by (1,2,0). So (2,2,1) covers (2,2,0) [already] and (2,2,2) [new]. 
+
+Covered: (0,0,2), (0,2,2), (0,2,0), (2,2,0), (2,0,0), (2,0,2), (2,2,2). That's all 7! ✓
+
+Now check if these 4 edge centers dominate the remaining 8 edge centers:
+Red edge centers: (0,1,2), (1,2,0), (2,0,1), (2,2,1).
+Remaining edge centers: (0,0,1), (0,1,0), (0,2,1), (1,0,0), (1,0,2), (1,2,2), (2,1,0), (2,1,2).
+
+Are these dominated by the red edge centers?
+(0,0,1): neighbors (1,0,1)✓face, (0,0,2)corner, (0,1,1)✓face. Not adjacent to any red edge center. Is it adjacent to (0,1,2)? (0,0,1) and (0,1,2): differ in y by 1 and z by 1. Not adjacent (adjacency requires exactly one coordinate differs by 1). So (0,0,1) is NOT dominated. ✗
+
+So this doesn't work. We need the red edge centers to also dominate the non-red edge centers.
+
+Let me check adjacency between edge centers. Two edge centers are adjacent if they differ in exactly one coordinate by 1.
+
+(0,0,1) is adjacent to: (1,0,1)face, (0,0,2)corner, (0,1,1)face. Wait, (0,0,1) neighbors: (1,0,1), (0,0,0)black, (0,1,1), (0,0,2). So among edge centers, (0,0,1) is not adjacent to any other edge center! Its neighbors are 2 face centers, 1 corner, and 1 black cell.
+
+Hmm, so edge centers are only adjacent to face centers, corners, and the center - not to other edge centers. Let me verify: (0,1,2) neighbors: (1,1,2)face, (0,0,2)corner, (0,2,2)corner, (0,1,1)face. Yes, edge centers are adjacent to face centers and corners, not other edge centers.
+
+So to dominate an edge center, we need either the edge center itself to be red, or one of its adjacent face centers to be red, or one of its adjacent corners to be red.
+
+The face centers are all dominated by (1,1,1) but they're not red. So to dominate non-red edge centers, we need either the edge center itself to be red, or an adjacent corner to be red.
+
+In our setup, the red cells are (1,1,1) and 4 edge centers. The corners are not red. So non-red edge centers can only be dominated if they're adjacent to a red edge center - but we just showed edge centers aren't adjacent to each other. So non-red edge centers are NOT dominated. ✗
+
+So we need to either make some corners red, or make some face centers red, or make more edge centers red.
+
+If we make a face center red, it can dominate edge centers. For example, (0,1,1) is adjacent to edge centers (0,0,1), (0,2,1), (0,1,0), (0,1,2). So making (0,1,1) red would dominate 4 edge centers.
+
+Let me reconsider the strategy. Instead of (1,1,1) + 4 edge centers, let me try (1,1,1) + some face centers + some edge centers.
+
+Red at (1,1,1): 7 cells (center + 6 face centers).
+Red at (0,1,1): dominates (0,1,1)✓, (1,1,1)✓, (0,0,1), (0,2,1), (0,1,0), (0,1,2). New: (0,0,1), (0,2,1), (0,1,0), (0,1,2). [4 new]
+Red at (2,1,1): dominates (2,1,1)✓, (1,1,1)✓, (2,0,1), (2,2,1), (2,1,0), (2,1,2). New: (2,0,1), (2,2,1), (2,1,0), (2,1,2). [4 new]
+Red at (1,0,1): dominates (1,0,1)✓, (1,1,1)✓, (0,0,1)✓, (2,0,1)✓, (1,0,0), (1,0,2). New: (1,0,0), (1,0,2). [2 new]
+Red at (1,2,1): dominates (1,2,1)✓, (1,1,1)✓, (0,2,1)✓, (2,2,1)✓, (1,2,0), (1,2,2). New: (1,2,0), (1,2,2). [2 new]
+
+Total: 7 + 4 + 4 + 2 + 2 = 19. Remaining: 26 - 19 = 7 corners: (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2).
+
+These 7 corners are not dominated. Each has 3 edge center neighbors, all of which are dominated but not red. So we need more red cells. Each additional red edge center dominates 2 corners. Need ⌈7/2⌉ = 4. Total: 5 + 4 = 9. Worse.
+
+Alternatively, make some corners red. A red corner dominates itself + 3 edge centers. But the edge centers are already dominated. So a red corner only helps dominate 1 corner (itself). So making corners red is inefficient for dominating other corners.
+
+What if we use (1,1,0) and (1,1,2) as red instead of some face centers?
+
+Red at (1,1,1): 7 cells.
+Red at (1,1,0): dominates (1,1,0)✓, (0,1,0), (2,1,0), (1,0,0), (1,2,0). New: (0,1,0), (2,1,0), (1,0,0), (1,2,0). [4 new]
+Red at (1,1,2): dominates (1,1,2)✓, (0,1,2), (2,1,2), (1,0,2), (1,2,2). New: (0,1,2), (2,1,2), (1,0,2), (1,2,2). [4 new]
+Red at (0,1,1): new: (0,0,1), (0,2,1), (0,1,0)✓, (0,1,2)✓. New: (0,0,1), (0,2,1). [2 new]
+Red at (2,1,1): new: (2,0,1), (2,2,1), (2,1,0)✓, (2,1,2)✓. New: (2,0,1), (2,2,1). [2 new]
+
+Total: 7 + 4 + 4 + 2 + 2 = 19. Same as before. Remaining 7 corners. Need 4 more. Total 9.
+
+Hmm. It seems like for the corner-black case, we need more than 6. Let me try a completely different approach.
+
+What if we don't use the center?
+
+Try 6 red cells without the center:
+Red at (0,1,1): dominates (0,1,1), (1,1,1), (0,0,1), (0,2,1), (0,1,0), (0,1,2). [6]
+Red at (2,1,1): dominates (2,1,1), (1,1,1)✓, (2,0,1), (2,2,1), (2,1,0), (2,1,2). [5 new]
+Red at (1,0,1): dominates (1,0,1), (1,1,1)✓, (0,0,1)✓, (2,0,1)✓, (1,0,0), (1,0,2). [3 new]
+Red at (1,2,1): dominates (1,2,1), (1,1,1)✓, (0,2,1)✓, (2,2,1)✓, (1,2,0), (1,2,2). [3 new]
+Red at (1,1,0): dominates (1,1,0), (1,1,1)✓, (0,1,0)✓, (2,1,0)✓, (1,0,0)✓, (1,2,0)✓. [1 new: (1,1,0)]
+Red at (1,1,2): dominates (1,1,2), (1,1,1)✓, (0,1,2)✓, (2,1,2)✓, (1,0,2)✓, (1,2,2)✓. [1 new: (1,1,2)]
+
+Total: 6 + 5 + 3 + 3 + 1 + 1 = 19. Remaining 7 corners again. Need 4 more. Total 10.
+
+This is even worse. The problem is that the 7 corners are hard to dominate.
+
+Let me try using edge centers that cover corners:
+
+Red at (0,1,2): dominates (0,1,2), (1,1,2), (0,0,2), (0,2,2), (0,1,1). [5]
+Red at (0,2,1): dominates (0,2,1), (1,2,1), (0,2,0), (0,2,2)✓, (0,1,1)✓. [3 new: (0,2,1), (1,2,1), (0,2,0)]
+Red at (1,2,0): dominates (1,2,0), (0,2,0)✓, (2,2,0), (1,2,1)✓, (1,1,0). [3 new: (1,2,0), (2,2,0), (1,1,0)]
+Red at (2,2,1): dominates (2,2,1), (1,2,1)✓, (2,2,0)✓, (2,2,2), (2,1,1). [3 new: (2,2,1), (2,2,2), (2,1,1)]
+Red at (2,0,1): dominates (2,0,1), (1,0,1), (2,0,0), (2,0,2), (2,1,1)✓. [4 new: (2,0,1), (1,0,1), (2,0,0), (2,0,2)]
+Red at (1,0,2): dominates (1,0,2), (0,0,2)✓, (2,0,2)✓, (1,0,1)✓, (1,1,2). [2 new: (1,0,2), (1,1,2)]
+
+Total: 5 + 3 + 3 + 3 + 4 + 2 = 20. Remaining: 26 - 20 = 6.
+
+Which 6? Let me list all 26:
+Corners: (0,0,2)✓, (0,2,0)✓, (0,2,2)✓, (2,0,0)✓, (2,0,2)✓, (2,2,0)✓, (2,2,2)✓. All 7 dominated!
+Edge centers: (0,0,1)?, (0,1,0)?, (0,1,2)✓, (0,2,1)✓, (1,0,0)?, (1,0,2)✓, (1,2,0)✓, (1,2,2)?, (2,0,1)✓, (2,1,0)?, (2,1,2)?, (2,2,1)✓
+Face centers: (0,1,1)✓, (1,0,1)✓, (1,1,0)✓, (1,1,2)✓, (1,2,1)✓, (2,1,1)✓
+Center: (1,1,1)?
+
+Remaining: (0,0,1), (0,1,0), (1,0,0), (1,2,2), (2,1,0), (2,1,2), (1,1,1). That's 7, not 6. Let me recheck.
+
+Wait, I need to check if (1,1,1) is dominated. (1,1,1) neighbors: (0,1,1)✓red? No, (0,1,1) is dominated but not red. (2,1,1) is dominated but not red. (1,0,1)✓ not red. (1,2,1)✓ not red. (1,1,0)✓ not red. (1,1,2)✓ not red. So (1,1,1) is NOT dominated (none of its neighbors are red, and it's not red itself).
+
+So remaining: (0,0,1), (0,1,0), (1,0,0), (1,2,2), (2,1,0), (2,1,2), (1,1,1). 7 cells.
+
+Can we dominate these 7 with 1 more red cell? (1,1,1) is adjacent to all 6 face centers, none of which are in the remaining set. So (1,1,1) can only be dominated by making it red or making a face center red. 
+
+If we make (1,1,1) red: it dominates itself + 6 face centers (already dominated). So only (1,1,1) is newly dominated. Remaining 6: (0,0,1), (0,1,0), (1,0,0), (1,2,2), (2,1,0), (2,1,2). Need more.
+
+If we make a face center red, say (0,1,1): dominates (0,1,1)✓, (1,1,1), (0,0,1), (0,2,1)✓, (0,1,0), (0,1,2)✓. New: (1,1,1), (0,0,1), (0,1,0). Remaining: (1,0,0), (1,2,2), (2,1,0), (2,1,2). 4 cells, need at least 2 more (each can dominate at most... (1,0,0) neighbors: (2,0,0)✓not red, (0,0,0)black, (1,0,1)✓not red, (1,1,0)✓not red. So (1,0,0) can only be dominated by making it red or making (2,0,0), (1,0,1), or (1,1,0) red. But (2,0,0) is a corner, (1,0,1) and (1,1,0) are face centers. Hmm.
+
+This is getting really complicated. Let me step back and think about whether the answer really depends on the black cube position.
+
+Actually, I wonder if the problem is asking for the minimum over all possible positions of the black cube. That is, we get to choose where the black cube goes (same position in each 3×3×3 block), and then we paint red, and we want the minimum total.
+
+Or maybe the problem is asking: for any position of the black cube, what is the minimum? And the answer is the same regardless.
+
+Let me reconsider. For n=1, center-black gives 6. For corner-black, I'm getting more than 6 (maybe 7 or 8). So the answer does depend on the position.
+
+Hmm, but the problem says "use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube." This just says we form a 3×3×3 cube with 26 white and 1 black. The position of the black cube is not specified. Then "use n³ such cubes to form a cube with edge length 3n." 
+
+I think the problem is asking: what is the minimum number of white cubes to paint red, where the minimum is over all possible positions of the black cube (same in each small cube) and all possible choices of which white cubes to paint red?
+
+No wait, that doesn't make sense either. The black cube position is given (it's part of the construction). The question is just about painting red.
+
+Actually, re-reading: "Use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube." This describes the construction. The black cube can be anywhere. "Then use n³ such cubes to form a cube with edge length 3n." So we have n³ identical 3×3×3 cubes. "Question: What is the minimum number of white unit cubes that need to be painted red so that each remaining white unit cube is adjacent to at least one red unit cube?"
+
+I think the problem is asking for the answer in terms of n, and the answer should be the same regardless of where the black cube is. Or perhaps the problem is asking for the worst case (maximum over black cube positions of the minimum dominating set), or the best case.
+
+Actually, I think the most natural reading is: the black cube is in some fixed position (we don't control it), and we need to find the minimum number of white cubes to paint red. The answer should be in terms of n and should work for any position of the black cube. Or perhaps the answer is the same for all positions.
+
+But we showed that for n=1, center-black gives 6 and corner-black gives more. So the answer isn't the same for all positions.
+
+Hmm, let me reconsider. Maybe I'm wrong about the corner-black case. Let me try harder to find a 6-cell dominating set for corner-black.
+
+Black at (0,0,0). 26 white cells. Can we dominate with 6?
+
+The center (1,1,1) has degree 6. If we use it, it dominates 7 cells. Then we need to dominate 19 more with 5 cells. Each additional cell dominates at most 5 new cells (if it's a face center with degree 5... wait, in the corner-black case, face centers have degree 5 (they didn't lose a neighbor since the black cell is a corner, not the center). Let me recheck.
+
+Face center (0,1,1): neighbors (1,1,1), (0,0,1), (0,2,1), (0,1,0), (0,1,2). All white. Degree 5. ✓
+Face center (1,0,1): neighbors (1,1,1), (0,0,1), (2,0,1), (1,0,0), (1,0,2). All white. Degree 5. ✓
+Face center (1,1,0): neighbors (1,1,1), (0,1,0), (2,1,0), (1,0,0), (1,2,0). All white. Degree 5. ✓
+
+So face centers have degree 5 in the corner-black case (vs degree 4 in center-black case). Edge centers: (0,0,1) has neighbors (1,0,1), (0,0,0)black, (0,1,1), (0,0,2). Degree 3 (lost one to black). Other edge centers not adjacent to (0,0,0) have degree 4.
+
+So in corner-black case:
+- Center: degree 6
+- Face centers: degree 5
+- Edge centers adjacent to black corner: degree 3 (these are (0,0,1), (0,1,0), (1,0,0))
+- Other edge centers: degree 4
+- Corners: degree 3
+
+Max domination per red cell: 7 (center), 6 (face center), 5 (edge center not adj to black), 4 (corner or edge center adj to black).
+
+With 6 red cells, max dominated = 6 × 7 = 42 >> 26. So the counting bound doesn't rule out 6.
+
+Let me try to find a 6-cell dominating set for corner-black.
+
+Red at (1,1,1): dominates (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2). [7]
+
+Remaining 19: 7 corners + 12 edge centers.
+
+Now I need 5 red cells to dominate 19 cells. Each can dominate at most 6 (face center). 5 × 6 = 30 ≥ 19. Possible.
+
+The 7 remaining corners: (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2).
+The 12 edge centers: (0,0,1), (0,1,0), (0,1,2), (0,2,1), (1,0,0), (1,0,2), (1,2,0), (1,2,2), (2,0,1), (2,1,0), (2,1,2), (2,2,1).
+
+I need to choose 5 cells (from the 19 remaining, or from the 7 already dominated) to dominate all 19.
+
+Wait, the 5 additional red cells can be any white cells, including the 7 already dominated by (1,1,1). But making an already-dominated cell red doesn't help dominate new cells unless its neighbors include undominated cells.
+
+The face centers (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2) are already dominated. If we make one of them red, it can dominate edge centers and corners.
+
+Let me try:
+Red at (0,1,1): dominates (0,1,1)✓, (1,1,1)✓, (0,0,1), (0,2,1), (0,1,0), (0,1,2). New: (0,0,1), (0,2,1), (0,1,0), (0,1,2). [4 new]
+Red at (2,2,1): dominates (2,2,1), (1,2,1)✓, (2,2,0), (2,2,2), (2,1,1)✓. New: (2,2,1), (2,2,0), (2,2,2). [3 new]
+Red at (2,0,1): dominates (2,0,1), (1,0,1)✓, (2,0,0), (2,0,2), (2,1,1)✓. New: (2,0,1), (2,0,0), (2,0,2). [3 new]
+Red at (0,2,1): dominates (0,2,1)✓, (1,2,1)✓, (0,2,0), (0,2,2)✓... wait, (0,2,2) is a corner, not yet dominated. Let me check: (0,2,1) neighbors: (1,2,1)✓, (0,2,0), (0,2,2), (0,1,1)✓. New: (0,2,0), (0,2,2). But (0,2,1) is already dominated by (0,1,1). [2 new: (0,2,0), (0,2,2)]
+
+Hmm wait, is (0,2,2) dominated by (2,2,1)? (0,2,2) and (2,2,1): differ in x by 2. Not adjacent. So (0,2,2) is not dominated by (2,2,1). Let me recheck what (2,2,1) dominates: (2,2,1) neighbors: (1,2,1), (2,2,0), (2,2,2), (2,1,1). So (2,2,1) dominates (2,2,1), (1,2,1), (2,2,0), (2,2,2), (2,1,1). Yes, (0,2,2) is NOT dominated by (2,2,1).
+
+So after (1,1,1), (0,1,1), (2,2,1), (2,0,1), (0,2,1):
+Dominated: 7 + 4 + 3 + 3 + 2 = 19. Remaining: 26 - 19 = 7.
+
+Let me list: 
+Corners: (0,0,2)?, (0,2,0)✓, (0,2,2)✓, (2,0,0)✓, (2,0,2)✓, (2,2,0)✓, (2,2,2)✓. 
+(0,0,2): neighbors (1,0,2), (0,1,2)✓, (0,0,1)✓. Is (0,0,2) dominated? (1,0,2) is not red. (0,1,2) is dominated by (0,1,1) but not red. (0,0,1) is dominated by (0,1,1) but not red. So (0,0,2) is NOT dominated.
+
+Edge centers: (0,0,1)✓, (0,1,0)✓, (0,1,2)✓, (0,2,1)✓, (1,0,0)?, (1,0,2)?, (1,2,0)?, (1,2,2)?, (2,0,1)✓, (2,1,0)?, (2,1,2)?, (2,2,1)✓.
+
+(1,0,0): neighbors (2,0,0)✓not red, (0,0,0)black, (1,0,1)✓not red, (1,1,0)✓not red. NOT dominated.
+(1,0,2): neighbors (0,0,2)?, (2,0,2)✓not red, (1,0,1)✓not red, (1,1,2)✓not red. NOT dominated.
+(1,2,0): neighbors (0,2,0)✓not red, (2,2,0)✓not red, (1,2,1)✓not red, (1,1,0)✓not red. NOT dominated.
+(1,2,2): neighbors (0,2,2)✓not red, (2,2,2)✓not red, (1,2,1)✓not red, (1,1,2)✓not red. NOT dominated.
+(2,1,0): neighbors (2,0,0)✓not red, (2,2,0)✓not red, (2,1,1)✓not red, (1,1,0)✓not red. NOT dominated.
+(2,1,2): neighbors (2,0,2)✓not red, (2,2,2)✓not red, (2,1,1)✓not red, (1,1,2)✓not red. NOT dominated.
+
+So remaining: (0,0,2), (1,0,0), (1,0,2), (1,2,0), (1,2,2), (2,1,0), (2,1,2). 7 cells.
+
+These 7 cells: (0,0,2) is a corner, the other 6 are edge centers. Can 1 more red cell dominate all 7? No, max is 7 but the cells are spread out. Let me check if any cell is adjacent to all 7. (1,0,1) is adjacent to (1,0,0), (1,0,2), (0,0,1), (2,0,1), (1,1,1). Only 2 of the 7. Not enough.
+
+So 5 red cells after (1,1,1) is not enough with this configuration. We need at least 2 more, total 8.
+
+Hmm, let me try a completely different approach for corner-black.
+
+What if we don't use the center? Let me try:
+
+Red at (0,1,2): dominates (0,1,2), (1,1,2), (0,0,2), (0,2,2), (0,1,1). [5]
+Red at (2,1,0): dominates (2,1,0), (1,1,0), (2,0,0), (2,2,0), (2,1,1). [5]
+Red at (0,2,1): dominates (0,2,1), (1,2,1), (0,2,0), (0,2,2)✓, (0,1,1)✓. [3 new: (0,2,1), (1,2,1), (0,2,0)]
+Red at (2,0,1): dominates (2,0,1), (1,0,1), (2,0,0)✓, (2,0,2), (2,1,1)✓. [3 new: (2,0,1), (1,0,1), (2,0,2)]
+Red at (1,1,1): dominates (1,1,1), (0,1,1)✓, (2,1,1)✓, (1,0,1)✓, (1,2,1)✓, (1,1,0)✓, (1,1,2)✓. [1 new: (1,1,1)]
+Red at (0,0,1): dominates (0,0,1), (1,0,1)✓, (0,0,2)✓, (0,1,1)✓. [1 new: (0,0,1)]
+
+Total: 5+5+3+3+1+1 = 18. Remaining: 26-18 = 8.
+
+Hmm, still 8 remaining. This approach isn't working well.
+
+Let me try yet another approach. 
+
+Red at (1,0,2): dominates (1,0,2), (0,0,2), (2,0,2), (1,0,1), (1,1,2). [5]
+Red at (1,2,0): dominates (1,2,0), (0,2,0), (2,2,0), (1,2,1), (1,1,0). [5]
+Red at (0,1,2): dominates (0,1,2), (1,1,2)✓, (0,0,2)✓, (0,2,2), (0,1,1). [3 new: (0,1,2), (0,2,2), (0,1,1)]
+Red at (2,1,0): dominates (2,1,0), (1,1,0)✓, (2,0,0), (2,2,0)✓, (2,1,1). [3 new: (2,1,0), (2,0,0), (2,1,1)]
+Red at (0,2,1): dominates (0,2,1), (1,2,1)✓, (0,2,0)✓, (0,2,2)✓, (0,1,1)✓. [1 new: (0,2,1)]
+Red at (2,0,1): dominates (2,0,1), (1,0,1)✓, (2,0,0)✓, (2,0,2)✓, (2,1,1)✓. [1 new: (2,0,1)]
+
+Total: 5+5+3+3+1+1 = 18. Remaining: 8.
+
+Dominated: (1,0,2), (0,0,2), (2,0,2), (1,0,1), (1,1,2), (1,2,0), (0,2,0), (2,2,0), (1,2,1), (1,1,0), (0,1,2), (0,2,2), (0,1,1), (2,1,0), (2,0,0), (2,1,1), (0,2,1), (2,0,1). That's 18.
+
+Remaining 8: (0,0,1), (0,1,0), (1,0,0), (1,1,1), (1,2,2), (2,1,2), (2,2,1), (2,2,2).
+
+(1,1,1): neighbors are all face centers, none red. NOT dominated.
+(0,0,1): neighbors (1,0,1)✓not red, (0,0,0)black, (0,1,1)✓not red, (0,0,2)✓not red. NOT dominated.
+(0,1,0): neighbors (0,0,0)black, (0,2,0)✓not red, (0,1,1)✓not red, (1,1,0)✓not red. NOT dominated.
+(1,0,0): neighbors (0,0,0)black, (2,0,0)✓not red, (1,0,1)✓not red, (1,1,0)✓not red. NOT dominated.
+(1,2,2): neighbors (0,2,2)✓not red, (2,2,2)?, (1,2,1)✓not red, (1,1,2)✓not red. NOT dominated.
+(2,1,2): neighbors (2,0,2)✓not red, (2,2,2)?, (2,1,1)✓not red, (1,1,2)✓not red. NOT dominated.
+(2,2,1): neighbors (2,2,0)✓not red, (2,2,2)?, (2,1,1)✓not red, (1,2,1)✓not red. NOT dominated.
+(2,2,2): neighbors (1,2,2)?, (2,1,2)?, (2,2,1)?. All undominated. NOT dominated.
+
+So the remaining 8 form a cluster around (2,2,2) and (1,1,1). We need at least 2 more red cells (since (1,1,1) and (2,2,2) are not adjacent and can't be dominated by the same cell). Total: 8.
+
+It seems like for corner-black, the answer for n=1 is 7 or 8. Let me try to see if 7 is achievable.
+
+Let me try 7:
+Red at (1,1,1): [7]
+Red at (0,1,1): [4 new: (0,0,1), (0,2,1), (0,1,0), (0,1,2)]
+Red at (2,1,1): [4 new: (2,0,1), (2,2,1), (2,1,0), (2,1,2)]
+Red at (1,0,1): [2 new: (1,0,0), (1,0,2)]
+Red at (1,2,1): [2 new: (1,2,0), (1,2,2)]
+Red at (0,1,2): [1 new: (0,0,2), (0,2,2) - wait let me check. (0,1,2) neighbors: (1,1,2)✓, (0,0,2), (0,2,2), (0,1,1)✓. New: (0,0,2), (0,2,2). [2 new]]
+Red at (2,2,1): [(2,2,1)✓already dominated by (2,1,1). Neighbors: (1,2,1)✓, (2,2,0), (2,2,2), (2,1,1)✓. New: (2,2,0), (2,2,2). [2 new]]
+
+Total: 7+4+4+2+2+2+2 = 23. Remaining: 26-23 = 3.
+
+Which 3? Let me list all dominated:
+From (1,1,1): (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2)
+From (0,1,1): (0,0,1), (0,2,1), (0,1,0), (0,1,2)
+From (2,1,1): (2,0,1), (2,2,1), (2,1,0), (2,1,2)
+From (1,0,1): (1,0,0), (1,0,2)
+From (1,2,1): (1,2,0), (1,2,2)
+From (0,1,2): (0,0,2), (0,2,2)
+From (2,2,1): (2,2,0), (2,2,2)
+
+All dominated: 7+4+4+2+2+2+2 = 23. 
+Corners: (0,0,2)✓, (0,2,0)?, (0,2,2)✓, (2,0,0)?, (2,0,2)?, (2,2,0)✓, (2,2,2)✓. 
+(0,2,0): neighbors (1,2,0)✓not red, (0,1,0)✓not red, (0,2,1)✓not red. NOT dominated!
+(2,0,0): neighbors (1,0,0)✓not red, (2,1,0)✓not red, (2,0,1)✓not red. NOT dominated!
+(2,0,2): neighbors (1,0,2)✓not red, (2,1,2)✓not red, (2,0,1)✓not red. NOT dominated!
+
+So remaining: (0,2,0), (2,0,0), (2,0,2). 3 cells. These are 3 corners, each adjacent to 3 edge centers, all of which are dominated but not red.
+
+Can 1 more red cell dominate all 3? (0,2,0) and (2,0,0) are not adjacent (differ in x by 2, y by 2). (0,2,0) and (2,0,2) are not adjacent. (2,0,0) and (2,0,2) differ in z by 2, not adjacent. So no single cell is adjacent to all 3. We need at least 2 more. Total: 9.
+
+Hmm. Let me try a different 7-cell configuration.
+
+Actually, let me try to use edge centers that cover corners more efficiently.
+
+Red at (1,1,1): [7: center + 6 face centers]
+Red at (0,1,2): [new: (0,0,2), (0,2,2), (0,1,2)] - 3 new (since (1,1,2) and (0,1,1) already dominated)
+Red at (0,2,1): [new: (0,2,0), (0,2,1)] - 2 new (since (0,2,2) already dominated by (0,1,2), (1,2,1) and (0,1,1) already dominated)
+
+Wait, (0,2,1) neighbors: (1,2,1)✓, (0,2,0), (0,2,2)✓, (0,1,1)✓. New: (0,2,0), (0,2,1). [2 new]
+
+Red at (2,1,0): [new: (2,0,0), (2,2,0), (2,1,0)] - 3 new (since (1,1,0) and (2,1,1) already dominated)
+Red at (2,0,1): [new: (2,0,2), (2,0,1)] - 2 new (since (2,0,0)✓, (1,0,1)✓, (2,1,1)✓ already dominated)
+
+Wait, (2,0,1) neighbors: (1,0,1)✓, (2,0,0)✓, (2,0,2), (2,1,1)✓. New: (2,0,2), (2,0,1). [2 new]
+
+Red at (2,2,1): [new: (2,2,2), (2,2,1)] - 2 new (since (1,2,1)✓, (2,2,0)✓, (2,1,1)✓)
+
+Red at (1,2,2): [new: (1,2,2)] - neighbors (0,2,2)✓, (2,2,2)✓, (1,2,1)✓, (1,1,2)✓. New: (1,2,2). [1 new]
+
+Total: 7 + 3 + 2 + 3 + 2 + 2 + 1 = 20. Remaining: 6.
+
+Dominated:
+(1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2) [from center]
+(0,0,2), (0,2,2), (0,1,2) [from (0,1,2)]
+(0,2,0), (0,2,1) [from (0,2,1)]
+(2,0,0), (2,2,0), (2,1,0) [from (2,1,0)]
+(2,0,2), (2,0,1) [from (2,0,1)]
+(2,2,2), (2,2,1) [from (2,2,1)]
+(1,2,2) [from (1,2,2)]
+
+Corners: (0,0,2)✓, (0,2,0)✓, (0,2,2)✓, (2,0,0)✓, (2,0,2)✓, (2,2,0)✓, (2,2,2)✓. All 7 corners dominated!
+Edge centers: (0,0,1)?, (0,1,0)?, (0,1,2)✓, (0,2,1)✓, (1,0,0)?, (1,0,2)?, (1,2,0)?, (1,2,2)✓, (2,0,1)✓, (2,1,0)✓, (2,1,2)?, (2,2,1)✓.
+
+Remaining: (0,0,1), (0,1,0), (1,0,0), (1,0,2), (1,2,0), (2,1,2). 6 cells.
+
+These are all edge centers. Each is adjacent to face centers (all dominated, not red) and corners (all dominated, not red). So they can only be dominated by making them red or making an adjacent face center/corner red.
+
+(0,0,1): adjacent to (0,1,1)✓face, (1,0,1)✓face, (0,0,2)✓corner. If we make (0,1,1) red, it dominates (0,0,1), (0,2,1)✓, (0,1,0), (0,1,2)✓, (1,1,1)✓. New: (0,0,1), (0,1,0). [2 new]
+
+(1,0,0): adjacent to (1,0,1)✓face, (1,1,0)✓face, (2,0,0)✓corner. If we make (1,0,1) red, it dominates (1,0,0), (1,0,2), (0,0,1)✓, (2,0,1)✓, (1,1,1)✓. New: (1,0,0), (1,0,2). [2 new]
+
+(1,2,0): adjacent to (1,2,1)✓face, (1,1,0)✓face, (0,2,0)✓corner, (2,2,0)✓corner. If we make (1,1,0) red, it dominates (1,2,0), (1,0,0)✓, (0,1,0)✓, (2,1,0)✓, (1,1,1)✓. New: (1,2,0). [1 new]
+
+(2,1,2): adjacent to (2,1,1)✓face, (1,1,2)✓face, (2,0,2)✓corner, (2,2,2)✓corner. If we make (2,1,1) red, it dominates (2,1,2), (2,0,1)✓, (2,2,1)✓, (2,1,0)✓, (1,1,1)✓. New: (2,1,2). [1 new]
+
+So if we add (0,1,1) and (1,0,1) as red: new = (0,0,1), (0,1,0), (1,0,0), (1,0,2). Remaining: (1,2,0), (2,1,2). Need 2 more (or 1 if a single cell dominates both). (1,2,0) and (2,1,2) are not adjacent. Can a single cell dominate both? (1,1,0) is adjacent to (1,2,0) but not (2,1,2). (1,1,2) is adjacent to (2,1,2) but not (1,2,0). (1,2,1) is adjacent to (1,2,0)... wait, (1,2,1) neighbors: (0,2,1), (2,2,1), (1,2,0), (1,2,2), (1,1,1). Yes, (1,2,1) is adjacent to (1,2,0). Is (1        — AI历史解题过程（thinking）
+#   polymath_01089         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_01089</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+8. Given a positive integer $n$. Use 26 white unit cubes and 1 black unit cube to form a $3 \times 3 \times 3$ cube. Then use $n^{3}$ such cubes to form a cube with edge length $3 n$. Question: What is the minimum number of white unit cubes that need to be painted red so that each remaining white unit cube is adjacent to at least one red unit cube?
+
+## Standard Solution
+
+8. $(n+1) n^{2}$.
+
+Let the unit cube be referred to as a small cube.
+Establish a coordinate system such that the centers of each small cube along the three coordinate axes have coordinates ranging from $1 \sim 3 n$. Each small cube is identified by the coordinates of its center. Thus, a small cube is black if and only if all three of its coordinate values are congruent to 2 modulo 3.
+
+Color the small cube with coordinates $(a, b, c)$ red if: $a$ is a multiple of 3, $b \equiv 2(\bmod 3)$, and $c \equiv 2(\bmod 3)$;
+Color the small cube with coordinates $(1, b, c)$ red if: $b \equiv 2(\bmod 3)$ and $c \equiv 2(\bmod 3)$.
+
+A total of $(n+1) n^{2}$ red small cubes are obtained, and the requirements of the problem are met.
+
+Next, we need to prove that the number of red small cubes cannot be less than $(n+1) n^{2}$.
+For $i=1,2, \cdots, n$, let
+$w_{3 i}=i, w_{3 i-1}=0, w_{3 i-2}=n+1-i$.
+It is easy to see that the sequence $\left\{w_{i}\right\}$ is
+$n, 0,1, n-1,0,2, n-2, \cdots, 1,0, n$.
+On the small cube with coordinates $(a, b, c)$, write $w_{a} w_{b} w_{c}$. Thus, the sum of the numbers written on all small cubes is
+$$
+M=\left(w_{1}+\cdots+w_{3 n}\right)^{3}=n^{3}(n+1)^{3} .
+$$
+
+Define the price of a small cube $X$ as the sum of the numbers written on the small cubes (including $X$ itself) that share a common point with $X$. Thus, in any coloring method, the sum of the numbers written on the red small cubes is not less than $M$.
+
+We now prove: For any white small cube $X$,
+$$
+S(X) \leqslant(n+1)^{2} n \text {. }
+$$
+
+From this, it follows that at least
+$$
+\frac{M}{(n+1)^{2} n}=(n+1) n^{2}
+$$
+
+small cubes must be colored red, which is what we need to prove.
+Let the coordinates of the small cube $X$ be $(a, b, c)$. The small cubes that share a common point with $X$ have a horizontal coordinate equal to $a$ or $a \pm 1$, and similarly for the other two coordinates.
+$$
+\begin{array}{l} 
+\text { Then } S(X) \\
+=\left(w_{a-1}+w_{a}+w_{a+1}\right)\left(w_{b-1}+w_{b}+w_{b+1}\right) . \\
+\left(w_{c-1}+w_{c}+w_{c+1}\right),
+\end{array}
+$$
+
+where, $w_{0}=w_{3 n+1}=0$.
+Notice that,
+$$
+w_{t-1}+w_{t}+w_{t+1}=\left\{\begin{array}{ll}
+n, & t \neq 2(\bmod 3) ; \\
+n+1, & \text { otherwise. }
+\end{array}\right.
+$$
+
+Since the coordinates of the small cube $X$ are not all congruent to 2 modulo 3,
+$$
+S(X) \leqslant(n+1)^{2} n \text {. }
+$$
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. We have a 3×3×3 cube made of 27 unit cubes, 26 white and 1 black. Then n³ such cubes form a larger cube of edge length 3n. We need to find the minimum number of white unit cubes to paint red so that each remaining white unit cube is adjacent to at least one red unit cube.
+
+Wait, let me re-read. We use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube. Then use n³ such cubes to form a cube with edge length 3n. So we have n³ copies of the 3×3×3 cube, each containing 1 black unit cube. The total is a 3n × 3n × 3n cube made of unit cubes, where some are black (n³ of them, one per small cube) and the rest are white.
+
+We need to paint some white unit cubes red so that each remaining white unit cube is adjacent to at least one red unit cube. Adjacent means sharing a face (I assume).
+
+So we want a dominating set of the white cubes in the grid graph, where red cubes form the dominating set, and each white cube must be adjacent to a red cube. Black cubes don't need to be dominated (they're not white). Red cubes are painted from white cubes, so red cubes are removed from the "white" set.
+
+Actually, let me think about this more carefully. The question: minimum number of white unit cubes to paint red so that each remaining white cube is adjacent to at least one red cube.
+
+So the red cubes form a set R (subset of white cubes). After painting, the remaining white cubes are W \ R. Each cube in W \ R must be adjacent to at least one cube in R. Black cubes are not required to be adjacent to red.
+
+So we need a dominating set of the white cubes, but only the white cubes need to be dominated (not black), and the dominating set is also from white cubes.
+
+This is a minimum dominating set problem on the subgraph induced by white cubes in the 3n × 3n × 3n grid.
+
+The black cubes: each 3×3×3 block has exactly 1 black cube. The position of the black cube within each 3×3×3 block matters. The problem says "use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube" - it doesn't specify where the black cube is. Hmm, but then "use n³ such cubes to form a cube with edge length 3n". 
+
+I think the question is asking for the minimum over all possible configurations? Or is the black cube position fixed? Let me re-read.
+
+"Use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube. Then use n³ such cubes to form a cube with edge length 3n."
+
+I think "such cubes" means n³ copies of the same 3×3×3 cube (same arrangement). So the black cube is in the same position in each 3×3×3 block. The question asks for the minimum number of white cubes to paint red.
+
+But wait - does the position of the black cube matter for the answer? The problem asks "what is the minimum number" - this should be a function of n. Let me think about whether the answer depends on where the black cube is.
+
+Actually, I think the problem is asking: given this configuration (with the black cube in some position, same in each block), what is the minimum number of white cubes to paint red? And the answer should be in terms of n, and should hold regardless of where the black cube is (or perhaps the answer is the same for any position).
+
+Hmm, let me think about this differently. Let me consider the structure.
+
+The 3n × 3n × 3n grid. The black cubes are at positions that form a periodic pattern - one per 3×3×3 block, at the same relative position. If the black cube is at position (a, b, c) within each block (where a, b, c ∈ {0, 1, 2}), then the black cubes are at positions (3i+a, 3j+b, 3k+c) for i, j, k = 0, ..., n-1.
+
+The total number of unit cubes is (3n)³ = 27n³. Black cubes: n³. White cubes: 27n³ - n³ = 26n³.
+
+We need to find the minimum dominating set of the white cubes (where domination is by adjacency, and only white cubes need to be dominated).
+
+Let me think about the structure. The 3n × 3n × 3n grid graph. We need a dominating set D ⊆ W (white cubes) such that every white cube not in D is adjacent to some cube in D. Black cubes don't need to be dominated.
+
+This is equivalent to: find minimum D ⊆ W such that every w ∈ W \ D has a neighbor in D.
+
+Equivalently, D is a dominating set of the subgraph induced by W, but with the additional constraint that D ⊆ W (which is automatically satisfied since we're dominating the induced subgraph).
+
+Wait, actually, the dominating set of the induced subgraph on W: every vertex in W is either in D or adjacent (in the induced subgraph) to a vertex in D. But adjacency in the induced subgraph means both vertices are in W. So a white cube w is adjacent to a red cube r means w and r share a face and both are white (r is white before being painted red). Black cubes are not in W, so they can't be in D and don't need to be dominated.
+
+So yes, it's the minimum dominating set of the graph induced by white vertices.
+
+Now, the grid graph on 3n × 3n × 3n. The white vertices are all vertices except the n³ black ones. The black ones form a periodic pattern.
+
+Let me think about the case where the black cube is at the center of each 3×3×3 block, i.e., at position (1,1,1) relative to each block. Then black cubes are at (3i+1, 3j+1, 3k+c).
+
+Actually, let me think about this problem more carefully. The key insight might be related to the structure of the 3×3×3 blocks.
+
+Let me consider small cases. For n=1: we have a single 3×3×3 cube with 1 black and 26 white. We need to paint some white red so every remaining white is adjacent to red.
+
+The 3×3×3 grid has 27 cells. One is black. We need a dominating set of the 26 white cells (in the induced subgraph).
+
+The minimum dominating set of a 3×3×3 grid... Let me think. The 3×3×3 grid graph: each cell is adjacent to up to 6 neighbors. The center cell (1,1,1) has 6 neighbors. Corner cells have 3 neighbors. Edge cells have 4 neighbors. Face cells have 5 neighbors.
+
+If the black cell is at the center (1,1,1), then the white cells are all except the center. The center's 6 neighbors are face-center cells. 
+
+For a 3×3×3 grid without any black cells, the minimum dominating set... The grid has 27 cells. A dominating set needs to cover all 27. The center cell dominates 7 cells (itself + 6 neighbors). Each face-center dominates 6 cells. 
+
+Actually, let me think about the general structure differently.
+
+Let me think about what the answer might be. The total number of white cubes is 26n³. We need to dominate them. In a grid graph, a dominating set typically covers about 1/4 to 1/3 of vertices (in 3D, the domination number of the grid is roughly (mnk)/4 or so, but it depends).
+
+Actually, for the 3D grid P_a × P_b × P_c, the domination number is roughly abc/4 but the exact value depends on dimensions.
+
+Hmm, but here we have a specific structure with black cubes removed. Let me think about this differently.
+
+Let me think about the problem in terms of the 3×3×3 blocks. Each block has 27 cells, 1 black, 26 white. The blocks are arranged in an n×n×n pattern. Adjacency between blocks: cells on the boundary of one block are adjacent to cells on the boundary of the neighboring block.
+
+Let me think about a coloring/independence approach. 
+
+Consider the 3n × 3n × 3n grid. Color each cell (x, y, z) by (x mod 3, y mod 3, z mod 3). There are 27 color classes. The black cells all have the same color, say (a, b, c). 
+
+In the grid graph, two adjacent cells differ in exactly one coordinate by 1. So their colors differ in exactly one coordinate by 1 (mod 3). 
+
+Now, a dominating set D: each white cell is either in D or adjacent to a cell in D. 
+
+Let me think about a lower bound. Consider the white cells that are "isolated" from each other in some sense... 
+
+Actually, let me think about this problem from a different angle. 
+
+Consider the 3n × 3n × 3n grid. Partition it into 3×3×3 blocks. Each block has exactly one black cell. 
+
+Key observation: In each 3×3×3 block, the black cell is at position (a,b,c). The 26 white cells in the block need to be dominated. Some can be dominated by red cells in neighboring blocks.
+
+Let me think about the parity/coloring argument. 
+
+Color the cells of the 3n × 3n × 3n grid by (x+y+z) mod 2. This gives a bipartite graph. In a bipartite graph, a dominating set must include at least half of... no, that's not quite right.
+
+Let me think about independent sets. An independent set in the grid graph: no two cells are adjacent. If I is an independent set of white cells, then each cell in I needs to be dominated by a distinct red cell (since one red cell can dominate at most... well, a red cell can dominate multiple independent set cells if they're all adjacent to it, but in an independent set, no two cells share a neighbor... actually that's not true in general).
+
+Hmm, let me think about this more carefully.
+
+Actually, let me consider a specific coloring. Color cell (x,y,z) by (x mod 3, y mod 3, z mod 3). The black cells are all of color (a,b,c). 
+
+Consider the color class (a,b,c) - these are all black, so they don't need to be dominated. 
+
+Now consider the 26 other color classes. Each color class has n³ cells (since the grid is 3n × 3n × 3n, and each color class appears exactly n³ times).
+
+A cell of color (i,j,k) is adjacent to cells of colors that differ in exactly one coordinate by ±1 mod 3. So color (i,j,k) is adjacent to colors (i±1,j,k), (i,j±1,k), (i,j,k±1).
+
+For a dominating set, we need every white cell to be in D or adjacent to D. 
+
+Let me think about which color classes to use for the dominating set. If we pick all cells of certain color classes to be red, then a white cell of color (i,j,k) is dominated if (i,j,k) is a chosen color class, or if one of its 6 neighboring color classes is chosen.
+
+So we need to choose a set S of color classes (from the 26 non-black classes) such that every non-black color class is in S or adjacent to a class in S. And the cost is |S| · n³ (since each class has n³ cells). But wait, we don't need to paint ALL cells of a class red - we could paint a subset. But if we're looking for a lower bound, and for an upper bound we can use full classes.
+
+Hmm, but this approach of using full color classes might not be optimal. Let me think differently.
+
+Actually, let me reconsider. The problem is about a specific grid with specific black cell positions. The answer should be in terms of n. Let me think about what the answer could be.
+
+Let me consider the case where the black cell is at the center of each 3×3×3 block, i.e., (a,b,c) = (1,1,1).
+
+The 3n × 3n × 3n grid with black cells at (3i+1, 3j+1, 3k+1). 
+
+Let me think about the structure within each 3×3×3 block. The block has cells at positions (0,0,0) to (2,2,2) relative to the block. The center (1,1,1) is black. The other 26 are white.
+
+In the 3×3×3 grid, the center is adjacent to the 6 face-centers: (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2). These face-centers are white.
+
+Now, consider a single 3×3×3 block in isolation (n=1). The center is black. We need to dominate 26 white cells. 
+
+The 26 white cells: 8 corners, 12 edge-centers, 6 face-centers.
+
+The face-centers are adjacent to the black center (but the center is black, not red, so it doesn't help dominate). Each face-center is adjacent to 4 edge-centers and the center. 
+
+For n=1, let me compute the minimum dominating set.
+
+The 3×3×3 grid minus center. 26 cells. 
+
+Corners: (0,0,0), (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2) - 8 corners, each with 3 neighbors.
+Edge centers: (0,0,1), (0,1,0), (0,1,2), (0,2,1), (1,0,0), (1,0,2), (1,2,0), (1,2,2), (2,0,1), (2,1,0), (2,1,2), (2,2,1) - 12 edge centers, each with 4 neighbors (one of which might be the center for some).
+Face centers: (0,1,1), (1,0,1), (1,1,0), (1,1,2), (1,2,1), (2,1,1) - 6 face centers, each with 5 neighbors (including center).
+
+Wait, let me recount. For cell (0,1,1): neighbors are (1,1,1)=center(black), (0,0,1), (0,2,1), (0,1,0), (0,1,2). So 4 white neighbors + 1 black = 5 total, 4 white neighbors.
+
+For cell (0,0,0): neighbors are (1,0,0), (0,1,0), (0,0,1). 3 white neighbors.
+
+For cell (0,0,1): neighbors are (1,0,1), (0,0,0), (0,0,2), (0,1,1). 4 white neighbors.
+
+OK so in the induced subgraph on white cells:
+- Corners have degree 3
+- Edge centers have degree 4
+- Face centers have degree 4 (lost one neighbor, the center)
+
+We need a minimum dominating set of this graph.
+
+Let me try to find it. The 6 face centers: each dominates itself + 4 edge centers. So 6 face centers dominate 6 face centers + some edge centers. But edge centers are shared between face centers.
+
+Edge center (0,0,1) is adjacent to face centers (0,1,1) and (1,0,1). So it's dominated by either of those.
+
+Edge center (1,0,0) is adjacent to face centers (1,1,0) and (0,1,0)... wait, (1,0,0) neighbors: (2,0,0), (0,0,0), (1,1,0), (1,0,1). So face centers adjacent to (1,0,0) are (1,1,0) and (1,0,1).
+
+Hmm, this is getting complicated. Let me just think about the general structure.
+
+Actually, let me think about the problem differently. Let me consider the general n case.
+
+The key structural insight: the 3n × 3n × 3n grid is partitioned into n³ blocks of 3×3×3. Each block has 1 black cell. The black cells form a "sublattice" - they're spaced 3 apart in each direction.
+
+Let me think about a dominating set strategy. 
+
+Strategy 1: In each 3×3×3 block, paint certain white cells red to dominate the white cells in that block (and possibly neighboring blocks).
+
+For a single 3×3×3 block (n=1), what's the minimum dominating set of the 26 white cells?
+
+Let me try to compute this. The 26 white cells form a graph. Let me think about it as the 3×3×3 grid graph minus the center vertex.
+
+The 3×3×3 grid graph has 27 vertices and 54 edges (each internal face gives an edge; there are 3·3·2·3 = 54 edges... let me count: edges along x-direction: 2·3·3 = 18, similarly y and z, total 54). Removing the center removes 6 edges (the center has 6 neighbors). So the induced subgraph has 26 vertices and 48 edges.
+
+For the minimum dominating set, let me try some configurations.
+
+Try: the 6 face centers. Each face center dominates itself and its 4 white neighbors. 
+- (0,1,1) dominates: (0,1,1), (0,0,1), (0,2,1), (0,1,0), (0,1,2)
+- (2,1,1) dominates: (2,1,1), (2,0,1), (2,2,1), (2,1,0), (2,1,2)
+- (1,0,1) dominates: (1,0,1), (0,0,1), (2,0,1), (1,0,0), (1,0,2)
+- (1,2,1) dominates: (1,2,1), (0,2,1), (2,2,1), (1,2,0), (1,2,2)
+- (1,1,0) dominates: (1,1,0), (0,1,0), (2,1,0), (1,0,0), (1,2,0)
+- (1,1,2) dominates: (1,1,2), (0,1,2), (2,1,2), (1,0,2), (1,2,2)
+
+Total dominated: 6 face centers + 12 edge centers = 18 cells. But we have 26 white cells, so 8 corners are not dominated. The corners are (0,0,0), (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2). Each corner is adjacent to 3 edge centers, all of which are already dominated but none of which are red. So the corners are not dominated.
+
+We need to dominate the 8 corners. Each corner is adjacent to 3 edge centers. If we make some edge centers red, each red edge center can dominate up to 2 corners (e.g., (0,0,1) is adjacent to corners (0,0,0) and (0,0,2)). 
+
+Edge centers and their adjacent corners:
+- (0,0,1) → (0,0,0), (0,0,2)
+- (0,2,1) → (0,2,0), (0,2,2)
+- (2,0,1) → (2,0,0), (2,0,2)
+- (2,2,1) → (2,2,0), (2,2,2)
+- (0,1,0) → (0,0,0), (0,2,0)
+- (0,1,2) → (0,0,2), (0,2,2)
+- (2,1,0) → (2,0,0), (2,2,0)
+- (2,1,2) → (2,0,2), (2,2,2)
+- (1,0,0) → (0,0,0), (2,0,0)
+- (1,0,2) → (0,0,2), (2,0,2)
+- (1,2,0) → (0,2,0), (2,2,0)
+- (1,2,2) → (0,2,2), (2,2,2)
+
+So the 8 corners and 12 edge centers form a bipartite graph where each edge center is adjacent to 2 corners. This is like a graph where we need to dominate 8 corner vertices using edge centers (or corners themselves).
+
+The 8 corners form a cube. Each corner is adjacent to 3 edge centers. We need to select some vertices (from all 26 white) to dominate the 8 corners. 
+
+If we select 4 edge centers, can we dominate all 8 corners? Each edge center dominates 2 corners. So 4 edge centers could dominate 8 corners if they cover all 8. 
+
+For example: (0,0,1), (0,2,1), (2,0,1), (2,2,1) → covers (0,0,0), (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2). Yes! All 8 corners.
+
+So with 6 face centers + 4 edge centers = 10 red cells, we dominate all 26 white cells. But can we do better?
+
+Can we use fewer than 10? Let me think about lower bounds.
+
+The 8 corners: each has 3 neighbors (all edge centers). To dominate 8 corners, we need at least... each red cell can dominate at most 2 corners (if it's an edge center) or 1 corner (if it's a corner itself, but then it only dominates itself and its 3 edge center neighbors, which might dominate other corners). Actually, a corner can dominate itself + 3 edge centers, and those edge centers are adjacent to other corners, but the corner itself only directly dominates 1 corner (itself). An edge center dominates 2 corners. So to dominate 8 corners, we need at least 4 red cells that are edge centers (each covering 2 corners), or a mix.
+
+Actually, a red corner dominates itself (1 corner) and 3 edge centers (which don't directly dominate other corners - domination is only 1-hop). So a red corner only dominates 1 corner. A red edge center dominates 2 corners. So to dominate 8 corners, we need at least ⌈8/2⌉ = 4 red edge centers (if we only use edge centers) or more if we use corners.
+
+So at least 4 red cells are needed just for the corners. But we also need to dominate the face centers and edge centers.
+
+The 6 face centers: each is adjacent to 4 edge centers and the black center. To dominate a face center, we need it to be red or one of its 4 edge center neighbors to be red. 
+
+If we have 4 red edge centers (for corners), do they dominate all 6 face centers? Let's check with the example: (0,0,1), (0,2,1), (2,0,1), (2,2,1).
+- Face center (0,1,1): adjacent to (0,0,1) ✓ and (0,2,1) ✓
+- Face center (1,0,1): adjacent to (0,0,1) ✓ and (2,0,1) ✓
+- Face center (1,1,0): adjacent to... (0,1,0), (2,1,0), (1,0,0), (1,2,0). None of our 4 red edge centers. ✗
+- Face center (1,1,2): adjacent to (0,1,2), (2,1,2), (1,0,2), (1,2,2). None. ✗
+- Face center (1,2,1): adjacent to (0,2,1) ✓ and (2,2,1) ✓
+- Face center (2,1,1): adjacent to (2,0,1) ✓ and (2,2,1) ✓
+
+So 4 face centers are dominated, 2 are not. We need 2 more red cells for those 2 face centers (either the face centers themselves or their edge center neighbors).
+
+Also, we need to check if all edge centers are dominated. With 4 red edge centers (0,0,1), (0,2,1), (2,0,1), (2,2,1) and 6 face centers... wait, the face centers aren't red in this scenario. Let me reconsider.
+
+If we use 4 red edge centers + 2 red face centers (for the undominated ones), that's 6. But we also need to dominate the remaining edge centers.
+
+Let me reconsider. With red cells = {(0,0,1), (0,2,1), (2,0,1), (2,2,1), (1,1,0), (1,1,2)}:
+- Corners: all 8 dominated by the 4 edge centers ✓
+- Face centers: (0,1,1) by (0,0,1) or (0,2,1) ✓, (1,0,1) by (0,0,1) or (2,0,1) ✓, (1,1,0) is red ✓, (1,1,2) is red ✓, (1,2,1) by (0,2,1) or (2,2,1) ✓, (2,1,1) by (2,0,1) or (2,2,1) ✓
+- Edge centers: (0,0,1) red ✓, (0,2,1) red ✓, (2,0,1) red ✓, (2,2,1) red ✓, (0,1,0) by (1,1,0) ✓, (0,1,2) by (1,1,2) ✓, (2,1,0) by (1,1,0) ✓, (2,1,2) by (1,1,2) ✓, (1,0,0) by (1,1,0) ✓, (1,0,2) by (1,1,2) ✓, (1,2,0) by (1,1,0) ✓, (1,2,2) by (1,1,2) ✓
+
+So all 26 white cells are dominated with 6 red cells! Let me double-check.
+
+Red cells: (0,0,1), (0,2,1), (2,0,1), (2,2,1), (1,1,0), (1,1,2).
+
+Corners:
+- (0,0,0): neighbors (1,0,0), (0,1,0), (0,0,1)✓ → dominated
+- (0,0,2): neighbors (1,0,2), (0,1,2), (0,0,1)✓ → dominated
+- (0,2,0): neighbors (1,2,0), (0,1,0), (0,2,1)✓ → dominated
+- (0,2,2): neighbors (1,2,2), (0,1,2), (0,2,1)✓ → dominated
+- (2,0,0): neighbors (1,0,0), (2,1,0), (2,0,1)✓ → dominated
+- (2,0,2): neighbors (1,0,2), (2,1,2), (2,0,1)✓ → dominated
+- (2,2,0): neighbors (1,2,0), (2,1,0), (2,2,1)✓ → dominated
+- (2,2,2): neighbors (1,2,2), (2,1,2), (2,2,1)✓ → dominated
+
+All corners dominated ✓.
+
+Face centers:
+- (0,1,1): neighbors (0,0,1)✓, (0,2,1)✓, (0,1,0), (0,1,2), (1,1,1)black → dominated
+- (1,0,1): neighbors (0,0,1)✓, (2,0,1)✓, (1,0,0), (1,0,2), (1,1,1)black → dominated
+- (1,1,0): red ✓
+- (1,1,2): red ✓
+- (1,2,1): neighbors (0,2,1)✓, (2,2,1)✓, (1,2,0), (1,2,2), (1,1,1)black → dominated
+- (2,1,1): neighbors (2,0,1)✓, (2,2,1)✓, (2,1,0), (2,1,2), (1,1,1)black → dominated
+
+All face centers dominated ✓.
+
+Edge centers:
+- (0,0,1): red ✓
+- (0,2,1): red ✓
+- (2,0,1): red ✓
+- (2,2,1): red ✓
+- (0,1,0): neighbors (0,0,0), (0,2,0), (0,1,1), (1,1,0)✓ → dominated
+- (0,1,2): neighbors (0,0,2), (0,2,2), (0,1,1), (1,1,2)✓ → dominated
+- (2,1,0): neighbors (2,0,0), (2,2,0), (2,1,1), (1,1,0)✓ → dominated
+- (2,1,2): neighbors (2,0,2), (2,2,2), (2,1,1), (1,1,2)✓ → dominated
+- (1,0,0): neighbors (0,0,0), (2,0,0), (1,0,1), (1,1,0)✓ → dominated
+- (1,0,2): neighbors (0,0,2), (2,0,2), (1,0,1), (1,1,2)✓ → dominated
+- (1,2,0): neighbors (0,2,0), (2,2,0), (1,2,1), (1,1,0)✓ → dominated
+- (1,2,2): neighbors (0,2,2), (2,2,2), (1,2,1), (1,1,2)✓ → dominated
+
+All edge centers dominated ✓.
+
+So 6 red cells suffice for n=1. Can we do with 5?
+
+Let me think about a lower bound. We have 26 white cells. Each red cell dominates at most 5 cells (itself + 4 neighbors, since the center is black and not a neighbor in the white subgraph for face centers; actually, let me think about max degree).
+
+In the induced subgraph on white cells:
+- Face centers have degree 4 (lost the center neighbor)
+- Edge centers have degree 4
+- Corners have degree 3
+
+So each red cell dominates at most 5 cells (itself + 4 neighbors). With 5 red cells, we can dominate at most 25 cells. But we have 26 white cells. So 5 is not enough! We need at least 6.
+
+Wait, but some cells might be dominated by multiple red cells, so the bound is: 5 red cells dominate at most 5×5 = 25 cells, but we need 26. So 5 is not enough, and 6 is the minimum for n=1.
+
+Great, so for n=1, the answer is 6.
+
+Now, can we generalize? For general n, the answer should be 6n³? No wait, that can't be right because neighboring blocks can help dominate each other.
+
+Hmm, let me reconsider. For n=1, the answer is 6. For general n, we have n³ blocks, and the blocks interact at boundaries.
+
+Let me think about the structure. In each 3×3×3 block, we used 6 red cells. But when blocks are adjacent, cells on the boundary of one block are adjacent to cells on the boundary of the neighboring block. So a red cell in one block might dominate white cells in a neighboring block, allowing us to use fewer red cells overall.
+
+But also, the black cell position matters. Let me assume the black cell is at the center (1,1,1) of each block for now.
+
+Actually, wait. The problem says "use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube." It doesn't specify where the black cube goes. Then "use n³ such cubes to form a cube with edge length 3n." I think "such cubes" means identical 3×3×3 cubes, so the black cube is in the same position in each.
+
+The problem asks for the minimum number of white cubes to paint red. This minimum might depend on where the black cube is. But the problem seems to ask for a single answer in terms of n. So either:
+1. The answer is the same regardless of black cube position, or
+2. The problem is asking for the minimum over all possible black cube positions, or
+3. The black cube position is fixed (maybe center?) and the answer depends on it.
+
+I think the problem is asking: given the configuration (with the black cube in some fixed but unspecified position, same in each block), what is the minimum number of white cubes to paint red? And the answer should work for any position of the black cube, or the answer is the same for all positions.
+
+Let me check: does the answer for n=1 depend on the black cube position?
+
+If the black cube is at a corner, say (0,0,0): then the white cells are all except (0,0,0). The cell (0,0,0) had degree 3, so removing it doesn't disconnect anything. The remaining 26 cells: (0,0,0)'s neighbors were (1,0,0), (0,1,0), (0,0,1), which now have degree 4 instead of 5 (they lost a neighbor). The center (1,1,1) now has degree 6 (all neighbors are white). 
+
+Max degree is now 6 (the center). So a red cell at the center dominates 7 cells. With 4 red cells, we could dominate at most 28 > 26. But can we actually do it with 4?
+
+Let me try. Black at (0,0,0). 
+Red at center (1,1,1): dominates (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2) = 7 cells.
+Remaining: 26 - 7 = 19 cells. These are: 8 corners minus (0,0,0) = 7 corners, 12 edge centers, 6 face centers minus 6 already dominated = 0 face centers... wait, the face centers (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2) are all dominated by the center. So remaining are 7 corners + 12 edge centers = 19 cells.
+
+Now I need to dominate these 19 cells with additional red cells. The 7 corners: (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2). Each has 3 neighbors (edge centers). The 12 edge centers each have 4 or 5 neighbors.
+
+This is getting complex. Let me just focus on the case where the black cube is at the center, since that seems most natural and symmetric.
+
+Actually, I realize the problem might have a clean answer. Let me think about it more carefully.
+
+For the center-black case with n=1, we got 6. Let me think about what happens for general n.
+
+The 3n × 3n × 3n grid with black cells at (3i+1, 3j+1, 3k+1). The white cells form a graph. We need the minimum dominating set.
+
+Let me think about a lower bound. Consider the 3×3×3 blocks. In each block, the center is black. The 8 corners of each block: each corner is adjacent to 3 edge-centers within the block, and potentially to cells in neighboring blocks.
+
+Wait, a corner of a block at position (3i, 3j, 3k) (the (0,0,0) corner of block (i,j,k)): its neighbors are (3i+1, 3j, 3k), (3i, 3j+1, 3k), (3i, 3j, 3k+1) - all within the same block. But also, if i > 0, then (3i-1, 3j, 3k) is a neighbor, which is in block (i-1, j, k). 
+
+So corners of blocks on the interior are adjacent to cells in neighboring blocks. This means a red cell in one block can dominate corners of adjacent blocks.
+
+Hmm, this makes the problem more complex. Let me think about it differently.
+
+Let me consider the "interior" cells of each block - cells that are only adjacent to cells within the same block. The center (1,1,1) is black. The face centers (0,1,1), (2,1,1), etc. are adjacent to the center and to edge centers within the block, and also to face centers of neighboring blocks (if on the boundary). 
+
+Actually, face center (0,1,1) of block (i,j,k) is at position (3i, 3j+1, 3k+1). Its neighbors are (3i+1, 3j+1, 3k+1)=center of same block (black), (3i-1, 3j+1, 3k+1)=face center (2,1,1) of block (i-1,j,k) if i>0, (3i, 3j, 3k+1), (3i, 3j+2, 3k+1), (3i, 3j+1, 3k), (3i, 3j+1, 3k+2). So it's adjacent to cells in the same block and potentially a neighboring block.
+
+This is getting very complex. Let me try a different approach.
+
+Let me think about the problem in terms of a periodic structure. The 3n × 3n × 3n grid with period-3 black cells. The white cells form a periodic graph (with period 3 in each direction, and the pattern repeats n times).
+
+For the minimum dominating set, by the periodicity, the optimal solution might also be periodic (with period 3). If so, the answer would be 6n³ (since each period-3 cell has n³ copies, and we use 6 out of 26 non-black classes per period).
+
+But wait, the boundary effects might change things. For large n, the boundary is negligible, and the answer should be approximately 6n³. But for the exact answer, we need to account for boundaries.
+
+Hmm, but actually, the problem says "form a cube with edge length 3n", so the grid is 3n × 3n × 3n, which has boundaries. The boundary cells have fewer neighbors, which might make domination easier or harder.
+
+Let me reconsider. For n=1, the answer is 6 = 6·1³. Let me check n=2.
+
+For n=2, the grid is 6×6×6 with 8 black cells at positions (1,1,1), (1,1,4), (1,4,1), (1,4,4), (4,1,1), (4,1,4), (4,4,1), (4,4,4). Total cells: 216. Black: 8. White: 208.
+
+If the answer is 6n³ = 48, that's a lot. But maybe boundary effects help.
+
+Actually, let me reconsider the problem. Maybe the answer isn't 6n³. Let me think about what happens at block boundaries.
+
+Consider two adjacent blocks in the x-direction: block (0,0,0) and block (1,0,0). The boundary between them is at x=2 and x=3. Cell (2,1,1) is a face center of block 0, and cell (3,1,1) is a face center of block 1. These two are adjacent. 
+
+In our n=1 solution, we used red cells at (0,0,1), (0,2,1), (2,0,1), (2,2,1), (1,1,0), (1,1,2) within each block. For two adjacent blocks, the red cells near the boundary might interact.
+
+But actually, for the n=1 solution, the 6 red cells per block were chosen to dominate all 26 white cells in that block. When blocks are adjacent, some white cells near the boundary might be dominated by red cells in the neighboring block, potentially allowing us to remove some red cells.
+
+But also, the boundary of the entire 3n × 3n × 3n cube has cells with fewer neighbors, which might require more red cells or might make things easier.
+
+This is quite complex. Let me try to think about it from a higher level.
+
+Actually, let me reconsider the problem statement. It says "use n³ such cubes to form a cube with edge length 3n." So we're tiling n³ small cubes (each 3×3×3) into a big n×n×n arrangement, forming a 3n × 3n × 3n cube. The black cube is in the same position in each small cube.
+
+The question asks for the minimum number of white unit cubes to paint red. I believe the answer should be in terms of n.
+
+Let me think about whether the answer depends on the position of the black cube. 
+
+For n=1:
+- Black at center (1,1,1): answer is 6 (as computed above)
+- Black at corner (0,0,0): let me compute
+
+Black at (0,0,0). The 26 white cells. Max degree is 6 (center (1,1,1)). 
+
+Can we dominate with 4 red cells? 4 × 7 = 28 ≥ 26, so it's possible in principle.
+
+Try: red at (1,1,1) [dominates 7: (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2)], red at (2,2,2) [dominates (2,2,2), (1,2,2), (2,1,2), (2,2,1)], red at (0,0,2) [dominates (0,0,2), (0,0,1), (0,1,2)], red at (2,0,0) [dominates (2,0,0), (1,0,0), (2,1,0)].
+
+Dominated so far: (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2), (2,2,2), (1,2,2), (2,1,2), (2,2,1), (0,0,2), (0,0,1), (0,1,2), (2,0,0), (1,0,0), (2,1,0). That's 17 cells.
+
+Remaining: 26 - 17 = 9 cells: (0,2,0), (0,2,1), (0,2,2), (2,0,1), (2,0,2), (0,1,0), (1,0,2), (1,2,0), (2,2,0).
+
+Can one more red cell dominate all 9? No, max is 7. So 4 is not enough with this configuration. Let me try a different configuration.
+
+Actually, let me try to be more systematic. With black at (0,0,0):
+
+The 26 white cells. Let me try 5 red cells.
+
+Actually, the max degree is 6 (center), so 5 red cells can dominate at most 35 cells, but with overlaps, it might not cover 26. Let me try.
+
+Red at (1,1,1): dominates 7 cells.
+Red at (2,2,2): dominates 4 cells (corner, degree 3).
+Red at (0,2,0): dominates 4 cells (corner, degree 3).
+Red at (2,0,2): dominates 4 cells.
+Red at (0,0,2): wait, (0,0,2) is a corner with neighbors (1,0,2), (0,1,2), (0,0,1). But (0,0,0) is black. So degree 3. Dominates 4 cells.
+
+Hmm, let me try a different approach. Let me use the center and some face centers.
+
+Red at (1,1,1): dominates (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2). [7 cells]
+Red at (2,1,1): dominates (2,1,1), (1,1,1)✓, (2,0,1), (2,2,1), (2,1,0), (2,1,2). New: (2,0,1), (2,2,1), (2,1,0), (2,1,2). [4 new]
+Red at (0,1,1): dominates (0,1,1)✓, (1,1,1)✓, (0,0,1), (0,2,1), (0,1,0), (0,1,2). New: (0,0,1), (0,2,1), (0,1,0), (0,1,2). [4 new]
+Red at (1,1,0): dominates (1,1,0)✓, (0,1,0)✓, (2,1,0)✓, (1,0,0), (1,2,0). New: (1,0,0), (1,2,0). [2 new]
+Red at (1,1,2): dominates (1,1,2)✓, (0,1,2)✓, (2,1,2)✓, (1,0,2), (1,2,2). New: (1,0,2), (1,2,2). [2 new]
+
+Total dominated: 7 + 4 + 4 + 2 + 2 = 19. Remaining: 26 - 19 = 7 cells: (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2). These are 7 of the 8 corners (missing (0,0,0) which is black).
+
+Each of these corners has 3 neighbors, all of which are already dominated but not red. So we need more red cells to dominate these corners. Each additional red cell (an edge center) can dominate 2 corners. So we need at least 4 more (⌈7/2⌉ = 4). Total: 5 + 4 = 9. That's worse than the center-black case.
+
+Hmm, but maybe a different strategy works better. Let me try:
+
+Red at (1,1,1): 7 cells.
+Red at (0,0,2): dominates (0,0,2), (0,0,1), (0,1,2), (1,0,2). [4 new: (0,0,2), (0,0,1), (0,1,2), (1,0,2)]
+Wait, (0,0,2) neighbors: (1,0,2), (0,1,2), (0,0,1). And (0,0,0) is black. So degree 3, dominates 4 cells. But (0,0,1) and (0,1,2) might already be dominated by (1,1,1)? No, (0,0,1) is not adjacent to (1,1,1). (0,1,2) is not adjacent to (1,1,1). So new: (0,0,2), (0,0,1), (0,1,2), (1,0,2). [4 new]
+
+Red at (2,2,0): neighbors (1,2,0), (2,1,0), (2,2,1). Degree 3 (since (2,2,0) is a corner... wait, is it? (2,2,0) in a 3×3×3 grid: x=2, y=2, z=0. Neighbors: (1,2,0), (2,1,0), (2,2,1). And (3,2,0) doesn't exist. So degree 3. Dominates: (2,2,0), (1,2,0), (2,1,0), (2,2,1). Are any already dominated? (1,2,0) is not dominated by (1,1,1) (not adjacent). (2,1,0) is not adjacent to (1,1,1). (2,2,1) is not adjacent to (1,1,1). So 4 new.
+
+Red at (0,2,2): neighbors (1,2,2), (0,1,2)✓, (0,2,1). Dominates: (0,2,2), (1,2,2), (0,2,1). (0,1,2) already dominated. 3 new.
+
+Red at (2,0,0): neighbors (1,0,0), (2,1,0)✓, (2,0,1). Dominates: (2,0,0), (1,0,0), (2,0,1). (2,1,0) already dominated. 3 new.
+
+Total: 7 + 4 + 4 + 3 + 3 = 21. Remaining: 26 - 21 = 5: (0,2,0), (2,0,2), (0,1,0), (1,2,1), (2,1,2)... let me list all 26 and check.
+
+All 26 white cells (excluding (0,0,0)):
+Corners: (0,0,2)✓, (0,2,0)?, (0,2,2)✓, (2,0,0)✓, (2,0,2)?, (2,2,0)✓, (2,2,2)?
+Edge centers: (0,0,1)✓, (0,1,0)?, (0,1,2)✓, (0,2,1)✓, (1,0,0)✓, (1,0,2)✓, (1,2,0)✓, (1,2,2)✓, (2,0,1)✓, (2,1,0)✓, (2,1,2)?, (2,2,1)✓
+Face centers: (0,1,1)✓, (1,0,1)✓, (1,1,0)✓, (1,1,2)✓, (1,2,1)?, (2,1,1)✓
+Center: (1,1,1)✓
+
+Remaining: (0,2,0), (2,0,2), (2,2,2), (0,1,0), (2,1,2), (1,2,1). That's 6 cells.
+
+Can one more red cell dominate all 6? No. So we need at least 2 more. Total: 5 + 2 = 7. 
+
+Hmm, this is worse than the center-black case (6). So the answer does depend on the black cube position!
+
+Wait, but maybe I'm not finding the optimal solution for the corner-black case. Let me try harder.
+
+Actually, let me reconsider. For the corner-black case, the center (1,1,1) has degree 6 (all neighbors white). So it's a very powerful dominator. Let me try using it and then being smart about the rest.
+
+Red at (1,1,1): dominates (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2). [7]
+
+Remaining 19: 7 corners + 12 edge centers.
+
+Now, the 7 corners each have 3 neighbors (edge centers). The 12 edge centers each have 4 neighbors (other edge centers, face centers, corners).
+
+Let me think about which edge centers to make red. An edge center dominates itself + its neighbors. Let me see which cells each edge center dominates (among the remaining 19):
+
+(0,0,1): neighbors (1,0,1)✓, (0,0,2), (0,1,1)✓. Among remaining: (0,0,2). Dominates: (0,0,1), (0,0,2). [2 new from remaining]
+(0,1,0): neighbors (0,0,0)black, (0,2,0), (0,1,1)✓, (1,1,0)✓. Among remaining: (0,2,0). Dominates: (0,1,0), (0,2,0). [2]
+(0,1,2): neighbors (0,0,2), (0,2,2), (0,1,1)✓, (1,1,2)✓. Among remaining: (0,0,2), (0,2,2). Dominates: (0,1,2), (0,0,2), (0,2,2). [3]
+(0,2,1): neighbors (0,2,0), (0,2,2), (0,1,1)✓, (1,2,1)✓. Among remaining: (0,2,0), (0,2,2). Dominates: (0,2,1), (0,2,0), (0,2,2). [3]
+(1,0,0): neighbors (0,0,0)black, (2,0,0), (1,0,1)✓, (1,1,0)✓. Among remaining: (2,0,0). Dominates: (1,0,0), (2,0,0). [2]
+(1,0,2): neighbors (0,0,2), (2,0,2), (1,0,1)✓, (1,1,2)✓. Among remaining: (0,0,2), (2,0,2). Dominates: (1,0,2), (0,0,2), (2,0,2). [3]
+(1,2,0): neighbors (0,2,0), (2,2,0), (1,2,1)✓, (1,1,0)✓. Among remaining: (0,2,0), (2,2,0). Dominates: (1,2,0), (0,2,0), (2,2,0). [3]
+(1,2,2): neighbors (0,2,2), (2,2,2), (1,2,1)✓, (1,1,2)✓. Among remaining: (0,2,2), (2,2,2). Dominates: (1,2,2), (0,2,2), (2,2,2). [3]
+(2,0,1): neighbors (2,0,0), (2,0,2), (2,1,1)✓, (1,0,1)✓. Among remaining: (2,0,0), (2,0,2). Dominates: (2,0,1), (2,0,0), (2,0,2). [3]
+(2,1,0): neighbors (2,0,0), (2,2,0), (2,1,1)✓, (1,1,0)✓. Among remaining: (2,0,0), (2,2,0). Dominates: (2,1,0), (2,0,0), (2,2,0). [3]
+(2,1,2): neighbors (2,0,2), (2,2,2), (2,1,1)✓, (1,1,2)✓. Among remaining: (2,0,2), (2,2,2). Dominates: (2,1,2), (2,0,2), (2,2,2). [3]
+(2,2,1): neighbors (2,2,0), (2,2,2), (2,1,1)✓, (1,2,1)✓. Among remaining: (2,2,0), (2,2,2). Dominates: (2,2,1), (2,2,0), (2,2,2). [3]
+
+So the remaining 19 cells are 7 corners + 12 edge centers. Each edge center dominates itself + 2 corners (from the remaining). Each corner dominates itself + 3 edge centers.
+
+To dominate the 7 corners, using edge centers: each edge center covers 2 corners. So we need at least ⌈7/2⌉ = 4 edge centers. But we also need to dominate the edge centers themselves.
+
+If we pick 4 edge centers that cover all 7 corners, and these 4 edge centers also dominate the remaining 8 edge centers, then 4 suffices (total 1 + 4 = 5).
+
+The 7 corners: (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2).
+
+Edge centers and the corners they cover:
+(0,0,1)→(0,0,2); (0,1,0)→(0,2,0); (0,1,2)→(0,0,2),(0,2,2); (0,2,1)→(0,2,0),(0,2,2); (1,0,0)→(2,0,0); (1,0,2)→(0,0,2),(2,0,2); (1,2,0)→(0,2,0),(2,2,0); (1,2,2)→(0,2,2),(2,2,2); (2,0,1)→(2,0,0),(2,0,2); (2,1,0)→(2,0,0),(2,2,0); (2,1,2)→(2,0,2),(2,2,2); (2,2,1)→(2,2,0),(2,2,2).
+
+We need to cover 7 corners with 4 edge centers (each covering 2). Since 4×2=8≥7, it's possible if we can find a matching-like cover.
+
+Try: (0,1,2)→(0,0,2),(0,2,2); (1,2,0)→(0,2,0),(2,2,0); (2,0,1)→(2,0,0),(2,0,2); (2,2,1)→(2,2,0)✓,(2,2,2). Wait, (2,2,0) is already covered by (1,2,0). So (2,2,1) covers (2,2,0) [already] and (2,2,2) [new]. 
+
+Covered: (0,0,2), (0,2,2), (0,2,0), (2,2,0), (2,0,0), (2,0,2), (2,2,2). That's all 7! ✓
+
+Now check if these 4 edge centers dominate the remaining 8 edge centers:
+Red edge centers: (0,1,2), (1,2,0), (2,0,1), (2,2,1).
+Remaining edge centers: (0,0,1), (0,1,0), (0,2,1), (1,0,0), (1,0,2), (1,2,2), (2,1,0), (2,1,2).
+
+Are these dominated by the red edge centers?
+(0,0,1): neighbors (1,0,1)✓face, (0,0,2)corner, (0,1,1)✓face. Not adjacent to any red edge center. Is it adjacent to (0,1,2)? (0,0,1) and (0,1,2): differ in y by 1 and z by 1. Not adjacent (adjacency requires exactly one coordinate differs by 1). So (0,0,1) is NOT dominated. ✗
+
+So this doesn't work. We need the red edge centers to also dominate the non-red edge centers.
+
+Let me check adjacency between edge centers. Two edge centers are adjacent if they differ in exactly one coordinate by 1.
+
+(0,0,1) is adjacent to: (1,0,1)face, (0,0,2)corner, (0,1,1)face. Wait, (0,0,1) neighbors: (1,0,1), (0,0,0)black, (0,1,1), (0,0,2). So among edge centers, (0,0,1) is not adjacent to any other edge center! Its neighbors are 2 face centers, 1 corner, and 1 black cell.
+
+Hmm, so edge centers are only adjacent to face centers, corners, and the center - not to other edge centers. Let me verify: (0,1,2) neighbors: (1,1,2)face, (0,0,2)corner, (0,2,2)corner, (0,1,1)face. Yes, edge centers are adjacent to face centers and corners, not other edge centers.
+
+So to dominate an edge center, we need either the edge center itself to be red, or one of its adjacent face centers to be red, or one of its adjacent corners to be red.
+
+The face centers are all dominated by (1,1,1) but they're not red. So to dominate non-red edge centers, we need either the edge center itself to be red, or an adjacent corner to be red.
+
+In our setup, the red cells are (1,1,1) and 4 edge centers. The corners are not red. So non-red edge centers can only be dominated if they're adjacent to a red edge center - but we just showed edge centers aren't adjacent to each other. So non-red edge centers are NOT dominated. ✗
+
+So we need to either make some corners red, or make some face centers red, or make more edge centers red.
+
+If we make a face center red, it can dominate edge centers. For example, (0,1,1) is adjacent to edge centers (0,0,1), (0,2,1), (0,1,0), (0,1,2). So making (0,1,1) red would dominate 4 edge centers.
+
+Let me reconsider the strategy. Instead of (1,1,1) + 4 edge centers, let me try (1,1,1) + some face centers + some edge centers.
+
+Red at (1,1,1): 7 cells (center + 6 face centers).
+Red at (0,1,1): dominates (0,1,1)✓, (1,1,1)✓, (0,0,1), (0,2,1), (0,1,0), (0,1,2). New: (0,0,1), (0,2,1), (0,1,0), (0,1,2). [4 new]
+Red at (2,1,1): dominates (2,1,1)✓, (1,1,1)✓, (2,0,1), (2,2,1), (2,1,0), (2,1,2). New: (2,0,1), (2,2,1), (2,1,0), (2,1,2). [4 new]
+Red at (1,0,1): dominates (1,0,1)✓, (1,1,1)✓, (0,0,1)✓, (2,0,1)✓, (1,0,0), (1,0,2). New: (1,0,0), (1,0,2). [2 new]
+Red at (1,2,1): dominates (1,2,1)✓, (1,1,1)✓, (0,2,1)✓, (2,2,1)✓, (1,2,0), (1,2,2). New: (1,2,0), (1,2,2). [2 new]
+
+Total: 7 + 4 + 4 + 2 + 2 = 19. Remaining: 26 - 19 = 7 corners: (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2).
+
+These 7 corners are not dominated. Each has 3 edge center neighbors, all of which are dominated but not red. So we need more red cells. Each additional red edge center dominates 2 corners. Need ⌈7/2⌉ = 4. Total: 5 + 4 = 9. Worse.
+
+Alternatively, make some corners red. A red corner dominates itself + 3 edge centers. But the edge centers are already dominated. So a red corner only helps dominate 1 corner (itself). So making corners red is inefficient for dominating other corners.
+
+What if we use (1,1,0) and (1,1,2) as red instead of some face centers?
+
+Red at (1,1,1): 7 cells.
+Red at (1,1,0): dominates (1,1,0)✓, (0,1,0), (2,1,0), (1,0,0), (1,2,0). New: (0,1,0), (2,1,0), (1,0,0), (1,2,0). [4 new]
+Red at (1,1,2): dominates (1,1,2)✓, (0,1,2), (2,1,2), (1,0,2), (1,2,2). New: (0,1,2), (2,1,2), (1,0,2), (1,2,2). [4 new]
+Red at (0,1,1): new: (0,0,1), (0,2,1), (0,1,0)✓, (0,1,2)✓. New: (0,0,1), (0,2,1). [2 new]
+Red at (2,1,1): new: (2,0,1), (2,2,1), (2,1,0)✓, (2,1,2)✓. New: (2,0,1), (2,2,1). [2 new]
+
+Total: 7 + 4 + 4 + 2 + 2 = 19. Same as before. Remaining 7 corners. Need 4 more. Total 9.
+
+Hmm. It seems like for the corner-black case, we need more than 6. Let me try a completely different approach.
+
+What if we don't use the center?
+
+Try 6 red cells without the center:
+Red at (0,1,1): dominates (0,1,1), (1,1,1), (0,0,1), (0,2,1), (0,1,0), (0,1,2). [6]
+Red at (2,1,1): dominates (2,1,1), (1,1,1)✓, (2,0,1), (2,2,1), (2,1,0), (2,1,2). [5 new]
+Red at (1,0,1): dominates (1,0,1), (1,1,1)✓, (0,0,1)✓, (2,0,1)✓, (1,0,0), (1,0,2). [3 new]
+Red at (1,2,1): dominates (1,2,1), (1,1,1)✓, (0,2,1)✓, (2,2,1)✓, (1,2,0), (1,2,2). [3 new]
+Red at (1,1,0): dominates (1,1,0), (1,1,1)✓, (0,1,0)✓, (2,1,0)✓, (1,0,0)✓, (1,2,0)✓. [1 new: (1,1,0)]
+Red at (1,1,2): dominates (1,1,2), (1,1,1)✓, (0,1,2)✓, (2,1,2)✓, (1,0,2)✓, (1,2,2)✓. [1 new: (1,1,2)]
+
+Total: 6 + 5 + 3 + 3 + 1 + 1 = 19. Remaining 7 corners again. Need 4 more. Total 10.
+
+This is even worse. The problem is that the 7 corners are hard to dominate.
+
+Let me try using edge centers that cover corners:
+
+Red at (0,1,2): dominates (0,1,2), (1,1,2), (0,0,2), (0,2,2), (0,1,1). [5]
+Red at (0,2,1): dominates (0,2,1), (1,2,1), (0,2,0), (0,2,2)✓, (0,1,1)✓. [3 new: (0,2,1), (1,2,1), (0,2,0)]
+Red at (1,2,0): dominates (1,2,0), (0,2,0)✓, (2,2,0), (1,2,1)✓, (1,1,0). [3 new: (1,2,0), (2,2,0), (1,1,0)]
+Red at (2,2,1): dominates (2,2,1), (1,2,1)✓, (2,2,0)✓, (2,2,2), (2,1,1). [3 new: (2,2,1), (2,2,2), (2,1,1)]
+Red at (2,0,1): dominates (2,0,1), (1,0,1), (2,0,0), (2,0,2), (2,1,1)✓. [4 new: (2,0,1), (1,0,1), (2,0,0), (2,0,2)]
+Red at (1,0,2): dominates (1,0,2), (0,0,2)✓, (2,0,2)✓, (1,0,1)✓, (1,1,2). [2 new: (1,0,2), (1,1,2)]
+
+Total: 5 + 3 + 3 + 3 + 4 + 2 = 20. Remaining: 26 - 20 = 6.
+
+Which 6? Let me list all 26:
+Corners: (0,0,2)✓, (0,2,0)✓, (0,2,2)✓, (2,0,0)✓, (2,0,2)✓, (2,2,0)✓, (2,2,2)✓. All 7 dominated!
+Edge centers: (0,0,1)?, (0,1,0)?, (0,1,2)✓, (0,2,1)✓, (1,0,0)?, (1,0,2)✓, (1,2,0)✓, (1,2,2)?, (2,0,1)✓, (2,1,0)?, (2,1,2)?, (2,2,1)✓
+Face centers: (0,1,1)✓, (1,0,1)✓, (1,1,0)✓, (1,1,2)✓, (1,2,1)✓, (2,1,1)✓
+Center: (1,1,1)?
+
+Remaining: (0,0,1), (0,1,0), (1,0,0), (1,2,2), (2,1,0), (2,1,2), (1,1,1). That's 7, not 6. Let me recheck.
+
+Wait, I need to check if (1,1,1) is dominated. (1,1,1) neighbors: (0,1,1)✓red? No, (0,1,1) is dominated but not red. (2,1,1) is dominated but not red. (1,0,1)✓ not red. (1,2,1)✓ not red. (1,1,0)✓ not red. (1,1,2)✓ not red. So (1,1,1) is NOT dominated (none of its neighbors are red, and it's not red itself).
+
+So remaining: (0,0,1), (0,1,0), (1,0,0), (1,2,2), (2,1,0), (2,1,2), (1,1,1). 7 cells.
+
+Can we dominate these 7 with 1 more red cell? (1,1,1) is adjacent to all 6 face centers, none of which are in the remaining set. So (1,1,1) can only be dominated by making it red or making a face center red. 
+
+If we make (1,1,1) red: it dominates itself + 6 face centers (already dominated). So only (1,1,1) is newly dominated. Remaining 6: (0,0,1), (0,1,0), (1,0,0), (1,2,2), (2,1,0), (2,1,2). Need more.
+
+If we make a face center red, say (0,1,1): dominates (0,1,1)✓, (1,1,1), (0,0,1), (0,2,1)✓, (0,1,0), (0,1,2)✓. New: (1,1,1), (0,0,1), (0,1,0). Remaining: (1,0,0), (1,2,2), (2,1,0), (2,1,2). 4 cells, need at least 2 more (each can dominate at most... (1,0,0) neighbors: (2,0,0)✓not red, (0,0,0)black, (1,0,1)✓not red, (1,1,0)✓not red. So (1,0,0) can only be dominated by making it red or making (2,0,0), (1,0,1), or (1,1,0) red. But (2,0,0) is a corner, (1,0,1) and (1,1,0) are face centers. Hmm.
+
+This is getting really complicated. Let me step back and think about whether the answer really depends on the black cube position.
+
+Actually, I wonder if the problem is asking for the minimum over all possible positions of the black cube. That is, we get to choose where the black cube goes (same position in each 3×3×3 block), and then we paint red, and we want the minimum total.
+
+Or maybe the problem is asking: for any position of the black cube, what is the minimum? And the answer is the same regardless.
+
+Let me reconsider. For n=1, center-black gives 6. For corner-black, I'm getting more than 6 (maybe 7 or 8). So the answer does depend on the position.
+
+Hmm, but the problem says "use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube." This just says we form a 3×3×3 cube with 26 white and 1 black. The position of the black cube is not specified. Then "use n³ such cubes to form a cube with edge length 3n." 
+
+I think the problem is asking: what is the minimum number of white cubes to paint red, where the minimum is over all possible positions of the black cube (same in each small cube) and all possible choices of which white cubes to paint red?
+
+No wait, that doesn't make sense either. The black cube position is given (it's part of the construction). The question is just about painting red.
+
+Actually, re-reading: "Use 26 white unit cubes and 1 black unit cube to form a 3×3×3 cube." This describes the construction. The black cube can be anywhere. "Then use n³ such cubes to form a cube with edge length 3n." So we have n³ identical 3×3×3 cubes. "Question: What is the minimum number of white unit cubes that need to be painted red so that each remaining white unit cube is adjacent to at least one red unit cube?"
+
+I think the problem is asking for the answer in terms of n, and the answer should be the same regardless of where the black cube is. Or perhaps the problem is asking for the worst case (maximum over black cube positions of the minimum dominating set), or the best case.
+
+Actually, I think the most natural reading is: the black cube is in some fixed position (we don't control it), and we need to find the minimum number of white cubes to paint red. The answer should be in terms of n and should work for any position of the black cube. Or perhaps the answer is the same for all positions.
+
+But we showed that for n=1, center-black gives 6 and corner-black gives more. So the answer isn't the same for all positions.
+
+Hmm, let me reconsider. Maybe I'm wrong about the corner-black case. Let me try harder to find a 6-cell dominating set for corner-black.
+
+Black at (0,0,0). 26 white cells. Can we dominate with 6?
+
+The center (1,1,1) has degree 6. If we use it, it dominates 7 cells. Then we need to dominate 19 more with 5 cells. Each additional cell dominates at most 5 new cells (if it's a face center with degree 5... wait, in the corner-black case, face centers have degree 5 (they didn't lose a neighbor since the black cell is a corner, not the center). Let me recheck.
+
+Face center (0,1,1): neighbors (1,1,1), (0,0,1), (0,2,1), (0,1,0), (0,1,2). All white. Degree 5. ✓
+Face center (1,0,1): neighbors (1,1,1), (0,0,1), (2,0,1), (1,0,0), (1,0,2). All white. Degree 5. ✓
+Face center (1,1,0): neighbors (1,1,1), (0,1,0), (2,1,0), (1,0,0), (1,2,0). All white. Degree 5. ✓
+
+So face centers have degree 5 in the corner-black case (vs degree 4 in center-black case). Edge centers: (0,0,1) has neighbors (1,0,1), (0,0,0)black, (0,1,1), (0,0,2). Degree 3 (lost one to black). Other edge centers not adjacent to (0,0,0) have degree 4.
+
+So in corner-black case:
+- Center: degree 6
+- Face centers: degree 5
+- Edge centers adjacent to black corner: degree 3 (these are (0,0,1), (0,1,0), (1,0,0))
+- Other edge centers: degree 4
+- Corners: degree 3
+
+Max domination per red cell: 7 (center), 6 (face center), 5 (edge center not adj to black), 4 (corner or edge center adj to black).
+
+With 6 red cells, max dominated = 6 × 7 = 42 >> 26. So the counting bound doesn't rule out 6.
+
+Let me try to find a 6-cell dominating set for corner-black.
+
+Red at (1,1,1): dominates (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2). [7]
+
+Remaining 19: 7 corners + 12 edge centers.
+
+Now I need 5 red cells to dominate 19 cells. Each can dominate at most 6 (face center). 5 × 6 = 30 ≥ 19. Possible.
+
+The 7 remaining corners: (0,0,2), (0,2,0), (0,2,2), (2,0,0), (2,0,2), (2,2,0), (2,2,2).
+The 12 edge centers: (0,0,1), (0,1,0), (0,1,2), (0,2,1), (1,0,0), (1,0,2), (1,2,0), (1,2,2), (2,0,1), (2,1,0), (2,1,2), (2,2,1).
+
+I need to choose 5 cells (from the 19 remaining, or from the 7 already dominated) to dominate all 19.
+
+Wait, the 5 additional red cells can be any white cells, including the 7 already dominated by (1,1,1). But making an already-dominated cell red doesn't help dominate new cells unless its neighbors include undominated cells.
+
+The face centers (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2) are already dominated. If we make one of them red, it can dominate edge centers and corners.
+
+Let me try:
+Red at (0,1,1): dominates (0,1,1)✓, (1,1,1)✓, (0,0,1), (0,2,1), (0,1,0), (0,1,2). New: (0,0,1), (0,2,1), (0,1,0), (0,1,2). [4 new]
+Red at (2,2,1): dominates (2,2,1), (1,2,1)✓, (2,2,0), (2,2,2), (2,1,1)✓. New: (2,2,1), (2,2,0), (2,2,2). [3 new]
+Red at (2,0,1): dominates (2,0,1), (1,0,1)✓, (2,0,0), (2,0,2), (2,1,1)✓. New: (2,0,1), (2,0,0), (2,0,2). [3 new]
+Red at (0,2,1): dominates (0,2,1)✓, (1,2,1)✓, (0,2,0), (0,2,2)✓... wait, (0,2,2) is a corner, not yet dominated. Let me check: (0,2,1) neighbors: (1,2,1)✓, (0,2,0), (0,2,2), (0,1,1)✓. New: (0,2,0), (0,2,2). But (0,2,1) is already dominated by (0,1,1). [2 new: (0,2,0), (0,2,2)]
+
+Hmm wait, is (0,2,2) dominated by (2,2,1)? (0,2,2) and (2,2,1): differ in x by 2. Not adjacent. So (0,2,2) is not dominated by (2,2,1). Let me recheck what (2,2,1) dominates: (2,2,1) neighbors: (1,2,1), (2,2,0), (2,2,2), (2,1,1). So (2,2,1) dominates (2,2,1), (1,2,1), (2,2,0), (2,2,2), (2,1,1). Yes, (0,2,2) is NOT dominated by (2,2,1).
+
+So after (1,1,1), (0,1,1), (2,2,1), (2,0,1), (0,2,1):
+Dominated: 7 + 4 + 3 + 3 + 2 = 19. Remaining: 26 - 19 = 7.
+
+Let me list: 
+Corners: (0,0,2)?, (0,2,0)✓, (0,2,2)✓, (2,0,0)✓, (2,0,2)✓, (2,2,0)✓, (2,2,2)✓. 
+(0,0,2): neighbors (1,0,2), (0,1,2)✓, (0,0,1)✓. Is (0,0,2) dominated? (1,0,2) is not red. (0,1,2) is dominated by (0,1,1) but not red. (0,0,1) is dominated by (0,1,1) but not red. So (0,0,2) is NOT dominated.
+
+Edge centers: (0,0,1)✓, (0,1,0)✓, (0,1,2)✓, (0,2,1)✓, (1,0,0)?, (1,0,2)?, (1,2,0)?, (1,2,2)?, (2,0,1)✓, (2,1,0)?, (2,1,2)?, (2,2,1)✓.
+
+(1,0,0): neighbors (2,0,0)✓not red, (0,0,0)black, (1,0,1)✓not red, (1,1,0)✓not red. NOT dominated.
+(1,0,2): neighbors (0,0,2)?, (2,0,2)✓not red, (1,0,1)✓not red, (1,1,2)✓not red. NOT dominated.
+(1,2,0): neighbors (0,2,0)✓not red, (2,2,0)✓not red, (1,2,1)✓not red, (1,1,0)✓not red. NOT dominated.
+(1,2,2): neighbors (0,2,2)✓not red, (2,2,2)✓not red, (1,2,1)✓not red, (1,1,2)✓not red. NOT dominated.
+(2,1,0): neighbors (2,0,0)✓not red, (2,2,0)✓not red, (2,1,1)✓not red, (1,1,0)✓not red. NOT dominated.
+(2,1,2): neighbors (2,0,2)✓not red, (2,2,2)✓not red, (2,1,1)✓not red, (1,1,2)✓not red. NOT dominated.
+
+So remaining: (0,0,2), (1,0,0), (1,0,2), (1,2,0), (1,2,2), (2,1,0), (2,1,2). 7 cells.
+
+These 7 cells: (0,0,2) is a corner, the other 6 are edge centers. Can 1 more red cell dominate all 7? No, max is 7 but the cells are spread out. Let me check if any cell is adjacent to all 7. (1,0,1) is adjacent to (1,0,0), (1,0,2), (0,0,1), (2,0,1), (1,1,1). Only 2 of the 7. Not enough.
+
+So 5 red cells after (1,1,1) is not enough with this configuration. We need at least 2 more, total 8.
+
+Hmm, let me try a completely different approach for corner-black.
+
+What if we don't use the center? Let me try:
+
+Red at (0,1,2): dominates (0,1,2), (1,1,2), (0,0,2), (0,2,2), (0,1,1). [5]
+Red at (2,1,0): dominates (2,1,0), (1,1,0), (2,0,0), (2,2,0), (2,1,1). [5]
+Red at (0,2,1): dominates (0,2,1), (1,2,1), (0,2,0), (0,2,2)✓, (0,1,1)✓. [3 new: (0,2,1), (1,2,1), (0,2,0)]
+Red at (2,0,1): dominates (2,0,1), (1,0,1), (2,0,0)✓, (2,0,2), (2,1,1)✓. [3 new: (2,0,1), (1,0,1), (2,0,2)]
+Red at (1,1,1): dominates (1,1,1), (0,1,1)✓, (2,1,1)✓, (1,0,1)✓, (1,2,1)✓, (1,1,0)✓, (1,1,2)✓. [1 new: (1,1,1)]
+Red at (0,0,1): dominates (0,0,1), (1,0,1)✓, (0,0,2)✓, (0,1,1)✓. [1 new: (0,0,1)]
+
+Total: 5+5+3+3+1+1 = 18. Remaining: 26-18 = 8.
+
+Hmm, still 8 remaining. This approach isn't working well.
+
+Let me try yet another approach. 
+
+Red at (1,0,2): dominates (1,0,2), (0,0,2), (2,0,2), (1,0,1), (1,1,2). [5]
+Red at (1,2,0): dominates (1,2,0), (0,2,0), (2,2,0), (1,2,1), (1,1,0). [5]
+Red at (0,1,2): dominates (0,1,2), (1,1,2)✓, (0,0,2)✓, (0,2,2), (0,1,1). [3 new: (0,1,2), (0,2,2), (0,1,1)]
+Red at (2,1,0): dominates (2,1,0), (1,1,0)✓, (2,0,0), (2,2,0)✓, (2,1,1). [3 new: (2,1,0), (2,0,0), (2,1,1)]
+Red at (0,2,1): dominates (0,2,1), (1,2,1)✓, (0,2,0)✓, (0,2,2)✓, (0,1,1)✓. [1 new: (0,2,1)]
+Red at (2,0,1): dominates (2,0,1), (1,0,1)✓, (2,0,0)✓, (2,0,2)✓, (2,1,1)✓. [1 new: (2,0,1)]
+
+Total: 5+5+3+3+1+1 = 18. Remaining: 8.
+
+Dominated: (1,0,2), (0,0,2), (2,0,2), (1,0,1), (1,1,2), (1,2,0), (0,2,0), (2,2,0), (1,2,1), (1,1,0), (0,1,2), (0,2,2), (0,1,1), (2,1,0), (2,0,0), (2,1,1), (0,2,1), (2,0,1). That's 18.
+
+Remaining 8: (0,0,1), (0,1,0), (1,0,0), (1,1,1), (1,2,2), (2,1,2), (2,2,1), (2,2,2).
+
+(1,1,1): neighbors are all face centers, none red. NOT dominated.
+(0,0,1): neighbors (1,0,1)✓not red, (0,0,0)black, (0,1,1)✓not red, (0,0,2)✓not red. NOT dominated.
+(0,1,0): neighbors (0,0,0)black, (0,2,0)✓not red, (0,1,1)✓not red, (1,1,0)✓not red. NOT dominated.
+(1,0,0): neighbors (0,0,0)black, (2,0,0)✓not red, (1,0,1)✓not red, (1,1,0)✓not red. NOT dominated.
+(1,2,2): neighbors (0,2,2)✓not red, (2,2,2)?, (1,2,1)✓not red, (1,1,2)✓not red. NOT dominated.
+(2,1,2): neighbors (2,0,2)✓not red, (2,2,2)?, (2,1,1)✓not red, (1,1,2)✓not red. NOT dominated.
+(2,2,1): neighbors (2,2,0)✓not red, (2,2,2)?, (2,1,1)✓not red, (1,2,1)✓not red. NOT dominated.
+(2,2,2): neighbors (1,2,2)?, (2,1,2)?, (2,2,1)?. All undominated. NOT dominated.
+
+So the remaining 8 form a cluster around (2,2,2) and (1,1,1). We need at least 2 more red cells (since (1,1,1) and (2,2,2) are not adjacent and can't be dominated by the same cell). Total: 8.
+
+It seems like for corner-black, the answer for n=1 is 7 or 8. Let me try to see if 7 is achievable.
+
+Let me try 7:
+Red at (1,1,1): [7]
+Red at (0,1,1): [4 new: (0,0,1), (0,2,1), (0,1,0), (0,1,2)]
+Red at (2,1,1): [4 new: (2,0,1), (2,2,1), (2,1,0), (2,1,2)]
+Red at (1,0,1): [2 new: (1,0,0), (1,0,2)]
+Red at (1,2,1): [2 new: (1,2,0), (1,2,2)]
+Red at (0,1,2): [1 new: (0,0,2), (0,2,2) - wait let me check. (0,1,2) neighbors: (1,1,2)✓, (0,0,2), (0,2,2), (0,1,1)✓. New: (0,0,2), (0,2,2). [2 new]]
+Red at (2,2,1): [(2,2,1)✓already dominated by (2,1,1). Neighbors: (1,2,1)✓, (2,2,0), (2,2,2), (2,1,1)✓. New: (2,2,0), (2,2,2). [2 new]]
+
+Total: 7+4+4+2+2+2+2 = 23. Remaining: 26-23 = 3.
+
+Which 3? Let me list all dominated:
+From (1,1,1): (1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2)
+From (0,1,1): (0,0,1), (0,2,1), (0,1,0), (0,1,2)
+From (2,1,1): (2,0,1), (2,2,1), (2,1,0), (2,1,2)
+From (1,0,1): (1,0,0), (1,0,2)
+From (1,2,1): (1,2,0), (1,2,2)
+From (0,1,2): (0,0,2), (0,2,2)
+From (2,2,1): (2,2,0), (2,2,2)
+
+All dominated: 7+4+4+2+2+2+2 = 23. 
+Corners: (0,0,2)✓, (0,2,0)?, (0,2,2)✓, (2,0,0)?, (2,0,2)?, (2,2,0)✓, (2,2,2)✓. 
+(0,2,0): neighbors (1,2,0)✓not red, (0,1,0)✓not red, (0,2,1)✓not red. NOT dominated!
+(2,0,0): neighbors (1,0,0)✓not red, (2,1,0)✓not red, (2,0,1)✓not red. NOT dominated!
+(2,0,2): neighbors (1,0,2)✓not red, (2,1,2)✓not red, (2,0,1)✓not red. NOT dominated!
+
+So remaining: (0,2,0), (2,0,0), (2,0,2). 3 cells. These are 3 corners, each adjacent to 3 edge centers, all of which are dominated but not red.
+
+Can 1 more red cell dominate all 3? (0,2,0) and (2,0,0) are not adjacent (differ in x by 2, y by 2). (0,2,0) and (2,0,2) are not adjacent. (2,0,0) and (2,0,2) differ in z by 2, not adjacent. So no single cell is adjacent to all 3. We need at least 2 more. Total: 9.
+
+Hmm. Let me try a different 7-cell configuration.
+
+Actually, let me try to use edge centers that cover corners more efficiently.
+
+Red at (1,1,1): [7: center + 6 face centers]
+Red at (0,1,2): [new: (0,0,2), (0,2,2), (0,1,2)] - 3 new (since (1,1,2) and (0,1,1) already dominated)
+Red at (0,2,1): [new: (0,2,0), (0,2,1)] - 2 new (since (0,2,2) already dominated by (0,1,2), (1,2,1) and (0,1,1) already dominated)
+
+Wait, (0,2,1) neighbors: (1,2,1)✓, (0,2,0), (0,2,2)✓, (0,1,1)✓. New: (0,2,0), (0,2,1). [2 new]
+
+Red at (2,1,0): [new: (2,0,0), (2,2,0), (2,1,0)] - 3 new (since (1,1,0) and (2,1,1) already dominated)
+Red at (2,0,1): [new: (2,0,2), (2,0,1)] - 2 new (since (2,0,0)✓, (1,0,1)✓, (2,1,1)✓ already dominated)
+
+Wait, (2,0,1) neighbors: (1,0,1)✓, (2,0,0)✓, (2,0,2), (2,1,1)✓. New: (2,0,2), (2,0,1). [2 new]
+
+Red at (2,2,1): [new: (2,2,2), (2,2,1)] - 2 new (since (1,2,1)✓, (2,2,0)✓, (2,1,1)✓)
+
+Red at (1,2,2): [new: (1,2,2)] - neighbors (0,2,2)✓, (2,2,2)✓, (1,2,1)✓, (1,1,2)✓. New: (1,2,2). [1 new]
+
+Total: 7 + 3 + 2 + 3 + 2 + 2 + 1 = 20. Remaining: 6.
+
+Dominated:
+(1,1,1), (0,1,1), (2,1,1), (1,0,1), (1,2,1), (1,1,0), (1,1,2) [from center]
+(0,0,2), (0,2,2), (0,1,2) [from (0,1,2)]
+(0,2,0), (0,2,1) [from (0,2,1)]
+(2,0,0), (2,2,0), (2,1,0) [from (2,1,0)]
+(2,0,2), (2,0,1) [from (2,0,1)]
+(2,2,2), (2,2,1) [from (2,2,1)]
+(1,2,2) [from (1,2,2)]
+
+Corners: (0,0,2)✓, (0,2,0)✓, (0,2,2)✓, (2,0,0)✓, (2,0,2)✓, (2,2,0)✓, (2,2,2)✓. All 7 corners dominated!
+Edge centers: (0,0,1)?, (0,1,0)?, (0,1,2)✓, (0,2,1)✓, (1,0,0)?, (1,0,2)?, (1,2,0)?, (1,2,2)✓, (2,0,1)✓, (2,1,0)✓, (2,1,2)?, (2,2,1)✓.
+
+Remaining: (0,0,1), (0,1,0), (1,0,0), (1,0,2), (1,2,0), (2,1,2). 6 cells.
+
+These are all edge centers. Each is adjacent to face centers (all dominated, not red) and corners (all dominated, not red). So they can only be dominated by making them red or making an adjacent face center/corner red.
+
+(0,0,1): adjacent to (0,1,1)✓face, (1,0,1)✓face, (0,0,2)✓corner. If we make (0,1,1) red, it dominates (0,0,1), (0,2,1)✓, (0,1,0), (0,1,2)✓, (1,1,1)✓. New: (0,0,1), (0,1,0). [2 new]
+
+(1,0,0): adjacent to (1,0,1)✓face, (1,1,0)✓face, (2,0,0)✓corner. If we make (1,0,1) red, it dominates (1,0,0), (1,0,2), (0,0,1)✓, (2,0,1)✓, (1,1,1)✓. New: (1,0,0), (1,0,2). [2 new]
+
+(1,2,0): adjacent to (1,2,1)✓face, (1,1,0)✓face, (0,2,0)✓corner, (2,2,0)✓corner. If we make (1,1,0) red, it dominates (1,2,0), (1,0,0)✓, (0,1,0)✓, (2,1,0)✓, (1,1,1)✓. New: (1,2,0). [1 new]
+
+(2,1,2): adjacent to (2,1,1)✓face, (1,1,2)✓face, (2,0,2)✓corner, (2,2,2)✓corner. If we make (2,1,1) red, it dominates (2,1,2), (2,0,1)✓, (2,2,1)✓, (2,1,0)✓, (1,1,1)✓. New: (2,1,2). [1 new]
+
+So if we add (0,1,1) and (1,0,1) as red: new = (0,0,1), (0,1,0), (1,0,0), (1,0,2). Remaining: (1,2,0), (2,1,2). Need 2 more (or 1 if a single cell dominates both). (1,2,0) and (2,1,2) are not adjacent. Can a single cell dominate both? (1,1,0) is adjacent to (1,2,0) but not (2,1,2). (1,1,2) is adjacent to (2,1,2) but not (1,2,0). (1,2,1) is adjacent to (1,2,0)... wait, (1,2,1) neighbors: (0,2,1), (2,2,1), (1,2,0), (1,2,2), (1,1,1). Yes, (1,2,1) is adjacent to (1,2,0). Is (1

@@ -1,0 +1,1360 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_04113</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+For any natural number $n$ with decimal representation $n = \overline{d_1 d_2 \ldots d_k}$, we define the Pleven selection operation as follows:
+1. We choose a pair of indices $(i, j)$ such that $1 \le i \le j \le k$, $d_i \neq 0$, and consider the substring $s = \overline{d_i d_{i+1} \ldots d_j}$.
+2. In the representation of $n$, we replace the substring $s$ with the representation of the number $2s$ or $s/2$ (the latter is only possible when $s$ is even).
+
+Two numbers are considered connected if one can be obtained from the other through a finite number of Pleven selections. Let $P_k$ be the probability that two randomly chosen $k$-digit natural numbers are connected. Calculate the value of $P_1 + P_2$.
+(Note: A $k$-digit natural number is an integer in the range $[10^{k-1}, 10^k - 1]$.)
+
+## Standard Solution
+
+From the original solution, for $k=1$, the connected components are $\{1, 2, 3, 4, 6, 7, 8, 9\}$ and $\{5\}$. There are 9 possible one-digit numbers. Thus, $P_1 = (8/9)^2 + (1/9)^2 = 65/81$.
+For $k \ge 2$, the solution establishes that the connected components are based on whether the last digit $d_k$ belongs to $\{1, 2, 3, 4, 6, 7, 8, 9\}$ or $\{0, 5\}$. Since there are $9 \cdot 10^{k-1}$ total $k$-digit numbers, the first set has size $9 \cdot 10^{k-2} \cdot 8 = 0.8 \cdot (9 \cdot 10^{k-1})$ and the second has size $9 \cdot 10^{k-2} \cdot 2 = 0.2 \cdot (9 \cdot 10^{k-1})$.
+Thus $P_k = (0.8)^2 + (0.2)^2 = 0.64 + 0.04 = 0.68 = 17/25$.
+Summing these gives $P_1 + P_2 = 65/81 + 17/25 = (1625 + 1377) / 2025 = 3002/2025$.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+The problem defines a "Pleven selection operation" on natural numbers. Given a number with decimal representation, we pick a substring (contiguous digits) starting with a non-zero digit, and replace it with either 2s or s/2 (if s is even).
+
+Two numbers are connected if one can be obtained from the other through a finite sequence of such operations. P_k is the probability that two randomly chosen k-digit natural numbers are connected.
+
+We need to calculate P_1 + P_2.
+
+First, let me check for answer leaks. The problem statement doesn't contain any leaked answers, solutions, or proof sketches. It's a clean problem statement. No Lean theorem statements, no "solution sketch" phrases.
+
+Now let me solve the problem.
+
+**Understanding the operation:**
+
+For a number n with digits d_1 d_2 ... d_k, we pick a substring s = d_i ... d_j (with d_i ≠ 0) and replace it with 2s or s/2 (if s even).
+
+Key observations:
+- The operation replaces a substring with its double or half.
+- This can change the number of digits (e.g., if s = 5, 2s = 10, which has 2 digits replacing 1 digit; if s = 10, s/2 = 5, which has 1 digit replacing 2 digits).
+
+Wait, actually the number of digits can change. This is important.
+
+**Connectivity:**
+
+Two numbers are connected if they're in the same equivalence class under the transitive closure of this operation.
+
+Let me think about what invariants exist.
+
+**P_1: Single-digit numbers (1-9)**
+
+For a single digit d (1-9), the operation picks the whole number (only choice since k=1, i=j=1, d_1 ≠ 0 which is always true for 1-9).
+
+- Replace d with 2d or d/2 (if d even).
+
+So from d, we can go to 2d (if 2d is a valid replacement) or d/2 (if d even).
+
+Wait, but 2d might be a two-digit number. For example, d=5, 2d=10. The replacement would change the single digit "5" to "10", making the number "10" which is a 2-digit number.
+
+So the operation can move between numbers of different digit lengths.
+
+This means connectivity is across all natural numbers, not just within k-digit numbers.
+
+Hmm, but P_k is defined as the probability that two randomly chosen k-digit numbers are connected. So we need to find the equivalence classes and see which k-digit numbers are in the same class.
+
+Let me think about this more carefully.
+
+**Key insight: The operation preserves something.**
+
+Let me think about what's preserved. When we replace substring s with 2s, the rest of the number stays the same. 
+
+Actually, let me think about this differently. Consider the number as a string of digits. The operation takes a substring and replaces it with 2× or ÷2 of its numerical value.
+
+Let me think about what happens to the number modulo something, or some other invariant.
+
+**Trying small cases:**
+
+Let me trace connectivity for small numbers.
+
+Starting from 1:
+- 1 → 2 (replace "1" with "2" = 2×1)
+- 2 → 1 (replace "2" with "1" = 2/2), 2 → 4 (replace "2" with "4" = 2×2)
+- 4 → 2, 4 → 8
+- 8 → 4, 8 → 16 (replace "8" with "16")
+- 16: digits "1","6". We can pick substrings: "1", "6", "16".
+  - "1" → "2": gives 26
+  - "1" → (1/2 not integer)
+  - "6" → "3": gives 13, "6" → "12": gives 112
+  - "16" → "8": gives 8, "16" → "32": gives 32
+- So 16 → 8 (back), 16 → 32, 16 → 26, 16 → 13, 16 → 112
+
+From 3:
+- 3 → 6 (2×3)
+- 6 → 3 (6/2), 6 → 12 (2×6)
+- 12: "1","2","12"
+  - "1" → "2": 22
+  - "2" → "1": 11, "2" → "4": 14
+  - "12" → "6": 6, "12" → "24": 24
+- So 12 → 6, 12 → 24, 12 → 22, 12 → 11, 12 → 14
+
+From 11:
+- "1" (first) → "2": 21
+- "1" (second) → "2": 12
+- "11" → "22": 22 (11×2=22), "11" → (11/2 not integer)
+- So 11 → 12, 11 → 21, 11 → 22
+
+From 5:
+- 5 → 10 (2×5)
+- 10: "1","0","10"
+  - "1" → "2": 20
+  - "0" → can't (d_i ≠ 0)
+  - "10" → "5": 5, "10" → "20": 20
+- So 10 → 5, 10 → 20
+
+From 7:
+- 7 → 14 (2×7)
+- 14: "1","4","14"
+  - "1" → "2": 24
+  - "4" → "2": 12, "4" → "8": 18
+  - "14" → "7": 7, "14" → "28": 28
+- So 14 → 7, 14 → 28, 14 → 24, 14 → 12, 14 → 18
+
+From 9:
+- 9 → 18 (2×9)
+- 18: "1","8","18"
+  - "1" → "2": 28
+  - "8" → "4": 14, "8" → "16": 116
+  - "18" → "9": 9, "18" → "36": 36
+- So 18 → 9, 18 → 36, 18 → 28, 18 → 14, 18 → 116
+
+Let me try to figure out the equivalence classes.
+
+From the traces above:
+- 1 ↔ 2 ↔ 4 ↔ 8 ↔ 16 ↔ 32 ↔ ...
+- 16 → 13, 16 → 26, 16 → 112
+- 13: "1","3","13"
+  - "1" → "2": 23
+  - "3" → "6": 16, "3" → (3/2 not int)
+  - "13" → "26": 26, "13" → (13/2 not int)
+- So 13 → 16, 13 → 23, 13 → 26
+
+- 26: "2","6","26"
+  - "2" → "1": 16, "2" → "4": 46
+  - "6" → "3": 23, "6" → "12": 212
+  - "26" → "13": 13, "26" → "52": 52
+- So 26 → 16, 26 → 46, 26 → 23, 26 → 212, 26 → 13, 26 → 52
+
+So far, {1, 2, 4, 8, 16, 32, 13, 26, 23, 46, 52, 112, 212, ...} seem connected.
+
+Let me check: is 3 connected to 1?
+- 3 → 6 → 12 → 11 → 21 → ?
+- 21: "2","1","21"
+  - "2" → "1": 11, "2" → "4": 41
+  - "1" → "2": 22
+  - "21" → (21/2 not int), "21" → "42": 42
+- 21 → 11, 21 → 41, 21 → 22, 21 → 42
+
+- 12 → 14 (from "2" → "4")
+- 14 → 7, 14 → 28, 14 → 24, 14 → 12, 14 → 18
+- 18 → 9, 18 → 36, 18 → 28, 18 → 14, 18 → 116
+- 7 → 14
+
+So {3, 6, 12, 11, 21, 22, 14, 7, 9, 18, 28, 24, 36, 41, 42, ...} are connected.
+
+Is this class connected to the {1, 2, 4, 8, ...} class?
+
+From the first class: 16 → 13, and 13 → 23, 26.
+From the second class: 12 → 14, 14 → 12.
+
+Can we get from class 1 to class 2? 
+
+From class 1: 26 → 23. From class 2: 12 → 14.
+
+Hmm, 23 is in class 1. Is 23 in class 2? Let me check if we can reach 23 from class 2.
+- 23: "2","3","23"
+  - "2" → "1": 13, "2" → "4": 43
+  - "3" → "6": 26, "3" → (3/2 not int)
+  - "23" → "46": 46, "23" → (23/2 not int)
+- 23 → 13, 23 → 43, 23 → 26, 23 → 46
+
+So 23 connects to 13 and 26, which are in class 1. But can 23 be reached from class 2?
+
+From class 2, we have 24. 24: "2","4","24"
+- "2" → "1": 14, "2" → "4": 44
+- "4" → "2": 22, "4" → "8": 28
+- "24" → "12": 12, "24" → "48": 48
+- 24 → 14, 24 → 44, 24 → 22, 24 → 28, 24 → 12, 24 → 48
+
+Can we get from 24 to 23? Not directly. Let me think about what invariant separates these classes.
+
+**Looking for an invariant:**
+
+Let me think about the sum of digits, or the number modulo 3, or something.
+
+Class 1: 1, 2, 4, 8, 16, 13, 26, 23, 32, 46, 52, ...
+- 1: mod 3 = 1
+- 2: mod 3 = 2
+- 4: mod 3 = 1
+- 8: mod 3 = 2
+- 16: mod 3 = 1
+- 13: mod 3 = 1
+- 26: mod 3 = 2
+- 23: mod 3 = 2
+- 32: mod 3 = 2
+- 46: mod 3 = 1
+- 52: mod 3 = 1
+
+So mod 3 doesn't separate them.
+
+Class 2: 3, 6, 12, 11, 21, 22, 14, 7, 9, 18, 28, 24, 36, 41, 42, ...
+- 3: mod 3 = 0
+- 6: mod 3 = 0
+- 12: mod 3 = 0
+- 11: mod 3 = 2
+- 21: mod 3 = 0
+- 22: mod 3 = 1
+- 14: mod 3 = 2
+- 7: mod 3 = 1
+- 9: mod 3 = 0
+- 18: mod 3 = 0
+- 28: mod 3 = 1
+- 24: mod 3 = 0
+- 36: mod 3 = 0
+- 41: mod 3 = 2
+- 42: mod 3 = 0
+
+Hmm, so class 2 contains numbers with all residues mod 3. And class 1 also contains numbers with all residues mod 3. So mod 3 isn't the invariant.
+
+Let me think differently. What about the "odd part" or the 2-adic valuation?
+
+Actually, let me think about what the operation does more carefully.
+
+When we replace substring s with 2s: the numerical value of the number changes in a complex way because the substring is embedded in a larger number.
+
+Hmm, let me think about this differently. Let me consider the number as a string and think about what happens.
+
+Actually, let me think about a simpler invariant. Consider the number modulo 9 (digital root related).
+
+When we replace substring s with 2s, the change in the number's value mod 9 is:
+- Original contribution of s to the number: s * 10^(k-j) (where k-j is the number of digits after the substring)
+- New contribution: 2s * 10^(k-j') where k-j' depends on whether 2s has more or fewer digits than s.
+
+This is getting complicated because the number of digits can change.
+
+Let me think about it differently. Let me consider the "value" of the number modulo 9.
+
+Actually, the digit sum mod 9 is the number mod 9. When we replace s with 2s:
+- If s has the same number of digits as 2s (e.g., s=3, 2s=6), then the number changes by s*10^m where m is the number of digits after the substring. The change mod 9 is s*10^m mod 9.
+- If 2s has one more digit (e.g., s=5, 2s=10), it's more complex.
+
+This doesn't seem to give a clean invariant.
+
+Let me try another approach. Let me think about what numbers are reachable from 1.
+
+From 1: 1 → 2 → 4 → 8 → 16 → {32, 13, 26, 112}
+From 16: 32 → {64, 16}, 13 → {26, 23, 16}, 26 → {13, 52, 16, 46, 23, 212}
+
+Let me think about the "odd part" (largest odd divisor).
+
+1: odd part 1
+2: odd part 1
+4: odd part 1
+8: odd part 1
+16: odd part 1
+13: odd part 13
+26: odd part 13
+23: odd part 23
+32: odd part 1
+46: odd part 23
+52: odd part 13
+112: odd part 7
+212: odd part 53
+
+So the odd part is NOT preserved. 1 (odd part 1) connects to 13 (odd part 13).
+
+Hmm. Let me think about this more carefully.
+
+Actually, let me reconsider. The key operation is: take a substring s and replace with 2s or s/2.
+
+Think of it as: we can multiply or divide any substring by 2.
+
+Let me think about what happens to the number when we consider it as a sequence of digits.
+
+Actually, let me think about a crucial observation: the operation on a single digit d (when the substring is just one digit) replaces d with 2d or d/2. But 2d might be two digits (when d ≥ 5), and d/2 might not be an integer (when d is odd).
+
+For single digits:
+- 1 → 2
+- 2 → 1, 4
+- 3 → 6
+- 4 → 2, 8
+- 5 → 10 (two digits!)
+- 6 → 3, 12 (two digits!)
+- 7 → 14 (two digits!)
+- 8 → 4, 16 (two digits!)
+- 9 → 18 (two digits!)
+
+So from single digits, we can reach two-digit numbers.
+
+Now, the question is about the equivalence classes. Let me think about this more carefully.
+
+**Key idea: Think about the number as a product.**
+
+Actually, let me think about the number in terms of its factorization by 2 and 5, since we're working in base 10.
+
+Hmm, let me think about this differently. Let me consider the operation on the entire number (taking the full substring).
+
+If n is the full number, we can replace n with 2n or n/2 (if n even). So from any number, we can reach 2n, and if n is even, n/2.
+
+This means all powers of 2 times a number are connected. So n, 2n, 4n, 8n, ... are all connected, and if n is even, n/2, n/4, ... are connected too.
+
+So the "odd part" of n (when we take the full number as the substring) can be connected through multiplying/dividing by 2.
+
+But we can also operate on substrings, which gives more power.
+
+Let me reconsider. The full-number operation gives us: n ~ 2n ~ 4n ~ ... and n ~ n/2 ~ n/4 ~ ... (when divisible). So all numbers with the same odd part are connected via full-number operations.
+
+Wait, that's a big deal. If we only use full-number operations, then two numbers are connected iff they have the same odd part.
+
+But substring operations give us more connections. For example, 16 (odd part 1) connects to 13 (odd part 13) via the substring operation on "16" → wait, no. 16 → 13 is via: 16, take substring "6" → "3" (6/2=3), giving 13. So the odd part changed from 1 to 13.
+
+So the question is: which odd parts are connected to each other via substring operations?
+
+Let me think about this. The substring operation takes a part of the number and halves or doubles it. This can change the odd part.
+
+Let me think about what happens when we take a single digit and halve it (when even):
+- 2 → 1: odd part of the digit changes from 1 to 1 (no change in odd part of digit)
+- 4 → 2: odd part 1 → 1
+- 6 → 3: odd part 3 → 3
+- 8 → 4: odd part 1 → 1
+
+And doubling a single digit:
+- 1 → 2: odd part 1 → 1
+- 2 → 4: odd part 1 → 1
+- 3 → 6: odd part 3 → 3
+- 4 → 8: odd part 1 → 1
+- 5 → 10: odd part 5 → 5
+- 6 → 12: odd part 3 → 3
+- 7 → 14: odd part 7 → 7
+- 8 → 16: odd part 1 → 1
+- 9 → 18: odd part 9 → 9
+
+Interesting! When operating on a single digit, the odd part of that digit is preserved! Because multiplying or dividing by 2 doesn't change the odd part.
+
+But the issue is that when the result has a different number of digits, it affects the surrounding digits. For example, 5 → 10: the digit "5" becomes "10", which is two digits. This shifts all subsequent digits.
+
+Let me think about this more carefully. Consider a number like 15. If we take substring "5" and double it to "10", we get 110. The number changed from 15 to 110.
+
+15 = 3 × 5, odd part 15.
+110 = 2 × 5 × 11, odd part 55.
+
+So the odd part changed from 15 to 55. Hmm.
+
+Actually wait, let me reconsider. The odd part of the whole number is not simply related to the odd parts of individual digits, because the number is a sum of digits times powers of 10, and 10 = 2 × 5.
+
+Let me think about this problem differently.
+
+**Approach: Think about the number modulo small numbers.**
+
+Actually, let me think about the number modulo 9. The number mod 9 equals the digit sum mod 9.
+
+When we replace a substring s (with digit sum σ) by 2s (with digit sum σ'), the digit sum of the whole number changes by (σ' - σ). 
+
+The digit sum of 2s: if s has digits d_i...d_j, then 2s is just 2 times the number. The digit sum of 2s mod 9 is 2s mod 9 = 2 × (s mod 9). And s mod 9 = σ mod 9. So the digit sum of 2s mod 9 = 2σ mod 9.
+
+So the change in digit sum mod 9 is (2σ - σ) mod 9 = σ mod 9.
+
+Hmm, that means the digit sum mod 9 changes by σ mod 9 when we double a substring. That's not zero in general, so mod 9 is not preserved.
+
+Wait, but I need to be more careful. The digit sum of 2s is not necessarily 2σ. For example, s = 5, digit sum = 5, 2s = 10, digit sum = 1. But 1 ≡ 10 ≡ 2×5 (mod 9), and 2σ = 10 ≡ 1 (mod 9). So digit sum of 2s ≡ 2s ≡ 2σ (mod 9). Yes, that's correct because digit sum ≡ number (mod 9).
+
+So when we replace s with 2s, the number changes from N to N', and:
+N' ≡ N - s×10^m + 2s×10^m' (mod 9)
+
+where m is the number of digits after s in the original, and m' is the number of digits after 2s in the result.
+
+If 2s has the same number of digits as s, then m' = m, and:
+N' ≡ N + s×10^m (mod 9)
+
+If 2s has one more digit than s, then m' = m - 1, and:
+N' ≡ N - s×10^m + 2s×10^(m-1) (mod 9) = N + s×10^(m-1)(2 - 10) = N - 8s×10^(m-1) (mod 9)
+
+Since 10 ≡ 1 (mod 9), 10^m ≡ 1 (mod 9), so:
+- Same digits: N' ≡ N + s (mod 9)
+- One more digit: N' ≡ N - 8s ≡ N + s (mod 9) (since -8 ≡ 1 mod 9)
+
+Oh interesting! In both cases, N' ≡ N + s (mod 9) when doubling.
+
+Similarly, when halving (s → s/2, s even):
+- N' ≡ N - s (mod 9) (by similar reasoning, since s/2 mod 9... wait, let me be careful)
+
+When replacing s with s/2:
+N' ≡ N - s×10^m + (s/2)×10^m' (mod 9)
+
+If s/2 has the same number of digits as s:
+N' ≡ N - s + s/2 = N - s/2 (mod 9)
+
+If s/2 has one fewer digit:
+N' ≡ N - s×10^m + (s/2)×10^(m+1) (mod 9) = N + s(-1 + 10/2) × ... 
+
+Hmm wait, 10^(m+1)/10^m = 10, so:
+N' ≡ N - s×10^m + (s/2)×10^(m+1) = N + 10^m × s × (-1 + 10/2) = N + 10^m × s × 4 (mod 9)
+
+Since 10^m ≡ 1 (mod 9):
+N' ≡ N + 4s (mod 9)
+
+But s/2 having one fewer digit means s is a 2-digit number like 10, 12, ..., and s/2 is a 1-digit number. So s ∈ {10, 12, 14, 16, 18} and s/2 ∈ {5, 6, 7, 8, 9}.
+
+Hmm, this is getting complicated. Let me reconsider.
+
+Actually, I realize the mod 9 analysis is getting messy because the number of digits can change. Let me try a different approach.
+
+**Alternative approach: Think about the number as a string and consider what transformations are possible.**
+
+Let me think about the problem more carefully by considering what the operation does to the string of digits.
+
+The operation: pick a contiguous substring starting with a non-zero digit, interpret it as a number s, and replace it with the string representation of 2s or s/2.
+
+Key insight: The operation of doubling or halving a substring can be decomposed into simpler operations.
+
+Let me think about what happens with single-digit substrings first.
+
+Single digit operations:
+- d → 2d (if 2d < 10, i.e., d ∈ {1,2,3,4}): single digit stays single digit
+- d → 2d (if 2d ≥ 10, i.e., d ∈ {5,6,7,8,9}): single digit becomes two digits
+- d → d/2 (if d even, d ∈ {2,4,6,8}): single digit stays single digit
+
+For two-digit substrings:
+- s → 2s (if 2s < 100, i.e., s ∈ {10,...,49}): two digits stay two digits
+- s → 2s (if 2s ≥ 100, i.e., s ∈ {50,...,99}): two digits become three digits
+- s → s/2 (if s even): two digits might become one digit (s ∈ {10,12,14,16,18}) or stay two digits (s ∈ {20,22,...,98})
+
+This is quite complex. Let me try to think about the problem from a higher level.
+
+**What is the invariant?**
+
+Let me think about what's preserved across all operations.
+
+Consider the number N. When we replace substring s (at position with m digits after it) with 2s:
+
+Case 1: 2s has the same number of digits as s.
+N' = N - s × 10^m + 2s × 10^m = N + s × 10^m
+
+Case 2: 2s has one more digit than s.
+N' = N - s × 10^m + 2s × 10^(m-1) = N + s × 10^(m-1) × (2 - 10) = N - 8s × 10^(m-1)
+
+When we replace s with s/2:
+
+Case 1: s/2 has the same number of digits as s.
+N' = N - s × 10^m + (s/2) × 10^m = N - (s/2) × 10^m
+
+Case 2: s/2 has one fewer digit than s.
+N' = N - s × 10^m + (s/2) × 10^(m+1) = N + (s/2) × 10^m × (10 - 2) = N + 4(s/2) × 10^m = N + 2s × 10^m
+
+Hmm wait, let me redo this. If s has p digits and is at position with m digits after it, then s contributes s × 10^m to N.
+
+If we replace s (p digits) with 2s (p or p+1 digits):
+- If 2s has p digits: contributes 2s × 10^m, change = s × 10^m
+- If 2s has p+1 digits: contributes 2s × 10^(m-1), change = 2s × 10^(m-1) - s × 10^m = s × 10^(m-1) × (2 - 10) = -8s × 10^(m-1)
+
+If we replace s (p digits) with s/2 (p or p-1 digits):
+- If s/2 has p digits: contributes (s/2) × 10^m, change = -(s/2) × 10^m
+- If s/2 has p-1 digits: contributes (s/2) × 10^(m+1), change = (s/2) × 10^(m+1) - s × 10^m = s × 10^m × (10/2 - 1) = s × 10^m × 4 = 4s × 10^m
+
+Hmm, so the changes are:
+- Double, same length: +s × 10^m
+- Double, longer: -8s × 10^(m-1)
+- Halve, same length: -(s/2) × 10^m
+- Halve, shorter: +4s × 10^m = +2s × 10^m (wait, 4s × 10^m? Let me recheck)
+
+Wait, s × 10^m × (10/2 - 1) = s × 10^m × (5-1) = 4s × 10^m. Yes.
+
+But s/2 has p-1 digits only when s is a 2-digit number from 10 to 18 (even). So s/2 is 5,6,7,8,9. And the change is 4s × 10^m.
+
+OK this is getting complicated. Let me try to think about the problem computationally for small cases.
+
+**Computational approach for P_1:**
+
+For P_1, we need to find which of the numbers 1-9 are connected to each other.
+
+Let me trace more carefully.
+
+Starting from 1:
+1 → 2 (double the whole number)
+2 → 4 (double)
+4 → 8 (double)
+8 → 16 (double, now 2 digits)
+16 → 8 (halve the whole number, back)
+16: take "6" → "3" (halve): 13
+16: take "6" → "12" (double): 112
+16: take "1" → "2" (double): 26
+16: take "16" → "32" (double): 32
+
+From 13:
+13 → 26 (double whole)
+13: take "3" → "6" (double): 16
+13: take "1" → "2" (double): 23
+13: take "13" → "26" (double): 26
+
+From 23:
+23: take "2" → "1" (halve): 13
+23: take "2" → "4" (double): 43
+23: take "3" → "6" (double): 26
+23: take "23" → "46" (double): 46
+
+From 26:
+26: take "2" → "1" (halve): 16
+26: take "2" → "4" (double): 46
+26: take "6" → "3" (halve): 23
+26: take "6" → "12" (double): 212
+26: take "26" → "13" (halve): 13
+26: take "26" → "52" (double): 52
+
+From 32:
+32: take "3" → "6" (double): 62
+32: take "2" → "1" (halve): 31
+32: take "2" → "4" (double): 34
+32: take "32" → "16" (halve): 16
+32: take "32" → "64" (double): 64
+
+From 43:
+43: take "4" → "2" (halve): 23
+43: take "4" → "8" (double): 83
+43: take "3" → "6" (double): 46
+43: take "43" → "86" (double): 86
+
+From 46:
+46: take "4" → "2" (halve): 26
+46: take "4" → "8" (double): 86
+46: take "6" → "3" (halve): 43
+46: take "6" → "12" (double): 412
+46: take "46" → "23" (halve): 23
+46: take "46" → "92" (double): 92
+
+So from 1, we can reach: 1, 2, 4, 8, 16, 13, 23, 26, 32, 43, 46, 52, 62, 31, 34, 64, 83, 86, 92, 112, 212, 412, ...
+
+Now let me check: can we reach 3 from 1?
+
+From the class of 1, we have 31. 31: take "3" → "6": 61. Take "1" → "2": 32 (already in class). Take "31" → "62": 62 (already in class). Take "31" → (31/2 not integer). So 31 → 61, 32, 62.
+
+61: take "6" → "3": 31. Take "6" → "12": 121. Take "1" → "2": 62. Take "61" → "122": 122. Take "61" → (61/2 not int).
+
+Hmm, I don't see a path to 3 yet. Let me think about what invariant might separate 1's class from 3's class.
+
+Let me look at the numbers in class 1: 1, 2, 4, 8, 16, 13, 23, 26, 32, 43, 46, 52, 31, 34, 62, 64, 83, 86, 92, 61, ...
+
+Let me compute each mod 9:
+1→1, 2→2, 4→4, 8→8, 16→7, 13→4, 23→5, 26→8, 32→5, 43→7, 46→1, 52→7, 31→4, 34→7, 62→8, 64→1, 83→2, 86→5, 92→2, 61→7
+
+So mod 9 values: 1,2,4,5,7,8. Missing: 0,3,6.
+
+Now class 2 (from 3): 3, 6, 12, 11, 21, 22, 14, 7, 9, 18, 28, 24, 36, 41, 42, ...
+
+mod 9: 3→3, 6→6, 12→3, 11→2, 21→3, 22→4, 14→5, 7→7, 9→0, 18→0, 28→1, 24→6, 36→0, 41→5, 42→6
+
+So class 2 has mod 9 values: 0,2,3,4,5,6,7. Missing: 1,8.
+
+Hmm, so class 1 is missing {0,3,6} mod 9 and class 2 is missing {1,8} mod 9. They have different mod 9 profiles, but both contain 2,4,5,7. So mod 9 alone doesn't separate them, but maybe there's a finer invariant.
+
+Wait, but I haven't fully explored both classes. Let me check if there's a connection.
+
+From class 1, can we reach a number ≡ 0 mod 9? From class 2, can we reach a number ≡ 1 mod 9?
+
+Class 2 has 28 (≡1 mod 9). And class 1 has 46 (≡1 mod 9). So both classes have numbers ≡ 1 mod 9. But that doesn't mean they're connected.
+
+Let me think about this differently. Maybe the invariant is the number mod 9 divided by gcd with 9, or something related to the 3-adic valuation.
+
+Let me compute v_3 (3-adic valuation) for numbers in each class:
+
+Class 1: 1(v3=0), 2(v3=0), 4(v3=0), 8(v3=0), 16(v3=0), 13(v3=0), 23(v3=0), 26(v3=0), 32(v3=0), 43(v3=0), 46(v3=0), 52(v3=0), 31(v3=0), 34(v3=0), 62(v3=0), 64(v3=0), 83(v3=0), 86(v3=0), 92(v3=0), 61(v3=0)
+
+All have v_3 = 0! None of them are divisible by 3.
+
+Class 2: 3(v3=1), 6(v3=1), 12(v3=1), 11(v3=0), 21(v3=1), 22(v3=0), 14(v3=0), 7(v3=0), 9(v3=2), 18(v3=2), 28(v3=0), 24(v3=1), 36(v3=2), 41(v3=0), 42(v3=1)
+
+Class 2 has numbers with v_3 = 0, 1, 2. So v_3 is not preserved in class 2.
+
+But class 1 seems to only have v_3 = 0. Is that an invariant?
+
+Let me check: can we ever create a factor of 3 from a number not divisible by 3?
+
+When we double a substring s, the change in N is:
+- Same length: +s × 10^m
+- Longer: -8s × 10^(m-1)
+
+When we halve:
+- Same length: -(s/2) × 10^m
+- Shorter: +4s × 10^m
+
+Now, 10^m is never divisible by 3 (since 10 ≡ 1 mod 3, 10^m ≡ 1 mod 3). So 10^m is coprime to 3.
+
+For the "same length, double" case: N' = N + s × 10^m. 
+N' mod 3 = N mod 3 + s mod 3 (since 10^m ≡ 1 mod 3).
+
+For the "longer, double" case: N' = N - 8s × 10^(m-1).
+N' mod 3 = N mod 3 - 8s mod 3 = N mod 3 + s mod 3 (since -8 ≡ 1 mod 3).
+
+For the "same length, halve" case: N' = N - (s/2) × 10^m.
+N' mod 3 = N mod 3 - (s/2) mod 3.
+
+For the "shorter, halve" case: N' = N + 4s × 10^m.
+N' mod 3 = N mod 3 + 4s mod 3 = N mod 3 + s mod 3 (since 4 ≡ 1 mod 3).
+
+So in all cases except "same length, halve", we have N' ≡ N + s (mod 3).
+
+For "same length, halve": N' ≡ N - s/2 (mod 3).
+
+Now, s is the value of the substring. s mod 3 can be 0, 1, or 2. And s/2 mod 3: since s is even, s = 2t, s/2 = t, and s mod 3 = 2t mod 3. If t mod 3 = 0, s mod 3 = 0. If t mod 3 = 1, s mod 3 = 2. If t mod 3 = 2, s mod 3 = 1.
+
+So s/2 mod 3 = t mod 3, and s mod 3 = 2t mod 3. The relationship: s/2 mod 3 = (s mod 3) × (inverse of 2 mod 3) = (s mod 3) × 2 (since 2×2=4≡1 mod 3, so 2^(-1) ≡ 2 mod 3).
+
+So s/2 mod 3 = 2 × (s mod 3) mod 3.
+
+For "same length, halve": N' ≡ N - 2s (mod 3).
+
+So in summary:
+- Double (any case): N' ≡ N + s (mod 3)
+- Halve, same length: N' ≡ N - 2s (mod 3)
+- Halve, shorter: N' ≡ N + s (mod 3)
+
+Wait, let me recheck the "halve, shorter" case. N' = N + 4s × 10^m. 4s mod 3 = s mod 3 (since 4 ≡ 1 mod 3). And 10^m ≡ 1 mod 3. So N' ≡ N + s (mod 3). Yes.
+
+So:
+- Double: N' ≡ N + s (mod 3)
+- Halve, same length: N' ≡ N - 2s (mod 3)
+- Halve, shorter: N' ≡ N + s (mod 3)
+
+Now, s mod 3 can be 0, 1, or 2.
+
+If s ≡ 0 (mod 3): N' ≡ N (mod 3) in all cases. So the residue mod 3 is preserved.
+If s ≡ 1 (mod 3): Double → N' ≡ N+1, Halve same → N' ≡ N-2 ≡ N+1, Halve shorter → N' ≡ N+1. So N' ≡ N+1 (mod 3) in all cases!
+If s ≡ 2 (mod 3): Double → N' ≡ N+2 ≡ N-1, Halve same → N' ≡ N-4 ≡ N-1, Halve shorter → N' ≡ N+2 ≡ N-1. So N' ≡ N-1 (mod 3) in all cases!
+
+Wait, this is remarkable! In ALL cases:
+- If s ≡ 0 (mod 3): N' ≡ N (mod 3)
+- If s ≡ 1 (mod 3): N' ≡ N + 1 (mod 3)
+- If s ≡ 2 (mod 3): N' ≡ N - 1 (mod 3)
+
+So the change in N mod 3 depends only on s mod 3, and it's the same regardless of whether we double or halve, and regardless of whether the length changes!
+
+But s mod 3 can be anything, so N mod 3 can change by +1, 0, or -1. So N mod 3 is NOT preserved.
+
+Hmm, but wait. Let me think about this more carefully. The change is:
+- s ≡ 0: change 0
+- s ≡ 1: change +1
+- s ≡ 2: change -1 (i.e., +2)
+
+So N mod 3 can change to any value. This means mod 3 is not an invariant.
+
+But I noticed that class 1 (from 1) seems to only contain numbers not divisible by 3. Let me check this more carefully.
+
+From 1 (≡1 mod 3), if we pick a substring s ≡ 1 mod 3, we get N' ≡ 2 mod 3. If s ≡ 2 mod 3, N' ≡ 0 mod 3. If s ≡ 0 mod 3, N' ≡ 1 mod 3.
+
+So from 1, we should be able to reach numbers ≡ 0 mod 3 if we pick a substring s ≡ 2 mod 3.
+
+From 1 → 2 (s=1, s≡1, N'=1+1=2 mod 3 ✓)
+From 2 → 4 (s=2, s≡2, N'=2-1=1 mod 3 ✓)
+From 4 → 8 (s=4, s≡1, N'=1+1=2 mod 3 ✓)
+From 8 → 16 (s=8, s≡2, N'=2-1=1 mod 3 ✓)
+From 16, take s=6 (≡0 mod 3): N' ≡ 1 mod 3. 16→13, 13≡1 mod 3 ✓.
+From 16, take s=1 (≡1 mod 3): N' ≡ 2 mod 3. 16→26, 26≡2 mod 3 ✓.
+From 16, take s=16 (≡1 mod 3): N' ≡ 2 mod 3. 16→32, 32≡2 mod 3 ✓.
+
+From 26 (≡2 mod 3), take s=6 (≡0): N'≡2. 26→23, 23≡2 ✓.
+From 26, take s=2 (≡2): N'≡1. 26→16, 16≡1 ✓. Or 26→46, 46≡1 ✓.
+From 26, take s=26 (≡2): N'≡1. 26→13, 13≡1 ✓. Or 26→52, 52≡1 ✓.
+
+From 23 (≡2 mod 3), take s=3 (≡0): N'≡2. 23→26, 26≡2 ✓.
+From 23, take s=2 (≡2): N'≡1. 23→13, 13≡1 ✓. Or 23→43, 43≡1 ✓.
+From 23, take s=23 (≡2): N'≡1. 23→46, 46≡1 ✓.
+
+From 13 (≡1 mod 3), take s=3 (≡0): N'≡1. 13→16, 16≡1 ✓.
+From 13, take s=1 (≡1): N'≡2. 13→23, 23≡2 ✓.
+From 13, take s=13 (≡1): N'≡2. 13→26, 26≡2 ✓.
+
+So from class 1, we can reach numbers ≡ 1 or 2 mod 3, but it seems like we can't reach ≡ 0 mod 3.
+
+Wait, but according to my analysis, if we pick s ≡ 2 mod 3 from a number ≡ 1 mod 3, we get N' ≡ 0 mod 3. Let me try:
+
+From 13 (≡1 mod 3), pick s = 13 (≡1 mod 3): N' ≡ 2 mod 3. Not 0.
+From 13, pick s = 1 (≡1 mod 3): N' ≡ 2 mod 3. Not 0.
+From 13, pick s = 3 (≡0 mod 3): N' ≡ 1 mod 3. Not 0.
+
+Hmm, from 13, the substrings are "1" (≡1), "3" (≡0), "13" (≡1). None of them are ≡2 mod 3. So we can't get to 0 mod 3 from 13.
+
+From 26 (≡2 mod 3), substrings: "2" (≡2), "6" (≡0), "26" (≡2).
+- s="2" (≡2): N'≡1 mod 3. 
+- s="6" (≡0): N'≡2 mod 3.
+- s="26" (≡2): N'≡1 mod 3.
+
+So from 26, we can only get to 1 or 2 mod 3.
+
+From 23 (≡2 mod 3), substrings: "2" (≡2), "3" (≡0), "23" (≡2).
+Same as above, only 1 or 2 mod 3.
+
+From 32 (≡2 mod 3), substrings: "3" (≡0), "2" (≡2), "32" (≡2).
+- s="3" (≡0): N'≡2. 32→62, 62≡2 ✓.
+- s="2" (≡2): N'≡1. 32→31 or 34. 31≡1, 34≡1 ✓.
+- s="32" (≡2): N'≡1. 32→16 or 64. 16≡1, 64≡1 ✓.
+
+From 43 (≡1 mod 3), substrings: "4" (≡1), "3" (≡0), "43" (≡1).
+- s="4" (≡1): N'≡2. 43→23 or 83. 23≡2, 83≡2 ✓.
+- s="3" (≡0): N'≡1. 43→46. 46≡1 ✓.
+- s="43" (≡1): N'≡2. 43→86. 86≡2 ✓.
+
+So it seems like from class 1, we can never reach a number ≡ 0 mod 3. The reason is that to get N' ≡ 0 mod 3, we need either:
+- N ≡ 1 and s ≡ 2 (mod 3): N' ≡ 0
+- N ≡ 2 and s ≡ 1 (mod 3): N' ≡ 0
+
+But in class 1, when N ≡ 1 mod 3, the available substrings s are never ≡ 2 mod 3, and when N ≡ 2 mod 3, the substrings are never ≡ 1 mod 3.
+
+Is this always the case? Let me think about why.
+
+If N ≡ 1 mod 3, then the digit sum ≡ 1 mod 3. The substrings of N... hmm, a substring s has s mod 3 = (digit sum of s) mod 3. The digit sum of the whole number is 1 mod 3. 
+
+Actually, the issue is more subtle. Let me think about it.
+
+If N has digits d_1, d_2, ..., d_k, then N mod 3 = (d_1 + d_2 + ... + d_k) mod 3.
+
+A substring s = d_i ... d_j has s mod 3 = (d_i + ... + d_j) mod 3.
+
+The "complement" (rest of the digits) has sum = (total sum) - (d_i + ... + d_j) ≡ N mod 3 - s mod 3 (mod 3).
+
+So if N ≡ 1 mod 3 and s ≡ 2 mod 3, the complement ≡ -1 ≡ 2 mod 3. That's fine, there's no contradiction.
+
+But the question is whether such a substring can exist in a number in class 1. Let me check: does class 1 contain any number with a substring ≡ 2 mod 3 when the number itself is ≡ 1 mod 3?
+
+Numbers in class 1 that are ≡ 1 mod 3: 1, 4, 13, 16, 31, 34, 43, 46, 52, 61, 64, 83, 86, ...
+
+Let me check 52 (≡1 mod 3): substrings are "5" (≡2), "2" (≡2), "52" (≡1).
+s="5" (≡2): N'≡1+2=0 mod 3! So 52 → (double "5") → 102, or (halve... 5 is odd, can't halve).
+
+Wait, 52: take substring "5", double it to "10": 102. 102 ≡ 0 mod 3. 
+
+So 102 is reachable from 52, and 102 ≡ 0 mod 3!
+
+But wait, is 102 in class 1? Let me verify: 52 is in class 1 (52 = 26×2, and 26 is in class 1). And 52 → 102 by doubling the "5" substring. So 102 is in class 1!
+
+But 102 is divisible by 3. So my earlier observation was wrong — class 1 does contain numbers divisible by 3.
+
+Let me re-examine. 102: substrings "1" (≡1), "0" (can't start with 0), "10" (≡1), "2" (≡2), "02" (can't start with 0), "102" (≡0).
+
+From 102:
+- s="1" (≡1): N'≡1. 102→202 (double "1") or (can't halve 1).
+- s="10" (≡1): N'≡1. 102→202 (double "10", 10→20: 202) or 102→52 (halve "10", 10→5: 52).
+- s="2" (≡2): N'≡2. 102→104 (double "2", 2→4: 104) or 102→101 (halve "2", 2→1: 101).
+- s="102" (≡0): N'≡0. 102→204 (double: 204) or 102→51 (halve: 51).
+
+So 102 → 51. 51 ≡ 0 mod 3. And 51: substrings "5" (≡2), "1" (≡1), "51" (≡0).
+- s="5" (≡2): N'≡2. 51→101 (double "5": 5→10, 101) or (can't halve 5).
+- s="1" (≡1): N'≡1. 51→52 (double "1": 1→2, 52) or (can't halve 1).
+- s="51" (≡0): N'≡0. 51→102 (double: 102) or (51/2 not integer).
+
+So 51 → 52, which is in class 1. And 51 → 101.
+
+101: substrings "1" (first, ≡1), "0" (can't), "1" (last, ≡1), "10" (≡1), "01" (can't), "101" (≡2).
+- s="101" (≡2): N'≡2. 101→202 (double: 202) or (101/2 not int).
+- s="1" (≡1): N'≡2. 101→201 or 102.
+
+So 101 → 102 (back) or 201, 202.
+
+OK so class 1 does contain numbers divisible by 3 (like 51, 102). So my earlier observation was just because I hadn't explored enough. The mod 3 invariant doesn't hold.
+
+Let me reconsider. Maybe there's no simple modular invariant, and the connectivity is more complex.
+
+Let me think about this problem from a completely different angle.
+
+**Thinking about the operation as acting on strings:**
+
+The operation replaces a substring with 2× or ÷2 of its value. Let me think about what this means for the string of digits.
+
+Key insight: Consider the number as a string. The operation of doubling or halving a substring can be seen as a local transformation on the string.
+
+Let me think about what happens when we repeatedly halve. If we start with any number and repeatedly halve the entire number (when even), we eventually reach an odd number. So every number is connected to its odd part (via full-number halving).
+
+Similarly, every number is connected to 2^k times its odd part for any k.
+
+So the question reduces to: which odd numbers are connected to each other?
+
+Now, the substring operation can change the odd part. For example:
+- 16 (odd part 1) → take "6", halve to "3" → 13 (odd part 13).
+- 13 (odd part 13) → take "3", double to "6" → 16 (odd part 1).
+
+So the substring operation can change the odd part.
+
+Let me think about what odd numbers are reachable from 1.
+
+From 1 (odd): 1 → 2 → 4 → 8 → 16 → (take "6"→"3") → 13 (odd)
+From 13 (odd): 13 → 26 → (take "6"→"3") → 23 (odd), or 13 → 26 → 52 → (take "5"→"10") → 102 → (halve whole) → 51 (odd)
+From 23 (odd): 23 → 46 → (take "6"→"3") → 43 (odd), or 23 → 46 → 92 → (take "9"→"18") → 182 → (halve whole) → 91 (odd)
+From 43 (odd): 43 → 86 → (take "6"→"3") → 83 (odd), or 43 → 86 → 172 → (take "7"→"14") → 1414 → ... 
+
+Hmm, this is getting complicated. Let me try to think about it more systematically.
+
+**Key observation: The operation on a single even digit.**
+
+If we have a single even digit d in the number, we can halve it: d → d/2. This changes the digit but keeps it as a single digit (since d/2 < 5 for d ∈ {2,4,6,8}, and d/2 ∈ {1,2,3,4}).
+
+Similarly, if d ∈ {1,2,3,4}, we can double it: d → 2d, staying single digit.
+
+So for single digits that stay single digit:
+- 1 ↔ 2 (1→2 by doubling, 2→1 by halving)
+- 2 ↔ 4 (2→4 by doubling, 4→2 by halving)
+- 3 ↔ 6 (3→6 by doubling, 6→3 by halving)
+- 4 ↔ 8 (4→8 by doubling, 8→4 by halving)
+
+So within a number, we can replace any digit:
+- 1 ↔ 2 ↔ 4 ↔ 8 (these form a chain)
+- 3 ↔ 6 (these form a pair)
+- 5, 7, 9 are isolated (can only be doubled to two-digit numbers, can't be halved since odd)
+
+But when we double 5, 7, or 9, we get two-digit numbers (10, 14, 18), which changes the structure.
+
+And when we have a two-digit substring, we can do more things.
+
+**Important: The digits 1,2,4,8 are interchangeable (within a number), and 3,6 are interchangeable.**
+
+This is because we can always halve/double single digits within {1,2,4,8} and {3,6} without changing the number of digits.
+
+So within a number, replacing any digit from {1,2,4,8} with any other from {1,2,4,8} is a valid operation (via a chain of doublings/halvings). Similarly for {3,6}.
+
+This means the "pattern" of a number, where we replace 1,2,4,8 with a single symbol A, and 3,6 with a single symbol B, and keep 0,5,7,9 as themselves, is an invariant of the single-digit operations.
+
+But the two-digit (and longer) substring operations can change this pattern.
+
+Let me think about what two-digit operations do.
+
+Two-digit substrings: s is a two-digit number (10-99). We can double it (getting 20-198) or halve it (if even, getting 5-49).
+
+When we double a two-digit number s (10-49), we get a two-digit number 2s (20-98). The digits change but it stays two digits.
+
+When we double s (50-99), we get a three-digit number (100-198).
+
+When we halve s (even, 10-98), we get a number that's either one digit (s=10,12,14,16,18 → 5,6,7,8,9) or two digits (s=20,22,...,98 → 10,11,...,49).
+
+The two-digit doubling/halving that stays two digits:
+- s → 2s (s ∈ 10-49, 2s ∈ 20-98)
+- s → s/2 (s ∈ 20-98 even, s/2 ∈ 10-49)
+
+These operations on two-digit substrings can mix the digit classes.
+
+For example, s=12 → 2s=24 (digits 1,2 → 2,4, all in class A). s=24 → s/2=12 (back).
+s=13 → 2s=26 (digits 1,3 → 2,6, A,B → A,B). 
+s=16 → 2s=32 (digits 1,6 → 3,2, A,B → B,A).
+s=11 → 2s=22 (A,A → A,A).
+s=14 → 2s=28 (A,A → A,A).
+s=18 → 2s=36 (A,B → B,B). Wait, 1→A, 8→A, so 18 is AA. 3→B, 6→B, so 36 is BB. So AA → BB!
+
+That's interesting. 18 (AA) → 36 (BB). So the pattern can change from AA to BB via a two-digit operation.
+
+Similarly, 36 → 18 (BB → AA) by halving.
+
+And 12 (AB) → 24 (AA). So AB → AA.
+And 24 → 12 (AA → AB) by halving.
+
+So two-digit operations can mix A and B. This means the pattern isn't preserved by two-digit operations.
+
+Let me think about what IS preserved.
+
+**Going back to basics: what is the invariant?**
+
+Let me think about the number modulo 9 more carefully.
+
+I showed earlier that:
+- Double (any case): N' ≡ N + s (mod 9) [I need to recheck this for mod 9, not just mod 3]
+
+Wait, I did the mod 3 analysis. Let me redo for mod 9.
+
+10 ≡ 1 (mod 9), so 10^m ≡ 1 (mod 9).
+
+Double, same length: N' = N + s × 10^m ≡ N + s (mod 9)
+Double, longer: N' = N - 8s × 10^(m-1) ≡ N - 8s ≡ N + s (mod 9) [since -8 ≡ 1 mod 9]
+
+Halve, same length: N' = N - (s/2) × 10^m ≡ N - s/2 (mod 9)
+Halve, shorter: N' = N + 4s × 10^m ≡ N + 4s (mod 9)
+
+Now, for halving: s is even, s = 2t, s/2 = t.
+- Same length: N' ≡ N - t (mod 9)
+- Shorter: N' ≡ N + 4 × 2t = N + 8t ≡ N - t (mod 9) [since 8 ≡ -1 mod 9]
+
+So in all cases:
+- Double: N' ≡ N + s (mod 9)
+- Halve: N' ≡ N - s/2 (mod 9)
+
+Now, s ≡ digit sum of s (mod 9). And s/2: since s is even, s/2 is an integer. s/2 mod 9 = s × (inverse of 2 mod 9) mod 9. The inverse of 2 mod 9 is 5 (since 2×5=10≡1 mod 9). So s/2 ≡ 5s (mod 9).
+
+So:
+- Double: N' ≡ N + s (mod 9)
+- Halve: N' ≡ N - 5s (mod 9) ≡ N + 4s (mod 9) [since -5 ≡ 4 mod 9]
+
+So the change mod 9 is:
+- Double: +s (mod 9)
+- Halve: +4s (mod 9) [equivalently, -5s mod 9]
+
+Now, s mod 9 can be anything from 0 to 8 (well, s is a positive integer, so s mod 9 ∈ {0,1,...,8}).
+
+For doubling: change = s mod 9, which can be any value 0-8.
+For halving: change = 4s mod 9, which can also be any value 0-8 (since gcd(4,9)=1).
+
+So mod 9 can change to any value. No mod 9 invariant.
+
+Let me try mod 7. 10 ≡ 3 (mod 7), so 10^m ≡ 3^m (mod 7).
+
+Double, same length: N' = N + s × 10^m ≡ N + s × 3^m (mod 7)
+Double, longer: N' = N - 8s × 10^(m-1) ≡ N - 8s × 3^(m-1) ≡ N - s × 3^(m-1) (mod 7) [since -8 ≡ -1 mod 7]
+
+Hmm, these depend on m, so it's not a clean invariant.
+
+Let me try a completely different approach.
+
+**Approach: Think about the number in terms of its prime factorization, specifically the power of 2.**
+
+Actually, I think the key insight might be related to the concept of "2-adic valuation" or something about the structure of the number.
+
+Let me think about this more carefully. The operation allows us to:
+1. Multiply or divide any substring by 2.
+2. This can change the number of digits.
+
+Let me think about what happens when we consider the number as a product of its "components."
+
+Actually, let me try a completely different approach. Let me think about the number as a sequence of digits and consider the "value" of the number in a different base or representation.
+
+**Key insight: Think about the number in base 10, but consider the "2-adic" structure.**
+
+Hmm, let me try yet another approach. Let me think about what numbers can be reached from 1 and from 3, and see if they're the same class or different.
+
+I'll try to be more systematic. Let me think about what the operation does to the "odd part" of the number.
+
+When we take the full number and halve it (if even), the odd part stays the same. When we double the full number, the odd part stays the same. So full-number operations preserve the odd part.
+
+When we operate on a substring, the odd part can change. The question is: which odd parts are reachable from a given odd part?
+
+From 1 (odd part 1):
+- 1 → 2 → 4 → 8 → 16 → (halve "6"→"3") → 13 (odd part 13)
+- 13 → 26 → (halve "6"→"3") → 23 (odd part 23)
+- 23 → 46 → (halve "6"→"3") → 43 (odd part 43)
+- 43 → 86 → (halve "6"→"3") → 83 (odd part 83)
+- 83 → 166 → (halve "6"→"3") → 163 (odd part 163)
+- ...
+
+Also from 16: (double "6"→"12") → 112 → (halve whole) → 56 → 28 → 14 → 7 (odd part 7)
+So 1 connects to 7!
+
+From 7 (odd part 7):
+- 7 → 14 → (halve "4"→"2") → 12 → (halve whole) → 6 → 3 (odd part 3)
+So 1 connects to 3!
+
+Wait, let me verify this path: 1 → 2 → 4 → 8 → 16 → (double "6" to "12") → 112 → (halve whole: 112/2=56) → 56 → (halve whole: 56/2=28) → 28 → (halve whole: 28/2=14) → 14 → (halve "4" to "2": 12) → 12 → (halve whole: 12/2=6) → 6 → (halve whole: 6/2=3) → 3.
+
+So 1 is connected to 3! Let me also check: 3 → 6 → 12 → (double "2" to "4": 14) → 14 → (double "4" to "8": 18) → 18 → (double whole: 36) → 36 → ... 
+
+Actually, let me verify the path more carefully:
+- 16: digits "1","6". Take substring "6", double to "12": replace "6" with "12" → "1" + "12" = "112". ✓
+- 112: halve whole: 112/2 = 56. ✓
+- 56: halve whole: 56/2 = 28. ✓
+- 28: halve whole: 28/2 = 14. ✓
+- 14: digits "1","4". Take substring "4", halve to "2": replace "4" with "2" → "12". ✓
+- 12: halve whole: 12/2 = 6. ✓
+- 6: halve whole: 6/2 = 3. ✓
+
+So 1 → ... → 3. They're connected!
+
+Now from 3:
+- 3 → 6 → 12 → (double "1" to "2": 22) → 22 → (halve "2" first to "1": 12, back) or (double whole: 44) → 44 → ...
+- 3 → 6 → 12 → (double "2" to "4": 14) → 14 → (double whole: 28) → 28 → ...
+- 3 → 6 → 12 → (double whole: 24) → 24 → ...
+- 3 → 6 → (double whole: 12) → 12 → ...
+- 3 → (double whole: 6) → 6 → ...
+
+From 3, can we reach 5?
+- 3 → 6 → 12 → 24 → (double "4" to "8": 28) → 28 → (double "2" to "4": 48) → 48 → (halve "8" to "4": 44) → ...
+- 3 → 6 → 12 → 24 → 48 → (double whole: 96) → 96 → (halve "6" to "3": 93) → 93 → (double "9" to "18": 183) → 183 → ...
+
+Hmm, let me try to reach 5.
+- 5 → 10 → (halve whole: 5, back) → 10 → (double "1" to "2": 20) → 20 → (halve whole: 10, back) → 20 → (double whole: 40) → 40 → (halve "4" to "2": 20, back) → 40 → (halve whole: 20) → 20 → ...
+- 5 → 10 → (double whole: 20) → 20 → (double whole: 40) → 40 → (double whole: 80) → 80 → (halve "8" to "4": 40, back) → 80 → (double whole: 160) → 160 → (halve "6" to "3": 130) → 130 → (halve whole: 65) → 65 → ...
+
+65: odd part 65 = 5 × 13. Hmm.
+- 65: "6"→"3": 35, "6"→"12": 125, "5"→"10": 610, "65"→(65/2 not int), "65"→"130": 130
+- 35: "3"→"6": 65, "5"→"10": 310, "35"→"70": 70, "35"→(35/2 not int)
+- 70: "7"→"14": 140, "0"→can't, "70"→"35": 35, "70"→"140": 140
+- 140: "1"→"2": 240, "4"→"2": 120, "4"→"8": 180, "0"→can't, "14"→"7": 70, "14"→"28": 280, "40"→"20": 120, "40"→"80": 180, "140"→"70": 70, "140"→"280": 280
+- 120: "1"→"2": 220, "2"→"1": 110, "2"→"4": 140, "0"→can't, "12"→"6": 60, "12"→"24": 240, "20"→"10": 110, "20"→"40": 140, "120"→"60": 60, "120"→"240": 240
+- 60: "6"→"3": 30, "6"→"12": 120, "0"→can't, "60"→"30": 30, "60"→"120": 120
+- 30: "3"→"6": 60, "0"→can't, "30"→"60": 60, "30"→(30/2=15): 15
+- 15: "1"→"2": 25, "5"→"10": 110, "15"→"30": 30, "15"→(15/2 not int)
+- 25: "2"→"1": 15, "2"→"4": 45, "5"→"10": 210, "25"→"50": 50, "25"→(25/2 not int)
+- 50: "5"→"10": 100, "0"→can't, "50"→"25": 25, "50"→"100": 100
+- 100: "1"→"2": 200, "0"→can't, "10"→"5": 50, "10"→"20": 200, "00"→can't, "100"→"50": 50, "100"→"200": 200
+
+So from 5, we can reach: 5, 10, 20, 40, 80, 160, 130, 65, 35, 70, 140, 120, 60, 30, 15, 25, 45, 50, 100, 200, 110, 310, 610, 125, 210, ...
+
+From 15, we can reach 30, and from 30 we can reach 60, and from 60 we can reach 120, and from 120 we can reach 60 (back) or 240, etc.
+
+From 15 → 30 → 60 → 120 → (halve "12" to "6": 60, back) or (double "1" to "2": 220) or (halve "2" to "1": 110) ...
+
+From 110: "1"(first)→"2": 210, "1"(second)→"2": 120, "10"→"5": 15, "10"→"20": 200, "11"→"22": 220, "11"→(11/2 not int), "110"→"55": 55, "110"→"220": 220
+
+55: "5"(first)→"10": 105, "5"(second)→"10": 510, "55"→"110": 110, "55"→(55/2 not int)
+105: "1"→"2": 205, "0"→can't, "5"→"10": 1010, "10"→"5": 55, "10"→"20": 2005... wait, let me be more careful.
+
+105: digits "1","0","5". Substrings: "1", "0"(invalid), "5", "10", "05"(invalid), "105".
+- "1"→"2": 205
+- "5"→"10": 1010
+- "10"→"5": 55 (back)
+- "10"→"20": 2005... no wait. 105, replace "10" with "20": "20" + "5" = "205". Hmm, "10" is the first two digits, replacing with "20" gives "205".
+- "105"→"210": 210
+- "105"→(105/2 not int)
+
+So 105 → 205, 1010, 55, 205, 210.
+
+From 110 → 55 → 105 → 210 → ...
+
+210: "2"→"1": 110, "2"→"4": 410, "1"→"2": 220, "10"→"5": 25, "10"→"20": 2200... wait.
+210: digits "2","1","0". Substrings: "2", "1", "0"(inv), "21", "10", "210"(inv, starts with 2, ok), "1","0"... let me be systematic.
+
+210: substrings starting with non-zero digit:
+- "2" (pos 1): →"1": 110, →"4": 410
+- "1" (pos 2): →"2": 220
+- "21" (pos 1-2): →"42": 420, →(21/2 not int)
+- "10" (pos 2-3): →"5": 25, →"20": 2200... no. Replace "10" (positions 2-3) with "5": "2" + "5" = "25". Replace with "20": "2" + "20" = "220".
+- "210" (pos 1-3): →"105": 105, →"420": 420
+
+So 210 → 110, 410, 220, 420, 25, 220, 105, 420.
+
+From 210 → 25. And 25 is already in our class (from 5 → ... → 25).
+
+OK so it seems like 5 connects to a lot of numbers. Let me check if 5 connects to 1 or 3.
+
+From the 5-class: 5, 10, 20, 40, 80, 160, 130, 65, 35, 70, 140, 120, 60, 30, 15, 25, 45, 50, 100, 200, 110, 55, 105, 210, 310, 610, 125, 205, 1010, 420, 410, 220, ...
+
+From the 1-class (which includes 3): 1, 2, 3, 4, 6, 7, 8, 12, 14, 16, 9, 18, 11, 21, 22, 24, 28, 36, 13, 26, 23, 32, 43, 46, 52, 31, 34, 62, 64, 83, 86, 92, 61, 112, 56, 53, ...
+
+Wait, I showed 1 connects to 3 and 7. Does 1 connect to 5?
+
+From 1-class, we have 112 → 56 → 28 → 14 → 7 → 14 → 12 → 6 → 3. Also 14 → (double "1" to "2": 24) → 24 → ...
+
+From 1-class, can we reach 15? 
+- 14 → (double "4" to "8": 18) → 18 → (double whole: 36) → 36 → (halve "6" to "3": 33) → 33 → (double "3" first to "6": 63) → 63 → (halve "6" to "3": 33, back) → 63 → (double whole: 126) → 126 → (halve "6" to "3": 123) → 123 → ...
+- 18 → (halve "8" to "4": 14, back) → 18 → (halve whole: 9) → 9 → (double whole: 18, back)
+- 36 → (halve whole: 18, back) → 36 → (double whole: 72) → 72 → (halve "2" to "1": 71) → 71 → (double "7" to "14": 141) → 141 → ...
+- 72 → (halve "7"... 7 is odd, can't halve) → 72 → (double "2" to "4": 74) → 74 → (halve "4" to "2": 72, back) → 74 → (halve whole: 37) → 37 → (double "3" to "6": 67) → 67 → (double "7" to "14": 614) → 614 → ...
+- 37 → (double whole: 74, back) → 37 → (double "7" to "14": 314) → 314 → ...
+
+Hmm, I'm not finding a path from 1-class to 5. Let me think about whether there's an invariant that separates them.
+
+Let me look at the numbers in each class more carefully.
+
+1-class: 1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 18, 21, 22, 23, 24, 26, 28, 31, 32, 33, 34, 36, 37, 43, 46, 52, 53, 56, 61, 62, 63, 64, 71, 72, 74, 83, 86, 92, 112, 123, 126, 141, 314, 614, ...
+
+5-class: 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 100, 105, 110, 120, 125, 130, 140, 160, 200, 205, 210, 220, 310, 410, 420, 510, 610, 1010, ...
+
+Hmm, let me look at this. The 1-class seems to contain numbers whose digits are all from {1,2,3,4,6,7,8,9} (no 0 or 5), while the 5-class contains numbers with 0 or 5 in them.
+
+Wait, but 112 has no 0 or 5, and it's in the 1-class. And 15 has a 5, and it's in the 5-class. Let me check: does the 1-class contain any number with a 0 or 5 digit?
+
+From 1-class: 1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 18, 21, 22, 23, 24, 26, 28, 31, 32, 33, 34, 36, 37, 43, 46, 52, 53, 56, 61, 62, 63, 64, 71, 72, 74, 83, 86, 92, 112, 123, 126, 141, ...
+
+52 has a 5! And 53 has a 5. So the 1-class does contain numbers with digit 5.
+
+Hmm wait, let me recheck. Is 52 really in the 1-class?
+
+Path: 1 → 2 → 4 → 8 → 16 → (double "6" to "12") → 112 → (halve whole) → 56 → (halve whole) → 28 → (halve whole) → 14 → 7 → ... 
+
+Wait, how did I get 52? Let me retrace. 
+
+26 → (double whole: 52). And 26 is in the 1-class (16 → (double "1" to "2": 26)). So 52 is in the 1-class. And 52 has digit 5.
+
+So the 1-class contains 52, which has a 5. And the 5-class contains 15, which has a 5. So both classes have numbers with digit 5. The digit 5 alone doesn't separate them.
+
+Let me look more carefully. 52 is in the 1-class. Can we get from 52 to 5?
+
+52: "5"→"10": 102, "2"→"1": 51, "2"→"4": 54, "52"→"26": 26, "52"→"104": 104
+
+51: "5"→"10": 101, "1"→"2": 52, "51"→"102": 102, "51"→(51/2 not int)
+
+102: "1"→"2": 202, "2"→"1": 101, "2"→"4": 104, "10"→"5": 52, "10"→"20": 202, "102"→"51": 51, "102"→"204": 204
+
+54: "5"→"10": 104, "4"→"2": 52, "4"→"8": 58, "54"→"27": 27, "54"→"108": 108
+
+27: "2"→"1": 17, "2"→"4": 47, "7"→"14": 214, "27"→"54": 54, "27"→(27/2 not int)
+
+17: "1"→"2": 27, "7"→"14": 114, "17"→"34": 34, "17"→(17/2 not int)
+
+34 is in the 1-class! So 52 → 54 → 27 → 17 → 34, which is in the 1-class. So this is consistent.
+
+But can we get from 52 to 5? Let me try:
+52 → 51 → 101 → ?
+101: "1"(first)→"2": 201, "1"(last)→"2": 102, "10"→"5": 51, "10"→"20": 201, "01"→invalid, "101"→"202": 202, "101"→(101/2 not int)
+
+101 → 201, 102, 51, 202.
+
+201: "2"→"1": 101, "2"→"4": 401, "0"→invalid, "1"→"2": 202, "20"→"10": 101, "20"→"40": 401, "01"→invalid, "201"→(201/2 not int), "201"→"402": 402
+
+202: "2"(first)→"1": 102, "2"(first)→"4": 402, "0"→invalid, "2"(last)→"1": 201, "2"(last)→"4": 204, "20"→"10": 102, "20"→"40": 402, "02"→invalid, "202"→"101": 101, "202"→"404": 404
+
+Hmm, I keep getting numbers with 0s and 1s and 2s, but not reaching 5.
+
+Let me try from 52 → 102 → 51 → 101 → 202 → 101 (back) ...
+
+Or 52 → 104 → ?
+104: "1"→"2": 204, "0"→inv, "4"→"2": 102, "4"→"8": 108, "10"→"5": 54, "10"→"20": 204, "04"→inv, "104"→"52": 52, "104"→"208": 208
+
+104 → 108: "1"→"2": 208, "0"→inv, "8"→"4": 104, "8"→"16": 1016, "10"→"5": 58, "10"→"20": 208, "08"→inv, "108"→"54": 54, "108"→"216": 216
+
+108 → 216: "2"→"1": 116, "2"→"4": 416, "1"→"2": 226, "16"→"8": 28, "16"→"32": 326, "21"→"42": 426, "21"→(21/2 not int), "216"→"108": 108, "216"→"432": 432
+
+216 → 28! And 28 is in the 1-class. So we're going in circles within the 1-class.
+
+Let me try harder to reach 5 from the 1-class.
+
+From 52, I can get to 54 (halve "2" to "1": 51, no wait, 52 → 54 by doubling "2" to "4"). 
+
+54 → 27 (halve whole). 27 is odd. 27 → 17 (halve "2" to "1"). 17 → 34 (double whole). 34 → 17 (halve whole). 
+
+From 27 → 47 (double "2" to "4"). 47 → 94 (double whole). 94 → 47 (halve whole). 94 → 97 (halve "4" to "2": 92, no. "4"→"2": 92. "4"→"8": 98.)
+
+94: "9"→"18": 184, "4"→"2": 92, "4"→"8": 98, "94"→"47": 47, "94"→"188": 188
+
+92: "9"→"18": 182, "2"→"1": 91, "2"→"4": 94, "92"→"46": 46, "92"→"184": 184
+
+91: "9"→"18": 181, "1"→"2": 92, "91"→(91/2 not int), "91"→"182": 182
+
+182: "1"→"2": 282, "8"→"4": 142, "8"→"16": 1162, "2"→"1": 181, "2"→"4": 184, "18"→"9": 92, "18"→"36": 362, "82"→"41": 141, "82"→"164": 1164, "182"→"91": 91, "182"→"364": 364
+
+182 → 36 (via "18"→"9": 92, then 92 → 46 → 23 → ...). Wait, 182 → 92 (halve "18" to "9"). 92 → 46 (halve whole). 46 → 23 (halve whole). 23 is in the 1-class. So we're still in the 1-class.
+
+Let me try to think about this more carefully. Is there an invariant that separates 1-class from 5-class?
+
+Let me look at the numbers in each class modulo some number.
+
+1-class (small numbers): 1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18, 21, 22, 23, 24, 26, 27, 28, 31, 32, 33, 34, 36, 37, 43, 46, 47, 52, 53, 54, 56, 58, 61, 62, 63, 64, 71, 72, 74, 83, 86, 91, 92, 94, 97, 98, ...
+
+5-class (small numbers): 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 100, 105, 110, 120, 125, 130, 140, 160, 200, ...
+
+Hmm, let me look at the 1-class mod 5:
+1→1, 2→2, 3→3, 4→4, 6→1, 7→2, 8→3, 9→4, 11→1, 12→2, 13→3, 14→4, 16→1, 17→2, 18→3, 21→1, 22→2, 23→3, 24→4, 26→1, 27→2, 28→3, 31→1, 32→2, 33→3, 34→4, 36→1, 37→2, 43→3, 46→1, 47→2, 52→2, 53→3, 54→4, 56→1, 58→3, 61→1, 62→2, 63→3, 64→4, 71→1, 72→2, 74→4, 83→3, 86→1, 91→1, 92→2, 94→4, 97→2, 98→3
+
+So the 1-class has numbers with all residues mod 5: 1, 2, 3, 4. But does it have any number ≡ 0 mod 5?
+
+Looking at the list: 1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18, 21, 22, 23, 24, 26, 27, 28, 31, 32, 33, 34, 36, 37, 43, 46, 47, 52, 53, 54, 56, 58, 61, 62, 63, 64, 71, 72, 74, 83, 86, 91, 92, 94, 97, 98, ...
+
+None of these are divisible by 5! They all have last digit in {1,2,3,4,6,7,8,9}, never 0 or 5.
+
+5-class: 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 100, 105, 110, 120, 125, 130, 140, 160, 200, ...
+
+All of these are divisible by 5! They all end in 0 or 5.
+
+So the invariant might be: divisibility by 5.
+
+Let me check: is divisibility by 5 preserved by the operation?
+
+If N is divisible by 5, then N ends in 0 or 5. When we replace a substring s with 2s or s/2, the last digit of the number might change.
+
+Actually, the last digit changes only if the substring includes the last digit. If the substring doesn't include the last digit, the last digit stays the same, and divisibility by 5 is preserved.
+
+If the substring includes the last digit:
+- The last digit of s is d_k (the last digit of N).
+- If we double s: the last digit of 2s is (2 × d_k) mod 10. If d_k ∈ {0,5}, then 2d_k mod 10 ∈ {0,0} = {0}. So the last digit of 2s is 0, which means the new number ends in 0, which is divisible by 5. ✓
+- If we halve s (s even): the last digit of s/2... s is even, so d_k is even. If d_k = 0, s/2 ends in 0 or 5 (since s = 10m, s/2 = 5m, which ends in 0 or 5). If d_k = 5, s is odd, can't halve. So if d_k ∈ {0} (the only even option in {0,5}), s/2 ends in 0 or 5. ✓
+
+Wait, I need to be more careful. If N ends in 0, the substring including the last digit has last digit 0. s is even (ends in 0). s/2: if s = 10, s/2 = 5 (ends in 5). If s = 20, s/2 = 10 (ends in 0). If s = 30, s/2 = 15 (ends in 5). If s = 100, s/2 = 50 (ends in 0). In general, s/2 ends in 0 or 5. ✓
+
+If N ends in 5, the substring including the last digit has last digit 5. s is odd (ends in 5). Can't halve. Can only double: 2s ends in 0. ✓
+
+So if N is divisible by 5, then N' is also divisible by 5. ✓
+
+Now, if N is NOT divisible by 5 (ends in 1,2,3,4,6,7,8,9):
+- If the substring doesn't include the last digit: last digit unchanged, N' not divisible by 5. ✓
+- If the substring includes the last digit:
+  - Double: last digit of 2s = (2 × d_k) mod 10. If d_k ∈ {1,2,3,4,6,7,8,9}, then 2d_k mod 10 ∈ {2,4,6,8,2,4,6,8} = {2,4,6,8}. None of these are 0 or 5. ✓
+  - Halve (s even, so d_k even, d_k ∈ {2,4,6,8}): s/2, last digit of s/2. If d_k = 2, s = 10m+2, s/2 = 5m+1, last digit ∈ {1,6}. If d_k = 4, s/2 = 5m+2, last digit ∈ {2,7}. If d_k = 6, s/2 = 5m+3, last digit ∈ {3,8}. If d_k = 8, s/2 = 5m+4, last digit ∈ {4,9}. None of these are 0 or 5. ✓
+
+So if N is not divisible by 5, N' is also not divisible by 5. ✓
+
+**So divisibility by 5 is an invariant!**
+
+This means:
+- Numbers divisible by 5 form one or more equivalence classes.
+- Numbers not divisible by 5 form one or more equivalence classes.
+
+Now, the question is: within each group, is there just one equivalence class or multiple?
+
+For P_1 (single-digit numbers 1-9):
+- Not divisible by 5: {1, 2, 3, 4, 6, 7, 8, 9} — 8 numbers
+- Divisible by 5: {5} — 1 number
+
+I showed that 1 connects to 3 and 7 (and by extension to all of {1,2,3,4,6,7,8,9} since 1↔2↔4↔8, 3↔6, 7→14→12→6→3, 9→18→14→...).
+
+Wait, let me verify that all of {1,2,3,4,6,7,8,9} are connected.
+
+1 ↔ 2 ↔ 4 ↔ 8 (via single-digit doubling/halving)
+3 ↔ 6 (via single-digit doubling/halving)
+1 → 2 → 4 → 8 → 16 → 112 → 56 → 28 → 14 → 7 (shown earlier)
+7 → 14 → 12 → 6 → 3 (shown earlier: 7→14, 14→(halve "4"→"2")→12, 12→(halve whole)→6, 6→(halve whole)→3)
+9 → 18 → (halve "8"→"4") → 14 → ... → 1 (9→18, 18→14, and 14 is connected to 1)
+
+So {1,2,3,4,6,7,8,9} are all connected. And 5 is in a separate class (divisible by 5).
+
+So for P_1, the equivalence classes among {1,...,9} are:
+- Class A: {1, 2, 3, 4, 6, 7, 8, 9} — 8 numbers
+- Class B: {5} — 1 number
+
+P_1 = probability that two randomly chosen 1-digit numbers are connected = P(both in same class).
+
+There are 9 × 9 = 81 ordered pairs. Connected pairs:
+- Both in class A: 8 × 8 = 64
+- Both in class B: 1 × 1 = 1
+- Total connected: 65
+
+P_1 = 65/81.
+
+Wait, but I need to be careful. Are we choosing two numbers uniformly at random from the 9 one-digit numbers? And "connected" means they're in the same equivalence class. The probability is:
+
+P_1 = (C(8,2) + C(1,2)) / C(9,2) = (28 + 0) / 36 = 28/36 = 7/9.
+
+Or if ordered pairs: (8² + 1²) / 9² = 65/81.
+
+Hmm, which interpretation? "Two randomly chosen k-digit natural numbers" — this usually means choosing two independently and uniformly. So it should be ordered pairs (or equivalently, with replacement).
+
+P_1 = (8² + 1²) / 9² = 65/81.
+
+Actually, wait. Let me reconsider. "Two randomly chosen" could mean with or without replacement. In probability, when we say "two randomly chosen," it usually means independent uniform choices, i.e., with replacement. So P_1 = 65/81.
+
+But actually, for large k, the difference is negligible. Let me go with the "with replacement" interpretation: P_k = (sum of squares of class sizes) / (total number of k-digit numbers)².
+
+Now for P_2, I need to find the equivalence classes among 2-digit numbers (10-99).
+
+There are 90 two-digit numbers. They split into:
+- Divisible by 5: numbers ending in 0 or 5. These are 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95. That's 18 numbers.
+- Not divisible by 5: 90 - 18 = 72 numbers.
+
+Now, within each group, are all numbers connected?
+
+**For the non-divisible-by-5 group:**
+
+I need to check if all 72 two-digit numbers not divisible by 5 are connected.
+
+From the 1-class, I've already found many 2-digit numbers: 11, 12, 13, 14, 16, 17, 18, 21, 22, 23, 24, 26, 27, 28, 31, 32, 33, 34, 36, 37, 43, 46, 47, 52, 53, 54, 56, 58, 61, 62, 63, 64, 71, 72, 74, 83, 86, 91, 92, 94, 97, 98, ...
+
+Let me list all 2-digit numbers not divisible by 5 and check which ones I've found:
+
+Not divisible by 5, 2-digit: 11,12,13,14,16,17,18,19,21,22,23,24,26,27,28,29,31,32,33,34,36,37,38,39,41,42,43,44,46,47,48,49,51,52,53,54,56,57,58,59,61,62,63,64,66,67,68,69,71,72,73,74,76,77,78,79,81,82,83,84,86,87,88,89,91,92,93,94,96,97,98,99
+
+That's 72 numbers. Let me check which ones I've shown to be in the 1-class:
+
+Found: 11, 12, 13, 14, 16, 17, 18, 21, 22, 23, 24, 26, 27, 28, 31, 32, 33, 34, 36, 37, 43, 46, 47, 52, 53, 54, 56, 58, 61, 62, 63, 64, 71, 72, 74, 83, 86, 91, 92, 94, 97, 98
+
+Not yet found: 19, 29, 38, 39, 41, 42, 44, 48, 49, 51, 57, 59, 66, 67, 68, 69, 73, 76, 77, 78, 79, 81, 82, 84, 87, 88, 89, 93, 96, 99
+
+Let me try to reach some of these.
+
+19: From 9 → 18 → 19? 18: "1"→"2": 28, "8"→"4": 14, "8"→"16": 116, "18"→"9": 9, "18"→"36": 36. None of these give 19.
+
+How about from other numbers? 19: "1"→"2": 29, "9"→"18": 118, "19"→"38": 38, "19"→(19/2 not int).
+
+So 19 → 29, 118, 38. And 38 → 19 (halve whole: 38/2=19). So 19 ↔ 38.
+
+Can I reach 19 from the 1-class? Let me try:
+- 18 → 36 → 72 → 144 → ... 
+- 18 → 116 → 58 → 29 → ? 29: "2"→"1": 19, "2"→"4": 49, "9"→"18": 218, "29"→"58": 58, "29"→(29/2 not int).
+
+29 → 19! And 58 is in the 1-class (from 54 → 58 by doubling "4" to "8"). So 58 → 29 (halve whole: 58/2=29) → 19 (halve "2" to "1": 19).
+
+So 19 is in the 1-class! And 38 = 19×2 is also in the 1-class.
+
+29 is also in the 1-class (58 → 29).
+
+49: 29 → 49 (double "2" to "4"). So 49 is in the 1-class.
+
+41: How to reach 41? 41: "4"→"2": 21, "4"→"8": 81, "1"→"2": 42, "41"→"82": 82, "41"→(41/2 not int).
+
+41 → 21 (in 1-class), so 41 is in the 1-class! And 81 = 41×2, 82 = 41×2, 42 = 41 with "1"→"2".
+
+42: 41 → 42 (double "1" to "2"). In 1-class.
+44: 42 → 44 (double "2" to "4", or 22 → 44 by doubling whole). 22 is in 1-class, 22→44. In 1-class.
+48: 44 → 48 (double "4" to "8"). Or 24 → 48 (double whole). In 1-class.
+51: 52 → 51 (halve "2" to "1"). Already shown. In 1-class.
+57: 56 → 57? 56: "5"→"10": 106, "6"→"3": 53, "6"→"12": 512, "56"→"28": 28, "56"→"112": 112. None give 57.
+
+How to reach 57? 57: "5"→"10": 107, "7"→"14": 514, "57"→"114": 114, "57"→(57/2 not int).
+
+57 →

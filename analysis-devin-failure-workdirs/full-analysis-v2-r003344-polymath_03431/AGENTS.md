@@ -1,0 +1,1051 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_03431</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Consider an $n \times n$ table ($n \in \mathbb{N}$) filled with the integers from $1$ to $n^2$. The filling satisfies two conditions:
+1. The absolute difference between numbers in any two adjacent fields (sharing a side) is at most $n$.
+2. For every $k \in \{1, 2, \dots, n^2\}$, the set of fields containing the numbers $\{1, 2, \dots, k\}$ is connected, and the set of fields containing the numbers $\{k, k+1, \dots, n^2\}$ is also connected.
+
+A pair of adjacent fields is called "good" if the absolute difference of the numbers in those fields is exactly $n$. Let $g(n)$ be the minimum possible number of good pairs in such a table. Find $g(10)$.
+
+## Standard Solution
+
+The original problem asks to prove that the table has at least $2(n-1)$ good pairs. The solution shows that by following the connectivity and difference constraints, at least $n$ good pairs are formed when the table starts to fill columns/rows, and at least $n-2$ additional good pairs are formed as the table completes. This results in a total minimum of $n + (n-2) = 2(n-1)$ good pairs. For $n=10$, $g(10) = 2(10-1) = 18$.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We have an $n \times n$ table filled with integers $1$ to $n^2$. Conditions:
+1. Adjacent fields differ by at most $n$.
+2. For every $k$, the set of fields with $\{1,...,k\}$ is connected, and the set with $\{k,...,n^2\}$ is connected.
+
+A "good" pair is adjacent fields with difference exactly $n$. Find $g(10)$, the minimum number of good pairs.
+
+Let me think about this problem.
+
+First, let me understand the structure. The connectivity condition (condition 2) is quite strong. It says that for every $k$, the "lower set" $\{1,...,k\}$ forms a connected region, and the "upper set" $\{k,...,n^2\}$ forms a connected region.
+
+This is related to the concept of a "connected numbering" or "Hamiltonian-like" path structure.
+
+Let me think about what condition 2 implies. If for every $k$, both $\{1,...,k\}$ and $\{k,...,n^2\}$ are connected, this is a strong condition. 
+
+Actually, condition 2 is equivalent to saying: for every $k$, the set $\{1,...,k\}$ is connected AND the set $\{k,...,n^2\}$ is connected. 
+
+Note that $\{k,...,n^2\}$ connected for all $k$ is equivalent to $\{k,...,n^2\}$ connected for all $k$, which by symmetry (replacing $i$ with $n^2+1-i$) is like saying $\{1,...,n^2-k+1\}$ is connected for all $k$, i.e., $\{1,...,m\}$ is connected for all $m$. So condition 2 is equivalent to just: for every $k$, $\{1,...,k\}$ is connected.
+
+Wait, let me re-examine. If we replace each number $i$ with $n^2+1-i$, then $\{k,...,n^2\}$ becomes $\{1,...,n^2-k+1\}$. So the condition "$\{k,...,n^2\}$ connected for all $k$" is the same as "$\{1,...,m\}$ connected for all $m$" under this relabeling. But we need both conditions simultaneously for the same labeling.
+
+So condition 2 = for every $k$, $\{1,...,k\}$ is connected AND $\{k,...,n^2\}$ is connected.
+
+The condition that $\{1,...,k\}$ is connected for all $k$ means: when we add cells in order of their values, each new cell (value $k$) must be adjacent to some cell with value $< k$ (for $k \geq 2$). This means the values form a "connected growth" pattern.
+
+Similarly, $\{k,...,n^2\}$ connected for all $k$ means: when we remove cells in order (removing value $k$), the remaining set stays connected. This means each cell with value $k$ (for $k < n^2$) must be adjacent to some cell with value $> k$.
+
+So combining: each cell with value $k$ (for $2 \leq k \leq n^2-1$) must have at least one neighbor with value $< k$ and at least one neighbor with value $> k$. The cell with value $1$ must have a neighbor with value $> 1$ (trivially true since it's connected to the rest). The cell with value $n^2$ must have a neighbor with value $< n^2$.
+
+Actually more precisely: value $1$'s cell must be adjacent to some cell in $\{2,...,n^2\}$ (which is always true unless $n=1$). Value $k$'s cell for $2 \leq k \leq n^2-1$ must be adjacent to some cell in $\{1,...,k-1\}$ and some cell in $\{k+1,...,n^2\}$. Value $n^2$'s cell must be adjacent to some cell in $\{1,...,n^2-1\}$.
+
+This is exactly the condition that the numbering forms a "discrete Morse function" with no critical points... actually it's related to the concept that the numbering is a "shelling" in some sense, or that it's a "good" ordering.
+
+Actually, this condition (both lower and upper sets connected for all $k$) is known as the numbering being a "discrete Morse function" where every cell is regular. In the language of discrete Morse theory, a cell is "regular" if it has exactly one lower neighbor and one upper neighbor in the Morse function, and the pairing forms a gradient path. But here we just need connectivity, not the full Morse condition.
+
+Let me think differently. The condition that $\{1,...,k\}$ is connected for all $k$ and $\{k,...,n^2\}$ is connected for all $k$ is equivalent to: the function $f: \text{grid} \to \{1,...,n^2\}$ (a bijection) is such that all sublevel sets and superlevel sets are connected.
+
+Now, condition 1 says adjacent cells differ by at most $n$.
+
+A "good" pair has difference exactly $n$. We want to minimize the number of good pairs.
+
+Let me think about small cases first to build intuition.
+
+For $n=1$: $1 \times 1$ table, just the number 1. No adjacent pairs, so $g(1) = 0$.
+
+For $n=2$: $2 \times 2$ table with $1,2,3,4$. Adjacent difference at most 2. Let's see what fillings work.
+
+The grid has 4 cells and 4 edges (adjacent pairs). We need a bijection $\{1,2,3,4\} \to$ cells such that:
+- Adjacent difference $\leq 2$
+- All sublevel and superlevel sets connected.
+
+Let me try:
+```
+1 2
+3 4
+```
+Adjacent pairs: (1,2) diff 1, (1,3) diff 2, (2,4) diff 2, (3,4) diff 1. All $\leq 2$. Good pairs (diff = 2): (1,3) and (2,4). So 2 good pairs.
+
+Sublevel sets: {1} connected, {1,2} connected, {1,2,3} connected, {1,2,3,4} connected. ✓
+Superlevel sets: {1,2,3,4}, {2,3,4}, {3,4}, {4} all connected. ✓
+
+Can we do better? Let's try:
+```
+1 3
+2 4
+```
+Adjacent: (1,3) diff 2, (1,2) diff 1, (3,4) diff 1, (2,4) diff 2. Good pairs: (1,3), (2,4) = 2.
+
+```
+2 1
+3 4
+```
+Adjacent: (2,1) diff 1, (2,3) diff 1, (1,4) diff 3 > 2. Violates condition 1.
+
+```
+1 2
+4 3
+```
+Adjacent: (1,2) diff 1, (1,4) diff 3 > 2. Violates.
+
+```
+2 4
+1 3
+```
+Adjacent: (2,4) diff 2, (2,1) diff 1, (4,3) diff 1, (1,3) diff 2. Good pairs: 2.
+Sublevel: {2} connected, {1,2} connected (1 and 2 adjacent), {1,2,4} - is this connected? 2,4 adjacent, 1,2 adjacent. Yes. {1,2,3,4} connected. ✓
+Superlevel: {2,3,4} - 2,4 adjacent, 3,4 adjacent? 3 is at bottom-right, 4 is top-right. Adjacent. Connected. {3,4} adjacent. {4}. ✓
+
+Hmm, seems like for $n=2$ we always get 2 good pairs. Let me check if we can get fewer.
+
+Actually, in a $2 \times 2$ grid, the 4 edges form a cycle. The differences around the cycle must all be $\leq 2$. The numbers are $1,2,3,4$. The sum of differences around the cycle... let me think. We have 4 numbers on a cycle, differences $\leq 2$. The maximum number is 4, minimum is 1, so the range is 3. On a cycle, to go from 1 to 4 and back, we need the differences to cover a range of 3. With each step $\leq 2$, we need at least 2 steps to go from 1 to 4 (e.g., $1 \to 3 \to 4$ or $1 \to 2 \to 4$). But on a cycle, we go both ways. 
+
+Actually, let me think about it differently. On the cycle, the numbers $1,2,3,4$ are placed. The differences on the 4 edges sum to at least... well, going around the cycle, the "up" moves and "down" moves must balance. The total "up" = total "down" = range of values that the cycle covers = 3 (from 1 to 4). Each edge has difference $\leq 2$. To achieve total up = 3 with edges $\leq 2$, we need at least 2 edges going up (since $2+1=3$ or $2+2=4 \geq 3$... wait, we need exactly total up = 3). With edges of difference $\leq 2$: one edge of diff 2 and one of diff 1 gives up = 3. Or three edges of diff 1. But we also need total down = 3 on the other edges.
+
+Hmm, this is getting complicated. Let me just check: can we have only 1 good pair (diff = 2) in $2 \times 2$?
+
+If only 1 edge has diff 2, the other 3 have diff 1. The 4 numbers on a cycle with 3 edges of diff 1 and 1 edge of diff 2. The sum of absolute differences = 3·1 + 1·2 = 5. But on a cycle, sum of signed differences = 0, so sum of positive differences = sum of negative differences = total/2 = 2.5. That's not an integer, contradiction! So we can't have exactly 1 good pair.
+
+Wait, that's not right either. The sum of absolute differences on a cycle doesn't have to be even. Let me reconsider.
+
+On a cycle, label the vertices $v_1, v_2, v_3, v_4$ with values $f(v_i)$. The signed differences $f(v_2)-f(v_1), f(v_3)-f(v_2), f(v_4)-f(v_3), f(v_1)-f(v_4)$ sum to 0. The sum of positive parts = sum of negative parts (in absolute value). 
+
+If 3 edges have diff 1 and 1 edge has diff 2, total absolute = 5. Sum of positive = sum of negative = 2.5. Impossible since these must be integers. So indeed, we can't have exactly 1 good pair for $n=2$.
+
+With 0 good pairs: all diffs = 1, total = 4, sum positive = sum negative = 2. But we need to place 1,2,3,4 on a cycle with all adjacent diffs = 1. That means consecutive values are adjacent. But 1,2,3,4 on a 4-cycle with all adjacent = 1 means it's a Hamiltonian path on the cycle... $1-2-3-4$ around the cycle, but then $4-1$ edge has diff 3. Contradiction. So 0 good pairs impossible.
+
+So $g(2) = 2$.
+
+OK let me think about the general structure more carefully.
+
+Let me think about what the connectivity condition really gives us. 
+
+Claim: The connectivity condition (condition 2) is equivalent to: the numbering defines a Hamiltonian path on the grid graph.
+
+Wait, is that true? If $\{1,...,k\}$ is connected for all $k$, does that mean there's a Hamiltonian path $1, 2, 3, ..., n^2$?
+
+$\{1,...,k\}$ connected for all $k$ means: for each $k \geq 2$, cell $k$ is adjacent to some cell in $\{1,...,k-1\}$. This doesn't immediately give a Hamiltonian path, because cell $k$ might be adjacent to cell $j < k$ but not to cell $k-1$ specifically.
+
+However, the condition that $\{k,...,n^2\}$ is also connected for all $k$ adds: for each $k \leq n^2-1$, cell $k$ is adjacent to some cell in $\{k+1,...,n^2\}$.
+
+So each cell $k$ (for $2 \leq k \leq n^2-1$) has a neighbor with smaller value and a neighbor with larger value. Cell 1 has a neighbor with larger value, cell $n^2$ has a neighbor with smaller value.
+
+This means: if we build a graph where we connect each cell $k$ to one of its smaller-valued neighbors and one of its larger-valued neighbors, we get a path from 1 to $n^2$. But this isn't necessarily a Hamiltonian path of the grid; it's a path in the grid that visits all cells.
+
+Wait, actually it IS a Hamiltonian path! If we select for each $k$ (from 2 to $n^2$) one neighbor in $\{1,...,k-1\}$, we get a spanning tree (actually a spanning tree rooted at 1). But combined with the upper connectivity, we can extract a Hamiltonian path.
+
+Hmm, actually let me reconsider. The condition doesn't directly give a Hamiltonian path. Consider:
+
+```
+1 2 5
+3 4 6
+```
+Wait, this is $2 \times 3$. $\{1,2,3\}$: cells with 1,2,3. If 1 is at (0,0), 2 at (0,1), 3 at (1,0), then $\{1,2,3\}$ is connected. $\{1,2,3,4\}$: add 4 at (1,1), connected. $\{1,...,5\}$: add 5 at (0,2), connected to 2. $\{1,...,6\}$: add 6 at (1,2), connected to 4 and 5.
+
+Superlevel: $\{5,6\}$ connected, $\{4,5,6\}$ connected, $\{3,4,5,6\}$: 3 at (1,0), 4 at (1,1), 5 at (0,2), 6 at (1,2). 3-4 adjacent, 4-6 adjacent, 5-6 adjacent. Connected. $\{2,3,4,5,6\}$: add 2 at (0,1), adjacent to 4? No, (0,1) and (1,1) are adjacent. Yes. Connected.
+
+So this works. And there IS a Hamiltonian path: 1-2-5-6-4-3 or 1-3-4-6-5-2, etc. But the condition doesn't force a unique Hamiltonian path.
+
+Actually, I think the key insight is:
+
+The condition that all sublevel sets and superlevel sets are connected is equivalent to saying the function is a "discrete Morse function with no critical cells" (in the sense of Forman's discrete Morse theory), which for a simply connected space means the function defines a gradient flow that pairs up all cells, effectively giving a Hamiltonian path.
+
+Hmm, but a grid graph is not a CW complex in the usual sense. Let me think more carefully.
+
+Actually, for a graph (1-dimensional CW complex), a discrete Morse function with no critical vertices would pair each vertex with an edge. But we're just looking at the grid as a graph, and the condition is about vertex connectivity.
+
+Let me reconsider. The condition is purely about the graph (grid graph) and the vertex labeling. 
+
+Key observation: The condition that $\{1,...,k\}$ is connected for all $k$ and $\{k,...,n^2\}$ is connected for all $k$ is equivalent to: there exists a Hamiltonian path $v_1, v_2, ..., v_{n^2}$ in the grid graph such that $f(v_i) = i$.
+
+Wait, is that true? Let me think again.
+
+If $\{1,...,k\}$ is connected for all $k$, we can build a spanning tree of the grid rooted at cell 1, where each cell $k$ is connected to the tree by an edge to some cell with value $< k$. Similarly, from the superlevel connectivity, each cell $k$ is connected to some cell with value $> k$.
+
+But does this give a Hamiltonian path? Not directly. Consider:
+
+```
+1 4
+2 5
+3 6
+```
+This is a $3 \times 2$ grid. Sublevel sets: {1} ✓, {1,2} ✓ (1 at (0,0), 2 at (1,0), adjacent), {1,2,3} ✓, {1,2,3,4}: 4 at (0,1), adjacent to 1. ✓, {1,...,5}: 5 at (1,1), adjacent to 2 and 4. ✓, {1,...,6}: 6 at (2,1), adjacent to 3 and 5. ✓.
+
+Superlevel: {6} ✓, {5,6} ✓, {4,5,6}: 4 at (0,1), 5 at (1,1), 6 at (2,1). 4-5 adjacent, 5-6 adjacent. ✓, {3,4,5,6}: 3 at (2,0), adjacent to 6. ✓, {2,3,4,5,6}: 2 at (1,0), adjacent to 3 and 5. ✓, {1,...,6} ✓.
+
+So this satisfies condition 2. And there's a Hamiltonian path: 1-2-3-6-5-4 (going down the left column, then up the right column). Also 1-4-5-6-3-2, etc.
+
+Now, the adjacent differences: (1,2)=1, (1,4)=3, (2,3)=1, (2,5)=3, (3,6)=3, (4,5)=1, (5,6)=1. For $n=3$ (wait, this is $3 \times 2$, not $n \times n$). Let me not worry about this example.
+
+Let me think about the problem differently. 
+
+For the $n \times n$ grid with $n = 10$, we need to find the minimum number of adjacent pairs with difference exactly $n = 10$.
+
+Let me think about what structures achieve the minimum.
+
+Key idea: Think of the grid as a graph. The labeling gives a Hamiltonian path (due to condition 2, as I'll argue). Along this Hamiltonian path, consecutive values differ by at most $n$ (since they're adjacent in the grid, and condition 1 applies to all adjacent pairs, including those on the path). But the Hamiltonian path visits all $n^2$ cells, so consecutive values $k$ and $k+1$ differ by... well, they're adjacent in the grid, so their difference is $|f(v_k) - f(v_{k+1})|$ where $v_k$ is the cell with value $k$. Wait, I need to be more careful.
+
+Let me restate: Let $c_i$ be the cell containing value $i$. Condition 2 says $\{c_1, ..., c_k\}$ is connected for all $k$, and $\{c_k, ..., c_{n^2}\}$ is connected for all $k$.
+
+From the sublevel connectivity: for each $k \geq 2$, $c_k$ is adjacent to some $c_j$ with $j < k$.
+From the superlevel connectivity: for each $k \leq n^2 - 1$, $c_k$ is adjacent to some $c_j$ with $j > k$.
+
+Now, does condition 2 imply a Hamiltonian path? Let me think of a potential counterexample.
+
+Consider a $3 \times 3$ grid:
+```
+1 6 7
+2 5 8
+3 4 9
+```
+Sublevel: {1}✓, {1,2}✓, {1,2,3}✓, {1,2,3,4}: 4 at (2,1), adjacent to 3 at (2,0). ✓, {1,...,5}: 5 at (1,1), adjacent to 2,4. ✓, {1,...,6}: 6 at (0,1), adjacent to 1,5. ✓, {1,...,7}: 7 at (0,2), adjacent to 6. ✓, {1,...,8}: 8 at (1,2), adjacent to 5,7. ✓, {1,...,9}✓.
+
+Superlevel: {9}✓, {8,9}: 8 at (1,2), 9 at (2,2). Adjacent. ✓, {7,8,9}: 7 at (0,2), adjacent to 8. ✓, {6,7,8,9}: 6 at (0,1), adjacent to 7. ✓, {5,6,7,8,9}: 5 at (1,1), adjacent to 6,8. ✓, {4,5,6,7,8,9}: 4 at (2,1), adjacent to 5,9. ✓, {3,4,...,9}: 3 at (2,0), adjacent to 4. ✓, {2,3,...,9}: 2 at (1,0), adjacent to 3,5. ✓, {1,...,9}✓.
+
+So this satisfies condition 2. And there's clearly a Hamiltonian path: 1-2-3-4-5-6-7-8-9 (snake pattern). 
+
+Now let me think about whether condition 2 always implies a Hamiltonian path.
+
+Claim: Condition 2 implies that there exists a Hamiltonian path $c_1, c_2, ..., c_{n^2}$ (i.e., the cells in order of their values form a Hamiltonian path).
+
+Proof attempt: We need to show that $c_k$ is adjacent to $c_{k+1}$ for all $k$. But this is NOT necessarily true! In the example above, $c_4$ is at (2,1) and $c_5$ is at (1,1), which are adjacent. $c_5$ at (1,1) and $c_6$ at (0,1), adjacent. So in this case it works. But in general?
+
+Consider:
+```
+1 3 5
+2 7 9
+4 6 8
+```
+Wait, let me check condition 2. $\{1,2\}$: 1 at (0,0), 2 at (1,0). Adjacent. ✓. $\{1,2,3\}$: 3 at (0,1), adjacent to 1. ✓. $\{1,2,3,4\}$: 4 at (2,0), adjacent to 2. ✓. $\{1,...,5\}$: 5 at (0,2), adjacent to 3. ✓. $\{1,...,6\}$: 6 at (2,1), adjacent to 4. ✓. $\{1,...,7\}$: 7 at (1,1), adjacent to 2,3,6... wait, is 7 adjacent to any of {1,...,6}? 7 at (1,1). Neighbors: (0,1)=3, (2,1)=6, (1,0)=2, (1,2)=9. Yes, adjacent to 2,3,6. ✓. $\{1,...,8\}$: 8 at (2,2), adjacent to 6. ✓. $\{1,...,9\}$: 9 at (1,2), adjacent to 7,8. ✓.
+
+Superlevel: {9}✓, {8,9}: 8 at (2,2), 9 at (1,2). Adjacent. ✓. {7,8,9}: 7 at (1,1), adjacent to 9. ✓. {6,7,8,9}: 6 at (2,1), adjacent to 7,8. ✓. {5,6,7,8,9}: 5 at (0,2), adjacent to 7? (0,2) and (1,1) are not adjacent (diagonal). 5's neighbors: (0,1)=3, (1,2)=9. 9 is in the set. ✓. {4,5,...,9}: 4 at (2,0), adjacent to 6. ✓. {3,4,...,9}: 3 at (0,1), adjacent to 5,7. ✓. {2,3,...,9}: 2 at (1,0), adjacent to 4,7. ✓. {1,...,9}✓.
+
+Now, is there a Hamiltonian path $c_1, c_2, ..., c_9$? $c_1=(0,0), c_2=(1,0), c_3=(0,1), c_4=(2,0), c_5=(0,2), c_6=(2,1), c_7=(1,1), c_8=(2,2), c_9=(1,2)$.
+
+Is $c_1 c_2$ adjacent? (0,0)-(1,0) ✓. $c_2 c_3$: (1,0)-(0,1) ✗ (diagonal). So $c_1, c_2, ..., c_9$ is NOT a Hamiltonian path!
+
+So condition 2 does NOT imply a Hamiltonian path in order of values. Good, my earlier claim was wrong.
+
+But there IS a Hamiltonian path in this grid (all grids have Hamiltonian paths), just not necessarily in value order.
+
+OK so let me rethink the problem.
+
+Let me think about the problem from the perspective of the "good pairs" (difference exactly $n$).
+
+Condition 1 says all adjacent differences are $\leq n$. Good pairs have difference exactly $n$. We want to minimize good pairs.
+
+Let me think about what forces good pairs to exist.
+
+Consider the grid graph $G$ with the labeling $f$. Think of $f$ as a function from vertices to $\{1, ..., n^2\}$.
+
+For any edge $(u,v)$, $|f(u) - f(v)| \leq n$.
+
+Now, consider the "level sets" $L_i = \{v : f(v) = i\}$ for $i = 1, ..., n^2$ (each is a single cell).
+
+Consider the sublevel sets $S_k = \{v : f(v) \leq k\}$ and superlevel sets $T_k = \{v : f(v) \geq k\}$.
+
+By condition 2, both $S_k$ and $T_k$ are connected for all $k$.
+
+Now, $S_k$ and $T_{k+1}$ partition the grid, and both are connected. The boundary between them consists of edges $(u,v)$ where $f(u) \leq k$ and $f(v) \geq k+1$. These edges have $|f(u) - f(v)| \geq 1$.
+
+Hmm, let me think about this differently.
+
+Let me consider the "cut" at level $k$: the set of edges crossing from $S_k$ to $T_{k+1}$. Since both $S_k$ and $T_{k+1}$ are connected, this is a "bond" (minimal cut) in some sense... actually it's just a cut where both sides are connected, which is called a "cut" with connected shores.
+
+The number of edges in this cut is the number of edges between $S_k$ and $T_{k+1}$. Each such edge has difference at least 1 and at most $n$.
+
+Now, I want to think about the total count of good pairs. A good pair is an edge with difference exactly $n$.
+
+Let me think about a different approach. Consider the "snake" or "serpentine" filling:
+
+For $n = 10$, the snake filling is:
+```
+1   2   3   4   5   6   7   8   9   10
+20  19  18  17  16  15  14  13  12  11
+21  22  23  24  25  26  27  28  29  30
+40  39  38  37  36  35  34  33  32  31
+...
+```
+
+In this filling, horizontal adjacent differences are 1, and vertical adjacent differences are... let's see. Row 0 has 1-10, row 1 has 20-11 (reversed). The vertical differences: (1,20)=19, (2,19)=17, etc. These are all > 10 = n. So this violates condition 1!
+
+So the snake filling doesn't work for condition 1. We need adjacent differences $\leq n = 10$.
+
+Let me think about what fillings satisfy condition 1. The maximum difference between adjacent cells is $n$. 
+
+One natural filling that satisfies condition 1: fill the grid so that each row has consecutive numbers, and adjacent rows have numbers that are close.
+
+For example, for $n = 3$:
+```
+1 2 3
+4 5 6
+7 8 9
+```
+Horizontal diffs: 1. Vertical diffs: 3 = n. So all vertical pairs are good (diff = n = 3). Number of good pairs = 2 rows × 3 columns = 6. Wait, vertical edges: between row 0 and row 1: (1,4), (2,5), (3,6), each diff 3. Between row 1 and row 2: (4,7), (5,8), (6,9), each diff 3. So 6 good pairs. Horizontal: all diff 1, no good pairs. Total: 6.
+
+Can we do better for $n = 3$? Let me try:
+```
+1 2 5
+3 4 7
+6 8 9
+```
+Wait, let me check condition 1. Adjacent diffs: (1,2)=1, (1,3)=2, (2,5)=3=n, (3,4)=1, (3,6)=3=n, (4,7)=3=n, (5,7)=2, (6,8)=2, (7,9)=2, (4,5)=1, (4,8)=4>n. Violates!
+
+Let me try:
+```
+1 4 7
+2 5 8
+3 6 9
+```
+Horizontal: (1,4)=3, (4,7)=3, (2,5)=3, (5,8)=3, (3,6)=3, (6,9)=3. All = n = 3. Vertical: (1,2)=1, (2,3)=1, (4,5)=1, (5,6)=1, (7,8)=1, (8,9)=1. Good pairs: 6 (all horizontal). Condition 2: sublevel {1}✓, {1,2}✓, {1,2,3}✓ (column), {1,2,3,4}: 4 at (0,1), adjacent to 1. ✓, {1,...,5}: 5 at (1,1), adjacent to 2,4. ✓, {1,...,6}: 6 at (2,1), adjacent to 3,5. ✓, {1,...,7}: 7 at (0,2), adjacent to 4. ✓, {1,...,8}: 8 at (1,2), adjacent to 5,7. ✓, {1,...,9}✓. Superlevel: similar by symmetry. ✓. So 6 good pairs.
+
+Same as the row-major filling. Can we do better?
+
+Let me try to mix:
+```
+1 2 3
+6 5 4
+7 8 9
+```
+Horizontal: (1,2)=1, (2,3)=1, (6,5)=1, (5,4)=1, (7,8)=1, (8,9)=1. Vertical: (1,6)=5>3. Violates!
+
+```
+1 2 4
+3 5 7
+6 8 9
+```
+(1,2)=1, (1,3)=2, (2,4)=2, (2,5)=3=n, (3,5)=2, (3,6)=3=n, (4,5)=1, (4,7)=3=n, (5,7)=2, (5,8)=3=n, (6,8)=2, (7,9)=2, (8,9)=1. Good pairs: (2,5), (3,6), (4,7), (5,8) = 4. Condition 1: max diff = 3 ✓. Condition 2: {1}✓, {1,2}✓, {1,2,3}✓, {1,2,3,4}: 4 at (0,2), adjacent to 2. ✓, {1,...,5}: 5 at (1,1), adjacent to 2,3,4. ✓, {1,...,6}: 6 at (2,0), adjacent to 3. ✓, {1,...,7}: 7 at (1,2), adjacent to 4,5. ✓, {1,...,8}: 8 at (2,1), adjacent to 5,6. ✓, {1,...,9}✓. Superlevel: {9}✓, {8,9}✓, {7,8,9}: 7 at (1,2), 8 at (2,1), 9 at (2,2). 7-9 adjacent? (1,2)-(2,2) ✓. 8-9 adjacent ✓. 7-8: (1,2)-(2,1) diagonal, not adjacent. But 7-9-8 is connected. ✓. {6,7,8,9}: 6 at (2,0), adjacent to 8. ✓. {5,6,7,8,9}: 5 at (1,1), adjacent to 7,8. ✓. {4,5,6,7,8,9}: 4 at (0,2), adjacent to 7. ✓. {3,4,...,9}: 3 at (1,0), adjacent to 5. ✓. {2,3,...,9}: 2 at (0,1), adjacent to 4,5. ✓. {1,...,9}✓.
+
+So 4 good pairs for $n=3$! Better than 6.
+
+Can we do even better? Let me try to find 2 or 0 good pairs.
+
+```
+1 2 5
+3 6 8
+4 7 9
+```
+(1,2)=1, (1,3)=2, (2,5)=3=n, (3,6)=3=n, (3,4)=1, (5,6)=1, (5,8)=3=n, (6,7)=1, (6,8)=2, (4,7)=3=n, (7,9)=2, (8,9)=1. Good pairs: (2,5), (3,6), (5,8), (4,7) = 4. Same.
+
+Hmm, let me try to be more systematic. For $n=3$, can we achieve fewer than 4?
+
+```
+1 3 5
+2 4 7
+6 8 9
+```
+(1,3)=2, (1,2)=1, (3,5)=2, (3,4)=1, (2,4)=2, (2,6)=4>3. Violates.
+
+```
+1 3 6
+2 4 8
+5 7 9
+```
+(1,3)=2, (1,2)=1, (3,6)=3=n, (3,4)=1, (2,4)=2, (2,5)=3=n, (6,8)=2, (4,8)=4>3. Violates.
+
+```
+1 3 5
+2 4 6
+7 8 9
+```
+(1,3)=2, (1,2)=1, (3,5)=2, (3,4)=1, (2,4)=2, (2,7)=5>3. Violates.
+
+Hmm, it seems hard to avoid large vertical jumps. The issue is that in a $3 \times 3$ grid, we need to go from values around 1-3 to values around 7-9, and the vertical distance is only 2 rows, so we need the values to increase by about 3 per row on average, which means some vertical edges must have difference close to 3.
+
+Let me think about this more carefully using a "potential" argument.
+
+Consider the grid as a graph. For any two cells $u, v$, the difference $|f(u) - f(v)| \leq n \cdot d(u,v)$ where $d$ is the graph distance, because each step changes the value by at most $n$.
+
+Now, the cell with value 1 and the cell with value $n^2$ are at graph distance at least... well, they could be adjacent (distance 1), in which case $|n^2 - 1| \leq n$, which for $n = 3$ gives $8 \leq 3$, false. So they can't be adjacent.
+
+More generally, $|f(u) - f(v)| \leq n \cdot d(u,v)$, so $d(c_1, c_{n^2}) \geq \lceil (n^2 - 1)/n \rceil = \lceil (n^2-1)/n \rceil$.
+
+For $n = 3$: $d \geq \lceil 8/3 \rceil = 3$. The diameter of a $3 \times 3$ grid is 4 (corner to corner). So $c_1$ and $c_9$ must be at distance $\geq 3$.
+
+For $n = 10$: $d \geq \lceil 99/10 \rceil = 10$. The diameter of a $10 \times 10$ grid is 18. So $c_1$ and $c_{100}$ must be at distance $\geq 10$.
+
+Now, let me think about the problem from a higher level. 
+
+I think the key insight might be related to the following: consider the "layers" of the grid. Define $L_i = S_{in} = \{v : f(v) \leq in\}$ for $i = 0, 1, ..., n$. These are nested connected sets with $L_0 = \emptyset$ (well, $L_0 = S_0 = \emptyset$), $L_n = $ entire grid.
+
+Actually, let me think about it in terms of "bands" of width $n$. Consider the values $1, ..., n$ as band 0, $n+1, ..., 2n$ as band 1, etc. There are $n$ bands, each with $n$ values.
+
+Hmm, this might not lead anywhere directly. Let me think about the problem differently.
+
+Let me consider the dual perspective. We have a Hamiltonian path (or at least a connected ordering) on the grid, and we want to minimize edges with difference exactly $n$.
+
+Actually, I realize I should think about this more carefully. Let me consider the problem for general $n$ and try to find the pattern.
+
+For $n = 1$: $g(1) = 0$ (trivially).
+For $n = 2$: $g(2) = 2$ (as computed above).
+
+Let me try to compute $g(3)$ more carefully. I found a filling with 4 good pairs. Can we do better?
+
+Let me try:
+```
+1 2 4
+3 5 7
+6 8 9
+```
+(1,2)=1, (1,3)=2, (2,4)=2, (2,5)=3=n, (3,5)=2, (3,6)=3=n, (4,5)=1, (4,7)=3=n, (5,7)=2, (5,8)=3=n, (6,8)=2, (7,9)=2, (8,9)=1. Good pairs: (2,5),(3,6),(4,7),(5,8) = 4.
+
+Let me try a different structure:
+```
+1 4 7
+2 5 8
+3 6 9
+```
+This has 6 good pairs (all horizontal). Not better.
+
+```
+1 2 3
+4 5 6
+7 8 9
+```
+6 good pairs (all vertical). Not better.
+
+What about:
+```
+2 1 4
+3 6 5
+8 7 9
+```
+Wait, I need to check condition 2. Sublevel: {1} (cell (0,1)) ✓. {1,2}: cells (0,0) and (0,1), adjacent ✓. {1,2,3}: add (1,0), adjacent to (0,0) ✓. {1,2,3,4}: add (0,2), adjacent to (0,1) ✓. {1,...,5}: add (1,2), adjacent to (0,2) ✓. {1,...,6}: add (1,1), adjacent to (0,1),(1,0),(1,2) ✓. {1,...,7}: add (2,1), adjacent to (1,1) ✓. {1,...,8}: add (2,0), adjacent to (1,0),(2,1) ✓. {1,...,9} ✓.
+
+Superlevel: {9} ✓. {8,9}: (2,0) and (2,2), not adjacent! Need to check: 8 at (2,0), 9 at (2,2). Distance 2. Not connected! ✗.
+
+So this doesn't satisfy condition 2.
+
+Let me try:
+```
+1 2 4
+3 5 8
+6 7 9
+```
+(1,2)=1, (1,3)=2, (2,4)=2, (2,5)=3=n, (3,5)=2, (3,6)=3=n, (4,5)=1, (4,8)=4>3. Violates condition 1.
+
+```
+1 2 5
+3 4 7
+6 8 9
+```
+(1,2)=1, (1,3)=2, (2,5)=3=n, (2,4)=2, (3,4)=1, (3,6)=3=n, (5,4)=1, (5,7)=2, (4,7)=3=n, (4,8)=4>3. Violates.
+
+It seems like for $n=3$, 4 might be the minimum. Let me try to see if 2 is possible.
+
+For 2 good pairs, we'd need most edges to have difference $\leq 2$, with only 2 edges having difference exactly 3.
+
+The grid has $2 \cdot 3 \cdot 2 = 12$ edges. With differences $\leq 3$, and only 2 with difference 3.
+
+The values range from 1 to 9, range 8. The grid has diameter 4. By the Lipschitz condition, $|f(u) - f(v)| \leq 3 \cdot d(u,v)$. For corner to corner (distance 4), max difference $\leq 12$, which is fine.
+
+But think about it this way: the cell with value 1 and the cell with value 9 must be at distance $\geq 3$ (since $8/3 > 2$, so $d \geq 3$). Similarly, value 1 and value 8: $7/3 > 2$, so $d \geq 3$. Value 1 and value 7: $6/3 = 2$, so $d \geq 2$. Etc.
+
+Hmm, this is getting complicated. Let me try a different approach.
+
+Let me think about the problem in terms of a "potential" or "height" function.
+
+Consider the grid graph $G = (V, E)$ with $|V| = n^2$ and $|E| = 2n(n-1)$. The labeling $f: V \to \{1, ..., n^2\}$ is a bijection.
+
+For each edge $e = (u,v)$, define $w(e) = |f(u) - f(v)|$. We have $w(e) \leq n$ for all $e$, and we want to minimize the number of edges with $w(e) = n$.
+
+Now, consider the sum $\sum_e w(e)$. This is related to the "total variation" of the labeling.
+
+Also, consider the following: for each "level" $k$ from 1 to $n^2 - 1$, the cut $\delta(S_k)$ separates $S_k = \{v : f(v) \leq k\}$ from $T_{k+1} = \{v : f(v) \geq k+1\}$. The number of edges in this cut is $|\delta(S_k)|$, and each edge in the cut has $w(e) \geq 1$ (since one endpoint has value $\leq k$ and the other $\geq k+1$).
+
+Now, $\sum_e w(e) = \sum_{k=1}^{n^2-1} |\delta(S_k)|$. This is because each edge $e = (u,v)$ with $f(u) < f(v)$ contributes 1 to $|\delta(S_k)|$ for each $k$ with $f(u) \leq k < f(v)$, i.e., for $f(v) - f(u)$ values of $k$. So $\sum_k |\delta(S_k)| = \sum_e w(e)$.
+
+Now, by the connectivity condition, $S_k$ is connected and $T_{k+1}$ is connected for all $k$. So $\delta(S_k)$ is a cut with both shores connected. 
+
+For a connected graph, a cut with both shores connected has at least... well, at least 1 edge (obviously). But can we say more?
+
+In an $n \times n$ grid, the minimum cut with both shores connected is 1 (just cut off a corner). But we need this for ALL $k$ simultaneously, with the nesting structure.
+
+Hmm, let me think about this differently.
+
+Key insight: Consider the "boundary" of $S_k$ in the grid. Since $S_k$ is connected and $T_{k+1}$ is connected, the boundary forms a "cut" that separates the grid into two connected pieces.
+
+In a 2D grid, the minimum such cut (for a given size of $S_k$) is related to the isoperimetric inequality. But we need to think about all cuts simultaneously.
+
+Let me try yet another approach. Let me think about "rows" and "columns" of the grid.
+
+Consider the $n$ rows of the grid. In each row, there are $n$ cells. The values in a row span some range. By condition 1, adjacent cells in a row differ by at most $n$, so the range of values in a row is at most $(n-1) \cdot n = n^2 - n$. Similarly for columns.
+
+But this isn't tight enough. Let me think more carefully.
+
+Actually, let me think about the problem from the perspective of the "discrete gradient."
+
+For each edge $e = (u,v)$ with $f(u) < f(v)$, the edge "carries" a gradient of $f(v) - f(u)$. The total gradient summed over all edges is $\sum_e w(e) = \sum_{k=1}^{n^2-1} |\delta(S_k)|$.
+
+Now, for each $k$, $|\delta(S_k)| \geq 1$ (since $S_k$ is a non-empty proper connected subset and $T_{k+1}$ is connected, there must be at least one edge between them). So $\sum_e w(e) \geq n^2 - 1$.
+
+But we also have $w(e) \leq n$ for each edge, and the number of edges is $2n(n-1)$. So $\sum_e w(e) \leq n \cdot 2n(n-1) = 2n^2(n-1)$.
+
+These bounds are quite loose. Let me think about tighter bounds.
+
+For the grid, the key structural constraint is that $S_k$ is connected and $T_{k+1}$ is connected. In a 2D grid, a connected subset $S$ with $|S| = k$ has a boundary (edge boundary) of size at least... by the edge isoperimetric inequality for grids.
+
+For an $n \times n$ grid, the edge isoperimetric inequality says that a set of $k$ cells has edge boundary at least $\min(2\sqrt{k}, 2n)$... actually, the exact isoperimetric inequality for grids is more subtle. Let me think about it.
+
+For a connected set of $k$ cells in an $n \times n$ grid, the edge boundary (number of edges from the set to its complement) is at least... well, for a $1 \times k$ strip, the boundary is $2k + 2 - 2 = 2k$ if $k < n$ (wait, let me recalculate). A $1 \times k$ horizontal strip (with $k \leq n$) has $k$ cells. Its edge boundary: top edges (if not on top row) = $k$, bottom edges (if not on bottom row) = $k$, left edge (if not starting at column 0) = 1, right edge (if not ending at column $n-1$) = 1. So boundary $\approx 2k + 2$ (if interior). But we also need $T_{k+1}$ to be connected.
+
+This is getting complicated. Let me try to think about the problem from the answer's perspective.
+
+For $n = 2$: $g(2) = 2$.
+For $n = 3$: I believe $g(3) = 4$ (based on my search, couldn't find better than 4).
+
+Wait, let me check if $g(3) = 4$ by trying harder to find a solution with 2 good pairs.
+
+Actually, let me think about it more carefully. In a $3 \times 3$ grid, there are 12 edges. The values are 1-9. 
+
+Consider the "row sums" or think about how values distribute across rows.
+
+If we want to minimize edges with difference 3, we want most edges to have difference 1 or 2.
+
+Consider the cell with value 1. It has 2-4 neighbors. Each neighbor has value $\leq 4$ (by condition 1, difference $\leq 3$). Similarly, the cell with value 9 has neighbors with value $\geq 6$.
+
+Now, the cell with value 5 (the median) has neighbors with values in $[2, 8]$.
+
+Let me think about the problem in terms of "layers." Define $A_i = \{v : f(v) \in \{(i-1)n+1, ..., in\}\}$ for $i = 1, ..., n$. These are $n$ "bands" of $n$ cells each.
+
+For $n = 3$: $A_1 = \{1,2,3\}$, $A_2 = \{4,5,6\}$, $A_3 = \{7,8,9\}$.
+
+By condition 2, $S_3 = A_1$ is connected, $S_6 = A_1 \cup A_2$ is connected, etc. Also $T_7 = A_3$ is connected, $T_4 = A_2 \cup A_3$ is connected.
+
+Now, consider the edges between $A_1$ and $A_2 \cup A_3$ (i.e., $\delta(S_3)$). Each such edge has one endpoint with value $\leq 3$ and the other with value $\geq 4$, so the difference is $\geq 1$. The difference is $\leq 3$ by condition 1. If the difference is exactly 3, it's a good pair.
+
+An edge between $A_1$ and $A_2$ has difference in $[1, 5]$ (values 1-3 vs 4-6), but by condition 1, $\leq 3$. An edge between $A_1$ and $A_3$ has difference in $[4, 8]$, but by condition 1, $\leq 3$. So there can be NO edges between $A_1$ and $A_3$! (Because the minimum difference would be $7 - 3 = 4 > 3$.)
+
+This is a key observation: **There are no edges between $A_i$ and $A_j$ if $|i - j| \geq 2$.** Because the minimum difference between a value in $A_i$ and a value in $A_j$ with $|i-j| \geq 2$ is $n - (n-1) = 1$... wait, let me recalculate.
+
+$A_i$ has values $(i-1)n + 1$ to $in$. $A_j$ has values $(j-1)n + 1$ to $jn$. If $j = i + 2$, the minimum difference is $(i+1)n + 1 - in = n + 1 > n$. So indeed, no edge between $A_i$ and $A_{i+2}$ or beyond.
+
+So the bands $A_1, A_2, ..., A_n$ form a "path-like" structure where only consecutive bands can have edges between them.
+
+Now, $S_{in} = A_1 \cup ... \cup A_i$ is connected, and $T_{in+1} = A_{i+1} \cup ... \cup A_n$ is connected. The cut $\delta(S_{in})$ consists of edges between $A_i$ and $A_{i+1}$ only (since there are no edges between non-consecutive bands).
+
+So the edges between $A_i$ and $A_{i+1}$ form a cut separating $A_1 \cup ... \cup A_i$ from $A_{i+1} \cup ... \cup A_n$, with both sides connected.
+
+Now, each edge between $A_i$ and $A_{i+1}$ has difference $\leq n$. The difference is exactly $n$ when the value in $A_i$ is $(i-1)n + 1$ (the minimum of $A_i$) and the value in $A_{i+1}$ is $in + 1$... wait, no. The difference is $n$ when, e.g., value $a \in A_i$ and value $b \in A_{i+1}$ with $|a - b| = n$. Since $a \leq in$ and $b \geq in + 1$, we have $b - a \geq 1$. For $b - a = n$: $b = a + n$. Since $a \in [(i-1)n+1, in]$ and $b \in [in+1, (i+1)n]$, we need $a + n \in [in+1, (i+1)n]$, i.e., $a \in [in+1-n, in] = [(i-1)n+1, in]$, which is exactly $A_i$. So $b = a + n$ means $a$ and $a+n$ are in adjacent bands and adjacent in the grid.
+
+So a good pair between $A_i$ and $A_{i+1}$ is a pair $(a, a+n)$ where $a \in A_i$ and $a+n \in A_{i+1}$, and they are adjacent in the grid.
+
+Now, the question is: what is the minimum number of such good pairs?
+
+Let me think about the structure more. The bands $A_1, ..., A_n$ partition the grid into $n$ connected sets (are they connected? not necessarily individually, but $S_{in}$ is connected for each $i$).
+
+Wait, actually, is each $A_i$ individually connected? Not necessarily from the conditions given. $S_{in} = A_1 \cup ... \cup A_i$ is connected, but $A_i$ itself might not be. However, $T_{(i-1)n+1} = A_i \cup ... \cup A_n$ is connected, and $S_{in} = A_1 \cup ... \cup A_i$ is connected. But $A_i$ alone... let me check.
+
+$T_{(i-1)n + 1}$ is connected (superlevel set). $T_{in+1} = A_{i+1} \cup ... \cup A_n$ is connected. $A_i = T_{(i-1)n+1} \setminus T_{in+1}$. There's no guarantee $A_i$ is connected.
+
+Similarly, $S_{in}$ is connected and $S_{(i-1)n}$ is connected, but $A_i = S_{in} \setminus S_{(i-1)n}$ might not be connected.
+
+OK so individual bands might not be connected. But the cuts between consecutive bands are what matter.
+
+Let me now think about the minimum number of good pairs.
+
+Consider the cut between $A_i$ and $A_{i+1}$, i.e., $\delta(S_{in})$. This cut has some number of edges, say $c_i$. Each edge has difference between 1 and $n$. The edges with difference $n$ are the good pairs in this cut.
+
+Now, I want to think about what constrains the differences. 
+
+Consider the "flow" interpretation. For each $k$ from $(i-1)n + 1$ to $in$, the cut $\delta(S_k)$ consists of edges from $S_k$ to $T_{k+1}$. As $k$ increases from $(i-1)n + 1$ to $in$, $S_k$ grows from $S_{(i-1)n}$ to $S_{in}$, adding one cell at a time (the cells of $A_i$ in order of their values).
+
+The cut $\delta(S_k)$ for $(i-1)n < k < in$ includes:
+- Edges between $A_i$ cells with value $\leq k$ and $A_i$ cells with value $> k$ (internal to $A_i$).
+- Edges between $A_i$ cells with value $\leq k$ and $A_{i+1}$ cells (crossing to the next band).
+- Edges between $A_{i-1}$ cells and $A_i$ cells with value $> k$ (crossing from the previous band).
+
+Wait, this is getting complicated. Let me simplify.
+
+Actually, let me think about the total "flow" across the cut $\delta(S_{in})$ for each $i$.
+
+The sum $\sum_{e \in \delta(S_{in})} w(e)$ counts, for each edge $e = (u,v)$ with $f(u) \leq in < f(v)$, the value $f(v) - f(u)$. But also, $\sum_{k=(i-1)n+1}^{in} |\delta(S_k)|$ counts the total number of edge-crossings as $k$ goes from $(i-1)n$ to $in$.
+
+Hmm, I think I need a different approach. Let me think about the problem more carefully.
+
+Let me consider the "discrete derivative" along the Hamiltonian path.
+
+Actually, let me reconsider. I showed that bands $A_i$ and $A_j$ with $|i-j| \geq 2$ have no edges between them. This means the grid, when partitioned into bands, has a "path" structure: $A_1 - A_2 - ... - A_n$, where only consecutive bands are connected.
+
+Now, since $S_{in}$ is connected for each $i$, and the only edges between $S_{in}$ and its complement go between $A_i$ and $A_{i+1}$, the cut $\delta(S_{in})$ is exactly the set of edges between $A_i$ and $A_{i+1}$.
+
+Let $c_i = |\delta(S_{in})|$ = number of edges between $A_i$ and $A_{i+1}$, for $i = 1, ..., n-1$.
+
+Each such edge has difference at most $n$. The number of good pairs is the total number of edges (across all cuts) with difference exactly $n$.
+
+Now, I want to find a lower bound on the number of good pairs.
+
+Consider the cut between $A_i$ and $A_{i+1}$. The edges in this cut connect cells with values in $[(i-1)n+1, in]$ to cells with values in $[in+1, (i+1)n]$. The difference on each edge is between 1 and $n$.
+
+Now, think about the "values" that cross this cut. For each edge $(u,v)$ in the cut with $f(u) \in A_i$ and $f(v) \in A_{i+1}$, the difference is $f(v) - f(u)$ (assuming $f(v) > f(u)$, which must be the case since $f(v) \geq in+1 > in \geq f(u)$).
+
+So the difference is $f(v) - f(u)$ where $f(u) \leq in$ and $f(v) \geq in + 1$, so the difference is $\geq 1$ and $\leq n$.
+
+Now, consider the sum of differences across this cut: $\sum_{e \in \delta(S_{in})} w(e) = \sum_{e=(u,v)} (f(v) - f(u))$.
+
+This sum can also be computed as: $\sum_{v \in A_{i+1} \cup ... \cup A_n} f(v) \cdot (\text{number of neighbors in } A_1 \cup ... \cup A_i) - ...$. Hmm, this isn't clean.
+
+Let me think about it differently. 
+
+$\sum_{e \in \delta(S_{in})} w(e) = \sum_{k=in}^{n^2-1} |\delta(S_k)| - \sum_{k=in}^{n^2-1} |\delta(S_k) \setminus \delta(S_{in})|$... this is getting messy.
+
+Let me try a completely different approach.
+
+Alternative approach: Think of the grid as a graph and the labeling as defining a "height function." The good pairs are edges where the height difference is exactly $n$.
+
+I'll think about the problem in terms of the "profile" of the labeling.
+
+Consider the cells sorted by value: $c_1, c_2, ..., c_{n^2}$ (where $c_k$ is the cell with value $k$). By condition 2, for each $k$, $c_k$ is adjacent to some $c_j$ with $j < k$ (sublevel connectivity) and some $c_j$ with $j > k$ (superlevel connectivity, for $k < n^2$).
+
+Now, consider the "parent" of each cell: for $k \geq 2$, let $p(k)$ be the largest $j < k$ such that $c_j$ is adjacent to $c_k$. (Or any such $j$.) This defines a spanning tree rooted at $c_1$.
+
+Similarly, for $k \leq n^2 - 1$, let $q(k)$ be the smallest $j > k$ such that $c_j$ is adjacent to $c_k$. This defines a spanning tree rooted at $c_{n^2}$.
+
+The combination of these two trees gives a Hamiltonian path (this is a known result: if a graph has a vertex ordering where each vertex is adjacent to a previous and a next vertex, then... actually, this doesn't directly give a Hamiltonian path).
+
+Hmm, let me think about this more carefully.
+
+Actually, I recall that the condition "all sublevel sets and superlevel sets are connected" is equivalent to the labeling being a "Hamiltonian path" labeling, meaning the cells in order $c_1, c_2, ..., c_{n^2}$ form a Hamiltonian path. Wait, I showed earlier that this is NOT the case (the counterexample with the $3 \times 3$ grid where $c_2$ and $c_3$ are diagonal).
+
+Let me re-examine that counterexample:
+```
+1 3 5
+2 7 9
+4 6 8
+```
+$c_1 = (0,0)$, $c_2 = (1,0)$, $c_3 = (0,1)$. $c_2$ and $c_3$ are at $(1,0)$ and $(0,1)$, which are diagonal, not adjacent. So $c_1, c_2, c_3, ...$ is NOT a Hamiltonian path. But the connectivity conditions are satisfied (I checked earlier).
+
+So the condition does NOT imply a Hamiltonian path in value order. The condition is weaker.
+
+OK, let me go back to the band approach, which seems more promising.
+
+We established:
+1. The grid is partitioned into bands $A_1, ..., A_n$ where $A_i = \{v : f(v) \in [(i-1)n+1, in]\}$.
+2. No edges between non-consecutive bands.
+3. The cut $\delta(S_{in})$ between $A_1 \cup ... \cup A_i$ and $A_{i+1} \cup ... \cup A_n$ consists exactly of edges between $A_i$ and $A_{i+1}$.
+4. Both sides of each cut are connected.
+
+Now, let me think about the edges between $A_i$ and $A_{i+1}$. Each such edge connects a cell with value $a \in [(i-1)n+1, in]$ to a cell with value $b \in [in+1, (i+1)n]$, with $b - a \leq n$.
+
+The edge is "good" if $b - a = n$, i.e., $b = a + n$.
+
+Now, consider the "matching" between $A_i$ and $A_{i+1}$ induced by the good edges. A good edge connects value $a$ to value $a + n$. Note that $a \in [(i-1)n+1, in]$ and $a + n \in [in+1, (i+1)n]$, so this is consistent.
+
+The good edges between $A_i$ and $A_{i+1}$ form a matching between some subset of $A_i$ and some subset of $A_{i+1}$, pairing value $a$ with value $a + n$.
+
+Now, I want to find a lower bound on the total number of good edges.
+
+Let me think about what happens at the "boundary" of the bands. 
+
+Consider the cut $\delta(S_{in})$. This cut must have at least 1 edge (since both sides are non-empty and connected, and the grid is connected). But can we say more?
+
+In a 2D grid, if $S$ is a connected set of $in$ cells and $T$ is a connected set of $(n-i)n$ cells, and $S \cup T$ is the entire grid, then the number of edges between $S$ and $T$ is at least... 
+
+For a grid, the minimum edge boundary of a connected set of $k$ cells (with connected complement) is achieved by a "half-grid" type shape. For $k = in$ (a multiple of $n$), the minimum boundary is $n$ (achieved by taking $i$ full rows or $i$ full columns).
+
+Wait, is that right? If $S$ is the first $i$ rows (each of $n$ cells), then $|S| = in$ and the boundary is $n$ (the $n$ edges between row $i-1$ and row $i$). And both $S$ and $T$ are connected. So $c_i \geq n$? No, that's the minimum for a specific shape. Could there be a shape with fewer boundary edges?
+
+Actually, for a connected set of $k$ cells in an $n \times n$ grid with connected complement, the minimum number of boundary edges is... let me think. 
+
+If $k = n$ (one band), the minimum boundary for a connected set of $n$ cells with connected complement: a $1 \times n$ strip (one row) has boundary $n + 2$ (top, bottom, and two sides, but if it's an interior row, boundary = $n$ top + $n$ bottom = $2n$; if it's the first row, boundary = $n$ bottom + 0 top + 2 sides = $n + 2$). Wait, I need to be more careful.
+
+For a $1 \times n$ strip in the first row: the boundary edges are the $n$ edges going down (to row 1), plus the left edge of the first cell (if column 0, no left edge) and the right edge of the last cell (if column $n-1$, no right edge). If the strip is the entire first row, the boundary is just the $n$ downward edges. So boundary = $n$.
+
+For an L-shaped connected set of $n$ cells: e.g., first column (3 cells) plus first row (3 cells) minus the corner = 5 cells... this is for $n = 3$, $k = 5$. The boundary would be larger.
+
+So for $k = n$ (one full row or column), the minimum boundary is $n$ (taking a full row or column at the edge). Can we do better? A $1 \times n$ strip in the interior has boundary $2n$ (top and bottom). A more compact shape... for $n$ cells, the most compact shape is roughly $\sqrt{n} \times \sqrt{n}$, which has boundary $\approx 4\sqrt{n}$. For $n = 10$, this is $\approx 12.6 > 10$. So the full row/column at the edge is optimal for $k = n$.
+
+But wait, we need the complement to also be connected. A full row at the edge leaves the complement connected (it's the remaining $n-1$ rows). A full column at the edge also works. An interior strip would disconnect the complement (for a row in the middle, the complement has two parts: above and below). Actually no, the complement of an interior row is the rows above and below, which are not connected to each other (the interior row separates them). So for the complement to be connected, the set must be at the "boundary" of the grid.
+
+So for $k = in$ with both sides connected, the minimum boundary is $n$ (taking $i$ full rows at the top, or $i$ full columns at the left, etc.). This gives $c_i \geq n$.
+
+Wait, but is $n$ really the minimum? Could there be a non-rectangular shape with $in$ cells, both sides connected, and fewer than $n$ boundary edges?
+
+For $i = 1$, $k = n$: the minimum boundary with connected complement is $n$ (full row/column at edge). Any other connected shape of $n$ cells with connected complement would have more boundary edges (because it's less "straight").
+
+Actually, I'm not sure about this. Let me think about $n = 3$, $k = 3$. A full row at the top: boundary = 3 (downward edges). An L-shape: (0,0), (0,1), (1,0). Boundary: (0,0) has edges to (1,0) [internal] and (0,1) [internal], so external edges: left of (0,0) [none, at edge], top of (0,0) [none, at edge], left of (0,1) [internal], top of (0,1) [none], right of (0,1) [to (0,2), external], bottom of (0,1) [to (1,1), external], bottom of (1,0) [to (2,0), external], right of (1,0) [to (1,1), external]. So boundary = 4 (right of (0,1), bottom of (0,1), bottom of (1,0), right of (1,0)). Wait, let me recount.
+
+L-shape: (0,0), (0,1), (1,0). 
+- (0,0): neighbors are (0,1) [in S], (1,0) [in S]. External: none (corner).
+- (0,1): neighbors are (0,0) [in S], (0,2) [external], (1,1) [external]. External edges: 2.
+- (1,0): neighbors are (0,0) [in S], (2,0) [external], (1,1) [external]. External edges: 2.
+Total boundary: 4. And complement = {(0,2), (1,1), (1,2), (2,0), (2,1), (2,2)}. Is this connected? (0,2)-(1,2), (1,1)-(1,2), (1,1)-(2,1), (2,0)-(2,1), (2,1)-(2,2). Yes, connected. So boundary = 4 > 3.
+
+So the full row is better. And I believe for $k = in$, the minimum boundary with both sides connected is indeed $n$ (taking $i$ full rows/columns at the edge).
+
+But wait, is this always achievable? For $i$ full rows at the top, the boundary is $n$ (the $n$ edges between row $i-1$ and row $i$). The complement (rows $i$ to $n-1$) is connected. So yes, $c_i \geq n$.
+
+Hmm, but is $n$ really a lower bound? Let me think about whether there's a shape with fewer than $n$ boundary edges.
+
+For a connected set $S$ with $|S| = in$ and connected complement in an $n \times n$ grid, the boundary $|\delta(S)| \geq n$. 
+
+Proof sketch: The boundary of $S$ must "span" the grid in some sense. If $S$ is connected and its complement is connected, then $S$ must touch the boundary of the grid (otherwise, $S$ is in the interior, and its complement surrounds it, but the complement would need to be connected around $S$, which requires $S$ to not separate the grid). Actually, this isn't quite right.
+
+Let me think about it differently. In an $n \times n$ grid, consider the $n$ "diagonals" or the $n$ rows. If $S$ is connected and $T$ (complement) is connected, then there must be at least... hmm.
+
+Actually, I think the correct bound comes from the following: consider the $n$ columns of the grid. Each column is a path of $n$ cells. If $S$ and $T$ are both connected and partition the grid, then in each column, there must be at least one transition from $S$ to $T$ (unless the entire column is in $S$ or $T$). But if an entire column is in $S$ and an entire column is in $T$, and both $S$ and $T$ are connected, then... 
+
+Hmm, actually, it's possible that some columns are entirely in $S$ and some entirely in $T$. For example, if $S$ is the left $i$ columns, then the boundary is $n$ (the $n$ edges between column $i-1$ and column $i$). Each of the $n$ rows has exactly one boundary edge. So the boundary is $n$.
+
+Could the boundary be less than $n$? If we have fewer than $n$ boundary edges, then by pigeonhole, at least one row or column has no boundary edge, meaning that row/column is entirely in $S$ or entirely in $T$. But that alone doesn't give a contradiction.
+
+Let me think about it more carefully. Consider the $n$ rows. In each row, the cells form a path. The boundary edges within a row (horizontal boundary edges) are the edges where one endpoint is in $S$ and the other in $T$. The boundary edges between rows (vertical boundary edges) are similar.
+
+If $S$ is connected and $T$ is connected, and they partition the grid, then... 
+
+Actually, I think the minimum boundary for a "balanced" cut (both sides connected) in an $n \times n$ grid is indeed $n$, achieved by a straight cut (full row or column). This is because any "non-straight" cut would have more edges.
+
+But I should verify this. Consider $n = 3$, $|S| = 6$, $|T| = 3$. Full top 2 rows: boundary = 3. Can we do better? An L-shape of 6 cells: e.g., all of row 0 and all of row 1 and (2,0). Boundary: (2,0) has edges to (2,1) [external] and (1,0) [internal]. So boundary = 3 (edges between row 1 and row 2, columns 1 and 2) + 1 (edge (2,0)-(2,1)) = 4. Worse.
+
+What about a "staircase"? Row 0: all 3. Row 1: columns 0,1. Row 2: column 0. $|S| = 6$. Boundary: (0,2)-(1,2) [external], (1,1)-(1,2) [external], (1,1)-(2,1) [external], (2,0)-(2,1) [external], (2,0)-(3,0) [doesn't exist]. So boundary = 4. Worse.
+
+So for $n = 3$, $|S| = 6$, minimum boundary is 3 (two full rows). And for $|S| = 3$, minimum boundary is also 3 (one full row).
+
+I'll conjecture that for any $i$, $c_i \geq n$.
+
+Now, if $c_i \geq n$ for each $i = 1, ..., n-1$, then the total number of edges between consecutive bands is $\sum_{i=1}^{n-1} c_i \geq n(n-1)$.
+
+But we want to count good pairs (edges with difference exactly $n$), not total edges. So this bound alone isn't enough.
+
+Let me think about what constrains the differences on these edges.
+
+Consider the cut between $A_i$ and $A_{i+1}$. There are $c_i \geq n$ edges. Each edge has difference between 1 and $n$. The sum of differences across this cut is:
+
+$\sum_{e \in \delta(S_{in})} w(e) = \sum_{e=(u,v), f(u) \leq in, f(v) \geq in+1} (f(v) - f(u))$
+
+This can be rewritten. Let me think about it as follows. Consider the "net flow" of values across the cut.
+
+Actually, let me think about a simpler quantity. For each value $k$ from 1 to $n^2 - 1$, the cut $\delta(S_k)$ has $|\delta(S_k)|$ edges. We have:
+
+$\sum_{e} w(e) = \sum_{k=1}^{n^2-1} |\delta(S_k)|$
+
+Now, $|\delta(S_k)| \geq 1$ for all $k$ (since both $S_k$ and $T_{k+1}$ are non-empty and connected, and the grid is connected). So $\sum_e w(e) \geq n^2 - 1$.
+
+But we also have $w(e) \leq n$, so $\sum_e w(e) \leq n \cdot |E| = n \cdot 2n(n-1) = 2n^2(n-1)$.
+
+These are too loose. Let me think about tighter bounds on $|\delta(S_k)|$.
+
+For $k = in$ (a multiple of $n$), $|S_{in}| = in$ and $|T_{in+1}| = (n-i)n$. As argued, $|\delta(S_{in})| \geq n$.
+
+For general $k$, $|S_k| = k$ and $|T_{k+1}| = n^2 - k$. The minimum boundary for a connected set of $k$ cells with connected complement is... 
+
+For $k$ not a multiple of $n$, the minimum might be different. But for $k = in + j$ where $1 \leq j \leq n-1$, we're adding $j$ cells of band $A_{i+1}$ to $S_{in}$. The boundary might temporarily decrease.
+
+Hmm, this is getting complicated. Let me try a different approach entirely.
+
+Let me think about the problem in terms of "rows" of the grid.
+
+Actually, let me think about the problem more carefully for small $n$ and try to find a pattern.
+
+For $n = 1$: $g(1) = 0$.
+For $n = 2$: $g(2) = 2$.
+For $n = 3$: I believe $g(3) = 4$ (but I should verify this more carefully).
+
+Wait, let me reconsider $n = 2$. We have a $2 \times 2$ grid with values 1-4. The bands are $A_1 = \{1,2\}$ and $A_2 = \{3,4\}$. The cut between them has $c_1$ edges. We need $c_1 \geq 2$ (since $n = 2$). Each edge has difference $\leq 2$. The good pairs are edges with difference 2.
+
+In the filling:
+```
+1 2
+3 4
+```
+The cut between $A_1 = \{(0,0), (0,1)\}$ and $A_2 = \{(1,0), (1,1)\}$ has 2 edges: (1,3) and (2,4), both with difference 2. So 2 good pairs.
+
+Can we have a filling where the cut has 2 edges but one of them has difference 1? That would mean one edge connects value 2 to value 3 (difference 1) and the other connects value 1 to value 4 (difference 3 > 2, violating condition 1). So no, both edges must have difference 2. Hence $g(2) = 2$.
+
+Wait, that's a nice argument! Let me generalize.
+
+For the cut between $A_i$ and $A_{i+1}$, the edges connect values in $[(i-1)n+1, in]$ to values in $[in+1, (i+1)n]$. The differences are $b - a$ where $a \leq in$ and $b \geq in+1$.
+
+If an edge has difference $d < n$, then $b = a + d$ with $d < n$, so $b \leq in + d < in + n = (i+1)n$. And $a = b - d \geq in + 1 - d > in + 1 - n = (i-1)n + 1$. So both $a$ and $b$ are "interior" to their bands.
+
+Now, the key constraint is: the sum of differences across the cut must account for the "gap" between the bands. Specifically, consider the values in $A_i$ that have edges to $A_{i+1}$, and the values in $A_{i+1}$ that have edges to $A_i$.
+
+Hmm, let me think about this more carefully with a "flow" argument.
+
+Consider the cut $\delta(S_{in})$ between $A_i$ and $A_{i+1}$. Let the edges be $e_1, ..., e_{c_i}$ with differences $d_1, ..., d_{c_i}$ (each $1 \leq d_j \leq n$).
+
+Now, consider the "values" on the $A_i$ side of the cut: these are values $a_1, ..., a_{c_i} \in [(i-1)n+1, in]$. And on the $A_{i+1}$ side: $b_1, ..., b_{c_i} \in [in+1, (i+1)n]$, with $b_j = a_j + d_j$.
+
+The key question is: what constraints do the connectivity conditions impose on these differences?
+
+Actually, I think the crucial constraint comes from the intermediate cuts. For $k$ between $(i-1)n$ and $in$, the cut $\delta(S_k)$ includes some edges from $A_i$ to $A_{i+1}$ (those where the $A_i$ endpoint has value $\leq k$) and some edges from $A_{i-1}$ to $A_i$ (those where the $A_i$ endpoint has value $> k$). 
+
+As $k$ increases from $(i-1)n$ to $in$, the cut $\delta(S_k)$ changes: edges from $A_i$ to $A_{i+1}$ are added (as the $A_i$ endpoints enter $S_k$), and edges from $A_{i-1}$ to $A_i$ are removed (as the $A_i$ endpoints enter $S_k$, these become internal edges).
+
+For the cut to always have both sides connected, we need $|\delta(S_k)| \geq 1$ for all $k$, but more importantly, we need both $S_k$ and $T_{k+1}$ to be connected.
+
+This is getting very complex. Let me try to think about the problem from a higher level.
+
+Let me consider the "row" structure. In an $n \times n$ grid, there are $n$ rows and $n$ columns. Each row has $n-1$ horizontal edges, and there are $n-1$ sets of vertical edges, each with $n$ edges. Total: $n(n-1) + n(n-1) = 2n(n-1)$ edges.
+
+Now, consider the labeling $f$. In each row, the values form a sequence, and adjacent values differ by at most $n$. Similarly for columns.
+
+Key observation: In any row, the values span a range of at most $(n-1) \cdot n = n^2 - n$. But the total range is $n^2 - 1$. So the values in a single row can't cover the entire range. This means different rows must have overlapping but different ranges.
+
+Hmm, this isn't directly helpful. Let me think about the "profile" of the labeling.
+
+Let me try to think about the problem for $n = 10$ specifically.
+
+We have a $10 \times 10$ grid with values 1-100. Adjacent differences $\leq 10$. We want to minimize the number of adjacent pairs with difference exactly 10.
+
+The bands are $A_1 = \{1,...,10\}$, $A_2 = \{11,...,20\}$, ..., $A_{10} = \{91,...,100\}$.
+
+No edges between non-consecutive bands. The cuts between consecutive bands each have at least 10 edges (by the isoperimetric argument). Total inter-band edges $\geq 9 \times 10 = 90$.
+
+Now, within each band $A_i$, there are also edges (between cells in the same band). The total number of edges is $2 \times 10 \times 9 = 180$. The inter-band edges are at least 90, so the intra-band edges are at most 90.
+
+Now, the good pairs are inter-band edges with difference exactly 10 (i.e., $n$). Can intra-band edges be good? An intra-band edge connects two values in $[(i-1)n+1, in]$, so the difference is at most $n - 1 < n$. So intra-band edges are never good! Good pairs only occur between consecutive bands.
+
+So the number of good pairs = number of inter-band edges with difference exactly $n$.
+
+Now, I need to figure out the minimum number of inter-band edges with difference exactly $n$.
+
+Let me think about the cut between $A_i$ and $A_{i+1}$ more carefully. 
+
+The edges in this cut connect values $a \in [(i-1)n+1, in]$ to values $b \in [in+1, (i+1)n]$ with $b - a \leq n$.
+
+Let me think about which pairs $(a, b)$ with $a \in A_i$, $b \in A_{i+1}$, $b - a \leq n$ are "good" (difference $= n$) vs "not good" (difference $< n$).
+
+Good: $b = a + n$. Since $a \in [(i-1)n+1, in]$, $b = a + n \in [in+1, (i+1)n]$. So for each $a \in A_i$, there's exactly one $b = a + n \in A_{i+1}$ that would make a good pair.
+
+Not good: $b - a < n$, i.e., $b < a + n$. Since $b \geq in + 1$ and $a \leq in$, we need $in + 1 \leq b < a + n$, i.e., $a > in + 1 - n = (i-1)n + 1$. So $a \in [(i-1)n+2, in]$ and $b \in [in+1, a+n-1]$.
+
+So for $a = (i-1)n + 1$ (the smallest value in $A_i$), the only possible $b$ with $b - a \leq n$ is $b = a + n = in + 1$ (the smallest value in $A_{i+1}$). Any other $b$ would have $b - a > n$.
+
+This is a crucial observation! The cell with value $(i-1)n + 1$ (the minimum of $A_i$) can only be adjacent to cells in $A_{i-1}$ or $A_i$ (for smaller values) or to the cell with value $in + 1$ in $A_{i+1}$ (for larger values). It cannot be adjacent to any other cell in $A_{i+1}$.
+
+Wait, more precisely: the cell with value $(i-1)n + 1$ has neighbors with values in $[(i-1)n + 1 - n, (i-1)n + 1 + n] = [(i-2)n + 1, in + 1]$. The values in $A_{i+1}$ that are $\leq in + 1$ are just $\{in + 1\}$. So the only neighbor in $A_{i+1}$ is the cell with value $in + 1$, and if they are adjacent, the difference is $n$ (a good pair).
+
+Similarly, the cell with value $in + 1$ (the minimum of $A_{i+1}$) has neighbors with values in $[in + 1 - n, in + 1 + n] = [(i-1)n + 1, (i+1)n + 1]$. The values in $A_i$ that are $\geq (i-1)n + 1$ are all of $A_i$. So the cell with value $in + 1$ can be adjacent to any cell in $A_i$.
+
+But the cell with value $(i-1)n + 1$ can only be adjacent (in $A_{i+1}$) to the cell with value $in + 1$.
+
+Now, by the superlevel connectivity condition, the cell with value $(i-1)n + 1$ must have a neighbor with value $> (i-1)n + 1$. This neighbor is either in $A_i$ (value $> (i-1)n + 1$) or in $A_{i+1}$ (value $in + 1$, the only possibility). If the neighbor is in $A_i$, that's fine. If the neighbor is in $A_{i+1}$, it must be value $in + 1$, creating a good pair.
+
+But the cell with value $(i-1)n + 1$ doesn't HAVE to have a neighbor in $A_{i+1}$. It just needs SOME neighbor with a higher value, which could be in $A_i$.
+
+Hmm, so this doesn't directly force good pairs. Let me think more.
+
+Let me consider the "extreme" values more carefully. The cell with value 1 (in $A_1$) must have a neighbor with value > 1 (by superlevel connectivity). This neighbor has value $\leq 1 + n = n + 1$, so it's in $A_1$ (value 2 to $n$) or $A_2$ (value $n + 1$). If it's in $A_2$, the difference is $n$, a good pair.
+
+But the cell with value 1 could have all its higher-value neighbors in $A_1$. For example, if value 1 is in the interior of the $A_1$ region, it could be surrounded by $A_1$ cells.
+
+OK so individual extreme values don't force good pairs. Let me think about the global structure.
+
+Let me consider the "boundary" between $A_i$ and $A_{i+1}$ more carefully. 
+
+The cut $\delta(S_{in})$ has $c_i \geq n$ edges. The differences on these edges are $d_1, ..., d_{c_i}$ with $1 \leq d_j \leq n$.
+
+Now, I want to show that at least some of these differences must be $n$.
+
+Consider the "values" on the $A_i$ side: $a_1, ..., a_{c_i} \in [(i-1)n+1, in]$. These are $c_i$ values (not necessarily distinct? Actually, a cell in $A_i$ can have multiple edges to $A_{i+1}$, so the same value can appear multiple times). Let me think about distinct values.
+
+Actually, let me think about it differently. Consider the "interface" between $A_i$ and $A_{i+1}$. This interface consists of cells in $A_i$ that are adjacent to $A_{i+1}$, and cells in $A_{i+1}$ that are adjacent to $A_i$.
+
+Let $X_i \subseteq A_i$ be the set of cells in $A_i$ adjacent to some cell in $A_{i+1}$, and $Y_i \subseteq A_{i+1}$ be the set of cells in $A_{i+1}$ adjacent to some cell in $A_i$. The edges of the cut go between $X_i$ and $Y_i$.
+
+Now, for the cut to have both sides connected, we need... well, $S_{in} = A_1 \cup ... \cup A_i$ is connected, and $T_{in+1} = A_{i+1} \cup ... \cup A_n$ is connected. The cut edges are the only edges between these two sets.
+
+Let me think about the "width" of the interface. In a 2D grid, if $S$ and $T$ are both connected and partition the grid, the interface between them is a "path" (or a set of paths) that spans the grid. The minimum number of edges in such an interface is $n$ (a straight cut).
+
+Now, for a straight cut (e.g., $i$ full rows vs $n - i$ full rows), the interface has $n$ edges, each connecting a cell in row $i-1$ to a cell in row $i$. The differences on these edges depend on the labeling.
+
+If the labeling is "row-major" (row $j$ has values $jn+1, ..., (j+1)n$), then the interface between row $i-1$ and row $i$ has differences all equal to $n$ (each cell in row $i-1$ has value $jn+k$ and the cell below has value $(j+1)n+k$, difference $n$). So all $n$ edges are good, giving $n$ good pairs per cut, $n(n-1)$ total.
+
+But we want to minimize good pairs. So we want a labeling where the interface edges have differences $< n$ when possible.
+
+The question is: can we arrange the labeling so that many interface edges have difference $< n$?
+
+Let me think about what constrains the differences. Consider the cut between $A_i$ and $A_{i+1}$ with $c_i$ edges. The differences are $d_1, ..., d_{c_i}$. 
+
+Now, consider the "intermediate" cuts. For $k = (i-1)n + j$ where $1 \leq j \leq n-1$, the cut $\delta(S_k)$ includes:
+- Some edges from $A_i$ to $A_{i+1}$ (those where the $A_i$ endpoint has value $\leq (i-1)n + j$).
+- Some edges from $A_{i-1}$ to $A_i$ (those where the $A_i$ endpoint has value $> (i-1)n + j$).
+- Edges within $A_i$ (between cells with value $\leq (i-1)n + j$ and cells with value $> (i-1)n + j$).
+
+For $S_k$ to be connected, the cell with value $(i-1)n + j$ must be adjacent to some cell with value $\leq (i-1)n + j - 1$. For $T_{k+1}$ to be connected, the cell with value $(i-1)n + j$ must be adjacent to some cell with value $\geq (i-1)n + j + 1$.
+
+This is automatically satisfied if the cell has neighbors both above and below in value, which is guaranteed by condition 2.
+
+I don't think the intermediate cuts directly constrain the differences on the band-to-band edges. Let me think about this differently.
+
+Let me consider a specific construction and count the good pairs.
+
+Construction 1: "Column-major" filling.
+```
+1  11 21 31 41 51 61 71 81 91
+2  12 22 32 42 52 62 72 82 92
+3  13 23 33 43 53 63 73 83 93
+4  14 24 34 44 54 64 74 84 94
+5  15 25 35 45 55 65 75 85 95
+6  16 26 36 46 56 66 76 86 96
+7  17 27 37 47 57 67 77 87 97
+8  18 28 38 48 58 68 78 88 98
+9  19 29 39 49 59 69 79 89 99
+10 20 30 40 50 60 70 80 90 100
+```
+Horizontal differences: all 10 = n. So $9 \times 10 = 90$ good pairs (horizontal). Vertical differences: all 1. Total good pairs: 90.
+
+Construction 2: "Row-major" filling.
+```
+1  2  3  4  5  6  7  8  9  10
+11 12 13 14 15 16 17 18 19 20
+...
+91 92 93 94 95 96 97 98 99 100
+```
+Vertical differences: all 10 = n. $9 \times 10 = 90$ good pairs. Horizontal: all 1. Total: 90.
+
+Construction 3: "Snake" within bands. Let me try to arrange the values so that the band-to-band edges have smaller differences.
+
+For $n = 10$, consider arranging the values so that each band $A_i$ occupies a "row" of the grid, but within each row, the values are arranged to minimize the vertical differences.
+
+Wait, but if band $A_i$ occupies row $i-1$, then the vertical edges between row $i-1$ and row $i$ connect $A_i$ to $A_{i+1}$. The differences are $b - a$ where $a \in A_i$ and $b \in A_{i+1}$.
+
+If we arrange the values in each row in the same order (e.g., increasing left to right), then the vertical differences are all $n$ (each value $a$ is below value $a + n$). To reduce the differences, we can permute the values within each row.
+
+For example, if row 0 has values 1-10 in order 1,2,...,10 and row 1 has values 11-20 in order 20,19,...,11 (reversed), then the vertical differences are: (1,20)=19, (2,19)=17, ..., (10,11)=1. But 19 > 10 = n, violating condition 1!
+
+So we can't simply reverse. We need the vertical differences to be $\leq 10$. 
+
+If row 0 has values $a_1, ..., a_{10}$ (a permutation of 1-10) and row 1 has values $b_1, ..., b_{10}$ (a permutation of 11-20), we need $|b_j - a_j| \leq 10$ for each $j$. Since $b_j \geq 11$ and $a_j \leq 10$, we need $b_j - a_j \leq 10$, i.e., $b_j \leq a_j + 10$.
+
+The good pairs are those where $b_j = a_j + 10$.
+
+We want to minimize the number of $j$ where $b_j = a_j + 10$. This is equivalent to: given two permutations $\sigma$ of $\{1,...,10\}$ and $\tau$ of $\{11,...,20\}$, with $\tau(j) - \sigma(j) \leq 10$ for all $j$, minimize the number of $j$ where $\tau(j) = \sigma(j) + 10$.
+
+Since $\tau(j) \in [11, 20]$ and $\sigma(j) \in [1, 10]$, we have $\tau(j) - \sigma(j) \in [1, 19]$. The constraint is $\tau(j) - \sigma(j) \leq 10$.
+
+We want to minimize the count of $\tau(j) = \sigma(j) + 10$.
+
+This is a bipartite matching problem. We have 10 values in $\{1,...,10\}$ and 10 values in $\{11,...,20\}$, and we want to match them (pair them vertically) such that each pair $(a, b)$ has $b - a \leq 10$, and we minimize the number of pairs with $b - a = 10$.
+
+The constraint $b - a \leq 10$ with $b \geq 11$ and $a \leq 10$ means $b \leq a + 10$. Since $a \leq 10$, $a + 10 \leq 20$, so $b \leq 20$, which is always true. But also $b \geq 11$ and $a \leq 10$, so $b - a \geq 1$.
+
+The constraint $b \leq a + 10$: for $a = 1$, $b \leq 11$, so $b = 11$. For $a = 2$, $b \leq 12$, so $b \in \{11, 12\}$. ... For $a = 10$, $b \leq 20$, so $b \in \{11,...,20\}$.
+
+So the value $a = 1$ must be paired with $b = 11$ (the only option). This gives $b - a = 10$, a good pair!
+
+Similarly, $a = 2$ can be paired with $b = 11$ or $b = 12$. If $b = 11$ is taken by $a = 1$, then $a = 2$ must be paired with $b = 12$, giving $b - a = 10$, another good pair!
+
+By induction, $a = k$ must be paired with $b = 10 + k$ (if $b = 10 + j$ for $j < k$ are all taken by $a = j$). So the only valid matching is $a = k \leftrightarrow b = 10 + k$, giving all 10 pairs as good pairs!
+
+Wait, is that right? Let me check. We need a perfect matching between $\{1,...,10\}$ and $\{11,...,20\}$ with $b \leq a + 10$.
+
+$a = 1$: $b \leq 11$, so $b = 11$. Forced.
+$a = 2$: $b \leq 12$, so $b \in \{11, 12\}$. But 11 is taken, so $b = 12$. Forced.
+...
+$a = k$: $b \leq k + 10$, so $b \in \{11, ..., k+10\}$. But $11, ..., k+9$ are taken by $a = 1, ..., k-1$. So $b = k + 10$. Forced.
+
+So indeed, the only valid matching is the "identity" matching $a \leftrightarrow a + 10$, and all 10 pairs are good!
+
+This means: if the bands are arranged as full rows (band $A_i$ = row $i-1$), then ALL vertical edges between consecutive rows are good pairs. We get $9 \times 10 = 90$ good pairs.
+
+But this is the worst case, not the best. The question is: can we do better by NOT arranging bands as full rows?
+
+The key insight from the above is: when the interface between $A_i$ and $A_{i+1}$ is a "straight cut" (full row or column), the matching is forced and all edges are good. To reduce good pairs, we need a "non-straight" interface, which has more edges but allows some edges to have difference $< n$.
+
+But a non-straight interface has more than $n$ edges, and some of those extra edges might have difference $< n$. However, the "extreme" values still force some good pairs.
+
+Let me think about this more carefully. Consider the cut between $A_i$ and $A_{i+1}$. The cell with value $(i-1)n + 1$ (the minimum of $A_i$) can only be adjacent to value $in + 1$ in $A_{i+1}$ (as shown earlier). If this cell is on the interface (i.e., it has a neighbor in $A_{i+1}$), then that edge is a good pair.
+
+But does the cell with value $(i-1)n + 1$ have to be on the interface? Not necessarily. It could be in the "interior" of $A_i$, surrounded by $A_i$ cells.
+
+However, consider the cell with value $(i-1)n + 1$. By the superlevel connectivity, it must have a neighbor with value $> (i-1)n + 1$. This neighbor is in $A_i$ (value $(i-1)n + 2$ to $in$) or $A_{i+1}$ (value $in + 1$). If it's in $A_i$, fine. But does the connectivity of $T_{(i-1)n+1} = A_i \cup A_{i+1} \cup ... \cup A_n$ require the cell with value $(i-1)n + 1$ to be connected to $A_{i+1}$ through $A_i$?
+
+Yes, $T_{(i-1)n+1}$ is connected, so there's a path from the cell with value $(i-1)n + 1$ to any cell in $A_{i+1}$. This path goes through $A_i$ cells (since there are no edges from $A_i$ to $A_{i+2}$ or beyond, and the path from $A_i$ to $A_{i+1}$ must cross the interface). So the cell with value $(i-1)n + 1$ is connected to the interface through $A_i$ cells, but it doesn't have to be on the interface itself.
+
+Similarly, the cell with value $in + 1$ (the minimum of $A_{i+1}$) can be adjacent to any cell in $A_i$ (since $in + 1 - n = (i-1)n + 1 \leq a \leq in$ for all $a \in A_i$, so $in + 1 - a \leq n$). So the cell with value $in + 1$ can be on the interface with a non-good edge (difference $< n$) if it's adjacent to a cell in $A_i$ with value $> (i-1)n + 1$.
+
+Wait, but the cell with value $(i-1)n + 1$ in $A_i$ can only be adjacent to value $in + 1$ in $A_{i+1}$. If this cell is on the interface, the edge is good. But if it's not on the interface, no good pair is forced by this cell.
+
+So the question becomes: can we arrange the bands so that the "extreme" cells (those with values $(i-1)n + 1$ for each $i$) are NOT on the interface?
+
+Let me think about this. The cell with value $(i-1)n + 1$ is the minimum of $A_i$. For it to not be on the interface with $A_{i+1}$, all its neighbors must be in $A_{i-1} \cup A_i$ (i.e., no neighbor in $A_{i+1}$). Similarly, for it to not be on the interface with $A_{i-1}$, all its neighbors must be in $A_i \cup A_{i+1}$.
+
+Wait, the cell with value

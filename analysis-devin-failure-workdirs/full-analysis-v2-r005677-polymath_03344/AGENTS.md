@@ -1,0 +1,1143 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_03344</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+$a, b, c$ are positive real numbers such that $$(\sqrt {ab}-1)(\sqrt {bc}-1)(\sqrt {ca}-1)=1$$
+At most, how many of the numbers: $$a-\frac {b}{c}, a-\frac {c}{b}, b-\frac {a}{c}, b-\frac {c}{a}, c-\frac {a}{b}, c-\frac {b}{a}$$ can be bigger than $1$?
+
+## Standard Solution
+
+1. **Given Condition:**
+   We start with the given condition:
+   \[
+   (\sqrt{ab} - 1)(\sqrt{bc} - 1)(\sqrt{ca} - 1) = 1
+   \]
+   where \(a, b, c\) are positive real numbers.
+
+2. **Claim:**
+   We need to determine how many of the numbers:
+   \[
+   a - \frac{b}{c}, \quad a - \frac{c}{b}, \quad b - \frac{a}{c}, \quad b - \frac{c}{a}, \quad c - \frac{a}{b}, \quad c - \frac{b}{a}
+   \]
+   can be greater than 1.
+
+3. **Example to Achieve 4:**
+   Consider the specific values \(b = c = \frac{3}{2}\) and \(a = 2 + \frac{4\sqrt{2}}{3}\). We need to check if these values satisfy the given condition and if they allow four of the expressions to be greater than 1.
+
+4. **Assumption and Simplification:**
+   Assume without loss of generality that \(a \geq b \geq c\). We analyze the case when \(c \geq 2\):
+   - For \(a = b = c = 2\), all expressions are equal to 1.
+   - For \(a > 2\), the product \((\sqrt{ab} - 1)(\sqrt{ac} - 1)(\sqrt{bc} - 1)\) becomes greater than 1, which contradicts the given condition. Thus, \(c < 2\).
+
+5. **Case Analysis:**
+   - If \(c \leq 1\), then \(c - \frac{b}{a}\) and \(c - \frac{a}{b}\) are both less than 1. Additionally, \(b - \frac{a}{c} \leq b - a < 0\), so at most three expressions can be greater than 1.
+   - If \(1 < c < 2\), we analyze further:
+     - \(c - \frac{a}{b} < 1\), so at most five expressions can be greater than 1.
+
+6. **Checking for 5 Expressions:**
+   Suppose five expressions can be greater than 1. This implies:
+   - \(c - \frac{b}{a} > 1\)
+   - \(b - \frac{a}{c} > 1\)
+   - \(a - \frac{b}{c} > 1\)
+
+   These yield:
+   \[
+   bc > a + c \quad \text{and} \quad ac > a + b
+   \]
+
+7. **Further Implications:**
+   - Since \(b > 2\) (otherwise \(b - \frac{a}{c} > 1\) would yield a contradiction), we have \(a > b > 2 > c\).
+   - From \(c - \frac{b}{a} > 1\), we get \(ac > a + b\).
+   - From \(b - \frac{a}{c} > 1\), we get \(bc > a + c\).
+
+8. **Contradiction:**
+   Combining these, we get:
+   \[
+   ac > a + b > 2\sqrt{ab} \quad \text{and} \quad bc > a + c > 2\sqrt{ac}
+   \]
+   This implies:
+   \[
+   abc^2 > 4a\sqrt{bc} \quad \text{or} \quad bc^3 > 16
+   \]
+   Since \(c^2 < 4\), we get \(bc > 4\). Finally, \(ab > ac > bc > 4\), which contradicts the given condition \((\sqrt{ab} - 1)(\sqrt{bc} - 1)(\sqrt{ca} - 1) = 1\).
+
+9. **Conclusion:**
+   Therefore, at most four of the given expressions can be greater than 1.
+
+The final answer is \( \boxed{ 4 } \).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. The constraint is $(\sqrt{ab}-1)(\sqrt{bc}-1)(\sqrt{ca}-1)=1$ with $a,b,c>0$. We need to find the maximum number of the six numbers $a-b/c, a-c/b, b-a/c, b-c/a, c-a/b, c-b/a$ that can be greater than 1.
+
+Let me substitute $x = \sqrt{bc}, y = \sqrt{ca}, z = \sqrt{ab}$. Then $x,y,z > 0$ and $(z-1)(x-1)(y-1) = 1$.
+
+Also $a = yz/x$, $b = zx/y$, $c = xy/z$ (since $yz = \sqrt{ca}\sqrt{ab} = a\sqrt{bc} = ax$, so $a = yz/x$).
+
+Now let's compute the six expressions:
+- $a - b/c = yz/x - (zx/y)/(xy/z) = yz/x - z^2/(y^2) \cdot ... $
+
+Wait let me be careful. $b/c = (zx/y)/(xy/z) = (zx/y)(z/(xy)) = z^2/y^2$.
+
+Hmm, $b/c = (zx/y) \cdot (z/(xy)) = z^2 x/(xy^2) = z^2/y^2$.
+
+So $a - b/c = yz/x - z^2/y^2$.
+
+Similarly $a - c/b = yz/x - y^2/z^2$.
+
+$b - a/c = zx/y - (yz/x)(z/(xy)) = zx/y - z^2y/(x^2 y) = zx/y - z^2/x^2$.
+
+Hmm wait, $a/c = (yz/x)/(xy/z) = (yz/x)(z/(xy)) = z^2/x^2$.
+
+So $b - a/c = zx/y - z^2/x^2$.
+
+$b - c/a = zx/y - x^2/z^2$.
+
+$c - a/b = xy/z - (yz/x)(y/(zx)) = xy/z - y^2/x^2 \cdot ... $
+
+$a/b = (yz/x)/(zx/y) = y^2/x^2$.
+
+$c - a/b = xy/z - y^2/x^2$.
+
+$c - b/a = xy/z - x^2/y^2$.
+
+So the six numbers are:
+1. $a - b/c = yz/x - z^2/y^2$
+2. $a - c/b = yz/x - y^2/z^2$
+3. $b - a/c = zx/y - z^2/x^2$
+4. $b - c/a = zx/y - x^2/z^2$
+5. $c - a/b = xy/z - y^2/x^2$
+6. $c - b/a = xy/z - x^2/y^2$
+
+Hmm, this is getting complicated. Let me try a different substitution.
+
+Actually, let me try $a = e^{2\alpha}, b = e^{2\beta}, c = e^{2\gamma}$? Then $\sqrt{ab} = e^{\alpha+\beta}$, etc. The constraint becomes $(e^{\alpha+\beta}-1)(e^{\beta+\gamma}-1)(e^{\gamma+\alpha}-1) = 1$.
+
+Hmm, still complicated. Let me think about this differently.
+
+Let me try specific values. If $a = b = c$, then $\sqrt{ab} = a$, so $(a-1)^3 = 1$, giving $a = 2$. Then all six numbers equal $a - a/a = a - 1 = 1$. So all six equal exactly 1, not greater than 1. So 0 are greater than 1 in this case.
+
+Let me try to find cases where some are greater than 1.
+
+Let me try $a$ large, $b = c$ small. Let $b = c = t$, $a$ large. Then $\sqrt{ab} = \sqrt{at}$, $\sqrt{bc} = t$, $\sqrt{ca} = \sqrt{at}$. Constraint: $(\sqrt{at}-1)^2(t-1) = 1$.
+
+The six numbers:
+- $a - b/c = a - 1$
+- $a - c/b = a - 1$
+- $b - a/c = t - a/t$
+- $b - c/a = t - t/a$
+- $c - a/b = t - a/t$
+- $c - b/a = t - t/a$
+
+For $a$ large and $t$ small: $a - 1 > 1$ (two of them), $t - a/t < 0$ (two), $t - t/a \approx t > 0$ but small (two). So potentially 2 are greater than 1.
+
+Can we get more? Let me think about what's needed.
+
+Let me try $a$ large, $b$ large, $c$ small. Say $a = b$ large, $c$ small.
+
+$\sqrt{ab} = a$, $\sqrt{bc} = \sqrt{ac}$, $\sqrt{ca} = \sqrt{ac}$. Constraint: $(a-1)(\sqrt{ac}-1)^2 = 1$.
+
+The six numbers:
+- $a - b/c = a - a/c$
+- $a - c/b = a - c/a$
+- $b - a/c = a - a/c$
+- $b - c/a = a - c/a$
+- $c - a/b = c - 1$
+- $c - b/a = c - 1$
+
+If $a$ large, $c$ small: $a - a/c$ is very negative (since $a/c$ large), $a - c/a \approx a > 1$ (two), $c - 1 < 0$ (two). So 2 again.
+
+Hmm. Let me try to get 3 or more.
+
+Let me think more carefully. Let me use the substitution $x = \sqrt{ab}, y = \sqrt{bc}, z = \sqrt{ca}$ with $(x-1)(y-1)(z-1) = 1$.
+
+Note $x, y, z > 0$ and from the constraint, either all three of $x-1, y-1, z-1$ are positive, or exactly two are negative and one positive (product = 1 > 0).
+
+Case 1: All $x, y, z > 1$.
+Case 2: Exactly two of $x, y, z < 1$ and one $> 1$.
+
+Recall $a = yz/x, b = xz/y, c = xy/z$.
+
+The six numbers:
+- $a - b/c = yz/x - z^2/y^2 = (y^3 z - xz^2)/(xy^2) = z(y^3 - xz)/(xy^2)$
+- $a - c/b = yz/x - y^2/z^2 = y(z^3 - xy)/(xz^2)$
+- $b - a/c = xz/y - z^2/x^2 = z(x^3 - yz)/(x^2 y)$
+- $b - c/a = xz/y - x^2/z^2 = x(z^3 - xy)/(yz^2)$
+- $c - a/b = xy/z - y^2/x^2 = y(x^3 - yz)/(x^2 z)$
+- $c - b/a = xy/z - x^2/y^2 = x(y^3 - xz)/(y^2 z)$
+
+So the six numbers pair up:
+- $a - b/c$ and $c - b/a$ both involve $y^3 - xz$: 
+  - $a - b/c = z(y^3 - xz)/(xy^2)$
+  - $c - b/a = x(y^3 - xz)/(y^2 z)$
+  - Their ratio: $(a-b/c)/(c-b/a) = z^2/x^2$. So they have the same sign.
+
+- $a - c/b$ and $b - c/a$ both involve $z^3 - xy$:
+  - $a - c/b = y(z^3 - xy)/(xz^2)$
+  - $b - c/a = x(z^3 - xy)/(yz^2)$
+  - Ratio: $y^2/x^2$. Same sign.
+
+- $b - a/c$ and $c - a/b$ both involve $x^3 - yz$:
+  - $b - a/c = z(x^3 - yz)/(x^2 y)$
+  - $c - a/b = y(x^3 - yz)/(x^2 z)$
+  - Ratio: $z^2/y^2$. Same sign.
+
+So the six numbers come in three pairs, each pair having the same sign (determined by $y^3 - xz$, $z^3 - xy$, $x^3 - yz$ respectively).
+
+Now, "greater than 1" is stronger than "positive". But let's first think about signs.
+
+Note: $x^3 - yz$, $y^3 - xz$, $z^3 - xy$. 
+
+If $x \geq y \geq z$, then $x^3 \geq y^3 \geq z^3$ and $yz \leq xz \leq xy$. So $x^3 - yz \geq y^3 - xz \geq z^3 - xy$... actually not exactly, but $x^3 - yz$ is the largest and $z^3 - xy$ is the smallest.
+
+Actually, $x^3 - yz$: if $x$ is the largest, $x^3$ is large and $yz$ is the product of the two smaller, so $x^3 - yz > 0$ likely. And $z^3 - xy$: $z^3$ small, $xy$ product of two larger, so likely negative.
+
+So typically one pair positive, one pair negative, and the middle one could go either way. So at most 2 pairs positive = 4 numbers positive. But we need "greater than 1", not just positive.
+
+Let me think about whether we can have all three of $x^3 - yz, y^3 - xz, z^3 - xy$ positive. That requires $x^3 > yz, y^3 > xz, z^3 > xy$. Multiplying: $x^3 y^3 z^3 > x^2 y^2 z^2$, i.e., $xyz > 1$. But also if all three positive, can that happen? If $x = y = z$, then $x^3 = x^2$, so $x = 1$, but then $(x-1)^3 = 0 \neq 1$. So not all equal. 
+
+Actually if $x, y, z$ are all close to each other and $> 1$, then $x^3 > yz$ is roughly $x^3 > x^2$ i.e. $x > 1$, which holds. So all three can be positive when all $x, y, z > 1$ and close to each other.
+
+But we need them greater than 1, not just positive. Let me reconsider.
+
+Let me think about the constraint more. We have $(x-1)(y-1)(z-1) = 1$.
+
+Let me try $x = y = z = 2$: $(1)^3 = 1$. ✓. Then $a = b = c = 2$, all six numbers = 1. Not greater than 1.
+
+Let me perturb: $x = 2, y = 2, z = 2 + \epsilon$. Then $(1)(1)(1+\epsilon) = 1 + \epsilon \neq 1$. Need to adjust. Let $x = 2 - \delta, y = 2 - \delta, z$ such that $(1-\delta)^2(z-1) = 1$, so $z = 1 + 1/(1-\delta)^2$.
+
+For small $\delta > 0$: $z \approx 1 + 1/(1-2\delta) \approx 2 + 2\delta$. So $x = y = 2-\delta, z = 2+2\delta$ approximately.
+
+Then $a = yz/x = (2-\delta)(2+2\delta)/(2-\delta) = 2+2\delta$, $b = xz/y = (2-\delta)(2+2\delta)/(2-\delta) = 2+2\delta$, $c = xy/z = (2-\delta)^2/(2+2\delta)$.
+
+So $a = b = 2+2\delta$, $c = (2-\delta)^2/(2+2\delta) \approx (4-4\delta)/(2+2\delta) \approx 2(1-\delta)/(1+\delta) \approx 2(1-2\delta) = 2-4\delta$.
+
+The six numbers:
+- $a - b/c = (2+2\delta) - (2+2\delta)/c$. Since $c \approx 2 - 4\delta$, $(2+2\delta)/c \approx (2+2\delta)/(2-4\delta) \approx (1+\delta)/(1-2\delta) \approx 1 + 3\delta$. So $a - b/c \approx 2+2\delta - (1+3\delta) = 1 - \delta < 1$.
+
+Hmm, so this perturbation makes it less than 1.
+
+- $a - c/b = (2+2\delta) - c/(2+2\delta) \approx 2+2\delta - (2-4\delta)/(2+2\delta) \approx 2+2\delta - (1-2\delta) = 1 + 4\delta > 1$. ✓
+
+So $a - c/b > 1$ and $b - c/a > 1$ (by symmetry $a = b$). That's 2.
+
+- $c - a/b = c - 1 \approx 1 - 4\delta < 1$.
+- $c - b/a = c - 1 < 1$.
+- $a - b/c < 1$, $b - a/c < 1$ (by symmetry).
+
+So 2 numbers greater than 1.
+
+Can we do better? Let me try a different configuration. Let me try to make 3 or more greater than 1.
+
+Let me think about it more carefully. We need, say, $a - c/b > 1$ and $a - b/c > 1$ simultaneously. That means $a > 1 + c/b$ and $a > 1 + b/c$. So $a > 1 + \max(b/c, c/b) \geq 1 + 1 = 2$. So $a > 2$.
+
+Similarly for other pairs. Let me think about which combinations are possible.
+
+The six numbers in pairs:
+- Pair 1: $a - b/c, c - b/a$ (sign determined by $y^3 - xz$)
+- Pair 2: $a - c/b, b - c/a$ (sign determined by $z^3 - xy$)
+- Pair 3: $b - a/c, c - a/b$ (sign determined by $x^3 - yz$)
+
+For a number to be $> 1$, it must be positive, so the pair must be positive. So we need to count how many pairs can have both members $> 1$.
+
+Within a pair, say pair 1: $a - b/c = z(y^3-xz)/(xy^2)$ and $c - b/a = x(y^3-xz)/(y^2 z)$. Their ratio is $z^2/x^2$. If both are $> 1$, we need both large enough.
+
+Hmm, let me think about this problem differently. Let me try to see if 4 is achievable.
+
+For 4 numbers $> 1$, we need 2 pairs both $> 1$. 
+
+Let me try to make pair 2 and pair 3 both $> 1$. Pair 2 needs $z^3 > xy$ and pair 3 needs $x^3 > yz$.
+
+So $x^3 > yz$ and $z^3 > xy$. This means $x$ and $z$ are both large relative to $y$.
+
+Let me try $y$ small, $x$ and $z$ large. From the constraint $(x-1)(y-1)(z-1) = 1$. If $y < 1$, then $y - 1 < 0$, so we need $(x-1)(z-1) < 0$, meaning one of $x, z$ is $< 1$. But we want both $x, z$ large. Contradiction. So if $y < 1$, we can't have both $x, z > 1$.
+
+So we need $y > 1$ as well (all three $> 1$), or we're in the case where two are $< 1$.
+
+If all $x, y, z > 1$: then $x^3 > yz$ and $z^3 > xy$ with $y$ the smallest. Let $x = z = t$ (large), $y$ close to 1. Then $(t-1)^2(y-1) = 1$, so $y = 1 + 1/(t-1)^2$. For large $t$, $y \approx 1$.
+
+Check: $x^3 > yz$: $t^3 > y \cdot t = yt$, i.e., $t^2 > y \approx 1$. ✓ for large $t$.
+$z^3 > xy$: same by symmetry. ✓
+$y^3 > xz$: $y^3 > t^2$. For $y \approx 1$ and $t$ large, this fails. So pair 1 is negative. Good, we expected that.
+
+Now compute the actual values. $x = z = t$, $y = 1 + 1/(t-1)^2$.
+
+$a = yz/x = y \cdot t / t = y$. So $a = y \approx 1$.
+$b = xz/y = t^2/y$.
+$c = xy/z = y \cdot t / t = y$. So $c = y \approx 1$.
+
+So $a = c = y \approx 1$, $b = t^2/y \approx t^2$ (large).
+
+The six numbers:
+- $a - b/c = y - t^2/y^2 = y - (t/y)^2$. Since $t$ large, this is very negative.
+- $a - c/b = y - y/(t^2/y) = y - y^2/t^2 \approx y \approx 1$. Is this $> 1$? $y - y^2/t^2$. Since $y > 1$ and $y^2/t^2$ is tiny, this is slightly less than $y$. And $y = 1 + 1/(t-1)^2$, so $a - c/b \approx 1 + 1/(t-1)^2 - \text{tiny}$. This is $> 1$! ✓
+- $b - a/c = t^2/y - y/y = t^2/y - 1 \approx t^2 - 1 \gg 1$. ✓
+- $b - c/a = t^2/y - y/y = t^2/y - 1 \gg 1$. ✓ (same as above since $a = c$)
+- $c - a/b = y - y/(t^2/y) = y - y^2/t^2 \approx 1 + 1/(t-1)^2 > 1$. ✓ (same as $a - c/b$ since $a = c$)
+- $c - b/a = y - t^2/y^2$. Very negative.
+
+So we have: $a - c/b > 1$ ✓, $b - a/c > 1$ ✓, $b - c/a > 1$ ✓, $c - a/b > 1$ ✓. That's 4 numbers greater than 1!
+
+Let me verify more carefully. With $x = z = t$, $y = 1 + 1/(t-1)^2$:
+
+$a = yz/x = y$, $b = xz/y = t^2/y$, $c = xy/z = y$.
+
+So $a = c = y$, $b = t^2/y$.
+
+1. $a - b/c = y - (t^2/y)/y = y - t^2/y^2 = (y^3 - t^2)/y^2$. Since $y \approx 1$ and $t$ large, $y^3 - t^2 < 0$. Not $> 1$.
+
+2. $a - c/b = y - y/(t^2/y) = y - y^2/t^2 = y(1 - y/t^2) = y - y^2/t^2$. 
+   $= y(1 - y/t^2)$. Since $y > 1$ and $y/t^2$ is tiny, this is $\approx y > 1$. ✓
+
+3. $b - a/c = t^2/y - y/y = t^2/y - 1$. For large $t$, this is $\gg 1$. ✓
+
+4. $b - c/a = t^2/y - y/y = t^2/y - 1$. Same as above. ✓
+
+5. $c - a/b = y - y/(t^2/y) = y - y^2/t^2$. Same as #2. ✓
+
+6. $c - b/a = y - (t^2/y)/y = y - t^2/y^2$. Same as #1. Not $> 1$.
+
+So 4 numbers are $> 1$. Can we get 5 or 6?
+
+For 5 or 6, we'd need at least one more pair to be $> 1$, meaning pair 1 also $> 1$, i.e., $y^3 > xz = t^2$. But $y \approx 1$ and $t$ large, so $y^3 \approx 1 < t^2$. So pair 1 can't be positive.
+
+Can we get 5? That would need one from pair 1 to be $> 1$ and both from pairs 2, 3. But we showed pair members have the same sign, so if one from pair 1 is $> 1$ (positive), both are positive. But can both be $> 1$?
+
+Actually wait, I need to re-examine. The pairs have the same SIGN, but "greater than 1" is not the same as "positive". A number could be positive but less than 1. So it's possible that within a positive pair, only one is $> 1$.
+
+Hmm, but actually, let me reconsider. Can we have 5 or 6?
+
+Let me think about whether 5 is possible. For 5, we need 5 of the 6 to be $> 1$. The pairs are (1,6), (2,4), (3,5) [using my numbering]. For 5 to be $> 1$, at least one pair has both $> 1$ and the remaining one has at least one $> 1$, plus the other two pairs... actually with 3 pairs and 5 out of 6, at least two pairs are fully $> 1$ and the third has at least one $> 1$.
+
+Hmm wait, 5 out of 6 means at most 1 is not $> 1$. Since pairs share sign, if a pair has one not $> 1$ but positive, the other could be $> 1$. But if a pair is negative, both are negative, so both not $> 1$. So for 5 out of 6, we need all three pairs positive, and at most 1 member across all pairs is $\leq 1$ (but positive).
+
+All three pairs positive means $x^3 > yz$, $y^3 > xz$, $z^3 > xy$. As noted, this requires $xyz > 1$ (from multiplying). But can all three hold simultaneously?
+
+$x^3 > yz, y^3 > xz, z^3 > xy$. Dividing first by second: $x^3/y^3 > yz/(xz) = y/x$, so $(x/y)^3 > y/x$, i.e., $(x/y)^4 > 1$, so $x > y$. Similarly from second/third: $y > z$. And from first/third: $x > z$. So $x > y > z$. But from first and third: $x > y$ and $y > z$ and we need $x > z$ (consistent). But also from the cyclic argument, we'd get $x > y > z > x$, contradiction!
+
+Wait let me redo. From $x^3 > yz$ and $y^3 > xz$: divide to get $x^3/y^3 > y/x$, so $(x/y)^4 > 1$, meaning $x > y$.
+
+From $y^3 > xz$ and $z^3 > xy$: divide to get $y^3/z^3 > xz/(xy) = z/y$, so $(y/z)^4 > 1$, meaning $y > z$.
+
+From $x^3 > yz$ and $z^3 > xy$: divide to get $x^3/z^3 > yz/(xy) = z/x$, so $(x/z)^4 > 1$, meaning $x > z$.
+
+So $x > y > z$ and $x > z$, which is consistent (no contradiction). Wait, I thought there'd be a contradiction but there isn't. Let me recheck: we need $x > y$, $y > z$, and $x > z$. These are all consistent: $x > y > z$.
+
+Hmm, so all three CAN be positive. But wait, I need to also check: from $z^3 > xy$ and $x^3 > yz$ and $y^3 > xz$, with $x > y > z$.
+
+$z^3 > xy$: but $z$ is the smallest and $xy$ is the product of the two largest. For $z$ small, $z^3$ is very small while $xy$ is large. So this seems hard to satisfy.
+
+Let me check: if $x > y > z > 1$, then $xy > z^2 > z^{3/2} \cdot z^{1/2}$... hmm. $z^3 > xy > y^2 > z^2$ (since $y > z$). So $z^3 > z^2$, i.e., $z > 1$. And $z^3 > xy$. But $x > y > z > 1$, so $xy > z \cdot z = z^2$. And $z^3 > xy > z^2$ requires $z > 1$, which we have. But also $xy > y^2$ (since $x > y$), and $z^3 > y^2$. Since $y > z$, $y^2 > z^2$, so $z^3 > y^2 > z^2$, requiring $z > 1$. And $z^3 > y^2$ with $y > z$ means $z^3 > y^2 > z^2$, so $z > 1$ (ok) but also $z^3 > y^2$ with $y$ close to $z$... if $y = z + \epsilon$, then $z^3 > (z+\epsilon)^2 \approx z^2 + 2z\epsilon$. So $z^3 - z^2 > 2z\epsilon$, i.e., $z^2(z-1) > 2z\epsilon$, $\epsilon < z(z-1)/2$. So for $z$ slightly above 1, $\epsilon$ must be very small. So $x, y, z$ must all be very close to each other and close to 1.
+
+But if $x, y, z$ are all close to 1, then $(x-1)(y-1)(z-1) \approx 0 \neq 1$. Contradiction! So we can't have all three pairs positive while satisfying the constraint.
+
+Let me verify this more rigorously. If $x^3 > yz, y^3 > xz, z^3 > xy$, then multiplying: $(xyz)^3 > (xyz)^2$, so $xyz > 1$. Also, from $z^3 > xy$ and $x > y > z$: $z^3 > xy > z^2$, so $z > 1$. Then all $x, y, z > 1$.
+
+Now, $x^3 > yz$ means $x^3/yz > 1$. Let $x = 1+s, y = 1+t, z = 1+u$ with $s > t > u > 0$. Constraint: $stu = 1$.
+
+$x^3 > yz$: $(1+s)^3 > (1+t)(1+u) = 1 + t + u + tu$. LHS $= 1 + 3s + 3s^2 + s^3$. So need $3s + 3s^2 + s^3 > t + u + tu$.
+
+$z^3 > xy$: $(1+u)^3 > (1+s)(1+t) = 1 + s + t + st$. LHS $= 1 + 3u + 3u^2 + u^3$. So need $3u + 3u^2 + u^3 > s + t + st$.
+
+Since $s > t > u > 0$ and $stu = 1$: if $u$ is small, $st$ must be large. Then $s + t + st$ is large, but $3u + 3u^2 + u^3$ is small. So $z^3 > xy$ fails.
+
+If $u$ is not small, say $u = 1, t = 1, s = 1$ (i.e., $x=y=z=2$), then $stu = 1$ ✓. But $s = t = u$, not $s > t > u$. And at equality, $x^3 = yz$ etc. (all equal 8 = 4? No, $x^3 = 8, yz = 4$. So $x^3 > yz$ ✓). Wait, at $x = y = z = 2$: $x^3 = 8 > yz = 4$ ✓. All three hold! But the six numbers all equal 1, not $> 1$.
+
+So all three pairs are positive at $x = y = z = 2$, but the values are exactly 1, not greater than 1. Can we perturb to make some $> 1$ while keeping all three pairs positive?
+
+At $x = y = z = 2$, all six numbers = 1. If we perturb, some go above 1 and some below. The question is how many can go above 1.
+
+Let me do a local analysis. Let $x = 2 + p, y = 2 + q, z = 2 + r$ with $p, q, r$ small. Constraint: $(1+p)(1+q)(1+r) = 1$, so $p + q + r + pq + pr + qr + pqr = 0$. To first order: $p + q + r \approx 0$.
+
+The six numbers at $x=y=z=2$ are all 1. Let me compute the first-order change.
+
+$a = yz/x$. At $(2,2,2)$: $a = 2$. $\delta a = \delta(yz/x) = (z \delta y + y \delta z)/x - yz \delta x/x^2 = (2q + 2r)/2 - 4p/4 = q + r - p$. Using $p + q + r \approx 0$: $\delta a = q + r - p = -2p$ (since $q + r = -p$).
+
+Similarly $\delta b = -2q$, $\delta c = -2r$.
+
+Now the six numbers:
+1. $a - b/c$: at $(2,2,2)$, this is $2 - 1 = 1$. $\delta(a - b/c) = \delta a - \delta(b/c)$. 
+   $b/c = b \cdot c^{-1}$. $\delta(b/c) = \delta b / c - b \delta c / c^2 = \delta b / 2 - 2 \delta c / 4 = \delta b/2 - \delta c/2 = (-2q)/2 - (-2r)/2 = -q + r$.
+   So $\delta(a - b/c) = -2p - (-q + r) = -2p + q - r$. Using $q + r = -p$: $= -2p + q - r = -2p + (q - r)$. Hmm, let me express in terms of two variables. With $r = -p - q$:
+   $= -2p + q - (-p-q) = -2p + q + p + q = -p + 2q$.
+
+2. $a - c/b$: $\delta(a - c/b) = \delta a - \delta(c/b)$. $\delta(c/b) = \delta c/2 - \delta b/2 = (-2r)/2 - (-2q)/2 = -r + q$.
+   $= -2p - (-r + q) = -2p + r - q = -2p + (-p-q) - q = -3p - 2q$.
+
+3. $b - a/c$: $\delta(b - a/c) = \delta b - \delta(a/c)$. $\delta(a/c) = \delta a/2 - \delta c/2 = (-2p)/2 - (-2r)/2 = -p + r$.
+   $= -2q - (-p + r) = -2q + p - r = -2q + p - (-p-q) = -2q + p + p + q = 2p - q$.
+
+4. $b - c/a$: $\delta(b - c/a) = \delta b - \delta(c/a)$. $\delta(c/a) = \delta c/2 - \delta a/2 = (-2r - (-2p))/2 = (-2r + 2p)/2 = p - r$.
+   $= -2q - (p - r) = -2q - p + r = -2q - p + (-p-q) = -3q - 2p$.
+
+5. $c - a/b$: $\delta(c - a/b) = \delta c - \delta(a/b)$. $\delta(a/b) = \delta a/2 - \delta b/2 = (-2p - (-2q))/2 = (-2p + 2q)/2 = -p + q$.
+   $= -2r - (-p + q) = -2r + p - q = -2(-p-q) + p - q = 2p + 2q + p - q = 3p + q$.
+
+6. $c - b/a$: $\delta(c - b/a) = \delta c - \delta(b/a)$. $\delta(b/a) = \delta b/2 - \delta a/2 = (-2q - (-2p))/2 = (-2q + 2p)/2 = p - q$.
+   $= -2r - (p - q) = -2r - p + q = -2(-p-q) - p + q = 2p + 2q - p + q = p + 3q$.
+
+So the first-order changes are:
+1. $-p + 2q$
+2. $-3p - 2q$
+3. $2p - q$
+4. $-2p - 3q$
+5. $3p + q$
+6. $p + 3q$
+
+(using $r = -p - q$)
+
+For a number to be $> 1$, we need its first-order change to be positive (for small perturbations).
+
+We want to maximize the number of positive values among these 6 linear forms in $(p, q)$.
+
+Let me plot these. The six lines in the $(p,q)$ plane:
+1. $-p + 2q = 0 \Rightarrow q = p/2$
+2. $-3p - 2q = 0 \Rightarrow q = -3p/2$
+3. $2p - q = 0 \Rightarrow q = 2p$
+4. $-2p - 3q = 0 \Rightarrow q = -2p/3$
+5. $3p + q = 0 \Rightarrow q = -3p$
+6. $p + 3q = 0 \Rightarrow q = -p/3$
+
+The slopes are: $1/2, -3/2, 2, -2/3, -3, -1/3$.
+
+Sorted by slope: $-3, -3/2, -2/3, -1/3, 1/2, 2$.
+
+These 6 lines through the origin divide the plane into 12 sectors. In each sector, the signs of the 6 forms are determined. The maximum number of positive forms is what we want.
+
+The lines in order of angle (slope = tan θ):
+- Line 5: slope -3, angle ≈ -71.6° (or 108.4°)
+- Line 2: slope -3/2, angle ≈ -56.3° (or 123.7°)
+- Line 4: slope -2/3, angle ≈ -33.7° (or 146.3°)
+- Line 6: slope -1/3, angle ≈ -18.4° (or 161.6°)
+- Line 1: slope 1/2, angle ≈ 26.6°
+- Line 3: slope 2, angle ≈ 63.4°
+
+Going counterclockwise from angle 0 (positive p-axis):
+- Between 0° and 26.6° (line 1): Let's check signs at, say, $(p,q) = (1, 0.1)$:
+  1. $-1 + 0.2 = -0.8 < 0$
+  2. $-3 - 0.2 = -3.2 < 0$
+  3. $2 - 0.1 = 1.9 > 0$
+  4. $-2 - 0.3 = -2.3 < 0$
+  5. $3 + 0.1 = 3.1 > 0$
+  6. $1 + 0.3 = 1.3 > 0$
+  3 positive.
+
+- Between 26.6° and 63.4°: $(p,q) = (1, 1)$:
+  1. $-1 + 2 = 1 > 0$
+  2. $-3 - 2 = -5 < 0$
+  3. $2 - 1 = 1 > 0$
+  4. $-2 - 3 = -5 < 0$
+  5. $3 + 1 = 4 > 0$
+  6. $1 + 3 = 4 > 0$
+  4 positive.
+
+- Between 63.4° and 108.4°: $(p,q) = (0.1, 1)$:
+  1. $-0.1 + 2 = 1.9 > 0$
+  2. $-0.3 - 2 = -2.3 < 0$
+  3. $0.2 - 1 = -0.8 < 0$
+  4. $-0.2 - 3 = -3.2 < 0$
+  5. $0.3 + 1 = 1.3 > 0$
+  6. $0.1 + 3 = 3.1 > 0$
+  3 positive.
+
+- Between 108.4° and 123.7°: $(p,q) = (-0.3, 1)$:
+  1. $0.3 + 2 = 2.3 > 0$
+  2. $0.9 - 2 = -1.1 < 0$
+  3. $-0.6 - 1 = -1.6 < 0$
+  4. $0.6 - 3 = -2.4 < 0$
+  5. $-0.9 + 1 = 0.1 > 0$
+  6. $-0.3 + 3 = 2.7 > 0$
+  3 positive.
+
+- Between 123.7° and 146.3°: $(p,q) = (-0.6, 1)$:
+  1. $0.6 + 2 = 2.6 > 0$
+  2. $1.8 - 2 = -0.2 < 0$
+  3. $-1.2 - 1 = -2.2 < 0$
+  4. $1.2 - 3 = -1.8 < 0$
+  5. $-1.8 + 1 = -0.8 < 0$
+  6. $-0.6 + 3 = 2.4 > 0$
+  2 positive.
+
+- Between 146.3° and 161.6°: $(p,q) = (-0.9, 0.7)$:
+  1. $0.9 + 1.4 = 2.3 > 0$
+  2. $2.7 - 1.4 = 1.3 > 0$
+  3. $-1.8 - 0.7 = -2.5 < 0$
+  4. $1.8 - 2.1 = -0.3 < 0$
+  5. $-2.7 + 0.7 = -2 < 0$
+  6. $-0.9 + 2.1 = 1.2 > 0$
+  3 positive.
+
+- Between 161.6° and 180°: $(p,q) = (-1, 0.1)$:
+  1. $1 + 0.2 = 1.2 > 0$
+  2. $3 - 0.2 = 2.8 > 0$
+  3. $-2 - 0.1 = -2.1 < 0$
+  4. $2 - 0.3 = 1.7 > 0$
+  5. $-3 + 0.1 = -2.9 < 0$
+  6. $-1 + 0.3 = -0.7 < 0$
+  3 positive.
+
+- Between 180° and 206.6° (i.e., -180° to -153.4°): $(p,q) = (-1, -0.1)$:
+  1. $1 - 0.2 = 0.8 > 0$
+  2. $3 + 0.2 = 3.2 > 0$
+  3. $-2 + 0.1 = -1.9 < 0$
+  4. $2 + 0.3 = 2.3 > 0$
+  5. $-3 - 0.1 = -3.1 < 0$
+  6. $-1 - 0.3 = -1.3 < 0$
+  3 positive.
+
+By symmetry (replacing $(p,q)$ with $(-p,-q)$ flips all signs), the sectors on the opposite side have $6 - k$ positive where $k$ was the count in the corresponding sector. So the maximum is still 4 (from the sector with 4 positive, the opposite has 2).
+
+So the maximum number of positive first-order changes is 4. This suggests the answer is at most 4 (at least locally near the symmetric point).
+
+But we already found a configuration (with $x = z = t$ large, $y$ close to 1) that achieves 4. So the answer is at least 4.
+
+Now I need to prove that 4 is the maximum, i.e., we cannot have 5 or 6.
+
+Let me think about this more carefully. We need to show that at most 4 of the six numbers can exceed 1.
+
+Let me think about necessary conditions. Suppose 5 of the 6 are $> 1$. Then at least one complete pair is $> 1$ and the other two pairs each have at least one $> 1$. Actually, with 5 out of 6, by pigeonhole, at least 2 pairs are fully $> 1$ and the third has at least 1.
+
+Actually, let me think about it as: can we have all three pairs positive (which is necessary for 5 or 6 to be $> 1$)? We showed that at the symmetric point all three are positive (all equal 1), and locally we can have at most 4 above 1. But maybe far from the symmetric point, we could have all three pairs positive and 5 or 6 above 1?
+
+Let me think about when all three pairs are positive: $x^3 > yz, y^3 > xz, z^3 > xy$. We showed this requires $x > y > z > 1$ (WLOG) and all close to each other. But also $(x-1)(y-1)(z-1) = 1$.
+
+Hmm, actually I realize the ordering argument showed $x > y > z$ (or some permutation), but let me recheck whether all three can be positive far from the symmetric point.
+
+We need $z^3 > xy$ with $z$ the smallest. If $x, y, z$ are all $> 1$ and $z$ is the smallest, $z^3 > xy$ is hard because $xy$ involves the two larger ones. 
+
+Let me try to see if all three can be positive with the constraint. Let $x = 1+s, y = 1+t, z = 1+u$ with $s > t > u > 0$ and $stu = 1$.
+
+$z^3 > xy$: $(1+u)^3 > (1+s)(1+t)$. LHS $= 1 + 3u + 3u^2 + u^3$. RHS $= 1 + s + t + st$. So need $3u + 3u^2 + u^3 > s + t + st$.
+
+Since $stu = 1$ and $s > t > u > 0$: $u = 1/(st)$. So $s + t + st > st$ (obviously). And $3u + 3u^2 + u^3 = 3/(st) + 3/(st)^2 + 1/(st)^3$.
+
+For large $st$: LHS $\approx 0$, RHS $\approx st$. Fails.
+For $st$ close to 1 (i.e., $s, t$ close to 1, $u$ close to 1): LHS $\approx 3 + 3 + 1 = 7$, RHS $\approx 1 + 1 + 1 = 3$. Holds.
+
+So all three positive requires $s, t, u$ all close to 1, i.e., $x, y, z$ all close to 2. And we showed locally the max is 4.
+
+But could there be a non-local configuration where all three are positive and 5 exceed 1? Let me think...
+
+If all three pairs are positive, we need $x, y, z$ all $> 1$ and close to 2 (from the constraint and the positivity conditions). The local analysis shows at most 4 can exceed 1 near this point. But we should check if there's a non-local region where all three are positive.
+
+Actually, let me prove that if all three pairs are positive, then $x, y, z$ must all be close to 2, making it a local perturbation.
+
+From $z^3 > xy$ and $x > y > z > 1$ and $stu = 1$ (where $s = x-1, t = y-1, u = z-1$):
+
+$z^3 > xy$ means $(1+u)^3 > (1+s)(1+t)$. Since $s > t > u$ and $stu = 1$:
+
+$st = 1/u$, so $s + t + st = s + t + 1/u$. And $s > t > u$, $st = 1/u$, so $s + t \geq 2\sqrt{st} = 2/\sqrt{u}$.
+
+So RHS $\geq 2/\sqrt{u} + 1/u$. LHS $= 3u + 3u^2 + u^3$.
+
+For $u < 1$: LHS $< 3 + 3 + 1 = 7$, RHS $\geq 2/\sqrt{u} + 1/u > 2 + 1 = 3$. For $u = 0.5$: LHS $= 1.5 + 0.75 + 0.125 = 2.375$, RHS $\geq 2/0.707 + 2 = 2.83 + 2 = 4.83$. Fails.
+
+For $u = 0.9$: LHS $= 2.7 + 2.43 + 0.729 = 5.86$, RHS $\geq 2/0.949 + 1/0.9 = 2.108 + 1.111 = 3.22$. But we need $s > t > 0.9$ and $st = 1/0.9 = 1.111$. So $s + t \geq 2\sqrt{1.111} = 2.108$. RHS $= s + t + 1.111 \geq 3.22$. LHS $= 5.86 > 3.22$. Holds!
+
+But we also need $s > t > u = 0.9$ and $st = 1.111$. So $t > 0.9$ and $s = 1.111/t < 1.111/0.9 = 1.234$. And $s > t$ means $1.111/t > t$, $t < \sqrt{1.111} = 1.054$. So $0.9 < t < 1.054$ and $s = 1.111/t$, $1.054 < s < 1.234$.
+
+Check $y^3 > xz$: $(1+t)^3 > (1+s)(1+u) = (1+s)(1.9)$. $(1+t)^3$ with $t \approx 1$: $\approx 8$. $(1+s) \cdot 1.9$ with $s \approx 1.1$: $\approx 2.1 \cdot 1.9 = 3.99$. $8 > 3.99$ ✓.
+
+Check $x^3 > yz$: $(1+s)^3 > (1+t)(1+u) = (1+t)(1.9)$. $(1+s)^3$ with $s \approx 1.1$: $\approx 2.1^3 = 9.26$. $(1+t) \cdot 1.9 \approx 2 \cdot 1.9 = 3.8$. ✓.
+
+So at $u = 0.9, t = 1, s = 1.111$ (i.e., $x = 2.111, y = 2, z = 1.9$), all three pairs are positive. Let me compute the actual six numbers.
+
+$x = 2.111, y = 2, z = 1.9$. Check constraint: $(1.111)(1)(0.9) = 1.0$ ✓.
+
+$a = yz/x = 2 \cdot 1.9 / 2.111 = 3.8/2.111 = 1.800$
+$b = xz/y = 2.111 \cdot 1.9 / 2 = 4.011/2 = 2.005$
+$c = xy/z = 2.111 \cdot 2 / 1.9 = 4.222/1.9 = 2.222$
+
+Now the six numbers:
+1. $a - b/c = 1.800 - 2.005/2.222 = 1.800 - 0.902 = 0.898$. Not $> 1$.
+2. $a - c/b = 1.800 - 2.222/2.005 = 1.800 - 1.108 = 0.692$. Not $> 1$.
+3. $b - a/c = 2.005 - 1.800/2.222 = 2.005 - 0.810 = 1.195$. $> 1$ ✓
+4. $b - c/a = 2.005 - 2.222/1.800 = 2.005 - 1.234 = 0.771$. Not $> 1$.
+5. $c - a/b = 2.222 - 1.800/2.005 = 2.222 - 0.898 = 1.324$. $> 1$ ✓
+6. $c - b/a = 2.222 - 2.005/1.800 = 2.222 - 1.114 = 1.108$. $> 1$ ✓
+
+So 3 numbers $> 1$. Less than 4.
+
+Hmm. So even when all three pairs are positive, we might not get more than 4. The local analysis suggested max 4, and this example gives 3.
+
+Let me check the local analysis prediction. At $(p, q, r) = (0.111, 0, -0.1)$, so $p = 0.111, q = 0, r = -0.111$.
+
+First-order changes:
+1. $-p + 2q = -0.111$. Negative ✓ (matches: 0.898 < 1)
+2. $-3p - 2q = -0.333$. Negative ✓ (matches: 0.692 < 1)
+3. $2p - q = 0.222$. Positive ✓ (matches: 1.195 > 1)
+4. $-2p - 3q = -0.222$. Negative ✓ (matches: 0.771 < 1)
+5. $3p + q = 0.333$. Positive ✓ (matches: 1.324 > 1)
+6. $p + 3q = 0.111$. Positive ✓ (matches: 1.108 > 1)
+
+3 positive, matching. This is in the sector between 0° and 26.6° (since $q/p = 0$, which is between slopes 0 and 1/2). That sector had 3 positive. ✓
+
+So the local analysis is confirmed. The maximum is 4, achieved in the sector between 26.6° and 63.4°.
+
+Now I need to prove rigorously that 4 is the maximum. The key insight is:
+
+**Claim**: At most 4 of the six numbers can exceed 1.
+
+**Proof approach**: We need to show that we cannot have 5 or 6 exceed 1.
+
+Let me think about what constraints having 5 exceed 1 imposes.
+
+Actually, let me think about it differently. Let me look at the six numbers and find algebraic relations between them.
+
+Let me denote:
+$P = a - b/c, Q = a - c/b, R = b - a/c, S = b - c/a, T = c - a/b, U = c - b/a$
+
+Note the pairings: $(P, U)$, $(Q, S)$, $(R, T)$ share signs.
+
+Also, note that $P + S = a - b/c + b - c/a$ and $Q + R = a - c/b + b - a/c$ and $T + U = c - a/b + c - b/a$.
+
+Hmm, let me think about sums. $P + Q = 2a - b/c - c/b = 2a - (b^2 + c^2)/(bc)$. 
+
+Actually, let me think about products or other relations.
+
+Note that $P \cdot U = (a - b/c)(c - b/a) = ac - b - b c/(c) \cdot ... $. Let me compute:
+$(a - b/c)(c - b/a) = ac - ab/a - bc/c + b^2/(ac) = ac - b - b + b^2/(ac) = ac - 2b + b^2/(ac)$.
+
+Hmm, that's $(ac - b)^2/(ac) - ... $. Actually $ac - 2b + b^2/(ac) = (ac)^2 - 2abc + b^2)/(ac) = (ac - b)^2/(ac)$.
+
+So $PU = (ac - b)^2/(ac) \geq 0$. This confirms $P$ and $U$ have the same sign (or one is zero).
+
+Similarly, $QS = (bc - a)^2/(bc) \geq 0$ and $RT = (ab - c)^2/(ab) \geq 0$.
+
+Now, suppose 5 of the 6 are $> 1$. Then at most 1 is $\leq 1$. Since pairs share sign, and a number $> 1$ is positive, at most one pair can have a non-positive member. But if a pair has a non-positive member, both are non-positive (same sign), so both are $\leq 1$. That means at least 2 are $\leq 1$, contradicting "at most 1 is $\leq 1$". 
+
+Wait, that's not quite right. A pair could have both members positive but one $\leq 1$ and the other $> 1$. Same sign doesn't mean same side of 1.
+
+Let me reconsider. If 5 are $> 1$, then 1 is $\leq 1$. That one could be positive (between 0 and 1) or negative. If it's negative, its pair partner is also negative, so that's 2 not $> 1$, contradiction. So the one that's $\leq 1$ must be positive (in $(0, 1]$), and its pair partner is $> 1$. The other two pairs are both fully $> 1$.
+
+So for 5 to be $> 1$: two pairs fully $> 1$, one pair with one member in $(0, 1]$ and the other $> 1$, and all three pairs positive.
+
+For 6 to be $> 1$: all three pairs fully $> 1$, all positive.
+
+Now, all three pairs positive means $x^3 > yz, y^3 > xz, z^3 > xy$ (where $x = \sqrt{ab}, y = \sqrt{bc}, z = \sqrt{ca}$), which requires all $x, y, z > 1$ and close to 2 (from our analysis).
+
+Let me try to prove that when all three pairs are positive, at most 4 can exceed 1. 
+
+Actually, let me try a different approach. Let me look for a relation that directly limits the count.
+
+Consider the sum of all six:
+$P + Q + R + S + T + U = 2(a + b + c) - (b/c + c/b + a/c + c/a + a/b + b/a)$
+$= 2(a+b+c) - \sum_{\text{sym}} a/b$
+
+By AM-GM, $a/b + b/a \geq 2$, so $\sum_{\text{sym}} a/b \geq 6$. Also $a + b + c \geq 3(abc)^{1/3}$.
+
+Hmm, this gives a lower bound on the sum, not directly useful.
+
+Let me think about it differently. Let me consider specific triples.
+
+Note that $P + R + T = (a - b/c) + (b - a/c) + (c - a/b) = (a+b+c) - (b/c + a/c + a/b) = (a+b+c) - (a+b)/c - a/b$... hmm, this doesn't simplify nicely.
+
+Let me try: $P + S + T = (a - b/c) + (b - c/a) + (c - a/b)$. And $Q + R + U = (a - c/b) + (b - a/c) + (c - b/a)$.
+
+$P + S + T = (a + b + c) - (b/c + c/a + a/b)$.
+$Q + R + U = (a + b + c) - (c/b + a/c + b/a)$.
+
+Note that $b/c + c/a + a/b$ and $c/b + a/c + b/a$ are the two cyclic sums. By AM-GM, each is $\geq 3$.
+
+If all of $P, S, T > 1$, then $P + S + T > 3$, so $(a+b+c) - (b/c + c/a + a/b) > 3$, i.e., $a + b + c > 3 + b/c + c/a + a/b \geq 3 + 3 = 6$.
+
+Similarly if all of $Q, R, U > 1$, then $a + b + c > 6$.
+
+But these are necessary conditions, not sufficient for a contradiction.
+
+Let me think about this more carefully. Maybe I should look for a relation among the six numbers that limits how many can exceed 1.
+
+Let me compute $PU, QS, RT$ more carefully.
+
+$PU = (ac-b)^2/(ac)$, $QS = (bc-a)^2/(bc)$, $RT = (ab-c)^2/(ab)$.
+
+If $P > 1$ and $U > 1$, then $PU > 1$, so $(ac-b)^2 > ac$, i.e., $|ac - b| > \sqrt{ac}$.
+
+Similarly for the other pairs.
+
+Hmm, let me try yet another approach. Let me consider the product of all six.
+
+$PQRSUT = PU \cdot QS \cdot RT = \frac{(ac-b)^2 (bc-a)^2 (ab-c)^2}{(abc)^2}$.
+
+If all six $> 1$, then $PQRSUT > 1$, so $|(ac-b)(bc-a)(ab-c)| > abc$.
+
+Not sure this helps directly.
+
+Let me try to think about the problem from the answer's perspective. We've shown:
+1. 4 is achievable (with $x = z = t$ large, $y$ close to 1).
+2. Locally near the symmetric point, at most 4 can exceed 1.
+3. When all three pairs are positive (necessary for 5 or 6), $x, y, z$ must be close to 2.
+
+I think the answer is 4. Let me try to prove that 5 is impossible.
+
+**Key idea**: Suppose 5 of the 6 exceed 1. Then all three pairs are positive (as argued). WLOG $x > y > z > 1$ (where $x = \sqrt{ab}, y = \sqrt{bc}, z = \sqrt{ca}$). Then $x^3 > yz, y^3 > xz, z^3 > xy$.
+
+Since $z^3 > xy$ and $x > y > z > 1$, we have $z^3 > xy > z^2$ (since $x > z$ and $y > z$ so $xy > z^2$). So $z > 1$, which we knew.
+
+More precisely, $z^3 > xy$ and $xy > y^2$ (since $x > y$), so $z^3 > y^2$, meaning $z > y^{2/3}$. Since $y > z$, $y > y^{2/3}$, so $y > 1$ (consistent). And $z > y^{2/3}$ with $y > z$ gives $z > z^{2/3}$ (since $y > z$ and $z > y^{2/3} > z^{2/3}$), so $z > 1$.
+
+Now, the constraint $(x-1)(y-1)(z-1) = 1$ with $x > y > z > 1$.
+
+Let me parametrize: $x = 1 + s, y = 1 + t, z = 1 + u$ with $s > t > u > 0$ and $stu = 1$.
+
+The condition $z^3 > xy$ becomes $(1+u)^3 > (1+s)(1+t)$, i.e., $3u + 3u^2 + u^3 > s + t + st$.
+
+Since $stu = 1$, $st = 1/u$, so $s + t + st = s + t + 1/u$. And $s + t \geq 2\sqrt{st} = 2/\sqrt{u}$ (with equality when $s = t$, but $s > t$).
+
+So we need $3u + 3u^2 + u^3 > s + t + 1/u \geq 2/\sqrt{u} + 1/u$.
+
+Let $f(u) = 3u + 3u^2 + u^3 - 1/u$ and $g(u) = 2/\sqrt{u}$. We need $f(u) > g(u)$, i.e., $3u + 3u^2 + u^3 > 2/\sqrt{u} + 1/u$.
+
+At $u = 1$: LHS $= 7$, RHS $= 3$. Holds.
+At $u = 0.5$: LHS $= 1.5 + 0.75 + 0.125 = 2.375$, RHS $= 2/0.707 + 2 = 4.83$. Fails.
+
+So $u$ must be close to 1. Let me find the threshold. $h(u) = 3u + 3u^2 + u^3 - 2/\sqrt{u} - 1/u = 0$.
+
+$h(0.8) = 2.4 + 1.92 + 0.512 - 2/0.894 - 1.25 = 4.832 - 2.237 - 1.25 = 1.345 > 0$.
+$h(0.7) = 2.1 + 1.47 + 0.343 - 2/0.837 - 1.429 = 3.913 - 2.389 - 1.429 = 0.095 > 0$.
+$h(0.68) = 2.04 + 1.387 + 0.314 - 2/0.825 - 1.471 = 3.741 - 2.425 - 1.471 = -0.155 < 0$.
+
+So $u \gtrsim 0.69$, meaning $z \gtrsim 1.69$.
+
+Similarly, $s > t > u \gtrsim 0.69$ and $stu = 1$, so $st \lesssim 1/0.69 = 1.45$, and $s, t$ are close to each other (since $s > t > 0.69$ and $st < 1.45$, $s < 1.45/0.69 = 2.1$, so $s < 2.1$, $x < 3.1$).
+
+So when all three pairs are positive, $x, y, z$ are all in roughly $[1.69, 3.1]$, which is a bounded region around 2. In this region, the six numbers are continuous functions, and we've shown locally (near $x = y = z = 2$) that at most 4 can exceed 1.
+
+But I need a global argument, not just local. Let me think differently.
+
+**Alternative approach**: Let me try to find an algebraic identity or inequality that directly limits the count.
+
+Consider the three "pair products": $PU = (ac-b)^2/(ac)$, $QS = (bc-a)^2/(bc)$, $RT = (ab-c)^2/(ab)$.
+
+If 5 of the 6 exceed 1, then at least 2 of the 3 pair products exceed 1 (since at most one pair has a member $\leq 1$, so at least 2 pairs have both $> 1$, giving pair product $> 1$).
+
+Actually, if 5 exceed 1: two pairs are fully $> 1$ (product $> 1$), one pair has one $> 1$ and one in $(0, 1]$ (product could be anything positive). So at least 2 pair products $> 1$.
+
+If 6 exceed 1: all 3 pair products $> 1$.
+
+So for 5 or 6, at least 2 of $\{(ac-b)^2/(ac), (bc-a)^2/(bc), (ab-c)^2/(ab)\}$ exceed 1.
+
+WLOG (by symmetry of the problem under permuting $a, b, c$), suppose $(ac-b)^2 > ac$ and $(bc-a)^2 > bc$. (These correspond to pairs $(P,U)$ and $(Q,S)$.)
+
+$(ac-b)^2 > ac$ means $|ac - b| > \sqrt{ac}$, so either $ac - b > \sqrt{ac}$ or $b - ac > \sqrt{ac}$.
+
+Since all three pairs are positive (for 5 or 6 to exceed 1), we need $ac - b$ and $bc - a$ to have specific signs. Actually, $P = a - b/c > 0$ means $ac > b$, and $Q = a - c/b > 0$ means $ab > c$. So $ac > b$ and $ab > c$.
+
+So $(ac - b)^2 > ac$ with $ac > b$ means $ac - b > \sqrt{ac}$, i.e., $b < ac - \sqrt{ac}$.
+
+Similarly, $(bc - a)^2 > bc$ with $bc > a$ (from $S = b - c/a > 0$ meaning $ab > c$... wait, $S = b - c/a > 0$ means $ab > c$. And $Q = a - c/b > 0$ means $ab > c$. And $R = b - a/c > 0$ means $bc > a$.)
+
+Hmm, let me be more careful. The sign conditions for all three pairs positive:
+- Pair $(P, U)$: $P = a - b/c > 0 \Leftrightarrow ac > b$. $U = c - b/a > 0 \Leftrightarrow ac > b$. Same condition.
+- Pair $(Q, S)$: $Q = a - c/b > 0 \Leftrightarrow ab > c$. $S = b - c/a > 0 \Leftrightarrow ab > c$. Same condition.
+- Pair $(R, T)$: $R = b - a/c > 0 \Leftrightarrow bc > a$. $T = c - a/b > 0 \Leftrightarrow bc > a$. Same condition.
+
+So all three pairs positive $\Leftrightarrow$ $ac > b$, $ab > c$, $bc > a$.
+
+These are equivalent to $b < ac$, $c < ab$, $a < bc$. Dividing by $c, b, a$ respectively: $b/c < a$, $c/b < a$ (wait, that's the same as $a > c/b$ and $a > b/c$). Hmm, let me just note: $ac > b, ab > c, bc > a$.
+
+In terms of $x, y, z$: $ac = z^2$ (since $z = \sqrt{ca}$), $b = xz/y$ (since $b = xz/y$). So $ac > b \Leftrightarrow z^2 > xz/y \Leftrightarrow yz > x \Leftrightarrow y > x/z$. Hmm, and $x^3 > yz \Leftrightarrow x^3 > yz$. And $yz > x$ is different from $x^3 > yz$.
+
+Wait, I think I mixed up the pairing. Let me recompute.
+
+$P = a - b/c > 0 \Leftrightarrow a > b/c \Leftrightarrow ac > b$.
+In terms of $x, y, z$: $a = yz/x, b = xz/y, c = xy/z$. $ac = (yz/x)(xy/z) = y^2$. $b = xz/y$. So $ac > b \Leftrightarrow y^2 > xz/y \Leftrightarrow y^3 > xz$. ✓ This matches pair 1 being determined by $y^3 - xz$.
+
+$Q = a - c/b > 0 \Leftrightarrow ab > c$. $ab = (yz/x)(xz/y) = z^2$. $c = xy/z$. So $ab > c \Leftrightarrow z^2 > xy/z \Leftrightarrow z^3 > xy$. ✓ Matches pair 2.
+
+$R = b - a/c > 0 \Leftrightarrow bc > a$. $bc = (xz/y)(xy/z) = x^2$. $a = yz/x$. So $bc > a \Leftrightarrow x^2 > yz/x \Leftrightarrow x^3 > yz$. ✓ Matches pair 3.
+
+Good. So all three pairs positive $\Leftrightarrow$ $y^3 > xz, z^3 > xy, x^3 > yz$ $\Leftrightarrow$ $ac > b, ab > c, bc > a$.
+
+Now, for 5 or 6 to exceed 1, we need all three pairs positive, plus the magnitude conditions.
+
+Let me now try to prove that at most 4 can exceed 1 by finding a contradiction when 5 do.
+
+Suppose 5 of the 6 exceed 1. WLOG (by symmetry), suppose $P \leq 1$ (i.e., $a - b/c \leq 1$) and $Q, R, S, T, U > 1$.
+
+Since $P$ and $U$ are a pair (same sign), and $U > 1 > 0$, we have $P > 0$ as well, so $0 < P \leq 1$.
+
+So: $0 < a - b/c \leq 1$ and $a - c/b > 1, b - a/c > 1, b - c/a > 1, c - a/b > 1, c - b/a > 1$.
+
+From $Q > 1$ and $S > 1$: $a - c/b > 1$ and $b - c/a > 1$.
+From $R > 1$ and $T > 1$: $b - a/c > 1$ and $c - a/b > 1$.
+From $U > 1$: $c - b/a > 1$.
+
+And $0 < P \leq 1$: $0 < a - b/c \leq 1$.
+
+From $Q > 1$: $a > 1 + c/b$.
+From $R > 1$: $b > 1 + a/c$.
+From $S > 1$: $b > 1 + c/a$.
+From $T > 1$: $c > 1 + a/b$.
+From $U > 1$: $c > 1 + b/a$.
+
+From $T > 1$ and $U > 1$: $c > 1 + \max(a/b, b/a) \geq 1 + 1 = 2$. So $c > 2$.
+From $Q > 1$ and $P > 0$: $a > 1 + c/b$ and $a > b/c$. So $a > 1 + c/b$.
+From $R > 1$ and $S > 1$: $b > 1 + \max(a/c, c/a) \geq 2$. So $b > 2$.
+
+So $b > 2$ and $c > 2$.
+
+From $Q > 1$: $a > 1 + c/b$. Since $c > 2$ and $b > 2$, $c/b$ could be anything.
+From $R > 1$: $b > 1 + a/c$, so $a < (b-1)c$.
+From $T > 1$: $c > 1 + a/b$, so $a < (c-1)b$.
+
+From $U > 1$: $c > 1 + b/a$, so $a > b/(c-1)$.
+From $S > 1$: $b > 1 + c/a$, so $a > c/(b-1)$.
+
+So $a > \max(b/(c-1), c/(b-1))$ and $a < \min((b-1)c, (c-1)b)$.
+
+Also $a > 1 + c/b$ (from $Q > 1$) and $a > b/c$ (from $P > 0$), and $a \leq 1 + b/c$ (from $P \leq 1$).
+
+So $1 + c/b < a \leq 1 + b/c$ (combining $Q > 1$ and $P \leq 1$), which gives $c/b < b/c$, i.e., $c^2 < b^2$, so $c < b$ (since both positive). Wait, but we also need $a > 1 + c/b$ and $a \leq 1 + b/c$, so $1 + c/b < 1 + b/c$, giving $c/b < b/c$, i.e., $c < b$.
+
+Hmm wait, $P \leq 1$ gives $a - b/c \leq 1$, i.e., $a \leq 1 + b/c$. And $Q > 1$ gives $a > 1 + c/b$. So $1 + c/b < a \leq 1 + b/c$, requiring $c/b < b/c$, i.e., $b > c$.
+
+OK so $b > c$. And both $> 2$.
+
+Now from $R > 1$: $b > 1 + a/c$, so $a < (b-1)c$.
+From $T > 1$: $c > 1 + a/b$, so $a < (c-1)b$.
+
+From $U > 1$: $c > 1 + b/a$, so $a > b/(c-1)$.
+From $S > 1$: $b > 1 + c/a$, so $a > c/(b-1)$.
+
+Since $b > c > 2$: $c/(b-1) < c/(c-1) < c/1 = c$ (since $b - 1 > c - 1 > 1$). And $b/(c-1) > b/c > 1$.
+
+So $a > b/(c-1)$ and $a \leq 1 + b/c$.
+
+$b/(c-1) < a \leq 1 + b/c$ requires $b/(c-1) < 1 + b/c$, i.e., $bc/(c-1) < c + b$, i.e., $bc < (c+b)(c-1) = c^2 - c + bc - b$, i.e., $0 < c^2 - c - b$, i.e., $b < c^2 - c = c(c-1)$.
+
+So $b < c(c-1)$. Since $b > c > 2$, we need $c < c(c-1)$, i.e., $1 < c - 1$, i.e., $c > 2$. ✓ (consistent).
+
+Also, $a > 1 + c/b$ (from $Q > 1$) and $a > b/(c-1)$ (from $U > 1$). And $a \leq 1 + b/c$ (from $P \leq 1$).
+
+We need $b/(c-1) < 1 + b/c$ (already shown: $b < c(c-1)$) and $1 + c/b < 1 + b/c$ (already shown: $b > c$) and $1 + c/b \leq 1 + b/c$ ✓.
+
+Now let's use the constraint. $(x-1)(y-1)(z-1) = 1$ where $x = \sqrt{ab}, y = \sqrt{bc}, z = \sqrt{ca}$.
+
+In terms of $a, b, c$: $(\sqrt{ab}-1)(\sqrt{bc}-1)(\sqrt{ca}-1) = 1$.
+
+This is complex. Let me try a specific numerical example to see if 5 is achievable.
+
+Let me try $b = 3, c = 2.5$ (so $b > c > 2$). Then $b < c(c-1) = 2.5 \cdot 1.5 = 3.75$ ✓.
+
+$a > b/(c-1) = 3/1.5 = 2$ and $a > 1 + c/b = 1 + 2.5/3 = 1.833$. So $a > 2$.
+$a \leq 1 + b/c = 1 + 3/2.5 = 2.2$.
+
+Also $a < (b-1)c = 2 \cdot 2.5 = 5$ and $a < (c-1)b = 1.5 \cdot 3 = 4.5$. These are loose.
+
+So $2 < a \leq 2.2$. Let's try $a = 2.1$.
+
+Check the six numbers:
+1. $P = a - b/c = 2.1 - 3/2.5 = 2.1 - 1.2 = 0.9$. $\leq 1$ ✓ (this is the one we allow)
+2. $Q = a - c/b = 2.1 - 2.5/3 = 2.1 - 0.833 = 1.267$. $> 1$ ✓
+3. $R = b - a/c = 3 - 2.1/2.5 = 3 - 0.84 = 2.16$. $> 1$ ✓
+4. $S = b - c/a = 3 - 2.5/2.1 = 3 - 1.190 = 1.810$. $> 1$ ✓
+5. $T = c - a/b = 2.5 - 2.1/3 = 2.5 - 0.7 = 1.8$. $> 1$ ✓
+6. $U = c - b/a = 2.5 - 3/2.1 = 2.5 - 1.429 = 1.071$. $> 1$ ✓
+
+So with $a = 2.1, b = 3, c = 2.5$, we get 5 numbers $> 1$! But we need to check the constraint.
+
+$(\sqrt{ab}-1)(\sqrt{bc}-1)(\sqrt{ca}-1) = (\sqrt{6.3}-1)(\sqrt{7.5}-1)(\sqrt{5.25}-1)$
+$= (2.510 - 1)(2.739 - 1)(2.291 - 1) = 1.510 \cdot 1.739 \cdot 1.291 = 3.389$.
+
+This is not 1. So the constraint is not satisfied. We need to find $a, b, c$ satisfying the constraint with 5 numbers $> 1$.
+
+The constraint is quite restrictive. Let me think about this more carefully.
+
+With the substitution $x = \sqrt{ab}, y = \sqrt{bc}, z = \sqrt{ca}$, the constraint is $(x-1)(y-1)(z-1) = 1$, and we need all $x, y, z > 1$ (for all three pairs positive).
+
+The six numbers in terms of $x, y, z$:
+$a = yz/x, b = xz/y, c = xy/z$.
+
+1. $P = a - b/c = yz/x - z^2/y^2 = (y^3z - xz^2)/(xy^2) = z(y^3 - xz)/(xy^2)$
+2. $Q = a - c/b = yz/x - y^2/z^2 = y(z^3 - xy)/(xz^2)$
+3. $R = b - a/c = xz/y - z^2/x^2 = z(x^3 - yz)/(x^2y)$
+4. $S = b - c/a = xz/y - x^2/z^2 = x(z^3 - xy)/(yz^2)$
+5. $T = c - a/b = xy/z - y^2/x^2 = y(x^3 - yz)/(x^2z)$
+6. $U = c - b/a = xy/z - x^2/y^2 = x(y^3 - xz)/(y^2z)$
+
+For all three pairs positive: $y^3 > xz, z^3 > xy, x^3 > yz$.
+
+Now, the condition $P \leq 1$ (and $Q, R, S, T, U > 1$) with all pairs positive.
+
+$P = z(y^3 - xz)/(xy^2) \leq 1$ and $U = x(y^3 - xz)/(y^2 z) > 1$.
+
+Note $U/P = x^2/z^2$. So $U = P \cdot x^2/z^2$. If $P \leq 1$ and $U > 1$, then $x^2/z^2 > 1/P \geq 1$, so $x > z$. (Which we already knew from $x > y > z$.)
+
+More precisely, $U > 1$ and $P \leq 1$ means $P \cdot x^2/z^2 > 1$ and $P \leq 1$, so $x^2/z^2 > 1/P \geq 1$.
+
+Similarly, $Q > 1$ and $S > 1$: $Q = y(z^3 - xy)/(xz^2)$ and $S = x(z^3 - xy)/(yz^2)$, with $S/Q = x^2/y^2$. Both $> 1$.
+
+$R > 1$ and $T > 1$: $R = z(x^3 - yz)/(x^2 y)$ and $T = y(x^3 - yz)/(x^2 z)$, with $T/R = y^2/z^2$. Both $> 1$.
+
+So we need:
+- $z(y^3 - xz)/(xy^2) \leq 1$ ... (i)
+- $x(y^3 - xz)/(y^2 z) > 1$ ... (ii)
+- $y(z^3 - xy)/(xz^2) > 1$ ... (iii)
+- $x(z^3 - xy)/(yz^2) > 1$ ... (iv)
+- $z(x^3 - yz)/(x^2 y) > 1$ ... (v)
+- $y(x^3 - yz)/(x^2 z) > 1$ ... (vi)
+
+From (ii): $x(y^3 - xz) > y^2 z$, i.e., $xy^3 - x^2 z > y^2 z$, i.e., $xy^3 > z(x^2 + y^2)$.
+From (i): $z(y^3 - xz) \leq xy^2$, i.e., $zy^3 - xz^2 \leq xy^2$, i.e., $zy^3 \leq xy^2 + xz^2 = x(y^2 + z^2)$.
+
+From (iii): $y(z^3 - xy) > xz^2$, i.e., $yz^3 - xy^2 > xz^2$, i.e., $yz^3 > x(y^2 + z^2)$.
+From (iv): $x(z^3 - xy) > yz^2$, i.e., $xz^3 - x^2 y > yz^2$, i.e., $xz^3 > y(x^2 + z^2)$.
+
+From (v): $z(x^3 - yz) > x^2 y$, i.e., $zx^3 - yz^2 > x^2 y$, i.e., $zx^3 > y(x^2 + z^2)$.
+From (vi): $y(x^3 - yz) > x^2 z$, i.e., $yx^3 - y^2 z > x^2 z$, i.e., $yx^3 > z(x^2 + y^2)$.
+
+So the conditions are:
+(A) $zy^3 \leq x(y^2 + z^2)$ [from (i)]
+(B) $xy^3 > z(x^2 + y^2)$ [from (ii)]
+(C) $yz^3 > x(y^2 + z^2)$ [from (iii)]
+(D) $xz^3 > y(x^2 + z^2)$ [from (iv)]
+(E) $zx^3 > y(x^2 + z^2)$ [from (v)]
+(F) $yx^3 > z(x^2 + y^2)$ [from (vi)]
+
+From (A) and (C): $zy^3 \leq x(y^2 + z^2)$ and $yz^3 > x(y^2 + z^2)$. So $yz^3 > x(y^2 + z^2) \geq zy^3$, giving $yz^3 > zy^3$, i.e., $z^2 > y^2$, i.e., $z > y$. But we assumed $x > y > z$! Contradiction!
+
+Wait, this is a key finding. Let me double-check.
+
+From (i): $P \leq 1$ gives $zy^3 \leq x(y^2 + z^2)$.
+From (iii): $Q > 1$ gives $yz^3 > x(y^2 + z^2)$.
+
+Combining: $yz^3 > x(y^2 + z^2) \geq zy^3$, so $yz^3 > zy^3$, i.e., $z^2 > y^2$, i.e., $z > y$.
+
+But from all three pairs positive, we derived $x > y > z$ (WLOG). So $z > y$ contradicts $y > z$.
+
+Wait, but the ordering $x > y > z$ was derived from the assumption that all three of $x^3 > yz, y^3 > xz, z^3 > xy$ hold. Let me re-examine.
+
+From $x^3 > yz$ and $y^3 > xz$: $(x/y)^4 > 1$, so $x > y$.
+From $y^3 > xz$ and $z^3 > xy$: $(y/z)^4 > 1$, so $y > z$.
+From $x^3 > yz$ and $z^3 > xy$: $(x/z)^4 > 1$, so $x > z$.
+
+So $x > y > z$. But we just showed that if $P \leq 1$ and $Q > 1$ (with all pairs positive), then $z > y$, contradicting $y > z$.
+
+So it's impossible to have $P \leq 1$ and $Q > 1$ with all three pairs positive!
+
+But wait, I chose WLOG that $P$ is the one $\leq 1$. The labeling of $P, Q, R, S, T, U$ depends on the labeling of $a, b, c$. Let me reconsider.
+
+The six numbers are paired as $(P, U), (Q, S), (R, T)$ corresponding to conditions $y^3 > xz, z^3 > xy, x^3 > yz$ respectively. The ordering $x > y > z$ means:
+- $x^3 > yz$ is "easiest" to satisfy (largest $x$)
+- $z^3 > xy$ is "hardest" (smallest $z$)
+
+So pair $(R, T)$ (corresponding to $x^3 > yz$) is "most positive", pair $(Q, S)$ (corresponding to $z^3 > xy$) is "least positive", and pair $(P, U)$ (corresponding to $y^3 > xz$) is in between.
+
+Now, if 5 of 6 exceed 1, one pair has a member $\leq 1$. By the above analysis, the member $\leq 1$ can't be from pair $(P, U)$ if $Q > 1$ (since that forces $z > y$, contradiction). But by symmetry, we need to check all cases.
+
+Actually, the issue is that I fixed the labeling. The problem is symmetric under permutations of $(a, b, c)$, which corresponds to permutations of $(x, y, z)$ (specifically, permuting $a, b, c$ permutes $x = \sqrt{ab}, y = \sqrt{bc}, z = \sqrt{ca}$ in a specific way). Let me think about which pair is the "weak" one.
+
+Given $x > y > z$ (from all three positive), the "hardest" condition is $z^3 > xy$ (pair $(Q, S)$). So the pair most likely to have a member $\leq 1$ is $(Q, S)$.
+
+Let me redo the analysis assuming $Q \leq 1$ (and $P, R, S, T, U > 1$). Wait, but $Q$ and $S$ are a pair with the same sign. If $Q \leq 1$ but positive, and $S > 1$, that's possible.
+
+Actually, let me reconsider. If 5 exceed 1, the one that doesn't could be from any of the three pairs. Let me consider each case.
+
+**Case 1**: $P \leq 1$ (pair $(P, U)$ is the weak one, with $U > 1$).
+We showed this requires $z > y$, contradicting $y > z$. ✗
+
+**Case 2**: $Q \leq 1$ (pair $(Q, S)$ is the weak one, with $S > 1$).
+$Q = y(z^3 - xy)/(xz^2) \leq 1$ gives $y(z^3 - xy) \leq xz^2$, i.e., $yz^3 - xy^2 \leq xz^2$, i.e., $yz^3 \leq x(y^2 + z^2)$.
+$S = x(z^3 - xy)/(yz^2) > 1$ gives $x(z^3 - xy) > yz^2$, i.e., $xz^3 - x^2 y > yz^2$, i.e., $xz^3 > y(x^2 + z^2)$.
+
+Now, from (v): $R > 1$ gives $zx^3 > y(x^2 + z^2)$.
+And from $S > 1$: $xz^3 > y(x^2 + z^2)$.
+
+So both $zx^3 > y(x^2 + z^2)$ and $xz^3 > y(x^2 + z^2)$. The first gives $x^3 > y(x^2 + z^2)/z$ and the second gives $z^3 > y(x^2 + z^2)/x$.
+
+From $Q \leq 1$: $yz^3 \leq x(y^2 + z^2)$.
+From $T > 1$ (condition (vi)): $yx^3 > z(x^2 + y^2)$.
+
+From $Q \leq 1$: $yz^3 \leq x(y^2 + z^2)$, i.e., $z^3 \leq x(y^2 + z^2)/y$.
+From $S > 1$: $xz^3 > y(x^2 + z^2)$, i.e., $z^3 > y(x^2 + z^2)/x$.
+
+So $y(x^2 + z^2)/x < z^3 \leq x(y^2 + z^2)/y$, giving $y(x^2 + z^2)/x < x(y^2 + z^2)/y$, i.e., $y^2(x^2 + z^2) < x^2(y^2 + z^2)$, i.e., $y^2 z^2 < x^2 z^2$, i.e., $y < x$. ✓ (consistent with $x > y$).
+
+Now from $P > 1$ (condition (ii)): $xy^3 > z(x^2 + y^2)$.
+From $Q \leq 1$: $yz^3 \leq x(y^2 + z^2)$.
+
+From $P > 1$: $xy^3 > z(x^2 + y^2)$, i.e., $y^3 > z(x^2 + y^2)/x$.
+From $R > 1$ (condition (v)): $zx^3 > y(x^2 + z^2)$, i.e., $x^3 > y(x^2 + z^2)/z$.
+
+From $T > 1$ (condition (vi)): $yx^3 > z(x^2 + y^2)$.
+From $U > 1$ (condition (ii)): $xy^3 > z(x^2 + y^2)$.
+
+So $T > 1$ and $U > 1$ both give $yx^3 > z(x^2 + y^2)$ and $xy^3 > z(x^2 + y^2)$. (These are conditions (vi) and (ii).)
+
+Hmm, I don't see an immediate contradiction in Case 2. Let me try to find one.
+
+From $Q \leq 1$: $yz^3 \leq x(y^2 + z^2)$. (A')
+From $S > 1$: $xz^3 > y(x^2 + z^2)$. (D)
+
+From (A') and (D): $yz^3 \leq x(y^2 + z^2)$ and $xz^3 > y(x^2 + z^2)$.
+
+Dividing (D) by (A'): $(xz^3)/(yz^3) > [y(x^2+z^2)]/[x(y^2+z^2)]$, i.e., $x/y > y(x^2+z^2)/[x(y^2+z^2)]$, i.e., $x^2(y^2+z^2) > y^2(x^2+z^2)$, i.e., $x^2 z^2 > y^2 z^2$, i.e., $x > y$. ✓ (consistent, no contradiction).
+
+Let me try combining other conditions.
+
+From $P > 1$ (condition (ii)): $xy^3 > z(x^2 + y^2)$.
+From $Q \leq 1$ (condition (A')): $yz^3 \leq x(y^2 + z^2)$.
+
+From (ii): $xy^3 > z x^2 + z y^2$, so $xy^3 - zy^2 > zx^2$, i.e., $y^2(xy - z) > zx^2$.
+From (A'): $yz^3 \leq xy^2 + xz^2$, so $yz^3 - xy^2 \leq xz^2$, i.e., $y^2(z \cdot z/y - x) \leq xz^2$... hmm, $yz^3 - xy^2 = y(yz^2 - xy) = y^2(z^2 - x \cdot y/y)$... this isn't simplifying well.
+
+Let me try a different approach. Let me use the constraint $(x-1)(y-1)(z-1) = 1$ more directly.
+
+Actually, let me try to find a numerical example with 5 exceeding 1, satisfying the constraint. If I can't, maybe 4 is indeed the max.
+
+Let me parametrize. With $x > y > z > 1$ and $(x-1)(y-1)(z-1) = 1$, and all three pairs positive.
+
+Let me try $z = 1.7, y = 1.8$. Then $(x-1)(0.8)(0.7) = 1$, so $x - 1 = 1/0.56 = 1.786$, $x = 2.786$.
+
+Check all three positive:
+- $x^3 > yz$: $2.786^3 = 21.63$, $yz = 1.8 \cdot 1.7 = 3.06$. ✓
+- $y^3 > xz$: $1.8^3 = 5.832$, $xz = 2.786 \cdot 1.7 = 4.736$. ✓
+- $z^3 > xy$: $1.7^3 = 4.913$, $xy = 2.786 \cdot 1.8 = 5.015$. $4.913 < 5.015$. ✗
+
+Close but fails. Let me adjust. Need $z^3 > xy$, so increase $z$ or decrease $x$.
+
+Try $z = 1.75, y = 1.8$. $(x-1)(0.8)(0.75) = 1$, $x - 1 = 1/0.6 = 1.667$, $x = 2.667$.
+- $z^3 > xy$: $1.75^3 = 5.359$, $xy = 2.667 \cdot 1.8 = 4.801$. ✓
+- $y^3 > xz$: $5.832$, $xz = 2.667 \cdot 1.75 = 4.667$. ✓
+- $x^3 > yz$: $18.96$, $yz = 3.15$. ✓
+
+All positive! Now compute $a, b, c$:
+$a = yz/x = 1.8 \cdot 1.75 / 2.667 = 3.15/2.667 = 1.181$
+$b = xz/y = 2.667 \cdot 1.75 / 1.8 = 4.667/1.8 = 2.593$
+$c = xy/z = 2.667 \cdot 1.8 / 1.75 = 4.801/1.75 = 2.743$
+
+Six numbers:
+1. $P = a - b/c = 1.181 - 2.593/2.743 = 1.181 - 0.945 = 0.236$. Not $> 1$.
+2. $Q = a - c/b = 1.181 - 2.743/2.593 = 1.181 - 1.058 = 0.123$. Not $> 1$.
+3. $R = b - a/c = 2.593 - 1.181/2.743 = 2.593 - 0.431 = 2.162$. $> 1$ ✓
+4. $S = b - c/a = 2.593 - 2.743/1.181 = 2.593 - 2.323 = 0.270$. Not $> 1$.
+5. $T = c - a/b = 2.743 - 1.181/2.593 = 2.743 - 0.456 = 2.287$. $> 1$ ✓
+6. $U = c - b/a = 2.743 - 2.593/1.181 = 2.743 - 2.195 = 0.548$. Not $> 1$.
+
+Only 2 exceed 1. The values are quite spread out.
+
+The issue is that when $x, y, z$ are not close to 2, the numbers deviate a lot from 1, and it's hard to keep many above 1.
+
+Let me try closer to 2. $z = 1.9, y = 1.95$. $(x-1)(0.95)(0.9) = 1$, $x - 1 = 1/0.855 = 1.170$, $x = 2.170$.
+- $z^3 > xy$: $1.9^3 = 6.859$, $xy = 2.170 \cdot 1.95 = 4.232$. ✓
+- $y^3 > xz$: $1.95^3 = 7.415$, $xz = 2.170 \cdot 1.9 = 4.123$. ✓
+- $x^3 > yz$: $2.170^3 = 10.218$, $yz = 3.705$. ✓
+
+$a = yz/x = 1.95 \cdot 1.9 / 2.170 = 3.705/2.170 = 1.707$
+$b = xz/y = 2.170 \cdot 1.9 / 1.95 = 4.123/1.95 = 2.114$
+$c = xy/z = 2.170 \cdot 1.95 / 1.9 = 4.232/1.9 = 2.227$
+
+1. $P = 1.707 - 2.114/2.227 = 1.707 - 0.949 = 0.758$
+2. $Q = 1.707 - 2.227/2.114 = 1.707 - 1.053 = 0.654$
+3. $R = 2.114 - 1.707/2.227 = 2.114 - 0.766 = 1.348$ ✓
+4. $S = 2.114 - 2.227/1.707 = 2.114 - 1.305 = 0.809$
+5. $T = 2.227 - 1.707/2.114 = 2.227 - 0.807 = 1.420$ ✓
+6. $U = 2.227 - 2.114/1.707 = 2.227 - 1.238 = 0.989$
+
+3 exceed 1. Getting closer. Let me try to fine-tune.
+
+The local analysis says the best sector (between slopes 1/2 and 2, i.e., $q/p$ between 0.5 and 2) gives 4 positive. Let me find the direction.
+
+In that sector, $(p, q) = (1, 1)$ (i.e., $p = q = 1, r = -2$) gave 4 positive. So $x = 3, y = 3, z = 0$... but $z$ must be $> 1$. The linearization is only valid for small perturbations.
+
+Let me try $p = 0.1, q = 0.1, r = -0.2$ (approximately, adjusting for the constraint). $x = 2.1, y = 2.1, z = 1.8$. Check: $(0.1)(0.1)(0.8) = 0.008 \neq 1$. Way off. The linearization $p + q + r = 0$ is only first-order; the actual constraint is $(1+p)(1+q)(1+r) = 1$.
+
+Let me solve properly. $x = 2 + p, y = 2 + q, z = 2 + r$ with $(1+p)(1+q)(1+r) = 1$ and $p, q, r$ small. First order: $p + q + r \approx 0$. Let $p = q = \epsilon, r = -2\epsilon + O(\epsilon^2)$.
+
+$(1+\epsilon)^2(1+r) = 1$, so $1 + r = 1/(1+\epsilon)^2 \approx 1 - 2\epsilon + 3\epsilon^2$, $r \approx -2\epsilon + 3\epsilon^2$.
+
+For $\epsilon = 0.05$: $r = 1/(1.05)^2 - 1 = 1/1.1025 - 1 = -0.0930$. So $x = 2.05, y = 2.05, z = 1.907$.
+
+Check all positive:
+- $z^3 > xy$: $1.907^3 = 6.935$, $xy = 2.05^2 = 4.2025$. ✓
+- $y^3 > xz$: $2.05^3 = 8.615$, $xz = 2.05 \cdot 1.907 = 3.909$. ✓
+- $x^3 > yz$: same as $y^3 > xz$ by $x = y$. ✓
+
+$a = yz/x = 2.05 \cdot 1.907 / 2.05 = 1.907$
+$b = xz/y = 2.05 \cdot 1.907 / 2.05 = 1.907$
+$c = xy/z = 2.05^2 / 1.907 = 4.2025/1.907 = 2.204$
+
+So $a = b = 1.907, c = 2.204$.
+
+1. $P = a - b/c = 1.907 - 1.907/2.204 = 1.907 - 0.865 = 1.042$ ✓
+2. $Q = a - c/b = 1.907 - 2.

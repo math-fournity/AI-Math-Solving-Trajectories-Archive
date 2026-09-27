@@ -1,0 +1,2022 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   In the fraction \(\frac{ABA}{CDC} = 0.\overline{DEFG}\), each letter represents a distinct digit. The decimal expansion is purely periodic with a period of length four. Find the fraction.       — 题目文本
+#   To solve the problem, we need to find the fraction \(\frac{ABA}{CDC}\) which equals \(0.\overline{DEFG}\), where each letter represents a distinct digit and the decimal has a period of 4 digits.
+
+### Step 1: Determine the Denominator
+A purely periodic decimal with a period of 4 digits implies that the denominator must be a factor of 9999. Factoring 9999, we get:
+\[ 9999 = 3^2 \times 11 \times 101 \]
+
+The three-digit factors of 9999 are:
+- \(303 = 3 \times 101\)
+- \(909 = 9 \times 101\)
+- \(101\)
+
+### Step 2: Evaluate Each Possible Denominator
+#### Case 1: \(CDC = 101\)
+If \(CDC = 101\), then \(C = 1\). For the fraction \(\frac{ABA}{101}\) to be less than 1 (since the decimal is purely periodic), \(ABA\) must be less than 101. However, \(ABA\) is a three-digit palindrome, so \(A\) must be 1, which conflicts with \(C = 1\). Therefore, \(CDC = 101\) is not possible.
+
+#### Case 2: \(CDC = 909\)
+If \(CDC = 909\), then \(C = 9\) and the middle digit \(D = 0\). The decimal \(0.\overline{DEFG}\) would start with 0, which is not allowed for a purely periodic decimal. Therefore, \(CDC = 909\) is not possible.
+
+#### Case 3: \(CDC = 303\)
+If \(CDC = 303\), then \(C = 3\). We need to find a three-digit palindrome \(ABA\) such that \(\frac{ABA}{303}\) results in a purely periodic decimal with a period of 4 digits.
+
+### Step 3: Test Values for \(ABA\)
+We test values of \(ABA\) (a three-digit palindrome with \(A \neq 3\)):
+
+#### Test \(ABA = 242\)
+- \(A = 2\), \(B = 4\), \(C = 3\)
+- \(\frac{242}{303}\)
+
+To check if \(\frac{242}{303}\) is in its simplest form:
+- GCD(242, 303) = 1 (since 242 = \(2 \times 11^2\) and 303 = \(3 \times 101\))
+
+Now, compute the decimal expansion of \(\frac{242}{303}\):
+\[ 242 \div 303 = 0.79867986\ldots \]
+
+The decimal \(0.79867986\ldots\) has a period of 4 digits: 7986.
+
+### Step 4: Verify Distinct Digits
+The digits are:
+- \(A = 2\)
+- \(B = 4\)
+- \(C = 3\)
+- \(D = 7\)
+- \(E = 9\)
+- \(F = 8\)
+- \(G = 6\)
+
+All digits are distinct and different from each other.
+
+### Conclusion
+The fraction \(\frac{242}{303}\) satisfies all conditions with distinct digits for \(A, B, C, D, E, F, G\).
+
+Thus, the final answer is:
+\[
+\boxed{\frac{242}{303}}
+\]  — 标准解答
+#   Let me analyze this problem carefully.
+
+We have the fraction ABA/CDC = 0.DEFG (repeating, period 4), where each letter represents a distinct digit.
+
+So ABA is a 3-digit number: 100A + 10B + A = 101A + 10B
+CDC is a 3-digit number: 100C + 10D + C = 101C + 10D
+The decimal 0.DEFGDEFGDEFG... = DEFG/9999
+
+So ABA/CDC = DEFG/9999
+
+This means ABA * 9999 = CDC * DEFG
+
+All letters A, B, C, D, E, F, G are distinct digits.
+
+Note: A ≠ 0 (since ABA is 3-digit), C ≠ 0 (since CDC is 3-digit), D ≠ 0 (since the decimal starts with D... actually D could be 0? No, 0.DEFG means D is the first digit after decimal. Actually D could be 0. But wait, D appears in CDC as the middle digit, and CDC is a 3-digit number so C ≠ 0. D could be 0.)
+
+Wait, but DEFG is a 4-digit block in the repeating decimal. If D = 0, then DEFG would be like 0EFG, which is a 3-digit number. The repeating decimal 0.0EFG0EFG... = 0EFG/9999. That's fine mathematically, but let me think about whether the problem intends DEFG to be a 4-digit number.
+
+The problem says "period of length four" and writes 0.DEFG with a bar. The period is DEFG, four digits. D could be 0 in principle, but let's see.
+
+Let me think about this more carefully. ABA/CDC = DEFG/9999.
+
+So ABA * 9999 = CDC * DEFG.
+
+9999 = 9 * 1111 = 9 * 11 * 101 = 99 * 101.
+
+Also 9999 = 3^2 * 11 * 101.
+
+ABA = 101A + 10B. Note that 101A + 10B... hmm, 101 is a factor of 9999.
+
+CDC = 101C + 10D. Also has a 101 potentially.
+
+Let me think. ABA = 101A + 10B. If we want 101 to divide ABA, then 101 | (101A + 10B) means 101 | 10B. Since 101 is prime and doesn't divide 10, we need 101 | B. But B is a digit 0-9, so B = 0. Then ABA = 101A, and ABA/101 = A.
+
+Similarly CDC = 101C + 10D. 101 | CDC iff 101 | 10D iff D = 0.
+
+Case 1: B = 0 and D = 0. But B and D must be distinct. Contradiction. So both can't be 0.
+
+Let me think differently. We need ABA * 9999 = CDC * DEFG.
+
+Let me factor. 9999 = 101 * 99.
+
+ABA * 101 * 99 = CDC * DEFG.
+
+Hmm, let me try to use the structure. Let's write ABA = 101A + 10B and CDC = 101C + 10D.
+
+ABA * 9999 = CDC * DEFG
+DEFG = ABA * 9999 / CDC
+
+DEFG must be an integer between 1000 and 9999 (4-digit, assuming D ≠ 0; or could be less if D = 0).
+
+Also ABA/CDC must be between 0 and 1 (since it equals 0.DEFG...), so ABA < CDC.
+
+And DEFG/9999 must be in lowest terms giving period exactly 4. For the period to be exactly 4, we need DEFG/9999 in lowest terms, and the denominator (after reduction) must divide 9999 but not 9 or 99 or 999. Actually, the period of 1/n in base 10 is the order of 10 mod n (when gcd(n,10)=1). For the fraction DEFG/9999, after reducing to lowest terms p/q, the period is the order of 10 mod q.
+
+9999 = 3^2 * 11 * 101.
+
+The order of 10 mod 3 is 1, mod 9 is 1, mod 11 is 2, mod 101 is 4.
+
+So for period exactly 4, we need 101 | q (the reduced denominator). The order of 10 mod 101 is 4 (since 10^4 = 10000 = 99*101 + 1, so 10^4 ≡ 1 mod 101). And we need the order to be exactly 4, not a divisor of 4. The order mod 101 is 4. If q = 101, period is 4. If q = 101 * 3 = 303, order of 10 mod 303 = lcm(order mod 3, order mod 101) = lcm(1, 4) = 4. If q = 101 * 9 = 909, lcm(1,4)=4. If q = 101 * 11 = 1111, lcm(2,4)=4. If q = 101 * 99 = 9999, lcm(1,2,4)=4. If q = 101 * 33 = 3333, lcm(2,4)=4. Etc.
+
+So as long as 101 divides the reduced denominator, the period is 4 (since the order mod 101 is 4, and lcm with anything from {1,2} gives 4). Wait, but we also need gcd(q, 10) = 1. Since 9999 = 3^2 * 11 * 101, all factors are coprime to 10. So any divisor of 9999 is coprime to 10. Good.
+
+So the condition for period exactly 4 is: after reducing DEFG/9999, the denominator is divisible by 101.
+
+Equivalently, 101 does not divide gcd(DEFG, 9999). I.e., 101 ∤ DEFG.
+
+Wait, more precisely: DEFG/9999 reduces to p/q where q = 9999/gcd(DEFG, 9999). We need 101 | q, i.e., 101 ∤ gcd(DEFG, 9999), i.e., 101 ∤ DEFG (since 101 | 9999, 101 | gcd(DEFG,9999) iff 101 | DEFG).
+
+So the condition is: 101 does not divide DEFG.
+
+Also, we need the period to be exactly 4, not less. If 101 | q, the order is lcm(order mod (q/101 part), 4). The order mod 3 is 1, mod 9 is 1, mod 11 is 2. So lcm is at most lcm(2,4) = 4. So yes, period is exactly 4 whenever 101 | q. Good.
+
+But wait, we also need to make sure the period isn't a proper divisor of 4 that still gives 4 digits. Actually, the period of the decimal expansion is the order of 10 mod q. If the order is 4, the period is 4. If the order is 1 or 2, the period would be 1 or 2, not 4. So we need order exactly 4, which requires 101 | q as shown. Good.
+
+Now, let me also think about whether DEFG could have a leading zero (D = 0). If D = 0, then DEFG < 1000, and the repeating decimal 0.0EFG0EFG... has period 4. That's mathematically valid. But the problem writes 0.DEFḠ, suggesting D is a digit of the period. D = 0 would be fine. But let me check: D also appears in CDC. If D = 0, CDC = C0C = 101C. Let me keep this as a possibility.
+
+Let me now set up the equation:
+ABA * 9999 = CDC * DEFG
+DEFG = ABA * 9999 / CDC
+
+Constraints:
+- A, B, C, D, E, F, G are distinct digits
+- A ≥ 1, C ≥ 1
+- ABA < CDC (so the fraction is < 1)
+- DEFG is a 4-digit number (or possibly 3-digit with leading zero, but let's first assume 4-digit: 1000 ≤ DEFG ≤ 9999)
+- 101 ∤ DEFG (for period exactly 4)
+- D is the thousands digit of DEFG (and also the tens digit of CDC)
+
+Wait, actually D appears in both CDC (as the middle digit) and DEFG (as the first digit). So D = (DEFG div 1000) and D = (CDC div 10) mod 10 = (CDC // 10) % 10. Since CDC = 101C + 10D, the tens digit is D. Yes.
+
+So D = floor(DEFG / 1000). This is a key constraint linking the two.
+
+Let me think about this computationally. I'll reason through it.
+
+ABA ranges from 101 to 989 (with A from 1-9, B from 0-9, ABA = 101A + 10B).
+CDC ranges from 101 to 989 similarly.
+ABA < CDC.
+DEFG = ABA * 9999 / CDC must be an integer.
+D = floor(DEFG / 1000) must equal the tens digit of CDC.
+All 7 digits A, B, C, D, E, F, G distinct.
+
+Let me think about what values work. Since ABA * 9999 = CDC * DEFG, and 9999 = 101 * 99:
+
+ABA * 101 * 99 = CDC * DEFG.
+
+Let me consider the GCD structure. Let g = gcd(ABA, CDC). Then ABA = g * a, CDC = g * c, with gcd(a, c) = 1. Then a * 9999 = c * DEFG, so c | 9999, and DEFG = a * 9999 / c.
+
+Since c | 9999 = 3^2 * 11 * 101, c ∈ {1, 3, 9, 11, 33, 99, 101, 303, 909, 1111, 3333, 9999}.
+
+Also a * 9999 / c must be a 4-digit number (1000-9999), and a < c (since ABA < CDC means g*a < g*c means a < c).
+
+Also a and c are coprime, c | 9999, and DEFG = a * 9999 / c.
+
+Since a < c and c | 9999, and DEFG = a * (9999/c), we need 9999/c to be a positive integer. Let m = 9999/c. Then DEFG = a * m, and we need 1000 ≤ a*m ≤ 9999.
+
+Also a < c = 9999/m, so a < 9999/m, meaning a*m < 9999. And a*m ≥ 1000.
+
+So 1000 ≤ a*m ≤ 9998 (since a < c means a*m < c*m = 9999, so a*m ≤ 9998).
+
+Also gcd(a, c) = 1, i.e., gcd(a, 9999/m) = 1.
+
+And ABA = g*a, CDC = g*c, where g = gcd(ABA, CDC).
+
+ABA = g*a is a 3-digit number with form ABA (first = last digit).
+CDC = g*c is a 3-digit number with form CDC (first = last digit).
+
+The tens digit of CDC (= g*c) is D = floor(DEFG / 1000) = floor(a*m / 1000).
+
+And the digits of DEFG = a*m are D, E, F, G (thousands, hundreds, tens, units).
+
+All of A, B, C, D, E, F, G distinct.
+
+This is getting complex. Let me try to enumerate possible values of c (divisors of 9999) and m = 9999/c, then find a.
+
+c = 1: m = 9999. a < 1, impossible.
+c = 3: m = 3333. a < 3, a ∈ {1, 2}. gcd(a,3)=1 so a ∈ {1,2}.
+  - a=1: DEFG = 3333. D=3. But digits of DEFG are 3,3,3,3 - not distinct. Also period: 101 | 3333? 3333/101 = 33.0, yes 101|3333. So period not 4. Skip.
+  - a=2: DEFG = 6666. 101|6666? 6666/101 = 66.0, yes. Skip.
+c = 9: m = 1111. a < 9, gcd(a,9)=1, a ∈ {1,2,4,5,7,8}.
+  - a=1: DEFG=1111. 101|1111? 1111/101=11.0, yes. Skip.
+  - a=2: DEFG=2222. 101|2222? 2222/101=22.0, yes. Skip.
+  - a=4: DEFG=4444. 101|4444? 4444/101=44.0, yes. Skip.
+  - a=5: DEFG=5555. 101|5555? 5555/101=55.0, yes. Skip.
+  - a=7: DEFG=7777. 101|7777? 7777/101=77.0, yes. Skip.
+  - a=8: DEFG=8888. 101|8888? 8888/101=88.0, yes. Skip.
+  
+  All multiples of 1111 have repeated digits. Skip all.
+c = 11: m = 909. a < 11, gcd(a,11)=1, a ∈ {1,...,10} except 11 (but a<11 so all 1-10).
+  - DEFG = a * 909.
+  - a=1: 909. 3-digit, D=0 (leading). 101|909? 909/101=9.0, yes. Skip.
+  - a=2: 1818. 101|1818? 1818/101=18.0, yes. Skip.
+  - a=3: 2727. 101|2727? 2727/101=27.0, yes. Skip.
+  - a=4: 3636. 101|3636? 3636/101=36.0, yes. Skip.
+  - a=5: 4545. 101|4545? 4545/101=45.0, yes. Skip.
+  - a=6: 5454. 101|5454? 5454/101=54.0, yes. Skip.
+  - a=7: 6363. 6363/101=63.0, yes. Skip.
+  - a=8: 7272. 7272/101=72.0, yes. Skip.
+  - a=9: 8181. 8181/101=81.0, yes. Skip.
+  - a=10: 9090. 9090/101=90.0, yes. Skip.
+  
+  All divisible by 101. Skip all.
+c = 33: m = 303. a < 33, gcd(a,33)=1.
+  - DEFG = a * 303. 101|303? 303/101=3.0, yes. So 101|303, and 101|a*303 iff... 101|303 so 101|a*303 always. Skip all.
+c = 99: m = 101. a < 99, gcd(a,99)=1.
+  - DEFG = a * 101. 101|a*101 always. Skip all.
+c = 101: m = 99. a < 101, gcd(a,101)=1 (101 is prime, so a ∈ 1..100).
+  - DEFG = a * 99. 101|DEFG? 101 | 99a. Since gcd(99,101)=1, 101|a. But a < 101, so a can't be 101. So 101 ∤ DEFG for all valid a. 
+  - Need 1000 ≤ 99a ≤ 9999, so 1000/99 ≤ a ≤ 9999/99, i.e., 10.1... ≤ a ≤ 101.0..., so a ∈ {11, 12, ..., 100} (since a ≥ 11 for 99a ≥ 1089, and a ≤ 100 for 99a ≤ 9900). Wait, 99*10=990 < 1000, 99*11=1089. 99*101=9999 but a<101 so a≤100, 99*100=9900. So a ∈ {11,...,100} with gcd(a,101)=1 (all a in 1..100 since 101 is prime).
+  - Also need DEFG = 99a to have 4 distinct digits, and D = floor(99a / 1000) must be the tens digit of CDC = g * 101.
+  
+  This is the promising case. Let me explore.
+
+c = 303: m = 33. a < 303, gcd(a,303)=1. 303 = 3*101. 101|33? No. 101|a*33 iff 101|a (since gcd(33,101)=1). a < 303, so a could be 101 or 202. If a=101 or 202, 101|DEFG, skip. Otherwise 101∤DEFG, period is 4.
+  - DEFG = 33a. Need 1000 ≤ 33a ≤ 9999, so 30.3 ≤ a ≤ 303, a ∈ {31,...,302} (but a < 303 so a ≤ 302). gcd(a,303)=1 means a not divisible by 3 or 101.
+  - CDC = g * 303. CDC is 3-digit, so g*303 ≥ 100, g ≥ 1 (303 is already 3-digit). g*303 ≤ 999, g ≤ 3.3, so g ∈ {1,2,3}.
+    - g=1: CDC=303. Form CDC: C=3, D=0, C=3. So C=3, D=0. ABA = g*a = a. ABA is 3-digit, a ≥ 100. But a < 303 and a ≥ 31... a ≥ 100. So a ∈ {100,...,302} with gcd(a,303)=1, a not div by 3 or 101, and ABA = a has form A_B_A (first=last digit).
+    - g=2: CDC=606. C=6, D=0. ABA = 2a. 3-digit, 100 ≤ 2a ≤ 999, 50 ≤ a ≤ 499. But a < 303, so a ∈ {50,...,302}. 2a must be ABA form.
+    - g=3: CDC=909. C=9, D=0. ABA = 3a. 100 ≤ 3a ≤ 999, 34 ≤ a ≤ 333. a < 303, so a ∈ {34,...,302}. 3a must be ABA form.
+
+  D=0 in all these cases. Let me check if D=0 works (DEFG has leading digit 0, meaning DEFG is 3-digit). DEFG = 33a. For D=0, we need floor(33a/1000) = 0, so 33a < 1000, a < 30.3, a ≤ 30. But we need a ≥ 31 for DEFG ≥ 1000. Contradiction! So if DEFG is 4-digit (≥ 1000), D ≥ 1, but CDC has D=0. So D=0 from CDC but D≥1 from DEFG. Contradiction.
+
+  Unless DEFG is 3-digit (D=0). Then 33a < 1000, a ≤ 30. But then DEFG = 33a, and the "period" is 0DEFG = 0,33a,33a,... Hmm, but the problem says period of length 4, so DEFG is 4 digits including possible leading zero. If D=0, the period is 0EFG which is still 4 digits. Let me reconsider.
+
+  Actually, if D=0, then DEFG = 0EFG, a 3-digit number with leading zero. The decimal 0.0EFG0EFG... has period 4. That's valid. But then DEFG as a number is < 1000, and D = 0.
+
+  For c=303: D=0 (from CDC), so DEFG < 1000, 33a < 1000, a ≤ 30. And a ≥ 31 needed for... no wait, if D=0, DEFG can be < 1000. Let me redo: DEFG = 33a, D = floor(33a/1000). If 33a < 1000, D=0. Need 33a ≥ 100 (at least 3-digit for EFG to make sense? Actually DEFG = 0EFG, E could also be 0...). Hmm, the problem says each letter is a distinct digit, and the period is DEFG, 4 digits. If D=0, the period is 0,E,F,G. These should be 4 digits (possibly with leading zeros). But E, F, G must be distinct from each other and from D=0 and from A, B, C.
+
+  For c=303, g=1: CDC=303, C=3, D=0. ABA = a, a ∈ {100,...,302}, gcd(a,303)=1, ABA form (first=last digit), a not div by 3 or 101. DEFG = 33a. D=0 means 33a < 1000, a < 30.3, a ≤ 30. But a ≥ 100. Contradiction. Skip.
+
+  For c=303, g=2: CDC=606, C=6, D=0. ABA=2a, a ∈ {50,...,302}, 2a is ABA form. DEFG=33a, D=0 means a ≤ 30. But a ≥ 50. Contradiction. Skip.
+
+  For c=303, g=3: CDC=909, C=9, D=0. ABA=3a, a ∈ {34,...,302}. DEFG=33a, D=0 means a ≤ 30. But a ≥ 34. Contradiction. Skip.
+
+  So c=303 doesn't work.
+
+c = 909: m = 11. a < 909, gcd(a,909)=1. 909 = 9*101. 101|11a iff 101|a (gcd(11,101)=1). a < 909, so a could be 101, 202, ..., 808. Skip those. Otherwise 101∤DEFG.
+  - DEFG = 11a. Need 1000 ≤ 11a ≤ 9999, 91 ≤ a ≤ 909. a < 909, so a ∈ {91,...,908}.
+  - CDC = g * 909. 3-digit: g*909 ≤ 999, g=1 only (909*1=909, 909*2=1818 too big). g=1: CDC=909, C=9, D=0.
+  - D=0 from CDC. DEFG = 11a, D = floor(11a/1000) = 0 means 11a < 1000, a < 91. But a ≥ 91. Contradiction (a=91 gives 11*91=1001, D=1≠0). Skip.
+
+c = 1111: m = 9. a < 1111, gcd(a,1111)=1. 1111 = 11*101. 101|9a iff 101|a. a < 1111, a could be 101,202,...,1010. Skip those.
+  - DEFG = 9a. Need 1000 ≤ 9a ≤ 9999, 112 ≤ a ≤ 1111. a < 1111, a ∈ {112,...,1110}.
+  - CDC = g * 1111. 3-digit: g*1111 ≤ 999, impossible since 1111 > 999. Skip.
+
+c = 3333: m = 3. CDC = g * 3333 > 999. Skip.
+
+c = 9999: m = 1. CDC = g * 9999 > 999. Skip.
+
+So the only viable case is c = 101, m = 99.
+
+Let me focus on c = 101, m = 99.
+
+DEFG = 99a, a ∈ {11,...,100}, gcd(a,101)=1 (always true for a ≤ 100).
+ABA = g * a (where g = gcd(ABA, CDC), and ABA = g*a, CDC = g*101).
+CDC = g * 101. CDC is 3-digit: 100 ≤ 101g ≤ 999, so g ∈ {1,...,9} (101*9=909, 101*10=1010 too big).
+ABA = g * a is 3-digit: 100 ≤ g*a ≤ 999.
+
+CDC = 101g. The form is CDC: first digit = last digit = C, middle digit = D.
+101g: 
+- g=1: 101 → C=1, D=0
+- g=2: 202 → C=2, D=0
+- g=3: 303 → C=3, D=0
+- g=4: 404 → C=4, D=0
+- g=5: 505 → C=5, D=0
+- g=6: 606 → C=6, D=0
+- g=7: 707 → C=7, D=0
+- g=8: 808 → C=8, D=0
+- g=9: 909 → C=9, D=0
+
+In all cases, D = 0.
+
+So D = 0, and DEFG = 99a must have D = 0 as its thousands digit, meaning 99a < 1000, a < 10.1, a ≤ 10. But we need a ≥ 11 for DEFG ≥ 1000. Contradiction!
+
+Wait, unless DEFG is 3-digit (D=0, leading zero). Then 99a < 1000, a ≤ 10. And DEFG = 99a, with D=0. So a ∈ {1,...,10} but also a ≥ 11 for 4-digit... 
+
+Hmm wait. If D=0, the period is 0EFG, which is 4 digits with a leading zero. DEFG as a number is 99a where 99a < 1000 (so it's at most 3 digits). The "digits" D, E, F, G would be 0, E, F, G where EFG = 99a (padded to 3 digits). Actually, DEFG = 099a... no. Let me think again.
+
+If DEFG = 99a and 99a is, say, 891 (a=9), then as a 4-digit string with leading zero: D=0, E=8, F=9, G=1. The repeating decimal is 0.08910891... = 0891/9999 = 891/9999. Let me verify: 891/9999 = 0.08910891... Yes.
+
+So DEFG as a 4-digit sequence is 0,8,9,1 when 99a = 891. So D=0, E=8, F=9, G=1.
+
+OK so with D=0, we need a ≤ 10 (for 99a ≤ 990 < 1000). And a ≥ 1. But also ABA = g*a must be 3-digit, so g*a ≥ 100.
+
+With a ≤ 10 and g ≤ 9: g*a ≤ 90 < 100. So ABA can't be 3-digit. Contradiction!
+
+Hmm. So c=101 with D=0 doesn't work either because ABA = g*a can't reach 3 digits.
+
+Wait, I think I made an error. Let me reconsider. When c=101, we have a < c = 101, and DEFG = 99a. For DEFG to be 4-digit (D ≥ 1), we need 99a ≥ 1000, a ≥ 11. But then D = floor(99a/1000) ≥ 1, while CDC = 101g always has D=0. So D from DEFG ≠ D from CDC. Contradiction.
+
+And for DEFG to be 3-digit (D=0), a ≤ 10, but then ABA = g*a ≤ 90, not 3-digit. Contradiction.
+
+So c=101 doesn't work either?! Let me re-examine.
+
+Hmm, wait. I think I need to reconsider. The issue is that CDC = 101g always has D=0 (middle digit 0), but DEFG needs D to match. If D=0, DEFG < 1000, but then ABA = g*a is too small.
+
+Let me reconsider the problem. Maybe I'm missing something. Let me reconsider whether gcd(ABA, CDC) must divide things this way.
+
+Actually, I set g = gcd(ABA, CDC), ABA = g*a, CDC = g*c, gcd(a,c)=1. Then ABA*9999 = CDC*DEFG becomes g*a*9999 = g*c*DEFG, so a*9999 = c*DEFG. Since gcd(a,c)=1, c | 9999. This is correct.
+
+But wait, I also need to consider that maybe ABA and CDC share a common factor that includes 101. Let me reconsider.
+
+Actually, the analysis is correct. c | 9999 and a*9999/c = DEFG. The issue is that for all viable c values, we get contradictions.
+
+Let me re-examine more carefully. Maybe I dismissed some cases too quickly.
+
+Let me reconsider c=11, m=909. All DEFG = 909a were divisible by 101. Let me double-check: 909 = 9*101. So 909a is always divisible by 101. Yes, so 101 | DEFG, period is not 4. Correct to skip.
+
+c=33, m=303=3*101. 303a always div by 101. Skip. Correct.
+
+c=99, m=101. 101a always div by 101. Skip. Correct.
+
+c=3, m=3333=33*101. 3333a always div by 101. Skip. Correct.
+
+c=9, m=1111=11*101. 1111a always div by 101. Skip. Correct.
+
+c=101, m=99. 99a: 101|99a iff 101|a (since gcd(99,101)=1). a < 101, so 101∤a. Good, period is 4. But D mismatch as shown.
+
+c=303, m=33. 33a: 101|33a iff 101|a. a < 303, a could be 101 or 202. For other a, 101∤DEFG. CDC = g*303, D=0 always. DEFG = 33a. For D=0: 33a < 1000, a < 30.3. ABA = g*a, 3-digit: g*a ≥ 100. With a ≤ 30, g ≥ 4 (for g*a ≥ 100). g ≤ 3 (for CDC = 303g ≤ 999). g ∈ {1,2,3}. g*30 = 90 < 100. So ABA < 100. Contradiction. For D≥1: 33a ≥ 1000, a ≥ 31. D = floor(33a/1000) ≥ 1, but CDC has D=0. Contradiction.
+
+c=909, m=11. 11a: 101|11a iff 101|a. a < 909. CDC = g*909, g=1, CDC=909, D=0. DEFG=11a. D=0: 11a < 1000, a < 91. ABA = 1*a = a, 3-digit: a ≥ 100. Contradiction. D≥1: a ≥ 91, D = floor(11a/1000) ≥ 1 ≠ 0. Contradiction.
+
+c=1111: CDC = g*1111 > 999. Skip.
+
+So all cases with c | 9999 lead to contradictions? That can't be right—the problem states a solution exists.
+
+Let me re-examine my assumption. Maybe DEFG doesn't need to be exactly 4 digits. Or maybe I'm wrong about the period condition.
+
+Wait, actually, let me reconsider. The problem says ABA/CDC = 0.DEFḠ. The period is DEFG, 4 digits. But what if the fraction, when reduced, has a denominator that gives period 4, but DEFG/9999 is not in lowest terms? That's fine—DEFG/9999 doesn't need to be in lowest terms. The period is determined by the reduced denominator.
+
+I think my analysis is correct. Let me re-examine.
+
+Hmm, actually wait. Let me reconsider the case c=101 more carefully. I claimed CDC = 101g always has D=0. Let me verify:
+- 101*1 = 101 → digits 1,0,1 → C=1, D=0 ✓
+- 101*2 = 202 → 2,0,2 → C=2, D=0 ✓
+- etc.
+
+Yes, 101g for g=1..9 always has the form x0x. So D=0.
+
+And DEFG = 99a. For a ≥ 11, DEFG ≥ 1089, D ≥ 1. For a ≤ 10, DEFG ≤ 990, D=0 but ABA = g*a ≤ 9*10 = 90 < 100.
+
+So indeed c=101 fails. 
+
+Hmm, but the problem says a solution exists. Let me reconsider.
+
+Oh wait, maybe I need to reconsider. The problem says ABA/CDC = 0.DEFḠ. Maybe ABA > CDC is possible? No, 0.DEFḠ < 1, so ABA/CDC < 1, so ABA < CDC.
+
+Unless... the fraction is greater than 1? No, 0.xxx is less than 1.
+
+Wait, let me reconsider. Maybe I'm wrong that c must divide 9999. Let me re-derive.
+
+ABA * 9999 = CDC * DEFG. Let g = gcd(ABA, CDC). ABA = g*a, CDC = g*c, gcd(a,c) = 1. Then g*a*9999 = g*c*DEFG → a*9999 = c*DEFG. Since gcd(a,c)=1, c | 9999. This is correct.
+
+Hmm, so c | 9999 is necessary. And I've checked all divisors. Let me re-examine whether I've been too hasty.
+
+Actually, wait. Let me reconsider c=101, but now think about whether D could be something other than 0. 
+
+CDC = 101g. For g=1..9, CDC = 101, 202, 303, 404, 505, 606, 707, 808, 909. The tens digit is always 0. So D=0.
+
+But what if g > 9? Then CDC = 101g ≥ 1010, which is 4-digit. But CDC is a 3-digit number (it's CDC, three digits). So g ≤ 9. D=0 always.
+
+And DEFG = 99a with a ≥ 11 gives D ≥ 1. Contradiction with D=0.
+
+So this really doesn't work. Let me reconsider the problem.
+
+Hmm, maybe I need to reconsider whether the period must be exactly 4 or at most 4. The problem says "purely periodic with a period of length four." So the period is exactly 4.
+
+Wait, maybe I should reconsider. What if 101 | DEFG but the period is still 4? Let me reconsider.
+
+If DEFG/9999 reduces to p/q, and 101 | q, then period is 4. If 101 | DEFG, then 101 | gcd(DEFG, 9999), so 101 might not divide q. But it depends on the full gcd.
+
+Let me reconsider. q = 9999 / gcd(DEFG, 9999). 101 | q iff 101 ∤ gcd(DEFG, 9999) iff 101 ∤ DEFG (since 101 | 9999, 101 | gcd(DEFG, 9999) iff 101 | DEFG).
+
+So 101 | q iff 101 ∤ DEFG. And period = 4 iff 101 | q (as I argued). So period = 4 iff 101 ∤ DEFG. This seems right.
+
+But wait, what if 101 | DEFG but the period is still 4 for a different reason? If 101 | DEFG, then 101 | gcd(DEFG, 9999), so 101 ∤ q. Then q | 9999/101 = 99. The order of 10 mod q where q | 99 = 9 * 11. The possible orders: mod 1 → 1, mod 3 → 1, mod 9 → 1, mod 11 → 2, mod 33 → lcm(1,2)=2, mod 99 → lcm(1,2)=2. So the period would be 1 or 2, not 4. So indeed, if 101 | DEFG, the period is at most 2. So we need 101 ∤ DEFG for period 4. My analysis is correct.
+
+So... all cases fail? That's strange. Let me re-examine my case analysis more carefully.
+
+Actually, wait. Let me reconsider the case where c doesn't divide 9999 but the equation still works. I claimed c | 9999 from a*9999 = c*DEFG with gcd(a,c)=1. This is correct: c | a*9999 and gcd(a,c)=1 implies c | 9999.
+
+Hmm, but what if ABA and CDC are not both integers... no, they are integers (3-digit numbers).
+
+Let me try a completely different approach. Let me just enumerate.
+
+ABA/CDC = DEFG/9999, so DEFG = ABA * 9999 / CDC.
+
+For DEFG to be an integer, CDC | ABA * 9999.
+
+Let me just think about which CDC values (of the form CDC = 101C + 10D) divide ABA * 9999 for some ABA (of the form 101A + 10B) with ABA < CDC.
+
+Actually, let me try a different approach. Let me consider specific small cases.
+
+Let me think about what 3-digit numbers of the form CDC (palindrome) exist: 101, 202, 303, 404, 505, 606, 707, 808, 909, 111, 121, 131, 141, 151, 161, 171, 181, 191, 212, 222, 232, ..., 999. Basically, CDC = 101C + 10D where C ∈ {1..9}, D ∈ {0..9}.
+
+Similarly ABA = 101A + 10B, A ∈ {1..9}, B ∈ {0..9}.
+
+Let me think about this differently. Let me consider the fraction ABA/CDC and compute 9999 * ABA / CDC for various values.
+
+Actually, let me reconsider. Maybe I should not assume c | 9999 comes from gcd(ABA,CDC). Let me think again...
+
+No, the math is correct. c = CDC/gcd(ABA,CDC) must divide 9999. And I've checked all divisors of 9999. Let me re-examine each case more carefully, especially checking if I missed valid configurations.
+
+Let me redo c=101 very carefully.
+
+c=101, m=99. 
+- CDC = 101g, g ∈ {1..9}. D=0 for all.
+- ABA = g*a, a ∈ {11..100} (for DEFG = 99a to be 4-digit), gcd(a,101)=1 (always).
+- D=0 from CDC. DEFG = 99a. D = floor(99a/1000).
+  - For a=11: 99*11=1089, D=1. Need D=0. Fail.
+  - All a ≥ 11 give D ≥ 1. Fail.
+  - For a ≤ 10: 99a ≤ 990, D=0. But ABA = g*a ≤ 9*10 = 90 < 100. Fail.
+
+So c=101 truly fails. 
+
+Hmm, let me reconsider the problem statement. "In the fraction ABA/CDC = 0.DEFḠ, each letter represents a distinct digit."
+
+Wait, maybe I should consider that the fraction could be an improper fraction that simplifies to something with a decimal part? No, 0.DEFḠ is clearly less than 1.
+
+Or maybe ABA and CDC share digits? "each letter represents a distinct digit" — all 7 letters A, B, C, D, E, F, G are distinct. So A ≠ B ≠ C ≠ D ≠ E ≠ F ≠ G, all different.
+
+Let me try yet another approach. Let me not factor through gcd and instead directly search.
+
+DEFG = ABA * 9999 / CDC. Let me think about what CDC values could work.
+
+For CDC | ABA * 9999, and CDC is a 3-digit palindrome.
+
+9999 = 3^2 * 11 * 101.
+
+If CDC is coprime to 9999, then CDC | ABA, but ABA < CDC, so impossible. So CDC must share a factor with 9999.
+
+gcd(CDC, 9999) > 1. The prime factors of 9999 are 3, 11, 101. So CDC must be divisible by at least one of 3, 11, 101.
+
+Let me enumerate 3-digit palindromes divisible by 3, 11, or 101.
+
+Divisible by 101: 101, 202, 303, 404, 505, 606, 707, 808, 909. (These are 101*1 through 101*9.)
+
+Divisible by 11: A 3-digit palindrome CDC = 101C + 10D. 101C + 10D ≡ 0 (mod 11). 101 ≡ 2 (mod 11), 10 ≡ -1 (mod 11). So 2C - D ≡ 0 (mod 11), i.e., D ≡ 2C (mod 11). Since D ∈ {0..9} and 2C ∈ {2..18}, D = 2C if 2C ≤ 9, or D = 2C - 11 if 2C ≥ 11.
+- C=1: D=2 → 121
+- C=2: D=4 → 242
+- C=3: D=6 → 363
+- C=4: D=8 → 484
+- C=5: D=10 → invalid (2*5=10, 10-11=-1, invalid). Wait, 2C=10, D ≡ 10 ≡ -1 ≡ 10 (mod 11). D=10 invalid. So no solution for C=5.
+  Actually, D ∈ {0..9}. D ≡ 2C (mod 11). For C=5: 2C=10, D ≡ 10 (mod 11), D=10 is invalid. So no.
+- C=6: 2C=12, D ≡ 12 ≡ 1 (mod 11), D=1 → 616
+- C=7: 2C=14, D ≡ 3, D=3 → 737
+- C=8: 2C=16, D ≡ 5, D=5 → 858
+- C=9: 2C=18, D ≡ 7, D=7 → 979
+
+Also check C=1..4 with D=2C: 121, 242, 363, 484. And C=6..9: 616, 737, 858, 979.
+
+Also, what about D=0? D ≡ 2C (mod 11), D=0 means 2C ≡ 0 (mod 11), C=0 (invalid) or C=11 (invalid). So no.
+
+So 3-digit palindromes divisible by 11: 121, 242, 363, 484, 616, 737, 858, 979.
+
+Divisible by 3: 101C + 10D ≡ 0 (mod 3). 101 ≡ 2 (mod 3), 10 ≡ 1 (mod 3). So 2C + D ≡ 0 (mod 3). Many possibilities.
+
+This is a lot. Let me think about this differently.
+
+For each CDC (3-digit palindrome with gcd(CDC, 9999) > 1), and each ABA (3-digit palindrome with ABA < CDC), check if CDC | ABA * 9999, compute DEFG = ABA * 9999 / CDC, check all conditions.
+
+This is a finite but large search. Let me think about how to narrow it down.
+
+Key constraint: D (tens digit of CDC) = thousands digit of DEFG.
+
+Let me denote CDC = 100C + 10D + C = 101C + 10D. The tens digit is D.
+DEFG = ABA * 9999 / CDC. The thousands digit is floor(DEFG / 1000).
+
+So D = floor(ABA * 9999 / (CDC * 1000)).
+
+Also, ABA * 9999 / CDC must be an integer, and 1000 ≤ DEFG ≤ 9999 (assuming 4-digit; or DEFG < 1000 with D=0).
+
+Let me think about the range. ABA/CDC is between 0 and 1, so DEFG = 9999 * ABA/CDC is between 0 and 9999. For DEFG to be a 4-digit number (≥ 1000), ABA/CDC ≥ 1000/9999 ≈ 0.1. So ABA ≥ CDC/10 roughly.
+
+Let me try to be more systematic. Let me consider the factorization approach but more carefully.
+
+ABA * 9999 = CDC * DEFG.
+
+Let me write CDC = d * c' where c' | 9999 and d = CDC / c' (so c' = gcd(CDC, 9999) possibly, or some divisor). Actually, let me think of it as: CDC | ABA * 9999. 
+
+Let me write g = gcd(CDC, 9999). Then CDC = g * h where h = CDC/g and gcd(h, 9999/g) ... hmm, this gets complicated. Let me just think of it as CDC | ABA * 9999.
+
+Let g = gcd(CDC, 9999). Then CDC/g | ABA * (9999/g). Since gcd(CDC/g, 9999/g) may not be 1... actually, let me use a cleaner approach.
+
+Let me just try specific values. Let me focus on CDC values that are 3-digit palindromes and systematically check.
+
+Let me try CDC divisible by 101 first (since 101 is the key factor for period 4).
+
+CDC ∈ {101, 202, 303, 404, 505, 606, 707, 808, 909}. All have D=0.
+
+For these, DEFG must have D=0 (thousands digit 0), so DEFG < 1000. Then ABA * 9999 / CDC < 1000, so ABA < CDC/9999 * 1000 = CDC * 1000/9999 ≈ CDC/10. So ABA < CDC/10.
+
+For CDC=101: ABA < 10.1, so ABA ≤ 10. But ABA is 3-digit (≥ 101). Contradiction.
+For CDC=909: ABA < 90.9, ABA ≤ 90. Still < 101. Contradiction.
+
+So no CDC divisible by 101 works (as I found before). 
+
+Now let me try CDC divisible by 11 but not 101.
+
+CDC ∈ {121, 242, 363, 484, 616, 737, 858, 979}. (Excluding those also divisible by 101: 121=11*11, 242=2*121=2*11^2, 363=3*121=3*11^2, 484=4*121=4*11^2. Wait, are any of these divisible by 101? 121/101 no, 242/101 no, etc. 101 is prime and doesn't divide any of these. Good.)
+
+Wait, but 363 = 3 * 121 = 3 * 11^2. Is 363 divisible by 101? 363/101 ≈ 3.59, no. Good.
+
+Now, for these CDC values, CDC | ABA * 9999. 9999 = 9 * 11 * 101. CDC = 11 * k where k = CDC/11.
+
+ABA * 9999 / CDC = ABA * 9999 / (11k) = ABA * 909 / k.
+
+For this to be integer, k | ABA * 909. 909 = 9 * 101.
+
+k = CDC/11:
+- 121: k=11. DEFG = ABA * 909/11 = ABA * 82.636... wait, 909/11 = 82.636? No, 909 = 9*101 = 909. 909/11 = 82.63...? That's not integer. 
+
+Hmm wait. 9999/121 = 9999/121. 121 = 11^2. 9999 = 9 * 11 * 101. 9999/121 = 9*101/11 = 909/11. 909/11 = 82.63... Not integer. So 121 ∤ 9999. But we need 121 | ABA * 9999. Since 121 = 11^2 and 9999 = 9*11*101 (only one factor of 11), we need 11 | ABA. So ABA must be divisible by 11.
+
+ABA = 101A + 10B. ABA ≡ 0 (mod 11). 101 ≡ 2 (mod 11), 10 ≡ -1 (mod 11). So 2A - B ≡ 0 (mod 11), B ≡ 2A (mod 11). Same as before. So:
+- A=1: B=2 → 121
+- A=2: B=4 → 242
+- A=3: B=6 → 363
+- A=4: B=8 → 484
+- A=5: B=10 → invalid
+- A=6: B=1 → 616
+- A=7: B=3 → 737
+- A=8: B=5 → 858
+- A=9: B=7 → 979
+
+So ABA must be one of {121, 242, 363, 484, 616, 737, 858, 979} (palindromes divisible by 11).
+
+And CDC is also one of these. With ABA < CDC.
+
+DEFG = ABA * 9999 / CDC = ABA * 9999 / CDC.
+
+Let me compute for each pair (ABA, CDC) with both from this set, ABA < CDC:
+
+Actually, let me note that all these numbers are multiples of 11. Let me write ABA = 11 * α, CDC = 11 * γ. Then DEFG = 11α * 9999 / (11γ) = α * 9999 / γ = α * 909 / (γ/11) ... hmm, let me just compute directly.
+
+Actually, 9999 = 11 * 909. So DEFG = ABA * 11 * 909 / CDC = ABA * 11 * 909 / CDC. If CDC = 11 * γ, then DEFG = ABA * 909 / γ. And ABA = 11 * α, so DEFG = 11 * α * 909 / γ = α * 9999 / γ.
+
+For DEFG to be integer, γ | α * 9999. Since γ = CDC/11 and α = ABA/11.
+
+The values:
+- 121 = 11 * 11, α=11
+- 242 = 11 * 22, α=22
+- 363 = 11 * 33, α=33
+- 484 = 11 * 44, α=44
+- 616 = 11 * 56, α=56
+- 737 = 11 * 67, α=67
+- 858 = 11 * 78, α=78
+- 979 = 11 * 89, α=89
+
+γ values: 11, 22, 33, 44, 56, 67, 78, 89.
+
+DEFG = α * 9999 / γ. Need γ | α * 9999.
+
+9999 = 3^2 * 11 * 101.
+
+Let me check each pair. This is getting tedious but let me try.
+
+For each CDC (γ) and ABA (α) with ABA < CDC (α < γ):
+
+CDC=121 (γ=11, C=1, D=2): ABA < 121, so ABA from {} — wait, ABA must be from {121, 242, ...} but ABA < 121, and the smallest is 121. So no ABA < 121 in the set. Skip.
+
+Wait, actually ABA doesn't have to be from this set. ABA just needs to be a 3-digit palindrome. The constraint is CDC | ABA * 9999. For CDC=121=11^2, we need 11^2 | ABA * 9999 = ABA * 9 * 11 * 101. So 11 | ABA * 9 * 101. Since gcd(11, 9*101) = gcd(11, 909) = gcd(11, 909). 909 = 11 * 82.63? No, 909/11 = 82.63, so 11 ∤ 909. Wait, 9999 = 9 * 11 * 101, so 9999 has exactly one factor of 11. For 11^2 | ABA * 9999, we need 11 | ABA. So ABA must be divisible by 11.
+
+So ABA ∈ {121, 242, 363, 484, 616, 737, 858, 979} (3-digit palindromes divisible by 11).
+
+For CDC=121: ABA < 121, but smallest ABA in set is 121. No valid ABA. Skip.
+
+CDC=242 (γ=22, C=2, D=4): Need 242 | ABA * 9999. 242 = 2 * 11^2. 9999 = 9 * 11 * 101. ABA * 9999 = ABA * 9 * 11 * 101. For 2 * 11^2 | ABA * 9 * 11 * 101: need 2 * 11 | ABA * 9 * 101. gcd(22, 909) = gcd(22, 909). 909 = 22 * 41 + 7, gcd(22, 909) = gcd(22, 7) = gcd(7, 1) = 1. So 22 | ABA. So ABA must be divisible by 22.
+
+ABA ∈ {palindromes divisible by 22}. From our set {121, 242, 363, 484, 616, 737, 858, 979}, which are divisible by 22?
+- 121/22 = 5.5, no
+- 242/22 = 11, yes
+- 363/22 = 16.5, no
+- 484/22 = 22, yes
+- 616/22 = 28, yes
+- 737/22 = 33.5, no
+- 858/22 = 39, yes
+- 979/22 = 44.5, no
+
+So ABA ∈ {242, 484, 616, 858} with ABA < 242. Only ABA = ... none < 242. 242 is not < 242. Skip.
+
+Hmm, ABA must be strictly less than CDC=242. 242 is not less than 242. So no valid ABA. Skip.
+
+CDC=363 (γ=33, C=3, D=6): 363 = 3 * 11^2. Need 363 | ABA * 9999 = ABA * 9 * 11 * 101. 363 = 3 * 121 = 3 * 11^2. So need 3 * 11^2 | ABA * 9 * 11 * 101. Simplify: 3 * 11 | ABA * 9 * 101 = ABA * 909. gcd(33, 909) = gcd(33, 909). 909 = 33 * 27 + 18, gcd(33, 18) = gcd(18, 15) = gcd(15, 3) = 3. So gcd(33, 909) = 3. So 33/3 = 11 must divide ABA * 909/3 = ABA * 303. gcd(11, 303) = gcd(11, 303). 303 = 11 * 27 + 6, gcd(11, 6) = 1. So 11 | ABA.
+
+So ABA must be divisible by 11 (and 3 | ABA * 909, which is automatic since 3 | 909).
+
+ABA ∈ {121, 242, 363, 484, 616, 737, 858, 979} with ABA < 363: {121, 242}.
+
+DEFG = ABA * 9999 / 363.
+- ABA=121: DEFG = 121 * 9999 / 363 = 121 * 9999 / 363. 9999/363 = 27.545... hmm let me compute. 363 * 27 = 9801. 9999 - 9801 = 198. 198/363 = 0.545... So 9999/363 is not integer. But DEFG = 121 * 9999 / 363. 121 * 9999 = 1209879. 1209879 / 363 = 3333.0. Let me verify: 363 * 3333 = 363 * 3000 + 363 * 333 = 1089000 + 120879 = 1209879. Yes! DEFG = 3333.
+
+But 101 | 3333? 3333/101 = 33.0. Yes, 101 | 3333. So period is not 4. Skip.
+
+- ABA=242: DEFG = 242 * 9999 / 363 = 242 * 9999 / 363. 242 * 9999 = 2419758. 2419758 / 363 = 6666.0. Let me verify: 363 * 6666 = 363 * 6000 + 363 * 666 = 2178000 + 241758 = 2419758. Yes! DEFG = 6666.
+
+101 | 6666? 6666/101 = 66.0. Yes. Period not 4. Skip.
+
+CDC=484 (γ=44, C=4, D=8): 484 = 4 * 121 = 4 * 11^2 = 2^2 * 11^2. Need 484 | ABA * 9999 = ABA * 9 * 11 * 101. 484 = 4 * 121. Need 4 * 11^2 | ABA * 9 * 11 * 101. So 4 * 11 | ABA * 9 * 101 = ABA * 909. gcd(44, 909) = gcd(44, 909). 909 = 44*20 + 29, gcd(44, 29) = gcd(29, 15) = gcd(15, 14) = gcd(14, 1) = 1. So 44 | ABA. 
+
+ABA divisible by 44 from our set: 484/44 = 11, yes. 858/44 = 19.5, no. So only 484. But 484 < 484 is false. No valid ABA < 484 that's divisible by 44. Skip.
+
+Hmm wait, let me check more carefully. ABA must be a 3-digit palindrome divisible by 44. 3-digit palindromes divisible by 11: {121, 242, 363, 484, 616, 737, 858, 979}. Divisible by 44 = 4*11: need divisible by 4 and 11. 
+- 121: odd, no
+- 242: 242/4 = 60.5, no
+- 363: odd, no
+- 484: 484/4 = 121, yes → 484/44 = 11, yes
+- 616: 616/4 = 154, yes → 616/44 = 14, yes
+- 737: odd, no
+- 858: 858/4 = 214.5, no
+- 979: odd, no
+
+So ABA ∈ {484, 616} divisible by 44. ABA < 484: none. Skip.
+
+CDC=616 (γ=56, C=6, D=1): 616 = 8 * 77 = 8 * 7 * 11 = 2^3 * 7 * 11. Need 616 | ABA * 9999 = ABA * 9 * 11 * 101. 616 = 2^3 * 7 * 11. So need 2^3 * 7 * 11 | ABA * 9 * 11 * 101. Simplify: 2^3 * 7 | ABA * 9 * 101 = ABA * 909. gcd(56, 909) = gcd(56, 909). 909 = 56*16 + 13, gcd(56, 13) = gcd(13, 4) = gcd(4, 1) = 1. So 56 | ABA.
+
+ABA divisible by 56 from our set: 616/56 = 11, yes. Others? 56*4 = 224 (not palindrome), 56*5=280 (no), etc. From the palindrome set: only 616. ABA < 616: none divisible by 56. Skip.
+
+CDC=737 (γ=67, C=7, D=3): 737 = 11 * 67. 67 is prime. Need 737 | ABA * 9999 = ABA * 9 * 11 * 101. 737 = 11 * 67. So need 67 | ABA * 9 * 101 = ABA * 909. gcd(67, 909) = gcd(67, 909). 909 = 67*13 + 58, gcd(67, 58) = gcd(58, 9) = gcd(9, 4) = gcd(4, 1) = 1. So 67 | ABA.
+
+ABA divisible by 67: 67 * 11 = 737 (that's CDC itself, not < CDC). 67 * 3 = 201 (not palindrome). 67 * 4 = 268 (no). Hmm, 3-digit palindromes divisible by 67: 67*11=737 (yes, but = CDC). 67*1=67 (2-digit). 67*2=134 (no). 67*3=201 (no). 67*4=268 (no). 67*5=335 (no). 67*6=402 (no). 67*7=469 (no). 67*8=536 (no). 67*9=603 (no). 67*10=670 (no). 67*11=737. 67*12=804 (no). 67*13=871 (no). 67*14=938 (no). So only 737, which equals CDC. No ABA < 737. Skip.
+
+CDC=858 (γ=78, C=8, D=5): 858 = 11 * 78 = 11 * 2 * 3 * 13 = 2 * 3 * 11 * 13. Need 858 | ABA * 9999 = ABA * 9 * 11 * 101. 858 = 2 * 3 * 11 * 13. So need 2 * 3 * 11 * 13 | ABA * 9 * 11 * 101. Simplify: 2 * 13 | ABA * 9 * 101 / 3 = ABA * 303. Wait, let me be more careful.
+
+858 = 2 * 3 * 11 * 13. 9999 = 3^2 * 11 * 101. ABA * 9999 = ABA * 3^2 * 11 * 101. Need 2 * 3 * 11 * 13 | ABA * 3^2 * 11 * 101. Cancel 3 * 11: need 2 * 13 | ABA * 3 * 101 = ABA * 303. gcd(26, 303) = gcd(26, 303). 303 = 26*11 + 17, gcd(26, 17) = gcd(17, 9) = gcd(9, 8) = gcd(8, 1) = 1. So 26 | ABA.
+
+ABA divisible by 26: 3-digit palindromes divisible by 26. 26 * 4 = 104 (no, not palindrome). 26*5 = 130 (no). ... Let me check from our set {121, 242, 363, 484, 616, 737, 858, 979}: 
+- 121/26 = 4.65, no
+- 242/26 = 9.31, no
+- 363/26 = 13.96, no
+- 484/26 = 18.62, no
+- 616/26 = 23.69, no
+- 737/26 = 28.35, no
+- 858/26 = 33, yes!
+- 979/26 = 37.65, no
+
+So only 858, which equals CDC. No ABA < 858. Skip.
+
+CDC=979 (γ=89, C=9, D=7): 979 = 11 * 89. 89 is prime. Need 979 | ABA * 9999 = ABA * 9 * 11 * 101. 979 = 11 * 89. Need 89 | ABA * 9 * 101 = ABA * 909. gcd(89, 909) = gcd(89, 909). 909 = 89*10 + 19, gcd(89, 19) = gcd(19, 13) = gcd(13, 6) = gcd(6, 1) = 1. So 89 | ABA.
+
+ABA divisible by 89: 89 * 11 = 979 (= CDC). 89*1=89 (2-digit). 89*2=178 (no). 89*3=267 (no). 89*4=356 (no). 89*5=445 (no). 89*6=534 (no). 89*7=623 (no). 89*8=712 (no). 89*9=801 (no). 89*10=890 (no). 89*11=979. So only 979 = CDC. No ABA < 979. Skip.
+
+So none of the CDC values divisible by 11 (but not 101) work! 
+
+Now let me try CDC divisible by 3 (but not by 11 or 101).
+
+CDC = 101C + 10D, divisible by 3: 2C + D ≡ 0 (mod 3) (since 101 ≡ 2, 10 ≡ 1 mod 3).
+
+There are many such palindromes. Let me think about which ones could work.
+
+For CDC divisible by 3 but not 11 or 101: CDC | ABA * 9999. 9999 = 3^2 * 11 * 101. Let g = gcd(CDC, 9999). Since CDC is divisible by 3, g ≥ 3. If CDC is not divisible by 9, 11, or 101, then g = 3 (or g = 3 if CDC has exactly one factor of 3).
+
+CDC/g | ABA * 9999/g. If g = 3, then CDC/3 | ABA * 3333. 3333 = 3 * 11 * 101. CDC/3 must divide ABA * 3333. If CDC/3 is coprime to 3333, then CDC/3 | ABA, but ABA < CDC so ABA < 3*(CDC/3), meaning ABA could be at most CDC/3 or 2*CDC/3. Hmm, this is possible if CDC/3 is small enough.
+
+Actually, let me think about this differently. Let me consider CDC = 3 * k where k = CDC/3, and gcd(k, 3333) = gcd(k, 3*11*101). If k is coprime to 3333, then k | ABA. Since ABA < CDC = 3k, we have ABA < 3k, and k | ABA means ABA ∈ {k, 2k} (since ABA > 0 and ABA < 3k). But ABA must be a 3-digit palindrome.
+
+DEFG = ABA * 9999 / CDC = ABA * 9999 / (3k) = ABA * 3333 / k. If ABA = k, DEFG = 3333. If ABA = 2k, DEFG = 6666. Both are divisible by 101 (3333 = 33*101, 6666 = 66*101). So period is not 4. Skip.
+
+If k shares a factor with 3333, say k = 3 * k' (CDC divisible by 9), then g = gcd(CDC, 9999) ≥ 9. Let me consider CDC divisible by 9.
+
+CDC divisible by 9: 101C + 10D ≡ 0 (mod 9). 101 ≡ 2 (mod 9), 10 ≡ 1 (mod 9). So 2C + D ≡ 0 (mod 9). D ≡ -2C (mod 9).
+
+- C=1: D ≡ -2 ≡ 7, D=7 → 171
+- C=2: D ≡ -4 ≡ 5, D=5 → 252
+- C=3: D ≡ -6 ≡ 3, D=3 → 333
+- C=4: D ≡ -8 ≡ 1, D=1 → 414
+- C=5: D ≡ -10 ≡ -1 ≡ 8, D=8 → 585
+- C=6: D ≡ -12 ≡ -3 ≡ 6, D=6 → 666
+- C=7: D ≡ -14 ≡ -5 ≡ 4, D=4 → 747
+- C=8: D ≡ -16 ≡ -7 ≡ 2, D=2 → 828
+- C=9: D ≡ -18 ≡ 0, D=0 → 909
+
+3-digit palindromes divisible by 9: 171, 252, 333, 414, 585, 666, 747, 828, 909.
+
+Now, 909 = 9 * 101 (divisible by 101, already handled). 333 = 9 * 37. 666 = 9 * 74 = 9 * 2 * 37. Let me check which are divisible by 11: 171/11 = 15.5, no. 252/11 = 22.9, no. 333/11 = 30.3, no. 414/11 = 37.6, no. 585/11 = 53.2, no. 666/11 = 60.5, no. 747/11 = 67.9, no. 828/11 = 75.3, no. 909/11 = 82.6, no. So none divisible by 11 (except we should check: 252 = 4*63 = 4*9*7, not div by 11. OK.)
+
+So CDC divisible by 9 but not 11 or 101: {171, 252, 333, 414, 585, 666, 747, 828}.
+
+For these, g = gcd(CDC, 9999) = 9 (if CDC = 9*k with gcd(k, 1111) = 1) or more.
+
+Let me factor each:
+- 171 = 9 * 19. gcd(19, 1111) = gcd(19, 1111). 1111 = 19*58 + 9, gcd(19, 9) = 1. So g = 9.
+- 252 = 9 * 28 = 9 * 4 * 7. gcd(28, 1111) = 1 (1111 = 11*101, 28 = 4*7). g = 9.
+- 333 = 9 * 37. gcd(37, 1111) = gcd(37, 1111). 1111 = 37*30 + 1, gcd = 1. g = 9.
+- 414 = 9 * 46 = 9 * 2 * 23. gcd(46, 1111) = 1. g = 9.
+- 585 = 9 * 65 = 9 * 5 * 13. gcd(65, 1111) = 1. g = 9.
+- 666 = 9 * 74 = 9 * 2 * 37. gcd(74, 1111) = 1. g = 9.
+- 747 = 9 * 83. gcd(83, 1111) = gcd(83, 1111). 1111 = 83*13 + 32, gcd(83, 32) = gcd(32, 19) = gcd(19, 13) = gcd(13, 6) = gcd(6, 1) = 1. g = 9.
+- 828 = 9 * 92 = 9 * 4 * 23. gcd(92, 1111) = 1. g = 9.
+
+So for all these, g = 9, and CDC/9 = k where gcd(k, 1111) = 1.
+
+DEFG = ABA * 9999 / CDC = ABA * 9999 / (9k) = ABA * 1111 / k. For this to be integer, k | ABA * 1111. Since gcd(k, 1111) = 1, k | ABA. Since ABA < CDC = 9k, ABA < 9k, and k | ABA means ABA = j*k for j ∈ {1,...,8} (since ABA ≥ 100 and ABA < 9k).
+
+DEFG = j*k * 1111 / k = j * 1111.
+
+j * 1111 for j = 1..8: 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888.
+
+All of these are divisible by 101 (1111 = 11*101, 2222 = 2*11*101, etc.). So 101 | DEFG, period is not 4. Skip all.
+
+So CDC divisible by 9 (but not 11 or 101) doesn't work.
+
+Now, CDC divisible by 3 but not 9, 11, or 101. Then g = gcd(CDC, 9999) = 3. CDC = 3k, gcd(k, 3333) = 1 (since k not divisible by 3, 11, or 101). DEFG = ABA * 9999 / (3k) = ABA * 3333 / k. k | ABA (since gcd(k, 3333) = 1). ABA < 3k, so ABA = k or 2k. DEFG = 3333 or 6666. Both div by 101. Skip.
+
+So CDC divisible by 3 (but not 11 or 101) doesn't work.
+
+What about CDC divisible by both 3 and 11 but not 101? CDC divisible by 33.
+
+CDC = 33 * m. 3-digit: 33 * 4 = 132 (not palindrome), 33*5=165 (no), 33*6=198 (no), 33*7=231 (no), 33*8=264 (no), 33*9=297 (no), 33*10=330 (no), 33*11=363 (yes! palindrome), 33*12=396 (no), 33*13=429 (no), 33*14=462 (no), 33*15=495 (no), 33*16=528 (no), 33*17=561 (no), 33*18=594 (no), 33*19=627 (no), 33*20=660 (no), 33*21=693 (no), 33*22=726 (no), 33*23=759 (no), 33*24=792 (no), 33*25=825 (no), 33*26=858 (yes! palindrome), 33*27=891 (no), 33*28=924 (no), 33*29=957 (no), 33*30=990 (no).
+
+So 3-digit palindromes divisible by 33: 363, 858. But we already handled these in the "divisible by 11" case. 363 = 3 * 121, 858 = 2 * 3 * 11 * 13. Both were handled and failed.
+
+What about CDC divisible by 33 but also by 9? That's divisible by 99. 3-digit palindromes divisible by 99: 99 * 2 = 198 (no), 99*3=297 (no), 99*4=396 (no), 99*5=495 (no), 99*6=594 (no), 99*7=693 (no), 99*8=792 (no), 99*9=891 (no), 99*10=990 (no). None are palindromes. So no CDC divisible by 99.
+
+What about CDC divisible by 9 and 11 = 99? Same as above, none.
+
+What about CDC divisible by 3 and 101 = 303? 303 is a palindrome (CDC=303, C=3, D=0). Already handled in the 101 case (D=0, failed).
+
+CDC divisible by 9 and 101 = 909? 909 is a palindrome. Already handled (D=0, failed).
+
+CDC divisible by 11 and 101 = 1111? 4-digit, skip.
+
+CDC divisible by 3, 11, and 101 = 3333? 4-digit, skip.
+
+So I've exhausted all cases where CDC shares a factor with 9999, and none work? That can't be right.
+
+Wait, let me reconsider. Maybe I need to also consider CDC that shares a factor with 9999 in a more complex way. Let me reconsider.
+
+Actually, I think I need to reconsider the case where CDC is divisible by 3 and also has a factor in common with 1111 = 11 * 101, but not fully divisible by 11 or 101.
+
+Wait, I think I've been thorough. Let me reconsider the problem.
+
+Hmm, actually, let me reconsider. Maybe the issue is that I'm requiring ABA to be a palindrome divisible by certain things, but ABA doesn't have to be divisible by 11 etc. The constraint is just CDC | ABA * 9999.
+
+Let me reconsider CDC = 171 = 9 * 19. g = gcd(171, 9999) = 9. CDC/g = 19. 9999/g = 1111. Need 19 | ABA * 1111. gcd(19, 1111) = 1 (checked earlier). So 19 | ABA. ABA < 171, so ABA ∈ {19*5=95 (2-digit), 19*6=114, 19*7=133, 19*8=152, 19*9=171}. ABA < 171, so ABA ∈ {114, 133, 152}. But ABA must be a 3-digit palindrome. 114 (no), 133 (yes! 1-3-3, but first digit 1, last digit 3, not equal. Not a palindrome). 152 (no). So none are palindromes. Skip.
+
+Wait, 114: first digit 1, last digit 4. Not palindrome. 133: 1-3-3, first=1, last=3, not palindrome. 152: 1-5-2, not palindrome. So no valid ABA. Skip.
+
+CDC = 252 = 9 * 28. g = 9. CDC/g = 28. Need 28 | ABA * 1111. gcd(28, 1111) = 1. So 28 | ABA. ABA < 252. 28*4 = 112 (no, 1-1-2 not palindrome). 28*5 = 140 (no). 28*6 = 168 (no). 28*7 = 196 (no). 28*8 = 224 (no, 2-2-4 not palindrome). 28*9 = 252 (= CDC, not < CDC). So no valid ABA. Skip.
+
+CDC = 333 = 9 * 37. g = 9. Need 37 | ABA * 1111. gcd(37, 1111) = 1. So 37 | ABA. ABA < 333. 37*3 = 111 (yes! palindrome 1-1-1). 37*4 = 148 (no). 37*5 = 185 (no). 37*6 = 222 (yes! 2-2-2). 37*7 = 259 (no). 37*8 = 296 (no). 37*9 = 333 (= CDC). So ABA ∈ {111, 222}.
+
+DEFG = ABA * 1111 / 37 = ABA * 1111/37. 1111/37 = 30.027... wait, 37*30 = 1110, 1111-1110 = 1. So 1111/37 is not integer. But DEFG = ABA * 1111 / 37. Since 37 | ABA, let ABA = 37j. DEFG = 37j * 1111 / 37 = j * 1111.
+
+- ABA=111=37*3: DEFG = 3 * 1111 = 3333. 101 | 3333. Skip.
+- ABA=222=37*6: DEFG = 6 * 1111 = 6666. 101 | 6666. Skip.
+
+CDC = 414 = 9 * 46. g = 9. Need 46 | ABA * 1111. gcd(46, 1111) = 1. So 46 | ABA. ABA < 414. 46*3 = 138 (no). 46*4 = 184 (no). 46*5 = 230 (no). 46*6 = 276 (no). 46*7 = 322 (no, 3-2-2). 46*8 = 368 (no). 46*9 = 414 (= CDC). So no valid ABA. Skip.
+
+CDC = 585 = 9 * 65. g = 9. Need 65 | ABA * 1111. gcd(65, 1111) = 1. So 65 | ABA. ABA < 585. 65*2 = 130 (no). 65*3 = 195 (no). 65*4 = 260 (no). 65*5 = 325 (no). 65*6 = 390 (no). 65*7 = 455 (no, 4-5-5). 65*8 = 520 (no). 65*9 = 585 (= CDC). So no valid ABA. Skip.
+
+CDC = 666 = 9 * 74. g = 9. Need 74 | ABA * 1111. gcd(74, 1111) = 1. So 74 | ABA. ABA < 666. 74*2 = 148 (no). 74*3 = 222 (yes! palindrome). 74*4 = 296 (no). 74*5 = 370 (no). 74*6 = 444 (yes! 4-4-4). 74*7 = 518 (no). 74*8 = 592 (no). 74*9 = 666 (= CDC). So ABA ∈ {222, 444}.
+
+DEFG = ABA * 1111 / 74. ABA = 74j. DEFG = j * 1111.
+- ABA=222=74*3: DEFG = 3*1111 = 3333. 101|3333. Skip.
+- ABA=444=74*6: DEFG = 6*1111 = 6666. 101|6666. Skip.
+
+CDC = 747 = 9 * 83. g = 9. Need 83 | ABA * 1111. gcd(83, 1111) = 1. So 83 | ABA. ABA < 747. 83*2 = 166 (no). 83*3 = 249 (no). 83*4 = 332 (no). 83*5 = 415 (no). 83*6 = 498 (no). 83*7 = 581 (no). 83*8 = 664 (no). 83*9 = 747 (= CDC). So no valid ABA. Skip.
+
+CDC = 828 = 9 * 92. g = 9. Need 92 | ABA * 1111. gcd(92, 1111) = 1. So 92 | ABA. ABA < 828. 92*2 = 184 (no). 92*3 = 276 (no). 92*4 = 368 (no). 92*5 = 460 (no). 92*6 = 552 (no). 92*7 = 644 (no). 92*8 = 736 (no). 92*9 = 828 (= CDC). So no valid ABA. Skip.
+
+So all CDC divisible by 9 (but not 11 or 101) fail because DEFG is always a multiple of 1111 (hence of 101).
+
+Now let me try CDC divisible by 3 but not 9, 11, or 101.
+
+These are 3-digit palindromes where 2C + D ≡ 0 (mod 3) but not (mod 9), and not divisible by 11 or 101.
+
+g = 3. CDC = 3k, gcd(k, 3333) = 1. k | ABA, ABA < 3k, ABA = k or 2k. DEFG = 3333 or 6666. Both div by 101. Skip.
+
+So indeed, for any CDC where g = gcd(CDC, 9999) ∈ {3, 9}, DEFG is a multiple of 1111 (div by 101). Period not 4.
+
+For g involving 11 (but not 101): g ∈ {11, 33, 99}. I checked these above and found no valid (ABA, CDC) pairs, or DEFG was div by 101.
+
+For g involving 101: g ∈ {101, 303, 909, 1111, 3333, 9999}. D=0 always (for 3-digit CDC), leading to D mismatch.
+
+Hmm, so it seems like no solution exists? But the problem says to find the fraction. Let me re-examine.
+
+Wait, maybe I need to reconsider. Let me re-examine the cases where g involves 11 more carefully.
+
+For g = 11: CDC = 11 * k, gcd(k, 909) = 1 (since 9999/11 = 909 = 9*101). Wait, I need to be more careful. g = gcd(CDC, 9999). If CDC is divisible by 11 but not by 3, 9, or 101, then g = 11.
+
+CDC = 11k, gcd(k, 909) = 1. DEFG = ABA * 9999 / CDC = ABA * 909 / k. k | ABA * 909. Since gcd(k, 909) = 1, k | ABA. ABA < 11k, so ABA = j*k for j ∈ {1,...,10}. DEFG = j * 909.
+
+j * 909 for j = 1..10: 909, 1818, 2727, 3636, 4545, 5454, 6363, 7272, 8181, 9090.
+
+All divisible by 101 (909 = 9*101). So 101 | DEFG. Period not 4. Skip.
+
+For g = 33: CDC = 33k, gcd(k, 303) = 1 (9999/33 = 303 = 3*101). DEFG = ABA * 303 / k. k | ABA. ABA < 33k. DEFG = j * 303. All div by 101. Skip.
+
+For g = 99: CDC = 99k, gcd(k, 101) = 1 (9999/99 = 101). DEFG = ABA * 101 / k. k | ABA. ABA < 99k. DEFG = j * 101. All div by 101. Skip.
+
+So for g involving 11 (but not 101), DEFG is always div by 101. Period not 4.
+
+For g involving 101: D=0 issue.
+
+For g involving only 3: DEFG div by 1111, hence by 101. Period not 4.
+
+So in ALL cases, either DEFG is divisible by 101 (period not 4) or D=0 causes a mismatch. 
+
+This means... there's no solution? But the problem asks to find the fraction. Let me re-examine my reasoning.
+
+Oh wait. I think I need to reconsider. The key issue is: when g = gcd(CDC, 9999) involves 101, we get D=0. But what if DEFG is a 3-digit number (D=0) and ABA is still 3-digit?
+
+For g = 101: CDC = 101g', DEFG = ABA * 99 / g'. Wait, let me redo this.
+
+If g = gcd(CDC, 9999) = 101 (CDC divisible by 101 but not 3, 9, 11):
+CDC = 101 * k, gcd(k, 99) = 1. DEFG = ABA * 9999 / CDC = ABA * 99 / k. k | ABA * 99. Since gcd(k, 99) = 1, k | ABA. ABA < 101k. DEFG = j * 99 where ABA = j*k.
+
+For DEFG to not be div by 101: 101 ∤ j*99. Since gcd(99, 101) = 1, 101 ∤ j. So j not a multiple of 101. Since j < 101 (ABA < 101k, ABA = jk, j < 101), j is never a multiple of 101. Good, so 101 ∤ DEFG. Period is 4!
+
+But CDC = 101k. For CDC to be 3-digit: 101 ≤ 101k ≤ 999, k ∈ {1,...,9}. CDC = 101, 202, ..., 909. All have D=0.
+
+DEFG = j * 99. D = 0 (from CDC). So DEFG < 1000, j * 99 < 1000, j < 10.1, j ≤ 10. ABA = j * k. For ABA to be 3-digit: j*k ≥ 100. With j ≤ 10 and k ≤ 9: j*k ≤ 90 < 100. Contradiction!
+
+So ABA can't be 3-digit. This is the same issue as before.
+
+But wait—what if k > 9? No, CDC = 101k ≤ 999 means k ≤ 9.
+
+Hmm. What if g = gcd(CDC, 9999) = 303 = 3 * 101? CDC divisible by 303 but not 9, 11.
+CDC = 303 * k, gcd(k, 33) = 1 (9999/303 = 33). k = 1: CDC = 303. k = 2: 606. k = 3: 909. All have D=0.
+DEFG = ABA * 33 / k. k | ABA (since gcd(k, 33) = 1). DEFG = j * 33. 101 ∤ j*33 (since gcd(33, 101) = 1 and j < 303). Good.
+D = 0, DEFG < 1000, j*33 < 1000, j < 30.3. ABA = j*k, 3-digit: j*k ≥ 100. k ≤ 3, j ≤ 30: j*k ≤ 90 < 100. Contradiction.
+
+g = 909 = 9 * 101: CDC = 909 only. D=0. DEFG = ABA * 11. DEFG < 1000, ABA < 91. Not 3-digit. Contradiction.
+
+g = 1111 = 11 * 101: CDC = 1111, 4-digit. Skip.
+
+So whenever 101 | g, we get D=0 and ABA can't be 3-digit. The fundamental issue is that 101k for k ≤ 9 always has D=0, and D=0 forces DEFG < 1000, which forces ABA < 100.
+
+Hmm, so is the problem unsolvable? That seems unlikely for a competition problem. Let me re-read the problem.
+
+"In the fraction ABA/CDC = 0.DEFḠ, each letter represents a distinct digit. The decimal expansion is purely periodic with a period of length four. Find the fraction."
+
+Wait, maybe I'm wrong about the period condition. Let me reconsider.
+
+The fraction ABA/CDC, when written as a decimal, is 0.DEFGDEFGDEFG... with period 4. This means ABA/CDC = DEFG/9999 where DEFG is the 4-digit repeating block.
+
+But actually, the period of ABA/CDC depends on the denominator CDC (after reducing the fraction). Let me reconsider.
+
+ABA/CDC reduces to some fraction p/q in lowest terms. The decimal expansion of p/q is purely periodic (no pre-period) iff gcd(q, 10) = 1. The period is the order of 10 mod q.
+
+For the period to be 4, we need ord_q(10) = 4.
+
+Now, ABA/CDC = DEFG/9999, but DEFG/9999 might not be in lowest terms. The reduced form p/q has q | 9999 (since 9999 is the denominator before reduction, and q = 9999/gcd(DEFG, 9999)).
+
+For ord_q(10) = 4, we need q | 9999 (so that 10^4 ≡ 1 mod q) and q ∤ 999, 99, 9 (so the order isn't 3, 2, or 1).
+
+Actually, 10^4 - 1 = 9999. So q | 9999 and q ∤ 999, 99, 9.
+
+999 = 27 * 37 = 3^3 * 37.
+99 = 9 * 11.
+9 = 3^2.
+
+9999 = 3^2 * 11 * 101.
+
+q | 9999 means q | 3^2 * 11 * 101.
+q ∤ 999 = 3^3 * 37: Since q | 9999 = 3^2 * 11 * 101 and 999 = 3^3 * 37, the only common factor is 3^2. So q ∤ 999 is automatic unless q | 9 (since gcd(9999, 999) = 9). Wait, q | 9999 and q | 999 iff q | gcd(9999, 999) = 9. So q ∤ 999 iff q ∤ 9.
+
+q ∤ 99: q | 9999 and q | 99 iff q | gcd(9999, 99) = 99. So q ∤ 99 iff q ∤ 99. Since q | 9999 = 3^2 * 11 * 101 and 99 = 9 * 11, q | 99 iff q | 99, i.e., q has no factor of 101. So q ∤ 99 iff 101 | q.
+
+q ∤ 9: q | 9 iff q ∈ {1, 3, 9}. So q ∤ 9 iff q ∉ {1, 3, 9}.
+
+So the conditions are:
+1. q | 9999
+2. q ∤ 9 (i.e., q ∉ {1, 3, 9})
+3. 101 | q (equivalently q ∤ 99)
+
+Condition 3 is the key: 101 | q. Since q = 9999 / gcd(DEFG, 9999), 101 | q iff 101 ∤ gcd(DEFG, 9999) iff 101 ∤ DEFG.
+
+So the period is exactly 4 iff:
+- 101 | q (i.e., 101 ∤ DEFG)
+- q ∤ 9 (i.e., q ∉ {1, 3, 9}, i.e., gcd(DEFG, 9999) ∉ {9999, 3333, 1111})
+
+Wait, q ∤ 9 means q > 9 or q doesn't divide 9. q | 9999 and q | 9 iff q | gcd(9999, 9) = 9. So q | 9 iff q ∈ {1, 3, 9}. So q ∤ 9 iff q ∉ {1, 3, 9}.
+
+q = 9999/gcd(DEFG, 9999). q ∈ {1, 3, 9} iff gcd(DEFG, 9999) ∈ {9999, 3333, 1111}. 
+
+gcd(DEFG, 9999) = 9999 iff 9999 | DEFG, but DEFG ≤ 9999, so DEFG = 9999. Then all digits are 9, not distinct.
+gcd(DEFG, 9999) = 3333 iff DEFG is a multiple of 3333 and gcd = 3333. DEFG ∈ {3333, 6666, 9999}. 3333 has repeated digits, 6666 repeated, 9999 repeated. So these don't work anyway (digits not distinct).
+gcd(DEFG, 9999) = 1111 iff DEFG is a multiple of 1111 and gcd(DEFG, 9999) = 1111. DEFG ∈ {1111, 2222, ..., 9999}. All have repeated digits.
+
+So condition 2 (q ∤ 9) is automatically satisfied when DEFG has distinct digits. Good.
+
+So the only real condition for period 4 is 101 ∤ DEFG. My earlier analysis was correct.
+
+And I've shown that in all cases, either 101 | DEFG or D=0 causes ABA to not be 3-digit. 
+
+Hmm, wait. Let me reconsider. Maybe I need to look at this from a different angle. Let me reconsider whether there are CDC values I haven't considered.
+
+Actually, I realize I may have made an error. Let me reconsider the case where gcd(CDC, 9999) involves both 3 and 11 but not 101, i.e., g = 33 or g = 99. In those cases, DEFG = j * (9999/g) = j * 303 or j * 101, both divisible by 101. So period not 4. Correct.
+
+And g involving 101 gives D=0. And g involving only 3 gives DEFG div by 1111 (hence 101). And g involving only 11 gives DEFG div by 909 (hence 101).
+
+So the only way to get 101 ∤ DEFG is to have g involving 101. But then D=0 and ABA can't be 3-digit.
+
+Unless... wait, what if CDC is divisible by 101 but is NOT of the form 101*k for small k? No, CDC is a 3-digit number divisible by 101, so CDC ∈ {101, 202, 303, 404, 505, 606, 707, 808, 909}, all of which have D=0.
+
+Hmm, I'm stuck. Let me reconsider the problem from scratch.
+
+Actually, wait. Let me reconsider whether D must be 0 when CDC is divisible by 101. CDC = 101C + 10D. If 101 | CDC, then 101 | (101C + 10D), so 101 | 10D. Since gcd(101, 10) = 1, 101 | D. D is a digit 0-9, so D = 0. Yes, D must be 0.
+
+So whenever 101 | CDC, D = 0. And we need 101 | g = gcd(CDC, 9999) for 101 ∤ DEFG. But 101 | g means 101 | CDC, which means D = 0, which means DEFG < 1000, which means ABA < 100. Contradiction.
+
+Wait, but 101 | g doesn't necessarily mean 101 | CDC. g = gcd(CDC, 9999). 101 | g means 101 | CDC AND 101 | 9999 (which is true). So yes, 101 | g implies 101 | CDC implies D = 0.
+
+But actually, I need 101 | q where q = 9999/gcd(DEFG, 9999). This is 101 ∤ DEFG. This doesn't directly require 101 | g = gcd(CDC, 9999).
+
+Let me reconsider. The condition is 101 ∤ DEFG. DEFG = ABA * 9999 / CDC. 
+
+Let me think about when 101 | DEFG. 101 | DEFG iff 101 | ABA * 9999 / CDC. Since 101 | 9999, we have 101 | ABA * 9999. So 101 | DEFG iff 101 | ABA * 9999 / CDC, which (since 101 | ABA * 9999) is equivalent to: the power of 101 in CDC is ≤ the power of 101 in ABA * 9999.
+
+9999 = 3^2 * 11 * 101, so v_101(9999) = 1. ABA * 9999 has v_101 = v_101(ABA) + 1. CDC has v_101(CDC). DEFG = ABA * 9999 / CDC has v_101(DEFG) = v_101(ABA) + 1 - v_101(CDC).
+
+For 101 ∤ DEFG: v_101(DEFG) = 0, so v_101(ABA) + 1 - v_101(CDC) = 0, i.e., v_101(CDC) = v_101(ABA) + 1.
+
+Since CDC is a 3-digit number, v_101(CDC) ≤ 1 (as 101^2 = 10201 > 999). So v_101(CDC) ∈ {0, 1}.
+
+Case 1: v_101(CDC) = 1, v_101(ABA) = 0. Then 101 | CDC, 101 ∤ ABA. D = 0 (as shown). DEFG = ABA * 99 / (CDC/101). Let CDC = 101 * s, s ∈ {1..9}. DEFG = ABA * 99 / s. For DEFG to be integer, s | ABA * 99. 
+
+D = 0, so DEFG < 1000 (or DEFG has leading digit 0). DEFG = ABA * 99 / s. For DEFG < 1000: ABA * 99 / s < 1000, ABA < 1000 * s / 99 ≈ 10.1 * s. For s = 9: ABA < 90.9, ABA ≤ 90. Not 3-digit. For s = 1: ABA < 10.1. Not 3-digit. So ABA can't be 3-digit. Same issue.
+
+Case 2: v_101(CDC) = 0, v_101(ABA) = -1. Impossible since v_101(ABA) ≥ 0.
+
+So the only way to have 101 ∤ DEFG is Case 1, which requires D = 0 and ABA < 100. Impossible.
+
+This means... there is genuinely no solution? That seems wrong for a competition problem.
+
+Let me re-read the problem once more: "In the fraction ABA/CDC = 0.DEFḠ, each letter represents a distinct digit."
+
+Hmm, wait. What if the overline is only over DEFG, but the decimal might have a non-repeating part? No, it says "purely periodic."
+
+What if ABA/CDC is not in lowest terms and the decimal has a different period? No, the decimal expansion of ABA/CDC is what it is, regardless of representation.
+
+Let me reconsider: maybe the problem allows A = C or other letter overlaps? "each letter represents a distinct digit" — this means all letters are distinct. A, B, C, D, E, F, G are 7 distinct digits.
+
+Wait, actually, let me reconsider. Maybe I'm wrong about the period. Let me reconsider whether the period could be 4 even when 101 | DEFG.
+
+If 101 | DEFG, then q = 9999/gcd(DEFG, 9999). If 101 | gcd(DEFG, 9999), then 101 ∤ q. Then q | 99. The order of 10 mod q where q | 99: q ∈ {1, 3, 9, 11, 33, 99}. Orders: 1, 1, 1, 2, 2, 2. So period is 1 or 2. Not 4. Correct.
+
+So the period is 4 only if 101 ∤ DEFG, which requires 101 | CDC, which requires D = 0, which makes ABA < 100. Contradiction.
+
+Unless... the problem is using a different definition or I'm misunderstanding something.
+
+Oh wait! Maybe the problem doesn't require ABA/CDC to be in lowest terms, and the decimal expansion of ABA/CDC (not reduced) has period 4. But the decimal expansion of a fraction doesn't depend on whether it's reduced. The decimal expansion of ABA/CDC is the same as the decimal expansion of the reduced form. So this doesn't change anything.
+
+Hmm, let me reconsider. Maybe I'm wrong that 0.DEFḠ = DEFG/9999. Let me double-check.
+
+0.DEFḠ = 0.DEFGDEFGDEFG... = DEFG/9999. Yes, this is correct. The repeating decimal 0.ab        — AI历史解题过程（thinking）
+#   polymath_04583         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_04583</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+In the fraction \(\frac{ABA}{CDC} = 0.\overline{DEFG}\), each letter represents a distinct digit. The decimal expansion is purely periodic with a period of length four. Find the fraction.
+
+## Standard Solution
+
+To solve the problem, we need to find the fraction \(\frac{ABA}{CDC}\) which equals \(0.\overline{DEFG}\), where each letter represents a distinct digit and the decimal has a period of 4 digits.
+
+### Step 1: Determine the Denominator
+A purely periodic decimal with a period of 4 digits implies that the denominator must be a factor of 9999. Factoring 9999, we get:
+\[ 9999 = 3^2 \times 11 \times 101 \]
+
+The three-digit factors of 9999 are:
+- \(303 = 3 \times 101\)
+- \(909 = 9 \times 101\)
+- \(101\)
+
+### Step 2: Evaluate Each Possible Denominator
+#### Case 1: \(CDC = 101\)
+If \(CDC = 101\), then \(C = 1\). For the fraction \(\frac{ABA}{101}\) to be less than 1 (since the decimal is purely periodic), \(ABA\) must be less than 101. However, \(ABA\) is a three-digit palindrome, so \(A\) must be 1, which conflicts with \(C = 1\). Therefore, \(CDC = 101\) is not possible.
+
+#### Case 2: \(CDC = 909\)
+If \(CDC = 909\), then \(C = 9\) and the middle digit \(D = 0\). The decimal \(0.\overline{DEFG}\) would start with 0, which is not allowed for a purely periodic decimal. Therefore, \(CDC = 909\) is not possible.
+
+#### Case 3: \(CDC = 303\)
+If \(CDC = 303\), then \(C = 3\). We need to find a three-digit palindrome \(ABA\) such that \(\frac{ABA}{303}\) results in a purely periodic decimal with a period of 4 digits.
+
+### Step 3: Test Values for \(ABA\)
+We test values of \(ABA\) (a three-digit palindrome with \(A \neq 3\)):
+
+#### Test \(ABA = 242\)
+- \(A = 2\), \(B = 4\), \(C = 3\)
+- \(\frac{242}{303}\)
+
+To check if \(\frac{242}{303}\) is in its simplest form:
+- GCD(242, 303) = 1 (since 242 = \(2 \times 11^2\) and 303 = \(3 \times 101\))
+
+Now, compute the decimal expansion of \(\frac{242}{303}\):
+\[ 242 \div 303 = 0.79867986\ldots \]
+
+The decimal \(0.79867986\ldots\) has a period of 4 digits: 7986.
+
+### Step 4: Verify Distinct Digits
+The digits are:
+- \(A = 2\)
+- \(B = 4\)
+- \(C = 3\)
+- \(D = 7\)
+- \(E = 9\)
+- \(F = 8\)
+- \(G = 6\)
+
+All digits are distinct and different from each other.
+
+### Conclusion
+The fraction \(\frac{242}{303}\) satisfies all conditions with distinct digits for \(A, B, C, D, E, F, G\).
+
+Thus, the final answer is:
+\[
+\boxed{\frac{242}{303}}
+\]
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We have the fraction ABA/CDC = 0.DEFG (repeating, period 4), where each letter represents a distinct digit.
+
+So ABA is a 3-digit number: 100A + 10B + A = 101A + 10B
+CDC is a 3-digit number: 100C + 10D + C = 101C + 10D
+The decimal 0.DEFGDEFGDEFG... = DEFG/9999
+
+So ABA/CDC = DEFG/9999
+
+This means ABA * 9999 = CDC * DEFG
+
+All letters A, B, C, D, E, F, G are distinct digits.
+
+Note: A ≠ 0 (since ABA is 3-digit), C ≠ 0 (since CDC is 3-digit), D ≠ 0 (since the decimal starts with D... actually D could be 0? No, 0.DEFG means D is the first digit after decimal. Actually D could be 0. But wait, D appears in CDC as the middle digit, and CDC is a 3-digit number so C ≠ 0. D could be 0.)
+
+Wait, but DEFG is a 4-digit block in the repeating decimal. If D = 0, then DEFG would be like 0EFG, which is a 3-digit number. The repeating decimal 0.0EFG0EFG... = 0EFG/9999. That's fine mathematically, but let me think about whether the problem intends DEFG to be a 4-digit number.
+
+The problem says "period of length four" and writes 0.DEFG with a bar. The period is DEFG, four digits. D could be 0 in principle, but let's see.
+
+Let me think about this more carefully. ABA/CDC = DEFG/9999.
+
+So ABA * 9999 = CDC * DEFG.
+
+9999 = 9 * 1111 = 9 * 11 * 101 = 99 * 101.
+
+Also 9999 = 3^2 * 11 * 101.
+
+ABA = 101A + 10B. Note that 101A + 10B... hmm, 101 is a factor of 9999.
+
+CDC = 101C + 10D. Also has a 101 potentially.
+
+Let me think. ABA = 101A + 10B. If we want 101 to divide ABA, then 101 | (101A + 10B) means 101 | 10B. Since 101 is prime and doesn't divide 10, we need 101 | B. But B is a digit 0-9, so B = 0. Then ABA = 101A, and ABA/101 = A.
+
+Similarly CDC = 101C + 10D. 101 | CDC iff 101 | 10D iff D = 0.
+
+Case 1: B = 0 and D = 0. But B and D must be distinct. Contradiction. So both can't be 0.
+
+Let me think differently. We need ABA * 9999 = CDC * DEFG.
+
+Let me factor. 9999 = 101 * 99.
+
+ABA * 101 * 99 = CDC * DEFG.
+
+Hmm, let me try to use the structure. Let's write ABA = 101A + 10B and CDC = 101C + 10D.
+
+ABA * 9999 = CDC * DEFG
+DEFG = ABA * 9999 / CDC
+
+DEFG must be an integer between 1000 and 9999 (4-digit, assuming D ≠ 0; or could be less if D = 0).
+
+Also ABA/CDC must be between 0 and 1 (since it equals 0.DEFG...), so ABA < CDC.
+
+And DEFG/9999 must be in lowest terms giving period exactly 4. For the period to be exactly 4, we need DEFG/9999 in lowest terms, and the denominator (after reduction) must divide 9999 but not 9 or 99 or 999. Actually, the period of 1/n in base 10 is the order of 10 mod n (when gcd(n,10)=1). For the fraction DEFG/9999, after reducing to lowest terms p/q, the period is the order of 10 mod q.
+
+9999 = 3^2 * 11 * 101.
+
+The order of 10 mod 3 is 1, mod 9 is 1, mod 11 is 2, mod 101 is 4.
+
+So for period exactly 4, we need 101 | q (the reduced denominator). The order of 10 mod 101 is 4 (since 10^4 = 10000 = 99*101 + 1, so 10^4 ≡ 1 mod 101). And we need the order to be exactly 4, not a divisor of 4. The order mod 101 is 4. If q = 101, period is 4. If q = 101 * 3 = 303, order of 10 mod 303 = lcm(order mod 3, order mod 101) = lcm(1, 4) = 4. If q = 101 * 9 = 909, lcm(1,4)=4. If q = 101 * 11 = 1111, lcm(2,4)=4. If q = 101 * 99 = 9999, lcm(1,2,4)=4. If q = 101 * 33 = 3333, lcm(2,4)=4. Etc.
+
+So as long as 101 divides the reduced denominator, the period is 4 (since the order mod 101 is 4, and lcm with anything from {1,2} gives 4). Wait, but we also need gcd(q, 10) = 1. Since 9999 = 3^2 * 11 * 101, all factors are coprime to 10. So any divisor of 9999 is coprime to 10. Good.
+
+So the condition for period exactly 4 is: after reducing DEFG/9999, the denominator is divisible by 101.
+
+Equivalently, 101 does not divide gcd(DEFG, 9999). I.e., 101 ∤ DEFG.
+
+Wait, more precisely: DEFG/9999 reduces to p/q where q = 9999/gcd(DEFG, 9999). We need 101 | q, i.e., 101 ∤ gcd(DEFG, 9999), i.e., 101 ∤ DEFG (since 101 | 9999, 101 | gcd(DEFG,9999) iff 101 | DEFG).
+
+So the condition is: 101 does not divide DEFG.
+
+Also, we need the period to be exactly 4, not less. If 101 | q, the order is lcm(order mod (q/101 part), 4). The order mod 3 is 1, mod 9 is 1, mod 11 is 2. So lcm is at most lcm(2,4) = 4. So yes, period is exactly 4 whenever 101 | q. Good.
+
+But wait, we also need to make sure the period isn't a proper divisor of 4 that still gives 4 digits. Actually, the period of the decimal expansion is the order of 10 mod q. If the order is 4, the period is 4. If the order is 1 or 2, the period would be 1 or 2, not 4. So we need order exactly 4, which requires 101 | q as shown. Good.
+
+Now, let me also think about whether DEFG could have a leading zero (D = 0). If D = 0, then DEFG < 1000, and the repeating decimal 0.0EFG0EFG... has period 4. That's mathematically valid. But the problem writes 0.DEFḠ, suggesting D is a digit of the period. D = 0 would be fine. But let me check: D also appears in CDC. If D = 0, CDC = C0C = 101C. Let me keep this as a possibility.
+
+Let me now set up the equation:
+ABA * 9999 = CDC * DEFG
+DEFG = ABA * 9999 / CDC
+
+Constraints:
+- A, B, C, D, E, F, G are distinct digits
+- A ≥ 1, C ≥ 1
+- ABA < CDC (so the fraction is < 1)
+- DEFG is a 4-digit number (or possibly 3-digit with leading zero, but let's first assume 4-digit: 1000 ≤ DEFG ≤ 9999)
+- 101 ∤ DEFG (for period exactly 4)
+- D is the thousands digit of DEFG (and also the tens digit of CDC)
+
+Wait, actually D appears in both CDC (as the middle digit) and DEFG (as the first digit). So D = (DEFG div 1000) and D = (CDC div 10) mod 10 = (CDC // 10) % 10. Since CDC = 101C + 10D, the tens digit is D. Yes.
+
+So D = floor(DEFG / 1000). This is a key constraint linking the two.
+
+Let me think about this computationally. I'll reason through it.
+
+ABA ranges from 101 to 989 (with A from 1-9, B from 0-9, ABA = 101A + 10B).
+CDC ranges from 101 to 989 similarly.
+ABA < CDC.
+DEFG = ABA * 9999 / CDC must be an integer.
+D = floor(DEFG / 1000) must equal the tens digit of CDC.
+All 7 digits A, B, C, D, E, F, G distinct.
+
+Let me think about what values work. Since ABA * 9999 = CDC * DEFG, and 9999 = 101 * 99:
+
+ABA * 101 * 99 = CDC * DEFG.
+
+Let me consider the GCD structure. Let g = gcd(ABA, CDC). Then ABA = g * a, CDC = g * c, with gcd(a, c) = 1. Then a * 9999 = c * DEFG, so c | 9999, and DEFG = a * 9999 / c.
+
+Since c | 9999 = 3^2 * 11 * 101, c ∈ {1, 3, 9, 11, 33, 99, 101, 303, 909, 1111, 3333, 9999}.
+
+Also a * 9999 / c must be a 4-digit number (1000-9999), and a < c (since ABA < CDC means g*a < g*c means a < c).
+
+Also a and c are coprime, c | 9999, and DEFG = a * 9999 / c.
+
+Since a < c and c | 9999, and DEFG = a * (9999/c), we need 9999/c to be a positive integer. Let m = 9999/c. Then DEFG = a * m, and we need 1000 ≤ a*m ≤ 9999.
+
+Also a < c = 9999/m, so a < 9999/m, meaning a*m < 9999. And a*m ≥ 1000.
+
+So 1000 ≤ a*m ≤ 9998 (since a < c means a*m < c*m = 9999, so a*m ≤ 9998).
+
+Also gcd(a, c) = 1, i.e., gcd(a, 9999/m) = 1.
+
+And ABA = g*a, CDC = g*c, where g = gcd(ABA, CDC).
+
+ABA = g*a is a 3-digit number with form ABA (first = last digit).
+CDC = g*c is a 3-digit number with form CDC (first = last digit).
+
+The tens digit of CDC (= g*c) is D = floor(DEFG / 1000) = floor(a*m / 1000).
+
+And the digits of DEFG = a*m are D, E, F, G (thousands, hundreds, tens, units).
+
+All of A, B, C, D, E, F, G distinct.
+
+This is getting complex. Let me try to enumerate possible values of c (divisors of 9999) and m = 9999/c, then find a.
+
+c = 1: m = 9999. a < 1, impossible.
+c = 3: m = 3333. a < 3, a ∈ {1, 2}. gcd(a,3)=1 so a ∈ {1,2}.
+  - a=1: DEFG = 3333. D=3. But digits of DEFG are 3,3,3,3 - not distinct. Also period: 101 | 3333? 3333/101 = 33.0, yes 101|3333. So period not 4. Skip.
+  - a=2: DEFG = 6666. 101|6666? 6666/101 = 66.0, yes. Skip.
+c = 9: m = 1111. a < 9, gcd(a,9)=1, a ∈ {1,2,4,5,7,8}.
+  - a=1: DEFG=1111. 101|1111? 1111/101=11.0, yes. Skip.
+  - a=2: DEFG=2222. 101|2222? 2222/101=22.0, yes. Skip.
+  - a=4: DEFG=4444. 101|4444? 4444/101=44.0, yes. Skip.
+  - a=5: DEFG=5555. 101|5555? 5555/101=55.0, yes. Skip.
+  - a=7: DEFG=7777. 101|7777? 7777/101=77.0, yes. Skip.
+  - a=8: DEFG=8888. 101|8888? 8888/101=88.0, yes. Skip.
+  
+  All multiples of 1111 have repeated digits. Skip all.
+c = 11: m = 909. a < 11, gcd(a,11)=1, a ∈ {1,...,10} except 11 (but a<11 so all 1-10).
+  - DEFG = a * 909.
+  - a=1: 909. 3-digit, D=0 (leading). 101|909? 909/101=9.0, yes. Skip.
+  - a=2: 1818. 101|1818? 1818/101=18.0, yes. Skip.
+  - a=3: 2727. 101|2727? 2727/101=27.0, yes. Skip.
+  - a=4: 3636. 101|3636? 3636/101=36.0, yes. Skip.
+  - a=5: 4545. 101|4545? 4545/101=45.0, yes. Skip.
+  - a=6: 5454. 101|5454? 5454/101=54.0, yes. Skip.
+  - a=7: 6363. 6363/101=63.0, yes. Skip.
+  - a=8: 7272. 7272/101=72.0, yes. Skip.
+  - a=9: 8181. 8181/101=81.0, yes. Skip.
+  - a=10: 9090. 9090/101=90.0, yes. Skip.
+  
+  All divisible by 101. Skip all.
+c = 33: m = 303. a < 33, gcd(a,33)=1.
+  - DEFG = a * 303. 101|303? 303/101=3.0, yes. So 101|303, and 101|a*303 iff... 101|303 so 101|a*303 always. Skip all.
+c = 99: m = 101. a < 99, gcd(a,99)=1.
+  - DEFG = a * 101. 101|a*101 always. Skip all.
+c = 101: m = 99. a < 101, gcd(a,101)=1 (101 is prime, so a ∈ 1..100).
+  - DEFG = a * 99. 101|DEFG? 101 | 99a. Since gcd(99,101)=1, 101|a. But a < 101, so a can't be 101. So 101 ∤ DEFG for all valid a. 
+  - Need 1000 ≤ 99a ≤ 9999, so 1000/99 ≤ a ≤ 9999/99, i.e., 10.1... ≤ a ≤ 101.0..., so a ∈ {11, 12, ..., 100} (since a ≥ 11 for 99a ≥ 1089, and a ≤ 100 for 99a ≤ 9900). Wait, 99*10=990 < 1000, 99*11=1089. 99*101=9999 but a<101 so a≤100, 99*100=9900. So a ∈ {11,...,100} with gcd(a,101)=1 (all a in 1..100 since 101 is prime).
+  - Also need DEFG = 99a to have 4 distinct digits, and D = floor(99a / 1000) must be the tens digit of CDC = g * 101.
+  
+  This is the promising case. Let me explore.
+
+c = 303: m = 33. a < 303, gcd(a,303)=1. 303 = 3*101. 101|33? No. 101|a*33 iff 101|a (since gcd(33,101)=1). a < 303, so a could be 101 or 202. If a=101 or 202, 101|DEFG, skip. Otherwise 101∤DEFG, period is 4.
+  - DEFG = 33a. Need 1000 ≤ 33a ≤ 9999, so 30.3 ≤ a ≤ 303, a ∈ {31,...,302} (but a < 303 so a ≤ 302). gcd(a,303)=1 means a not divisible by 3 or 101.
+  - CDC = g * 303. CDC is 3-digit, so g*303 ≥ 100, g ≥ 1 (303 is already 3-digit). g*303 ≤ 999, g ≤ 3.3, so g ∈ {1,2,3}.
+    - g=1: CDC=303. Form CDC: C=3, D=0, C=3. So C=3, D=0. ABA = g*a = a. ABA is 3-digit, a ≥ 100. But a < 303 and a ≥ 31... a ≥ 100. So a ∈ {100,...,302} with gcd(a,303)=1, a not div by 3 or 101, and ABA = a has form A_B_A (first=last digit).
+    - g=2: CDC=606. C=6, D=0. ABA = 2a. 3-digit, 100 ≤ 2a ≤ 999, 50 ≤ a ≤ 499. But a < 303, so a ∈ {50,...,302}. 2a must be ABA form.
+    - g=3: CDC=909. C=9, D=0. ABA = 3a. 100 ≤ 3a ≤ 999, 34 ≤ a ≤ 333. a < 303, so a ∈ {34,...,302}. 3a must be ABA form.
+
+  D=0 in all these cases. Let me check if D=0 works (DEFG has leading digit 0, meaning DEFG is 3-digit). DEFG = 33a. For D=0, we need floor(33a/1000) = 0, so 33a < 1000, a < 30.3, a ≤ 30. But we need a ≥ 31 for DEFG ≥ 1000. Contradiction! So if DEFG is 4-digit (≥ 1000), D ≥ 1, but CDC has D=0. So D=0 from CDC but D≥1 from DEFG. Contradiction.
+
+  Unless DEFG is 3-digit (D=0). Then 33a < 1000, a ≤ 30. But then DEFG = 33a, and the "period" is 0DEFG = 0,33a,33a,... Hmm, but the problem says period of length 4, so DEFG is 4 digits including possible leading zero. If D=0, the period is 0EFG which is still 4 digits. Let me reconsider.
+
+  Actually, if D=0, then DEFG = 0EFG, a 3-digit number with leading zero. The decimal 0.0EFG0EFG... has period 4. That's valid. But then DEFG as a number is < 1000, and D = 0.
+
+  For c=303: D=0 (from CDC), so DEFG < 1000, 33a < 1000, a ≤ 30. And a ≥ 31 needed for... no wait, if D=0, DEFG can be < 1000. Let me redo: DEFG = 33a, D = floor(33a/1000). If 33a < 1000, D=0. Need 33a ≥ 100 (at least 3-digit for EFG to make sense? Actually DEFG = 0EFG, E could also be 0...). Hmm, the problem says each letter is a distinct digit, and the period is DEFG, 4 digits. If D=0, the period is 0,E,F,G. These should be 4 digits (possibly with leading zeros). But E, F, G must be distinct from each other and from D=0 and from A, B, C.
+
+  For c=303, g=1: CDC=303, C=3, D=0. ABA = a, a ∈ {100,...,302}, gcd(a,303)=1, ABA form (first=last digit), a not div by 3 or 101. DEFG = 33a. D=0 means 33a < 1000, a < 30.3, a ≤ 30. But a ≥ 100. Contradiction. Skip.
+
+  For c=303, g=2: CDC=606, C=6, D=0. ABA=2a, a ∈ {50,...,302}, 2a is ABA form. DEFG=33a, D=0 means a ≤ 30. But a ≥ 50. Contradiction. Skip.
+
+  For c=303, g=3: CDC=909, C=9, D=0. ABA=3a, a ∈ {34,...,302}. DEFG=33a, D=0 means a ≤ 30. But a ≥ 34. Contradiction. Skip.
+
+  So c=303 doesn't work.
+
+c = 909: m = 11. a < 909, gcd(a,909)=1. 909 = 9*101. 101|11a iff 101|a (gcd(11,101)=1). a < 909, so a could be 101, 202, ..., 808. Skip those. Otherwise 101∤DEFG.
+  - DEFG = 11a. Need 1000 ≤ 11a ≤ 9999, 91 ≤ a ≤ 909. a < 909, so a ∈ {91,...,908}.
+  - CDC = g * 909. 3-digit: g*909 ≤ 999, g=1 only (909*1=909, 909*2=1818 too big). g=1: CDC=909, C=9, D=0.
+  - D=0 from CDC. DEFG = 11a, D = floor(11a/1000) = 0 means 11a < 1000, a < 91. But a ≥ 91. Contradiction (a=91 gives 11*91=1001, D=1≠0). Skip.
+
+c = 1111: m = 9. a < 1111, gcd(a,1111)=1. 1111 = 11*101. 101|9a iff 101|a. a < 1111, a could be 101,202,...,1010. Skip those.
+  - DEFG = 9a. Need 1000 ≤ 9a ≤ 9999, 112 ≤ a ≤ 1111. a < 1111, a ∈ {112,...,1110}.
+  - CDC = g * 1111. 3-digit: g*1111 ≤ 999, impossible since 1111 > 999. Skip.
+
+c = 3333: m = 3. CDC = g * 3333 > 999. Skip.
+
+c = 9999: m = 1. CDC = g * 9999 > 999. Skip.
+
+So the only viable case is c = 101, m = 99.
+
+Let me focus on c = 101, m = 99.
+
+DEFG = 99a, a ∈ {11,...,100}, gcd(a,101)=1 (always true for a ≤ 100).
+ABA = g * a (where g = gcd(ABA, CDC), and ABA = g*a, CDC = g*101).
+CDC = g * 101. CDC is 3-digit: 100 ≤ 101g ≤ 999, so g ∈ {1,...,9} (101*9=909, 101*10=1010 too big).
+ABA = g * a is 3-digit: 100 ≤ g*a ≤ 999.
+
+CDC = 101g. The form is CDC: first digit = last digit = C, middle digit = D.
+101g: 
+- g=1: 101 → C=1, D=0
+- g=2: 202 → C=2, D=0
+- g=3: 303 → C=3, D=0
+- g=4: 404 → C=4, D=0
+- g=5: 505 → C=5, D=0
+- g=6: 606 → C=6, D=0
+- g=7: 707 → C=7, D=0
+- g=8: 808 → C=8, D=0
+- g=9: 909 → C=9, D=0
+
+In all cases, D = 0.
+
+So D = 0, and DEFG = 99a must have D = 0 as its thousands digit, meaning 99a < 1000, a < 10.1, a ≤ 10. But we need a ≥ 11 for DEFG ≥ 1000. Contradiction!
+
+Wait, unless DEFG is 3-digit (D=0, leading zero). Then 99a < 1000, a ≤ 10. And DEFG = 99a, with D=0. So a ∈ {1,...,10} but also a ≥ 11 for 4-digit... 
+
+Hmm wait. If D=0, the period is 0EFG, which is 4 digits with a leading zero. DEFG as a number is 99a where 99a < 1000 (so it's at most 3 digits). The "digits" D, E, F, G would be 0, E, F, G where EFG = 99a (padded to 3 digits). Actually, DEFG = 099a... no. Let me think again.
+
+If DEFG = 99a and 99a is, say, 891 (a=9), then as a 4-digit string with leading zero: D=0, E=8, F=9, G=1. The repeating decimal is 0.08910891... = 0891/9999 = 891/9999. Let me verify: 891/9999 = 0.08910891... Yes.
+
+So DEFG as a 4-digit sequence is 0,8,9,1 when 99a = 891. So D=0, E=8, F=9, G=1.
+
+OK so with D=0, we need a ≤ 10 (for 99a ≤ 990 < 1000). And a ≥ 1. But also ABA = g*a must be 3-digit, so g*a ≥ 100.
+
+With a ≤ 10 and g ≤ 9: g*a ≤ 90 < 100. So ABA can't be 3-digit. Contradiction!
+
+Hmm. So c=101 with D=0 doesn't work either because ABA = g*a can't reach 3 digits.
+
+Wait, I think I made an error. Let me reconsider. When c=101, we have a < c = 101, and DEFG = 99a. For DEFG to be 4-digit (D ≥ 1), we need 99a ≥ 1000, a ≥ 11. But then D = floor(99a/1000) ≥ 1, while CDC = 101g always has D=0. So D from DEFG ≠ D from CDC. Contradiction.
+
+And for DEFG to be 3-digit (D=0), a ≤ 10, but then ABA = g*a ≤ 90, not 3-digit. Contradiction.
+
+So c=101 doesn't work either?! Let me re-examine.
+
+Hmm, wait. I think I need to reconsider. The issue is that CDC = 101g always has D=0 (middle digit 0), but DEFG needs D to match. If D=0, DEFG < 1000, but then ABA = g*a is too small.
+
+Let me reconsider the problem. Maybe I'm missing something. Let me reconsider whether gcd(ABA, CDC) must divide things this way.
+
+Actually, I set g = gcd(ABA, CDC), ABA = g*a, CDC = g*c, gcd(a,c)=1. Then ABA*9999 = CDC*DEFG becomes g*a*9999 = g*c*DEFG, so a*9999 = c*DEFG. Since gcd(a,c)=1, c | 9999. This is correct.
+
+But wait, I also need to consider that maybe ABA and CDC share a common factor that includes 101. Let me reconsider.
+
+Actually, the analysis is correct. c | 9999 and a*9999/c = DEFG. The issue is that for all viable c values, we get contradictions.
+
+Let me re-examine more carefully. Maybe I dismissed some cases too quickly.
+
+Let me reconsider c=11, m=909. All DEFG = 909a were divisible by 101. Let me double-check: 909 = 9*101. So 909a is always divisible by 101. Yes, so 101 | DEFG, period is not 4. Correct to skip.
+
+c=33, m=303=3*101. 303a always div by 101. Skip. Correct.
+
+c=99, m=101. 101a always div by 101. Skip. Correct.
+
+c=3, m=3333=33*101. 3333a always div by 101. Skip. Correct.
+
+c=9, m=1111=11*101. 1111a always div by 101. Skip. Correct.
+
+c=101, m=99. 99a: 101|99a iff 101|a (since gcd(99,101)=1). a < 101, so 101∤a. Good, period is 4. But D mismatch as shown.
+
+c=303, m=33. 33a: 101|33a iff 101|a. a < 303, a could be 101 or 202. For other a, 101∤DEFG. CDC = g*303, D=0 always. DEFG = 33a. For D=0: 33a < 1000, a < 30.3. ABA = g*a, 3-digit: g*a ≥ 100. With a ≤ 30, g ≥ 4 (for g*a ≥ 100). g ≤ 3 (for CDC = 303g ≤ 999). g ∈ {1,2,3}. g*30 = 90 < 100. So ABA < 100. Contradiction. For D≥1: 33a ≥ 1000, a ≥ 31. D = floor(33a/1000) ≥ 1, but CDC has D=0. Contradiction.
+
+c=909, m=11. 11a: 101|11a iff 101|a. a < 909. CDC = g*909, g=1, CDC=909, D=0. DEFG=11a. D=0: 11a < 1000, a < 91. ABA = 1*a = a, 3-digit: a ≥ 100. Contradiction. D≥1: a ≥ 91, D = floor(11a/1000) ≥ 1 ≠ 0. Contradiction.
+
+c=1111: CDC = g*1111 > 999. Skip.
+
+So all cases with c | 9999 lead to contradictions? That can't be right—the problem states a solution exists.
+
+Let me re-examine my assumption. Maybe DEFG doesn't need to be exactly 4 digits. Or maybe I'm wrong about the period condition.
+
+Wait, actually, let me reconsider. The problem says ABA/CDC = 0.DEFḠ. The period is DEFG, 4 digits. But what if the fraction, when reduced, has a denominator that gives period 4, but DEFG/9999 is not in lowest terms? That's fine—DEFG/9999 doesn't need to be in lowest terms. The period is determined by the reduced denominator.
+
+I think my analysis is correct. Let me re-examine.
+
+Hmm, actually wait. Let me reconsider the case c=101 more carefully. I claimed CDC = 101g always has D=0. Let me verify:
+- 101*1 = 101 → digits 1,0,1 → C=1, D=0 ✓
+- 101*2 = 202 → 2,0,2 → C=2, D=0 ✓
+- etc.
+
+Yes, 101g for g=1..9 always has the form x0x. So D=0.
+
+And DEFG = 99a. For a ≥ 11, DEFG ≥ 1089, D ≥ 1. For a ≤ 10, DEFG ≤ 990, D=0 but ABA = g*a ≤ 9*10 = 90 < 100.
+
+So indeed c=101 fails. 
+
+Hmm, but the problem says a solution exists. Let me reconsider.
+
+Oh wait, maybe I need to reconsider. The problem says ABA/CDC = 0.DEFḠ. Maybe ABA > CDC is possible? No, 0.DEFḠ < 1, so ABA/CDC < 1, so ABA < CDC.
+
+Unless... the fraction is greater than 1? No, 0.xxx is less than 1.
+
+Wait, let me reconsider. Maybe I'm wrong that c must divide 9999. Let me re-derive.
+
+ABA * 9999 = CDC * DEFG. Let g = gcd(ABA, CDC). ABA = g*a, CDC = g*c, gcd(a,c) = 1. Then g*a*9999 = g*c*DEFG → a*9999 = c*DEFG. Since gcd(a,c)=1, c | 9999. This is correct.
+
+Hmm, so c | 9999 is necessary. And I've checked all divisors. Let me re-examine whether I've been too hasty.
+
+Actually, wait. Let me reconsider c=101, but now think about whether D could be something other than 0. 
+
+CDC = 101g. For g=1..9, CDC = 101, 202, 303, 404, 505, 606, 707, 808, 909. The tens digit is always 0. So D=0.
+
+But what if g > 9? Then CDC = 101g ≥ 1010, which is 4-digit. But CDC is a 3-digit number (it's CDC, three digits). So g ≤ 9. D=0 always.
+
+And DEFG = 99a with a ≥ 11 gives D ≥ 1. Contradiction with D=0.
+
+So this really doesn't work. Let me reconsider the problem.
+
+Hmm, maybe I need to reconsider whether the period must be exactly 4 or at most 4. The problem says "purely periodic with a period of length four." So the period is exactly 4.
+
+Wait, maybe I should reconsider. What if 101 | DEFG but the period is still 4? Let me reconsider.
+
+If DEFG/9999 reduces to p/q, and 101 | q, then period is 4. If 101 | DEFG, then 101 | gcd(DEFG, 9999), so 101 might not divide q. But it depends on the full gcd.
+
+Let me reconsider. q = 9999 / gcd(DEFG, 9999). 101 | q iff 101 ∤ gcd(DEFG, 9999) iff 101 ∤ DEFG (since 101 | 9999, 101 | gcd(DEFG, 9999) iff 101 | DEFG).
+
+So 101 | q iff 101 ∤ DEFG. And period = 4 iff 101 | q (as I argued). So period = 4 iff 101 ∤ DEFG. This seems right.
+
+But wait, what if 101 | DEFG but the period is still 4 for a different reason? If 101 | DEFG, then 101 | gcd(DEFG, 9999), so 101 ∤ q. Then q | 9999/101 = 99. The order of 10 mod q where q | 99 = 9 * 11. The possible orders: mod 1 → 1, mod 3 → 1, mod 9 → 1, mod 11 → 2, mod 33 → lcm(1,2)=2, mod 99 → lcm(1,2)=2. So the period would be 1 or 2, not 4. So indeed, if 101 | DEFG, the period is at most 2. So we need 101 ∤ DEFG for period 4. My analysis is correct.
+
+So... all cases fail? That's strange. Let me re-examine my case analysis more carefully.
+
+Actually, wait. Let me reconsider the case where c doesn't divide 9999 but the equation still works. I claimed c | 9999 from a*9999 = c*DEFG with gcd(a,c)=1. This is correct: c | a*9999 and gcd(a,c)=1 implies c | 9999.
+
+Hmm, but what if ABA and CDC are not both integers... no, they are integers (3-digit numbers).
+
+Let me try a completely different approach. Let me just enumerate.
+
+ABA/CDC = DEFG/9999, so DEFG = ABA * 9999 / CDC.
+
+For DEFG to be an integer, CDC | ABA * 9999.
+
+Let me just think about which CDC values (of the form CDC = 101C + 10D) divide ABA * 9999 for some ABA (of the form 101A + 10B) with ABA < CDC.
+
+Actually, let me try a different approach. Let me consider specific small cases.
+
+Let me think about what 3-digit numbers of the form CDC (palindrome) exist: 101, 202, 303, 404, 505, 606, 707, 808, 909, 111, 121, 131, 141, 151, 161, 171, 181, 191, 212, 222, 232, ..., 999. Basically, CDC = 101C + 10D where C ∈ {1..9}, D ∈ {0..9}.
+
+Similarly ABA = 101A + 10B, A ∈ {1..9}, B ∈ {0..9}.
+
+Let me think about this differently. Let me consider the fraction ABA/CDC and compute 9999 * ABA / CDC for various values.
+
+Actually, let me reconsider. Maybe I should not assume c | 9999 comes from gcd(ABA,CDC). Let me think again...
+
+No, the math is correct. c = CDC/gcd(ABA,CDC) must divide 9999. And I've checked all divisors of 9999. Let me re-examine each case more carefully, especially checking if I missed valid configurations.
+
+Let me redo c=101 very carefully.
+
+c=101, m=99. 
+- CDC = 101g, g ∈ {1..9}. D=0 for all.
+- ABA = g*a, a ∈ {11..100} (for DEFG = 99a to be 4-digit), gcd(a,101)=1 (always).
+- D=0 from CDC. DEFG = 99a. D = floor(99a/1000).
+  - For a=11: 99*11=1089, D=1. Need D=0. Fail.
+  - All a ≥ 11 give D ≥ 1. Fail.
+  - For a ≤ 10: 99a ≤ 990, D=0. But ABA = g*a ≤ 9*10 = 90 < 100. Fail.
+
+So c=101 truly fails. 
+
+Hmm, let me reconsider the problem statement. "In the fraction ABA/CDC = 0.DEFḠ, each letter represents a distinct digit."
+
+Wait, maybe I should consider that the fraction could be an improper fraction that simplifies to something with a decimal part? No, 0.DEFḠ is clearly less than 1.
+
+Or maybe ABA and CDC share digits? "each letter represents a distinct digit" — all 7 letters A, B, C, D, E, F, G are distinct. So A ≠ B ≠ C ≠ D ≠ E ≠ F ≠ G, all different.
+
+Let me try yet another approach. Let me not factor through gcd and instead directly search.
+
+DEFG = ABA * 9999 / CDC. Let me think about what CDC values could work.
+
+For CDC | ABA * 9999, and CDC is a 3-digit palindrome.
+
+9999 = 3^2 * 11 * 101.
+
+If CDC is coprime to 9999, then CDC | ABA, but ABA < CDC, so impossible. So CDC must share a factor with 9999.
+
+gcd(CDC, 9999) > 1. The prime factors of 9999 are 3, 11, 101. So CDC must be divisible by at least one of 3, 11, 101.
+
+Let me enumerate 3-digit palindromes divisible by 3, 11, or 101.
+
+Divisible by 101: 101, 202, 303, 404, 505, 606, 707, 808, 909. (These are 101*1 through 101*9.)
+
+Divisible by 11: A 3-digit palindrome CDC = 101C + 10D. 101C + 10D ≡ 0 (mod 11). 101 ≡ 2 (mod 11), 10 ≡ -1 (mod 11). So 2C - D ≡ 0 (mod 11), i.e., D ≡ 2C (mod 11). Since D ∈ {0..9} and 2C ∈ {2..18}, D = 2C if 2C ≤ 9, or D = 2C - 11 if 2C ≥ 11.
+- C=1: D=2 → 121
+- C=2: D=4 → 242
+- C=3: D=6 → 363
+- C=4: D=8 → 484
+- C=5: D=10 → invalid (2*5=10, 10-11=-1, invalid). Wait, 2C=10, D ≡ 10 ≡ -1 ≡ 10 (mod 11). D=10 invalid. So no solution for C=5.
+  Actually, D ∈ {0..9}. D ≡ 2C (mod 11). For C=5: 2C=10, D ≡ 10 (mod 11), D=10 is invalid. So no.
+- C=6: 2C=12, D ≡ 12 ≡ 1 (mod 11), D=1 → 616
+- C=7: 2C=14, D ≡ 3, D=3 → 737
+- C=8: 2C=16, D ≡ 5, D=5 → 858
+- C=9: 2C=18, D ≡ 7, D=7 → 979
+
+Also check C=1..4 with D=2C: 121, 242, 363, 484. And C=6..9: 616, 737, 858, 979.
+
+Also, what about D=0? D ≡ 2C (mod 11), D=0 means 2C ≡ 0 (mod 11), C=0 (invalid) or C=11 (invalid). So no.
+
+So 3-digit palindromes divisible by 11: 121, 242, 363, 484, 616, 737, 858, 979.
+
+Divisible by 3: 101C + 10D ≡ 0 (mod 3). 101 ≡ 2 (mod 3), 10 ≡ 1 (mod 3). So 2C + D ≡ 0 (mod 3). Many possibilities.
+
+This is a lot. Let me think about this differently.
+
+For each CDC (3-digit palindrome with gcd(CDC, 9999) > 1), and each ABA (3-digit palindrome with ABA < CDC), check if CDC | ABA * 9999, compute DEFG = ABA * 9999 / CDC, check all conditions.
+
+This is a finite but large search. Let me think about how to narrow it down.
+
+Key constraint: D (tens digit of CDC) = thousands digit of DEFG.
+
+Let me denote CDC = 100C + 10D + C = 101C + 10D. The tens digit is D.
+DEFG = ABA * 9999 / CDC. The thousands digit is floor(DEFG / 1000).
+
+So D = floor(ABA * 9999 / (CDC * 1000)).
+
+Also, ABA * 9999 / CDC must be an integer, and 1000 ≤ DEFG ≤ 9999 (assuming 4-digit; or DEFG < 1000 with D=0).
+
+Let me think about the range. ABA/CDC is between 0 and 1, so DEFG = 9999 * ABA/CDC is between 0 and 9999. For DEFG to be a 4-digit number (≥ 1000), ABA/CDC ≥ 1000/9999 ≈ 0.1. So ABA ≥ CDC/10 roughly.
+
+Let me try to be more systematic. Let me consider the factorization approach but more carefully.
+
+ABA * 9999 = CDC * DEFG.
+
+Let me write CDC = d * c' where c' | 9999 and d = CDC / c' (so c' = gcd(CDC, 9999) possibly, or some divisor). Actually, let me think of it as: CDC | ABA * 9999. 
+
+Let me write g = gcd(CDC, 9999). Then CDC = g * h where h = CDC/g and gcd(h, 9999/g) ... hmm, this gets complicated. Let me just think of it as CDC | ABA * 9999.
+
+Let g = gcd(CDC, 9999). Then CDC/g | ABA * (9999/g). Since gcd(CDC/g, 9999/g) may not be 1... actually, let me use a cleaner approach.
+
+Let me just try specific values. Let me focus on CDC values that are 3-digit palindromes and systematically check.
+
+Let me try CDC divisible by 101 first (since 101 is the key factor for period 4).
+
+CDC ∈ {101, 202, 303, 404, 505, 606, 707, 808, 909}. All have D=0.
+
+For these, DEFG must have D=0 (thousands digit 0), so DEFG < 1000. Then ABA * 9999 / CDC < 1000, so ABA < CDC/9999 * 1000 = CDC * 1000/9999 ≈ CDC/10. So ABA < CDC/10.
+
+For CDC=101: ABA < 10.1, so ABA ≤ 10. But ABA is 3-digit (≥ 101). Contradiction.
+For CDC=909: ABA < 90.9, ABA ≤ 90. Still < 101. Contradiction.
+
+So no CDC divisible by 101 works (as I found before). 
+
+Now let me try CDC divisible by 11 but not 101.
+
+CDC ∈ {121, 242, 363, 484, 616, 737, 858, 979}. (Excluding those also divisible by 101: 121=11*11, 242=2*121=2*11^2, 363=3*121=3*11^2, 484=4*121=4*11^2. Wait, are any of these divisible by 101? 121/101 no, 242/101 no, etc. 101 is prime and doesn't divide any of these. Good.)
+
+Wait, but 363 = 3 * 121 = 3 * 11^2. Is 363 divisible by 101? 363/101 ≈ 3.59, no. Good.
+
+Now, for these CDC values, CDC | ABA * 9999. 9999 = 9 * 11 * 101. CDC = 11 * k where k = CDC/11.
+
+ABA * 9999 / CDC = ABA * 9999 / (11k) = ABA * 909 / k.
+
+For this to be integer, k | ABA * 909. 909 = 9 * 101.
+
+k = CDC/11:
+- 121: k=11. DEFG = ABA * 909/11 = ABA * 82.636... wait, 909/11 = 82.636? No, 909 = 9*101 = 909. 909/11 = 82.63...? That's not integer. 
+
+Hmm wait. 9999/121 = 9999/121. 121 = 11^2. 9999 = 9 * 11 * 101. 9999/121 = 9*101/11 = 909/11. 909/11 = 82.63... Not integer. So 121 ∤ 9999. But we need 121 | ABA * 9999. Since 121 = 11^2 and 9999 = 9*11*101 (only one factor of 11), we need 11 | ABA. So ABA must be divisible by 11.
+
+ABA = 101A + 10B. ABA ≡ 0 (mod 11). 101 ≡ 2 (mod 11), 10 ≡ -1 (mod 11). So 2A - B ≡ 0 (mod 11), B ≡ 2A (mod 11). Same as before. So:
+- A=1: B=2 → 121
+- A=2: B=4 → 242
+- A=3: B=6 → 363
+- A=4: B=8 → 484
+- A=5: B=10 → invalid
+- A=6: B=1 → 616
+- A=7: B=3 → 737
+- A=8: B=5 → 858
+- A=9: B=7 → 979
+
+So ABA must be one of {121, 242, 363, 484, 616, 737, 858, 979} (palindromes divisible by 11).
+
+And CDC is also one of these. With ABA < CDC.
+
+DEFG = ABA * 9999 / CDC = ABA * 9999 / CDC.
+
+Let me compute for each pair (ABA, CDC) with both from this set, ABA < CDC:
+
+Actually, let me note that all these numbers are multiples of 11. Let me write ABA = 11 * α, CDC = 11 * γ. Then DEFG = 11α * 9999 / (11γ) = α * 9999 / γ = α * 909 / (γ/11) ... hmm, let me just compute directly.
+
+Actually, 9999 = 11 * 909. So DEFG = ABA * 11 * 909 / CDC = ABA * 11 * 909 / CDC. If CDC = 11 * γ, then DEFG = ABA * 909 / γ. And ABA = 11 * α, so DEFG = 11 * α * 909 / γ = α * 9999 / γ.
+
+For DEFG to be integer, γ | α * 9999. Since γ = CDC/11 and α = ABA/11.
+
+The values:
+- 121 = 11 * 11, α=11
+- 242 = 11 * 22, α=22
+- 363 = 11 * 33, α=33
+- 484 = 11 * 44, α=44
+- 616 = 11 * 56, α=56
+- 737 = 11 * 67, α=67
+- 858 = 11 * 78, α=78
+- 979 = 11 * 89, α=89
+
+γ values: 11, 22, 33, 44, 56, 67, 78, 89.
+
+DEFG = α * 9999 / γ. Need γ | α * 9999.
+
+9999 = 3^2 * 11 * 101.
+
+Let me check each pair. This is getting tedious but let me try.
+
+For each CDC (γ) and ABA (α) with ABA < CDC (α < γ):
+
+CDC=121 (γ=11, C=1, D=2): ABA < 121, so ABA from {} — wait, ABA must be from {121, 242, ...} but ABA < 121, and the smallest is 121. So no ABA < 121 in the set. Skip.
+
+Wait, actually ABA doesn't have to be from this set. ABA just needs to be a 3-digit palindrome. The constraint is CDC | ABA * 9999. For CDC=121=11^2, we need 11^2 | ABA * 9999 = ABA * 9 * 11 * 101. So 11 | ABA * 9 * 101. Since gcd(11, 9*101) = gcd(11, 909) = gcd(11, 909). 909 = 11 * 82.63? No, 909/11 = 82.63, so 11 ∤ 909. Wait, 9999 = 9 * 11 * 101, so 9999 has exactly one factor of 11. For 11^2 | ABA * 9999, we need 11 | ABA. So ABA must be divisible by 11.
+
+So ABA ∈ {121, 242, 363, 484, 616, 737, 858, 979} (3-digit palindromes divisible by 11).
+
+For CDC=121: ABA < 121, but smallest ABA in set is 121. No valid ABA. Skip.
+
+CDC=242 (γ=22, C=2, D=4): Need 242 | ABA * 9999. 242 = 2 * 11^2. 9999 = 9 * 11 * 101. ABA * 9999 = ABA * 9 * 11 * 101. For 2 * 11^2 | ABA * 9 * 11 * 101: need 2 * 11 | ABA * 9 * 101. gcd(22, 909) = gcd(22, 909). 909 = 22 * 41 + 7, gcd(22, 909) = gcd(22, 7) = gcd(7, 1) = 1. So 22 | ABA. So ABA must be divisible by 22.
+
+ABA ∈ {palindromes divisible by 22}. From our set {121, 242, 363, 484, 616, 737, 858, 979}, which are divisible by 22?
+- 121/22 = 5.5, no
+- 242/22 = 11, yes
+- 363/22 = 16.5, no
+- 484/22 = 22, yes
+- 616/22 = 28, yes
+- 737/22 = 33.5, no
+- 858/22 = 39, yes
+- 979/22 = 44.5, no
+
+So ABA ∈ {242, 484, 616, 858} with ABA < 242. Only ABA = ... none < 242. 242 is not < 242. Skip.
+
+Hmm, ABA must be strictly less than CDC=242. 242 is not less than 242. So no valid ABA. Skip.
+
+CDC=363 (γ=33, C=3, D=6): 363 = 3 * 11^2. Need 363 | ABA * 9999 = ABA * 9 * 11 * 101. 363 = 3 * 121 = 3 * 11^2. So need 3 * 11^2 | ABA * 9 * 11 * 101. Simplify: 3 * 11 | ABA * 9 * 101 = ABA * 909. gcd(33, 909) = gcd(33, 909). 909 = 33 * 27 + 18, gcd(33, 18) = gcd(18, 15) = gcd(15, 3) = 3. So gcd(33, 909) = 3. So 33/3 = 11 must divide ABA * 909/3 = ABA * 303. gcd(11, 303) = gcd(11, 303). 303 = 11 * 27 + 6, gcd(11, 6) = 1. So 11 | ABA.
+
+So ABA must be divisible by 11 (and 3 | ABA * 909, which is automatic since 3 | 909).
+
+ABA ∈ {121, 242, 363, 484, 616, 737, 858, 979} with ABA < 363: {121, 242}.
+
+DEFG = ABA * 9999 / 363.
+- ABA=121: DEFG = 121 * 9999 / 363 = 121 * 9999 / 363. 9999/363 = 27.545... hmm let me compute. 363 * 27 = 9801. 9999 - 9801 = 198. 198/363 = 0.545... So 9999/363 is not integer. But DEFG = 121 * 9999 / 363. 121 * 9999 = 1209879. 1209879 / 363 = 3333.0. Let me verify: 363 * 3333 = 363 * 3000 + 363 * 333 = 1089000 + 120879 = 1209879. Yes! DEFG = 3333.
+
+But 101 | 3333? 3333/101 = 33.0. Yes, 101 | 3333. So period is not 4. Skip.
+
+- ABA=242: DEFG = 242 * 9999 / 363 = 242 * 9999 / 363. 242 * 9999 = 2419758. 2419758 / 363 = 6666.0. Let me verify: 363 * 6666 = 363 * 6000 + 363 * 666 = 2178000 + 241758 = 2419758. Yes! DEFG = 6666.
+
+101 | 6666? 6666/101 = 66.0. Yes. Period not 4. Skip.
+
+CDC=484 (γ=44, C=4, D=8): 484 = 4 * 121 = 4 * 11^2 = 2^2 * 11^2. Need 484 | ABA * 9999 = ABA * 9 * 11 * 101. 484 = 4 * 121. Need 4 * 11^2 | ABA * 9 * 11 * 101. So 4 * 11 | ABA * 9 * 101 = ABA * 909. gcd(44, 909) = gcd(44, 909). 909 = 44*20 + 29, gcd(44, 29) = gcd(29, 15) = gcd(15, 14) = gcd(14, 1) = 1. So 44 | ABA. 
+
+ABA divisible by 44 from our set: 484/44 = 11, yes. 858/44 = 19.5, no. So only 484. But 484 < 484 is false. No valid ABA < 484 that's divisible by 44. Skip.
+
+Hmm wait, let me check more carefully. ABA must be a 3-digit palindrome divisible by 44. 3-digit palindromes divisible by 11: {121, 242, 363, 484, 616, 737, 858, 979}. Divisible by 44 = 4*11: need divisible by 4 and 11. 
+- 121: odd, no
+- 242: 242/4 = 60.5, no
+- 363: odd, no
+- 484: 484/4 = 121, yes → 484/44 = 11, yes
+- 616: 616/4 = 154, yes → 616/44 = 14, yes
+- 737: odd, no
+- 858: 858/4 = 214.5, no
+- 979: odd, no
+
+So ABA ∈ {484, 616} divisible by 44. ABA < 484: none. Skip.
+
+CDC=616 (γ=56, C=6, D=1): 616 = 8 * 77 = 8 * 7 * 11 = 2^3 * 7 * 11. Need 616 | ABA * 9999 = ABA * 9 * 11 * 101. 616 = 2^3 * 7 * 11. So need 2^3 * 7 * 11 | ABA * 9 * 11 * 101. Simplify: 2^3 * 7 | ABA * 9 * 101 = ABA * 909. gcd(56, 909) = gcd(56, 909). 909 = 56*16 + 13, gcd(56, 13) = gcd(13, 4) = gcd(4, 1) = 1. So 56 | ABA.
+
+ABA divisible by 56 from our set: 616/56 = 11, yes. Others? 56*4 = 224 (not palindrome), 56*5=280 (no), etc. From the palindrome set: only 616. ABA < 616: none divisible by 56. Skip.
+
+CDC=737 (γ=67, C=7, D=3): 737 = 11 * 67. 67 is prime. Need 737 | ABA * 9999 = ABA * 9 * 11 * 101. 737 = 11 * 67. So need 67 | ABA * 9 * 101 = ABA * 909. gcd(67, 909) = gcd(67, 909). 909 = 67*13 + 58, gcd(67, 58) = gcd(58, 9) = gcd(9, 4) = gcd(4, 1) = 1. So 67 | ABA.
+
+ABA divisible by 67: 67 * 11 = 737 (that's CDC itself, not < CDC). 67 * 3 = 201 (not palindrome). 67 * 4 = 268 (no). Hmm, 3-digit palindromes divisible by 67: 67*11=737 (yes, but = CDC). 67*1=67 (2-digit). 67*2=134 (no). 67*3=201 (no). 67*4=268 (no). 67*5=335 (no). 67*6=402 (no). 67*7=469 (no). 67*8=536 (no). 67*9=603 (no). 67*10=670 (no). 67*11=737. 67*12=804 (no). 67*13=871 (no). 67*14=938 (no). So only 737, which equals CDC. No ABA < 737. Skip.
+
+CDC=858 (γ=78, C=8, D=5): 858 = 11 * 78 = 11 * 2 * 3 * 13 = 2 * 3 * 11 * 13. Need 858 | ABA * 9999 = ABA * 9 * 11 * 101. 858 = 2 * 3 * 11 * 13. So need 2 * 3 * 11 * 13 | ABA * 9 * 11 * 101. Simplify: 2 * 13 | ABA * 9 * 101 / 3 = ABA * 303. Wait, let me be more careful.
+
+858 = 2 * 3 * 11 * 13. 9999 = 3^2 * 11 * 101. ABA * 9999 = ABA * 3^2 * 11 * 101. Need 2 * 3 * 11 * 13 | ABA * 3^2 * 11 * 101. Cancel 3 * 11: need 2 * 13 | ABA * 3 * 101 = ABA * 303. gcd(26, 303) = gcd(26, 303). 303 = 26*11 + 17, gcd(26, 17) = gcd(17, 9) = gcd(9, 8) = gcd(8, 1) = 1. So 26 | ABA.
+
+ABA divisible by 26: 3-digit palindromes divisible by 26. 26 * 4 = 104 (no, not palindrome). 26*5 = 130 (no). ... Let me check from our set {121, 242, 363, 484, 616, 737, 858, 979}: 
+- 121/26 = 4.65, no
+- 242/26 = 9.31, no
+- 363/26 = 13.96, no
+- 484/26 = 18.62, no
+- 616/26 = 23.69, no
+- 737/26 = 28.35, no
+- 858/26 = 33, yes!
+- 979/26 = 37.65, no
+
+So only 858, which equals CDC. No ABA < 858. Skip.
+
+CDC=979 (γ=89, C=9, D=7): 979 = 11 * 89. 89 is prime. Need 979 | ABA * 9999 = ABA * 9 * 11 * 101. 979 = 11 * 89. Need 89 | ABA * 9 * 101 = ABA * 909. gcd(89, 909) = gcd(89, 909). 909 = 89*10 + 19, gcd(89, 19) = gcd(19, 13) = gcd(13, 6) = gcd(6, 1) = 1. So 89 | ABA.
+
+ABA divisible by 89: 89 * 11 = 979 (= CDC). 89*1=89 (2-digit). 89*2=178 (no). 89*3=267 (no). 89*4=356 (no). 89*5=445 (no). 89*6=534 (no). 89*7=623 (no). 89*8=712 (no). 89*9=801 (no). 89*10=890 (no). 89*11=979. So only 979 = CDC. No ABA < 979. Skip.
+
+So none of the CDC values divisible by 11 (but not 101) work! 
+
+Now let me try CDC divisible by 3 (but not by 11 or 101).
+
+CDC = 101C + 10D, divisible by 3: 2C + D ≡ 0 (mod 3) (since 101 ≡ 2, 10 ≡ 1 mod 3).
+
+There are many such palindromes. Let me think about which ones could work.
+
+For CDC divisible by 3 but not 11 or 101: CDC | ABA * 9999. 9999 = 3^2 * 11 * 101. Let g = gcd(CDC, 9999). Since CDC is divisible by 3, g ≥ 3. If CDC is not divisible by 9, 11, or 101, then g = 3 (or g = 3 if CDC has exactly one factor of 3).
+
+CDC/g | ABA * 9999/g. If g = 3, then CDC/3 | ABA * 3333. 3333 = 3 * 11 * 101. CDC/3 must divide ABA * 3333. If CDC/3 is coprime to 3333, then CDC/3 | ABA, but ABA < CDC so ABA < 3*(CDC/3), meaning ABA could be at most CDC/3 or 2*CDC/3. Hmm, this is possible if CDC/3 is small enough.
+
+Actually, let me think about this differently. Let me consider CDC = 3 * k where k = CDC/3, and gcd(k, 3333) = gcd(k, 3*11*101). If k is coprime to 3333, then k | ABA. Since ABA < CDC = 3k, we have ABA < 3k, and k | ABA means ABA ∈ {k, 2k} (since ABA > 0 and ABA < 3k). But ABA must be a 3-digit palindrome.
+
+DEFG = ABA * 9999 / CDC = ABA * 9999 / (3k) = ABA * 3333 / k. If ABA = k, DEFG = 3333. If ABA = 2k, DEFG = 6666. Both are divisible by 101 (3333 = 33*101, 6666 = 66*101). So period is not 4. Skip.
+
+If k shares a factor with 3333, say k = 3 * k' (CDC divisible by 9), then g = gcd(CDC, 9999) ≥ 9. Let me consider CDC divisible by 9.
+
+CDC divisible by 9: 101C + 10D ≡ 0 (mod 9). 101 ≡ 2 (mod 9), 10 ≡ 1 (mod 9). So 2C + D ≡ 0 (mod 9). D ≡ -2C (mod 9).
+
+- C=1: D ≡ -2 ≡ 7, D=7 → 171
+- C=2: D ≡ -4 ≡ 5, D=5 → 252
+- C=3: D ≡ -6 ≡ 3, D=3 → 333
+- C=4: D ≡ -8 ≡ 1, D=1 → 414
+- C=5: D ≡ -10 ≡ -1 ≡ 8, D=8 → 585
+- C=6: D ≡ -12 ≡ -3 ≡ 6, D=6 → 666
+- C=7: D ≡ -14 ≡ -5 ≡ 4, D=4 → 747
+- C=8: D ≡ -16 ≡ -7 ≡ 2, D=2 → 828
+- C=9: D ≡ -18 ≡ 0, D=0 → 909
+
+3-digit palindromes divisible by 9: 171, 252, 333, 414, 585, 666, 747, 828, 909.
+
+Now, 909 = 9 * 101 (divisible by 101, already handled). 333 = 9 * 37. 666 = 9 * 74 = 9 * 2 * 37. Let me check which are divisible by 11: 171/11 = 15.5, no. 252/11 = 22.9, no. 333/11 = 30.3, no. 414/11 = 37.6, no. 585/11 = 53.2, no. 666/11 = 60.5, no. 747/11 = 67.9, no. 828/11 = 75.3, no. 909/11 = 82.6, no. So none divisible by 11 (except we should check: 252 = 4*63 = 4*9*7, not div by 11. OK.)
+
+So CDC divisible by 9 but not 11 or 101: {171, 252, 333, 414, 585, 666, 747, 828}.
+
+For these, g = gcd(CDC, 9999) = 9 (if CDC = 9*k with gcd(k, 1111) = 1) or more.
+
+Let me factor each:
+- 171 = 9 * 19. gcd(19, 1111) = gcd(19, 1111). 1111 = 19*58 + 9, gcd(19, 9) = 1. So g = 9.
+- 252 = 9 * 28 = 9 * 4 * 7. gcd(28, 1111) = 1 (1111 = 11*101, 28 = 4*7). g = 9.
+- 333 = 9 * 37. gcd(37, 1111) = gcd(37, 1111). 1111 = 37*30 + 1, gcd = 1. g = 9.
+- 414 = 9 * 46 = 9 * 2 * 23. gcd(46, 1111) = 1. g = 9.
+- 585 = 9 * 65 = 9 * 5 * 13. gcd(65, 1111) = 1. g = 9.
+- 666 = 9 * 74 = 9 * 2 * 37. gcd(74, 1111) = 1. g = 9.
+- 747 = 9 * 83. gcd(83, 1111) = gcd(83, 1111). 1111 = 83*13 + 32, gcd(83, 32) = gcd(32, 19) = gcd(19, 13) = gcd(13, 6) = gcd(6, 1) = 1. g = 9.
+- 828 = 9 * 92 = 9 * 4 * 23. gcd(92, 1111) = 1. g = 9.
+
+So for all these, g = 9, and CDC/9 = k where gcd(k, 1111) = 1.
+
+DEFG = ABA * 9999 / CDC = ABA * 9999 / (9k) = ABA * 1111 / k. For this to be integer, k | ABA * 1111. Since gcd(k, 1111) = 1, k | ABA. Since ABA < CDC = 9k, ABA < 9k, and k | ABA means ABA = j*k for j ∈ {1,...,8} (since ABA ≥ 100 and ABA < 9k).
+
+DEFG = j*k * 1111 / k = j * 1111.
+
+j * 1111 for j = 1..8: 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888.
+
+All of these are divisible by 101 (1111 = 11*101, 2222 = 2*11*101, etc.). So 101 | DEFG, period is not 4. Skip all.
+
+So CDC divisible by 9 (but not 11 or 101) doesn't work.
+
+Now, CDC divisible by 3 but not 9, 11, or 101. Then g = gcd(CDC, 9999) = 3. CDC = 3k, gcd(k, 3333) = 1 (since k not divisible by 3, 11, or 101). DEFG = ABA * 9999 / (3k) = ABA * 3333 / k. k | ABA (since gcd(k, 3333) = 1). ABA < 3k, so ABA = k or 2k. DEFG = 3333 or 6666. Both div by 101. Skip.
+
+So CDC divisible by 3 (but not 11 or 101) doesn't work.
+
+What about CDC divisible by both 3 and 11 but not 101? CDC divisible by 33.
+
+CDC = 33 * m. 3-digit: 33 * 4 = 132 (not palindrome), 33*5=165 (no), 33*6=198 (no), 33*7=231 (no), 33*8=264 (no), 33*9=297 (no), 33*10=330 (no), 33*11=363 (yes! palindrome), 33*12=396 (no), 33*13=429 (no), 33*14=462 (no), 33*15=495 (no), 33*16=528 (no), 33*17=561 (no), 33*18=594 (no), 33*19=627 (no), 33*20=660 (no), 33*21=693 (no), 33*22=726 (no), 33*23=759 (no), 33*24=792 (no), 33*25=825 (no), 33*26=858 (yes! palindrome), 33*27=891 (no), 33*28=924 (no), 33*29=957 (no), 33*30=990 (no).
+
+So 3-digit palindromes divisible by 33: 363, 858. But we already handled these in the "divisible by 11" case. 363 = 3 * 121, 858 = 2 * 3 * 11 * 13. Both were handled and failed.
+
+What about CDC divisible by 33 but also by 9? That's divisible by 99. 3-digit palindromes divisible by 99: 99 * 2 = 198 (no), 99*3=297 (no), 99*4=396 (no), 99*5=495 (no), 99*6=594 (no), 99*7=693 (no), 99*8=792 (no), 99*9=891 (no), 99*10=990 (no). None are palindromes. So no CDC divisible by 99.
+
+What about CDC divisible by 9 and 11 = 99? Same as above, none.
+
+What about CDC divisible by 3 and 101 = 303? 303 is a palindrome (CDC=303, C=3, D=0). Already handled in the 101 case (D=0, failed).
+
+CDC divisible by 9 and 101 = 909? 909 is a palindrome. Already handled (D=0, failed).
+
+CDC divisible by 11 and 101 = 1111? 4-digit, skip.
+
+CDC divisible by 3, 11, and 101 = 3333? 4-digit, skip.
+
+So I've exhausted all cases where CDC shares a factor with 9999, and none work? That can't be right.
+
+Wait, let me reconsider. Maybe I need to also consider CDC that shares a factor with 9999 in a more complex way. Let me reconsider.
+
+Actually, I think I need to reconsider the case where CDC is divisible by 3 and also has a factor in common with 1111 = 11 * 101, but not fully divisible by 11 or 101.
+
+Wait, I think I've been thorough. Let me reconsider the problem.
+
+Hmm, actually, let me reconsider. Maybe the issue is that I'm requiring ABA to be a palindrome divisible by certain things, but ABA doesn't have to be divisible by 11 etc. The constraint is just CDC | ABA * 9999.
+
+Let me reconsider CDC = 171 = 9 * 19. g = gcd(171, 9999) = 9. CDC/g = 19. 9999/g = 1111. Need 19 | ABA * 1111. gcd(19, 1111) = 1 (checked earlier). So 19 | ABA. ABA < 171, so ABA ∈ {19*5=95 (2-digit), 19*6=114, 19*7=133, 19*8=152, 19*9=171}. ABA < 171, so ABA ∈ {114, 133, 152}. But ABA must be a 3-digit palindrome. 114 (no), 133 (yes! 1-3-3, but first digit 1, last digit 3, not equal. Not a palindrome). 152 (no). So none are palindromes. Skip.
+
+Wait, 114: first digit 1, last digit 4. Not palindrome. 133: 1-3-3, first=1, last=3, not palindrome. 152: 1-5-2, not palindrome. So no valid ABA. Skip.
+
+CDC = 252 = 9 * 28. g = 9. CDC/g = 28. Need 28 | ABA * 1111. gcd(28, 1111) = 1. So 28 | ABA. ABA < 252. 28*4 = 112 (no, 1-1-2 not palindrome). 28*5 = 140 (no). 28*6 = 168 (no). 28*7 = 196 (no). 28*8 = 224 (no, 2-2-4 not palindrome). 28*9 = 252 (= CDC, not < CDC). So no valid ABA. Skip.
+
+CDC = 333 = 9 * 37. g = 9. Need 37 | ABA * 1111. gcd(37, 1111) = 1. So 37 | ABA. ABA < 333. 37*3 = 111 (yes! palindrome 1-1-1). 37*4 = 148 (no). 37*5 = 185 (no). 37*6 = 222 (yes! 2-2-2). 37*7 = 259 (no). 37*8 = 296 (no). 37*9 = 333 (= CDC). So ABA ∈ {111, 222}.
+
+DEFG = ABA * 1111 / 37 = ABA * 1111/37. 1111/37 = 30.027... wait, 37*30 = 1110, 1111-1110 = 1. So 1111/37 is not integer. But DEFG = ABA * 1111 / 37. Since 37 | ABA, let ABA = 37j. DEFG = 37j * 1111 / 37 = j * 1111.
+
+- ABA=111=37*3: DEFG = 3 * 1111 = 3333. 101 | 3333. Skip.
+- ABA=222=37*6: DEFG = 6 * 1111 = 6666. 101 | 6666. Skip.
+
+CDC = 414 = 9 * 46. g = 9. Need 46 | ABA * 1111. gcd(46, 1111) = 1. So 46 | ABA. ABA < 414. 46*3 = 138 (no). 46*4 = 184 (no). 46*5 = 230 (no). 46*6 = 276 (no). 46*7 = 322 (no, 3-2-2). 46*8 = 368 (no). 46*9 = 414 (= CDC). So no valid ABA. Skip.
+
+CDC = 585 = 9 * 65. g = 9. Need 65 | ABA * 1111. gcd(65, 1111) = 1. So 65 | ABA. ABA < 585. 65*2 = 130 (no). 65*3 = 195 (no). 65*4 = 260 (no). 65*5 = 325 (no). 65*6 = 390 (no). 65*7 = 455 (no, 4-5-5). 65*8 = 520 (no). 65*9 = 585 (= CDC). So no valid ABA. Skip.
+
+CDC = 666 = 9 * 74. g = 9. Need 74 | ABA * 1111. gcd(74, 1111) = 1. So 74 | ABA. ABA < 666. 74*2 = 148 (no). 74*3 = 222 (yes! palindrome). 74*4 = 296 (no). 74*5 = 370 (no). 74*6 = 444 (yes! 4-4-4). 74*7 = 518 (no). 74*8 = 592 (no). 74*9 = 666 (= CDC). So ABA ∈ {222, 444}.
+
+DEFG = ABA * 1111 / 74. ABA = 74j. DEFG = j * 1111.
+- ABA=222=74*3: DEFG = 3*1111 = 3333. 101|3333. Skip.
+- ABA=444=74*6: DEFG = 6*1111 = 6666. 101|6666. Skip.
+
+CDC = 747 = 9 * 83. g = 9. Need 83 | ABA * 1111. gcd(83, 1111) = 1. So 83 | ABA. ABA < 747. 83*2 = 166 (no). 83*3 = 249 (no). 83*4 = 332 (no). 83*5 = 415 (no). 83*6 = 498 (no). 83*7 = 581 (no). 83*8 = 664 (no). 83*9 = 747 (= CDC). So no valid ABA. Skip.
+
+CDC = 828 = 9 * 92. g = 9. Need 92 | ABA * 1111. gcd(92, 1111) = 1. So 92 | ABA. ABA < 828. 92*2 = 184 (no). 92*3 = 276 (no). 92*4 = 368 (no). 92*5 = 460 (no). 92*6 = 552 (no). 92*7 = 644 (no). 92*8 = 736 (no). 92*9 = 828 (= CDC). So no valid ABA. Skip.
+
+So all CDC divisible by 9 (but not 11 or 101) fail because DEFG is always a multiple of 1111 (hence of 101).
+
+Now let me try CDC divisible by 3 but not 9, 11, or 101.
+
+These are 3-digit palindromes where 2C + D ≡ 0 (mod 3) but not (mod 9), and not divisible by 11 or 101.
+
+g = 3. CDC = 3k, gcd(k, 3333) = 1. k | ABA, ABA < 3k, ABA = k or 2k. DEFG = 3333 or 6666. Both div by 101. Skip.
+
+So indeed, for any CDC where g = gcd(CDC, 9999) ∈ {3, 9}, DEFG is a multiple of 1111 (div by 101). Period not 4.
+
+For g involving 11 (but not 101): g ∈ {11, 33, 99}. I checked these above and found no valid (ABA, CDC) pairs, or DEFG was div by 101.
+
+For g involving 101: g ∈ {101, 303, 909, 1111, 3333, 9999}. D=0 always (for 3-digit CDC), leading to D mismatch.
+
+Hmm, so it seems like no solution exists? But the problem says to find the fraction. Let me re-examine.
+
+Wait, maybe I need to reconsider. Let me re-examine the cases where g involves 11 more carefully.
+
+For g = 11: CDC = 11 * k, gcd(k, 909) = 1 (since 9999/11 = 909 = 9*101). Wait, I need to be more careful. g = gcd(CDC, 9999). If CDC is divisible by 11 but not by 3, 9, or 101, then g = 11.
+
+CDC = 11k, gcd(k, 909) = 1. DEFG = ABA * 9999 / CDC = ABA * 909 / k. k | ABA * 909. Since gcd(k, 909) = 1, k | ABA. ABA < 11k, so ABA = j*k for j ∈ {1,...,10}. DEFG = j * 909.
+
+j * 909 for j = 1..10: 909, 1818, 2727, 3636, 4545, 5454, 6363, 7272, 8181, 9090.
+
+All divisible by 101 (909 = 9*101). So 101 | DEFG. Period not 4. Skip.
+
+For g = 33: CDC = 33k, gcd(k, 303) = 1 (9999/33 = 303 = 3*101). DEFG = ABA * 303 / k. k | ABA. ABA < 33k. DEFG = j * 303. All div by 101. Skip.
+
+For g = 99: CDC = 99k, gcd(k, 101) = 1 (9999/99 = 101). DEFG = ABA * 101 / k. k | ABA. ABA < 99k. DEFG = j * 101. All div by 101. Skip.
+
+So for g involving 11 (but not 101), DEFG is always div by 101. Period not 4.
+
+For g involving 101: D=0 issue.
+
+For g involving only 3: DEFG div by 1111, hence by 101. Period not 4.
+
+So in ALL cases, either DEFG is divisible by 101 (period not 4) or D=0 causes a mismatch. 
+
+This means... there's no solution? But the problem asks to find the fraction. Let me re-examine my reasoning.
+
+Oh wait. I think I need to reconsider. The key issue is: when g = gcd(CDC, 9999) involves 101, we get D=0. But what if DEFG is a 3-digit number (D=0) and ABA is still 3-digit?
+
+For g = 101: CDC = 101g', DEFG = ABA * 99 / g'. Wait, let me redo this.
+
+If g = gcd(CDC, 9999) = 101 (CDC divisible by 101 but not 3, 9, 11):
+CDC = 101 * k, gcd(k, 99) = 1. DEFG = ABA * 9999 / CDC = ABA * 99 / k. k | ABA * 99. Since gcd(k, 99) = 1, k | ABA. ABA < 101k. DEFG = j * 99 where ABA = j*k.
+
+For DEFG to not be div by 101: 101 ∤ j*99. Since gcd(99, 101) = 1, 101 ∤ j. So j not a multiple of 101. Since j < 101 (ABA < 101k, ABA = jk, j < 101), j is never a multiple of 101. Good, so 101 ∤ DEFG. Period is 4!
+
+But CDC = 101k. For CDC to be 3-digit: 101 ≤ 101k ≤ 999, k ∈ {1,...,9}. CDC = 101, 202, ..., 909. All have D=0.
+
+DEFG = j * 99. D = 0 (from CDC). So DEFG < 1000, j * 99 < 1000, j < 10.1, j ≤ 10. ABA = j * k. For ABA to be 3-digit: j*k ≥ 100. With j ≤ 10 and k ≤ 9: j*k ≤ 90 < 100. Contradiction!
+
+So ABA can't be 3-digit. This is the same issue as before.
+
+But wait—what if k > 9? No, CDC = 101k ≤ 999 means k ≤ 9.
+
+Hmm. What if g = gcd(CDC, 9999) = 303 = 3 * 101? CDC divisible by 303 but not 9, 11.
+CDC = 303 * k, gcd(k, 33) = 1 (9999/303 = 33). k = 1: CDC = 303. k = 2: 606. k = 3: 909. All have D=0.
+DEFG = ABA * 33 / k. k | ABA (since gcd(k, 33) = 1). DEFG = j * 33. 101 ∤ j*33 (since gcd(33, 101) = 1 and j < 303). Good.
+D = 0, DEFG < 1000, j*33 < 1000, j < 30.3. ABA = j*k, 3-digit: j*k ≥ 100. k ≤ 3, j ≤ 30: j*k ≤ 90 < 100. Contradiction.
+
+g = 909 = 9 * 101: CDC = 909 only. D=0. DEFG = ABA * 11. DEFG < 1000, ABA < 91. Not 3-digit. Contradiction.
+
+g = 1111 = 11 * 101: CDC = 1111, 4-digit. Skip.
+
+So whenever 101 | g, we get D=0 and ABA can't be 3-digit. The fundamental issue is that 101k for k ≤ 9 always has D=0, and D=0 forces DEFG < 1000, which forces ABA < 100.
+
+Hmm, so is the problem unsolvable? That seems unlikely for a competition problem. Let me re-read the problem.
+
+"In the fraction ABA/CDC = 0.DEFḠ, each letter represents a distinct digit. The decimal expansion is purely periodic with a period of length four. Find the fraction."
+
+Wait, maybe I'm wrong about the period condition. Let me reconsider.
+
+The fraction ABA/CDC, when written as a decimal, is 0.DEFGDEFGDEFG... with period 4. This means ABA/CDC = DEFG/9999 where DEFG is the 4-digit repeating block.
+
+But actually, the period of ABA/CDC depends on the denominator CDC (after reducing the fraction). Let me reconsider.
+
+ABA/CDC reduces to some fraction p/q in lowest terms. The decimal expansion of p/q is purely periodic (no pre-period) iff gcd(q, 10) = 1. The period is the order of 10 mod q.
+
+For the period to be 4, we need ord_q(10) = 4.
+
+Now, ABA/CDC = DEFG/9999, but DEFG/9999 might not be in lowest terms. The reduced form p/q has q | 9999 (since 9999 is the denominator before reduction, and q = 9999/gcd(DEFG, 9999)).
+
+For ord_q(10) = 4, we need q | 9999 (so that 10^4 ≡ 1 mod q) and q ∤ 999, 99, 9 (so the order isn't 3, 2, or 1).
+
+Actually, 10^4 - 1 = 9999. So q | 9999 and q ∤ 999, 99, 9.
+
+999 = 27 * 37 = 3^3 * 37.
+99 = 9 * 11.
+9 = 3^2.
+
+9999 = 3^2 * 11 * 101.
+
+q | 9999 means q | 3^2 * 11 * 101.
+q ∤ 999 = 3^3 * 37: Since q | 9999 = 3^2 * 11 * 101 and 999 = 3^3 * 37, the only common factor is 3^2. So q ∤ 999 is automatic unless q | 9 (since gcd(9999, 999) = 9). Wait, q | 9999 and q | 999 iff q | gcd(9999, 999) = 9. So q ∤ 999 iff q ∤ 9.
+
+q ∤ 99: q | 9999 and q | 99 iff q | gcd(9999, 99) = 99. So q ∤ 99 iff q ∤ 99. Since q | 9999 = 3^2 * 11 * 101 and 99 = 9 * 11, q | 99 iff q | 99, i.e., q has no factor of 101. So q ∤ 99 iff 101 | q.
+
+q ∤ 9: q | 9 iff q ∈ {1, 3, 9}. So q ∤ 9 iff q ∉ {1, 3, 9}.
+
+So the conditions are:
+1. q | 9999
+2. q ∤ 9 (i.e., q ∉ {1, 3, 9})
+3. 101 | q (equivalently q ∤ 99)
+
+Condition 3 is the key: 101 | q. Since q = 9999 / gcd(DEFG, 9999), 101 | q iff 101 ∤ gcd(DEFG, 9999) iff 101 ∤ DEFG.
+
+So the period is exactly 4 iff:
+- 101 | q (i.e., 101 ∤ DEFG)
+- q ∤ 9 (i.e., q ∉ {1, 3, 9}, i.e., gcd(DEFG, 9999) ∉ {9999, 3333, 1111})
+
+Wait, q ∤ 9 means q > 9 or q doesn't divide 9. q | 9999 and q | 9 iff q | gcd(9999, 9) = 9. So q | 9 iff q ∈ {1, 3, 9}. So q ∤ 9 iff q ∉ {1, 3, 9}.
+
+q = 9999/gcd(DEFG, 9999). q ∈ {1, 3, 9} iff gcd(DEFG, 9999) ∈ {9999, 3333, 1111}. 
+
+gcd(DEFG, 9999) = 9999 iff 9999 | DEFG, but DEFG ≤ 9999, so DEFG = 9999. Then all digits are 9, not distinct.
+gcd(DEFG, 9999) = 3333 iff DEFG is a multiple of 3333 and gcd = 3333. DEFG ∈ {3333, 6666, 9999}. 3333 has repeated digits, 6666 repeated, 9999 repeated. So these don't work anyway (digits not distinct).
+gcd(DEFG, 9999) = 1111 iff DEFG is a multiple of 1111 and gcd(DEFG, 9999) = 1111. DEFG ∈ {1111, 2222, ..., 9999}. All have repeated digits.
+
+So condition 2 (q ∤ 9) is automatically satisfied when DEFG has distinct digits. Good.
+
+So the only real condition for period 4 is 101 ∤ DEFG. My earlier analysis was correct.
+
+And I've shown that in all cases, either 101 | DEFG or D=0 causes ABA to not be 3-digit. 
+
+Hmm, wait. Let me reconsider. Maybe I need to look at this from a different angle. Let me reconsider whether there are CDC values I haven't considered.
+
+Actually, I realize I may have made an error. Let me reconsider the case where gcd(CDC, 9999) involves both 3 and 11 but not 101, i.e., g = 33 or g = 99. In those cases, DEFG = j * (9999/g) = j * 303 or j * 101, both divisible by 101. So period not 4. Correct.
+
+And g involving 101 gives D=0. And g involving only 3 gives DEFG div by 1111 (hence 101). And g involving only 11 gives DEFG div by 909 (hence 101).
+
+So the only way to get 101 ∤ DEFG is to have g involving 101. But then D=0 and ABA can't be 3-digit.
+
+Unless... wait, what if CDC is divisible by 101 but is NOT of the form 101*k for small k? No, CDC is a 3-digit number divisible by 101, so CDC ∈ {101, 202, 303, 404, 505, 606, 707, 808, 909}, all of which have D=0.
+
+Hmm, I'm stuck. Let me reconsider the problem from scratch.
+
+Actually, wait. Let me reconsider whether D must be 0 when CDC is divisible by 101. CDC = 101C + 10D. If 101 | CDC, then 101 | (101C + 10D), so 101 | 10D. Since gcd(101, 10) = 1, 101 | D. D is a digit 0-9, so D = 0. Yes, D must be 0.
+
+So whenever 101 | CDC, D = 0. And we need 101 | g = gcd(CDC, 9999) for 101 ∤ DEFG. But 101 | g means 101 | CDC, which means D = 0, which means DEFG < 1000, which means ABA < 100. Contradiction.
+
+Wait, but 101 | g doesn't necessarily mean 101 | CDC. g = gcd(CDC, 9999). 101 | g means 101 | CDC AND 101 | 9999 (which is true). So yes, 101 | g implies 101 | CDC implies D = 0.
+
+But actually, I need 101 | q where q = 9999/gcd(DEFG, 9999). This is 101 ∤ DEFG. This doesn't directly require 101 | g = gcd(CDC, 9999).
+
+Let me reconsider. The condition is 101 ∤ DEFG. DEFG = ABA * 9999 / CDC. 
+
+Let me think about when 101 | DEFG. 101 | DEFG iff 101 | ABA * 9999 / CDC. Since 101 | 9999, we have 101 | ABA * 9999. So 101 | DEFG iff 101 | ABA * 9999 / CDC, which (since 101 | ABA * 9999) is equivalent to: the power of 101 in CDC is ≤ the power of 101 in ABA * 9999.
+
+9999 = 3^2 * 11 * 101, so v_101(9999) = 1. ABA * 9999 has v_101 = v_101(ABA) + 1. CDC has v_101(CDC). DEFG = ABA * 9999 / CDC has v_101(DEFG) = v_101(ABA) + 1 - v_101(CDC).
+
+For 101 ∤ DEFG: v_101(DEFG) = 0, so v_101(ABA) + 1 - v_101(CDC) = 0, i.e., v_101(CDC) = v_101(ABA) + 1.
+
+Since CDC is a 3-digit number, v_101(CDC) ≤ 1 (as 101^2 = 10201 > 999). So v_101(CDC) ∈ {0, 1}.
+
+Case 1: v_101(CDC) = 1, v_101(ABA) = 0. Then 101 | CDC, 101 ∤ ABA. D = 0 (as shown). DEFG = ABA * 99 / (CDC/101). Let CDC = 101 * s, s ∈ {1..9}. DEFG = ABA * 99 / s. For DEFG to be integer, s | ABA * 99. 
+
+D = 0, so DEFG < 1000 (or DEFG has leading digit 0). DEFG = ABA * 99 / s. For DEFG < 1000: ABA * 99 / s < 1000, ABA < 1000 * s / 99 ≈ 10.1 * s. For s = 9: ABA < 90.9, ABA ≤ 90. Not 3-digit. For s = 1: ABA < 10.1. Not 3-digit. So ABA can't be 3-digit. Same issue.
+
+Case 2: v_101(CDC) = 0, v_101(ABA) = -1. Impossible since v_101(ABA) ≥ 0.
+
+So the only way to have 101 ∤ DEFG is Case 1, which requires D = 0 and ABA < 100. Impossible.
+
+This means... there is genuinely no solution? That seems wrong for a competition problem.
+
+Let me re-read the problem once more: "In the fraction ABA/CDC = 0.DEFḠ, each letter represents a distinct digit."
+
+Hmm, wait. What if the overline is only over DEFG, but the decimal might have a non-repeating part? No, it says "purely periodic."
+
+What if ABA/CDC is not in lowest terms and the decimal has a different period? No, the decimal expansion of ABA/CDC is what it is, regardless of representation.
+
+Let me reconsider: maybe the problem allows A = C or other letter overlaps? "each letter represents a distinct digit" — this means all letters are distinct. A, B, C, D, E, F, G are 7 distinct digits.
+
+Wait, actually, let me reconsider. Maybe I'm wrong about the period. Let me reconsider whether the period could be 4 even when 101 | DEFG.
+
+If 101 | DEFG, then q = 9999/gcd(DEFG, 9999). If 101 | gcd(DEFG, 9999), then 101 ∤ q. Then q | 99. The order of 10 mod q where q | 99: q ∈ {1, 3, 9, 11, 33, 99}. Orders: 1, 1, 1, 2, 2, 2. So period is 1 or 2. Not 4. Correct.
+
+So the period is 4 only if 101 ∤ DEFG, which requires 101 | CDC, which requires D = 0, which makes ABA < 100. Contradiction.
+
+Unless... the problem is using a different definition or I'm misunderstanding something.
+
+Oh wait! Maybe the problem doesn't require ABA/CDC to be in lowest terms, and the decimal expansion of ABA/CDC (not reduced) has period 4. But the decimal expansion of a fraction doesn't depend on whether it's reduced. The decimal expansion of ABA/CDC is the same as the decimal expansion of the reduced form. So this doesn't change anything.
+
+Hmm, let me reconsider. Maybe I'm wrong that 0.DEFḠ = DEFG/9999. Let me double-check.
+
+0.DEFḠ = 0.DEFGDEFGDEFG... = DEFG/9999. Yes, this is correct. The repeating decimal 0.ab

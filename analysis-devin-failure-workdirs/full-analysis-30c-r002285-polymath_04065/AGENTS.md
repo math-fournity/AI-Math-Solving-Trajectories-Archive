@@ -1,0 +1,2098 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   Let $a_{1}=\frac{1}{4}, a_{n}=\frac{1}{4}\left(1+a_{n-1}\right)^{2}, n \geqslant 2$. Find the smallest
+real number $\lambda$, such that for any non-negative real numbers $x_{1}, x_{2}, \cdots, x_{2} 002$, we have
+$$
+\sum_{k=1}^{2002} A_{k} \leqslant \lambda a_{2002} \text {. }
+$$
+
+where $A_{k}=\frac{x_{k}-k}{\left(x_{k}+\cdots+x_{2002}+\frac{k(k-1)}{2}+1\right)^{2}}, k \geqslant 1$.       — 题目文本
+#   Let $\delta(k)=\frac{1}{2} k(k-1)$. First, we prove a few lemmas.
+
+Lemma 1 For any real numbers $a \geqslant 0, c>0, b>0$, the function $f(x)=\frac{a}{x+b}+\frac{x-c}{(x+b)^{2}}$.
+When $x=\frac{(1-a) b+2 c}{1+a}$, it attains the maximum value $\frac{1}{4} \cdot \frac{(1+a)^{2}}{b+c}$.
+Proof: Let $y=\frac{1}{x+b}$, then
+$f(x)=-(b+c) y^{2}+(1+a) y$
+$=-(b+c)\left(y-\frac{1}{2} \cdot \frac{1+a}{b+c}\right)^{2}+\frac{1}{4} \cdot \frac{(1+a)^{2}}{b+c}$.
+Thus, when $y=\frac{1}{2} \cdot \frac{1+a}{b+c}$, i.e., $x=\frac{(1-a) b+2 c}{1+a}$,
+$f(x)_{\max }=\frac{1}{4} \cdot \frac{(1+a)^{2}}{b+c}$.
+
+Lemma 2 Let $a_{1}=\frac{1}{4}, a_{n}=\frac{1}{4}\left(1+a_{n-1}\right)^{2}, n \geqslant 2$. Then $a_{n}$ satisfies $0<a_{n}<1$.
+
+Lemma 3 For any $n \geqslant 1, \sum_{k=1}^{n} A_{k} \leqslant \frac{1}{\delta(n+1)+1} a_{n}$, and equality can be achieved.
+Proof: By Lemma 1, we have
+$$
+\begin{array}{l}
+\frac{x_{1}-1}{\left(x_{1}+\cdots+x_{n}+1\right)^{2}} \leqslant \frac{1}{4} \cdot \frac{1}{x_{2}+\cdots+x_{n}+2} \\
+=\frac{a_{1}}{x_{2}+\cdots+x_{n}+2},
+\end{array}
+$$
+
+and when $x_{1}=x_{2}+\cdots+x_{n}+3$, it attains the maximum value
+$$
+\begin{array}{l}
+\frac{a_{1}}{x_{2}+\cdots+x_{n}+2} \cdot \\
+\frac{a_{1}}{x_{2}+\cdots+x_{n}+2}+\frac{x_{2}-2}{\left(x_{2}+\cdots+x_{n}+2\right)^{2}} \\
+\leqslant \frac{1}{4} \cdot \frac{\left(1+a_{1}\right)^{2}}{x_{3}+\cdots+x_{n}+4}=\frac{a_{2}}{x_{3}+\cdots+x_{n}+4},
+\end{array}
+$$
+
+and when $x_{2}=\frac{\left(1-a_{1}\right)\left(x_{3}+\cdots+x_{n}+4\right)+4}{1+a_{1}}$, it attains the maximum value
+$$
+\frac{a_{2}}{x_{3}+\cdots+x_{n}+4}.
+$$
+......
+$$
+\begin{array}{l}
+\frac{a_{n-2}}{x_{n-1}+x_{n}+\delta(n-1)+1}+\frac{x_{n-1}-(n-1)}{\left(x_{n-1}+x_{n}+\delta(n-1)+1\right)^{2}} \\
+\leqslant \frac{1}{4} \cdot \frac{\left(1+a_{n-2}\right)^{2}}{x_{n}+\delta(n)+1}=\frac{a_{n-1}}{x_{n}+\delta(n)+1},
+\end{array}
+$$
+
+and when $x_{n-1}=\frac{\left[\left(1-a_{n-2}\right)\left(x_{n}+\delta(n-1)+1\right)+2(n-1)\right]}{1+a_{n-2}}$
+it attains the maximum value $\frac{a_{n-1}}{x_{n}+\delta(n)+1}$.
+$$
+\begin{array}{l}
+\frac{a_{n-1}}{x_{n}+\delta(n)+1}+\frac{x_{n}-n}{\left(x_{n}+\delta(n)+1\right)^{2}} \\
+\leqslant \frac{1}{4} \cdot \frac{\left(1+a_{n-1}\right)^{2}}{\delta(n+1)+1}=\frac{a_{n}}{\delta(n+1)+1},
+\end{array}
+$$
+
+and when $x_{n}=\frac{\left(1-a_{n-1}\right)(\delta(n)+1)+2 n}{1+a_{n-1}}$, it attains the maximum value
+$$
+\frac{a_{n}}{\delta(n+1)+1}.
+$$
+
+By adding (1), (2), ..., (n), we get
+$$
+\sum_{k=1}^{n} A_{k} \leqslant \frac{1}{\delta(n+1)+1} a_{n},
+$$
+
+and when $x_{n}=\frac{\left(1-a_{n-1}\right)(\delta(n)+1)+2 n}{1+a_{n-1}}$,
+$$
+\begin{array}{l}
+x_{n-1}=\frac{\left(1-a_{n-2}\right)\left(x_{n}+\delta(n-1)+1\right)+2(n-1)}{1+a_{n-2}}, \\
+\cdots \cdots, \\
+x_{2}=\frac{\left(1-a_{1}\right)\left(x_{3}+\cdots+x_{n}+4\right)+4}{1+a_{1}}, \\
+x_{1}=x_{2}+\cdots+x_{n}+3
+\end{array}
+$$
+
+equality holds.
+By Lemma 3, we obtain
+$$
+\lambda=\frac{1}{\delta(2003)+1}=\frac{1}{2003 \times 1001+1}.
+$$  — 标准解答
+#   Let me analyze this problem carefully.
+
+We have $a_1 = \frac{1}{4}$, $a_n = \frac{1}{4}(1+a_{n-1})^2$ for $n \geq 2$.
+
+We need to find the smallest real number $\lambda$ such that for any non-negative real numbers $x_1, x_2, \ldots, x_{2002}$:
+$$\sum_{k=1}^{2002} A_k \leq \lambda a_{2002}$$
+
+where $A_k = \frac{x_k - k}{(x_k + \cdots + x_{2002} + \frac{k(k-1)}{2} + 1)^2}$.
+
+First, let me understand the sequence $a_n$. Let me compute a few values:
+- $a_1 = 1/4$
+- $a_2 = \frac{1}{4}(1 + 1/4)^2 = \frac{1}{4} \cdot \frac{25}{16} = \frac{25}{64}$
+- $a_3 = \frac{1}{4}(1 + 25/64)^2 = \frac{1}{4}(89/64)^2 = \frac{1}{4} \cdot \frac{7921}{4096} = \frac{7921}{16384}$
+
+Let me think about the substitution $a_n = \frac{b_n^2}{4}$ or something. Actually, let me try $a_n = \frac{c_n}{c_n + 1}$ or some other substitution.
+
+Actually, let me think about this differently. The recurrence $a_n = \frac{1}{4}(1+a_{n-1})^2$. Let me try $a_n = \left(\frac{p_n}{q_n}\right)^2$ or look for a pattern.
+
+Actually, a common trick: let $a_n = \frac{1}{(something)^2 - 1}$ or similar.
+
+Let me try $a_n = \frac{1}{t_n^2 - 1}$ where $t_n > 1$.
+
+Then $\frac{1}{t_n^2 - 1} = \frac{1}{4}\left(1 + \frac{1}{t_{n-1}^2 - 1}\right)^2 = \frac{1}{4}\left(\frac{t_{n-1}^2}{t_{n-1}^2 - 1}\right)^2 = \frac{t_{n-1}^4}{4(t_{n-1}^2 - 1)^2}$.
+
+So $4(t_{n-1}^2 - 1)^2 = t_n^2 \cdot t_{n-1}^4 \cdot (t_n^2 - 1)^{-1}$... this is getting complicated.
+
+Let me try $a_n = \frac{u_n}{(1+u_n)^2}$... no.
+
+Let me try the substitution $1 + a_{n-1} = 2\sqrt{a_n}$. So $\sqrt{a_n} = \frac{1+a_{n-1}}{2}$.
+
+Let $b_n = \sqrt{a_n}$. Then $b_n = \frac{1 + b_{n-1}^2}{2}$.
+
+With $b_1 = 1/2$.
+- $b_2 = \frac{1 + 1/4}{2} = \frac{5}{8}$
+- $b_3 = \frac{1 + 25/64}{2} = \frac{89}{128}$
+
+Hmm, let me try $b_n = \frac{c_n}{2^{d_n}}$ or look for a pattern with $b_n = \frac{1}{2}\cdot\frac{something}{something}$.
+
+Actually, let me try $b_n = \frac{1}{2} \cdot \frac{p_n}{q_n}$ where $p_n/q_n \to 1$.
+
+$b_1 = 1/2$, $b_2 = 5/8$, $b_3 = 89/128$.
+
+$1/2 = 1/2$, $5/8$, $89/128$. Denominators: $2, 8, 128 = 2, 2^3, 2^7$. Exponents: $1, 3, 7$. These are $2^1-1, 2^2-1, 2^3-1$. So denominator of $b_n$ is $2^{2^n - 1}$.
+
+Numerators: $1, 5, 89$. Let me check: $b_n = \frac{1 + b_{n-1}^2}{2}$.
+
+If $b_{n-1} = \frac{p_{n-1}}{2^{2^{n-1}-1}}$, then $b_{n-1}^2 = \frac{p_{n-1}^2}{2^{2^n - 2}}$.
+
+$b_n = \frac{1 + \frac{p_{n-1}^2}{2^{2^n-2}}}{2} = \frac{2^{2^n-2} + p_{n-1}^2}{2^{2^n-1}}$.
+
+So $p_n = 2^{2^n-2} + p_{n-1}^2$.
+
+$p_1 = 1$, $p_2 = 2^2 + 1 = 5$, $p_3 = 2^6 + 25 = 64 + 25 = 89$. Yes!
+
+$p_4 = 2^{14} + 89^2 = 16384 + 7921 = 24305$.
+
+This doesn't simplify to a nice closed form easily. Let me think about whether there's a telescoping structure.
+
+Let me think about the problem structure. We have:
+$$A_k = \frac{x_k - k}{(x_k + \cdots + x_{2002} + \frac{k(k-1)}{2} + 1)^2}$$
+
+Let me denote $S_k = x_k + x_{k+1} + \cdots + x_{2002}$ (sum from $k$ to $2002$). Then $S_k = x_k + S_{k+1}$ (with $S_{2003} = 0$).
+
+The denominator of $A_k$ is $(S_k + \frac{k(k-1)}{2} + 1)^2$.
+
+Let me define $T_k = S_k + \frac{k(k-1)}{2} + 1$. Then:
+$T_k = x_k + S_{k+1} + \frac{k(k-1)}{2} + 1$
+$T_{k+1} = S_{k+1} + \frac{(k+1)k}{2} + 1 = S_{k+1} + \frac{k(k-1)}{2} + k + 1$
+
+So $T_k = x_k + S_{k+1} + \frac{k(k-1)}{2} + 1$ and $T_{k+1} = S_{k+1} + \frac{k(k-1)}{2} + k + 1$.
+
+Thus $T_k = x_k + T_{k+1} - k$.
+
+So $T_k - T_{k+1} = x_k - k$.
+
+Therefore $A_k = \frac{T_k - T_{k+1}}{T_k^2}$.
+
+Now the sum becomes:
+$$\sum_{k=1}^{2002} A_k = \sum_{k=1}^{2002} \frac{T_k - T_{k+1}}{T_k^2}$$
+
+where $T_{2003} = S_{2003} + \frac{2003 \cdot 2002}{2} + 1 = 0 + \frac{2003 \cdot 2002}{2} + 1 = 2003 \cdot 1001 + 1 = 2005003 + 1 = 2005004$.
+
+Wait, let me recompute. $\frac{2003 \cdot 2002}{2} = 2003 \cdot 1001 = 2005003$. So $T_{2003} = 2005003 + 1 = 2005004$.
+
+And $T_k = x_k + T_{k+1} - k$ with $x_k \geq 0$, so $T_k \geq T_{k+1} - k$.
+
+Also, $T_1 = S_1 + 0 + 1 = x_1 + \cdots + x_{2002} + 1 \geq 1$.
+
+Now, $\frac{T_k - T_{k+1}}{T_k^2}$. Let me think about this as a telescoping sum.
+
+Note that $\frac{1}{T_{k+1}} - \frac{1}{T_k} = \frac{T_k - T_{k+1}}{T_k T_{k+1}}$.
+
+So $\frac{T_k - T_{k+1}}{T_k^2} = \frac{T_{k+1}}{T_k} \cdot \left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot \frac{T_k}{T_{k+1}} \cdot T_{k+1}$... hmm, let me be more careful.
+
+$\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k} \cdot \frac{1}{T_k}$.
+
+Alternatively, $\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k}\left(1 - \frac{T_{k+1}}{T_k}\right)$.
+
+Let me try a different approach. Consider $\frac{1}{T_k} - \frac{1}{T_{k+1}} = \frac{T_{k+1} - T_k}{T_k T_{k+1}} = \frac{-(T_k - T_{k+1})}{T_k T_{k+1}}$.
+
+So $\frac{T_k - T_{k+1}}{T_k^2} = -\frac{T_{k+1}}{T_k} \left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot \frac{1}{T_{k+1}} \cdot T_{k+1}$... I'm going in circles.
+
+Let me try: $\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$.
+
+And $\frac{T_{k+1}}{T_k^2} = \frac{1}{T_k} \cdot \frac{T_{k+1}}{T_k}$.
+
+Hmm. Let me think about this problem differently. Let me consider the substitution $T_k = \frac{1}{u_k}$, so $u_k = \frac{1}{T_k}$.
+
+Then $T_k - T_{k+1} = \frac{1}{u_k} - \frac{1}{u_{k+1}} = \frac{u_{k+1} - u_k}{u_k u_{k+1}}$.
+
+$\frac{T_k - T_{k+1}}{T_k^2} = \frac{u_{k+1} - u_k}{u_k u_{k+1}} \cdot u_k^2 = \frac{u_k(u_{k+1} - u_k)}{u_{k+1}} = u_k \cdot \frac{u_{k+1} - u_k}{u_{k+1}}$.
+
+$= u_k \left(1 - \frac{u_k}{u_{k+1}}\right) = u_k - \frac{u_k^2}{u_{k+1}}$.
+
+So $\sum A_k = \sum_{k=1}^{2002} \left(u_k - \frac{u_k^2}{u_{k+1}}\right)$ where $u_k = 1/T_k$.
+
+This is a telescoping-like sum. Let me write it as:
+$$\sum_{k=1}^{2002} u_k - \sum_{k=1}^{2002} \frac{u_k^2}{u_{k+1}}$$
+
+Hmm, this doesn't telescope directly. Let me think again.
+
+Actually, let's try a different decomposition. We have:
+$$\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$$
+
+Now, $\frac{T_{k+1}}{T_k^2}$. If I write $T_{k+1} = T_k - (x_k - k)$, then $\frac{T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{x_k - k}{T_k^2}$... that's circular.
+
+Let me try yet another approach. Consider the function $f(t) = \frac{1}{t}$. Then $f(T_{k+1}) - f(T_k) = \frac{1}{T_{k+1}} - \frac{1}{T_k} = \frac{T_k - T_{k+1}}{T_k T_{k+1}}$.
+
+So $\frac{T_k - T_{k+1}}{T_k^2} = \frac{T_{k+1}}{T_k} \cdot \left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot \frac{1}{1}$... no.
+
+$\frac{T_k - T_{k+1}}{T_k^2} = \frac{T_{k+1}}{T_k} \cdot \frac{T_k - T_{k+1}}{T_k T_{k+1}} = \frac{T_{k+1}}{T_k}\left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot (-1) \cdot (-1)$...
+
+Let me just compute directly:
+$$\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$$
+
+Now sum from $k=1$ to $2002$:
+$$\sum_{k=1}^{2002} A_k = \sum_{k=1}^{2002} \frac{1}{T_k} - \sum_{k=1}^{2002} \frac{T_{k+1}}{T_k^2}$$
+
+The second sum: $\frac{T_{k+1}}{T_k^2} = \frac{1}{T_k} \cdot \frac{T_{k+1}}{T_k}$.
+
+Hmm, let me try to relate $\frac{T_{k+1}}{T_k^2}$ to $\frac{1}{T_{k+1}}$ using the constraint.
+
+We have $T_k = x_k + T_{k+1} - k$ with $x_k \geq 0$, so $T_k \geq T_{k+1} - k$, i.e., $T_{k+1} \leq T_k + k$.
+
+Also $T_k > 0$ for all $k$ (since $T_{2003} = 2005004 > 0$ and $T_k \geq T_{k+1} - k$... actually we need to be more careful).
+
+Wait, $T_k = S_k + \frac{k(k-1)}{2} + 1$ where $S_k \geq 0$, so $T_k \geq \frac{k(k-1)}{2} + 1 \geq 1 > 0$. Good.
+
+Now, the key idea: we want to maximize $\sum \frac{T_k - T_{k+1}}{T_k^2}$ subject to the constraints $T_k \geq T_{k+1} - k$ (i.e., $x_k \geq 0$) and $T_{2003} = 2005004$.
+
+Actually, the constraint is $T_k = x_k + T_{k+1} - k$ with $x_k \geq 0$, which means $T_k \geq T_{k+1} - k$, or equivalently $T_{k+1} \leq T_k + k$.
+
+Also, $T_k$ can be anything $\geq \frac{k(k-1)}{2} + 1$ (when all $x_i = 0$ for $i \geq k$).
+
+Let me think about what the maximum of $\sum \frac{T_k - T_{k+1}}{T_k^2}$ looks like.
+
+Note that $T_k - T_{k+1} = x_k - k$, which can be negative (when $x_k < k$). So $A_k$ can be negative. But we want to maximize the sum.
+
+Let me think about this as an optimization problem. We want to maximize:
+$$F = \sum_{k=1}^{2002} \frac{T_k - T_{k+1}}{T_k^2}$$
+subject to $T_{k+1} \leq T_k + k$ for all $k$, and $T_{2003} = 2005004$, and $T_k \geq \frac{k(k-1)}{2} + 1$.
+
+Actually, since $T_{2003}$ is fixed and $T_k$ are determined by the choice of $x_k$ (equivalently, by the choice of $T_1, \ldots, T_{2002}$ subject to the constraints), we need to find the maximum.
+
+Let me think about a continuous version or a simpler case first.
+
+Actually, let me try to find a telescoping upper bound. The idea is to find a function $g$ such that:
+$$\frac{T_k - T_{k+1}}{T_k^2} \leq g(T_k) - g(T_{k+1}) + \text{something involving } k$$
+
+and the sum telescopes.
+
+A natural candidate: $\frac{1}{T_k} - \frac{1}{T_{k+1}} = \frac{T_{k+1} - T_k}{T_k T_{k+1}} = -\frac{T_k - T_{k+1}}{T_k T_{k+1}}$.
+
+So $\frac{T_k - T_{k+1}}{T_k^2} = -\frac{T_{k+1}}{T_k} \left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot \frac{T_k}{T_{k+1}} \cdot T_{k+1}$... I keep going in circles.
+
+Let me try: $\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$.
+
+And note $\frac{T_{k+1}}{T_k^2} = \frac{1}{T_k} \cdot \frac{T_{k+1}}{T_k}$.
+
+If $T_{k+1} \leq T_k$ (which happens when $x_k \leq k$), then $\frac{T_{k+1}}{T_k} \leq 1$ and $\frac{T_{k+1}}{T_k^2} \leq \frac{1}{T_k}$, so $A_k \geq 0$.
+
+If $T_{k+1} > T_k$ (which happens when $x_k > k$), then $A_k < 0$.
+
+So to maximize the sum, we probably want $T_{k+1} \leq T_k$ for most $k$, i.e., $x_k \leq k$.
+
+Let me try a different approach. Consider:
+$$\frac{T_k - T_{k+1}}{T_k^2} \leq \frac{1}{T_k} - \frac{1}{T_{k+1}} + \frac{(T_k - T_{k+1})^2}{T_k^2 T_{k+1}}$$
+
+Hmm, that's from the identity $\frac{1}{T_{k+1}} = \frac{1}{T_k - (T_k - T_{k+1})} = \frac{1}{T_k} \cdot \frac{1}{1 - (T_k - T_{k+1})/T_k}$.
+
+This is getting complicated. Let me try a completely different approach.
+
+Let me consider the substitution $T_k = \frac{1}{u_k}$ and try to use the AM-GM or Cauchy-Schwarz inequality.
+
+Actually, let me reconsider. The sum is:
+$$\sum_{k=1}^{n} \frac{T_k - T_{k+1}}{T_k^2}$$
+
+where $n = 2002$ and $T_{n+1} = \frac{n(n+1)}{2} + 1$.
+
+Let me try to bound each term. We have:
+$$\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$$
+
+Now, by AM-GM or similar, $\frac{T_{k+1}}{T_k^2} \geq \frac{1}{T_{k+1}} - \text{correction}$... 
+
+Actually, $\frac{T_{k+1}}{T_k^2}$ vs $\frac{1}{T_{k+1}}$: $\frac{T_{k+1}}{T_k^2} \geq \frac{1}{T_{k+1}}$ iff $T_{k+1}^2 \geq T_k^2$ iff $T_{k+1} \geq T_k$ (since both positive).
+
+So when $T_{k+1} \geq T_k$: $\frac{T_{k+1}}{T_k^2} \geq \frac{1}{T_{k+1}}$, meaning $A_k \leq \frac{1}{T_k} - \frac{1}{T_{k+1}}$.
+
+When $T_{k+1} \leq T_k$: $\frac{T_{k+1}}{T_k^2} \leq \frac{1}{T_{k+1}}$, meaning $A_k \geq \frac{1}{T_k} - \frac{1}{T_{k+1}}$.
+
+So the relationship between $A_k$ and $\frac{1}{T_k} - \frac{1}{T_{k+1}}$ depends on the sign of $T_k - T_{k+1}$.
+
+Hmm. Let me try a different tactic. Let me look for a bound of the form:
+$$\frac{T_k - T_{k+1}}{T_k^2} \leq \alpha_k \left(\frac{1}{T_k} - \frac{1}{T_{k+1}}\right) + \beta_k$$
+
+for some constants $\alpha_k, \beta_k$ depending on $k$ but not on the $T$'s. Then the sum would telescope.
+
+$\frac{T_k - T_{k+1}}{T_k^2} = \frac{T_{k+1}}{T_k} \cdot \frac{T_k - T_{k+1}}{T_k T_{k+1}} = \frac{T_{k+1}}{T_k} \left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot (-1) \cdot (-1)$
+
+Wait: $\frac{1}{T_k} - \frac{1}{T_{k+1}} = \frac{T_{k+1} - T_k}{T_k T_{k+1}} = -\frac{T_k - T_{k+1}}{T_k T_{k+1}}$.
+
+So $\frac{T_k - T_{k+1}}{T_k^2} = -\frac{T_{k+1}}{T_k} \left(\frac{1}{T_k} - \frac{1}{T_{k+1}}\right)$.
+
+The factor $\frac{T_{k+1}}{T_k}$ is not a constant, so this doesn't directly help.
+
+Let me try yet another approach. Consider the function $h(t) = \frac{1}{t} + \frac{c}{t^2}$ for some constant $c$. Then:
+$$h(T_k) - h(T_{k+1}) = \frac{1}{T_k} - \frac{1}{T_{k+1}} + c\left(\frac{1}{T_k^2} - \frac{1}{T_{k+1}^2}\right)$$
+$$= \frac{T_{k+1} - T_k}{T_k T_{k+1}} + c \cdot \frac{T_{k+1}^2 - T_k^2}{T_k^2 T_{k+1}^2}$$
+$$= \frac{T_{k+1} - T_k}{T_k T_{k+1}} + c \cdot \frac{(T_{k+1} - T_k)(T_{k+1} + T_k)}{T_k^2 T_{k+1}^2}$$
+$$= (T_{k+1} - T_k)\left[\frac{1}{T_k T_{k+1}} + \frac{c(T_{k+1} + T_k)}{T_k^2 T_{k+1}^2}\right]$$
+
+This is getting messy. Let me try a completely different strategy.
+
+Let me think about what the optimal $x_k$ might look like. Perhaps the maximum is achieved when $x_k = k$ for all $k$, making all $A_k = 0$ and the sum $= 0$. But that can't be the maximum since we can do better.
+
+Wait, actually if $x_k = k$ for all $k$, then $A_k = 0$ for all $k$, so the sum is $0$. But we can make some $A_k > 0$ by choosing $x_k > k$... no wait, $A_k = \frac{x_k - k}{(\ldots)^2}$, so $A_k > 0$ when $x_k > k$.
+
+But if $x_k > k$, then $T_k > T_{k+1}$ (since $T_k - T_{k+1} = x_k - k > 0$), which means $T_{k+1} < T_k$, which affects the denominators of $A_{k+1}, A_{k+2}, \ldots$.
+
+Let me think about small cases. Let $n = 1$. Then we have $x_1 \geq 0$ and:
+$$A_1 = \frac{x_1 - 1}{(x_1 + 1)^2}$$
+
+We want to maximize this. Let $f(x) = \frac{x-1}{(x+1)^2}$ for $x \geq 0$.
+
+$f'(x) = \frac{(x+1)^2 - (x-1) \cdot 2(x+1)}{(x+1)^4} = \frac{(x+1) - 2(x-1)}{(x+1)^3} = \frac{x+1-2x+2}{(x+1)^3} = \frac{3-x}{(x+1)^3}$.
+
+So $f'(x) = 0$ at $x = 3$, $f(3) = \frac{2}{16} = \frac{1}{8}$.
+
+And $a_1 = 1/4$. So $\lambda \cdot a_1 = \lambda/4$. We need $\lambda/4 \geq 1/8$, so $\lambda \geq 1/2$.
+
+For $n = 1$, the answer is $\lambda = 1/2$.
+
+Let me check $n = 2$. We have $x_1, x_2 \geq 0$ and:
+$$A_1 = \frac{x_1 - 1}{(x_1 + x_2 + 1)^2}, \quad A_2 = \frac{x_2 - 2}{(x_2 + 2 + 1)^2} = \frac{x_2 - 2}{(x_2 + 3)^2}$$
+
+Wait, let me recompute. $T_3 = \frac{2 \cdot 3}{2} + 1 = 4$ (for $n=2$, $T_{n+1} = T_3 = \frac{3 \cdot 2}{2} + 1 = 4$).
+
+$T_2 = x_2 + T_3 - 2 = x_2 + 2$.
+$T_1 = x_1 + T_2 - 1 = x_1 + x_2 + 1$.
+
+$A_1 = \frac{T_1 - T_2}{T_1^2} = \frac{x_1 - 1}{(x_1 + x_2 + 1)^2}$.
+$A_2 = \frac{T_2 - T_3}{T_2^2} = \frac{x_2 + 2 - 4}{(x_2 + 2)^2} = \frac{x_2 - 2}{(x_2 + 2)^2}$.
+
+Wait, $T_2 = x_2 + T_3 - 2 = x_2 + 4 - 2 = x_2 + 2$. And $A_2 = \frac{T_2 - T_3}{T_2^2} = \frac{x_2 + 2 - 4}{(x_2+2)^2} = \frac{x_2 - 2}{(x_2+2)^2}$.
+
+To maximize $A_2$ alone: $g(x) = \frac{x-2}{(x+2)^2}$, $g'(x) = \frac{(x+2)^2 - (x-2) \cdot 2(x+2)}{(x+2)^4} = \frac{(x+2) - 2(x-2)}{(x+2)^3} = \frac{6-x}{(x+2)^3}$.
+
+Max at $x = 6$: $g(6) = \frac{4}{64} = \frac{1}{16}$.
+
+And $a_2 = 25/64$. So $\lambda \cdot 25/64 \geq 1/16$ gives $\lambda \geq 4/25$.
+
+But we also need to consider the sum $A_1 + A_2$. The maximum of the sum might be larger.
+
+For the sum, we need to optimize over $x_1, x_2$. Let me think about whether the maximum of the sum is achieved when we optimize each term independently.
+
+If $x_1$ is chosen to maximize $A_1$ given $x_2$, and $x_2$ is chosen to maximize $A_2$, there might be interaction since $A_1$ depends on $x_2$ through $T_1$.
+
+Let me think about this more carefully. Given $T_2$ (i.e., given $x_2$), $A_1 = \frac{T_1 - T_2}{T_1^2}$ where $T_1 = x_1 + T_2 - 1 \geq T_2 - 1$ (since $x_1 \geq 0$).
+
+Let $f(T_1) = \frac{T_1 - T_2}{T_1^2} = \frac{1}{T_1} - \frac{T_2}{T_1^2}$.
+
+$f'(T_1) = -\frac{1}{T_1^2} + \frac{2T_2}{T_1^3} = \frac{2T_2 - T_1}{T_1^3}$.
+
+Maximum at $T_1 = 2T_2$, giving $f(2T_2) = \frac{2T_2 - T_2}{4T_2^2} = \frac{1}{4T_2}$.
+
+The constraint is $T_1 \geq T_2 - 1$, i.e., $x_1 \geq 0$, i.e., $T_1 \geq T_2 - 1$. If $2T_2 \geq T_2 - 1$, i.e., $T_2 \geq -1$ (always true since $T_2 > 0$), then the maximum of $A_1$ given $T_2$ is $\frac{1}{4T_2}$, achieved at $T_1 = 2T_2$, i.e., $x_1 = T_2 - 1$.
+
+So the maximum of $A_1$ given $T_2$ is $\frac{1}{4T_2}$.
+
+Similarly, the maximum of $A_2$ given $T_3$ is $\frac{1}{4T_3}$, achieved at $T_2 = 2T_3$.
+
+So the maximum of the sum $A_1 + A_2$ is at most $\frac{1}{4T_2} + \frac{1}{4T_3}$... but wait, we need to be careful. When we optimize $A_1$ given $T_2$, we get $\frac{1}{4T_2}$. But $T_2$ is also a variable (it depends on $x_2$). And $A_2$ depends on $T_2$ and $T_3$.
+
+Actually, let me think about this as a dynamic programming / backward induction problem.
+
+For the last term, $A_n = \frac{T_n - T_{n+1}}{T_n^2}$ where $T_{n+1}$ is fixed. The maximum over $T_n$ (subject to $T_n \geq T_{n+1} - n$) is $\frac{1}{4T_{n+1}}$ achieved at $T_n = 2T_{n+1}$ (provided $2T_{n+1} \geq T_{n+1} - n$, which is $T_{n+1} \geq -n$, always true).
+
+Now for the second-to-last term, $A_{n-1} = \frac{T_{n-1} - T_n}{T_{n-1}^2}$. Given $T_n$, the maximum of $A_{n-1}$ is $\frac{1}{4T_n}$ at $T_{n-1} = 2T_n$.
+
+But we also need to account for $A_n$ which depends on $T_n$. So the total contribution from terms $n-1$ and $n$ given $T_n$ is:
+$$\frac{1}{4T_n} + A_n(T_n) = \frac{1}{4T_n} + \frac{T_n - T_{n+1}}{T_n^2}$$
+
+Wait, but when we optimize $A_{n-1}$, we've already fixed $T_n$. And $A_n$ is determined by $T_n$ (since $T_{n+1}$ is fixed). So the total from terms $n-1$ and $n$ is:
+$$\frac{1}{4T_n} + \frac{T_n - T_{n+1}}{T_n^2}$$
+
+But we need to optimize this over $T_n$ as well! Because $T_n$ is a free variable (subject to constraints).
+
+Hmm, so the approach is: we optimize from back to front. At each step, we have a function of $T_k$ that represents the maximum of the sum from $k$ to $n$ given $T_k$.
+
+Let me define $V_k(T_k)$ = maximum of $\sum_{j=k}^{n} A_j$ given $T_k$.
+
+Then $V_n(T_n) = \frac{T_n - T_{n+1}}{T_n^2}$ (this is just $A_n$, no optimization needed since $T_{n+1}$ is fixed).
+
+And $V_{k}(T_k) = \max_{T_{k+1}} \left[\frac{T_k - T_{k+1}}{T_k^2} + V_{k+1}(T_{k+1})\right]$
+
+subject to $T_{k+1} \leq T_k + k$ (from $x_k \geq 0$) and $T_{k+1} \geq \frac{(k+1)k}{2} + 1$ (from all subsequent $x_j = 0$).
+
+Wait, actually the constraint is $T_k = x_k + T_{k+1} - k$ with $x_k \geq 0$, so $T_{k+1} \leq T_k + k$. And $T_{k+1} \geq \frac{(k+1)k}{2} + 1$ (minimum value when all $x_j = 0$ for $j > k$).
+
+Let me compute $V_n(T_n) = \frac{T_n - T_{n+1}}{T_n^2} = \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$.
+
+Now, $V_{n-1}(T_{n-1}) = \max_{T_n} \left[\frac{T_{n-1} - T_n}{T_{n-1}^2} + V_n(T_n)\right]$
+
+$= \max_{T_n} \left[\frac{T_{n-1} - T_n}{T_{n-1}^2} + \frac{T_n - T_{n+1}}{T_n^2}\right]$
+
+$= \frac{1}{T_{n-1}} + \max_{T_n} \left[-\frac{T_n}{T_{n-1}^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}\right]$
+
+$= \frac{1}{T_{n-1}} + \max_{T_n} \left[\frac{1}{T_n} - \frac{T_n}{T_{n-1}^2} - \frac{T_{n+1}}{T_n^2}\right]$
+
+Let me optimize the expression in brackets over $T_n$. Let $h(T_n) = \frac{1}{T_n} - \frac{T_n}{T_{n-1}^2} - \frac{T_{n+1}}{T_n^2}$.
+
+$h'(T_n) = -\frac{1}{T_n^2} - \frac{1}{T_{n-1}^2} + \frac{2T_{n+1}}{T_n^3}$
+
+Setting $h'(T_n) = 0$: $\frac{2T_{n+1}}{T_n^3} = \frac{1}{T_n^2} + \frac{1}{T_{n-1}^2}$
+
+$\frac{2T_{n+1}}{T_n} = 1 + \frac{T_n^2}{T_{n-1}^2}$
+
+This is getting complicated. Let me try a guess: suppose $V_k(T_k) = \frac{c_k}{T_k}$ for some constant $c_k$. Then:
+
+$V_k(T_k) = \max_{T_{k+1}} \left[\frac{T_k - T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}}\right]$
+
+$= \frac{1}{T_k} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}}\right]$
+
+The expression to maximize: $g(T_{k+1}) = -\frac{T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}}$.
+
+$g'(T_{k+1}) = -\frac{1}{T_k^2} - \frac{c_{k+1}}{T_{k+1}^2}$
+
+This is always negative (if $c_{k+1} > 0$), so $g$ is decreasing! That means the maximum is at the smallest $T_{k+1}$.
+
+Hmm, that doesn't work. Let me reconsider.
+
+Wait, $g'(T_{k+1}) = -\frac{1}{T_k^2} - \frac{c_{k+1}}{T_{k+1}^2} < 0$ always. So $g$ is strictly decreasing, and the maximum is at the minimum $T_{k+1}$.
+
+The minimum $T_{k+1}$ is $\frac{(k+1)k}{2} + 1$ (when all subsequent $x_j = 0$). But that doesn't give a nice form.
+
+Hmm, maybe my guess $V_k(T_k) = c_k/T_k$ is wrong. Let me try $V_k(T_k) = \frac{c_k}{T_k} + d_k$ for constants $c_k, d_k$.
+
+$V_k(T_k) = \max_{T_{k+1}} \left[\frac{T_k - T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}} + d_{k+1}\right]$
+
+$= \frac{1}{T_k} + d_{k+1} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}}\right]$
+
+Same issue: the expression $-\frac{T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}}$ has derivative $-\frac{1}{T_k^2} - \frac{c_{k+1}}{T_{k+1}^2} < 0$, so it's decreasing.
+
+This means the maximum of the sum is achieved by making $T_{k+1}$ as small as possible, i.e., setting all subsequent $x_j = 0$. But then we're just maximizing a single term.
+
+Wait, that can't be right. Let me re-examine.
+
+Actually, I think the issue is that when $T_{k+1}$ is small, $A_k = \frac{T_k - T_{k+1}}{T_k^2}$ is large (since $T_k - T_{k+1}$ is large), but the subsequent terms $A_{k+1}, \ldots$ might be small or negative.
+
+Let me reconsider. If we set $x_j = 0$ for $j > k$, then $T_{k+1} = \frac{(k+1)k}{2} + 1$, and $A_{k+1} = \frac{T_{k+1} - T_{k+2}}{T_{k+1}^2} = \frac{0 - (k+1)}{T_{k+1}^2} < 0$ (since $x_{k+1} = 0 < k+1$).
+
+So making $T_{k+1}$ small makes $A_k$ large but makes $A_{k+1}, \ldots, A_n$ negative. There's a tradeoff.
+
+Let me reconsider the form of $V_k$. Let me try $V_k(T_k) = \frac{c_k}{T_k} + d_k T_k + e_k$ or some other form.
+
+Actually, let me go back to the direct computation. We have:
+$$V_k(T_k) = \max_{T_{k+1} \leq T_k + k} \left[\frac{T_k - T_{k+1}}{T_k^2} + V_{k+1}(T_{k+1})\right]$$
+
+Let me try $V_k(T_k) = \frac{\alpha_k}{T_k} + \beta_k$ for some constants. Then:
+
+$V_k(T_k) = \frac{1}{T_k} + \beta_{k+1} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{T_k^2} + \frac{\alpha_{k+1}}{T_{k+1}}\right]$
+
+The inner maximization: $f(T_{k+1}) = -\frac{T_{k+1}}{T_k^2} + \frac{\alpha_{k+1}}{T_{k+1}}$.
+
+$f'(T_{k+1}) = -\frac{1}{T_k^2} - \frac{\alpha_{k+1}}{T_{k+1}^2}$
+
+If $\alpha_{k+1} > 0$, this is always negative, so $f$ is decreasing and the max is at the smallest $T_{k+1}$.
+If $\alpha_{k+1} < 0$, then $f'(T_{k+1}) = -\frac{1}{T_k^2} + \frac{|\alpha_{k+1}|}{T_{k+1}^2} = 0$ gives $T_{k+1} = T_k \sqrt{|\alpha_{k+1}|}$.
+
+So if $\alpha_{k+1} < 0$, the optimal $T_{k+1} = T_k \sqrt{|\alpha_{k+1}|}$ (assuming this satisfies the constraint).
+
+At this optimum: $f = -\frac{T_k\sqrt{|\alpha_{k+1}|}}{T_k^2} + \frac{\alpha_{k+1}}{T_k\sqrt{|\alpha_{k+1}|}} = -\frac{\sqrt{|\alpha_{k+1}|}}{T_k} + \frac{-|\alpha_{k+1}|}{T_k\sqrt{|\alpha_{k+1}|}} = -\frac{\sqrt{|\alpha_{k+1}|}}{T_k} - \frac{\sqrt{|\alpha_{k+1}|}}{T_k} = -\frac{2\sqrt{|\alpha_{k+1}|}}{T_k}$.
+
+So $V_k(T_k) = \frac{1}{T_k} + \beta_{k+1} - \frac{2\sqrt{|\alpha_{k+1}|}}{T_k} = \frac{1 - 2\sqrt{|\alpha_{k+1}|}}{T_k} + \beta_{k+1}$.
+
+So $\alpha_k = 1 - 2\sqrt{|\alpha_{k+1}|}$ and $\beta_k = \beta_{k+1}$.
+
+For this to work, we need $\alpha_{k+1} < 0$, i.e., $|\alpha_{k+1}| = -\alpha_{k+1} > 0$.
+
+And $\alpha_k = 1 - 2\sqrt{-\alpha_{k+1}}$.
+
+For $\alpha_k < 0$ (so that the recursion continues), we need $1 - 2\sqrt{-\alpha_{k+1}} < 0$, i.e., $\sqrt{-\alpha_{k+1}} > 1/2$, i.e., $-\alpha_{k+1} > 1/4$, i.e., $\alpha_{k+1} < -1/4$.
+
+Let me check the base case. $V_n(T_n) = \frac{T_n - T_{n+1}}{T_n^2} = \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$.
+
+This is NOT of the form $\frac{\alpha_n}{T_n} + \beta_n$ because of the $\frac{T_{n+1}}{T_n^2}$ term.
+
+Hmm. So the form $\frac{\alpha}{T} + \beta$ doesn't work for the base case. Let me try $V_k(T_k) = \frac{\alpha_k}{T_k} + \frac{\gamma_k}{T_k^2} + \beta_k$.
+
+Actually, let me try $V_k(T_k) = \frac{\alpha_k}{T_k} + \frac{\gamma_k}{T_k^2}$.
+
+Base case: $V_n(T_n) = \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$. So $\alpha_n = 1$, $\gamma_n = -T_{n+1}$.
+
+But $T_{n+1}$ is a constant (it's $\frac{n(n+1)}{2} + 1$), so this works. $\gamma_n = -T_{n+1}$.
+
+Now the recursion:
+$V_k(T_k) = \max_{T_{k+1}} \left[\frac{T_k - T_{k+1}}{T_k^2} + \frac{\alpha_{k+1}}{T_{k+1}} + \frac{\gamma_{k+1}}{T_{k+1}^2}\right]$
+
+$= \frac{1}{T_k} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{T_k^2} + \frac{\alpha_{k+1}}{T_{k+1}} + \frac{\gamma_{k+1}}{T_{k+1}^2}\right]$
+
+Let $h(T_{k+1}) = -\frac{T_{k+1}}{T_k^2} + \frac{\alpha_{k+1}}{T_{k+1}} + \frac{\gamma_{k+1}}{T_{k+1}^2}$.
+
+$h'(T_{k+1}) = -\frac{1}{T_k^2} - \frac{\alpha_{k+1}}{T_{k+1}^2} - \frac{2\gamma_{k+1}}{T_{k+1}^3}$
+
+Setting $h'(T_{k+1}) = 0$: $\frac{1}{T_k^2} = -\frac{\alpha_{k+1}}{T_{k+1}^2} - \frac{2\gamma_{k+1}}{T_{k+1}^3}$
+
+$\frac{T_{k+1}^3}{T_k^2} = -\alpha_{k+1} T_{k+1} - 2\gamma_{k+1}$
+
+This is a cubic in $T_{k+1}$, which is complicated. The form $\frac{\alpha}{T} + \frac{\gamma}{T^2}$ doesn't lead to a clean recursion.
+
+Let me try a different form. What if $V_k(T_k) = \frac{c_k}{T_k}$ where $c_k$ can be any real number (including negative)?
+
+Base case: $V_n(T_n) = \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$. This is not of the form $c/T$.
+
+Hmm. Let me try yet another approach. Let me guess that the optimal strategy is to set $T_k = 2T_{k+1}$ for each $k$ (from the single-term optimization), and see what the sum becomes.
+
+If $T_k = 2T_{k+1}$ for all $k$, then $T_k = 2^{n+1-k} T_{n+1}$.
+
+$A_k = \frac{T_k - T_{k+1}}{T_k^2} = \frac{2T_{k+1} - T_{k+1}}{4T_{k+1}^2} = \frac{1}{4T_{k+1}}$.
+
+And $T_{k+1} = 2^{n-k} T_{n+1}$, so $A_k = \frac{1}{4 \cdot 2^{n-k} T_{n+1}} = \frac{1}{2^{n-k+2} T_{n+1}}$.
+
+Sum: $\sum_{k=1}^{n} A_k = \frac{1}{T_{n+1}} \sum_{k=1}^{n} \frac{1}{2^{n-k+2}} = \frac{1}{T_{n+1}} \sum_{j=0}^{n-1} \frac{1}{2^{j+2}} = \frac{1}{T_{n+1}} \cdot \frac{1}{4} \cdot \frac{1 - 1/2^n}{1 - 1/2} = \frac{1}{T_{n+1}} \cdot \frac{1}{2}(1 - 2^{-n})$.
+
+$= \frac{1 - 2^{-n}}{2 T_{n+1}}$.
+
+But we need to check the constraints. $T_k = 2T_{k+1}$ means $x_k = T_k - T_{k+1} + k = T_{k+1} + k = 2^{n-k}T_{n+1} + k \geq 0$. ✓
+
+So this is feasible. The sum is $\frac{1 - 2^{-n}}{2 T_{n+1}}$.
+
+But is this the maximum? The issue is that when we set $T_k = 2T_{k+1}$ to maximize $A_k$, we might not be maximizing the total sum because $T_k$ also affects $A_{k-1}$.
+
+Let me reconsider. The optimization should be done from the front, not the back. Or rather, we need to jointly optimize.
+
+Actually, let me reconsider the backward induction. The issue with my earlier analysis was that $V_n(T_n) = \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$ is not of a simple form. But let me try to compute $V_{n-1}$ explicitly.
+
+$V_{n-1}(T_{n-1}) = \max_{T_n} \left[\frac{T_{n-1} - T_n}{T_{n-1}^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}\right]$
+
+$= \frac{1}{T_{n-1}} + \max_{T_n} \left[-\frac{T_n}{T_{n-1}^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}\right]$
+
+Let $h(T_n) = -\frac{T_n}{T_{n-1}^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$.
+
+$h'(T_n) = -\frac{1}{T_{n-1}^2} - \frac{1}{T_n^2} + \frac{2T_{n+1}}{T_n^3}$
+
+Setting to 0: $\frac{2T_{n+1}}{T_n^3} = \frac{1}{T_{n-1}^2} + \frac{1}{T_n^2}$
+
+$\frac{2T_{n+1}}{T_n} = \frac{T_n^2}{T_{n-1}^2} + 1$
+
+Let $r = T_n / T_{n-1}$. Then $\frac{2T_{n+1}}{T_n} = r^2 + 1$, so $T_n = \frac{2T_{n+1}}{r^2 + 1}$ and $T_{n-1} = \frac{T_n}{r} = \frac{2T_{n+1}}{r(r^2+1)}$.
+
+This is getting complicated. Let me try a different substitution. Let $T_k = \frac{T_{n+1}}{t_k}$ where $t_k$ is some sequence. Then:
+
+$A_k = \frac{T_k - T_{k+1}}{T_k^2} = \frac{T_{n+1}/t_k - T_{n+1}/t_{k+1}}{T_{n+1}^2/t_k^2} = \frac{t_k^2}{T_{n+1}} \cdot \frac{t_{k+1} - t_k}{t_k t_{k+1}} = \frac{t_k(t_{k+1} - t_k)}{T_{n+1} t_{k+1}}$
+
+$= \frac{t_k}{T_{n+1}} \cdot \frac{t_{k+1} - t_k}{t_{k+1}} = \frac{t_k}{T_{n+1}} \left(1 - \frac{t_k}{t_{k+1}}\right)$
+
+Hmm, let me try $T_k = T_{n+1} \cdot s_k$ where $s_k > 0$ and $s_{n+1} = 1$.
+
+$A_k = \frac{T_{n+1}(s_k - s_{k+1})}{T_{n+1}^2 s_k^2} = \frac{s_k - s_{k+1}}{T_{n+1} s_k^2}$
+
+So $\sum A_k = \frac{1}{T_{n+1}} \sum_{k=1}^{n} \frac{s_k - s_{k+1}}{s_k^2}$.
+
+And the constraint is $s_k \geq s_{k+1} - k/T_{n+1}$ (from $x_k \geq 0$), and $s_{n+1} = 1$.
+
+Also $s_k \geq \frac{k(k-1)/2 + 1}{T_{n+1}}$ (minimum when all subsequent $x_j = 0$).
+
+Now, $\frac{s_k - s_{k+1}}{s_k^2} = \frac{1}{s_k} - \frac{s_{k+1}}{s_k^2}$.
+
+Let me try $u_k = 1/s_k$. Then $s_k = 1/u_k$ and:
+
+$\frac{s_k - s_{k+1}}{s_k^2} = \frac{1/s_k - 1/s_{k+1}}{1/s_k^2 \cdot s_k s_{k+1}} \cdot s_{k+1}$... let me just compute directly.
+
+$\frac{s_k - s_{k+1}}{s_k^2} = (s_k - s_{k+1}) u_k^2 = \left(\frac{1}{u_k} - \frac{1}{u_{k+1}}\right) u_k^2 = \frac{u_{k+1} - u_k}{u_k u_{k+1}} \cdot u_k^2 = \frac{u_k(u_{k+1} - u_k)}{u_{k+1}}$
+
+$= u_k \cdot \frac{u_{k+1} - u_k}{u_{k+1}} = u_k \left(1 - \frac{u_k}{u_{k+1}}\right) = u_k - \frac{u_k^2}{u_{k+1}}$
+
+So $\sum A_k = \frac{1}{T_{n+1}} \sum_{k=1}^{n} \left(u_k - \frac{u_k^2}{u_{k+1}}\right)$
+
+where $u_k = 1/s_k = T_{n+1}/T_k$ and $u_{n+1} = 1$.
+
+Now, $u_k - \frac{u_k^2}{u_{k+1}} = u_k\left(1 - \frac{u_k}{u_{k+1}}\right)$.
+
+Note that $u_k = T_{n+1}/T_k$. Since $T_k \geq T_{k+1} - k$ and $T_k$ can be large, $u_k$ can be small. Also $u_{n+1} = 1$.
+
+The constraint $x_k \geq 0$ means $T_k \geq T_{k+1} - k$, i.e., $T_{n+1}/u_k \geq T_{n+1}/u_{k+1} - k$, i.e., $1/u_k \geq 1/u_{k+1} - k/T_{n+1}$, i.e., $u_{k+1} \geq u_k \cdot \frac{1}{1 - k u_k/T_{n+1}}$ (when $ku_k < T_{n+1}$)... this is getting complicated.
+
+Let me try a completely different approach. Let me look at the structure of $a_n$ more carefully.
+
+$a_n = \frac{1}{4}(1 + a_{n-1})^2$. Let me define $b_n = 1 + a_n$. Then $b_n = 1 + \frac{1}{4}b_{n-1}^2$, with $b_1 = 5/4$.
+
+$b_2 = 1 + \frac{25}{64} = \frac{89}{64}$.
+$b_3 = 1 + \frac{89^2}{64^2 \cdot 4} = 1 + \frac{7921}{16384} = \frac{24305}{16384}$.
+
+Hmm, $b_n = 1 + \frac{b_{n-1}^2}{4}$. Let me try $b_n = \frac{c_n}{2^{2^n - 1}}$ (from the pattern of $a_n$).
+
+$b_1 = 5/4 = 5/2^2$. $2^{2^1-1} = 2$. So $c_1 = 5/2$? That doesn't work as an integer.
+
+Actually, $a_n = p_n / 2^{2(2^n - 1)}$... let me recompute. $a_1 = 1/4 = 1/2^2$. $a_2 = 25/64 = 25/2^6$. $a_3 = 7921/16384 = 7921/2^{14}$.
+
+Denominators: $2, 6, 14$. These are $2^1, 2^3-2, 2^4-2$... no. $2 = 2, 6 = 2+4, 14 = 2+4+8$. So the denominator of $a_n$ is $2^{2+4+\cdots+2^n} = 2^{2(2^n-1)}$... let me check: $2(2^1-1) = 2$, $2(2^2-1) = 6$, $2(2^3-1) = 14$. Yes!
+
+So $a_n = \frac{p_n}{2^{2(2^n-1)}}$ where $p_1 = 1$ and $p_n = (2^{2(2^{n-1}-1)} + p_{n-1})^2 / 4$... let me verify.
+
+$a_n = \frac{1}{4}(1+a_{n-1})^2 = \frac{1}{4}\left(\frac{2^{2(2^{n-1}-1)} + p_{n-1}}{2^{2(2^{n-1}-1)}}\right)^2 = \frac{(2^{2(2^{n-1}-1)} + p_{n-1})^2}{4 \cdot 2^{4(2^{n-1}-1)}}$
+
+$= \frac{(2^{2(2^{n-1}-1)} + p_{n-1})^2}{2^{4 \cdot 2^{n-1} - 4 + 2}} = \frac{(2^{2^{n}-2} + p_{n-1})^2}{2^{2^{n+1}-2}}$
+
+And $2(2^n - 1) = 2^{n+1} - 2$. ✓
+
+So $p_n = (2^{2^n - 2} + p_{n-1})^2$... wait, that would make $p_n$ a perfect square. Let me check: $p_1 = 1$, $p_2 = (2^2 + 1)^2 = 25$. ✓ $p_3 = (2^6 + 25)^2 = 89^2 = 7921$. ✓
+
+So $p_n = (2^{2^n-2} + p_{n-1})^2$ and $a_n = \frac{p_n}{2^{2^{n+1}-2}}$.
+
+Let $q_n = 2^{2^n-2} + p_{n-1}$, so $p_n = q_n^2$ and $a_n = \frac{q_n^2}{2^{2^{n+1}-2}} = \left(\frac{q_n}{2^{2^n-1}}\right)^2$.
+
+So $a_n = b_n^2$ where $b_n = \frac{q_n}{2^{2^n-1}}$.
+
+And $b_n = \frac{q_n}{2^{2^n-1}} = \frac{2^{2^n-2} + p_{n-1}}{2^{2^n-1}} = \frac{1}{2} + \frac{p_{n-1}}{2^{2^n-1}} = \frac{1}{2} + \frac{b_{n-1}^2 \cdot 2^{2^n-2}}{2^{2^n-1}} = \frac{1}{2} + \frac{b_{n-1}^2}{2}$.
+
+So $b_n = \frac{1 + b_{n-1}^2}{2}$ with $b_1 = \sqrt{a_1} = 1/2$.
+
+This confirms what I had before: $b_n = \sqrt{a_n}$ satisfies $b_n = \frac{1+b_{n-1}^2}{2}$.
+
+Now, $b_n \to 1$ as $n \to \infty$ (since $b = (1+b^2)/2$ gives $b = 1$). And $a_n = b_n^2 \to 1$.
+
+Let me think about the connection between the sequence $a_n$ and the optimization problem.
+
+The key relation is $b_n = \frac{1+b_{n-1}^2}{2}$, or equivalently $1 - b_n = \frac{(1-b_{n-1})(1+b_{n-1})}{2} \cdot \frac{1}{1} $... let me compute:
+
+$1 - b_n = 1 - \frac{1+b_{n-1}^2}{2} = \frac{2 - 1 - b_{n-1}^2}{2} = \frac{1 - b_{n-1}^2}{2} = \frac{(1-b_{n-1})(1+b_{n-1})}{2}$.
+
+So $1 - b_n = \frac{(1-b_{n-1})(1+b_{n-1})}{2}$.
+
+And $a_n = b_n^2$, so $1 - a_n = 1 - b_n^2 = (1-b_n)(1+b_n) = \frac{(1-b_{n-1})(1+b_{n-1})^2}{2}$.
+
+Also, $1 + a_n = 1 + b_n^2 = 2b_n$ (from $b_n = \frac{1+b_{n-1}^2}{2}$, we get $1 + b_{n-1}^2 = 2b_n$, so $1 + a_{n-1} = 2b_n$, thus $b_n = \frac{1+a_{n-1}}{2}$).
+
+So $a_n = b_n^2 = \left(\frac{1+a_{n-1}}{2}\right)^2 = \frac{(1+a_{n-1})^2}{4}$. ✓
+
+Now, let me think about the optimization problem again. We have:
+$$\sum_{k=1}^{n} A_k = \frac{1}{T_{n+1}} \sum_{k=1}^{n} \left(u_k - \frac{u_k^2}{u_{k+1}}\right)$$
+
+where $u_k = T_{n+1}/T_k$ and $u_{n+1} = 1$.
+
+We want to maximize this. Let me think about what happens when we set $u_k = 2u_{k+1}$ (which corresponds to $T_k = T_{k+1}/2$, i.e., $T_k = T_{k+1}/2$... wait, $u_k = T_{n+1}/T_k$ and $u_k = 2u_{k+1}$ means $T_{n+1}/T_k = 2T_{n+1}/T_{k+1}$, so $T_{k+1} = 2T_k$. But earlier I had $T_k = 2T_{k+1}$ for the single-term optimization. Let me recheck.
+
+For a single term $A_k = \frac{T_k - T_{k+1}}{T_k^2}$, the maximum over $T_{k+1}$ (treating $T_k$ as fixed) is at $T_{k+1} = T_k/2$ (from $f'(T_{k+1}) = 0$ where $f(T_{k+1}) = \frac{T_k - T_{k+1}}{T_k^2}$, $f' = -1/T_k^2 < 0$... wait, that's always negative, so $f$ is decreasing in $T_{k+1}$, and the maximum is at the smallest $T_{k+1}$).
+
+Hmm wait, I think I confused the direction. $A_k = \frac{T_k - T_{k+1}}{T_k^2}$. If $T_k$ is fixed, then $A_k$ is decreasing in $T_{k+1}$ (since the numerator decreases). So to maximize $A_k$ alone, we want $T_{k+1}$ as small as possible.
+
+But if $T_{k+1}$ is fixed, then $A_k = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$, and $\frac{dA_k}{dT_k} = -\frac{1}{T_k^2} + \frac{2T_{k+1}}{T_k^3} = \frac{2T_{k+1} - T_k}{T_k^3}$, which is zero at $T_k = 2T_{k+1}$, giving $A_k = \frac{1}{4T_{k+1}}$.
+
+So the maximum of $A_k$ given $T_{k+1}$ is $\frac{1}{4T_{k+1}}$ at $T_k = 2T_{k+1}$.
+
+OK so now let me think about the full optimization using backward induction, where at each step we optimize $T_k$ given $T_{k+1}$.
+
+Define $W_k(T_{k+1})$ = maximum of $\sum_{j=k}^{n} A_j$ given $T_{k+1}$ (optimizing over $T_k, T_{k-1}, \ldots, T_1$... no, that's forward).
+
+Actually, let me define it properly. $W_k(T_{k+1})$ = maximum of $\sum_{j=1}^{k} A_j$ given $T_{k+1}$ (optimizing over $T_1, \ldots, T_k$ subject to constraints).
+
+Hmm, this is forward induction. Let me think about it differently.
+
+Actually, the constraint is $T_k \geq T_{k+1} - k$ (from $x_k \geq 0$), and $T_k$ can be any value $\geq \frac{k(k-1)}{2} + 1$ (but this is automatically satisfied if $T_{k+1} \geq \frac{(k+1)k}{2} + 1$ and $T_k \geq T_{k+1} - k$... not exactly).
+
+Let me think about it as: we choose $T_1, T_2, \ldots, T_n$ freely subject to $T_k \geq T_{k+1} - k$ for each $k$, and $T_{n+1}$ is fixed. We want to maximize $\sum_{k=1}^n \frac{T_k - T_{k+1}}{T_k^2}$.
+
+Using backward induction: define $F_k(T_{k+1})$ = max of $\sum_{j=k}^{n} A_j$ over $T_k, T_{k+1}, \ldots, T_n$ given $T_{k+1}$.
+
+Wait, but $T_{k+1}$ is given, so we optimize over $T_k$ (and then $F_{k-1}$ will optimize over $T_{k-1}$ given $T_k$, etc.)
+
+$F_n(T_{n+1}) = \max_{T_n \geq T_{n+1} - n} \frac{T_n - T_{n+1}}{T_n^2}$
+
+$= \max_{T_n} \left[\frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}\right]$
+
+The unconstrained maximum is at $T_n = 2T_{n+1}$, giving $\frac{1}{4T_{n+1}}$. The constraint $T_n \geq T_{n+1} - n$ is satisfied since $2T_{n+1} \geq T_{n+1} - n$ (as $T_{n+1} \geq 0$). Also need $T_n \geq \frac{n(n-1)}{2} + 1$, but $2T_{n+1} = 2(\frac{n(n+1)}{2} + 1) = n(n+1) + 2 \geq \frac{n(n-1)}{2} + 1$ for $n \geq 1$. ✓
+
+So $F_n(T_{n+1}) = \frac{1}{4T_{n+1}}$.
+
+$F_{n-1}(T_n) = \max_{T_{n-1}} \left[\frac{T_{n-1} - T_n}{T_{n-1}^2} + F_n(T_n)\right]$
+
+Wait, no. $F_{n-1}(T_n)$ should be the max of $\sum_{j=n-1}^{n} A_j$ given $T_n$. But $F_n$ is a function of $T_{n+1}$, not $T_n$. Let me redefine.
+
+Let me define $G_k$ = maximum of $\sum_{j=k}^{n} A_j$ where we optimize over all $T_k, \ldots, T_n$ (with $T_{n+1}$ fixed). This is a number, not a function.
+
+But to use backward induction, I need to keep track of the dependency. Let me define:
+
+$H_k(c)$ = maximum of $\sum_{j=k}^{n} A_j$ given that $T_k = c$ (optimizing over $T_{k+1}, \ldots, T_n$ subject to constraints and $T_{n+1}$ fixed).
+
+Then $H_n(c) = \frac{c - T_{n+1}}{c^2}$ (no optimization, $T_{n+1}$ is fixed).
+
+$H_k(c) = \max_{T_{k+1} \leq c + k, T_{k+1} \geq \frac{(k+1)k}{2}+1} \left[\frac{c - T_{k+1}}{c^2} + H_{k+1}(T_{k+1})\right]$
+
+$= \frac{1}{c} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{c^2} + H_{k+1}(T_{k+1})\right]$
+
+And the overall maximum is $\max_c H_1(c)$ where $c = T_1 \geq 1$ (since $T_1 \geq \frac{0}{2} + 1 = 1$).
+
+Now, $H_n(c) = \frac{1}{c} - \frac{T_{n+1}}{c^2}$.
+
+$H_{n-1}(c) = \frac{1}{c} + \max_{T_n} \left[-\frac{T_n}{c^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}\right]$
+
+Let me compute the inner max. $g(T_n) = -\frac{T_n}{c^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$.
+
+$g'(T_n) = -\frac{1}{c^2} - \frac{1}{T_n^2} + \frac{2T_{n+1}}{T_n^3}$
+
+Setting to 0: $\frac{2T_{n+1}}{T_n^3} = \frac{1}{c^2} + \frac{1}{T_n^2}$
+
+$\frac{2T_{n+1}}{T_n} = \frac{T_n^2}{c^2} + 1$
+
+Let $r = T_n/c$. Then $\frac{2T_{n+1}}{rc} = r^2 + 1$, so $T_n = rc = \frac{2T_{n+1}}{r^2+1}$, giving $c = \frac{2T_{n+1}}{r(r^2+1)}$.
+
+The value of $g$ at the optimum:
+$g = -\frac{rc}{c^2} + \frac{1}{rc} - \frac{T_{n+1}}{r^2c^2} = -\frac{r}{c} + \frac{1}{rc} - \frac{T_{n+1}}{r^2c^2}$
+
+$= \frac{1}{c}\left(-r + \frac{1}{r}\right) - \frac{T_{n+1}}{r^2c^2}$
+
+Using $c = \frac{2T_{n+1}}{r(r^2+1)}$:
+
+$\frac{1}{c} = \frac{r(r^2+1)}{2T_{n+1}}$, $\frac{1}{c^2} = \frac{r^2(r^2+1)^2}{4T_{n+1}^2}$.
+
+$g = \frac{r(r^2+1)}{2T_{n+1}}\left(-r + \frac{1}{r}\right) - \frac{T_{n+1} r^2(r^2+1)^2}{4T_{n+1}^2 r^2}$
+
+$= \frac{r(r^2+1)}{2T_{n+1}} \cdot \frac{1-r^2}{r} - \frac{(r^2+1)^2}{4T_{n+1}}$
+
+$= \frac{(r^2+1)(1-r^2)}{2T_{n+1}} - \frac{(r^2+1)^2}{4T_{n+1}}$
+
+$= \frac{(r^2+1)}{T_{n+1}} \left[\frac{1-r^2}{2} - \frac{r^2+1}{4}\right]$
+
+$= \frac{(r^2+1)}{T_{n+1}} \cdot \frac{2(1-r^2) - (r^2+1)}{4}$
+
+$= \frac{(r^2+1)}{T_{n+1}} \cdot \frac{2 - 2r^2 - r^2 - 1}{4}$
+
+$= \frac{(r^2+1)(1 - 3r^2)}{4T_{n+1}}$
+
+To maximize over $r$, take derivative with respect to $r$:
+
+$\frac{d}{dr}\left[(r^2+1)(1-3r^2)\right] = 2r(1-3r^2) + (r^2+1)(-6r) = 2r - 6r^3 - 6r^3 - 6r = -12r^3 - 4r = -4r(3r^2+1)$
+
+This is zero at $r = 0$ (giving $g = \frac{1}{4T_{n+1}}$) or always negative for $r > 0$. So $g$ is maximized at $r = 0$... but $r = T_n/c > 0$.
+
+As $r \to 0^+$, $g \to \frac{1}{4T_{n+1}}$. But $r \to 0$ means $T_n \to 0$, which violates $T_n \geq \frac{n(n-1)}{2} + 1 > 0$.
+
+Hmm, so the unconstrained maximum of $g$ is at $r = 0$, which is not feasible. This means the maximum is at the boundary, i.e., the smallest feasible $T_n$.
+
+Wait, let me reconsider. The function $g(T_n) = -\frac{T_n}{c^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$.
+
+As $T_n \to \infty$: $g \to -\infty$ (dominated by $-T_n/c^2$).
+As $T_n \to 0^+$: $g \to -\infty$ (dominated by $-T_{n+1}/T_n^2$).
+
+So $g$ has a maximum at some finite $T_n > 0$. The critical point equation is $\frac{2T_{n+1}}{T_n} = \frac{T_n^2}{c^2} + 1$.
+
+At the critical point, $g = \frac{(r^2+1)(1-3r^2)}{4T_{n+1}}$ where $r = T_n/c$.
+
+For $g > 0$, we need $1 - 3r^2 > 0$, i.e., $r < 1/\sqrt{3}$.
+
+The maximum of $g$ over $r$ is at $r = 0$ (boundary), giving $g = \frac{1}{4T_{n+1}}$. But $r = 0$ is not achievable.
+
+Actually, I realize the issue: $g$ as a function of $T_n$ (with $c$ fixed) has a maximum, and I should find it directly, not parametrize by $r$.
+
+$g'(T_n) = -\frac{1}{c^2} - \frac{1}{T_n^2} + \frac{2T_{n+1}}{T_n^3} = 0$
+
+$\frac{2T_{n+1}}{T_n^3} = \frac{1}{c^2} + \frac{1}{T_n^2}$
+
+$\frac{2T_{n+1}}{T_n} = \frac{T_n^2}{c^2} + 1$
+
+This is a cubic in $T_n$: $T_n^3/c^2 + T_n = 2T_{n+1}$, i.e., $T_n^3 + c^2 T_n = 2T_{n+1} c^2$.
+
+This doesn't have a nice closed form in general. So the backward induction approach with exact optimization seems difficult.
+
+Let me try a different strategy: guess that the optimal solution has a specific structure and verify it gives the right answer.
+
+Given the connection to the sequence $a_n$, let me guess that the maximum of the sum is $a_n / T_{n+1}$ or something similar, and $\lambda = 1$ or some simple value.
+
+Wait, let me reconsider the problem. We need $\sum A_k \leq \lambda a_{2002}$, and we want the smallest $\lambda$. So $\lambda = \frac{\max \sum A_k}{a_{2002}}$.
+
+Let me compute for $n = 1$: max of $A_1 = \frac{x_1 - 1}{(x_1+1)^2}$ is $1/8$ at $x_1 = 3$. And $a_1 = 1/4$. So $\lambda = \frac{1/8}{1/4} = 1/2$.
+
+For $n = 2$: Let me try to compute the maximum of $A_1 + A_2$ numerically.
+
+$A_1 = \frac{x_1 - 1}{(x_1 + x_2 + 1)^2}$, $A_2 = \frac{x_2 - 2}{(x_2 + 2)^2}$.
+
+$T_3 = 4$, $T_2 = x_2 + 2$, $T_1 = x_1 + x_2 + 1$.
+
+$A_1 = \frac{T_1 - T_2}{T_1^2}$, $A_2 = \frac{T_2 - 4}{T_2^2}$.
+
+Let me optimize. Given $T_2$, the optimal $T_1 = 2T_2$ (maximizing $A_1$), giving $A_1 = \frac{1}{4T_2}$.
+
+So the sum becomes $\frac{1}{4T_2} + \frac{T_2 - 4}{T_2^2} = \frac{1}{4T_2} + \frac{1}{T_2} - \frac{4}{T_2^2} = \frac{5}{4T_2} - \frac{4}{T_2^2}$.
+
+Wait, but this assumes we can freely choose $T_1 = 2T_2$, which requires $x_1 = T_1 - T_2 + 1 = T_2 + 1 \geq 0$. ✓
+
+Now optimize over $T_2$: $h(T_2) = \frac{5}{4T_2} - \frac{4}{T_2^2}$.
+
+$h'(T_2) = -\frac{5}{4T_2^2} + \frac{8}{T_2^3} = \frac{-5T_2 + 32}{4T_2^3}$
+
+$h'(T_2) = 0$ at $T_2 = 32/5$.
+
+$h(32/5) = \frac{5}{4 \cdot 32/5} - \frac{4}{(32/5)^2} = \frac{25}{128} - \frac{4 \cdot 25}{1024} = \frac{25}{128} - \frac{100}{1024} = \frac{200}{1024} - \frac{100}{1024} = \frac{100}{1024} = \frac{25}{256}$.
+
+And $a_2 = 25/64$. So $\lambda = \frac{25/256}{25/64} = \frac{64}{256} = \frac{1}{4}$.
+
+Hmm, so for $n=1$, $\lambda = 1/2$, and for $n=2$, $\lambda = 1/4$?
+
+Wait, but I need to check whether the greedy approach (optimize $T_1$ first, then $T_2$) gives the true maximum. Let me verify by also checking the joint optimization.
+
+Actually, the approach I used is: first optimize $T_1$ given $T_2$ (getting $T_1 = 2T_2$), then optimize $T_2$. This is valid because the optimization over $T_1$ given $T_2$ is unconstrained (the constraint $x_1 \geq 0$ is always satisfied), and the resulting function of $T_2$ is then optimized.
+
+But wait, I should also check whether the constraint on $T_2$ is satisfied. $T_2 = 32/5$, and we need $x_2 = T_2 - T_3 + 2 = 32/5 - 4 + 2 = 32/5 - 2 = 22/5 \geq 0$. ✓
+
+Also need $T_2 \geq \frac{2 \cdot 1}{2} + 1 = 2$. $32/5 = 6.4 > 2$. ✓
+
+So for $n = 2$, the maximum is $25/256$ and $\lambda = 1/4$.
+
+Let me check $n = 3$. $T_4 = \frac{3 \cdot 4}{2} + 1 = 7$.
+
+$A_3 = \frac{T_3 - 7}{T_3^2}$. Optimal $T_2$ given $T_3$: $T_2 = 2T_3$, $A_2 = \frac{1}{4T_3}$.
+
+Then sum from $k=2,3$: $\frac{1}{4T_3} + \frac{T_3 - 7}{T_3^2} = \frac{1}{4T_3} + \frac{1}{T_3} - \frac{7}{T_3^2} = \frac{5}{4T_3} - \frac{7}{T_3^2}$.
+
+Optimal $T_3$: $h'(T_3) = -\frac{5}{4T_3^2} + \frac{14}{T_3^3} = 0 \Rightarrow T_3 = \frac{56}{5}$.
+
+$h(56/5) = \frac{5}{4 \cdot 56/5} - \frac{7}{(56/5)^2} = \frac{25}{224} - \frac{7 \cdot 25}{3136} = \frac{25}{224} - \frac{175}{3136} = \frac{350}{3136} - \frac{175}{3136} = \frac{175}{3136}$.
+
+Now optimal $T_1$ given $T_2 = 2T_3 = 112/5$: $T_1 = 2T_2 = 224/5$, $A_1 = \frac{1}{4T_2} = \frac{1}{4 \cdot 112/5} = \frac{5}{448}$.
+
+Total: $\frac{5}{448} + \frac{175}{3136} = \frac{35}{3136} + \frac{175}{3136} = \frac{210}{3136} = \frac{105}{1568}$.
+
+Hmm wait, let me reconsider. The approach should be: optimize from the back. First optimize $T_n$ given $T_{n+1}$, then $T_{n-1}$ given $T_n$, etc. But actually, the way I did it for $n=2$ was: optimize $T_1$ given $T_2$ (front), then optimize $T_2$. Let me redo this more carefully using backward induction.
+
+For $n = 3$:
+- $T_4 = 7$ (fixed).
+- Optimize $T_3$ given $T_4$: $A_3 = \frac{T_3 - 7}{T_3^2}$, max at $T_3 = 2 \cdot 7 = 14$, giving $A_3 = \frac{1}{4 \cdot 7} = \frac{1}{28}$.
+
+But wait, this is the max of $A_3$ alone. For the sum, we need to consider the effect of $T_3$ on $A_2$ as well.
+
+Let me use the backward induction properly. Define $V_k(T_k)$ = max of $\sum_{j=k}^{n} A_j$ given $T_k$.
+
+$V_n(T_n) = \frac{T_n - T_{n+1}}{T_n^2}$ (no optimization).
+
+$V_k(T_k) = \max_{T_{k+1} \leq T_k + k} \left[\frac{T_k - T_{k+1}}{T_k^2} + V_{k+1}(T_{k+1})\right]$
+
+$= \frac{1}{T_k} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{T_k^2} + V_{k+1}(T_{k+1})\right]$
+
+For $n = 3$:
+$V_3(T_3) = \frac{T_3 - 7}{T_3^2} = \frac{1}{T_3} - \frac{7}{T_3^2}$.
+
+$V_2(T_2) = \frac{1}{T_2} + \max_{T_3} \left[-\frac{T_3}{T_2^2} + \frac{1}{T_3} - \frac{7}{T_3^2}\right]$
+
+Let $g(T_3) = -\frac{T_3}{T_2^2} + \frac{1}{T_3} - \frac{7}{T_3^2}$.
+
+$g'(T_3) = -\frac{1}{T_2^2} - \frac{1}{T_3^2} + \frac{14}{T_3^3} = 0$
+
+$\frac{14}{T_3^3} = \frac{1}{T_2^2} + \frac{1}{T_3^2}$
+
+$\frac{14}{T_3} = \frac{T_3^2}{T_2^2} + 1$
+
+Let $r = T_3/T_2$. Then $\frac{14}{rT_2} = r^2 + 1$, so $T_3 = rT_2 = \frac{14}{r^2+1}$ and $T_2 = \frac{14}{r(r^2+1)}$.
+
+$g = -\frac{rT_2}{T_2^2} + \frac{1}{rT_2} - \frac{7}{r^2T_2^2} = -\frac{r}{T_2} + \frac{1}{rT_2} - \frac{7}{r^2T_2^2}$
+
+$= \frac{1}{T_2}\left(\frac{1}{r} - r\right) - \frac{7}{r^2T_2^2}$
+
+With $T_2 = \frac{14}{r(r^2+1)}$:
+
+$\frac{1}{T_2} = \frac{r(r^2+1)}{14}$, $\frac{1}{T_2^2} = \frac{r^2(r^2+1)^2}{196}$.
+
+$g = \frac{r(r^2+1)}{14} \cdot \frac{1-r^2}{r} - \frac{7r^2(r^2+1)^2}{196r^2}$
+
+$= \frac{(r^2+1)(1-r^2)}{14} - \frac{7(r^2+1)^2}{196}$
+
+$= \frac{(r^2+1)}{14}\left[(1-r^2) - \frac{(r^2+1)}{14}\right]$
+
+Hmm, let me redo this. $\frac{7}{196} = \frac{1}{28}$.
+
+$g = \frac{(r^2+1)(1-r^2)}{14} - \frac{(r^2+1)^2}{28}$
+
+$= \frac{(r^2+1)}{28}\left[2(1-r^2) - (r^2+1)\right]$
+
+$= \frac{(r^2+1)(2 - 2r^2 - r^2 - 1)}{28}$
+
+$= \frac{(r^2+1)(1 - 3r^2)}{28}$
+
+Maximize over $r > 0$: $\frac{d}{dr}[(r^2+1)(1-3r^2)] = 2r(1-3r^2) + (r^2+1)(-6r) = 2r - 6r^3 - 6r^3 - 6r = -12r^3 - 4r < 0$ for $r > 0$.
+
+So $g$ is decreasing in $r$, maximized as $r \to 0^+$, giving $g \to \frac{1}{28}$.
+
+But $r \to 0$ means $T_3 \to 0$, which is infeasible ($T_3 \geq \frac{3 \cdot 2}{2} + 1 = 4$).
+
+So the maximum is at the boundary $T_3 = 4$ (the minimum feasible value, when $x_3 = 0$).
+
+At $T_3 = 4$: $g(4) = -\frac{4}{T_2^2} + \frac{1}{4} - \frac{7}{16} = -\frac{4}{T_2^2} + \frac{4}{16} - \frac{7}{16} = -\frac{4}{T_2^2} - \frac{3}{16}$.
+
+This is negative! So $V_2(T_2) = \frac{1}{T_2} - \frac{4}{T_2^2} - \frac{3}{16}$.
+
+Hmm, this doesn't seem right. The maximum of $g$ should be positive for the problem to make sense.
+
+Wait, I think I need to be more careful about the constraint. The constraint is $T_{k+1} \leq T_k + k$ (from $x_k \geq 0$), and $T_{k+1} \geq \frac{(k+1)k}{2} + 1$ (from non-negativity of subsequent $x$'s). But actually, $T_{k+1}$ can be any value $\geq \frac{(k+1)k}{2} + 1$ as long as $T_k \geq T_{k+1} - k$.
+
+Actually, the constraint is just $x_k \geq 0$, which means $T_k \geq T_{k+1} - k$, i.e., $T_{k+1} \leq T_k + k$. And $T_{k+1}$ can be as small as $\frac{(k+1)k}{2} + 1$ (when all $x_j = 0$ for $j > k$).
+
+But actually, $T_{k+1}$ is determined by $x_{k+1}, \ldots, x_n$, and can range from $\frac{(k+1)k}{2} + 1$ (all zero) to infinity (large $x$'s).
+
+So the constraint on $T_{k+1}$ is $T_{k+1} \geq \frac{(k+1)k}{2} + 1$ and $T_{k+1} \leq T_k + k$.
+
+For $n = 3$, $k = 2$: $T_3 \geq 4$ and $T_3 \leq T_2 + 2$.
+
+The function $g(T_3) = -\frac{T_3}{T_2^2} + \frac{1}{T_3} - \frac{7}{T_3^2}$ is maximized as $T_3 \to 0^+$ (infeasible) or at the boundary $T_3 = 4$.
+
+At $T_3 = 4$: $g = -\frac{4}{T_2^2} + \frac{1}{4} - \frac{7}{16} = -\frac{4}{T_2^2} - \frac{3}{16}$.
+
+This is always negative, so $V_2(T_2) = \frac{1}{T_2} + g(4) = \frac{1}{T_2} - \frac{4}{T_2^2} - \frac{3}{16}$.
+
+Hmm, but this means the optimal strategy at step 2 is to set $T_3 = 4$ (i.e., $x_3 = 0$), which gives a negative contribution from $A_3$.
+
+But wait, maybe I should also check the other boundary $T_3 = T_2 + 2$ (i.e., $x_2 = 0$).
+
+At $T_3 = T_2 + 2$: $g = -\frac{T_2+2}{T_2^2} + \frac{1}{T_2+2} - \frac{7}{(T_2+2)^2}$.
+
+This is also likely negative for reasonable $T_2$.
+
+Hmm, I think the issue is that $g(T_3)$ is always negative (or at least the maximum is at the boundary and is negative). Let me check if $g$ can be positive for some $T_3$.
+
+$g(T_3) = -\frac{T_3}{T_2^2} + \frac{1}{T_3} - \frac{7}{T_3^2}$
+
+For large $T_2$, the first term is small, and $g \approx \frac{1}{T_3} - \frac{7}{T_3^2} = \frac{T_3 - 7}{T_3^2}$, which is positive for $T_3 > 7$.
+
+So for large $T_2$, $g$ can be positive. The critical point equation $\frac{14}{T_3} = \frac{T_3^2}{T_2^2} + 1$ has a solution with $T_3 > 7$ when $T_2$ is large.
+
+Let me reconsider. For large $T_2$, the critical point is approximately at $T_3 \approx 14$ (from $\frac{14}{T_3} \approx 1$), and $g \approx \frac{14-7}{14^2} = \frac{7}{196} = \frac{1}{28}$.
+
+So $V_2(T_2) \approx \frac{1}{T_2} + \frac{1}{28}$ for large $T_2$.
+
+Now, $V_1(T_1) = \frac{1}{T_1} + \max_{T_2} \left[-\frac{T_2}{T_1^2} + V_2(T_2)\right]$
+
+$\approx \frac{1}{T_1} + \max_{T_2} \left[-\frac{T_2}{T_1^2} + \frac{1}{T_2} + \frac{1}{28}\right]$
+
+$= \frac{1}{T_1} + \frac{1}{28} + \max_{T_2} \left[-\frac{T_2}{T_1^2} + \frac{1}{T_2}\right]$
+
+The max of $-\frac{T_2}{T_1^2} + \frac{1}{T_2}$ is at $T_2 = T_1$ (from $-1/T_1^2 + 1/T_2^2 = 0$... wait, $-1/T_1^2 - 1/T_2^2 = 0$ has no solution). Actually, $f(T_2) = -T_2/T_1^2 + 1/T_2$, $f' = -1/T_1^2 - 1/T_2^2 < 0$, so $f$ is decreasing. Max at smallest $T_2$.
+
+This suggests the maximum is at the boundary, which keeps pushing $T$ values to their minimum. This doesn't lead to a nice answer.
+
+I think I'm overcomplicating this. Let me try a different approach entirely.
+
+Let me look at the problem from the perspective of the answer. The answer should be $\lambda = 1$ (a common answer for such problems) or some other simple value.
+
+For $n = 1$: $\lambda = 1/2$.
+For $n = 2$: $\lambda = 1/4$.
+
+Let me see if there's a pattern. $1/2, 1/4, \ldots$ Maybe $\lambda = 1/2^n$? For $n = 2002$, that would be $1/2^{2002}$, which seems too small.
+
+Actually, wait. Let me recompute for $n = 2$ more carefully. I got max sum $= 25/256$ and $a_2 = 25/64$, so $\lambda = (25/256)/(25/64) = 64/256 = 1/4$.
+
+For $n = 1$: max sum $= 1/8$, $a_1 = 1/4$, $\lambda = (1/8)/(1/4) = 1/2$.
+
+So $\lambda = 1/2, 1/4, \ldots$ Let me compute $n = 3$ properly.
+
+Actually, I realize my computation for $n = 2$ used the approach of optimizing $T_1$ first (given $T_2$), then optimizing $T_2$. But this is the forward approach, and it might not give the true maximum because the optimal $T_1$ depends on $T_2$, and when we then optimize $T_2$, we're optimizing the profile function.
+
+Let me redo $n = 2$ using backward induction.
+
+$V_2(T_2) = \frac{T_2 - 4}{T_2^2} = \frac{1}{T_2} - \frac{4}{T_2^2}$.
+
+$V_1(T_1) = \frac{1}{T_1} + \max_{T_2 \leq T_1 + 1, T_2 \geq 2} \left[-\frac{T_2}{T_1^2} + \frac{1}{T_2} - \frac{4}{T_2^2}\right]$
+
+Let $g(T_2) = -\frac{T_2}{T_1^2} + \frac{1}{T_2} - \frac{4}{T_2^2}$.
+
+$g'(T_2) = -\frac{1}{T_1^2} - \frac{1}{T_2^2} + \frac{8}{T_2^3} = 0$
+
+$\frac{8}{T_2^3} = \frac{1}{T_1^2} + \frac{1}{T_2^2}$
+
+$\frac{8}{T_2} = \frac{T_2^2}{T_1^2} + 1$
+
+Let $r = T_2/T_1$. Then $\frac{8}{rT_1} = r^2 + 1$, so $T_1 = \frac{8}{r(r^2+1)}$ and $T_2 = rT_1 = \frac{8}{r^2+1}$.
+
+$g = -\frac{rT_1}{T_1^2} + \frac{1}{rT_1} - \frac{4}{r^2T_1^2} = \frac{1}{T_1}\left(\frac{1}{r} - r\right) - \frac{4}{r^2T_1^2}$
+
+With $T_1 = \frac{8}{r(r^2+1)}$:
+
+$\frac{1}{T_1} = \frac{r(r^2+1)}{8}$, $\frac{1}{T_1^2} = \frac{r^2(r^2+1)^2}{64}$.
+
+$g = \frac{r(r^2+1)}{8} \cdot \frac{1-r^2}{r} - \frac{4r^2(r^2+1)^2}{64r^2}$
+
+$= \frac{(r^2+1)(1-r^2)}{8} - \frac{(r^2+1)^2}{16}$
+
+$= \frac{(r^2+1)}{16}\left[2(1-r^2) - (r^2+1)\right]$
+
+$= \frac{(r^2+1)(1-3r^2)}{16}$
+
+This is maximized at $r = 0$ (boundary), giving $g \to \frac{1}{16}$.
+
+$r = 0$ means $T_2 \to 0$, infeasible ($T_2 \geq 2$). So the max is at the boundary $T_2 = 2$ (minimum feasible).
+
+At $T_2 = 2$: $g(2) = -\frac{2}{T_1^2} + \frac{1}{2} - \frac{4}{4} = -\frac{2}{T_1^2} + \frac{1}{2} - 1 = -\frac{2}{T_1^2} - \frac{1}{2}$.
+
+This is always negative! So $V_1(T_1) = \frac{1}{T_1} - \frac{2}{T_1^2} - \frac{1}{2}$.
+
+Maximize over $T_1 \geq 1$: $V_1'(T_1) = -\frac{1}{T_1^2} + \frac{4}{T_1^3} = \frac{4-T_1}{T_1^3} = 0$ at $T_1 = 4$.
+
+$V_1(4) = \frac{1}{4} - \frac{2}{16}        — AI历史解题过程（thinking）
+#   polymath_04065         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_04065</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Let $a_{1}=\frac{1}{4}, a_{n}=\frac{1}{4}\left(1+a_{n-1}\right)^{2}, n \geqslant 2$. Find the smallest
+real number $\lambda$, such that for any non-negative real numbers $x_{1}, x_{2}, \cdots, x_{2} 002$, we have
+$$
+\sum_{k=1}^{2002} A_{k} \leqslant \lambda a_{2002} \text {. }
+$$
+
+where $A_{k}=\frac{x_{k}-k}{\left(x_{k}+\cdots+x_{2002}+\frac{k(k-1)}{2}+1\right)^{2}}, k \geqslant 1$.
+
+## Standard Solution
+
+Let $\delta(k)=\frac{1}{2} k(k-1)$. First, we prove a few lemmas.
+
+Lemma 1 For any real numbers $a \geqslant 0, c>0, b>0$, the function $f(x)=\frac{a}{x+b}+\frac{x-c}{(x+b)^{2}}$.
+When $x=\frac{(1-a) b+2 c}{1+a}$, it attains the maximum value $\frac{1}{4} \cdot \frac{(1+a)^{2}}{b+c}$.
+Proof: Let $y=\frac{1}{x+b}$, then
+$f(x)=-(b+c) y^{2}+(1+a) y$
+$=-(b+c)\left(y-\frac{1}{2} \cdot \frac{1+a}{b+c}\right)^{2}+\frac{1}{4} \cdot \frac{(1+a)^{2}}{b+c}$.
+Thus, when $y=\frac{1}{2} \cdot \frac{1+a}{b+c}$, i.e., $x=\frac{(1-a) b+2 c}{1+a}$,
+$f(x)_{\max }=\frac{1}{4} \cdot \frac{(1+a)^{2}}{b+c}$.
+
+Lemma 2 Let $a_{1}=\frac{1}{4}, a_{n}=\frac{1}{4}\left(1+a_{n-1}\right)^{2}, n \geqslant 2$. Then $a_{n}$ satisfies $0<a_{n}<1$.
+
+Lemma 3 For any $n \geqslant 1, \sum_{k=1}^{n} A_{k} \leqslant \frac{1}{\delta(n+1)+1} a_{n}$, and equality can be achieved.
+Proof: By Lemma 1, we have
+$$
+\begin{array}{l}
+\frac{x_{1}-1}{\left(x_{1}+\cdots+x_{n}+1\right)^{2}} \leqslant \frac{1}{4} \cdot \frac{1}{x_{2}+\cdots+x_{n}+2} \\
+=\frac{a_{1}}{x_{2}+\cdots+x_{n}+2},
+\end{array}
+$$
+
+and when $x_{1}=x_{2}+\cdots+x_{n}+3$, it attains the maximum value
+$$
+\begin{array}{l}
+\frac{a_{1}}{x_{2}+\cdots+x_{n}+2} \cdot \\
+\frac{a_{1}}{x_{2}+\cdots+x_{n}+2}+\frac{x_{2}-2}{\left(x_{2}+\cdots+x_{n}+2\right)^{2}} \\
+\leqslant \frac{1}{4} \cdot \frac{\left(1+a_{1}\right)^{2}}{x_{3}+\cdots+x_{n}+4}=\frac{a_{2}}{x_{3}+\cdots+x_{n}+4},
+\end{array}
+$$
+
+and when $x_{2}=\frac{\left(1-a_{1}\right)\left(x_{3}+\cdots+x_{n}+4\right)+4}{1+a_{1}}$, it attains the maximum value
+$$
+\frac{a_{2}}{x_{3}+\cdots+x_{n}+4}.
+$$
+......
+$$
+\begin{array}{l}
+\frac{a_{n-2}}{x_{n-1}+x_{n}+\delta(n-1)+1}+\frac{x_{n-1}-(n-1)}{\left(x_{n-1}+x_{n}+\delta(n-1)+1\right)^{2}} \\
+\leqslant \frac{1}{4} \cdot \frac{\left(1+a_{n-2}\right)^{2}}{x_{n}+\delta(n)+1}=\frac{a_{n-1}}{x_{n}+\delta(n)+1},
+\end{array}
+$$
+
+and when $x_{n-1}=\frac{\left[\left(1-a_{n-2}\right)\left(x_{n}+\delta(n-1)+1\right)+2(n-1)\right]}{1+a_{n-2}}$
+it attains the maximum value $\frac{a_{n-1}}{x_{n}+\delta(n)+1}$.
+$$
+\begin{array}{l}
+\frac{a_{n-1}}{x_{n}+\delta(n)+1}+\frac{x_{n}-n}{\left(x_{n}+\delta(n)+1\right)^{2}} \\
+\leqslant \frac{1}{4} \cdot \frac{\left(1+a_{n-1}\right)^{2}}{\delta(n+1)+1}=\frac{a_{n}}{\delta(n+1)+1},
+\end{array}
+$$
+
+and when $x_{n}=\frac{\left(1-a_{n-1}\right)(\delta(n)+1)+2 n}{1+a_{n-1}}$, it attains the maximum value
+$$
+\frac{a_{n}}{\delta(n+1)+1}.
+$$
+
+By adding (1), (2), ..., (n), we get
+$$
+\sum_{k=1}^{n} A_{k} \leqslant \frac{1}{\delta(n+1)+1} a_{n},
+$$
+
+and when $x_{n}=\frac{\left(1-a_{n-1}\right)(\delta(n)+1)+2 n}{1+a_{n-1}}$,
+$$
+\begin{array}{l}
+x_{n-1}=\frac{\left(1-a_{n-2}\right)\left(x_{n}+\delta(n-1)+1\right)+2(n-1)}{1+a_{n-2}}, \\
+\cdots \cdots, \\
+x_{2}=\frac{\left(1-a_{1}\right)\left(x_{3}+\cdots+x_{n}+4\right)+4}{1+a_{1}}, \\
+x_{1}=x_{2}+\cdots+x_{n}+3
+\end{array}
+$$
+
+equality holds.
+By Lemma 3, we obtain
+$$
+\lambda=\frac{1}{\delta(2003)+1}=\frac{1}{2003 \times 1001+1}.
+$$
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We have $a_1 = \frac{1}{4}$, $a_n = \frac{1}{4}(1+a_{n-1})^2$ for $n \geq 2$.
+
+We need to find the smallest real number $\lambda$ such that for any non-negative real numbers $x_1, x_2, \ldots, x_{2002}$:
+$$\sum_{k=1}^{2002} A_k \leq \lambda a_{2002}$$
+
+where $A_k = \frac{x_k - k}{(x_k + \cdots + x_{2002} + \frac{k(k-1)}{2} + 1)^2}$.
+
+First, let me understand the sequence $a_n$. Let me compute a few values:
+- $a_1 = 1/4$
+- $a_2 = \frac{1}{4}(1 + 1/4)^2 = \frac{1}{4} \cdot \frac{25}{16} = \frac{25}{64}$
+- $a_3 = \frac{1}{4}(1 + 25/64)^2 = \frac{1}{4}(89/64)^2 = \frac{1}{4} \cdot \frac{7921}{4096} = \frac{7921}{16384}$
+
+Let me think about the substitution $a_n = \frac{b_n^2}{4}$ or something. Actually, let me try $a_n = \frac{c_n}{c_n + 1}$ or some other substitution.
+
+Actually, let me think about this differently. The recurrence $a_n = \frac{1}{4}(1+a_{n-1})^2$. Let me try $a_n = \left(\frac{p_n}{q_n}\right)^2$ or look for a pattern.
+
+Actually, a common trick: let $a_n = \frac{1}{(something)^2 - 1}$ or similar.
+
+Let me try $a_n = \frac{1}{t_n^2 - 1}$ where $t_n > 1$.
+
+Then $\frac{1}{t_n^2 - 1} = \frac{1}{4}\left(1 + \frac{1}{t_{n-1}^2 - 1}\right)^2 = \frac{1}{4}\left(\frac{t_{n-1}^2}{t_{n-1}^2 - 1}\right)^2 = \frac{t_{n-1}^4}{4(t_{n-1}^2 - 1)^2}$.
+
+So $4(t_{n-1}^2 - 1)^2 = t_n^2 \cdot t_{n-1}^4 \cdot (t_n^2 - 1)^{-1}$... this is getting complicated.
+
+Let me try $a_n = \frac{u_n}{(1+u_n)^2}$... no.
+
+Let me try the substitution $1 + a_{n-1} = 2\sqrt{a_n}$. So $\sqrt{a_n} = \frac{1+a_{n-1}}{2}$.
+
+Let $b_n = \sqrt{a_n}$. Then $b_n = \frac{1 + b_{n-1}^2}{2}$.
+
+With $b_1 = 1/2$.
+- $b_2 = \frac{1 + 1/4}{2} = \frac{5}{8}$
+- $b_3 = \frac{1 + 25/64}{2} = \frac{89}{128}$
+
+Hmm, let me try $b_n = \frac{c_n}{2^{d_n}}$ or look for a pattern with $b_n = \frac{1}{2}\cdot\frac{something}{something}$.
+
+Actually, let me try $b_n = \frac{1}{2} \cdot \frac{p_n}{q_n}$ where $p_n/q_n \to 1$.
+
+$b_1 = 1/2$, $b_2 = 5/8$, $b_3 = 89/128$.
+
+$1/2 = 1/2$, $5/8$, $89/128$. Denominators: $2, 8, 128 = 2, 2^3, 2^7$. Exponents: $1, 3, 7$. These are $2^1-1, 2^2-1, 2^3-1$. So denominator of $b_n$ is $2^{2^n - 1}$.
+
+Numerators: $1, 5, 89$. Let me check: $b_n = \frac{1 + b_{n-1}^2}{2}$.
+
+If $b_{n-1} = \frac{p_{n-1}}{2^{2^{n-1}-1}}$, then $b_{n-1}^2 = \frac{p_{n-1}^2}{2^{2^n - 2}}$.
+
+$b_n = \frac{1 + \frac{p_{n-1}^2}{2^{2^n-2}}}{2} = \frac{2^{2^n-2} + p_{n-1}^2}{2^{2^n-1}}$.
+
+So $p_n = 2^{2^n-2} + p_{n-1}^2$.
+
+$p_1 = 1$, $p_2 = 2^2 + 1 = 5$, $p_3 = 2^6 + 25 = 64 + 25 = 89$. Yes!
+
+$p_4 = 2^{14} + 89^2 = 16384 + 7921 = 24305$.
+
+This doesn't simplify to a nice closed form easily. Let me think about whether there's a telescoping structure.
+
+Let me think about the problem structure. We have:
+$$A_k = \frac{x_k - k}{(x_k + \cdots + x_{2002} + \frac{k(k-1)}{2} + 1)^2}$$
+
+Let me denote $S_k = x_k + x_{k+1} + \cdots + x_{2002}$ (sum from $k$ to $2002$). Then $S_k = x_k + S_{k+1}$ (with $S_{2003} = 0$).
+
+The denominator of $A_k$ is $(S_k + \frac{k(k-1)}{2} + 1)^2$.
+
+Let me define $T_k = S_k + \frac{k(k-1)}{2} + 1$. Then:
+$T_k = x_k + S_{k+1} + \frac{k(k-1)}{2} + 1$
+$T_{k+1} = S_{k+1} + \frac{(k+1)k}{2} + 1 = S_{k+1} + \frac{k(k-1)}{2} + k + 1$
+
+So $T_k = x_k + S_{k+1} + \frac{k(k-1)}{2} + 1$ and $T_{k+1} = S_{k+1} + \frac{k(k-1)}{2} + k + 1$.
+
+Thus $T_k = x_k + T_{k+1} - k$.
+
+So $T_k - T_{k+1} = x_k - k$.
+
+Therefore $A_k = \frac{T_k - T_{k+1}}{T_k^2}$.
+
+Now the sum becomes:
+$$\sum_{k=1}^{2002} A_k = \sum_{k=1}^{2002} \frac{T_k - T_{k+1}}{T_k^2}$$
+
+where $T_{2003} = S_{2003} + \frac{2003 \cdot 2002}{2} + 1 = 0 + \frac{2003 \cdot 2002}{2} + 1 = 2003 \cdot 1001 + 1 = 2005003 + 1 = 2005004$.
+
+Wait, let me recompute. $\frac{2003 \cdot 2002}{2} = 2003 \cdot 1001 = 2005003$. So $T_{2003} = 2005003 + 1 = 2005004$.
+
+And $T_k = x_k + T_{k+1} - k$ with $x_k \geq 0$, so $T_k \geq T_{k+1} - k$.
+
+Also, $T_1 = S_1 + 0 + 1 = x_1 + \cdots + x_{2002} + 1 \geq 1$.
+
+Now, $\frac{T_k - T_{k+1}}{T_k^2}$. Let me think about this as a telescoping sum.
+
+Note that $\frac{1}{T_{k+1}} - \frac{1}{T_k} = \frac{T_k - T_{k+1}}{T_k T_{k+1}}$.
+
+So $\frac{T_k - T_{k+1}}{T_k^2} = \frac{T_{k+1}}{T_k} \cdot \left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot \frac{T_k}{T_{k+1}} \cdot T_{k+1}$... hmm, let me be more careful.
+
+$\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k} \cdot \frac{1}{T_k}$.
+
+Alternatively, $\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k}\left(1 - \frac{T_{k+1}}{T_k}\right)$.
+
+Let me try a different approach. Consider $\frac{1}{T_k} - \frac{1}{T_{k+1}} = \frac{T_{k+1} - T_k}{T_k T_{k+1}} = \frac{-(T_k - T_{k+1})}{T_k T_{k+1}}$.
+
+So $\frac{T_k - T_{k+1}}{T_k^2} = -\frac{T_{k+1}}{T_k} \left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot \frac{1}{T_{k+1}} \cdot T_{k+1}$... I'm going in circles.
+
+Let me try: $\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$.
+
+And $\frac{T_{k+1}}{T_k^2} = \frac{1}{T_k} \cdot \frac{T_{k+1}}{T_k}$.
+
+Hmm. Let me think about this problem differently. Let me consider the substitution $T_k = \frac{1}{u_k}$, so $u_k = \frac{1}{T_k}$.
+
+Then $T_k - T_{k+1} = \frac{1}{u_k} - \frac{1}{u_{k+1}} = \frac{u_{k+1} - u_k}{u_k u_{k+1}}$.
+
+$\frac{T_k - T_{k+1}}{T_k^2} = \frac{u_{k+1} - u_k}{u_k u_{k+1}} \cdot u_k^2 = \frac{u_k(u_{k+1} - u_k)}{u_{k+1}} = u_k \cdot \frac{u_{k+1} - u_k}{u_{k+1}}$.
+
+$= u_k \left(1 - \frac{u_k}{u_{k+1}}\right) = u_k - \frac{u_k^2}{u_{k+1}}$.
+
+So $\sum A_k = \sum_{k=1}^{2002} \left(u_k - \frac{u_k^2}{u_{k+1}}\right)$ where $u_k = 1/T_k$.
+
+This is a telescoping-like sum. Let me write it as:
+$$\sum_{k=1}^{2002} u_k - \sum_{k=1}^{2002} \frac{u_k^2}{u_{k+1}}$$
+
+Hmm, this doesn't telescope directly. Let me think again.
+
+Actually, let's try a different decomposition. We have:
+$$\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$$
+
+Now, $\frac{T_{k+1}}{T_k^2}$. If I write $T_{k+1} = T_k - (x_k - k)$, then $\frac{T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{x_k - k}{T_k^2}$... that's circular.
+
+Let me try yet another approach. Consider the function $f(t) = \frac{1}{t}$. Then $f(T_{k+1}) - f(T_k) = \frac{1}{T_{k+1}} - \frac{1}{T_k} = \frac{T_k - T_{k+1}}{T_k T_{k+1}}$.
+
+So $\frac{T_k - T_{k+1}}{T_k^2} = \frac{T_{k+1}}{T_k} \cdot \left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot \frac{1}{1}$... no.
+
+$\frac{T_k - T_{k+1}}{T_k^2} = \frac{T_{k+1}}{T_k} \cdot \frac{T_k - T_{k+1}}{T_k T_{k+1}} = \frac{T_{k+1}}{T_k}\left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot (-1) \cdot (-1)$...
+
+Let me just compute directly:
+$$\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$$
+
+Now sum from $k=1$ to $2002$:
+$$\sum_{k=1}^{2002} A_k = \sum_{k=1}^{2002} \frac{1}{T_k} - \sum_{k=1}^{2002} \frac{T_{k+1}}{T_k^2}$$
+
+The second sum: $\frac{T_{k+1}}{T_k^2} = \frac{1}{T_k} \cdot \frac{T_{k+1}}{T_k}$.
+
+Hmm, let me try to relate $\frac{T_{k+1}}{T_k^2}$ to $\frac{1}{T_{k+1}}$ using the constraint.
+
+We have $T_k = x_k + T_{k+1} - k$ with $x_k \geq 0$, so $T_k \geq T_{k+1} - k$, i.e., $T_{k+1} \leq T_k + k$.
+
+Also $T_k > 0$ for all $k$ (since $T_{2003} = 2005004 > 0$ and $T_k \geq T_{k+1} - k$... actually we need to be more careful).
+
+Wait, $T_k = S_k + \frac{k(k-1)}{2} + 1$ where $S_k \geq 0$, so $T_k \geq \frac{k(k-1)}{2} + 1 \geq 1 > 0$. Good.
+
+Now, the key idea: we want to maximize $\sum \frac{T_k - T_{k+1}}{T_k^2}$ subject to the constraints $T_k \geq T_{k+1} - k$ (i.e., $x_k \geq 0$) and $T_{2003} = 2005004$.
+
+Actually, the constraint is $T_k = x_k + T_{k+1} - k$ with $x_k \geq 0$, which means $T_k \geq T_{k+1} - k$, or equivalently $T_{k+1} \leq T_k + k$.
+
+Also, $T_k$ can be anything $\geq \frac{k(k-1)}{2} + 1$ (when all $x_i = 0$ for $i \geq k$).
+
+Let me think about what the maximum of $\sum \frac{T_k - T_{k+1}}{T_k^2}$ looks like.
+
+Note that $T_k - T_{k+1} = x_k - k$, which can be negative (when $x_k < k$). So $A_k$ can be negative. But we want to maximize the sum.
+
+Let me think about this as an optimization problem. We want to maximize:
+$$F = \sum_{k=1}^{2002} \frac{T_k - T_{k+1}}{T_k^2}$$
+subject to $T_{k+1} \leq T_k + k$ for all $k$, and $T_{2003} = 2005004$, and $T_k \geq \frac{k(k-1)}{2} + 1$.
+
+Actually, since $T_{2003}$ is fixed and $T_k$ are determined by the choice of $x_k$ (equivalently, by the choice of $T_1, \ldots, T_{2002}$ subject to the constraints), we need to find the maximum.
+
+Let me think about a continuous version or a simpler case first.
+
+Actually, let me try to find a telescoping upper bound. The idea is to find a function $g$ such that:
+$$\frac{T_k - T_{k+1}}{T_k^2} \leq g(T_k) - g(T_{k+1}) + \text{something involving } k$$
+
+and the sum telescopes.
+
+A natural candidate: $\frac{1}{T_k} - \frac{1}{T_{k+1}} = \frac{T_{k+1} - T_k}{T_k T_{k+1}} = -\frac{T_k - T_{k+1}}{T_k T_{k+1}}$.
+
+So $\frac{T_k - T_{k+1}}{T_k^2} = -\frac{T_{k+1}}{T_k} \left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot \frac{T_k}{T_{k+1}} \cdot T_{k+1}$... I keep going in circles.
+
+Let me try: $\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$.
+
+And note $\frac{T_{k+1}}{T_k^2} = \frac{1}{T_k} \cdot \frac{T_{k+1}}{T_k}$.
+
+If $T_{k+1} \leq T_k$ (which happens when $x_k \leq k$), then $\frac{T_{k+1}}{T_k} \leq 1$ and $\frac{T_{k+1}}{T_k^2} \leq \frac{1}{T_k}$, so $A_k \geq 0$.
+
+If $T_{k+1} > T_k$ (which happens when $x_k > k$), then $A_k < 0$.
+
+So to maximize the sum, we probably want $T_{k+1} \leq T_k$ for most $k$, i.e., $x_k \leq k$.
+
+Let me try a different approach. Consider:
+$$\frac{T_k - T_{k+1}}{T_k^2} \leq \frac{1}{T_k} - \frac{1}{T_{k+1}} + \frac{(T_k - T_{k+1})^2}{T_k^2 T_{k+1}}$$
+
+Hmm, that's from the identity $\frac{1}{T_{k+1}} = \frac{1}{T_k - (T_k - T_{k+1})} = \frac{1}{T_k} \cdot \frac{1}{1 - (T_k - T_{k+1})/T_k}$.
+
+This is getting complicated. Let me try a completely different approach.
+
+Let me consider the substitution $T_k = \frac{1}{u_k}$ and try to use the AM-GM or Cauchy-Schwarz inequality.
+
+Actually, let me reconsider. The sum is:
+$$\sum_{k=1}^{n} \frac{T_k - T_{k+1}}{T_k^2}$$
+
+where $n = 2002$ and $T_{n+1} = \frac{n(n+1)}{2} + 1$.
+
+Let me try to bound each term. We have:
+$$\frac{T_k - T_{k+1}}{T_k^2} = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$$
+
+Now, by AM-GM or similar, $\frac{T_{k+1}}{T_k^2} \geq \frac{1}{T_{k+1}} - \text{correction}$... 
+
+Actually, $\frac{T_{k+1}}{T_k^2}$ vs $\frac{1}{T_{k+1}}$: $\frac{T_{k+1}}{T_k^2} \geq \frac{1}{T_{k+1}}$ iff $T_{k+1}^2 \geq T_k^2$ iff $T_{k+1} \geq T_k$ (since both positive).
+
+So when $T_{k+1} \geq T_k$: $\frac{T_{k+1}}{T_k^2} \geq \frac{1}{T_{k+1}}$, meaning $A_k \leq \frac{1}{T_k} - \frac{1}{T_{k+1}}$.
+
+When $T_{k+1} \leq T_k$: $\frac{T_{k+1}}{T_k^2} \leq \frac{1}{T_{k+1}}$, meaning $A_k \geq \frac{1}{T_k} - \frac{1}{T_{k+1}}$.
+
+So the relationship between $A_k$ and $\frac{1}{T_k} - \frac{1}{T_{k+1}}$ depends on the sign of $T_k - T_{k+1}$.
+
+Hmm. Let me try a different tactic. Let me look for a bound of the form:
+$$\frac{T_k - T_{k+1}}{T_k^2} \leq \alpha_k \left(\frac{1}{T_k} - \frac{1}{T_{k+1}}\right) + \beta_k$$
+
+for some constants $\alpha_k, \beta_k$ depending on $k$ but not on the $T$'s. Then the sum would telescope.
+
+$\frac{T_k - T_{k+1}}{T_k^2} = \frac{T_{k+1}}{T_k} \cdot \frac{T_k - T_{k+1}}{T_k T_{k+1}} = \frac{T_{k+1}}{T_k} \left(\frac{1}{T_{k+1}} - \frac{1}{T_k}\right) \cdot (-1) \cdot (-1)$
+
+Wait: $\frac{1}{T_k} - \frac{1}{T_{k+1}} = \frac{T_{k+1} - T_k}{T_k T_{k+1}} = -\frac{T_k - T_{k+1}}{T_k T_{k+1}}$.
+
+So $\frac{T_k - T_{k+1}}{T_k^2} = -\frac{T_{k+1}}{T_k} \left(\frac{1}{T_k} - \frac{1}{T_{k+1}}\right)$.
+
+The factor $\frac{T_{k+1}}{T_k}$ is not a constant, so this doesn't directly help.
+
+Let me try yet another approach. Consider the function $h(t) = \frac{1}{t} + \frac{c}{t^2}$ for some constant $c$. Then:
+$$h(T_k) - h(T_{k+1}) = \frac{1}{T_k} - \frac{1}{T_{k+1}} + c\left(\frac{1}{T_k^2} - \frac{1}{T_{k+1}^2}\right)$$
+$$= \frac{T_{k+1} - T_k}{T_k T_{k+1}} + c \cdot \frac{T_{k+1}^2 - T_k^2}{T_k^2 T_{k+1}^2}$$
+$$= \frac{T_{k+1} - T_k}{T_k T_{k+1}} + c \cdot \frac{(T_{k+1} - T_k)(T_{k+1} + T_k)}{T_k^2 T_{k+1}^2}$$
+$$= (T_{k+1} - T_k)\left[\frac{1}{T_k T_{k+1}} + \frac{c(T_{k+1} + T_k)}{T_k^2 T_{k+1}^2}\right]$$
+
+This is getting messy. Let me try a completely different strategy.
+
+Let me think about what the optimal $x_k$ might look like. Perhaps the maximum is achieved when $x_k = k$ for all $k$, making all $A_k = 0$ and the sum $= 0$. But that can't be the maximum since we can do better.
+
+Wait, actually if $x_k = k$ for all $k$, then $A_k = 0$ for all $k$, so the sum is $0$. But we can make some $A_k > 0$ by choosing $x_k > k$... no wait, $A_k = \frac{x_k - k}{(\ldots)^2}$, so $A_k > 0$ when $x_k > k$.
+
+But if $x_k > k$, then $T_k > T_{k+1}$ (since $T_k - T_{k+1} = x_k - k > 0$), which means $T_{k+1} < T_k$, which affects the denominators of $A_{k+1}, A_{k+2}, \ldots$.
+
+Let me think about small cases. Let $n = 1$. Then we have $x_1 \geq 0$ and:
+$$A_1 = \frac{x_1 - 1}{(x_1 + 1)^2}$$
+
+We want to maximize this. Let $f(x) = \frac{x-1}{(x+1)^2}$ for $x \geq 0$.
+
+$f'(x) = \frac{(x+1)^2 - (x-1) \cdot 2(x+1)}{(x+1)^4} = \frac{(x+1) - 2(x-1)}{(x+1)^3} = \frac{x+1-2x+2}{(x+1)^3} = \frac{3-x}{(x+1)^3}$.
+
+So $f'(x) = 0$ at $x = 3$, $f(3) = \frac{2}{16} = \frac{1}{8}$.
+
+And $a_1 = 1/4$. So $\lambda \cdot a_1 = \lambda/4$. We need $\lambda/4 \geq 1/8$, so $\lambda \geq 1/2$.
+
+For $n = 1$, the answer is $\lambda = 1/2$.
+
+Let me check $n = 2$. We have $x_1, x_2 \geq 0$ and:
+$$A_1 = \frac{x_1 - 1}{(x_1 + x_2 + 1)^2}, \quad A_2 = \frac{x_2 - 2}{(x_2 + 2 + 1)^2} = \frac{x_2 - 2}{(x_2 + 3)^2}$$
+
+Wait, let me recompute. $T_3 = \frac{2 \cdot 3}{2} + 1 = 4$ (for $n=2$, $T_{n+1} = T_3 = \frac{3 \cdot 2}{2} + 1 = 4$).
+
+$T_2 = x_2 + T_3 - 2 = x_2 + 2$.
+$T_1 = x_1 + T_2 - 1 = x_1 + x_2 + 1$.
+
+$A_1 = \frac{T_1 - T_2}{T_1^2} = \frac{x_1 - 1}{(x_1 + x_2 + 1)^2}$.
+$A_2 = \frac{T_2 - T_3}{T_2^2} = \frac{x_2 + 2 - 4}{(x_2 + 2)^2} = \frac{x_2 - 2}{(x_2 + 2)^2}$.
+
+Wait, $T_2 = x_2 + T_3 - 2 = x_2 + 4 - 2 = x_2 + 2$. And $A_2 = \frac{T_2 - T_3}{T_2^2} = \frac{x_2 + 2 - 4}{(x_2+2)^2} = \frac{x_2 - 2}{(x_2+2)^2}$.
+
+To maximize $A_2$ alone: $g(x) = \frac{x-2}{(x+2)^2}$, $g'(x) = \frac{(x+2)^2 - (x-2) \cdot 2(x+2)}{(x+2)^4} = \frac{(x+2) - 2(x-2)}{(x+2)^3} = \frac{6-x}{(x+2)^3}$.
+
+Max at $x = 6$: $g(6) = \frac{4}{64} = \frac{1}{16}$.
+
+And $a_2 = 25/64$. So $\lambda \cdot 25/64 \geq 1/16$ gives $\lambda \geq 4/25$.
+
+But we also need to consider the sum $A_1 + A_2$. The maximum of the sum might be larger.
+
+For the sum, we need to optimize over $x_1, x_2$. Let me think about whether the maximum of the sum is achieved when we optimize each term independently.
+
+If $x_1$ is chosen to maximize $A_1$ given $x_2$, and $x_2$ is chosen to maximize $A_2$, there might be interaction since $A_1$ depends on $x_2$ through $T_1$.
+
+Let me think about this more carefully. Given $T_2$ (i.e., given $x_2$), $A_1 = \frac{T_1 - T_2}{T_1^2}$ where $T_1 = x_1 + T_2 - 1 \geq T_2 - 1$ (since $x_1 \geq 0$).
+
+Let $f(T_1) = \frac{T_1 - T_2}{T_1^2} = \frac{1}{T_1} - \frac{T_2}{T_1^2}$.
+
+$f'(T_1) = -\frac{1}{T_1^2} + \frac{2T_2}{T_1^3} = \frac{2T_2 - T_1}{T_1^3}$.
+
+Maximum at $T_1 = 2T_2$, giving $f(2T_2) = \frac{2T_2 - T_2}{4T_2^2} = \frac{1}{4T_2}$.
+
+The constraint is $T_1 \geq T_2 - 1$, i.e., $x_1 \geq 0$, i.e., $T_1 \geq T_2 - 1$. If $2T_2 \geq T_2 - 1$, i.e., $T_2 \geq -1$ (always true since $T_2 > 0$), then the maximum of $A_1$ given $T_2$ is $\frac{1}{4T_2}$, achieved at $T_1 = 2T_2$, i.e., $x_1 = T_2 - 1$.
+
+So the maximum of $A_1$ given $T_2$ is $\frac{1}{4T_2}$.
+
+Similarly, the maximum of $A_2$ given $T_3$ is $\frac{1}{4T_3}$, achieved at $T_2 = 2T_3$.
+
+So the maximum of the sum $A_1 + A_2$ is at most $\frac{1}{4T_2} + \frac{1}{4T_3}$... but wait, we need to be careful. When we optimize $A_1$ given $T_2$, we get $\frac{1}{4T_2}$. But $T_2$ is also a variable (it depends on $x_2$). And $A_2$ depends on $T_2$ and $T_3$.
+
+Actually, let me think about this as a dynamic programming / backward induction problem.
+
+For the last term, $A_n = \frac{T_n - T_{n+1}}{T_n^2}$ where $T_{n+1}$ is fixed. The maximum over $T_n$ (subject to $T_n \geq T_{n+1} - n$) is $\frac{1}{4T_{n+1}}$ achieved at $T_n = 2T_{n+1}$ (provided $2T_{n+1} \geq T_{n+1} - n$, which is $T_{n+1} \geq -n$, always true).
+
+Now for the second-to-last term, $A_{n-1} = \frac{T_{n-1} - T_n}{T_{n-1}^2}$. Given $T_n$, the maximum of $A_{n-1}$ is $\frac{1}{4T_n}$ at $T_{n-1} = 2T_n$.
+
+But we also need to account for $A_n$ which depends on $T_n$. So the total contribution from terms $n-1$ and $n$ given $T_n$ is:
+$$\frac{1}{4T_n} + A_n(T_n) = \frac{1}{4T_n} + \frac{T_n - T_{n+1}}{T_n^2}$$
+
+Wait, but when we optimize $A_{n-1}$, we've already fixed $T_n$. And $A_n$ is determined by $T_n$ (since $T_{n+1}$ is fixed). So the total from terms $n-1$ and $n$ is:
+$$\frac{1}{4T_n} + \frac{T_n - T_{n+1}}{T_n^2}$$
+
+But we need to optimize this over $T_n$ as well! Because $T_n$ is a free variable (subject to constraints).
+
+Hmm, so the approach is: we optimize from back to front. At each step, we have a function of $T_k$ that represents the maximum of the sum from $k$ to $n$ given $T_k$.
+
+Let me define $V_k(T_k)$ = maximum of $\sum_{j=k}^{n} A_j$ given $T_k$.
+
+Then $V_n(T_n) = \frac{T_n - T_{n+1}}{T_n^2}$ (this is just $A_n$, no optimization needed since $T_{n+1}$ is fixed).
+
+And $V_{k}(T_k) = \max_{T_{k+1}} \left[\frac{T_k - T_{k+1}}{T_k^2} + V_{k+1}(T_{k+1})\right]$
+
+subject to $T_{k+1} \leq T_k + k$ (from $x_k \geq 0$) and $T_{k+1} \geq \frac{(k+1)k}{2} + 1$ (from all subsequent $x_j = 0$).
+
+Wait, actually the constraint is $T_k = x_k + T_{k+1} - k$ with $x_k \geq 0$, so $T_{k+1} \leq T_k + k$. And $T_{k+1} \geq \frac{(k+1)k}{2} + 1$ (minimum value when all $x_j = 0$ for $j > k$).
+
+Let me compute $V_n(T_n) = \frac{T_n - T_{n+1}}{T_n^2} = \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$.
+
+Now, $V_{n-1}(T_{n-1}) = \max_{T_n} \left[\frac{T_{n-1} - T_n}{T_{n-1}^2} + V_n(T_n)\right]$
+
+$= \max_{T_n} \left[\frac{T_{n-1} - T_n}{T_{n-1}^2} + \frac{T_n - T_{n+1}}{T_n^2}\right]$
+
+$= \frac{1}{T_{n-1}} + \max_{T_n} \left[-\frac{T_n}{T_{n-1}^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}\right]$
+
+$= \frac{1}{T_{n-1}} + \max_{T_n} \left[\frac{1}{T_n} - \frac{T_n}{T_{n-1}^2} - \frac{T_{n+1}}{T_n^2}\right]$
+
+Let me optimize the expression in brackets over $T_n$. Let $h(T_n) = \frac{1}{T_n} - \frac{T_n}{T_{n-1}^2} - \frac{T_{n+1}}{T_n^2}$.
+
+$h'(T_n) = -\frac{1}{T_n^2} - \frac{1}{T_{n-1}^2} + \frac{2T_{n+1}}{T_n^3}$
+
+Setting $h'(T_n) = 0$: $\frac{2T_{n+1}}{T_n^3} = \frac{1}{T_n^2} + \frac{1}{T_{n-1}^2}$
+
+$\frac{2T_{n+1}}{T_n} = 1 + \frac{T_n^2}{T_{n-1}^2}$
+
+This is getting complicated. Let me try a guess: suppose $V_k(T_k) = \frac{c_k}{T_k}$ for some constant $c_k$. Then:
+
+$V_k(T_k) = \max_{T_{k+1}} \left[\frac{T_k - T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}}\right]$
+
+$= \frac{1}{T_k} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}}\right]$
+
+The expression to maximize: $g(T_{k+1}) = -\frac{T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}}$.
+
+$g'(T_{k+1}) = -\frac{1}{T_k^2} - \frac{c_{k+1}}{T_{k+1}^2}$
+
+This is always negative (if $c_{k+1} > 0$), so $g$ is decreasing! That means the maximum is at the smallest $T_{k+1}$.
+
+Hmm, that doesn't work. Let me reconsider.
+
+Wait, $g'(T_{k+1}) = -\frac{1}{T_k^2} - \frac{c_{k+1}}{T_{k+1}^2} < 0$ always. So $g$ is strictly decreasing, and the maximum is at the minimum $T_{k+1}$.
+
+The minimum $T_{k+1}$ is $\frac{(k+1)k}{2} + 1$ (when all subsequent $x_j = 0$). But that doesn't give a nice form.
+
+Hmm, maybe my guess $V_k(T_k) = c_k/T_k$ is wrong. Let me try $V_k(T_k) = \frac{c_k}{T_k} + d_k$ for constants $c_k, d_k$.
+
+$V_k(T_k) = \max_{T_{k+1}} \left[\frac{T_k - T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}} + d_{k+1}\right]$
+
+$= \frac{1}{T_k} + d_{k+1} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}}\right]$
+
+Same issue: the expression $-\frac{T_{k+1}}{T_k^2} + \frac{c_{k+1}}{T_{k+1}}$ has derivative $-\frac{1}{T_k^2} - \frac{c_{k+1}}{T_{k+1}^2} < 0$, so it's decreasing.
+
+This means the maximum of the sum is achieved by making $T_{k+1}$ as small as possible, i.e., setting all subsequent $x_j = 0$. But then we're just maximizing a single term.
+
+Wait, that can't be right. Let me re-examine.
+
+Actually, I think the issue is that when $T_{k+1}$ is small, $A_k = \frac{T_k - T_{k+1}}{T_k^2}$ is large (since $T_k - T_{k+1}$ is large), but the subsequent terms $A_{k+1}, \ldots$ might be small or negative.
+
+Let me reconsider. If we set $x_j = 0$ for $j > k$, then $T_{k+1} = \frac{(k+1)k}{2} + 1$, and $A_{k+1} = \frac{T_{k+1} - T_{k+2}}{T_{k+1}^2} = \frac{0 - (k+1)}{T_{k+1}^2} < 0$ (since $x_{k+1} = 0 < k+1$).
+
+So making $T_{k+1}$ small makes $A_k$ large but makes $A_{k+1}, \ldots, A_n$ negative. There's a tradeoff.
+
+Let me reconsider the form of $V_k$. Let me try $V_k(T_k) = \frac{c_k}{T_k} + d_k T_k + e_k$ or some other form.
+
+Actually, let me go back to the direct computation. We have:
+$$V_k(T_k) = \max_{T_{k+1} \leq T_k + k} \left[\frac{T_k - T_{k+1}}{T_k^2} + V_{k+1}(T_{k+1})\right]$$
+
+Let me try $V_k(T_k) = \frac{\alpha_k}{T_k} + \beta_k$ for some constants. Then:
+
+$V_k(T_k) = \frac{1}{T_k} + \beta_{k+1} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{T_k^2} + \frac{\alpha_{k+1}}{T_{k+1}}\right]$
+
+The inner maximization: $f(T_{k+1}) = -\frac{T_{k+1}}{T_k^2} + \frac{\alpha_{k+1}}{T_{k+1}}$.
+
+$f'(T_{k+1}) = -\frac{1}{T_k^2} - \frac{\alpha_{k+1}}{T_{k+1}^2}$
+
+If $\alpha_{k+1} > 0$, this is always negative, so $f$ is decreasing and the max is at the smallest $T_{k+1}$.
+If $\alpha_{k+1} < 0$, then $f'(T_{k+1}) = -\frac{1}{T_k^2} + \frac{|\alpha_{k+1}|}{T_{k+1}^2} = 0$ gives $T_{k+1} = T_k \sqrt{|\alpha_{k+1}|}$.
+
+So if $\alpha_{k+1} < 0$, the optimal $T_{k+1} = T_k \sqrt{|\alpha_{k+1}|}$ (assuming this satisfies the constraint).
+
+At this optimum: $f = -\frac{T_k\sqrt{|\alpha_{k+1}|}}{T_k^2} + \frac{\alpha_{k+1}}{T_k\sqrt{|\alpha_{k+1}|}} = -\frac{\sqrt{|\alpha_{k+1}|}}{T_k} + \frac{-|\alpha_{k+1}|}{T_k\sqrt{|\alpha_{k+1}|}} = -\frac{\sqrt{|\alpha_{k+1}|}}{T_k} - \frac{\sqrt{|\alpha_{k+1}|}}{T_k} = -\frac{2\sqrt{|\alpha_{k+1}|}}{T_k}$.
+
+So $V_k(T_k) = \frac{1}{T_k} + \beta_{k+1} - \frac{2\sqrt{|\alpha_{k+1}|}}{T_k} = \frac{1 - 2\sqrt{|\alpha_{k+1}|}}{T_k} + \beta_{k+1}$.
+
+So $\alpha_k = 1 - 2\sqrt{|\alpha_{k+1}|}$ and $\beta_k = \beta_{k+1}$.
+
+For this to work, we need $\alpha_{k+1} < 0$, i.e., $|\alpha_{k+1}| = -\alpha_{k+1} > 0$.
+
+And $\alpha_k = 1 - 2\sqrt{-\alpha_{k+1}}$.
+
+For $\alpha_k < 0$ (so that the recursion continues), we need $1 - 2\sqrt{-\alpha_{k+1}} < 0$, i.e., $\sqrt{-\alpha_{k+1}} > 1/2$, i.e., $-\alpha_{k+1} > 1/4$, i.e., $\alpha_{k+1} < -1/4$.
+
+Let me check the base case. $V_n(T_n) = \frac{T_n - T_{n+1}}{T_n^2} = \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$.
+
+This is NOT of the form $\frac{\alpha_n}{T_n} + \beta_n$ because of the $\frac{T_{n+1}}{T_n^2}$ term.
+
+Hmm. So the form $\frac{\alpha}{T} + \beta$ doesn't work for the base case. Let me try $V_k(T_k) = \frac{\alpha_k}{T_k} + \frac{\gamma_k}{T_k^2} + \beta_k$.
+
+Actually, let me try $V_k(T_k) = \frac{\alpha_k}{T_k} + \frac{\gamma_k}{T_k^2}$.
+
+Base case: $V_n(T_n) = \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$. So $\alpha_n = 1$, $\gamma_n = -T_{n+1}$.
+
+But $T_{n+1}$ is a constant (it's $\frac{n(n+1)}{2} + 1$), so this works. $\gamma_n = -T_{n+1}$.
+
+Now the recursion:
+$V_k(T_k) = \max_{T_{k+1}} \left[\frac{T_k - T_{k+1}}{T_k^2} + \frac{\alpha_{k+1}}{T_{k+1}} + \frac{\gamma_{k+1}}{T_{k+1}^2}\right]$
+
+$= \frac{1}{T_k} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{T_k^2} + \frac{\alpha_{k+1}}{T_{k+1}} + \frac{\gamma_{k+1}}{T_{k+1}^2}\right]$
+
+Let $h(T_{k+1}) = -\frac{T_{k+1}}{T_k^2} + \frac{\alpha_{k+1}}{T_{k+1}} + \frac{\gamma_{k+1}}{T_{k+1}^2}$.
+
+$h'(T_{k+1}) = -\frac{1}{T_k^2} - \frac{\alpha_{k+1}}{T_{k+1}^2} - \frac{2\gamma_{k+1}}{T_{k+1}^3}$
+
+Setting $h'(T_{k+1}) = 0$: $\frac{1}{T_k^2} = -\frac{\alpha_{k+1}}{T_{k+1}^2} - \frac{2\gamma_{k+1}}{T_{k+1}^3}$
+
+$\frac{T_{k+1}^3}{T_k^2} = -\alpha_{k+1} T_{k+1} - 2\gamma_{k+1}$
+
+This is a cubic in $T_{k+1}$, which is complicated. The form $\frac{\alpha}{T} + \frac{\gamma}{T^2}$ doesn't lead to a clean recursion.
+
+Let me try a different form. What if $V_k(T_k) = \frac{c_k}{T_k}$ where $c_k$ can be any real number (including negative)?
+
+Base case: $V_n(T_n) = \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$. This is not of the form $c/T$.
+
+Hmm. Let me try yet another approach. Let me guess that the optimal strategy is to set $T_k = 2T_{k+1}$ for each $k$ (from the single-term optimization), and see what the sum becomes.
+
+If $T_k = 2T_{k+1}$ for all $k$, then $T_k = 2^{n+1-k} T_{n+1}$.
+
+$A_k = \frac{T_k - T_{k+1}}{T_k^2} = \frac{2T_{k+1} - T_{k+1}}{4T_{k+1}^2} = \frac{1}{4T_{k+1}}$.
+
+And $T_{k+1} = 2^{n-k} T_{n+1}$, so $A_k = \frac{1}{4 \cdot 2^{n-k} T_{n+1}} = \frac{1}{2^{n-k+2} T_{n+1}}$.
+
+Sum: $\sum_{k=1}^{n} A_k = \frac{1}{T_{n+1}} \sum_{k=1}^{n} \frac{1}{2^{n-k+2}} = \frac{1}{T_{n+1}} \sum_{j=0}^{n-1} \frac{1}{2^{j+2}} = \frac{1}{T_{n+1}} \cdot \frac{1}{4} \cdot \frac{1 - 1/2^n}{1 - 1/2} = \frac{1}{T_{n+1}} \cdot \frac{1}{2}(1 - 2^{-n})$.
+
+$= \frac{1 - 2^{-n}}{2 T_{n+1}}$.
+
+But we need to check the constraints. $T_k = 2T_{k+1}$ means $x_k = T_k - T_{k+1} + k = T_{k+1} + k = 2^{n-k}T_{n+1} + k \geq 0$. ✓
+
+So this is feasible. The sum is $\frac{1 - 2^{-n}}{2 T_{n+1}}$.
+
+But is this the maximum? The issue is that when we set $T_k = 2T_{k+1}$ to maximize $A_k$, we might not be maximizing the total sum because $T_k$ also affects $A_{k-1}$.
+
+Let me reconsider. The optimization should be done from the front, not the back. Or rather, we need to jointly optimize.
+
+Actually, let me reconsider the backward induction. The issue with my earlier analysis was that $V_n(T_n) = \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$ is not of a simple form. But let me try to compute $V_{n-1}$ explicitly.
+
+$V_{n-1}(T_{n-1}) = \max_{T_n} \left[\frac{T_{n-1} - T_n}{T_{n-1}^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}\right]$
+
+$= \frac{1}{T_{n-1}} + \max_{T_n} \left[-\frac{T_n}{T_{n-1}^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}\right]$
+
+Let $h(T_n) = -\frac{T_n}{T_{n-1}^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$.
+
+$h'(T_n) = -\frac{1}{T_{n-1}^2} - \frac{1}{T_n^2} + \frac{2T_{n+1}}{T_n^3}$
+
+Setting to 0: $\frac{2T_{n+1}}{T_n^3} = \frac{1}{T_{n-1}^2} + \frac{1}{T_n^2}$
+
+$\frac{2T_{n+1}}{T_n} = \frac{T_n^2}{T_{n-1}^2} + 1$
+
+Let $r = T_n / T_{n-1}$. Then $\frac{2T_{n+1}}{T_n} = r^2 + 1$, so $T_n = \frac{2T_{n+1}}{r^2 + 1}$ and $T_{n-1} = \frac{T_n}{r} = \frac{2T_{n+1}}{r(r^2+1)}$.
+
+This is getting complicated. Let me try a different substitution. Let $T_k = \frac{T_{n+1}}{t_k}$ where $t_k$ is some sequence. Then:
+
+$A_k = \frac{T_k - T_{k+1}}{T_k^2} = \frac{T_{n+1}/t_k - T_{n+1}/t_{k+1}}{T_{n+1}^2/t_k^2} = \frac{t_k^2}{T_{n+1}} \cdot \frac{t_{k+1} - t_k}{t_k t_{k+1}} = \frac{t_k(t_{k+1} - t_k)}{T_{n+1} t_{k+1}}$
+
+$= \frac{t_k}{T_{n+1}} \cdot \frac{t_{k+1} - t_k}{t_{k+1}} = \frac{t_k}{T_{n+1}} \left(1 - \frac{t_k}{t_{k+1}}\right)$
+
+Hmm, let me try $T_k = T_{n+1} \cdot s_k$ where $s_k > 0$ and $s_{n+1} = 1$.
+
+$A_k = \frac{T_{n+1}(s_k - s_{k+1})}{T_{n+1}^2 s_k^2} = \frac{s_k - s_{k+1}}{T_{n+1} s_k^2}$
+
+So $\sum A_k = \frac{1}{T_{n+1}} \sum_{k=1}^{n} \frac{s_k - s_{k+1}}{s_k^2}$.
+
+And the constraint is $s_k \geq s_{k+1} - k/T_{n+1}$ (from $x_k \geq 0$), and $s_{n+1} = 1$.
+
+Also $s_k \geq \frac{k(k-1)/2 + 1}{T_{n+1}}$ (minimum when all subsequent $x_j = 0$).
+
+Now, $\frac{s_k - s_{k+1}}{s_k^2} = \frac{1}{s_k} - \frac{s_{k+1}}{s_k^2}$.
+
+Let me try $u_k = 1/s_k$. Then $s_k = 1/u_k$ and:
+
+$\frac{s_k - s_{k+1}}{s_k^2} = \frac{1/s_k - 1/s_{k+1}}{1/s_k^2 \cdot s_k s_{k+1}} \cdot s_{k+1}$... let me just compute directly.
+
+$\frac{s_k - s_{k+1}}{s_k^2} = (s_k - s_{k+1}) u_k^2 = \left(\frac{1}{u_k} - \frac{1}{u_{k+1}}\right) u_k^2 = \frac{u_{k+1} - u_k}{u_k u_{k+1}} \cdot u_k^2 = \frac{u_k(u_{k+1} - u_k)}{u_{k+1}}$
+
+$= u_k \cdot \frac{u_{k+1} - u_k}{u_{k+1}} = u_k \left(1 - \frac{u_k}{u_{k+1}}\right) = u_k - \frac{u_k^2}{u_{k+1}}$
+
+So $\sum A_k = \frac{1}{T_{n+1}} \sum_{k=1}^{n} \left(u_k - \frac{u_k^2}{u_{k+1}}\right)$
+
+where $u_k = 1/s_k = T_{n+1}/T_k$ and $u_{n+1} = 1$.
+
+Now, $u_k - \frac{u_k^2}{u_{k+1}} = u_k\left(1 - \frac{u_k}{u_{k+1}}\right)$.
+
+Note that $u_k = T_{n+1}/T_k$. Since $T_k \geq T_{k+1} - k$ and $T_k$ can be large, $u_k$ can be small. Also $u_{n+1} = 1$.
+
+The constraint $x_k \geq 0$ means $T_k \geq T_{k+1} - k$, i.e., $T_{n+1}/u_k \geq T_{n+1}/u_{k+1} - k$, i.e., $1/u_k \geq 1/u_{k+1} - k/T_{n+1}$, i.e., $u_{k+1} \geq u_k \cdot \frac{1}{1 - k u_k/T_{n+1}}$ (when $ku_k < T_{n+1}$)... this is getting complicated.
+
+Let me try a completely different approach. Let me look at the structure of $a_n$ more carefully.
+
+$a_n = \frac{1}{4}(1 + a_{n-1})^2$. Let me define $b_n = 1 + a_n$. Then $b_n = 1 + \frac{1}{4}b_{n-1}^2$, with $b_1 = 5/4$.
+
+$b_2 = 1 + \frac{25}{64} = \frac{89}{64}$.
+$b_3 = 1 + \frac{89^2}{64^2 \cdot 4} = 1 + \frac{7921}{16384} = \frac{24305}{16384}$.
+
+Hmm, $b_n = 1 + \frac{b_{n-1}^2}{4}$. Let me try $b_n = \frac{c_n}{2^{2^n - 1}}$ (from the pattern of $a_n$).
+
+$b_1 = 5/4 = 5/2^2$. $2^{2^1-1} = 2$. So $c_1 = 5/2$? That doesn't work as an integer.
+
+Actually, $a_n = p_n / 2^{2(2^n - 1)}$... let me recompute. $a_1 = 1/4 = 1/2^2$. $a_2 = 25/64 = 25/2^6$. $a_3 = 7921/16384 = 7921/2^{14}$.
+
+Denominators: $2, 6, 14$. These are $2^1, 2^3-2, 2^4-2$... no. $2 = 2, 6 = 2+4, 14 = 2+4+8$. So the denominator of $a_n$ is $2^{2+4+\cdots+2^n} = 2^{2(2^n-1)}$... let me check: $2(2^1-1) = 2$, $2(2^2-1) = 6$, $2(2^3-1) = 14$. Yes!
+
+So $a_n = \frac{p_n}{2^{2(2^n-1)}}$ where $p_1 = 1$ and $p_n = (2^{2(2^{n-1}-1)} + p_{n-1})^2 / 4$... let me verify.
+
+$a_n = \frac{1}{4}(1+a_{n-1})^2 = \frac{1}{4}\left(\frac{2^{2(2^{n-1}-1)} + p_{n-1}}{2^{2(2^{n-1}-1)}}\right)^2 = \frac{(2^{2(2^{n-1}-1)} + p_{n-1})^2}{4 \cdot 2^{4(2^{n-1}-1)}}$
+
+$= \frac{(2^{2(2^{n-1}-1)} + p_{n-1})^2}{2^{4 \cdot 2^{n-1} - 4 + 2}} = \frac{(2^{2^{n}-2} + p_{n-1})^2}{2^{2^{n+1}-2}}$
+
+And $2(2^n - 1) = 2^{n+1} - 2$. ✓
+
+So $p_n = (2^{2^n - 2} + p_{n-1})^2$... wait, that would make $p_n$ a perfect square. Let me check: $p_1 = 1$, $p_2 = (2^2 + 1)^2 = 25$. ✓ $p_3 = (2^6 + 25)^2 = 89^2 = 7921$. ✓
+
+So $p_n = (2^{2^n-2} + p_{n-1})^2$ and $a_n = \frac{p_n}{2^{2^{n+1}-2}}$.
+
+Let $q_n = 2^{2^n-2} + p_{n-1}$, so $p_n = q_n^2$ and $a_n = \frac{q_n^2}{2^{2^{n+1}-2}} = \left(\frac{q_n}{2^{2^n-1}}\right)^2$.
+
+So $a_n = b_n^2$ where $b_n = \frac{q_n}{2^{2^n-1}}$.
+
+And $b_n = \frac{q_n}{2^{2^n-1}} = \frac{2^{2^n-2} + p_{n-1}}{2^{2^n-1}} = \frac{1}{2} + \frac{p_{n-1}}{2^{2^n-1}} = \frac{1}{2} + \frac{b_{n-1}^2 \cdot 2^{2^n-2}}{2^{2^n-1}} = \frac{1}{2} + \frac{b_{n-1}^2}{2}$.
+
+So $b_n = \frac{1 + b_{n-1}^2}{2}$ with $b_1 = \sqrt{a_1} = 1/2$.
+
+This confirms what I had before: $b_n = \sqrt{a_n}$ satisfies $b_n = \frac{1+b_{n-1}^2}{2}$.
+
+Now, $b_n \to 1$ as $n \to \infty$ (since $b = (1+b^2)/2$ gives $b = 1$). And $a_n = b_n^2 \to 1$.
+
+Let me think about the connection between the sequence $a_n$ and the optimization problem.
+
+The key relation is $b_n = \frac{1+b_{n-1}^2}{2}$, or equivalently $1 - b_n = \frac{(1-b_{n-1})(1+b_{n-1})}{2} \cdot \frac{1}{1} $... let me compute:
+
+$1 - b_n = 1 - \frac{1+b_{n-1}^2}{2} = \frac{2 - 1 - b_{n-1}^2}{2} = \frac{1 - b_{n-1}^2}{2} = \frac{(1-b_{n-1})(1+b_{n-1})}{2}$.
+
+So $1 - b_n = \frac{(1-b_{n-1})(1+b_{n-1})}{2}$.
+
+And $a_n = b_n^2$, so $1 - a_n = 1 - b_n^2 = (1-b_n)(1+b_n) = \frac{(1-b_{n-1})(1+b_{n-1})^2}{2}$.
+
+Also, $1 + a_n = 1 + b_n^2 = 2b_n$ (from $b_n = \frac{1+b_{n-1}^2}{2}$, we get $1 + b_{n-1}^2 = 2b_n$, so $1 + a_{n-1} = 2b_n$, thus $b_n = \frac{1+a_{n-1}}{2}$).
+
+So $a_n = b_n^2 = \left(\frac{1+a_{n-1}}{2}\right)^2 = \frac{(1+a_{n-1})^2}{4}$. ✓
+
+Now, let me think about the optimization problem again. We have:
+$$\sum_{k=1}^{n} A_k = \frac{1}{T_{n+1}} \sum_{k=1}^{n} \left(u_k - \frac{u_k^2}{u_{k+1}}\right)$$
+
+where $u_k = T_{n+1}/T_k$ and $u_{n+1} = 1$.
+
+We want to maximize this. Let me think about what happens when we set $u_k = 2u_{k+1}$ (which corresponds to $T_k = T_{k+1}/2$, i.e., $T_k = T_{k+1}/2$... wait, $u_k = T_{n+1}/T_k$ and $u_k = 2u_{k+1}$ means $T_{n+1}/T_k = 2T_{n+1}/T_{k+1}$, so $T_{k+1} = 2T_k$. But earlier I had $T_k = 2T_{k+1}$ for the single-term optimization. Let me recheck.
+
+For a single term $A_k = \frac{T_k - T_{k+1}}{T_k^2}$, the maximum over $T_{k+1}$ (treating $T_k$ as fixed) is at $T_{k+1} = T_k/2$ (from $f'(T_{k+1}) = 0$ where $f(T_{k+1}) = \frac{T_k - T_{k+1}}{T_k^2}$, $f' = -1/T_k^2 < 0$... wait, that's always negative, so $f$ is decreasing in $T_{k+1}$, and the maximum is at the smallest $T_{k+1}$).
+
+Hmm wait, I think I confused the direction. $A_k = \frac{T_k - T_{k+1}}{T_k^2}$. If $T_k$ is fixed, then $A_k$ is decreasing in $T_{k+1}$ (since the numerator decreases). So to maximize $A_k$ alone, we want $T_{k+1}$ as small as possible.
+
+But if $T_{k+1}$ is fixed, then $A_k = \frac{1}{T_k} - \frac{T_{k+1}}{T_k^2}$, and $\frac{dA_k}{dT_k} = -\frac{1}{T_k^2} + \frac{2T_{k+1}}{T_k^3} = \frac{2T_{k+1} - T_k}{T_k^3}$, which is zero at $T_k = 2T_{k+1}$, giving $A_k = \frac{1}{4T_{k+1}}$.
+
+So the maximum of $A_k$ given $T_{k+1}$ is $\frac{1}{4T_{k+1}}$ at $T_k = 2T_{k+1}$.
+
+OK so now let me think about the full optimization using backward induction, where at each step we optimize $T_k$ given $T_{k+1}$.
+
+Define $W_k(T_{k+1})$ = maximum of $\sum_{j=k}^{n} A_j$ given $T_{k+1}$ (optimizing over $T_k, T_{k-1}, \ldots, T_1$... no, that's forward).
+
+Actually, let me define it properly. $W_k(T_{k+1})$ = maximum of $\sum_{j=1}^{k} A_j$ given $T_{k+1}$ (optimizing over $T_1, \ldots, T_k$ subject to constraints).
+
+Hmm, this is forward induction. Let me think about it differently.
+
+Actually, the constraint is $T_k \geq T_{k+1} - k$ (from $x_k \geq 0$), and $T_k$ can be any value $\geq \frac{k(k-1)}{2} + 1$ (but this is automatically satisfied if $T_{k+1} \geq \frac{(k+1)k}{2} + 1$ and $T_k \geq T_{k+1} - k$... not exactly).
+
+Let me think about it as: we choose $T_1, T_2, \ldots, T_n$ freely subject to $T_k \geq T_{k+1} - k$ for each $k$, and $T_{n+1}$ is fixed. We want to maximize $\sum_{k=1}^n \frac{T_k - T_{k+1}}{T_k^2}$.
+
+Using backward induction: define $F_k(T_{k+1})$ = max of $\sum_{j=k}^{n} A_j$ over $T_k, T_{k+1}, \ldots, T_n$ given $T_{k+1}$.
+
+Wait, but $T_{k+1}$ is given, so we optimize over $T_k$ (and then $F_{k-1}$ will optimize over $T_{k-1}$ given $T_k$, etc.)
+
+$F_n(T_{n+1}) = \max_{T_n \geq T_{n+1} - n} \frac{T_n - T_{n+1}}{T_n^2}$
+
+$= \max_{T_n} \left[\frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}\right]$
+
+The unconstrained maximum is at $T_n = 2T_{n+1}$, giving $\frac{1}{4T_{n+1}}$. The constraint $T_n \geq T_{n+1} - n$ is satisfied since $2T_{n+1} \geq T_{n+1} - n$ (as $T_{n+1} \geq 0$). Also need $T_n \geq \frac{n(n-1)}{2} + 1$, but $2T_{n+1} = 2(\frac{n(n+1)}{2} + 1) = n(n+1) + 2 \geq \frac{n(n-1)}{2} + 1$ for $n \geq 1$. ✓
+
+So $F_n(T_{n+1}) = \frac{1}{4T_{n+1}}$.
+
+$F_{n-1}(T_n) = \max_{T_{n-1}} \left[\frac{T_{n-1} - T_n}{T_{n-1}^2} + F_n(T_n)\right]$
+
+Wait, no. $F_{n-1}(T_n)$ should be the max of $\sum_{j=n-1}^{n} A_j$ given $T_n$. But $F_n$ is a function of $T_{n+1}$, not $T_n$. Let me redefine.
+
+Let me define $G_k$ = maximum of $\sum_{j=k}^{n} A_j$ where we optimize over all $T_k, \ldots, T_n$ (with $T_{n+1}$ fixed). This is a number, not a function.
+
+But to use backward induction, I need to keep track of the dependency. Let me define:
+
+$H_k(c)$ = maximum of $\sum_{j=k}^{n} A_j$ given that $T_k = c$ (optimizing over $T_{k+1}, \ldots, T_n$ subject to constraints and $T_{n+1}$ fixed).
+
+Then $H_n(c) = \frac{c - T_{n+1}}{c^2}$ (no optimization, $T_{n+1}$ is fixed).
+
+$H_k(c) = \max_{T_{k+1} \leq c + k, T_{k+1} \geq \frac{(k+1)k}{2}+1} \left[\frac{c - T_{k+1}}{c^2} + H_{k+1}(T_{k+1})\right]$
+
+$= \frac{1}{c} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{c^2} + H_{k+1}(T_{k+1})\right]$
+
+And the overall maximum is $\max_c H_1(c)$ where $c = T_1 \geq 1$ (since $T_1 \geq \frac{0}{2} + 1 = 1$).
+
+Now, $H_n(c) = \frac{1}{c} - \frac{T_{n+1}}{c^2}$.
+
+$H_{n-1}(c) = \frac{1}{c} + \max_{T_n} \left[-\frac{T_n}{c^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}\right]$
+
+Let me compute the inner max. $g(T_n) = -\frac{T_n}{c^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$.
+
+$g'(T_n) = -\frac{1}{c^2} - \frac{1}{T_n^2} + \frac{2T_{n+1}}{T_n^3}$
+
+Setting to 0: $\frac{2T_{n+1}}{T_n^3} = \frac{1}{c^2} + \frac{1}{T_n^2}$
+
+$\frac{2T_{n+1}}{T_n} = \frac{T_n^2}{c^2} + 1$
+
+Let $r = T_n/c$. Then $\frac{2T_{n+1}}{rc} = r^2 + 1$, so $T_n = rc = \frac{2T_{n+1}}{r^2+1}$, giving $c = \frac{2T_{n+1}}{r(r^2+1)}$.
+
+The value of $g$ at the optimum:
+$g = -\frac{rc}{c^2} + \frac{1}{rc} - \frac{T_{n+1}}{r^2c^2} = -\frac{r}{c} + \frac{1}{rc} - \frac{T_{n+1}}{r^2c^2}$
+
+$= \frac{1}{c}\left(-r + \frac{1}{r}\right) - \frac{T_{n+1}}{r^2c^2}$
+
+Using $c = \frac{2T_{n+1}}{r(r^2+1)}$:
+
+$\frac{1}{c} = \frac{r(r^2+1)}{2T_{n+1}}$, $\frac{1}{c^2} = \frac{r^2(r^2+1)^2}{4T_{n+1}^2}$.
+
+$g = \frac{r(r^2+1)}{2T_{n+1}}\left(-r + \frac{1}{r}\right) - \frac{T_{n+1} r^2(r^2+1)^2}{4T_{n+1}^2 r^2}$
+
+$= \frac{r(r^2+1)}{2T_{n+1}} \cdot \frac{1-r^2}{r} - \frac{(r^2+1)^2}{4T_{n+1}}$
+
+$= \frac{(r^2+1)(1-r^2)}{2T_{n+1}} - \frac{(r^2+1)^2}{4T_{n+1}}$
+
+$= \frac{(r^2+1)}{T_{n+1}} \left[\frac{1-r^2}{2} - \frac{r^2+1}{4}\right]$
+
+$= \frac{(r^2+1)}{T_{n+1}} \cdot \frac{2(1-r^2) - (r^2+1)}{4}$
+
+$= \frac{(r^2+1)}{T_{n+1}} \cdot \frac{2 - 2r^2 - r^2 - 1}{4}$
+
+$= \frac{(r^2+1)(1 - 3r^2)}{4T_{n+1}}$
+
+To maximize over $r$, take derivative with respect to $r$:
+
+$\frac{d}{dr}\left[(r^2+1)(1-3r^2)\right] = 2r(1-3r^2) + (r^2+1)(-6r) = 2r - 6r^3 - 6r^3 - 6r = -12r^3 - 4r = -4r(3r^2+1)$
+
+This is zero at $r = 0$ (giving $g = \frac{1}{4T_{n+1}}$) or always negative for $r > 0$. So $g$ is maximized at $r = 0$... but $r = T_n/c > 0$.
+
+As $r \to 0^+$, $g \to \frac{1}{4T_{n+1}}$. But $r \to 0$ means $T_n \to 0$, which violates $T_n \geq \frac{n(n-1)}{2} + 1 > 0$.
+
+Hmm, so the unconstrained maximum of $g$ is at $r = 0$, which is not feasible. This means the maximum is at the boundary, i.e., the smallest feasible $T_n$.
+
+Wait, let me reconsider. The function $g(T_n) = -\frac{T_n}{c^2} + \frac{1}{T_n} - \frac{T_{n+1}}{T_n^2}$.
+
+As $T_n \to \infty$: $g \to -\infty$ (dominated by $-T_n/c^2$).
+As $T_n \to 0^+$: $g \to -\infty$ (dominated by $-T_{n+1}/T_n^2$).
+
+So $g$ has a maximum at some finite $T_n > 0$. The critical point equation is $\frac{2T_{n+1}}{T_n} = \frac{T_n^2}{c^2} + 1$.
+
+At the critical point, $g = \frac{(r^2+1)(1-3r^2)}{4T_{n+1}}$ where $r = T_n/c$.
+
+For $g > 0$, we need $1 - 3r^2 > 0$, i.e., $r < 1/\sqrt{3}$.
+
+The maximum of $g$ over $r$ is at $r = 0$ (boundary), giving $g = \frac{1}{4T_{n+1}}$. But $r = 0$ is not achievable.
+
+Actually, I realize the issue: $g$ as a function of $T_n$ (with $c$ fixed) has a maximum, and I should find it directly, not parametrize by $r$.
+
+$g'(T_n) = -\frac{1}{c^2} - \frac{1}{T_n^2} + \frac{2T_{n+1}}{T_n^3} = 0$
+
+$\frac{2T_{n+1}}{T_n^3} = \frac{1}{c^2} + \frac{1}{T_n^2}$
+
+$\frac{2T_{n+1}}{T_n} = \frac{T_n^2}{c^2} + 1$
+
+This is a cubic in $T_n$: $T_n^3/c^2 + T_n = 2T_{n+1}$, i.e., $T_n^3 + c^2 T_n = 2T_{n+1} c^2$.
+
+This doesn't have a nice closed form in general. So the backward induction approach with exact optimization seems difficult.
+
+Let me try a different strategy: guess that the optimal solution has a specific structure and verify it gives the right answer.
+
+Given the connection to the sequence $a_n$, let me guess that the maximum of the sum is $a_n / T_{n+1}$ or something similar, and $\lambda = 1$ or some simple value.
+
+Wait, let me reconsider the problem. We need $\sum A_k \leq \lambda a_{2002}$, and we want the smallest $\lambda$. So $\lambda = \frac{\max \sum A_k}{a_{2002}}$.
+
+Let me compute for $n = 1$: max of $A_1 = \frac{x_1 - 1}{(x_1+1)^2}$ is $1/8$ at $x_1 = 3$. And $a_1 = 1/4$. So $\lambda = \frac{1/8}{1/4} = 1/2$.
+
+For $n = 2$: Let me try to compute the maximum of $A_1 + A_2$ numerically.
+
+$A_1 = \frac{x_1 - 1}{(x_1 + x_2 + 1)^2}$, $A_2 = \frac{x_2 - 2}{(x_2 + 2)^2}$.
+
+$T_3 = 4$, $T_2 = x_2 + 2$, $T_1 = x_1 + x_2 + 1$.
+
+$A_1 = \frac{T_1 - T_2}{T_1^2}$, $A_2 = \frac{T_2 - 4}{T_2^2}$.
+
+Let me optimize. Given $T_2$, the optimal $T_1 = 2T_2$ (maximizing $A_1$), giving $A_1 = \frac{1}{4T_2}$.
+
+So the sum becomes $\frac{1}{4T_2} + \frac{T_2 - 4}{T_2^2} = \frac{1}{4T_2} + \frac{1}{T_2} - \frac{4}{T_2^2} = \frac{5}{4T_2} - \frac{4}{T_2^2}$.
+
+Wait, but this assumes we can freely choose $T_1 = 2T_2$, which requires $x_1 = T_1 - T_2 + 1 = T_2 + 1 \geq 0$. ✓
+
+Now optimize over $T_2$: $h(T_2) = \frac{5}{4T_2} - \frac{4}{T_2^2}$.
+
+$h'(T_2) = -\frac{5}{4T_2^2} + \frac{8}{T_2^3} = \frac{-5T_2 + 32}{4T_2^3}$
+
+$h'(T_2) = 0$ at $T_2 = 32/5$.
+
+$h(32/5) = \frac{5}{4 \cdot 32/5} - \frac{4}{(32/5)^2} = \frac{25}{128} - \frac{4 \cdot 25}{1024} = \frac{25}{128} - \frac{100}{1024} = \frac{200}{1024} - \frac{100}{1024} = \frac{100}{1024} = \frac{25}{256}$.
+
+And $a_2 = 25/64$. So $\lambda = \frac{25/256}{25/64} = \frac{64}{256} = \frac{1}{4}$.
+
+Hmm, so for $n=1$, $\lambda = 1/2$, and for $n=2$, $\lambda = 1/4$?
+
+Wait, but I need to check whether the greedy approach (optimize $T_1$ first, then $T_2$) gives the true maximum. Let me verify by also checking the joint optimization.
+
+Actually, the approach I used is: first optimize $T_1$ given $T_2$ (getting $T_1 = 2T_2$), then optimize $T_2$. This is valid because the optimization over $T_1$ given $T_2$ is unconstrained (the constraint $x_1 \geq 0$ is always satisfied), and the resulting function of $T_2$ is then optimized.
+
+But wait, I should also check whether the constraint on $T_2$ is satisfied. $T_2 = 32/5$, and we need $x_2 = T_2 - T_3 + 2 = 32/5 - 4 + 2 = 32/5 - 2 = 22/5 \geq 0$. ✓
+
+Also need $T_2 \geq \frac{2 \cdot 1}{2} + 1 = 2$. $32/5 = 6.4 > 2$. ✓
+
+So for $n = 2$, the maximum is $25/256$ and $\lambda = 1/4$.
+
+Let me check $n = 3$. $T_4 = \frac{3 \cdot 4}{2} + 1 = 7$.
+
+$A_3 = \frac{T_3 - 7}{T_3^2}$. Optimal $T_2$ given $T_3$: $T_2 = 2T_3$, $A_2 = \frac{1}{4T_3}$.
+
+Then sum from $k=2,3$: $\frac{1}{4T_3} + \frac{T_3 - 7}{T_3^2} = \frac{1}{4T_3} + \frac{1}{T_3} - \frac{7}{T_3^2} = \frac{5}{4T_3} - \frac{7}{T_3^2}$.
+
+Optimal $T_3$: $h'(T_3) = -\frac{5}{4T_3^2} + \frac{14}{T_3^3} = 0 \Rightarrow T_3 = \frac{56}{5}$.
+
+$h(56/5) = \frac{5}{4 \cdot 56/5} - \frac{7}{(56/5)^2} = \frac{25}{224} - \frac{7 \cdot 25}{3136} = \frac{25}{224} - \frac{175}{3136} = \frac{350}{3136} - \frac{175}{3136} = \frac{175}{3136}$.
+
+Now optimal $T_1$ given $T_2 = 2T_3 = 112/5$: $T_1 = 2T_2 = 224/5$, $A_1 = \frac{1}{4T_2} = \frac{1}{4 \cdot 112/5} = \frac{5}{448}$.
+
+Total: $\frac{5}{448} + \frac{175}{3136} = \frac{35}{3136} + \frac{175}{3136} = \frac{210}{3136} = \frac{105}{1568}$.
+
+Hmm wait, let me reconsider. The approach should be: optimize from the back. First optimize $T_n$ given $T_{n+1}$, then $T_{n-1}$ given $T_n$, etc. But actually, the way I did it for $n=2$ was: optimize $T_1$ given $T_2$ (front), then optimize $T_2$. Let me redo this more carefully using backward induction.
+
+For $n = 3$:
+- $T_4 = 7$ (fixed).
+- Optimize $T_3$ given $T_4$: $A_3 = \frac{T_3 - 7}{T_3^2}$, max at $T_3 = 2 \cdot 7 = 14$, giving $A_3 = \frac{1}{4 \cdot 7} = \frac{1}{28}$.
+
+But wait, this is the max of $A_3$ alone. For the sum, we need to consider the effect of $T_3$ on $A_2$ as well.
+
+Let me use the backward induction properly. Define $V_k(T_k)$ = max of $\sum_{j=k}^{n} A_j$ given $T_k$.
+
+$V_n(T_n) = \frac{T_n - T_{n+1}}{T_n^2}$ (no optimization).
+
+$V_k(T_k) = \max_{T_{k+1} \leq T_k + k} \left[\frac{T_k - T_{k+1}}{T_k^2} + V_{k+1}(T_{k+1})\right]$
+
+$= \frac{1}{T_k} + \max_{T_{k+1}} \left[-\frac{T_{k+1}}{T_k^2} + V_{k+1}(T_{k+1})\right]$
+
+For $n = 3$:
+$V_3(T_3) = \frac{T_3 - 7}{T_3^2} = \frac{1}{T_3} - \frac{7}{T_3^2}$.
+
+$V_2(T_2) = \frac{1}{T_2} + \max_{T_3} \left[-\frac{T_3}{T_2^2} + \frac{1}{T_3} - \frac{7}{T_3^2}\right]$
+
+Let $g(T_3) = -\frac{T_3}{T_2^2} + \frac{1}{T_3} - \frac{7}{T_3^2}$.
+
+$g'(T_3) = -\frac{1}{T_2^2} - \frac{1}{T_3^2} + \frac{14}{T_3^3} = 0$
+
+$\frac{14}{T_3^3} = \frac{1}{T_2^2} + \frac{1}{T_3^2}$
+
+$\frac{14}{T_3} = \frac{T_3^2}{T_2^2} + 1$
+
+Let $r = T_3/T_2$. Then $\frac{14}{rT_2} = r^2 + 1$, so $T_3 = rT_2 = \frac{14}{r^2+1}$ and $T_2 = \frac{14}{r(r^2+1)}$.
+
+$g = -\frac{rT_2}{T_2^2} + \frac{1}{rT_2} - \frac{7}{r^2T_2^2} = -\frac{r}{T_2} + \frac{1}{rT_2} - \frac{7}{r^2T_2^2}$
+
+$= \frac{1}{T_2}\left(\frac{1}{r} - r\right) - \frac{7}{r^2T_2^2}$
+
+With $T_2 = \frac{14}{r(r^2+1)}$:
+
+$\frac{1}{T_2} = \frac{r(r^2+1)}{14}$, $\frac{1}{T_2^2} = \frac{r^2(r^2+1)^2}{196}$.
+
+$g = \frac{r(r^2+1)}{14} \cdot \frac{1-r^2}{r} - \frac{7r^2(r^2+1)^2}{196r^2}$
+
+$= \frac{(r^2+1)(1-r^2)}{14} - \frac{7(r^2+1)^2}{196}$
+
+$= \frac{(r^2+1)}{14}\left[(1-r^2) - \frac{(r^2+1)}{14}\right]$
+
+Hmm, let me redo this. $\frac{7}{196} = \frac{1}{28}$.
+
+$g = \frac{(r^2+1)(1-r^2)}{14} - \frac{(r^2+1)^2}{28}$
+
+$= \frac{(r^2+1)}{28}\left[2(1-r^2) - (r^2+1)\right]$
+
+$= \frac{(r^2+1)(2 - 2r^2 - r^2 - 1)}{28}$
+
+$= \frac{(r^2+1)(1 - 3r^2)}{28}$
+
+Maximize over $r > 0$: $\frac{d}{dr}[(r^2+1)(1-3r^2)] = 2r(1-3r^2) + (r^2+1)(-6r) = 2r - 6r^3 - 6r^3 - 6r = -12r^3 - 4r < 0$ for $r > 0$.
+
+So $g$ is decreasing in $r$, maximized as $r \to 0^+$, giving $g \to \frac{1}{28}$.
+
+But $r \to 0$ means $T_3 \to 0$, which is infeasible ($T_3 \geq \frac{3 \cdot 2}{2} + 1 = 4$).
+
+So the maximum is at the boundary $T_3 = 4$ (the minimum feasible value, when $x_3 = 0$).
+
+At $T_3 = 4$: $g(4) = -\frac{4}{T_2^2} + \frac{1}{4} - \frac{7}{16} = -\frac{4}{T_2^2} + \frac{4}{16} - \frac{7}{16} = -\frac{4}{T_2^2} - \frac{3}{16}$.
+
+This is negative! So $V_2(T_2) = \frac{1}{T_2} - \frac{4}{T_2^2} - \frac{3}{16}$.
+
+Hmm, this doesn't seem right. The maximum of $g$ should be positive for the problem to make sense.
+
+Wait, I think I need to be more careful about the constraint. The constraint is $T_{k+1} \leq T_k + k$ (from $x_k \geq 0$), and $T_{k+1} \geq \frac{(k+1)k}{2} + 1$ (from non-negativity of subsequent $x$'s). But actually, $T_{k+1}$ can be any value $\geq \frac{(k+1)k}{2} + 1$ as long as $T_k \geq T_{k+1} - k$.
+
+Actually, the constraint is just $x_k \geq 0$, which means $T_k \geq T_{k+1} - k$, i.e., $T_{k+1} \leq T_k + k$. And $T_{k+1}$ can be as small as $\frac{(k+1)k}{2} + 1$ (when all $x_j = 0$ for $j > k$).
+
+But actually, $T_{k+1}$ is determined by $x_{k+1}, \ldots, x_n$, and can range from $\frac{(k+1)k}{2} + 1$ (all zero) to infinity (large $x$'s).
+
+So the constraint on $T_{k+1}$ is $T_{k+1} \geq \frac{(k+1)k}{2} + 1$ and $T_{k+1} \leq T_k + k$.
+
+For $n = 3$, $k = 2$: $T_3 \geq 4$ and $T_3 \leq T_2 + 2$.
+
+The function $g(T_3) = -\frac{T_3}{T_2^2} + \frac{1}{T_3} - \frac{7}{T_3^2}$ is maximized as $T_3 \to 0^+$ (infeasible) or at the boundary $T_3 = 4$.
+
+At $T_3 = 4$: $g = -\frac{4}{T_2^2} + \frac{1}{4} - \frac{7}{16} = -\frac{4}{T_2^2} - \frac{3}{16}$.
+
+This is always negative, so $V_2(T_2) = \frac{1}{T_2} + g(4) = \frac{1}{T_2} - \frac{4}{T_2^2} - \frac{3}{16}$.
+
+Hmm, but this means the optimal strategy at step 2 is to set $T_3 = 4$ (i.e., $x_3 = 0$), which gives a negative contribution from $A_3$.
+
+But wait, maybe I should also check the other boundary $T_3 = T_2 + 2$ (i.e., $x_2 = 0$).
+
+At $T_3 = T_2 + 2$: $g = -\frac{T_2+2}{T_2^2} + \frac{1}{T_2+2} - \frac{7}{(T_2+2)^2}$.
+
+This is also likely negative for reasonable $T_2$.
+
+Hmm, I think the issue is that $g(T_3)$ is always negative (or at least the maximum is at the boundary and is negative). Let me check if $g$ can be positive for some $T_3$.
+
+$g(T_3) = -\frac{T_3}{T_2^2} + \frac{1}{T_3} - \frac{7}{T_3^2}$
+
+For large $T_2$, the first term is small, and $g \approx \frac{1}{T_3} - \frac{7}{T_3^2} = \frac{T_3 - 7}{T_3^2}$, which is positive for $T_3 > 7$.
+
+So for large $T_2$, $g$ can be positive. The critical point equation $\frac{14}{T_3} = \frac{T_3^2}{T_2^2} + 1$ has a solution with $T_3 > 7$ when $T_2$ is large.
+
+Let me reconsider. For large $T_2$, the critical point is approximately at $T_3 \approx 14$ (from $\frac{14}{T_3} \approx 1$), and $g \approx \frac{14-7}{14^2} = \frac{7}{196} = \frac{1}{28}$.
+
+So $V_2(T_2) \approx \frac{1}{T_2} + \frac{1}{28}$ for large $T_2$.
+
+Now, $V_1(T_1) = \frac{1}{T_1} + \max_{T_2} \left[-\frac{T_2}{T_1^2} + V_2(T_2)\right]$
+
+$\approx \frac{1}{T_1} + \max_{T_2} \left[-\frac{T_2}{T_1^2} + \frac{1}{T_2} + \frac{1}{28}\right]$
+
+$= \frac{1}{T_1} + \frac{1}{28} + \max_{T_2} \left[-\frac{T_2}{T_1^2} + \frac{1}{T_2}\right]$
+
+The max of $-\frac{T_2}{T_1^2} + \frac{1}{T_2}$ is at $T_2 = T_1$ (from $-1/T_1^2 + 1/T_2^2 = 0$... wait, $-1/T_1^2 - 1/T_2^2 = 0$ has no solution). Actually, $f(T_2) = -T_2/T_1^2 + 1/T_2$, $f' = -1/T_1^2 - 1/T_2^2 < 0$, so $f$ is decreasing. Max at smallest $T_2$.
+
+This suggests the maximum is at the boundary, which keeps pushing $T$ values to their minimum. This doesn't lead to a nice answer.
+
+I think I'm overcomplicating this. Let me try a different approach entirely.
+
+Let me look at the problem from the perspective of the answer. The answer should be $\lambda = 1$ (a common answer for such problems) or some other simple value.
+
+For $n = 1$: $\lambda = 1/2$.
+For $n = 2$: $\lambda = 1/4$.
+
+Let me see if there's a pattern. $1/2, 1/4, \ldots$ Maybe $\lambda = 1/2^n$? For $n = 2002$, that would be $1/2^{2002}$, which seems too small.
+
+Actually, wait. Let me recompute for $n = 2$ more carefully. I got max sum $= 25/256$ and $a_2 = 25/64$, so $\lambda = (25/256)/(25/64) = 64/256 = 1/4$.
+
+For $n = 1$: max sum $= 1/8$, $a_1 = 1/4$, $\lambda = (1/8)/(1/4) = 1/2$.
+
+So $\lambda = 1/2, 1/4, \ldots$ Let me compute $n = 3$ properly.
+
+Actually, I realize my computation for $n = 2$ used the approach of optimizing $T_1$ first (given $T_2$), then optimizing $T_2$. But this is the forward approach, and it might not give the true maximum because the optimal $T_1$ depends on $T_2$, and when we then optimize $T_2$, we're optimizing the profile function.
+
+Let me redo $n = 2$ using backward induction.
+
+$V_2(T_2) = \frac{T_2 - 4}{T_2^2} = \frac{1}{T_2} - \frac{4}{T_2^2}$.
+
+$V_1(T_1) = \frac{1}{T_1} + \max_{T_2 \leq T_1 + 1, T_2 \geq 2} \left[-\frac{T_2}{T_1^2} + \frac{1}{T_2} - \frac{4}{T_2^2}\right]$
+
+Let $g(T_2) = -\frac{T_2}{T_1^2} + \frac{1}{T_2} - \frac{4}{T_2^2}$.
+
+$g'(T_2) = -\frac{1}{T_1^2} - \frac{1}{T_2^2} + \frac{8}{T_2^3} = 0$
+
+$\frac{8}{T_2^3} = \frac{1}{T_1^2} + \frac{1}{T_2^2}$
+
+$\frac{8}{T_2} = \frac{T_2^2}{T_1^2} + 1$
+
+Let $r = T_2/T_1$. Then $\frac{8}{rT_1} = r^2 + 1$, so $T_1 = \frac{8}{r(r^2+1)}$ and $T_2 = rT_1 = \frac{8}{r^2+1}$.
+
+$g = -\frac{rT_1}{T_1^2} + \frac{1}{rT_1} - \frac{4}{r^2T_1^2} = \frac{1}{T_1}\left(\frac{1}{r} - r\right) - \frac{4}{r^2T_1^2}$
+
+With $T_1 = \frac{8}{r(r^2+1)}$:
+
+$\frac{1}{T_1} = \frac{r(r^2+1)}{8}$, $\frac{1}{T_1^2} = \frac{r^2(r^2+1)^2}{64}$.
+
+$g = \frac{r(r^2+1)}{8} \cdot \frac{1-r^2}{r} - \frac{4r^2(r^2+1)^2}{64r^2}$
+
+$= \frac{(r^2+1)(1-r^2)}{8} - \frac{(r^2+1)^2}{16}$
+
+$= \frac{(r^2+1)}{16}\left[2(1-r^2) - (r^2+1)\right]$
+
+$= \frac{(r^2+1)(1-3r^2)}{16}$
+
+This is maximized at $r = 0$ (boundary), giving $g \to \frac{1}{16}$.
+
+$r = 0$ means $T_2 \to 0$, infeasible ($T_2 \geq 2$). So the max is at the boundary $T_2 = 2$ (minimum feasible).
+
+At $T_2 = 2$: $g(2) = -\frac{2}{T_1^2} + \frac{1}{2} - \frac{4}{4} = -\frac{2}{T_1^2} + \frac{1}{2} - 1 = -\frac{2}{T_1^2} - \frac{1}{2}$.
+
+This is always negative! So $V_1(T_1) = \frac{1}{T_1} - \frac{2}{T_1^2} - \frac{1}{2}$.
+
+Maximize over $T_1 \geq 1$: $V_1'(T_1) = -\frac{1}{T_1^2} + \frac{4}{T_1^3} = \frac{4-T_1}{T_1^3} = 0$ at $T_1 = 4$.
+
+$V_1(4) = \frac{1}{4} - \frac{2}{16}

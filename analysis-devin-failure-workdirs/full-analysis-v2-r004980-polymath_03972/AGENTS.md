@@ -1,0 +1,948 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_03972</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Find the least positive integer $N$ such that the sum of its digits is 2011 and the product of its digits is a power of 6. Let $n_d$ denote the number of times the digit $d \in \{1, 2, \dots, 9\}$ appears in $N$. Calculate the value of the expression $\sum_{d=1}^{9} d \cdot n_d^2$.
+
+## Standard Solution
+
+From the original solution, the least positive integer $N$ is formed by the digits $3$ (once), $4$ (once), $8$ (93 times), and $9$ (140 times). Thus, $n_3 = 1$, $n_4 = 1$, $n_8 = 93$, $n_9 = 140$, and all other $n_d = 0$.
+The sum to calculate is $3 \cdot 1^2 + 4 \cdot 1^2 + 8 \cdot 93^2 + 9 \cdot 140^2$.
+$3(1) + 4(1) + 8(8649) + 9(19600) = 7 + 69192 + 176400 = 245599$.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this math problem. The problem asks: Find the least positive integer N such that the sum of its digits is 2011 and the product of its digits is a power of 6. Let n_d denote the number of times digit d appears in N. Calculate sum_{d=1}^{9} d * n_d^2.
+
+First, let me check for answer leaks. The problem text doesn't contain any solution or answer hints. Good.
+
+Now let me solve the problem.
+
+The product of digits is a power of 6 = 2^a * 3^a for some a. So the digits can only be from {1, 2, 3, 6} (and possibly products like 2*3=6, 4=2^2, 8=2^3, 9=3^2). Wait, let me think more carefully. The product of digits is 6^k = 2^k * 3^k. So the total power of 2 in the product equals the total power of 3.
+
+Digits and their factorizations:
+- 1 = 2^0 * 3^0
+- 2 = 2^1 * 3^0
+- 3 = 2^0 * 3^1
+- 4 = 2^2 * 3^0
+- 5 = 2^0 * 3^0 * 5 (has factor 5, not allowed)
+- 6 = 2^1 * 3^1
+- 7 = 7 (not allowed)
+- 8 = 2^3 * 3^0
+- 9 = 2^0 * 3^2
+
+So digits can only be from {1, 2, 3, 4, 6, 8, 9} (no 5 or 7 since they introduce prime factors other than 2 and 3).
+
+Let n_1, n_2, n_3, n_4, n_6, n_8, n_9 be the counts of digits 1, 2, 3, 4, 6, 8, 9.
+
+Sum of digits: n_1 + 2n_2 + 3n_3 + 4n_4 + 6n_6 + 8n_8 + 9n_9 = 2011
+
+Product of digits = 6^k means:
+- Total power of 2: n_2 + 2n_4 + n_6 + 3n_8 = k
+- Total power of 3: n_3 + n_6 + 2n_9 = k
+
+So we need: n_2 + 2n_4 + n_6 + 3n_8 = n_3 + n_6 + 2n_9
+
+Which simplifies to: n_2 + 2n_4 + 3n_8 = n_3 + 2n_9
+
+Now, we want the least positive integer N. To minimize N, we want:
+1. Minimum number of digits (fewer digits = smaller number, generally)
+2. Among numbers with the same number of digits, arrange digits in ascending order (smallest digits first... wait, no - to make the number smallest, we want smaller digits in higher place values, i.e., sort digits in ascending order from left to right).
+
+Wait, actually to minimize the integer, we want the fewest digits possible, and then among those, the smallest digits first (leftmost = smallest).
+
+To minimize the number of digits, we want to maximize the digit sum per digit, so use as many 9s as possible. But we have the constraint on the product.
+
+Let me think about this differently. The number of digits is n_1 + n_2 + n_3 + n_4 + n_6 + n_8 + n_9. To minimize N, we first minimize the number of digits, then arrange them in ascending order.
+
+To minimize the number of digits, we want to maximize the average digit value. The maximum digit is 9, so ideally we'd use 2011/9 ≈ 223.4, so at least 224 digits (223 nines and one 4, since 223*9 + 4 = 2007+4 = 2011).
+
+But we need the product constraint. With 223 nines and one 4:
+- Power of 2: 2*1 = 2 (from the 4)
+- Power of 3: 2*223 = 446 (from the 223 nines)
+These are not equal, so this doesn't work.
+
+We need n_2 + 2n_4 + 3n_8 = n_3 + 2n_9.
+
+Let me think about this more carefully. We want to minimize the total number of digits D = n_1 + n_2 + n_3 + n_4 + n_6 + n_8 + n_9, subject to:
+- n_1 + 2n_2 + 3n_3 + 4n_4 + 6n_6 + 8n_8 + 9n_9 = 2011
+- n_2 + 2n_4 + 3n_8 = n_3 + 2n_9
+- All n_d ≥ 0 integers
+
+To minimize D, we want to maximize the digit sum per digit. The most "efficient" digit in terms of sum/value ratio is 9 (sum 9, but contributes 2 to the 3-power and 0 to 2-power). 
+
+Let me think about which digits are most efficient for minimizing the number of digits while satisfying the constraint.
+
+Let me parametrize. Let's think about the "cost" in terms of digit count. We want to minimize D subject to sum = 2011 and the power constraint.
+
+Let me think of it as: we want to use high-value digits as much as possible. The constraint is n_2 + 2n_4 + 3n_8 = n_3 + 2n_9.
+
+If we use only 9s and 8s: sum = 9n_9 + 8n_8 = 2011, constraint: 3n_8 = 2n_9, so n_9 = 3n_8/2. Then 9*(3n_8/2) + 8n_8 = 2011 → 27n_8/2 + 8n_8 = 2011 → (27+16)n_8/2 = 2011 → 43n_8/2 = 2011 → n_8 = 4022/43 ≈ 93.53. Not integer.
+
+Let me try 9s and 6s: sum = 9n_9 + 6n_6 = 2011, constraint: n_6 = 2n_9 (since n_6 contributes 1 to both 2-power and 3-power, so it cancels: n_6 = 2n_9 means... wait let me redo).
+
+With only 9 and 6: 
+- 2-power: n_6
+- 3-power: n_6 + 2n_9
+- Constraint: n_6 = n_6 + 2n_9 → 2n_9 = 0 → n_9 = 0. That gives only 6s, sum = 6n_6 = 2011, not divisible.
+
+With 9 and 8:
+- 2-power: 3n_8
+- 3-power: 2n_9
+- Constraint: 3n_8 = 2n_9
+
+Sum: 9n_9 + 8n_8 = 2011. With n_9 = 3n_8/2: 9*3n_8/2 + 8n_8 = 27n_8/2 + 16n_8/2 = 43n_8/2 = 2011. n_8 = 4022/43 = 93.534... Not integer.
+
+With 9 and 4:
+- 2-power: 2n_4
+- 3-power: 2n_9
+- Constraint: 2n_4 = 2n_9 → n_4 = n_9
+
+Sum: 9n_9 + 4n_4 = 9n_9 + 4n_9 = 13n_9 = 2011. 2011/13 = 154.69... Not integer.
+
+With 9 and 3:
+- 2-power: 0
+- 3-power: n_3 + 2n_9
+- Constraint: 0 = n_3 + 2n_9 → n_3 = n_9 = 0. Only 1s possible, sum = n_1 = 2011. Too many digits.
+
+With 9 and 2:
+- 2-power: n_2
+- 3-power: 2n_9
+- Constraint: n_2 = 2n_9
+
+Sum: 9n_9 + 2n_2 = 9n_9 + 4n_9 = 13n_9 = 2011. Not integer.
+
+Hmm, let me try combinations of three digits.
+
+Let me try 9, 8, and something else. With 9 and 8, we need 3n_8 = 2n_9. Let n_8 = 2t, n_9 = 3t for some integer t. Then sum from 9s and 8s = 9*3t + 8*2t = 27t + 16t = 43t. We need 43t ≤ 2011, and 2011 - 43t must be made up by other digits while maintaining the constraint.
+
+2011/43 = 46.767... So t ≤ 46, giving 43*46 = 1978, remainder = 33.
+Or t = 46: sum from 9,8 = 1978, remainder = 33. We need other digits summing to 33 with net 2-power = net 3-power (since 9s and 8s already balance: 3*2*46 = 276 2-power, 2*3*46 = 276 3-power). So remaining digits must also have 2-power = 3-power.
+
+The remaining sum is 33. We need digits from {1,2,3,4,6,8,9} summing to 33 with 2-power = 3-power, minimizing the count.
+
+To minimize count for sum 33 with balanced powers: use 9s. 33/9 = 3.67. Try 3 nines: sum 27, remainder 6. Need 6 more with balanced powers. A single 6 works (2-power 1, 3-power 1). So 3 nines + 1 six = 4 digits, sum 33.
+
+Or 2 nines (18) + remainder 15. 15 with balanced powers: 6+9=15 (2 digits), or 6+6+3=15 (3 digits, but 3 has 3-power 1, 6 has 1 each, total 3-power = 1+1+1=3, 2-power = 1+1=2, not balanced). Let me check 6+9: 2-power=1, 3-power=1+2=3, not balanced. Hmm.
+
+Wait, I need to be more careful. Let me reconsider.
+
+Actually, with t=46, the 9s and 8s already have balanced powers. The remaining digits must independently have balanced powers (2-power = 3-power).
+
+For sum 33 with balanced 2-power and 3-power, minimizing digit count:
+- 9: contributes (0, 2) to (2-pow, 3-pow)
+- 8: contributes (3, 0)
+- 6: contributes (1, 1) - balanced!
+- 4: contributes (2, 0)
+- 3: contributes (0, 1)
+- 2: contributes (1, 0)
+- 1: contributes (0, 0)
+
+Using 6s is nice since each 6 is self-balanced. 33/6 = 5.5. 5 sixes = 30, remainder 3. Need 3 more with balanced powers: a 3 has (0,1), not balanced alone. A 2+... hmm. 3 = 1+2 (1 has (0,0), 2 has (1,0), total (1,0) not balanced). 3 = 3 (not balanced). 3 = 1+1+1 (balanced, 3 digits). So 5 sixes + 3 ones = 8 digits for sum 33.
+
+Or: 4 sixes = 24, remainder 9. 9 alone: (0,2) not balanced. 9 = 6+3: (1,1)+(0,1) = (1,2) not balanced. 9 = 6+2+1: (1,1)+(1,0)+(0,0) = (2,1) not balanced. 9 = 3+3+3: (0,3) not balanced. 9 = 3+6: not balanced. 9 = 4+... 4+3+2 = 9: (2,0)+(0,1)+(1,0) = (3,1) no. 9 = 2+2+2+3: (3,0)+(0,1) = (3,1) no. 9 = 3+3+3: (0,3) no. 9 = 1+8: (0,0)+(3,0) = (3,0) no. 9 = 1+2+6: (0,0)+(1,0)+(1,1) = (2,1) no. 9 = 1+1+1+6: (0,0)*3+(1,1) = (1,1) balanced! 4 digits. So 4 sixes + 1 six + 3 ones = 5 sixes + 3 ones, same as before.
+
+Hmm, or 3 sixes = 18, remainder 15. 15 with balanced: 6+6+3 = 15: (1,1)+(1,1)+(0,1) = (2,3) no. 6+9 = 15: (1,1)+(0,2) = (1,3) no. 6+6+1+1+1 = 15: (2,2) balanced! 5 digits. So 3+2 sixes + 3 ones = 5 sixes + 3 ones, 8 digits. Same.
+
+Or 9+6 = 15: not balanced. 8+... 8+4+3 = 15: (3,0)+(2,0)+(0,1) = (5,1) no. 8+2+2+3 = 15: (3,0)+(1,0)+(1,0)+(0,1) = (5,1) no. 
+
+Let me try: 9+6 = 15, not balanced. 9+2+2+2 = 15: (0,2)+(3,0) = (3,2) no. 9+4+2 = 15: (0,2)+(2,0)+(1,0) = (3,2) no. 9+3+3 = 15: (0,2)+(0,2) = (0,4) no. 9+3+2+1 = 15: (0,2)+(0,1)+(1,0)+(0,0) = (1,3) no. 9+2+2+1+1 = 15: (0,2)+(2,0) = (2,2) balanced! 5 digits. So 3 sixes + 1 nine + 2 twos + 2 ones = 8 digits. Same count.
+
+Actually, let me try fewer sixes. 2 sixes = 12, remainder 21. 21 with balanced: 9+9+3 = 21: (0,4)+(0,1) = (0,5) no. 9+6+6 = 21: (0,2)+(2,2) = (2,4) no. 9+8+4 = 21: (0,2)+(3,0)+(2,0) = (5,2) no. 9+8+2+2 = 21: (0,2)+(3,0)+(2,0) = (5,2) no. 8+8+... 8+8+3+2 = 21: (6,0)+(0,1)+(1,0) = (7,1) no. 9+9+2+1 = 21: (0,4)+(1,0) = (1,4) no. 9+6+4+2 = 21: (0,2)+(1,1)+(2,0)+(1,0) = (4,3) no. 9+6+3+3 = 21: (0,2)+(1,1)+(0,2) = (1,5) no. 9+6+2+2+2 = 21: (0,2)+(1,1)+(3,0) = (4,3) no. 9+4+4+4 = 21: (0,2)+(6,0) = (6,2) no. 8+6+6+1 = 21: (3,0)+(2,2) = (5,2) no. 8+9+4 = 21: (3,0)+(0,2)+(2,0) = (5,2) no. 6+6+6+3 = 21: (3,3)+(0,1) = (3,4) no. 6+6+6+2+1 = 21: (3,3)+(1,0) = (4,3) no. 6+6+6+1+1+1 = 21: (3,3) balanced! 6 digits. So 2+3 sixes + 3 ones = 5 sixes + 3 ones, 8 digits. Same again.
+
+Hmm, it seems like for sum 33, the minimum is 8 digits? Let me try harder.
+
+What about using 9s and 8s in the remainder? 33 = 9+8+8+8 = 33: (0,2)+(9,0) = (9,2) no. 33 = 9+9+9+6 = 33: (0,6)+(1,1) = (1,7) no. 33 = 8+8+9+8 = 33: (9,2) no. 
+
+33 = 9+8+8+4+4 = 33: (0,2)+(6,0)+(4,0) = (10,2) no.
+
+33 = 9+9+8+4+3 = 33: (0,4)+(3,0)+(2,0)+(0,1) = (5,5) balanced! 5 digits! Let me verify: 9+9+8+4+3 = 33. 2-power: 0+0+3+2+0 = 5. 3-power: 2+2+0+0+1 = 5. Balanced! And 5 digits, which is better than 8.
+
+Can we do 4 digits? Sum 33 with 4 digits, each ≤ 9, so max sum = 36. 33 with 4 digits: e.g., 9+9+9+6 = 33. 2-power: 0+0+0+1 = 1. 3-power: 2+2+2+1 = 7. Not balanced. 9+9+8+7 - no 7. 9+8+8+8 = 33. 2-power: 0+3+3+3 = 9. 3-power: 2+0+0+0 = 2. No. 9+9+9+6 = 33, not balanced. 8+8+9+8 = 33, not balanced. 9+8+8+8 = 33, not balanced. Those are the only ways to get 33 with 4 digits from {1,...,9} (since 4*9=36, we need to "lose" 3). 9+9+9+6, 9+9+8+7(invalid), 9+8+8+8. So no 4-digit solution.
+
+So for t=46, the remainder 33 needs at least 5 digits. Total digits = n_8 + n_9 + (remainder digits) = 2*46 + 3*46 + 5 = 92 + 138 + 5 = 235.
+
+Wait, let me reconsider. With t=46: n_8 = 92, n_9 = 138. Digits from 8,9 = 230. Plus 5 more = 235 total digits.
+
+Let me try t=45: 43*45 = 1935, remainder = 76. Need sum 76 with balanced powers, min digits.
+76/9 ≈ 8.4. Try 8 nines = 72, remainder 4. 4 with balanced: 4 alone is (2,0) not balanced. 4 = 2+2: (2,0) not balanced. 4 = 2+1+1: (1,0) no. 4 = 1+1+1+1: (0,0) balanced, 4 digits. 4 = 3+1: (0,1) no. 4 = 4: no. So 8 nines + 4 ones = 12 digits, sum 76. 
+
+Or 8 nines + 4: but 4 is (2,0), and 8 nines are (0,16), total (2,16) not balanced. Right, so we need the whole thing balanced.
+
+8 nines: (0,16). Need remainder 4 with (2-power, 3-power) = (16, 0) to balance? No wait, we need total 2-power = total 3-power. 8 nines give (0, 16). So we need the rest to give (16, 0) minus... no. We need total 2-power = total 3-power. Currently from 8 nines: 2-pow=0, 3-pow=16. So the remaining digits must have 2-pow - 3-pow = 16. With sum 4, that's impossible (max 2-pow from sum 4 is if all 2s: 2+2 = 2-pow 2, or 4: 2-pow 2).
+
+This approach is getting complicated. Let me think more systematically.
+
+Let me define for the remaining digits (after choosing 9s and 8s with t), we need:
+- Sum = 2011 - 43t
+- 2-power = 3-power (since the 9s and 8s are already balanced)
+
+Let me think about what's the most efficient way to get a large sum with balanced powers and few digits.
+
+The most "efficient" balanced digit is 6 (sum 6, balanced). But we can also combine 9 and 8 in ratio 2:3 (n_8:n_9 = 2:3) for balanced, giving average digit = (2*8+3*9)/5 = (16+27)/5 = 43/5 = 8.6, which is better than 6.
+
+Actually, the 9+8 combination with ratio 2:3 gives average 8.6 per digit, which is very efficient. But we need the remainder to also be balanced.
+
+Let me think about it differently. Let's say we use 9s, 8s, and 6s (and 1s as needed). 
+
+With 9s and 8s in ratio 3:2 (n_9:n_8 = 3:2), each "unit" of 5 digits gives sum 43 and is balanced.
+
+With 6s, each digit gives sum 6 and is balanced.
+
+With 1s, each digit gives sum 1 and is balanced (but very inefficient).
+
+So the strategy is: use as many (3 nines + 2 eights) blocks as possible, then make up the remainder with 6s and 1s (or other balanced combinations).
+
+2011 = 43t + r where r = 2011 mod 43. 2011 / 43 = 46.767... 43*46 = 1978, r = 33. 43*47 = 2021 > 2011.
+
+So t=46, r=33. We need to make 33 with balanced powers, min digits.
+
+As computed above, min is 5 digits (9+9+8+4+3 or similar). Let me verify: 9+9+8+4+3 = 33. 2-pow: 0+0+3+2+0 = 5. 3-pow: 2+2+0+0+1 = 5. ✓. 5 digits.
+
+Can we do better? 4 digits max sum 36, and we showed no 4-digit balanced combination gives 33. So 5 is minimum for r=33.
+
+Total digits = 5*46 + 5 = 235.
+
+But wait, maybe using a different t gives fewer total digits. Let me check t=45: r = 2011 - 43*45 = 2011 - 1935 = 76. Need 76 with balanced powers, min digits.
+
+76 with balanced: Let's try 9+9+8+... We can use more (3 nine + 2 eight) blocks: 76/43 = 1.76, so 1 block (sum 43, 5 digits), remainder 33 (5 digits). Total 10 digits. Or directly: 76 = 9*8 + 4 = 72+4, but need balanced. 
+
+Actually, let me think of it as: we want to represent r as a sum of balanced "chunks" with minimum total digits. The most efficient balanced chunk is (3 nines + 2 eights) = 5 digits, sum 43. Next is 6 (1 digit, sum 6). Then various smaller combinations.
+
+For r=76: 76 = 43 + 33. 43 needs 5 digits, 33 needs 5 digits. Total 10 digits. Or 76 = 43 + 6*5 + 3 = 43+30+3. 3 needs balanced: 1+1+1 (3 digits). Total: 5+5+3 = 13. Worse. Or 76 = 6*12 + 4 = 72+4. 4 balanced: 1+1+1+1 (4 digits). Total: 12+4 = 16. Worse. Or 76 = 6*11 + 10. 10 balanced: 6+4? (1,1)+(2,0)=(3,1) no. 6+2+2 = 10: (1,1)+(2,0) = (3,1) no. 4+4+2 = 10: (4,0)+(1,0) = (5,0) no. 4+3+3 = 10: (2,0)+(0,2) = (2,2) balanced! 3 digits. So 76 = 6*11 + 4+3+3 = 11+3 = 14 digits. Worse than 10.
+
+Or 76 = 43 + 33, both using the 5-digit solutions. 10 digits. Total for t=45: 5*45 + 10 = 225 + 10 = 235. Same as t=46!
+
+Hmm interesting. Let me check t=44: r = 2011 - 43*44 = 2011 - 1892 = 119. 119 = 2*43 + 33 = 86+33. 10+5 = 15 digits. Total: 5*44 + 15 = 220 + 15 = 235. Same!
+
+It seems like the total is always 235. Let me see why. Each (3 nine + 2 eight) block contributes 43 to the sum and 5 digits. The remainder 33 needs 5 digits. Total digits = 5t + (digits for r). And r = 2011 - 43t. If we decompose r into more 43-blocks plus 33, we get the same total. So the question is: can we do better than 5 digits for sum 33 with balanced powers, or can we find a different decomposition?
+
+We showed 33 needs at least 5 digits with balanced powers. And 43 needs at least 5 digits (3 nines + 2 eights). So the minimum is 5 digits per 43 of sum, plus 5 digits for the remainder 33.
+
+But wait, maybe there's a more efficient balanced combination for larger sums that I'm missing. Let me think about what balanced combinations exist with high average digit value.
+
+Balanced means 2-power = 3-power. The average digit value for balanced combinations:
+- (3×9 + 2×8): avg 8.6
+- (9 + 8 + 4 + 3): sum 24, 4 digits, avg 6. Let me verify: 2-pow: 0+3+2+0 = 5, 3-pow: 2+0+0+1 = 3. Not balanced! 
+
+Let me be more careful. (9+9+8+4+3): 2-pow = 0+0+3+2+0 = 5, 3-pow = 2+2+0+0+1 = 5. ✓. Sum 33, 5 digits, avg 6.6.
+
+(9+8+6): 2-pow = 0+3+1 = 4, 3-pow = 2+0+1 = 3. Not balanced.
+
+(9+6+3): 2-pow = 0+1+0 = 1, 3-pow = 2+1+1 = 4. No.
+
+(8+6+4): 2-pow = 3+1+2 = 6, 3-pow = 0+1+0 = 1. No.
+
+(9+8+3+4): 2-pow = 0+3+0+2 = 5, 3-pow = 2+0+1+0 = 3. No.
+
+(9+9+6): 2-pow = 0+0+1 = 1, 3-pow = 2+2+1 = 5. No.
+
+(8+8+6+4): 2-pow = 3+3+1+2 = 9, 3-pow = 0+0+1+0 = 1. No.
+
+(9+8+8): 2-pow = 0+3+3 = 6, 3-pow = 2+0+0 = 2. No.
+
+(9+9+8+8): 2-pow = 6, 3-pow = 4. No. Need to add something with (2-pow, 3-pow) = (0, 2) → a 9. So (9+9+9+8+8): 2-pow = 6, 3-pow = 6. ✓. Sum = 43, 5 digits. That's our standard block.
+
+What about (9+9+9+8+8+6)? Sum 51, 6 digits, avg 8.5. 2-pow = 0+0+0+3+3+1 = 7, 3-pow = 2+2+2+0+0+1 = 7. ✓. But avg 8.5 < 8.6, so less efficient.
+
+What about mixing in a different way? (9+9+9+9+8+8+8+8): 4 nines + 4 eights. 2-pow = 12, 3-pow = 8. Not balanced. Need ratio 3:2.
+
+OK so the (3 nine + 2 eight) block with avg 8.6 seems to be the most efficient balanced unit. And the remainder 33 needs 5 digits (avg 6.6).
+
+But what if we don't use the 3:2 ratio exactly? What if we use a slightly different combination that's more efficient overall?
+
+Let me think about it as an optimization problem. We want to minimize D = n_1 + n_2 + n_3 + n_4 + n_6 + n_8 + n_9 subject to:
+- n_1 + 2n_2 + 3n_3 + 4n_4 + 6n_6 + 8n_8 + 9n_9 = 2011
+- n_2 + 2n_4 + 3n_8 = n_3 + 2n_9
+
+Let me think of this as a linear programming problem (integer). The "efficiency" of each digit in terms of sum per digit:
+- 1: 1/digit
+- 2: 2/digit
+- 3: 3/digit
+- 4: 4/digit
+- 6: 6/digit
+- 8: 8/digit
+- 9: 9/digit
+
+But we have the power constraint. Let me think of the constraint as: n_2 + 2n_4 + 3n_8 - n_3 - 2n_9 = 0.
+
+Let me define the "power balance" of each digit as (2-pow - 3-pow):
+- 1: 0
+- 2: 1
+- 3: -1
+- 4: 2
+- 6: 0
+- 8: 3
+- 9: -2
+
+We need sum of power balances = 0.
+
+To minimize digits, we want to maximize sum per digit. The best is 9 (sum 9, balance -2), then 8 (sum 8, balance 3).
+
+If we use only 9s and 8s: 3×9 + 2×8 gives balance 3×(-2) + 2×3 = 0. Sum = 43, digits = 5. Avg = 8.6.
+
+Can we do better by including other digits? What if we use 9s and 4s? Balance: -2 per 9, +2 per 4. So 1:1 ratio. Sum = 9+4 = 13, 2 digits, avg 6.5. Worse.
+
+9s and 2s: -2 per 9, +1 per 2. So 1:2 ratio (1 nine + 2 twos). Sum = 9+4 = 13, 3 digits, avg 4.33. Worse.
+
+8s and 3s: +3 per 8, -1 per 3. So 1:3 ratio. Sum = 8+9 = 17, 4 digits, avg 4.25. Worse.
+
+9s, 8s, and 6s: 6 has balance 0, so it doesn't affect the constraint. Using 6s alone: sum 6, 1 digit, avg 6. But if we mix with 9s and 8s, we might do better.
+
+What about 9s and 8s not in 3:2 ratio, with 6s to fill in? E.g., 4 nines + 2 eights + some 6s: balance = 4×(-2) + 2×3 = -2. Need +2 more. Can't get +2 from 6s (balance 0). Need other digits. 4 nines + 3 eights: balance = -8+9 = 1. Need -1: one 3. Sum = 36+24+3 = 63, 8 digits, avg 7.875. Worse than 8.6.
+
+3 nines + 3 eights: balance = -6+9 = 3. Need -3. One 3 gives -1, so 3 threes: sum = 27+24+9 = 60, 9 digits, avg 6.67. Worse.
+
+5 nines + 3 eights: balance = -10+9 = -1. Need +1: one 2. Sum = 45+24+2 = 71, 9 digits, avg 7.89. Worse.
+
+So the 3:2 ratio of 9s to 8s is the most efficient. The question is whether we can handle the remainder 33 more efficiently.
+
+2011 = 43 × 46 + 33. We need 33 with balanced powers in minimum digits.
+
+Let me exhaustively check if 33 can be done in 4 digits with balanced powers.
+
+4 digits from {1,2,3,4,6,8,9} summing to 33, with 2-pow = 3-pow.
+
+Max sum with 4 digits: 9+9+9+9 = 36. We need 33, so we "lose" 3 from the max.
+- 9+9+9+6 = 33: 2-pow = 1, 3-pow = 7. No.
+- 9+9+8+7: 7 not allowed.
+- 9+8+8+8 = 33: 2-pow = 9, 3-pow = 2. No.
+- 9+9+9+6: already checked.
+- Other combos summing to 33 with 4 digits from {1,2,3,4,6,8,9}: 
+  - 9+9+8+7: invalid
+  - 9+8+8+8: checked
+  - 9+9+9+6: checked
+  - That's it for 4 digits summing to 33 (since 9+9+9+6 and 9+8+8+8 are the only ways to partition 33 into 4 parts each ≤ 9 and from our set).
+
+Wait, what about 9+9+8+... 9+9+8 = 26, need 7, not in set. 9+8+8 = 25, need 8: 9+8+8+8 = 33, checked. 9+9+6 = 24, need 9: 9+9+6+9 = 33, same as 9+9+9+6. 8+8+8 = 24, need 9: 8+8+8+9 = 33, same as 9+8+8+8. 9+8+6 = 23, need 10 > 9, impossible. So indeed only 2 combos, neither balanced. So 33 needs ≥ 5 digits.
+
+Now, can we do better than 235 total digits by using a different approach entirely? What if we don't restrict to the 3:2 ratio?
+
+Let me think about it as: we want to minimize D subject to sum = 2011 and balance = 0.
+
+The LP relaxation: maximize sum/D. The constraint is balance = 0. Think of it as: we choose a "mix" of digits. The maximum average digit value subject to balance = 0.
+
+If we use only 9s and 8s: the balance constraint forces ratio 3:2, giving avg 8.6.
+
+Can we beat 8.6 by including other digits? Let's see. Suppose we use 9s, 8s, and one other digit d. 
+
+With 9s, 8s, and 6s: 6 has balance 0. So we can add any number of 6s without affecting balance. But 6 has avg 6 < 8.6, so adding 6s only decreases the average.
+
+With 9s, 8s, and 4s: 4 has balance +2. If we have a nines, b eights, c fours: -2a + 3b + 2c = 0. Sum = 9a + 8b + 4c, digits = a+b+c. We want to maximize (9a+8b+4c)/(a+b+c) subject to -2a+3b+2c=0.
+
+From constraint: a = (3b+2c)/2. Sum = 9(3b+2c)/2 + 8b + 4c = (27b+18c)/2 + 8b + 4c = (27b+18c+16b+8c)/2 = (43b+26c)/2. Digits = (3b+2c)/2 + b + c = (3b+2c+2b+2c)/2 = (5b+4c)/2. Avg = (43b+26c)/(5b+4c). To maximize, take c=0: avg = 43/5 = 8.6. Adding 4s (c>0) gives (43b+26c)/(5b+4c). The derivative with respect to c/b: d/dc [(43+26x)/(5+4x)] = (26(5+4x) - 4(43+26x))/(5+4x)^2 = (130+104x-172-104x)/(5+4x)^2 = -42/(5+4x)^2 < 0. So adding 4s decreases the average. So 8.6 is optimal for this mix.
+
+Similarly, adding any digit with avg < 8.6 will decrease the overall average. The only digits with avg > 8.6 are 9 (avg 9, balance -2). But we can't use only 9s (balance would be negative). We need to balance with positive-balance digits. The most efficient positive-balance digit is 8 (avg 8, balance +3). The ratio 3:2 (9:8) gives avg 8.6.
+
+What about 9 and some combination? We need positive balance to offset 9's -2. The "cost" of balancing is using lower-value digits. 8 gives +3 balance at cost 8 (vs 9). The efficiency of balancing: for each unit of balance, 8 costs 8/3 ≈ 2.67 per unit balance, while 4 costs 4/2 = 2 per unit balance, and 2 costs 2/1 = 2 per unit balance. So 4 and 2 are cheaper per unit balance, but they also contribute less to the sum.
+
+Hmm, let me think about it differently. We want to maximize sum per digit. Using 9s (sum 9, balance -2) and 8s (sum 8, balance +3), the optimal ratio is 3:2 giving avg 8.6. 
+
+What if we use 9s and 4s? Ratio 1:1 (balance -2+2=0), avg (9+4)/2 = 6.5. Worse.
+
+9s and 2s? Ratio 1:2, avg (9+2+2)/3 = 4.33. Worse.
+
+9s, 8s, and 4s: we showed avg ≤ 8.6.
+
+What about 9s, 8s, and 2s? Balance: -2a + 3b + c = 0 (where c = n_2). a = (3b+c)/2. Sum = 9(3b+c)/2 + 8b + 2c = (27b+9c+16b+4c)/2 = (43b+13c)/2. Digits = (3b+c)/2 + b + c = (5b+3c)/2. Avg = (43b+13c)/(5b+3c). At c=0: 43/5 = 8.6. Derivative w.r.t. c/b: (13(5) - 3(43))/(5)^2 = (65-129)/25 = -64/25 < 0. So adding 2s decreases avg. 
+
+So 8.6 is the theoretical maximum average, achieved only by the 3:2 ratio of 9s to 8s. This means the minimum number of digits is ceil(2011/8.6) = ceil(233.84) = 234. But we also need the balance constraint and integer constraints.
+
+Wait, 2011/8.6 = 233.84..., so we need at least 234 digits. But can we achieve 234?
+
+With 234 digits and avg 8.6: sum = 234 * 8.6 = 2012.4. But we need sum = 2011. So we can't quite get there with pure 3:2 ratio.
+
+Let me think about it more carefully. If we use 3a nines and 2a eights (balanced), sum = 43a, digits = 5a. We need 43a ≤ 2011, so a ≤ 46 (43*46 = 1978, digits = 230). Remainder = 33, needs ≥ 5 digits. Total ≥ 235.
+
+If a = 47: 43*47 = 2021 > 2011. Can't use pure 3:2 blocks.
+
+But what if we use a slightly different ratio? Like 3×46+1 nines and 2×46 eights, plus some adjustment?
+
+With 139 nines and 92 eights: balance = -278 + 276 = -2. Need +2 more. Sum = 139*9 + 92*8 = 1251 + 736 = 1987. Remainder = 2011 - 1987 = 24. Need digits summing to 24 with balance +2.
+
+24 with balance +2, min digits: 
+- 8+8+8 = 24: balance = 9. No.
+- 9+9+6 = 24: balance = -4+0 = -4. No.
+- 8+8+4+4 = 24: balance = 6+4 = 10. No.
+- 9+8+4+3 = 24: balance = -2+3+2-1 = 2. ✓! 4 digits. Sum = 24. Balance = 2. 
+- 9+6+6+3 = 24: balance = -2+0+0-1 = -3. No.
+- 8+8+8 = 24: balance 9. No.
+- 9+9+2+4 = 24: balance = -4+1+2 = -1. No.
+- 9+8+4+3 = 24: balance 2. ✓ (already found)
+- 8+6+6+4 = 24: balance = 3+0+0+2 = 5. No.
+- 9+8+2+2+3 = 24: balance = -2+3+1+1-1 = 2. ✓ but 5 digits.
+- 8+8+4+2+2 = 24: balance = 6+2+2 = 10. No.
+- 6+6+6+6 = 24: balance 0. No (need +2).
+- 9+9+4+2 = 24: balance = -4+2+1 = -1. No.
+- 8+4+6+6 = 24: balance = 3+2+0+0 = 5. No.
+- 9+6+4+3+2 = 24: balance = -2+0+2-1+1 = 0. No.
+- 8+8+3+3+2 = 24: balance = 6-1-1+1 = 5. No.
+- 4+4+4+4+4+4 = 24: balance = 12. No.
+- 9+8+3+2+2 = 24: balance = -2+3-1+1+1 = 2. ✓ 5 digits.
+- 8+6+4+3+3 = 24: balance = 3+0+2-1-1 = 3. No.
+- 9+4+4+4+3 = 24: balance = -2+2+2+2-1 = 3. No.
+- 8+4+4+4+4 = 24: balance = 3+2+2+2 = 9. No.
+- 8+8+2+3+3 = 24: balance = 6+1-1-1 = 5. No.
+- 9+9+3+3 = 24: balance = -4-1-1 = -6. No.
+- 9+8+4+3 = 24, 4 digits, balance 2. ✓
+
+Can we do 3 digits? 24 with 3 digits from our set, balance +2:
+- 9+9+6 = 24: balance -4. No.
+- 9+8+... 9+8 = 17, need 7, not in set.
+- 8+8+8 = 24: balance 9. No.
+- 9+6+9 = 24: same as 9+9+6. No.
+So no 3-digit solution. 4 digits is the minimum for sum 24, balance +2.
+
+So with 139 nines, 92 eights, and (9,8,4,3) for the remainder: total digits = 139 + 92 + 4 = 235. Same as before!
+
+Hmm. Let me try another approach. 140 nines, 93 eights: balance = -280 + 279 = -1. Sum = 1260 + 744 = 2004. Remainder = 7, need balance +1.
+
+7 with balance +1, min digits:
+- 4+3 = 7: balance 2-1 = 1. ✓ 2 digits!
+- 6+1 = 7: balance 0. No.
+- 2+2+3 = 7: balance 1+1-1 = 1. ✓ 3 digits.
+- 4+3 = 7: 2 digits, balance 1. ✓
+
+So 140 nines, 93 eights, 1 four, 1 three: total = 140+93+1+1 = 235. Still 235!
+
+141 nines, 94 eights: balance = -282+282 = 0. Sum = 1269+752 = 2021 > 2011. Too much.
+
+140 nines, 94 eights: balance = -280+282 = 2. Sum = 1260+752 = 2012. Remainder = -1. Can't have negative.
+
+139 nines, 93 eights: balance = -278+279 = 1. Sum = 1251+744 = 1995. Remainder = 16, need balance -1.
+
+16 with balance -1, min digits:
+- 9+4+3 = 16: balance -2+2-1 = -1. ✓ 3 digits.
+- 9+6+1 = 16: balance -2+0+0 = -2. No.
+- 8+8 = 16: balance 6. No.
+- 9+3+4 = 16: same as above. ✓ 3 digits.
+- 6+6+4 = 16: balance 0+0+2 = 2. No.
+- 9+2+2+3 = 16: balance -2+1+1-1 = -1. ✓ 4 digits.
+- 8+4+4 = 16: balance 3+2+2 = 7. No.
+- 9+4+3 = 16: 3 digits. ✓
+
+Can we do 2 digits? 16 with 2 digits: 9+7(invalid), 8+8 = 16: balance 6. No. 9+... 9+7 invalid. So no 2-digit solution. 3 digits minimum.
+
+Total: 139+93+3 = 235. Still 235!
+
+It seems like 235 is the answer for the minimum number of digits. Let me try to see if 234 is possible.
+
+For 234 digits: we need sum = 2011, balance = 0. Average digit = 2011/234 ≈ 8.594. This is very close to 8.6.
+
+If we use 3a nines + 2a eights (sum 43a, digits 5a, balanced) plus some adjustment:
+- 5a = 230 (a=46): sum 1978, need 4 more digits summing to 33. But 4 digits can sum to at most 36, and we showed 33 can't be done in 4 balanced digits. And the 4 digits need to be balanced (since the 230 are already balanced). So 33 in 4 balanced digits: impossible (shown above).
+- 5a = 235 (a=47): sum 2021 > 2011. Too many.
+
+What about non-standard ratios? Let's say x nines and y eights, not necessarily 3:2. Balance: -2x + 3y + (balance from other digits) = 0. Digits = x + y + (other digits). Sum = 9x + 8y + (sum from other).
+
+For 234 digits: we need the total to work out. Let me think about what combinations of 234 digits can give sum 2011 with balance 0.
+
+If all 234 digits were 9s: sum = 2106, balance = -468. We need to reduce sum by 95 and increase balance by 468.
+
+Replacing a 9 with an 8: sum decreases by 1, balance increases by 5 (from -2 to +3, change of +5).
+Replacing a 9 with a 6: sum decreases by 3, balance increases by 2.
+Replacing a 9 with a 4: sum decreases by 5, balance increases by 4.
+Replacing a 9 with a 3: sum decreases by 6, balance increases by 3.
+Replacing a 9 with a 2: sum decreases by 7, balance increases by 3.
+Replacing a 9 with a 1: sum decreases by 8, balance increases by 2.
+
+We need to decrease sum by 95 and increase balance by 468, using 234 digits total (so we're replacing some 9s with other digits).
+
+Let's say we replace r8 nines with 8s, r6 with 6s, r4 with 4s, r3 with 3s, r2 with 2s, r1 with 1s.
+
+Sum decrease: r8 + 3r6 + 5r4 + 6r3 + 7r2 + 8r1 = 95
+Balance increase: 5r8 + 2r6 + 4r4 + 3r3 + 3r2 + 2r1 = 468
+Total replacements: r8 + r6 + r4 + r3 + r2 + r1 ≤ 234 (and n_9 = 234 - sum of replacements)
+
+From the balance equation: 5r8 + 2r6 + 4r4 + 3r3 + 3r2 + 2r1 = 468.
+From the sum equation: r8 + 3r6 + 5r4 + 6r3 + 7r2 + 8r1 = 95.
+
+The balance increase per unit of sum decrease:
+- 8: 5/1 = 5
+- 6: 2/3 ≈ 0.67
+- 4: 4/5 = 0.8
+- 3: 3/6 = 0.5
+- 2: 3/7 ≈ 0.43
+- 1: 2/8 = 0.25
+
+We need total balance increase / total sum decrease = 468/95 ≈ 4.93. The only digit with ratio > 4.93 is 8 (ratio 5). So we need mostly 8s.
+
+If we use only 8s: r8 replacements. Sum decrease = r8 = 95, balance increase = 5*95 = 475. But we need 468, not 475. So we need 475 - 468 = 7 less balance increase, while keeping sum decrease at 95.
+
+We need to replace some 8-replacements with other digits to reduce balance increase by 7 while keeping sum decrease at 95.
+
+Replacing one 8-replacement with a 6-replacement: sum decrease changes by +2 (from 1 to 3), balance increase changes by -3 (from 5 to 2). So we need to compensate.
+
+This is getting complex. Let me set up equations. Let r8 = 95 - 3r6 - 5r4 - 6r3 - 7r2 - 8r1 (from sum equation). Substitute into balance equation:
+
+5(95 - 3r6 - 5r4 - 6r3 - 7r2 - 8r1) + 2r6 + 4r4 + 3r3 + 3r2 + 2r1 = 468
+475 - 15r6 - 25r4 - 30r3 - 35r2 - 40r1 + 2r6 + 4r4 + 3r3 + 3r2 + 2r1 = 468
+475 - 13r6 - 21r4 - 27r3 - 32r2 - 38r1 = 468
+13r6 + 21r4 + 27r3 + 32r2 + 38r1 = 7
+
+Since all variables are non-negative integers, and 13r6 + 21r4 + 27r3 + 32r2 + 38r1 = 7, the only solution is r6 = r4 = r3 = r2 = r1 = 0 (since 13 > 7). So r8 = 95, and all other r's = 0.
+
+But then balance increase = 5*95 = 475 ≠ 468. Wait, that contradicts. Let me recheck.
+
+Oh wait, I think I made an error. Let me recompute. If r6=r4=r3=r2=r1=0, then from the equation 13*0 + 21*0 + ... = 7, which gives 0 = 7. Contradiction! So there's no solution with 234 digits.
+
+This means 234 digits is impossible! So the minimum is 235 digits.
+
+Wait, let me double-check. The equation 13r6 + 21r4 + 27r3 + 32r2 + 38r1 = 7 has no non-negative integer solution since the smallest coefficient is 13 > 7. So indeed, 234 digits is impossible.
+
+Therefore, the minimum number of digits is 235.
+
+Now, for the minimum N with 235 digits: we need to find the specific digit counts and then arrange digits in ascending order (smallest first) to minimize N.
+
+Wait, to minimize N, we arrange digits in ascending order from left to right (smallest digit first). So N = 1...1 2...2 3...3 4...4 6...6 8...8 9...9 (in ascending order).
+
+Now I need to find the specific digit counts that:
+1. Sum of digits = 2011
+2. Balance = 0 (product is power of 6)
+3. Total digits = 235
+4. Among all such configurations, N is minimized.
+
+To minimize N (with fixed number of digits), we want the smallest digits to appear as early (leftmost) as possible. So we want to maximize the count of small digits, especially 1s. But we also need to satisfy the constraints.
+
+Actually, to minimize N with a fixed number of digits, we want the leftmost digits to be as small as possible. So we want to maximize n_1, then n_2, then n_3, etc. (lexicographically maximize the counts of smaller digits).
+
+Wait, no. To minimize N, we sort digits in ascending order. So N = 111...1 222...2 333...3 444...4 666...6 888...8 999...9. The value of N is determined by the digit counts. To minimize N, we want to maximize the number of 1s (since they go first and push larger digits to the right), then maximize 2s, etc.
+
+But we have constraints: sum = 2011, balance = 0, total digits = 235.
+
+Let me set up the problem. We want to maximize n_1, then n_2, then n_3, etc., subject to:
+- n_1 + n_2 + n_3 + n_4 + n_6 + n_8 + n_9 = 235
+- n_1 + 2n_2 + 3n_3 + 4n_4 + 6n_6 + 8n_8 + 9n_9 = 2011
+- n_2 + 2n_4 + 3n_8 = n_3 + 2n_9 (balance)
+
+From the first two equations:
+- (sum equation) - (count equation): n_2 + 2n_3 + 3n_4 + 5n_6 + 7n_8 + 8n_9 = 2011 - 235 = 1776
+
+So we have:
+- n_2 + 2n_3 + 3n_4 + 5n_6 + 7n_8 + 8n_9 = 1776 ... (A)
+- n_2 + 2n_4 + 3n_8 - n_3 - 2n_9 = 0 ... (B)
+- n_1 = 235 - n_2 - n_3 - n_4 - n_6 - n_8 - n_9 ... (C)
+
+To maximize n_1, we minimize n_2 + n_3 + n_4 + n_6 + n_8 + n_9 (the non-1 digits). Let S = n_2 + n_3 + n_4 + n_6 + n_8 + n_9. Then n_1 = 235 - S, and we want to minimize S.
+
+From (A): n_2 + 2n_3 + 3n_4 + 5n_6 + 7n_8 + 8n_9 = 1776.
+We want to minimize S = n_2 + n_3 + n_4 + n_6 + n_8 + n_9 subject to (A) and (B).
+
+To minimize S, we want to maximize the "weight" per digit. The weights in (A) are: 1, 2, 3, 5, 7, 8 for digits 2, 3, 4, 6, 8, 9. The highest weight per digit is 8 (digit 9), then 7 (digit 8).
+
+But we also have constraint (B). Let me think about this.
+
+From (B): n_3 = n_2 + 2n_4 + 3n_8 - 2n_9.
+
+Substituting into (A):
+n_2 + 2(n_2 + 2n_4 + 3n_8 - 2n_9) + 3n_4 + 5n_6 + 7n_8 + 8n_9 = 1776
+n_2 + 2n_2 + 4n_4 + 6n_8 - 4n_9 + 3n_4 + 5n_6 + 7n_8 + 8n_9 = 1776
+3n_2 + 7n_4 + 13n_8 + 4n_9 + 5n_6 = 1776
+
+And n_3 = n_2 + 2n_4 + 3n_8 - 2n_9 ≥ 0, so n_2 + 2n_4 + 3n_8 ≥ 2n_9.
+
+S = n_2 + n_3 + n_4 + n_6 + n_8 + n_9 = n_2 + (n_2 + 2n_4 + 3n_8 - 2n_9) + n_4 + n_6 + n_8 + n_9
+= 2n_2 + 3n_4 + 4n_8 + n_6 - n_9
+
+So S = 2n_2 + 3n_4 + 4n_8 + n_6 - n_9, and we want to minimize S.
+
+From the constraint: 3n_2 + 7n_4 + 13n_8 + 5n_6 + 4n_9 = 1776.
+
+We want to minimize S = 2n_2 + 3n_4 + 4n_8 + n_6 - n_9.
+
+Note that n_9 appears with coefficient -1 in S and +4 in the constraint. So increasing n_9 by 1 increases the constraint LHS by 4 and decreases S by 1. This is very efficient! We want n_9 as large as possible.
+
+Similarly, n_8 has coefficient 4 in S and 13 in constraint. Ratio S/constraint = 4/13 ≈ 0.308.
+n_9: -1/4 = -0.25 (negative, so very good - increases constraint while decreasing S).
+n_6: 1/5 = 0.2.
+n_4: 3/7 ≈ 0.429.
+n_2: 2/3 ≈ 0.667.
+
+So the "efficiency" (S contribution per constraint contribution) is:
+- n_9: -0.25 (best, since negative)
+- n_6: 0.2
+- n_8: 0.308
+- n_4: 0.429
+- n_2: 0.667
+
+To minimize S, we want to use as much n_9 as possible (it has negative coefficient in S), then n_6, then n_8, etc.
+
+But we have the constraint n_2 + 2n_4 + 3n_8 ≥ 2n_9 (from n_3 ≥ 0). So n_9 is limited by the other variables.
+
+If we use only n_9 and n_8: 3n_8 ≥ 2n_9, so n_9 ≤ 3n_8/2. Constraint: 13n_8 + 4n_9 = 1776. S = 4n_8 - n_9.
+
+To maximize n_9: n_9 = 3n_8/2 (tight constraint). Then 13n_8 + 4*3n_8/2 = 13n_8 + 6n_8 = 19n_8 = 1776. n_8 = 1776/19 = 93.47... Not integer.
+
+Try n_8 = 93: 19*93 = 1767. Remainder = 1776 - 13*93 - 4*n_9 = 1776 - 1209 - 4n_9 = 567 - 4n_9. And n_9 ≤ 3*93/2 = 139.5, so n_9 ≤ 139. If n_9 = 139: 4*139 = 556. Remainder = 567 - 556 = 11. So we need 3n_2 + 7n_4 + 5n_6 = 11 with n_2 + 2n_4 + 3*93 ≥ 2*139, i.e., n_2 + 2n_4 ≥ 278 - 279 = -1, which is always true. And n_3 = n_2 + 2n_4 + 279 - 278 = n_2 + 2n_4 + 1.
+
+So 3n_2 + 7n_4 + 5n_6 = 11. To minimize S = 2n_2 + 3n_4 + 4*93 + n_6 - 139 = 2n_2 + 3n_4 + n_6 + 372 - 139 = 2n_2 + 3n_4 + n_6 + 233.
+
+We want to minimize 2n_2 + 3n_4 + n_6 subject to 3n_2 + 7n_4 + 5n_6 = 11.
+
+To minimize, use the most "efficient" variable. n_6 has ratio 1/5 = 0.2, n_2 has 2/3 ≈ 0.667, n_4 has 3/7 ≈ 0.429. So use n_6 as much as possible.
+
+5n_6 ≤ 11, so n_6 ≤ 2. n_6 = 2: 10, remainder 1. 3n_2 + 7n_4 = 1. No solution (min is 3 or 7).
+n_6 = 1: 5, remainder 6. 3n_2 + 7n_4 = 6. n_2 = 2, n_4 = 0: 6. ✓. Cost: 2*2 + 0 + 1 = 5.
+n_6 = 0: 3n_2 + 7n_4 = 11. n_2 = 1, n_4 = 1: 3+7 = 10. No. n_2 = 0, n_4 = ... 7*1 = 7, remainder 4, no. n_2 = 3: 9, remainder 2, no. No solution.
+
+So n_6 = 1, n_2 = 2, n_4 = 0. Cost = 2*2 + 0 + 1 = 5. S = 5 + 233 = 238.
+
+n_3 = 2 + 0 + 1 = 3. n_1 = 235 - S = 235 - 238 = -3. Negative! Not valid.
+
+Hmm, n_1 is negative, which means this doesn't work. We need n_1 ≥ 0, i.e., S ≤ 235.
+
+S = 2n_2 + 3n_4 + 4n_8 + n_6 - n_9 ≤ 235.
+
+With n_8 = 93, n_9 = 139, n_2 = 2, n_4 = 0, n_6 = 1: S = 4 + 0 + 372 + 1 - 139 = 238 > 235. Not valid.
+
+So we need to reduce S. Let me try n_8 = 94, n_9 = 141: 13*94 + 4*141 = 1222 + 564 = 1786 > 1776. Too much.
+
+n_8 = 94, n_9 = 139: 13*94 + 4*139 = 1222 + 556 = 1778 > 1776. Slightly over.
+
+n_8 = 94, n_9 = 138: 1222 + 552 = 1774. Remainder = 2. 3n_2 + 7n_4 + 5n_6 = 2. No solution (min 3).
+
+n_8 = 93, n_9 = 141: 1209 + 564 = 1773. Remainder = 3. 3n_2 + 7n_4 + 5n_6 = 3. n_2 = 1, n_4 = 0, n_6 = 0: 3. ✓. But n_3 = 1 + 0 + 279 - 282 = -2 < 0. Invalid (n_2 + 2n_4 + 3n_8 = 1 + 279 = 280 < 2*141 = 282).
+
+n_8 = 93, n_9 = 140: 1209 + 560 = 1769. Remainder = 7. 3n_2 + 7n_4 + 5n_6 = 7. n_3 = n_2 + 2n_4 + 279 - 280 = n_2 + 2n_4 - 1 ≥ 0, so n_2 + 2n_4 ≥ 1.
+
+Options for 3n_2 + 7n_4 + 5n_6 = 7:
+- n_6 = 0: 3n_2 + 7n_4 = 7. n_4 = 1, n_2 = 0: 7. ✓. n_3 = 0 + 2 - 1 = 1. S = 0 + 3 + 372 + 0 - 140 = 235. n_1 = 0. Valid!
+- n_6 = 1: 5, remainder 2. 3n_2 + 7n_4 = 2. No solution.
+- n_2 = 0, n_4 = 1, n_6 = 0: cost = 0 + 3 + 0 = 3. S = 3 + 372 - 140 = 235. n_1 = 0.
+
+So: n_9 = 140, n_8 = 93, n_4 = 1, n_3 = 1, n_2 = 0, n_6 = 0, n_1 = 0.
+
+Check: sum = 0 + 0 + 3*1 + 4*1 + 0 + 8*93 + 9*140 = 3 + 4 + 744 + 1260 = 2011. ✓
+Digits: 0 + 0 + 1 + 1 + 0 + 93 + 140 = 235. ✓
+Balance: 0 + 2*1 + 3*93 - 1 - 2*140 = 0 + 2 + 279 - 1 - 280 = 0. ✓
+n_1 = 0. So N has no 1s. N = 34 888...8 999...9 (one 3, one 4, 93 eights, 140 nines).
+
+But can we do better? Can we get n_1 > 0? That would require S < 235.
+
+Let me try n_8 = 93, n_9 = 140, but with different remainder. We had 3n_2 + 7n_4 + 5n_6 = 7 with n_3 = n_2 + 2n_4 - 1. We found n_4=1, n_2=0, n_6=0 giving S=235. Any other solution with S < 235?
+
+S = 2n_2 + 3n_4 + n_6 + 372 - 140 = 2n_2 + 3n_4 + n_6 + 232. We need S ≤ 235, so 2n_2 + 3n_4 + n_6 ≤ 3. And 3n_2 + 7n_4 + 5n_6 = 7.
+
+If n_6 = 0: 3n_2 + 7n_4 = 7, 2n_2 + 3n_4 ≤ 3. n_4 = 1, n_2 = 0: 2*0 + 3*1 = 3 ≤ 3. ✓. S = 235.
+n_4 = 0, n_2 = 7/3: not integer. So only solution is n_4=1, n_2=0, S=235.
+
+If n_6 = 1: 3n_2 + 7n_4 = 2. No solution.
+
+So with n_8=93, n_9=140, the only option gives S=235, n_1=0.
+
+Let me try other combinations. n_8 = 92, n_9 = 138: 13*92 + 4*138 = 1196 + 552 = 1748. Remainder = 28. 3n_2 + 7n_4 + 5n_6 = 28. n_3 = n_2 + 2n_4 + 276 - 276 = n_2 + 2n_4. S = 2n_2 + 3n_4 + 4*92 + n_6 - 138 = 2n_2 + 3n_4 + n_6 + 368 - 138 = 2n_2 + 3n_4 + n_6 + 230.
+
+We need S ≤ 235, so 2n_2 + 3n_4 + n_6 ≤ 5. And 3n_2 + 7n_4 + 5n_6 = 28.
+
+To minimize 2n_2 + 3n_4 + n_6 with 3n_2 + 7n_4 + 5n_6 = 28:
+Use n_6 (ratio 1/5 = 0.2): n_6 = 5: 25, remainder 3. n_2 = 1: 3. ✓. Cost = 2 + 0 + 5 = 7 > 5. No.
+n_6 = 4: 20, remainder 8. n_4 = 0, n_2 = 8/3: no. n_4 = 1: 7, remainder 1: no. n_2 = 0, n_4 = ... 8/7: no. No solution.
+n_6 = 3: 15, remainder 13. n_4 = 0, n_2 = 13/3: no. n_4 = 1: 7, remainder 6, n_2 = 2: 6. ✓. Cost = 4 + 3 + 3 = 10 > 5. No.
+n_6 = 2: 10, remainder 18. n_4 = 0, n_2 = 6: 18. ✓. Cost = 12 + 0 + 2 = 14. No. n_4 = 2: 14, remainder 4: no. n_4 = 1: 7, remainder 11: no.
+n_6 = 1: 5, remainder 23. n_4 = 2: 14, remainder 9, n_2 = 3: 9. ✓. Cost = 6 + 6 + 1 = 13. No.
+n_6 = 0: 3n_2 + 7n_4 = 28. n_4 = 1: 7, remainder 21, n_2 = 7: 21. ✓. Cost = 14 + 3 = 17. No. n_4 = 4: 28, n_2 = 0. Cost = 0 + 12 = 12. No.
+
+All costs are > 5, so S > 235 for n_8=92, n_9=138. Not valid.
+
+Let me try n_8 = 94, n_9 = 139: 13*94 + 4*139 = 1222 + 556 = 1778 > 1776. Over by 2. Not valid (can't have negative remainder).
+
+n_8 = 95, n_9 = 137: 13*95 + 4*137 = 1235 + 548 = 1783 > 1776. Over.
+
+n_8 = 92, n_9 = 139: 1196 + 556 = 1752. Remainder = 24. n_3 = n_2 + 2n_4 + 276 - 278 = n_2 + 2n_4 - 2 ≥ 0, so n_2 + 2n_4 ≥ 2. S = 2n_2 + 3n_4 + n_6 + 368 - 139 = 2n_2 + 3n_4 + n_6 + 229. Need S ≤ 235, so 2n_2 + 3n_4 + n_6 ≤ 6. And 3n_2 + 7n_4 + 5n_6 = 24.
+
+Minimize 2n_2 + 3n_4 + n_6 with 3n_2 + 7n_4 + 5n_6 = 24 and n_2 + 2n_4 ≥ 2.
+
+n_6 = 4: 20, remainder 4. n_2 = 0, n_4 = ... 4/7: no. n_2 = 1: 3, remainder 1: no. No solution.
+n_6 = 3: 15, remainder 9. n_4 = 0, n_2 = 3: 9. ✓. n_2 + 2*0 = 3 ≥ 2. ✓. Cost = 6 + 0 + 3 = 9 > 6. No.
+n_6 = 2: 10, remainder 14. n_4 = 2: 14, n_2 = 0. ✓. n_2 + 2*2 = 4 ≥ 2. ✓. Cost = 0 + 6 + 2 = 8 > 6. No.
+n_6 = 1: 5, remainder 19. n_4 = 1: 7, remainder 12, n_2 = 4: 12. ✓. Cost = 8 + 3 + 1 = 12. No.
+n_6 = 0: 3n_2 + 7n_4 = 24. n_4 = 3: 21, n_2 = 1: 3. ✓. Cost = 2 + 9 = 11. No. n_4 = 0, n_2 = 8: 24. Cost = 16. No.
+
+All > 6. Not valid.
+
+Let me try n_8 = 93, n_9 = 141: 1209 + 564 = 1773. Remainder = 3. n_3 = n_2 + 2n_4 + 279 - 282 = n_2 + 2n_4 - 3 ≥ 0, so n_2 + 2n_4 ≥ 3. 3n_2 + 7n_4 + 5n_6 = 3. n_2 = 1, n_4 = 0, n_6 = 0: 3. ✓. n_2 + 0 = 1 < 3. Invalid. No other solution (3n_2 + 7n_4 + 5n_6 = 3 only has n_2=1,rest=0). Invalid.
+
+n_8 = 94, n_9 = 138: 1222 + 552 = 1774. Remainder = 2. 3n_2 + 7n_4 + 5n_6 = 2. No solution.
+
+n_8 = 92, n_9 = 140: 1196 + 560 = 1756. Remainder = 20. n_3 = n_2 + 2n_4 + 276 - 280 = n_2 + 2n_4 - 4 ≥ 0, so n_2 + 2n_4 ≥ 4. S = 2n_2 + 3n_4 + n_6 + 368 - 140 = 2n_2 + 3n_4 + n_6 + 228. Need ≤ 235, so 2n_2 + 3n_4 + n_6 ≤ 7. And 3n_2 + 7n_4 + 5n_6 = 20, n_2 + 2n_4 ≥ 4.
+
+n_6 = 4: 20, n_2 = 0, n_4 = 0. n_2 + 2*0 = 0 < 4. Invalid.
+n_6 = 3: 15, remainder 5. n_4 = 0, n_2 = 5/3: no. No solution.
+n_6 = 2: 10, remainder 10. n_4 = 1: 7, remainder 3, n_2 = 1: 3. ✓. n_2 + 2*1 = 3 < 4. Invalid. n_4 = 0, n_2 = 10/3: no.
+n_6 = 1: 5, remainder 15. n_4 = 0, n_2 = 5: 15. ✓. n_2 + 0 = 5 ≥ 4. ✓. Cost = 10 + 0 + 1 = 11 > 7. No. n_4 = 2: 14, remainder 1: no. n_4 = 1: 7, remainder 8, n_2 = 8/3: no.
+n_6 = 0: 3n_2 + 7n_4 = 20. n_4 = 2: 14, n_2 = 2: 6. ✓. n_2 + 4 = 6 ≥ 4. ✓. Cost = 4 + 6 = 10 > 7. No. n_4 = 1: 7, n_2 = 13/3: no. n_4 = 0: n_2 = 20/3: no.
+
+All > 7. Not valid.
+
+Hmm, it seems like n_1 = 0 is forced. Let me try to see if there's any configuration with n_1 > 0.
+
+For n_1 > 0, we need S < 235, i.e., S ≤ 234. S = 2n_2 + 3n_4 + 4n_8 + n_6 - n_9. And 3n_2 + 7n_4 + 13n_8 + 5n_6 + 4n_9 = 1776.
+
+Let me think about this more carefully. We have:
+S = 2n_2 + 3n_4 + 4n_8 + n_6 - n_9
+Constraint: 3n_2 + 7n_4 + 13n_8 + 5n_6 + 4n_9 = 1776
+n_3 = n_2 + 2n_4 + 3n_8 - 2n_9 ≥ 0
+
+We want S ≤ 234. Let me see what the minimum possible S is.
+
+From the constraint: 4n_9 = 1776 - 3n_2 - 7n_4 - 13n_8 - 5n_6.
+So n_9 = (1776 - 3n_2 - 7n_4 - 13n_8 - 5n_6)/4.
+
+S = 2n_2 + 3n_4 + 4n_8 + n_6 - (1776 - 3n_2 - 7n_4 - 13n_8 - 5n_6)/4
+= (8n_2 + 12n_4 + 16n_8 + 4n_6 - 1776 + 3n_2 + 7n_4 + 13n_8 + 5n_6)/4
+= (11n_2 + 19n_4 + 29n_8 + 9n_6 - 1776)/4
+
+We want S ≤ 234, so 11n_2 + 19n_4 + 29n_8 + 9n_6 ≤ 234*4 + 1776 = 936 + 1776 = 2712.
+
+Also, n_9 ≥ 0: 1776 - 3n_2 - 7n_4 - 13n_8 - 5n_6 ≥ 0, so 3n_2 + 7n_4 + 13n_8 + 5n_6 ≤ 1776.
+
+And n_3 ≥ 0: n_2 + 2n_4 + 3n_8 ≥ 2n_9 = (1776 - 3n_2 - 7n_4 - 13n_8 - 5n_6)/2.
+So 2n_2 + 4n_4 + 6n_8 ≥ 1776 - 3n_2 - 7n_4 - 13n_8 - 5n_6.
+5n_2 + 11n_4 + 19n_8 + 5n_6 ≥ 1776.
+
+And n_1 = 235 - S ≥ 0, so S ≤ 235. For n_1 ≥ 1, S ≤ 234.
+
+We want to minimize S = (11n_2 + 19n_4 + 29n_8 + 9n_6 - 1776)/4.
+
+To minimize S, we minimize 11n_2 + 19n_4 + 29n_8 + 9n_6. The "cost" per unit of constraint contribution:
+- n_8: 29/13 ≈ 2.23 (cost per unit of constraint)
+- n_4: 19/7 ≈ 2.71
+- n_2: 11/3 ≈ 3.67
+- n_6: 9/5 = 1.8
+
+So n_6 is the most "efficient" (lowest cost per constraint unit), then n_8, then n_4, then n_2.
+
+But we also need 5n_2 + 11n_4 + 19n_8 + 5n_6 ≥ 1776 (from n_3 ≥ 0).
+
+The "contribution" to this constraint per unit:
+- n_8: 19/13 ≈ 1.46 (contribution to n_3 constraint per unit of main constraint)
+- n_6: 5/5 = 1
+- n_4: 11/7 ≈ 1.57
+- n_2: 5/3 ≈ 1.67
+
+So n_2 and n_4 are more efficient for the n_3 constraint, while n_6 is less efficient. But n_6 is more efficient for minimizing S. There's a trade-off.
+
+This is getting complex. Let me try a different approach. Let me try to use n_6 heavily.
+
+If we use only n_6 and n_9 (and n_1 for the rest):
+- 3n_2 + 7n_4 + 13n_8 + 5n_6 + 4n_9 = 1776 → 5n_6 + 4n_9 = 1776
+- n_3 = 0 + 0 + 0 - 2n_9 = -2n_9 ≥ 0 → n_9 = 0. Then 5n_6 = 1776, n_6 = 355.2. Not integer.
+
+If n_9 = 0: 5n_6 = 1776. Not integer. n_6 = 355, remainder 1. Need 3n_2 + 7n_4 + 13n_8 = 1. No solution.
+
+If we use n_6, n_8, n_9:
+5n_6 + 13n_8 + 4n_9 = 1776
+n_3 = 3n_8 - 2n_9 ≥ 0 → n_9 ≤ 3n_8/2
+S = (9n_6 + 29n_8 - 1776 + 4n_9... wait let me use S = 4n_8 + n_6 - n_9 (since n_2 = n_4 = 0).
+
+S = (29n_8 + 9n_6 - 1776)/4.
+
+We want S ≤ 234, so 29n_8 + 9n_6 ≤ 2712.
+And 5n_6 + 13n_8 + 4n_9 = 1776, n_9 ≤ 3n_8/2, n_9 ≥ 0.
+
+From the constraint: n_9 = (1776 - 5n_6 - 13n_8)/4. Need n_9 ≥ 0: 5n_6 + 13n_8 ≤ 1776. Need n_9 ≤ 3n_8/2: (1776 - 5n_6 - 13n_8)/4 ≤ 3n_8/2 → 1776 - 5n_6 - 13n_8 ≤ 6n_8 → 1776 - 5n_6 ≤ 19n_8 → n_8 ≥ (1776 - 5n_6)/19.
+
+We want to minimize 29n_8 + 9n_6. Given n_8 ≥ (1776 - 5n_6)/19, the minimum n_8 is ceil((1776 - 5n_6)/19).
+
+Let's try n_6 = 0: n_8 ≥ 1776/19 = 93.47, so n_8 ≥ 94. 29*94 = 2726 > 2712. S > 234. Not valid.
+
+n_6 = 4: n_8 ≥ (1776-20)/19 = 1756/19 = 92.42, so n_8 ≥ 93. 29*93 + 9*4 = 2697 + 36 = 2733 > 2712. Not valid.
+
+n_6 = 8: n_8 ≥ (1776-40)/19 = 1736/19 = 91.37, so n_8 ≥ 92. 29*92 + 9*8 = 2668 + 72 = 2740 > 2712. Not valid.
+
+n_6 = 12: n_8 ≥ (1776-60)/19 = 1716/19 = 90.32, so n_8 ≥ 91. 29*91 + 9*12 = 2639 + 108 = 2747 > 2712. Not valid.
+
+Hmm, it's getting worse. The n_6 contribution (9 per unit) is actually quite high relative to the savings in n_8 (29 per unit, but each unit of n_6 saves 5/19 ≈ 0.26 units of n_8, saving 29*0.26 ≈ 7.6, while costing 9). So net cost per n_6 is 9 - 7.6 = 1.4. It's slightly positive, so adding n_6 increases S slightly.
+
+Let me try n_6 = 0, n_8 = 94: 29*94 = 2726. S = (2726 - 1776)/4 = 950/4 = 237.5. Not integer, and > 234.
+
+n_8 = 93: 29*93 = 2697. S = (2697 - 1776)/4 = 921/4 = 230.25. Not integer.
+
+n_8 = 92: 29*92 = 2668. S = (2668 - 1776)/4 = 892/4 = 223. But need 5n_6 + 13*92 + 4n_9 = 1776 → 5n_6 + 4n_9 = 1776 - 1196 = 580. And n_9 ≤ 3*92/2 = 138. n_9 = (580 - 5n_6)/4. Need n_9 ≤ 138: (580-5n_6)/4 ≤ 138 → 580 - 5n_6 ≤ 552 → 5n_6 ≥ 28 → n_6 ≥ 6. Need n_9 ≥ 0: n_6 ≤ 116.
+
+S = (29*92 + 9n_6 - 1776)/4 = (2668 + 9n_6 - 1776)/4 = (892 + 9n_6)/4.
+
+For S ≤ 234: 892 + 9n_6 ≤ 936 → 9n_6 ≤ 44 → n_6 ≤ 4. But n_6 ≥ 6. Contradiction! So no valid solution with n_8 = 92.
+
+n_8 = 93: 5n_6 + 4n_9 = 1776 - 1209 = 567. n_9 ≤ 139. n_9 = (567 - 5n_6)/4. Need (567-5n_6)/4 ≤ 139 → 567 - 5n_6 ≤ 556 → n_6 ≥ 2.2 → n_6 ≥ 3 (since 567-5*2 = 557, 557/4 = 139.25 > 139, so n_6 ≥ 3: 567-15 = 552, 552/4 = 138 ≤ 139 ✓). Need n_9 ≥ 0: n_6 ≤ 113.
+
+S = (29*93 + 9n_6 - 1776)/4 = (2697 + 9n_6 - 1776)/4 = (921 + 9n_6)/4.
+
+For S ≤ 234: 921 + 9n_6 ≤ 936 → 9n_6 ≤ 15 → n_6 ≤ 1. But n_6 ≥ 3. Contradiction!
+
+n_8 = 94: 5n_6 + 4n_9 = 1776 - 1222 = 554. n_9 ≤ 141. n_9 = (554-5n_6)/4. Need (554-5n_6)/4 ≤ 141 → 554-5n_6 ≤ 564 → n_6 ≥ -2, always true. Need n_9 ≥ 0: n_6 ≤ 110.
+
+S = (29*94 + 9n_6 - 1776)/4 = (2726 + 9n_6 - 1776)/4 = (950 + 9n_6)/4.
+
+For S ≤ 234: 950 + 9n_6 ≤ 936 → 9n_6 ≤ -14. Impossible.
+
+So with only n_6, n_8, n_9 (no n_2, n_4), we can't get S ≤ 234. The minimum S is 235 (achieved at n_8=93, n_9=140, n_4=1, n_2=0, n_6=0, n_3=1, giving S=235, n_1=0).
+
+Let me try including n_2 and n_4. Let me go back to the general formulation.
+
+S = (11n_2 + 19n_4 + 29n_8 + 9n_6 - 1776)/4
+
+We want S ≤ 234, i.e., 11n_2 + 19n_4 + 29n_8 + 9n_6 ≤ 2712.
+
+And 3n_2 + 7n_4 + 13n_8 + 5n_6 + 4n_9 = 1776, with n_9 = (1776 - 3n_2 - 7n_4 - 13n_8 - 5n_6)/4 ≥ 0.
+And n_3 = n_2 + 2n_4 + 3n_8 - 2n_9 ≥ 0, i.e., 5n_2 + 11n_4 + 19n_8 + 5n_6 ≥ 1776.
+
+So we need:
+(a) 3n_2 + 7n_4 + 13n_8 + 5n_6 ≤ 1776 (for n_9 ≥ 0)
+(b) 5n_2 + 11n_4 + 19n_8 + 5n_6 ≥ 1776 (for n_3 ≥ 0)
+(c) 11n_2 + 19n_4 + 29n_8 + 9n_6 ≤ 2712 (for S ≤ 234)
+(d) 1776 - 3n_2 - 7n_4 - 13n_8 - 5n_6 ≡ 0 (mod 4) (for n_9 integer)
+
+From (a) and (b): 5n_2 + 11n_4 + 19n_8 + 5n_6 ≥ 1776 ≥ 3n_2 + 7n_4 + 13n_8 + 5n_6.
+So 2n_2 + 4n_4 + 6n_8 ≥ 0, which is always true. Good.
+
+Let me see if (c) can be satisfied. From (b): 5n_2 + 11n_4 + 19n_8 + 5n_6 ≥ 1776.
+From (c): 11n_2 + 19n_4 + 29n_8 + 9n_6 ≤ 2712.
+
+Let me see the relationship. 2*(b): 10n_2 + 22n_4 + 38n_8 + 10n_6 ≥ 3552.
+(c): 11n_2 + 19n_4 + 29n_8 + 9n_6 ≤ 2712.
+
+Subtract: (10-11)n_2 + (22-19)n_4 + (38-29)n_8 + (10-9)n_6 ≥ 3552 - 2712 = 840.
+-n_2 + 3n_4 + 9n_8 + n_6 ≥ 840.
+
+So 3n_4 + 9n_8 + n_6 ≥ 840 + n_2 ≥ 840.
+
+This means 9n_8 + 3n_4 + n_6 ≥ 840, so n_8 ≥ (840 - 3n_4 - n_6)/9 ≥ 840/9 ≈ 93.3, so n_8 ≥ 94 (if n_4 = n_6 = 0).
+
+With n_8 = 94, n_4 = 0, n_6 = 0: 9*94 = 846 ≥ 840. ✓. From (b): 5n_2 + 19*94 ≥ 1776 → 5n_2 ≥ 1776 - 1786 = -10, always true. From (a): 3n_2 + 13*94 ≤ 1776 → 3n_2 ≤ 1776 - 1222 = 554 → n_2 ≤ 184. From (c): 11n_2 + 29*94 ≤ 2712 → 11n_2 ≤ 2712 - 2726 = -14. Impossible!
+
+So n_8 = 94 with n_4 = n_6 = 0 doesn't work for (c).
+
+With n_8 = 94, n_4 = 1, n_6 = 0: 9*94 + 3 = 849 ≥ 840. ✓. (c): 11n_2 + 19 + 2726 ≤ 2712 → 11n_2 ≤ -33. Impossible.
+
+n_8 = 94, n_4 = 0, n_6 = 1: 846 + 1 = 847. (c): 11n_2 + 2726 + 9 ≤ 2712 → 11n_2 ≤ -23. Impossible.
+
+It seems like n_8 = 94 always makes (c) impossible because 29*94 = 2726 > 2712 already.
+
+What about n_8 = 93? 9*93 = 837 < 840. Need 3n_4 + n_6 ≥ 3. 
+
+n_8 = 93, n_4 = 1, n_6 = 0: 837 + 3 = 840. ✓. (c): 11n_2 + 19 + 2697 ≤ 2712 → 11n_2 ≤ -4. Impossible (n_2 ≥ 0).
+
+n_8 = 93, n_4 = 0, n_6 = 3: 837 + 3 = 840. (c): 11n_2 + 2697 + 27 ≤ 2712 → 11n_2 ≤ -12. Impossible.
+
+n_8 = 93, n_4 = 2, n_6 = 0: 837 + 6 = 843. (c): 11n_2 + 38 + 2697 ≤ 2712 → 11n_2 ≤ -23. Impossible.
+
+So for n_8 = 93, (c) requires 11n_2 + 19n_4 + 9n_6 ≤ 2712 - 2697 = 15. And from the n_3 constraint adjustment, 3n_4 + n_6 ≥ 3. So 19n_4 + 9n_6 ≤ 15 - 11n_2 ≤ 15. With 3n_4 + n_6 ≥ 3: if n_4 = 1, n_6 = 0: 19 ≤ 15? No. If n_4 = 0, n_6 = 3: 27 ≤ 15? No.
+
+So n_8 = 93 also doesn't work for S ≤ 234.
+
+What about n_8 = 92? 9*92 = 828. Need 3n_4 + n_6 ≥ 12. (c): 11n_2 + 19n_4 + 2668 + 9n_6 ≤ 2712 → 11n_2 + 19n_4 + 9n_6 ≤ 44. With 3n_4 + n_6 ≥ 12: 19n_4 + 9n_6 = 19n_4 + 9n_6. If n_4 = 4, n_6 = 0: 19*4 = 76 > 44. No. If n_4 = 0, n_6 = 12: 9*12 = 108 > 44. No. If n_4 = 1, n_6 = 9: 19 + 81 = 100 > 44. No. If n_4 = 2, n_6 = 6: 38 + 54 = 92 > 44. No. If n_4 = 3, n_6 = 3: 57 + 27 = 84 > 44. No. If n_4 = 4, n_6 = 0: 76 > 44. No.
+
+All exceed 44. So n_8 = 92 doesn't work either.
+
+It's clear that S ≤ 234 is impossible. The minimum S is 235, giving n_1 = 0.
+
+So the minimum N has n_1 = 0, and the digit counts must satisfy S = 235.
+
+Now, among all configurations with S = 235 (i.e., n_1 = 0), we want to minimize N. Since N is formed by sorting digits in ascending order, and n_1 = 0, the smallest digit in N is the smallest d with n_d > 0. To minimize N, we want to maximize the count of the smallest digits.
+
+So we want to maximize n_2, then n_3, then n_4, etc. (lexicographically, to push larger digits to the right).
+
+With n_1 = 0, S = 235, we need:
+- n_2 + n_3 + n_4 + n_6 + n_8 + n_9 = 235
+- 2n_2 + 3n_3 + 4n_4 + 6n_6 + 8n_8 + 9n_9 = 2011
+- n_2 + 2n_4 + 3n_8 = n_3 + 2n_9
+
+From the first two: n_3 + 2n_4 + 4n_6 + 6n_8 + 7n_9 = 2011 - 235 = 1776. (subtracting first from second, noting coefficient of n_2 is 2-1=1, n_3 is 3-1=2, etc.)
+
+Wait: (sum) - (count) = n_2 + 2n_3 + 3n_4 + 5n_6 + 7n_8 + 8n_9 = 1776. (A)
+
+And balance: n_2 + 2n_4 + 3n_8 - n_3 - 2n_9 = 0. (B)
+
+n_3 = n_2 + 2n_4 + 3n_8 - 2n_9.
+
+Substituting into (A): n_2 + 2(n_2 + 2n_4 + 3n_8 - 2n_9) + 3n_4 + 5n_6 + 7n_8 + 8n_9 = 1776.
+3n_2 + 7n_4 + 13n_8 + 5n_6 + 4n_9 = 1776. (Same as before.)
+
+S = n_2 + n_3 + n_4 + n_6 + n_8 + n_9 = 2n_2 + 3n_4 + 4n_8 + n_6 - n_9 = 235.
+
+So 2n_2 + 3n_4 + 4n_8 + n_6 - n_9 = 235. (C)
+
+And 3n_2 + 7n_4 + 13n_8 + 5n_6 + 4n_9 = 1776. (D)
+
+From (C): n_9 = 2n_2 + 3n_4 + 4n_8 + n_6 - 235.
+Substituting into (D): 3n

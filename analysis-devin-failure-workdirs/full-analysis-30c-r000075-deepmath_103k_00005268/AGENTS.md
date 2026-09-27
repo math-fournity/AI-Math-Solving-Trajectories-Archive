@@ -1,0 +1,1994 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   Find the radius of convergence of the power series \(\sum_{n=1}^{\infty} a_n z^{n}\), where \(a_n\) is the number of divisors of \(n^{50}\).       — 题目文本
+#   Okay, so I need to find the radius of convergence for the power series \(\sum_{n=1}^{\infty} a_n z^{n}\), where \(a_n\) is the number of divisors of \(n^{50}\). Hmm, let's recall how to find the radius of convergence. I think it's usually done using the root test or the ratio test. The formula involves the limit superior of \(|a_n|^{1/n}\) as \(n\) approaches infinity. The radius of convergence \(R\) is then \(1/\limsup_{n \to \infty} |a_n|^{1/n}\). Yeah, that sounds right.
+
+First, let me confirm the formula. The radius of convergence \(R\) for the series \(\sum a_n z^n\) is given by \(1/\limsup_{n \to \infty} |a_n|^{1/n}\). So I need to figure out the growth rate of \(a_n\), which is the number of divisors of \(n^{50}\). Then take the nth root of that and find the lim sup. The reciprocal of that will be the radius.
+
+Alright, so the key here is understanding how the number of divisors of \(n^{50}\) behaves as \(n\) grows. Let me recall that if a number \(m\) has prime factorization \(m = p_1^{e_1} p_2^{e_2} \dots p_k^{e_k}\), then the number of divisors of \(m\) is \((e_1 + 1)(e_2 + 1) \dots (e_k + 1)\). So for \(n^{50}\), if \(n\) is factored into primes as \(n = p_1^{f_1} p_2^{f_2} \dots p_k^{f_k}\), then \(n^{50} = p_1^{50f_1} p_2^{50f_2} \dots p_k^{50f_k}\). Therefore, the number of divisors \(a_n\) is \((50f_1 + 1)(50f_2 + 1) \dots (50f_k + 1)\).
+
+So \(a_n\) is the product over all primes dividing \(n\) of \(50f_i + 1\), where \(f_i\) is the exponent of the prime \(p_i\) in the prime factorization of \(n\). Hmm. So the number of divisors depends on the exponents in the prime factorization of \(n\). But how does this behave as \(n\) grows?
+
+I need to estimate the maximum possible value of \(a_n\) in terms of \(n\). Because the radius of convergence depends on the lim sup of \(|a_n|^{1/n}\), which is determined by the growth rate of \(a_n\). If \(a_n\) grows polynomially in \(n\), then \(a_n^{1/n}\) would go to 1, so the radius would be 1. If \(a_n\) grows exponentially, then the radius would be smaller. But the divisor function is known to grow slower than exponentially, right? Wait, the number of divisors function \(d(n)\) is \(O(n^\epsilon)\) for any \(\epsilon > 0\). So even though it can get large, it doesn't grow exponentially. However, in our case, \(a_n = d(n^{50})\). Let's see.
+
+Wait, \(d(n^{50})\) is multiplicative, since the number of divisors is multiplicative over prime powers. So if \(n\) is a prime power, say \(n = p^k\), then \(n^{50} = p^{50k}\), so \(d(n^{50}) = 50k + 1\). For general \(n\), if \(n\) has prime factorization \(n = \prod_{p|n} p^{k_p}\), then \(d(n^{50}) = \prod_{p|n} (50k_p + 1)\).
+
+So, to find the maximum growth of \(a_n\), we need to consider numbers \(n\) with many prime factors, each raised to some power, such that the product \(\prod (50k_p + 1)\) is as large as possible relative to \(n\). Alternatively, to maximize \(a_n\) for a given \(n\), we need to structure the prime factors of \(n\) such that the number of divisors is maximized. But since \(a_n\) is multiplicative, perhaps the maximum occurs when \(n\) is a product of small primes each raised to the first power. But wait, if \(n\) is square-free, then each exponent \(k_p = 1\), so each term in the product is \(50*1 + 1 = 51\). So if \(n\) is square-free with \(m\) distinct prime factors, then \(a_n = 51^m\). However, the value of \(n\) in this case is the product of the first \(m\) primes. So \(n\) grows roughly like \(e^{m}\) by the prime number theorem, since the product of the first \(m\) primes is approximately \(e^{m}\). So in this case, \(a_n = 51^m\) and \(n \approx e^{m}\). So \(a_n \approx 51^m\) and \(n \approx e^{m}\), so \(m \approx \log n\). Therefore, substituting back, \(a_n \approx 51^{\log n} = n^{\log 51}\). Wait, is that right?
+
+Wait, if \(n \approx e^{m}\), then \(m \approx \log n\), so \(a_n = 51^m = 51^{\log n} = e^{\log 51 \cdot \log n} = n^{\log 51}\). Since \(e^{\log 51 \cdot \log n} = (e^{\log n})^{\log 51} = n^{\log 51}\). But \(\log 51\) is natural log or base 10? Wait, here it's natural log because we're using exponentials. Wait, no, if we have \(51^{\log n}\), that's equivalent to \(e^{\log 51 \cdot \log n}\). Wait, actually, regardless of the base. So in general, \(a_n\) can be as large as \(n^{\log 51}\) when \(n\) is square-free with many prime factors.
+
+But hold on, \(\log 51\) is approximately \(\ln 51 \approx 3.9318\). So that would imply that \(a_n\) can grow as fast as \(n^{3.9318}\), which is a polynomial growth. Therefore, \(a_n\) is bounded by a polynomial in \(n\), so when we take the nth root, \(a_n^{1/n} \approx (n^c)^{1/n} = e^{c \cdot (\log n)/n} \to 1\) as \(n \to \infty\), since \((\log n)/n \to 0\). Therefore, the lim sup of \(a_n^{1/n}\) is 1, so the radius of convergence is 1. Hmm, is that correct?
+
+But wait, let me verify. If \(a_n\) can be as large as \(n^{\log 51}\), then \(a_n^{1/n} = e^{(\log 51) \cdot (\log n)/n}\). As \(n\) approaches infinity, \((\log n)/n\) approaches 0, so this exponent goes to 0, so \(a_n^{1/n} \to e^0 = 1\). Therefore, the lim sup is 1, so \(R = 1/1 = 1\). So the radius of convergence is 1.
+
+But wait, let's check another angle. Maybe there's a better way to estimate \(a_n\). Let's recall that the maximal order of the divisor function. For the standard divisor function \(d(n)\), the maximal order is roughly \(2^{(1 + o(1)) \log n / \log \log n}\), which is super-polylogarithmic but still sub-exponential. But in our case, \(a_n = d(n^{50})\). So if we consider \(n\) such that \(d(n^{50})\) is maximized.
+
+But perhaps the same principle applies. Let me recall that for any \(k\), the maximal order of \(d(n^k)\) is similar to \(d(n)\), but scaled. Wait, if \(n\) is square-free, then \(d(n^k) = (k+1)^{\omega(n)}\), where \(\omega(n)\) is the number of distinct prime factors of \(n\). So in that case, similar to the above, if we take \(n\) to be square-free with many prime factors, then \(d(n^{50}) = 51^{\omega(n)}\). And since the number of distinct prime factors \(\omega(n)\) can be as large as roughly \(\log n / \log \log n\) for \(n\) being the product of the first few primes. But actually, the maximal \(\omega(n)\) is about \(\log n / \log \log n\), but the product of the first \(m\) primes is roughly \(e^{m}\), as before. So if \(n\) is the product of the first \(m\) primes, then \(\omega(n) = m\), and \(n \approx e^{m}\). So then \(d(n^{50}) = 51^m\), and \(m \approx \log n / \log \log n\) ? Wait, no, if \(n \approx e^{m}\), then \(m \approx \log n\). Wait, if \(n\) is the product of the first \(m\) primes, then by the prime number theorem, the product is roughly \(e^{m}\), so indeed, \(m \approx \log n\). Therefore, in that case, \(d(n^{50}) \approx 51^{\log n}\), which is \(n^{\log 51}\) as before.
+
+But \(\log 51\) is a constant, so \(d(n^{50})\) can grow polynomially with \(n\). Hence, \(a_n\) is at most polynomial in \(n\), so \(a_n^{1/n}\) tends to 1. Therefore, the lim sup is 1, so the radius of convergence is 1. So that would be the answer.
+
+But let me check for some specific cases. For example, take \(n\) prime. Then \(a_n = d(n^{50}) = 50 + 1 = 51\). So for prime \(n\), \(a_n = 51\). For \(n = p^2\), then \(a_n = d(p^{100}) = 100 + 1 = 101\). So for squares of primes, \(a_n = 101\). For \(n = p^k\), \(a_n = 50k + 1\). So in this case, if \(n\) is a prime power, \(a_n\) grows linearly with \(k\), but \(n = p^k\) grows exponentially with \(k\) if \(p\) is fixed. So \(a_n\) is linear in \(k\), \(n\) is exponential in \(k\), so \(a_n\) is logarithmic in \(n\). Therefore, \(a_n^{1/n}\) would be roughly \((\log n)^{1/n}\), which tends to 1 as \(n\) grows. So that's even smaller.
+
+On the other hand, if \(n\) is square-free with many prime factors, as we discussed, then \(a_n = 51^m\), where \(m\) is the number of prime factors, and \(n\) is the product of the first \(m\) primes. So \(n \approx e^{m}\), so \(m \approx \log n\). Therefore, \(a_n = 51^{\log n} = n^{\log 51}\), which is a polynomial in \(n\), so \(a_n^{1/n} = n^{\log 51 / n} = e^{\log 51 \cdot (\log n)/n} \to e^0 = 1\). So in both cases, whether \(n\) is a prime power or square-free with many primes, \(a_n^{1/n}\) tends to 1. What about other cases?
+
+Suppose \(n\) has a mixed factorization with some primes raised to higher powers. For instance, if \(n\) is the product of a square-free number and a prime power. Then the number of divisors would be a product of factors like \(50k + 1\) for each prime. But in order to maximize the number of divisors, it's better to have more small exponents than a few large ones. Because increasing the number of distinct prime factors gives a multiplicative increase, while increasing exponents gives an additive increase. So for maximal \(a_n\), the best is to have as many distinct primes as possible. Therefore, the maximum of \(a_n\) occurs when \(n\) is square-free with as many prime factors as possible, which gives the \(n^{\log 51}\) growth. So even if we have a mix, the maximum is still dominated by the square-free case.
+
+Therefore, regardless of the factorization, the maximal growth rate of \(a_n\) is polynomial in \(n\), which when taking the nth root and limit, gives 1. So the lim sup of \(a_n^{1/n}\) is 1, hence the radius of convergence is 1.
+
+But let me check another approach. Maybe using the generating function for the number of divisors. Wait, but the generating function here is already given as \(\sum a_n z^n\), where \(a_n = d(n^{50})\). But perhaps we can relate this to a Dirichlet generating function. The Dirichlet generating function for the divisor function is \(\zeta(s)^2\), but for \(d(n^k)\), it might be more complicated.
+
+Wait, for the divisor function \(d(n)\), the Dirichlet series is \(\zeta(s)^2\). For \(d(n^k)\), which counts the number of ways to write \(n^k\) as a product of two numbers, maybe the Dirichlet series is \(\zeta(s)^{k+1}\), but I need to confirm. Wait, actually, the number of divisors of \(n\) is \(d(n) = \sum_{d|n} 1\), so the Dirichlet series is \(\zeta(s)^2\). For the number of divisors of \(n^k\), it's the number of ways to write \(n^k\) as a product of two numbers. But since \(n^k\) is a perfect k-th power, maybe the divisor function counts divisors of \(n^k\), which are of the form \(d^1, d^2, ..., d^k\) where \(d|n\). Wait, no, any divisor of \(n^k\) is of the form \(p_1^{e_1} \dots p_r^{e_r}\) where \(0 \leq e_i \leq k f_i\) if \(n = p_1^{f_1} \dots p_r^{f_r}\). Wait, maybe the Dirichlet generating function for \(d(n^k)\) would be \(\zeta(s)^{k+1}\) if that's the case. But I'm not sure. However, maybe this is a detour.
+
+Alternatively, perhaps I can use the fact that \(d(n^{50})\) is multiplicative. Since the divisor function is multiplicative, and \(n^{50}\) is multiplicative over \(n\), then \(a_n = d(n^{50})\) is multiplicative. Therefore, the generating function \(\sum_{n=1}^\infty a_n z^n\) can be written as a product over primes. For each prime \(p\), the generating function for \(a_{p^k} z^{p^k}\) would be the sum over \(k \geq 0\) of \(d(p^{50k}) z^{p^k}\). But \(d(p^{50k}) = 50k + 1\). So each local factor at prime \(p\) would be \(1 + \sum_{k=1}^\infty (50k + 1) z^{p^k}\). Hmm, that seems complicated. However, the radius of convergence of the entire series is determined by the closest singularity to the origin in the generating function. But if each prime contributes a factor with radius of convergence 1, then the overall radius might still be 1. But I'm not sure.
+
+Alternatively, maybe we can use the root test more directly. We need to compute \(\limsup_{n \to \infty} |a_n|^{1/n}\). As we saw, \(a_n\) can be as large as \(n^{\log 51}\), which is \(e^{\log 51 \cdot \log n}\). Then \(|a_n|^{1/n} = e^{\log 51 \cdot (\log n)/n}\). As \(n\) approaches infinity, \((\log n)/n\) approaches 0, so the exponent approaches 0, hence \(|a_n|^{1/n}\) approaches \(e^0 = 1\). Therefore, the lim sup is 1, so the radius of convergence is 1.
+
+Alternatively, if \(a_n\) is bounded by a polynomial in \(n\), say \(n^c\), then \(a_n^{1/n} \leq (n^c)^{1/n} = e^{c (\log n)/n} \to 1\). Therefore, the lim sup is 1. Hence, regardless of the polynomial growth rate, as long as \(a_n\) is polynomial in \(n\), the radius of convergence is 1.
+
+But to confirm, let's consider that for any \(\epsilon > 0\), \(d(n) = O(n^\epsilon)\). So \(d(n^{50})\) is \(O(n^{50 \epsilon})\). Choosing \(\epsilon\) small enough, say \(\epsilon = 1/50\), then \(d(n^{50}) = O(n^{1})\), so \(a_n = O(n)\). Therefore, \(a_n^{1/n} \leq (C n)^{1/n} \to 1\) as \(n \to \infty\). Therefore, the lim sup is 1.
+
+Alternatively, even if \(a_n\) can be as large as \(n^{\log 51}\), which is a higher degree polynomial, the nth root still tends to 1. So regardless of the polynomial degree, as long as the coefficients are polynomial in \(n\), the radius of convergence is 1.
+
+Therefore, I think the conclusion is that the radius of convergence is 1.
+
+But let me check an example. Suppose all \(a_n = 1\), then the radius of convergence is 1. If \(a_n = n^k\), then the radius is still 1, because \(n^{k/n} \to 1\). So yes, even polynomial coefficients give radius 1. If \(a_n\) grows exponentially, say \(a_n = e^{cn}\), then the radius would be \(e^{-c}\). But here, \(a_n\) is not exponential. So in our case, since \(a_n\) is polynomial, the radius is 1. Therefore, the answer is 1.
+
+Wait, but let me make sure I didn't miss anything. Suppose \(a_n\) can grow faster than any polynomial. Wait, but from the divisor function theory, \(d(n)\) is \(O(n^\epsilon)\) for any \(\epsilon > 0\). So \(d(n^{50})\) is \(O(n^{50 \epsilon})\). So by choosing \(\epsilon = 1/50\), we get \(d(n^{50}) = O(n^{1})\), hence \(a_n\) is linear. Therefore, even the maximal growth is linear, so \(a_n\) is at most linear. Wait, but earlier we saw that \(a_n\) can be as large as \(n^{\log 51}\), which is super-linear because \(\log 51 \approx 3.93\). Wait, that contradicts. Wait, maybe my initial estimation was wrong.
+
+Wait, if \(n\) is square-free with \(m\) primes, then \(n\) is the product of the first \(m\) primes, which is approximately \(e^{m}\). Then \(a_n = 51^m\). So \(a_n = 51^m\) while \(n \approx e^{m}\). Therefore, \(a_n \approx 51^{\log n}\), since \(m \approx \log n\). So \(a_n \approx n^{\log 51}\). Wait, but \(\log 51\) is natural log? Wait, no, if \(n = e^{m}\), then \(m = \ln n\), so \(a_n = 51^{\ln n} = e^{\ln 51 \cdot \ln n} = n^{\ln 51}\). Wait, \(\ln 51\) is approximately 3.93, so \(a_n \approx n^{3.93}\), which is a polynomial of degree about 3.93. But the divisor function is supposed to be \(O(n^\epsilon)\) for any \(\epsilon > 0\). But this seems contradictory. What's going on here?
+
+Ah, maybe the discrepancy is because \(d(n^{50})\) is not \(d(n)\) but \(d(n^{50})\). The standard divisor function \(d(n)\) is \(O(n^\epsilon)\), but here we have \(d(n^{50})\). However, if \(n\) is square-free, \(d(n^{50}) = 51^{\omega(n)}\), where \(\omega(n)\) is the number of distinct prime factors. So if \(\omega(n)\) is as large as possible, which is roughly \(\log n / \log \log n\), then \(d(n^{50}) = 51^{\log n / \log \log n}\). That is, \(d(n^{50}) = e^{(\log 51) \cdot (\log n / \log \log n)}\). Then \(d(n^{50})^{1/n} = e^{(\log 51) \cdot (\log n) / (n \log \log n)}\). As \(n\) approaches infinity, \((\log n)/(n \log \log n)\) approaches 0, so the exponent approaches 0, so \(d(n^{50})^{1/n} \to 1\). Therefore, even if \(d(n^{50})\) can be as large as \(e^{(\log 51) \cdot (\log n / \log \log n)}\), which is super-polynomial but sub-exponential, the nth root still tends to 1. So the lim sup is 1.
+
+But wait, in the case where \(n\) is square-free with many primes, \(d(n^{50}) = 51^{\omega(n)}\), and \(\omega(n)\) can be up to roughly \(\log n / \log \log n\) for \(n\) with many prime factors. So \(d(n^{50}) \approx 51^{\log n / \log \log n} = e^{(\log 51) \cdot \log n / \log \log n}\). Taking the nth root, we get \(e^{(\log 51) \cdot (\log n) / (n \log \log n)}\), which tends to \(e^{0} = 1\) as \(n \to \infty\). Therefore, even in the case of maximal \(a_n\), the nth root still goes to 1. Therefore, the lim sup is 1, hence the radius of convergence is 1.
+
+Therefore, I think the answer is 1.
+
+**Final Answer**
+The radius of convergence is \boxed{1}.
+</think>
+
+To find the radius of convergence of the power series \(\sum_{n=1}^{\infty} a_n z^{n}\), where \(a_n\) is the number of divisors of \(n^{50}\), we use the root test. The radius of convergence \(R\) is given by \(1/\limsup_{n \to \infty} |a_n|^{1/n}\).
+
+1. **Understanding \(a_n\)**: The number of divisors of \(n^{50}\) (denoted \(d(n^{50})\)) depends on the prime factorization of \(n\). If \(n = p_1^{k_1} p_2^{k_2} \cdots p_m^{k_m}\), then \(n^{50} = p_1^{50k_1} p_2^{50k_2} \cdots p_m^{50k_m}\), and the number of divisors is \((50k_1 + 1)(50k_2 + 1) \cdots (50k_m + 1)\).
+
+2. **Maximizing \(a_n\)**: For \(a_n\) to be maximized, \(n\) should be square-free with many prime factors. If \(n\) is square-free with \(m\) prime factors, then \(a_n = 51^m\). The product of the first \(m\) primes (which is approximately \(e^m\)) implies \(m \approx \log n\). Thus, \(a_n \approx 51^{\log n} = n^{\log 51}\).
+
+3. **Growth Rate Analysis**: The growth rate of \(a_n\) is polynomial in \(n\). For any polynomial growth \(n^c\), the nth root \(a_n^{1/n}\) behaves like \(e^{c (\log n)/n}\), which tends to 1 as \(n \to \infty\).
+
+4. **Conclusion**: The lim sup of \(a_n^{1/n}\) as \(n \to \infty\) is 1. Therefore, the radius of convergence is \(1/1 = 1\).
+
+\[
+\boxed{1}
+\]  — 标准解答
+#   The problem asks about the existence of a universally measurable $\epsilon$-optimal selector for a lower semianalytic function. This is a classic result in the theory of analytic sets and measurable selection — specifically the Jankov-von Neumann selection theorem and its extension to lower semianalytic functions.
+
+Let me think through this carefully.
+
+We have:
+- Standard Borel spaces $(X, \mathcal{X})$ and $(A, \mathcal{A})$
+- $D \subseteq X \times A$ analytic
+- $c: D \to [0,\infty]$ lower semianalytic
+- Stochastic kernel $p(\cdot|\cdot)$ with $(x,a) \mapsto p(B|x,a)$ lower semianalytic for each $B \in \mathcal{X}$, and $B \mapsto p(B|x,a)$ a probability measure
+- $\eta_u(x,a) = c(x,a) + \int_X u(y) p(dy|x,a)$ for lower semianalytic $u: X \to [0,\infty]$
+- $\eta_u^*(x) = \inf_{a \in D_x} \eta_u(x,a)$ for $x \in \text{proj}_X(D)$
+
+Question: Given $\epsilon > 0$, does there exist a universally measurable $\varphi: \text{proj}_X(D) \to A$ with $\varphi(x) \in D_x$ for all $x$ and $\eta_u(x, \varphi(x)) \leq \eta_u^*(x) + \epsilon$?
+
+Key steps:
+
+1. **$\eta_u$ is lower semianalytic**: We need to show $(x,a) \mapsto \eta_u(x,a)$ is lower semianalytic on $D$.
+   - $c$ is lower semianalytic by assumption.
+   - The integral $\int u(y) p(dy|x,a)$: since $u$ is lower semianalytic and $p$ is a kernel with lower semianalytic $(x,a) \mapsto p(B|x,a)$, the integral is lower semianalytic. This is a standard result (see Bertsekas-Shreve or the theory of analytic sets). The key fact: if $u$ is lower semianalytic and $p$ has lower semianalytic $x \mapsto p(B|x)$, then $x \mapsto \int u \, dp(x)$ is lower semianalytic.
+
+   So $\eta_u$ is lower semianalytic on $D$.
+
+2. **$\eta_u^*$ is lower semianalytic**: The infimum over $a \in D_x$ of a lower semianalytic function on an analytic set is lower semianalytic. This is a fundamental property: if $f: X \times A \to [0,\infty]$ is lower semianalytic and $D$ is analytic, then $g(x) = \inf_{a: (x,a) \in D} f(x,a)$ is lower semianalytic.
+
+3. **Measurable selection**: The Jankov-von Neumann theorem (and its quantitative version) states that for a lower semianalytic function $f$ on an analytic set $D \subseteq X \times A$, given $\epsilon > 0$, there exists a universally measurable selector $\varphi: \text{proj}_X(D) \to A$ with $\varphi(x) \in D_x$ and $f(x, \varphi(x)) \leq f^*(x) + \epsilon$ where $f^*(x) = \inf_{a \in D_x} f(x,a)$.
+
+Applying this with $f = \eta_u$ gives the result.
+
+Let me write this up more carefully.
+
+**Step 1: $\eta_u$ is lower semianalytic.**
+
+A function $f: D \to [0,\infty]$ is lower semianalytic if $\{f > \alpha\}$ is analytic for all $\alpha \in \mathbb{R}$, or equivalently $\{f \leq \alpha\}$... actually the standard definition: $f$ is lower semianalytic if for every $\alpha \in \mathbb{R}$, the set $\{x : f(x) < \alpha\}$ is analytic, or equivalently $\{x : f(x) > \alpha\}$ is analytic. Let me use the convention: $f$ is lower semianalytic if $\{f > r\}$ is analytic for all $r \in \mathbb{R}$ (or equivalently $\{f \geq r\}$... there are various conventions). The key property is:
+
+- Sum of two nonneg lower semianalytic functions is lower semianalytic.
+- If $u$ is lower semianalytic on $X$ and $p$ is a stochastic kernel with $(x,a) \mapsto p(B|x,a)$ lower semianalytic for each $B$, then $(x,a) \mapsto \int u \, dp(\cdot|x,a)$ is lower semianalytic.
+
+The second fact is the crucial one. It follows from the monotone approximation of $u$ by simple functions. Since $u$ is lower semianalytic and nonneg, we can write $u = \sup_n u_n$ where $u_n$ are simple lower semianalytic functions (or use the approximation $u = \lim_{n} u_n$ with $u_n = \sum_{k} \frac{1}{2^n} \mathbf{1}_{\{u > k/2^n\}}$). Each $\{u > k/2^n\}$ is analytic. Then $\int u \, dp = \sup_n \int u_n \, dp$, and each $\int u_n \, dp$ is a sum of terms of the form $\frac{1}{2^n} p(\{u > k/2^n\} | x, a)$, which is lower semianalytic since $(x,a) \mapsto p(B|x,a)$ is lower semianalytic for analytic $B$... 
+
+Wait, we need $p(B|x,a)$ to be lower semianalytic for analytic $B$, not just Borel $B$. The assumption says $(x,a) \mapsto p(B|x,a)$ is lower semianalytic for each $B \in \mathcal{X}$ (Borel). But $\{u > k/2^n\}$ is analytic, not necessarily Borel.
+
+Hmm, but there's a standard result: if $p$ is a stochastic kernel such that $(x,a) \mapsto p(B|x,a)$ is lower semianalytic for each Borel $B$, then for any analytic set $B$, $(x,a) \mapsto p(B|x,a)$ is also lower semianalytic. This is because analytic sets can be obtained via the Suslin operation on Borel sets, and the probability measure's behavior on analytic sets is determined by its behavior on Borel sets, combined with the lower semianalyticity.
+
+Actually, more precisely: if $B$ is analytic, then $p(B|x,a)$ is a lower semianalytic function of $(x,a)$. This is a standard result. The reason: $B = \text{proj}_{X \times A}(C)$ for some Borel $C$ in a higher-dimensional space, and by the capacity/measure properties, $p(B|x,a) = \sup \{ p(F|x,a) : F \subseteq B, F \text{ Borel} \}$ (for probability measures, analytic sets are universally measurable and their measure equals the sup of measures of compact/Borel subsets). Actually for a probability measure, an analytic set is universally measurable, and its measure is well-defined. The lower semianalyticity of $(x,a) \mapsto p(B|x,a)$ for analytic $B$ follows from the Lusin theorem / capacitability arguments.
+
+So the integral $\int u \, dp$ is lower semianalytic, hence $\eta_u$ is lower semianalytic.
+
+**Step 2: $\eta_u^*$ is lower semianalytic.**
+
+This is the standard "infimum projection" theorem: if $f: X \times A \to [0,\infty]$ is lower semianalytic and $D \subseteq X \times A$ is analytic, then $g(x) = \inf_{a \in D_x} f(x,a)$ is lower semianalytic on $\text{proj}_X(D)$.
+
+This follows because $\{g > \alpha\} = \text{proj}_X(\{(x,a) \in D : f(x,a) > \alpha\})$, and since $f$ is lower semianalytic, $\{f > \alpha\}$ is analytic, so $\{(x,a) \in D : f(x,a) > \alpha\} = D \cap \{f > \alpha\}$ is analytic (intersection of analytic sets is analytic), and its projection is analytic. Hence $\{g > \alpha\}$ is analytic, so $g$ is lower semianalytic.
+
+Wait, I need to be careful. $\{g > \alpha\}$ means $\{x : \inf_{a \in D_x} f(x,a) > \alpha\}$. This equals $\{x : \forall a \in D_x, f(x,a) > \alpha\} = \text{proj}_X(D) \setminus \text{proj}_X(\{(x,a) \in D : f(x,a) \leq \alpha\})$.
+
+Hmm, that's not quite right either. Let me reconsider.
+
+$\{x : \inf_{a \in D_x} f(x,a) > \alpha\} = \{x : \forall a \in D_x, f(x,a) > \alpha\}$.
+
+This is $\text{proj}_X(D) \setminus \{x : \exists a \in D_x, f(x,a) \leq \alpha\}$.
+
+The set $\{x : \exists a \in D_x, f(x,a) \leq \alpha\} = \text{proj}_X(\{(x,a) \in D : f(x,a) \leq \alpha\})$.
+
+Now, $\{f \leq \alpha\}$ is the complement of $\{f > \alpha\}$. If $f$ is lower semianalytic, $\{f > \alpha\}$ is analytic, so $\{f \leq \alpha\}$ is coanalytic (not necessarily analytic). So $\{(x,a) \in D : f(x,a) \leq \alpha\}$ is the intersection of an analytic set and a coanalytic set, which is... not necessarily analytic.
+
+Hmm, so the projection might not be analytic. Let me reconsider.
+
+Actually, the right way to think about this: the standard result is that if $f$ is lower semianalytic, then $\inf_{a \in D_x} f(x,a)$ is lower semianalytic. Let me recall the proof.
+
+The standard approach uses the fact that for lower semianalytic $f$, $\{f < \alpha\}$ is analytic (using the convention that lower semianalytic means $\{f > \alpha\}$ is analytic, or $\{f < \alpha\}$ is analytic — there are different conventions).
+
+Let me use the convention from Bertsekas-Shreve: $f$ is lower semianalytic if $\{x : f(x) < c\}$ is analytic for every $c \in \mathbb{R}$. (Equivalently, $\{x : f(x) \geq c\}$ is coanalytic, or $\{x : f(x) > c\}$ is analytic... actually these aren't all equivalent.)
+
+Hmm, let me be more careful. In Bertsekas-Shreve ("Stochastic Optimal Control"), a function $f: X \to [-\infty, \infty]$ is lower semianalytic if for every $c \in \mathbb{R}$, the set $\{x : f(x) < c\}$ is analytic.
+
+With this convention:
+- $\{f < c\}$ is analytic.
+- $\{f \geq c\}$ is coanalytic (complement of analytic).
+
+Now, $g(x) = \inf_{a \in D_x} f(x,a)$. We want to show $\{g < c\}$ is analytic.
+
+$\{x : g(x) < c\} = \{x : \inf_{a \in D_x} f(x,a) < c\} = \{x : \exists a \in D_x, f(x,a) < c\}$.
+
+$= \text{proj}_X(\{(x,a) \in D : f(x,a) < c\})$.
+
+Since $f$ is lower semianalytic, $\{f < c\}$ is analytic. So $\{(x,a) \in D : f(x,a) < c\} = D \cap \{f < c\}$ is analytic (intersection of two analytic sets is analytic). The projection of an analytic set is analytic. So $\{g < c\}$ is analytic. Hence $g$ is lower semianalytic. ✓
+
+Great, so with the Bertsekas-Shreve convention, this works cleanly.
+
+**Step 3: The measurable selection theorem (Jankov-von Neumann, quantitative version).**
+
+The theorem states: Let $X, A$ be standard Borel spaces, $D \subseteq X \times A$ analytic, and $f: D \to [0, \infty]$ lower semianalytic. Define $f^*(x) = \inf_{a \in D_x} f(x,a)$ for $x \in \text{proj}_X(D)$. Then for any $\epsilon > 0$, there exists a universally measurable function $\varphi: \text{proj}_X(D) \to A$ such that $\varphi(x) \in D_x$ for all $x \in \text{proj}_X(D)$ and $f(x, \varphi(x)) \leq f^*(x) + \epsilon$ for all $x \in \text{proj}_X(D)$.
+
+This is exactly what we need with $f = \eta_u$.
+
+The proof of this theorem: Since $f^*$ is lower semianalytic (Step 2), $f^* + \epsilon$ is also lower semianalytic. Consider the set $E = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$. We need to show $E$ is analytic (or at least that its projection is $\text{proj}_X(D)$ and it admits a universally measurable selector).
+
+Actually, the standard proof goes like this:
+
+For each $n$, define $D_n = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$. We need $\text{proj}_X(D_n) = \text{proj}_X(D)$ (which holds by definition of infimum) and then apply the Jankov-von Neumann selection theorem to get a universally measurable selector.
+
+But we need $D_n$ to be analytic for the selection theorem. Is it?
+
+$D_n = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$.
+
+$f(x,a) - f^*(x) \leq \epsilon$... this involves subtraction which is tricky for $[0,\infty]$-valued functions.
+
+Alternative approach: The set $\{(x,a) : f(x,a) \leq f^*(x) + \epsilon\}$ can be written as:
+
+$\{(x,a) \in D : f(x,a) \leq g(x) + \epsilon\}$ where $g = f^*$ is lower semianalytic.
+
+Hmm, this is $\{(x,a) : f(x,a) - \epsilon \leq g(x)\}$, but again subtraction is problematic.
+
+Let me think about this differently. The standard approach in Bertsekas-Shreve (Proposition 7.50 or similar) uses the following:
+
+Define $h(x,a) = f(x,a) - f^*(x)$ (where we handle $\infty$ carefully). Actually, a cleaner approach:
+
+Consider the set $S = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$. 
+
+We can write: $(x,a) \in S$ iff $f(x,a) \leq f^*(x) + \epsilon$ iff for all $c \in \mathbb{Q}$, if $f(x,a) > c$ then $f^*(x) + \epsilon > c$, i.e., $f^*(x) > c - \epsilon$.
+
+Hmm, this is getting complicated. Let me think about the standard proof more carefully.
+
+Actually, the standard proof of the quantitative selection theorem uses a different approach. Here's one common method:
+
+**Method via the Jankov-von Neumann theorem directly:**
+
+The Jankov-von Neumann theorem says: if $D \subseteq X \times A$ is analytic and $\text{proj}_X(D) = X$ (or we work on $\text{proj}_X(D)$), then there exists a universally measurable $\varphi: \text{proj}_X(D) \to A$ with $\varphi(x) \in D_x$.
+
+For the quantitative version, we need to construct an analytic set $E \subseteq D$ with $\text{proj}_X(E) = \text{proj}_X(D)$ such that for $(x,a) \in E$, $f(x,a) \leq f^*(x) + \epsilon$.
+
+One approach: For each rational $q$, define 
+$$E_q = \{(x,a) \in D : f(x,a) \leq q + \epsilon, f^*(x) \geq q - \epsilon\}$$
+No, this doesn't quite work either.
+
+Let me try another approach. Consider the function $h(x,a) = f(x,a) - f^*(x)$ defined appropriately. Actually, let's use the following:
+
+Define $G = \{(x,a, r) \in D \times \mathbb{R} : f(x,a) \leq r + \epsilon, r \geq f^*(x) - \epsilon\}$... this is getting messy.
+
+Let me look at this from the Bertsekas-Shreve perspective. In Bertsekas-Shreve, the relevant result is:
+
+**Proposition (Bertsekas-Shreve, Prop. 7.50)**: Let $D$ be an analytic subset of $X \times A$ and $f: D \to [-\infty, \infty]$ be lower semianalytic. Then there exists a universally measurable $\varphi: \text{proj}_X(D) \to A$ such that $(x, \varphi(x)) \in D$ for all $x \in \text{proj}_X(D)$ and $f(x, \varphi(x)) = f^*(x)$ when $f^*(x) > -\infty$, and $f(x, \varphi(x)) \leq f^*(x) + \epsilon$ for any given $\epsilon > 0$.
+
+Actually, I think the exact statement varies. Let me just construct the proof.
+
+**Proof of the selection theorem:**
+
+Since $f^*$ is lower semianalytic, for each $n \in \mathbb{N}$, the set $\{x : f^*(x) < n\}$ is analytic. 
+
+Define for each rational $q \geq 0$:
+$$A_q = \{(x,a) \in D : f(x,a) \leq q + \epsilon\}$$
+
+Since $f$ is lower semianalytic, $\{f \leq q + \epsilon\}$ is... well, $\{f < q + \epsilon + \delta\}$ is analytic for each $\delta > 0$, so $\{f \leq q + \epsilon\} = \bigcap_{\delta > 0, \delta \in \mathbb{Q}} \{f < q + \epsilon + \delta\}$ is a countable intersection of analytic sets, which is analytic (countable intersection of analytic sets is analytic? No! Countable intersection of analytic sets is analytic — yes, this is true for standard Borel spaces).
+
+Wait, is countable intersection of analytic sets analytic? Yes: $\bigcap_n A_n = \text{proj}_X(\{(x, (a_1, a_2, \ldots)) : x \in A_{n} \text{ for all } n\})$... actually the standard result is that countable unions and countable intersections of analytic sets are analytic. Yes, this is true.
+
+So $\{f \leq q + \epsilon\}$ is analytic (as a countable intersection of analytic sets $\{f < q + \epsilon + 1/n\}$).
+
+Hmm wait, actually $\{f \leq c\} = \bigcap_{n=1}^\infty \{f < c + 1/n\}$, and each $\{f < c + 1/n\}$ is analytic (since $f$ is lower semianalytic), and countable intersection of analytic sets is analytic. So $\{f \leq c\}$ is analytic. ✓
+
+Now, I want to construct an analytic set $E \subseteq D$ such that $\text{proj}_X(E) = \text{proj}_X(D)$ and for $(x,a) \in E$, $f(x,a) \leq f^*(x) + \epsilon$.
+
+Approach: Define 
+$$E = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$$
+
+We need to show $E$ is analytic. 
+
+$E = \{(x,a) \in D : f(x,a) - \epsilon \leq f^*(x)\}$.
+
+Consider the function $h(x,a) = f(x,a) - \epsilon$ (with the convention $\infty - \epsilon = \infty$). Is $h$ lower semianalytic? If $f$ is lower semianalytic, then $f - \epsilon$ is lower semianalytic (shifting by a constant preserves lower semianalyticity). ✓
+
+Now, $E = \{(x,a) \in D : h(x,a) \leq f^*(x)\}$ where $h = f - \epsilon$ is lower semianalytic and $f^*$ is lower semianalytic.
+
+$\{h \leq f^*\} = \{(x,a) : h(x,a) \leq f^*(x)\}$. 
+
+This is $\{(x,a) : \forall q \in \mathbb{Q}, h(x,a) > q \implies f^*(x) \geq q\}$... hmm, or equivalently:
+
+$\{h \leq f^*\} = \{(x,a) : \neg (h(x,a) > f^*(x))\} = \{(x,a) : \neg \exists q \in \mathbb{Q}, h(x,a) > q > f^*(x)\}$
+
+$= \{(x,a) : \forall q \in \mathbb{Q}, \neg (h(x,a) > q \text{ and } f^*(x) < q)\}$
+
+$= \text{proj}_X(D) \times A \setminus \bigcup_{q \in \mathbb{Q}} (\{h > q\} \cap \{f^* < q\})$
+
+Now $\{h > q\}$: since $h$ is lower semianalytic, $\{h < q\}$ is analytic, so $\{h > q\}$... hmm, $\{h > q\}$ is not necessarily analytic. $\{h \geq q\}$ is coanalytic. $\{h > q\} = \bigcup_n \{h \geq q + 1/n\}$... no. $\{h > q\} = \bigcup_{n} \{h \geq q + 1/n\}$? No, that's not right either. $\{h > q\} = \bigcup_{\delta > 0, \delta \in \mathbb{Q}} \{h \geq q + \delta\}$... but $\{h \geq q + \delta\}$ is coanalytic, not analytic.
+
+Hmm, so this approach of directly showing $E$ is analytic is problematic.
+
+Let me reconsider. Maybe the standard proof doesn't show $E$ is analytic directly, but uses a different construction.
+
+**Alternative approach: Lusin's theorem / Arsenin-Kunugui**
+
+Actually, let me think about this differently. The standard proof of the quantitative selection theorem in Bertsekas-Shreve uses the following:
+
+Since $f^*$ is lower semianalytic and $f^* + \epsilon$ is lower semianalytic, define:
+$$D_\epsilon = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$$
+
+The key insight is that $\text{proj}_X(D_\epsilon) = \text{proj}_X(D)$ (by definition of infimum, for each $x$ there exists $a \in D_x$ with $f(x,a) \leq f^*(x) + \epsilon$).
+
+But we need $D_\epsilon$ to be "nice enough" for selection. The issue is whether $D_\epsilon$ is analytic.
+
+Actually, let me reconsider. Maybe we don't need $D_\epsilon$ to be analytic. The Jankov-von Neumann theorem works for analytic sets. But there are more general selection theorems.
+
+Actually, I recall now. The standard approach is:
+
+**Step 1**: Show $f^*$ is lower semianalytic (done).
+
+**Step 2**: For each $n$, define the analytic set:
+$$D_n = \{(x,a) \in D : f(x,a) < f^*(x) + \epsilon\}$$
+
+Wait, $\{f < f^* + \epsilon\}$... let me think about whether this is analytic.
+
+$\{(x,a) : f(x,a) < f^*(x) + \epsilon\} = \{(x,a) : \exists q \in \mathbb{Q}, f(x,a) < q < f^*(x) + \epsilon\}$
+
+$= \bigcup_{q \in \mathbb{Q}} \{f < q\} \cap \{f^* + \epsilon > q\}$
+
+$= \bigcup_{q \in \mathbb{Q}} \{f < q\} \cap \{f^* > q - \epsilon\}$
+
+Now, $\{f < q\}$ is analytic (lower semianalyticity of $f$). $\{f^* > q - \epsilon\}$: since $f^*$ is lower semianalytic, $\{f^* < q - \epsilon\}$ is analytic, so $\{f^* > q - \epsilon\}$ is coanalytic. Hmm, so $\{f < q\} \cap \{f^* > q - \epsilon\}$ is the intersection of an analytic set and a coanalytic set, which is not necessarily analytic.
+
+So $\{f < f^* + \epsilon\}$ is a countable union of sets that are intersections of analytic and coanalytic — these are $\Sigma^1_1 \cap \Pi^1_1$ sets, sometimes called "Souslin" sets or "Borel" in some contexts... actually they're in the class $\Delta^1_1$ only if both the set and its complement are analytic. The intersection of analytic and coanalytic is $\Sigma^1_1 \cap \Pi^1_1 = \Delta^1_1$? No, $\Delta^1_1$ is the class of Borel sets. The intersection of a $\Sigma^1_1$ set and a $\Pi^1_1$ set is in $\Sigma^1_1 \cap \Pi^1_1$, which is $\Delta^1_1$ = Borel? No, that's not right. $\Sigma^1_1 \cap \Pi^1_1$ means sets that are both analytic and coanalytic, which by Souslin's theorem are exactly the Borel sets. But the intersection of an analytic set and a coanalytic set is not necessarily both analytic and coanalytic.
+
+Hmm, I think I'm overcomplicating this. Let me take a step back and recall the actual standard proof.
+
+**The actual standard proof (from Bertsekas-Shreve or similar):**
+
+The key theorem is the **Jankov-von Neumann selection theorem** in its quantitative form. Here's the standard approach:
+
+1. $f^*$ is lower semianalytic (shown above).
+2. Define $g = f^* + \epsilon$, which is lower semianalytic.
+3. Consider the set $E = \{(x,a) \in D : f(x,a) \leq g(x)\}$.
+4. Show that $\text{proj}_X(E) = \text{proj}_X(D)$.
+5. Show that $E$ admits a universally measurable selector.
+
+For step 5, we don't necessarily need $E$ to be analytic. The key is that $E$ can be expressed in a way that allows measurable selection.
+
+Actually, I think the standard approach is different. Let me recall.
+
+**Approach via approximation:**
+
+Since $f^*$ is lower semianalytic, we can approximate it. For each $n$, define:
+$$f_n^*(x) = \begin{cases} f^*(x) & \text{if } f^*(x) \leq n \\ n & \text{if } f^*(x) > n \end{cases}$$
+
+No, this is getting complicated. Let me try yet another approach.
+
+**Direct approach using the definition of infimum and analytic selection:**
+
+For each $n \in \mathbb{N}$, define:
+$$E_n = \{(x,a) \in D : f(x,a) \leq n + \epsilon\} \cap \{x : f^*(x) \geq n\} \text{ (projected appropriately)}$$
+
+No, this doesn't work cleanly either.
+
+Let me try the approach from the literature more carefully. I'll look at this from the perspective of the "measurable selection via analytic graph" approach.
+
+**The correct approach:**
+
+The set we want to select from is $E = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$.
+
+Claim: $E$ is analytic.
+
+Proof of claim: We write
+$$E = \{(x,a) \in D : f(x,a) - \epsilon \leq f^*(x)\}$$
+
+Let $h(x,a) = f(x,a) - \epsilon$ (with $\infty - \epsilon = \infty$). Then $h$ is lower semianalytic (constant shift preserves lower semianalyticity).
+
+Now, $E = \{(x,a) \in D : h(x,a) \leq f^*(x)\}$.
+
+$\{h \leq f^*\} = \{(x,a) : \forall q \in \mathbb{Q}, h(x,a) \leq q \text{ or } f^*(x) \geq q\}$
+
+Hmm, let me think about this differently. 
+
+$\{h \leq f^*\} = \{(x,a) : \neg(h(x,a) > f^*(x))\}$
+
+$h(x,a) > f^*(x)$ iff $\exists q \in \mathbb{Q}$ such that $h(x,a) > q$ and $f^*(x) < q$.
+
+So $\{h > f^*\} = \bigcup_{q \in \mathbb{Q}} \{h > q\} \cap \{f^* < q\}$.
+
+Now, $\{f^* < q\}$ is analytic (lower semianalyticity of $f^*$). 
+
+$\{h > q\}$: $h$ is lower semianalytic, so $\{h < q\}$ is analytic. $\{h > q\} = \{h < q\}^c$... no. $\{h > q\} = \bigcup_{n} \{h \geq q + 1/n\}$. And $\{h \geq q + 1/n\} = \{h < q + 1/n\}^c$, which is coanalytic. So $\{h > q\}$ is a countable union of coanalytic sets, which is coanalytic (since $\Pi^1_1$ is closed under countable unions? No, $\Pi^1_1$ is closed under countable intersections, and $\Sigma^1_1$ is closed under countable unions. Countable union of coanalytic sets is... $\bigcup_n (X \setminus A_n) = X \setminus \bigcap_n A_n$ where $A_n$ are analytic. $\bigcap_n A_n$ is analytic (countable intersection of analytic is analytic). So $\bigcup_n (X \setminus A_n) = X \setminus \bigcap_n A_n$ is coanalytic. ✓)
+
+So $\{h > q\}$ is coanalytic. Then $\{h > q\} \cap \{f^* < q\}$ is the intersection of a coanalytic set and an analytic set. This is in general $\Delta^1_1$? No, it's $\Sigma^1_1 \cap \Pi^1_1$ in the sense of being both... no. The intersection of a coanalytic ($\Pi^1_1$) set and an analytic ($\Sigma^1_1$) set is in $\Sigma^1_1 \cap \Pi^1_1$? 
+
+A set in $\Sigma^1_1 \cap \Pi^1_1$ is a set that is both analytic and coanalytic. The intersection of an analytic set and a coanalytic set is both analytic and coanalytic? No! The intersection of an analytic set $A$ and a coanalytic set $B$ is: $A \cap B$ is analytic (since $B = X \setminus C$ for analytic $C$, so $A \cap B = A \setminus C = A \cap (X \setminus C)$; the difference of analytic sets is not necessarily analytic). Actually, $A \cap B$ where $A$ is analytic and $B$ is coanalytic: $A \cap B \subseteq A$ so it's a subset of an analytic set, but it need not be analytic itself.
+
+Hmm, so $\{h > q\} \cap \{f^* < q\}$ is the intersection of a coanalytic and an analytic set, which is in the class $\Pi^1_1 \cap \Sigma^1_1$... no, it's just some set that might not be analytic.
+
+So $\{h > f^*\} = \bigcup_q (\text{coanalytic} \cap \text{analytic})$, which is a countable union of potentially non-analytic sets. This doesn't directly give us analyticity.
+
+OK so the direct approach of showing $E$ is analytic seems difficult. Let me think about the standard proof differently.
+
+**The standard proof via the Jankov-von Neumann theorem:**
+
+I think the key insight is that we don't need $E$ to be analytic. Instead, we use a more refined selection theorem. Here's the approach:
+
+The Jankov-von Neumann theorem in its basic form says: if $D \subseteq X \times A$ is analytic with $\text{proj}_X(D) = X$, then there exists a universally measurable selector.
+
+For the quantitative version, the standard approach (see, e.g., Bertsekas-Shreve Proposition 7.50, or the survey by Bogachev) is:
+
+**Method 1: Via the graph of the $\epsilon$-optimal set being "analytically sufficient".**
+
+Define $E = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$. Even if $E$ is not analytic, we can still find a universally measurable selector if $E$ is "universally measurable as a set" in the product, i.e., if $E$ is universally measurable in $X \times A$.
+
+Actually, I think the right approach is:
+
+**Claim**: $E$ is universally measurable in $X \times A$ (i.e., measurable with respect to every complete probability measure on $X \times A$).
+
+If $E$ is universally measurable and $\text{proj}_X(E) = \text{proj}_X(D)$, then by a measurable selection theorem for universally measurable sets (which is a standard extension of Jankov-von Neumann), there exists a universally measurable selector.
+
+But is $E$ universally measurable? $E = D \cap \{h \leq f^*\}$ where $D$ is analytic (hence universally measurable) and $\{h \leq f^*\}$... we need to show $\{h \leq f^*\}$ is universally measurable.
+
+$\{h > f^*\} = \bigcup_{q \in \mathbb{Q}} \{h > q\} \cap \{f^* < q\}$.
+
+$\{f^* < q\}$ is analytic, hence universally measurable.
+$\{h > q\}$ is coanalytic, hence universally measurable (coanalytic sets are universally measurable by Lusin's theorem).
+
+So $\{h > q\} \cap \{f^* < q\}$ is universally measurable (intersection of universally measurable sets is universally measurable).
+
+$\{h > f^*\}$ is a countable union of universally measurable sets, hence universally measurable.
+
+$\{h \leq f^*\} = (X \times A) \setminus \{h > f^*\}$ is universally measurable.
+
+$E = D \cap \{h \leq f^*\}$ is universally measurable. ✓
+
+Now, $\text{proj}_X(E) = \text{proj}_X(D)$: For each $x \in \text{proj}_X(D)$, by definition of $f^*(x) = \inf_{a \in D_x} f(x,a)$, there exists $a \in D_x$ with $f(x,a) \leq f^*(x) + \epsilon$ (since $\epsilon > 0$). So $(x,a) \in E$, hence $x \in \text{proj}_X(E)$. ✓
+
+Now we need: **If $E \subseteq X \times A$ is universally measurable and $\text{proj}_X(E) = \text{proj}_X(D)$ (which is analytic), then there exists a universally measurable $\varphi: \text{proj}_X(D) \to A$ with $(x, \varphi(x)) \in E$ for all $x$.**
+
+This is a standard extension of the Jankov-von Neumann theorem. The idea: since $E$ is universally measurable, for any probability measure $\mu$ on $X$, we can find a Borel set $E_\mu$ with $E_\mu \subseteq E$ (or $E \triangle E_\mu$ being $\mu$-null in some sense) and apply the standard selection theorem. 
+
+Actually, the more precise statement: A universally measurable set $E \subseteq X \times A$ with $\text{proj}_X(E) = S$ (where $S$ is analytic, or more generally universally measurable) admits a universally measurable selector. This follows from the fact that universally measurable functions are exactly those measurable with respect to the completion of every probability measure, and the Jankov-von Neumann theorem can be extended to this setting.
+
+Let me think about this more carefully. The standard Jankov-von Neumann theorem gives a universally measurable selector for an analytic set. For a universally measurable set $E$, we proceed as follows:
+
+For any probability measure $\mu$ on $X$, consider the completion $\bar{\mu}$. Since $E$ is universally measurable, there exists a Borel set $B_\mu$ such that $E \triangle B_\mu$ is $\bar{\mu} \otimes \nu$-null for every probability $\nu$ on $A$ (or more precisely, $E$ is measurable with respect to the completion of $\mu \otimes \nu$ for every $\nu$). 
+
+Hmm, actually the universal measurability of $E$ in $X \times A$ means: for every probability measure $\lambda$ on $X \times A$, there exist Borel sets $B_1, B_2$ with $B_1 \subseteq E \subseteq B_2$ and $\lambda(B_2 \setminus B_1) = 0$.
+
+The selection theorem for universally measurable sets: This is indeed a standard result. See, e.g., Bogachev's "Measure Theory" or the original references. The key is:
+
+**Theorem (Extension of Jankov-von Neumann)**: Let $X, Y$ be standard Borel spaces and $E \subseteq X \times Y$ be a universally measurable set. Then there exists a universally measurable function $\varphi: \text{proj}_X(E) \to Y$ such that $(x, \varphi(x)) \in E$ for all $x \in \text{proj}_X(E)$.
+
+This can be proved by reducing to the analytic case: for each probability measure $\mu$ on $X$, find a Borel set $B \supseteq E$ (or $B \subseteq E$) that differs from $E$ by a null set, apply Jankov-von Neumann to $B$, and then patch together using the universal measurability framework.
+
+Actually, a cleaner approach: Since $E$ is universally measurable, there exist analytic sets $A_1, A_2$ with $A_1 \subseteq E \subseteq A_2$ and such that for every probability $\lambda$ on $X \times A$, $\lambda(A_2 \setminus A_1) = 0$. (This is because universally measurable sets are exactly those sandwiched between analytic sets with null difference for every measure — actually, this is the definition of "Souslin measurable" or "universally measurable" in some formulations.)
+
+Hmm, actually I need to be more careful. A universally measurable set is one that is $\lambda$-measurable for every probability measure $\lambda$. For standard Borel spaces, a set is universally measurable iff it is in the completion of the Borel $\sigma$-algebra with respect to every probability measure. This is equivalent to being measurable with respect to the $\sigma$-algebra generated by analytic sets (the "Souslin" $\sigma$-algebra), but I need to be careful about the exact relationship.
+
+Actually, in standard Borel spaces, the universally measurable $\sigma$-algebra is the completion of the Borel $\sigma$-algebra under all probability measures. It contains all analytic sets (since analytic sets are universally measurable by Lusin's theorem). 
+
+For the selection theorem: if $E$ is universally measurable and $\text{proj}_X(E) = S$, we can find a universally measurable selector. Here's a sketch:
+
+1. Since $E$ is universally measurable, for each probability $\mu$ on $X$, there exists a Borel set $E_\mu \supseteq E$ such that $(E_\mu \setminus E)$ is "small" in the sense that its projection onto $X$ has $\mu$-measure 0 (or more precisely, we can find $E_\mu$ Borel with $E_\mu \supseteq E$ and for $\mu$-a.e. $x$, the sections $(E_\mu)_x$ and $E_x$ coincide).
+
+Actually, this is getting complicated. Let me use a different, cleaner approach.
+
+**Cleaner approach using the Lusin-Novikov theorem or direct construction:**
+
+Actually, I think the cleanest approach for this problem is to use the following well-known result directly:
+
+**Theorem (Bertsekas-Shreve, Proposition 7.50 or Corollary 7.50.1)**: Let $X$ and $A$ be standard Borel spaces, $D \subseteq X \times A$ be analytic, and $f: D \to [-\infty, \infty]$ be lower semianalytic. Let $f^*(x) = \inf_{a \in D_x} f(x,a)$. Then:
+(a) $f^*$ is lower semianalytic.
+(b) For any $\epsilon > 0$, there exists a universally measurable $\varphi: \text{proj}_X(D) \to A$ such that $\varphi(x) \in D_x$ and $f(x, \varphi(x)) \leq f^*(x) + \epsilon$ for all $x \in \text{proj}_X(D)$.
+
+This is exactly the result we need, applied to $f = \eta_u$.
+
+So the proof structure is:
+1. Show $\eta_u$ is lower semianalytic (using the properties of $c$ and the integral).
+2. Apply the selection theorem.
+
+Let me now write up the complete proof.
+
+**Detailed proof:**
+
+**Part 1: $\eta_u$ is lower semianalytic on $D$.**
+
+We need to show $(x,a) \mapsto \eta_u(x,a) = c(x,a) + \int_X u(y) p(dy|x,a)$ is lower semianalytic.
+
+- $c$ is lower semianalytic by assumption.
+- We claim $I(x,a) := \int_X u(y) p(dy|x,a)$ is lower semianalytic.
+
+To show $I$ is lower semianalytic, we use the standard approximation of $u$ by simple functions. Since $u: X \to [0,\infty]$ is lower semianalytic, for each $n \in \mathbb{N}$, define:
+$$u_n(y) = \sum_{k=0}^{n \cdot 2^n - 1} \frac{k}{2^n} \mathbf{1}_{\{k/2^n \leq u(y) < (k+1)/2^n\}} + n \cdot \mathbf{1}_{\{u(y) \geq n\}}$$
+
+Wait, but $\{k/2^n \leq u < (k+1)/2^n\}$ involves both $\{u \geq k/2^n\}$ (coanalytic) and $\{u < (k+1)/2^n\}$ (analytic), so these sets might not be analytic.
+
+Let me use a different approximation. Since $u$ is lower semianalytic and nonneg, we can write:
+$$u(y) = \sup_{n \in \mathbb{N}} u_n(y)$$
+where 
+$$u_n(y) = \sum_{k=1}^{n \cdot 2^n} \frac{1}{2^n} \mathbf{1}_{\{u(y) > k/2^n\}}$$
+
+Each $\{u > k/2^n\}$ is analytic (since $u$ is lower semianalytic, $\{u > k/2^n\}$... wait, with the convention that lower semianalytic means $\{u < c\}$ is analytic, then $\{u > c\}$ is coanalytic, not analytic).
+
+Hmm, I need to be careful about the convention. Let me use the convention from Bertsekas-Shreve: $f$ is lower semianalytic if $\{f < c\}$ is analytic for all $c \in \mathbb{R}$.
+
+With this convention, $\{u > c\}$ is coanalytic (complement of $\{u \leq c\} = \bigcap_n \{u < c + 1/n\}$, which is a countable intersection of analytic sets, hence analytic; so $\{u > c\}$ is coanalytic).
+
+Wait, $\{u \leq c\} = \bigcap_{n=1}^\infty \{u < c + 1/n\}$, and each $\{u < c + 1/n\}$ is analytic, so $\{u \leq c\}$ is analytic (countable intersection of analytic sets is analytic). Then $\{u > c\} = \{u \leq c\}^c$ is coanalytic.
+
+And $\{u \geq c\} = \bigcap_{n=1}^\infty \{u > c - 1/n\}$. Each $\{u > c - 1/n\}$ is coanalytic, so $\{u \geq c\}$ is a countable intersection of coanalytic sets, which is coanalytic (since $\Pi^1_1$ is closed under countable intersections). So $\{u \geq c\}$ is coanalytic.
+
+And $\{u < c\}$ is analytic (by definition). $\{u > c\}$ is coanalytic.
+
+Now, for the approximation: $u = \sup_n u_n$ where $u_n$ are simple functions. We want $u_n$ to be built from analytic sets so that $p(\text{analytic set}|x,a)$ is lower semianalytic.
+
+Using $\{u < c\}$ is analytic:
+
+$$u_n(y) = \sum_{k=0}^{n \cdot 2^n - 1} \frac{k}{2^n} \mathbf{1}_{\{k/2^n \leq u(y) < (k+1)/2^n\}} + n \cdot \mathbf{1}_{\{u(y) \geq n\}}$$
+
+The set $\{k/2^n \leq u < (k+1)/2^n\} = \{u < (k+1)/2^n\} \setminus \{u < k/2^n\}$. This is the difference of two analytic sets, which is not necessarily analytic.
+
+Alternatively, use the "layer cake" representation:
+$$u(y) = \int_0^\infty \mathbf{1}_{\{u(y) > t\}} dt$$
+
+So $I(x,a) = \int_X u(y) p(dy|x,a) = \int_X \int_0^\infty \mathbf{1}_{\{u(y) > t\}} dt \, p(dy|x,a) = \int_0^\infty p(\{u > t\}|x,a) dt$ (by Tonelli's theorem, since everything is nonneg).
+
+Now, $\{u > t\}$ is coanalytic. We need $p(\{u > t\}|x,a)$ to be lower semianalytic in $(x,a)$.
+
+For a coanalytic set $C$, is $p(C|x,a)$ lower semianalytic? 
+
+For analytic sets, $p(B|x,a)$ is lower semianalytic (this is a standard result, as I discussed earlier). For coanalytic sets, $p(C|x,a) = 1 - p(X \setminus C|x,a)$. If $X \setminus C$ is analytic, then $p(X \setminus C|x,a)$ is lower semianalytic, so $p(C|x,a) = 1 - p(X \setminus C|x,a)$. But $1 - g$ where $g$ is lower semianalytic is upper semianalytic, not lower semianalytic. So $p(C|x,a)$ is upper semianalytic for coanalytic $C$.
+
+So the layer cake approach gives $I(x,a) = \int_0^\infty p(\{u > t\}|x,a) dt$ where $p(\{u > t\}|x,a)$ is upper semianalytic, which doesn't directly help.
+
+Let me try a different approach. Use the approximation from below:
+
+$$u(y) = \sup_n u_n(y) \text{ where } u_n(y) = \sum_{k=1}^{n2^n} \frac{k-1}{2^n} \mathbf{1}_{\{u(y) \geq k/2^n\}}$$
+
+Wait, $\{u \geq k/2^n\}$ is coanalytic, so $p(\{u \geq k/2^n\}|x,a)$ is upper semianalytic. Not helpful.
+
+Let me try approximation from below using analytic sets:
+
+$$u_n(y) = \sum_{k=0}^{n2^n - 1} \frac{k}{2^n} \mathbf{1}_{\{u(y) > k/2^n\}}$$
+
+Wait, but this uses $\{u > k/2^n\}$ which is coanalytic. Hmm.
+
+OK here's the issue: with the convention that $\{u < c\}$ is analytic, the "natural" sets for lower semianalytic functions are the sublevel sets $\{u < c\}$. The superlevel sets $\{u > c\}$ are coanalytic.
+
+But for the integral, we want to approximate $u$ from below. The standard approach in this context is:
+
+**Key fact**: If $u$ is lower semianalytic and nonneg, then $u = \sup_n u_n$ where each $u_n$ is a nonneg simple function of the form $u_n = \sum_i \alpha_i \mathbf{1}_{A_i}$ with $A_i$ analytic. 
+
+How? Note that $u$ is lower semianalytic means $\{u < c\}$ is analytic. Equivalently, $\{u \geq c\}$ is coanalytic. But also, $u$ lower semianalytic means $u$ is the supremum of a sequence of Borel measurable functions... no, that's lower semicontinuous. Lower semianalytic is different.
+
+Actually, a lower semianalytic function $f: X \to [-\infty, \infty]$ can be written as $f(x) = \sup\{g(x) : g \leq f, g \text{ is Borel measurable}\}$? No, that's not right either.
+
+Let me recall: $f$ is lower semianalytic iff $\{f < c\}$ is analytic for all $c$. This is equivalent to: $f$ is the pointwise supremum of a sequence of Borel measurable functions? No, that would make $\{f > c\} = \bigcup_n \{g_n > c\}$ which would be Borel (countable union of Borel), making $f$ Borel measurable. That's too strong.
+
+Actually, lower semianalytic functions are more general than Borel functions. Every Borel measurable function is lower semianalytic (and upper semianalytic), but not vice versa.
+
+The correct characterization: $f: X \to [0, \infty]$ is lower semianalytic iff there exists an analytic set $G \subseteq X \times \mathbb{R}$ such that $f(x) = \inf\{r : (x,r) \in G\}$ (or something like that). 
+
+Alternatively, $f$ is lower semianalytic iff its hypograph $\{(x,r) : r < f(x)\}$ is analytic, i.e., $\{(x,r) : r < f(x)\} = \{(x,r) : f(x) > r\}$ is analytic. Wait, but we said $\{f > c\}$ is coanalytic for lower semianalytic $f$ (with the $\{f < c\}$ analytic convention). 
+
+I think there might be a convention issue. Let me look at this more carefully.
+
+In Bertsekas-Shreve, the definition is: $f: X \to [-\infty, \infty]$ is **lower semianalytic** if for every $c \in \mathbb{R}$, the set $\{x \in X : f(x) < c\}$ is analytic.
+
+This is equivalent to: the **hypograph** $\{(x, c) : f(x) > c\}$... no. $\{f < c\}$ analytic means the **sublevel sets** are analytic. The **epigraph** $\{(x,c) : f(x) \leq c\}$: $\{f \leq c\} = \bigcap_n \{f < c + 1/n\}$ is analytic (countable intersection of analytic sets). So the epigraph is analytic.
+
+Actually, $\{(x,c) : f(x) \leq c\}$ being analytic is the key property. The epigraph of $f$ is analytic. This is equivalent to $f$ being lower semianalytic.
+
+Now, for the integral: $I(x,a) = \int u \, dp(\cdot|x,a)$.
+
+The standard result (Bertsekas-Shreve, Lemma 7.30 or similar) states:
+
+**If $u: X \to [0,\infty]$ is lower semianalytic and $p$ is a stochastic kernel from $D$ to $X$ such that $(x,a) \mapsto p(B|x,a)$ is lower semianalytic for each $B \in \mathcal{X}$, then $(x,a) \mapsto \int u \, dp(\cdot|x,a)$ is lower semianalytic.**
+
+The proof uses the fact that for lower semianalytic $u$, we can write:
+$$u(y) = \sup_{n} \phi_n(y)$$
+where $\phi_n$ are simple functions of the form $\phi_n = \sum_k c_{n,k} \mathbf{1}_{B_{n,k}}$ with $B_{n,k}$ Borel.
+
+Wait, can we? If $u$ is lower semianalytic, is it the sup of Borel simple functions? 
+
+Actually, yes! Here's why: $u$ is lower semianalytic means $\{u < c\}$ is analytic. But analytic sets are universally measurable, and in particular, $u$ is universally measurable. A universally measurable function is one that is measurable with respect to the universal completion of the Borel $\sigma$-algebra. 
+
+But we need more: we need $u$ to be approximable from below by Borel functions. For a nonneg universally measurable function $u$, we can write $u = \sup_n u_n$ where $u_n$ are Borel simple functions, but only if $u$ is Borel measurable. For universally measurable but not Borel functions, this isn't directly possible.
+
+Hmm, let me reconsider. The key property we need is:
+
+For lower semianalytic $u: X \to [0,\infty]$, $u = \sup_n u_n$ where each $u_n$ is a nonneg simple lower semianalytic function of the form $u_n = \sum_k \alpha_{n,k} \mathbf{1}_{A_{n,k}}$ with $A_{n,k}$ analytic.
+
+Is this true? We need $\{u > c\}$ to be analytic for this... but we showed $\{u > c\}$ is coanalytic for lower semianalytic $u$.
+
+Wait, I think I have the convention backwards. Let me re-examine.
+
+In some references, "lower semianalytic" means $\{f > c\}$ is analytic (i.e., the superlevel sets are analytic). In others (like Bertsekas-Shreve), it means $\{f < c\}$ is analytic.
+
+Let me check: in Bertsekas-Shreve, a function $f$ is lower semianalytic if $\{x : f(x) < c\}$ is analytic for all $c$. This is the convention where sublevel sets are analytic.
+
+But in some other references (e.g., some probability theory texts), lower semianalytic means $\{f > c\}$ is analytic, which would correspond to superlevel sets being analytic.
+
+The naming "lower semianalytic" should be analogous to "lower semicontinuous": $f$ is lower semicontinuous if $\{f > c\}$ is open. So "lower semianalytic" should mean $\{f > c\}$ is analytic. This is the convention where superlevel sets are analytic.
+
+But Bertsekas-Shreve uses the opposite convention! Let me double-check.
+
+Actually, I just recalled: in Bertsekas-Shreve, $f$ is lower semianalytic if $\{f < c\}$ is analytic. The analogy is: $f$ is lower semicontinuous if $\{f \leq c\}$ is closed, equivalently $\{f > c\}$ is open. And $f$ is upper semicontinuous if $\{f < c\}$ is open. So "lower semianalytic" with $\{f < c\}$ analytic doesn't directly correspond to lower semicontinuous.
+
+Hmm, actually, let me reconsider. $f$ is lower semicontinuous iff $\{f > c\}$ is open for all $c$. The analogy with analytic would be: $f$ is "lower semianalytic" if $\{f > c\}$ is analytic. This is the convention in some references.
+
+But in Bertsekas-Shreve, I believe the convention is: $f$ is lower semianalytic if $\{f \leq c\}$ is analytic, or equivalently $\{f < c\}$ is analytic. Let me think about which convention makes the theory work.
+
+With $\{f < c\}$ analytic:
+- $f^*(x) = \inf_a f(x,a)$: $\{f^* < c\} = \text{proj}_X(\{f < c\} \cap D)$ is analytic. ✓ (infimum preserves lower semianalyticity)
+- $-f$ would be "upper semianalytic" with $\{-f < c\} = \{f > -c\}$... this would be coanalytic.
+
+With $\{f > c\}$ analytic:
+- $f^*(x) = \inf_a f(x,a)$: $\{f^* > c\} = \{x : \inf_a f(x,a) > c\} = \{x : \forall a \in D_x, f(x,a) > c\}$. This is $\text{proj}_X(D) \setminus \text{proj}_X(\{f \leq c\} \cap D)$. $\{f \leq c\} = \bigcap_n \{f > c + 1/n\}^c$... with $\{f > c\}$ analytic, $\{f \leq c\}$ is coanalytic. So $\{f \leq c\} \cap D$ is intersection of coanalytic and analytic, and its projection is... not obviously analytic. So $\{f^* > c\}$ is not obviously analytic. ✗
+
+So the convention $\{f < c\}$ analytic is the one that makes the infimum projection work. This is the Bertsekas-Shreve convention. Good.
+
+Now, with this convention, for the integral:
+
+$I(x,a) = \int u \, dp(\cdot|x,a)$. We want $\{I < c\}$ to be analytic.
+
+$I(x,a) < c$ iff $\int u \, dp(\cdot|x,a) < c$.
+
+By the layer cake representation: $I(x,a) = \int_0^\infty p(\{u > t\}|x,a) dt$.
+
+$\{u > t\}$ is coanalytic (as we showed). $p(\{u > t\}|x,a) = 1 - p(\{u \leq t\}|x,a)$. $\{u \leq t\} = \bigcap_n \{u < t + 1/n\}$ is analytic. So $p(\{u \leq t\}|x,a)$ is lower semianalytic (by the assumption on $p$ extended to analytic sets). Then $p(\{u > t\}|x,a) = 1 - p(\{u \leq t\}|x,a)$ is upper semianalytic.
+
+So $I(x,a) = \int_0^\infty (1 - p(\{u \leq t\}|x,a)) dt$. The integrand is upper semianalytic, and integrating an upper semianalytic function... this doesn't directly give lower semianalyticity.
+
+Hmm, let me try a different approach. Let me use the approximation:
+
+$u = \sup_n u_n$ where $u_n \uparrow u$ and each $u_n$ is a simple function built from analytic sets.
+
+With $\{u < c\}$ analytic, the sets $\{u \geq c\}$ are coanalytic. So we can't directly build simple functions from analytic indicator sets that approximate $u$ from below.
+
+But we can use the following: since $u$ is lower semianalytic (with $\{u < c\}$ analytic), $u$ is also universally measurable. For universally measurable $u$, we can find Borel functions $u_n \uparrow u$ (this is a property of universally measurable functions: they are measurable with respect to the completion, so they can be approximated by Borel functions a.e., but we need everywhere).
+
+Actually, for a universally measurable function $u: X \to [0,\infty]$, we can find Borel functions $\underline{u}_n \leq u$ with $\underline{u}_n \uparrow u$ pointwise? This is true if $u$ is measurable with respect to a complete $\sigma$-algebra. But universal measurability means measurable with respect to every complete probability measure, not with respect to a single complete $\sigma$-algebra.
+
+Hmm, actually, I think the key result is:
+
+**Lemma**: If $u: X \to [0,\infty]$ is lower semianalytic, then $u = \sup_n g_n$ where $g_n$ are Borel measurable functions $X \to [0,\infty]$.
+
+Is this true? A lower semianalytic function is universally measurable. A universally measurable function $u$ can be sandwiched: for each $n$, there exist Borel functions $g_n \leq u \leq h_n$ with $h_n - g_n \leq 1/n$... but this is only $\mu$-a.e. for a specific $\mu$, not everywhere.
+
+Actually, I don't think a universally measurable function can always be written as a sup of Borel functions. For example, the indicator of a coanalytic non-Borel set is universally measurable but cannot be written as a sup of Borel functions (since such a sup would be Borel).
+
+So this approach doesn't work directly. Let me think about the integral differently.
+
+**The correct approach for the integral:**
+
+The standard result (Bertsekas-Shreve, Lemma 7.30.2 or Proposition 7.46) is:
+
+**If $u: X \to [0,\infty]$ is lower semianalytic and $p$ is a stochastic kernel with $(x,a) \mapsto p(B|x,a)$ lower semianalytic for each Borel $B$, then $(x,a) \mapsto \int u \, dp(\cdot|x,a)$ is lower semianalytic.**
+
+The proof uses the following key idea:
+
+Since $u$ is lower semianalytic, the epigraph $E = \{(y, r) \in X \times \mathbb{R} : u(y) \leq r\}$ is analytic. (Because $\{u \leq r\} = \bigcap_n \{u < r + 1/n\}$ is a countable intersection of analytic sets, hence analytic. So $E = \{(y,r) : u(y) \leq r\}$ is analytic in $X \times \mathbb{R}$.)
+
+Now, $I(x,a) = \int u \, dp(\cdot|x,a)$. We want to show $\{I < c\}$ is analytic.
+
+$I(x,a) < c$ iff $\int u \, dp < c$ iff (by definition of the integral of a nonneg function) there exists a simple function $s \leq u$ with $\int s \, dp < c$... no, that's not right. $\int u \, dp = \sup \{\int s \, dp : s \leq u, s \text{ simple Borel}\}$. So $\int u \, dp < c$ iff for all simple Borel $s \leq u$, $\int s \, dp < c$. This is a universal quantifier, which is hard to make analytic.
+
+Alternatively, $I(x,a) < c$ iff there exists $n$ such that $\int \min(u, n) \, dp < c - 1/n$ (for $c > 0$)... this is getting complicated.
+
+Let me try the direct approach. $I(x,a) < c$ iff $\int u \, dp(\cdot|x,a) < c$.
+
+Using the definition: $\int u \, dp = \int_0^\infty p(\{u > t\}|x,a) dt$ (Tonelli). So $I(x,a) < c$ iff $\int_0^\infty p(\{u > t\}|x,a) dt < c$.
+
+Now, $p(\{u > t\}|x,a) = 1 - p(\{u \leq t\}|x,a)$. Let $F(x,a,t) = p(\{u \leq t\}|x,a)$. Then $I(x,a) = \int_0^\infty (1 - F(x,a,t)) dt = \int_0^\infty \bar{F}(x,a,t) dt$ where $\bar{F} = 1 - F = p(\{u > t\}|x,a)$.
+
+$F(x,a,t) = p(\{u \leq t\}|x,a)$ is lower semianalytic in $(x,a)$ for each $t$ (since $\{u \leq t\}$ is analytic). So $\bar{F}(x,a,t) = 1 - F(x,a,t)$ is upper semianalytic in $(x,a)$ for each $t$.
+
+$I(x,a) < c$ iff $\int_0^\infty \bar{F}(x,a,t) dt < c$.
+
+Since $\bar{F} \geq 0$, $I(x,a) < c$ iff there exists $N$ such that $\int_0^N \bar{F}(x,a,t) dt < c$ (since $\int_0^\infty = \lim_{N \to \infty} \int_0^N$). And $\int_0^N \bar{F} dt < c$ iff there exists a partition $0 = t_0 < t_1 < \ldots < t_m = N$ with $\sum_i \bar{F}(x,a,t_i)(t_{i+1} - t_i) < c$... but this uses upper sums, and $\bar{F}$ is upper semianalytic, so this gives an upper semianalytic condition, not lower.
+
+Hmm, this is the wrong direction. Let me try lower sums.
+
+$\int_0^N \bar{F} dt \geq \sum_i \bar{F}(x,a,t_{i+1})(t_{i+1} - t_i)$ (lower sum for decreasing... no, $\bar{F}$ is not necessarily monotone).
+
+Actually, $F(x,a,t) = p(\{u \leq t\}|x,a)$ is non-decreasing in $t$ (since $\{u \leq t\}$ is increasing in $t$). So $\bar{F}(x,a,t) = 1 - F(x,a,t)$ is non-increasing in $t$. 
+
+For a non-increasing function, $\int_0^N \bar{F} dt = \lim_{n \to \infty} \frac{N}{n} \sum_{k=1}^n \bar{F}(x,a, kN/n)$ (right Riemann sum, which is a lower sum for non-increasing functions). Wait, for non-increasing $\bar{F}$, the right Riemann sum $\frac{N}{n} \sum_{k=1}^n \bar{F}(kN/n)$ is a lower sum (since $\bar{F}$ is non-increasing, the infimum on $[(k-1)N/n, kN/n]$ is $\bar{F}(kN/n)$). So $\int_0^N \bar{F} dt = \sup_n \frac{N}{n} \sum_{k=1}^n \bar{F}(x,a, kN/n)$.
+
+Now, $\bar{F}(x,a, kN/n) = 1 - F(x,a, kN/n)$ is upper semianalytic. The sum $\frac{N}{n} \sum_k \bar{F}(x,a, kN/n)$ is a finite sum of upper semianalytic functions, which is upper semianalytic. The supremum over $n$ of upper semianalytic functions is... upper semianalytic (since $\{g > c\} = \bigcup_n \{g_n > c\}$ and $\{g_n > c\}$ is analytic for upper semianalytic $g_n$... wait, upper semianalytic means $\{g > c\}$ is coanalytic or $\{g < c\}$ is analytic?).
+
+I'm getting confused with the conventions. Let me restart with clear definitions.
+
+**Clear definitions:**
+- $f$ is **lower semianalytic** (lsa) if $\{f < c\}$ is analytic for all $c \in \mathbb{R}$.
+- $f$ is **upper semianalytic** (usa) if $\{f > c\}$ is analytic for all $c \in \mathbb{R}$, equivalently $-f$ is lsa.
+
+Properties:
+- $f$ lsa $\implies$ $\{f \leq c\} = \bigcap_n \{f < c + 1/n\}$ is analytic (countable intersection of analytic). So $\{f > c\}$ is coanalytic.
+- $f$ usa $\implies$ $\{f \geq c\} = \bigcap_n \{f > c - 1/n\}$ is analytic. So $\{f < c\}$ is coanalytic.
+- $f$ lsa and usa $\implies$ $f$ is Borel (by Souslin's theorem, since $\{f < c\}$ and $\{f > c\}$ are both analytic, hence $\{f < c\}$ is both analytic and coanalytic, hence Borel).
+
+Now, for the integral $I(x,a) = \int u \, dp$:
+
+$F(x,a,t) = p(\{u \leq t\}|x,a)$. $\{u \leq t\}$ is analytic (since $u$ is lsa). By the assumption on $p$ (extended to analytic sets), $F$ is lsa in $(x,a)$.
+
+$\bar{F}(x,a,t) = 1 - F(x,a,t) = p(\{u > t\}|x,a)$. Since $F$ is lsa, $\bar{F}$ is usa (since $\{\bar{F} < c\} = \{1 - F < c\} = \{F > 1-c\}$, and $\{F > 1-c\}$ is coanalytic since $F$ is lsa; so $\{\bar{F} < c\}$ is coanalytic, meaning $\bar{F}$ is usa). ✓
+
+$I(x,a) = \int_0^\infty \bar{F}(x,a,t) dt$.
+
+$\bar{F}$ is non-increasing in $t$ and usa in $(x,a)$ for each $t$.
+
+$I(x,a) = \sup_N \int_0^N \bar{F} dt = \sup_N \sup_n S_{N,n}(x,a)$
+
+where $S_{N,n}(x,a) = \frac{N}{n} \sum_{k=1}^n \bar{F}(x,a, kN/n)$ is a lower Riemann sum.
+
+Each $S_{N,n}$ is a finite sum of usa functions, hence usa. The sup of usa functions: $\{S_{N,n} > c\}$ is analytic (usa), so $\{\sup_{N,n} S_{N,n} > c\} = \bigcup_{N,n} \{S_{N,n} > c\}$ is analytic (countable union of analytic). So $I = \sup_{N,n} S_{N,n}$ is usa.
+
+But we want $I$ to be lsa, not usa! 
+
+Hmm, so this approach shows $I$ is upper semianalytic, not lower semianalytic. That's the wrong direction.
+
+Wait, maybe I should use upper Riemann sums instead. For a non-increasing function $\bar{F}$, the upper Riemann sum is $\frac{N}{n} \sum_{k=0}^{n-1} \bar{F}(x,a, kN/n)$ (left endpoints). The integral equals the infimum of upper sums: $\int_0^N \bar{F} dt = \inf_n \frac{N}{n} \sum_{k=0}^{n-1} \bar{F}(x,a, kN/n)$.
+
+$U_{N,n}(x,a) = \frac{N}{n} \sum_{k=0}^{n-1} \bar{F}(x,a, kN/n)$ is usa (sum of usa). The infimum of usa functions: $\{\inf_{N,n} U_{N,n} < c\} = \bigcup_{N,n} \{U_{N,n} < c\}$. $\{U_{N,n} < c\}$: since $U_{N,n}$ is usa, $\{U_{N,n} < c\}$ is coanalytic. So $\{\inf U_{N,n} < c\}$ is a countable union of coanalytic sets, which is coanalytic. So $\inf U_{N,n}$ is lsa? 
+
+Wait: $\{f < c\}$ coanalytic means $f$ is... $\{f < c\}$ coanalytic $\iff$ $\{f \geq c\}$ analytic $\iff$ $f$ is usa? No. Let me recheck.
+
+$f$ is lsa $\iff$ $\{f < c\}$ is analytic.
+$f$ is usa $\iff$ $\{f > c\}$ is analytic $\iff$ $\{-f < c\}$ is analytic $\iff$ $-f$ is lsa $\iff$ $\{f < c\}$ is coanalytic (since $\{f < c\} = \{-f > -c\}$ and $\{-f > -c\}$ is coanalytic when $-f$ is lsa).
+
+Wait: $f$ is usa $\iff$ $\{f > c\}$ is analytic. And $\{f < c\} = \{f > c\}^c \cup \{f = c\}$... no, $\{f < c\}$ and $\{f > c\}$ are not complements. $\{f < c\}^c = \{f \geq c\}$.
+
+Let me redo: $f$ is usa $\iff$ $\{f > c\}$ is analytic for all $c$. Then $\{f \leq c\} = \bigcap_n \{f > c + 1/n\}^c$... $\{f > c+1/n\}$ is analytic, so $\{f > c+1/n\}^c$ is coanalytic, so $\{f \leq c\}$ is a countable intersection of coanalytic sets, which is coanalytic. So $\{f < c\} \subseteq \{f \leq c\}$ is a subset of a coanalytic set, but $\{f < c\}$ itself: $\{f < c\} = \bigcup_n \{f \leq c - 1/n\}$. Each $\{f \leq c - 1/n\}$ is coanalytic (as shown), so $\{f < c\}$ is a countable union of coanalytic sets, which is coanalytic (since $\bigcup_n (X \setminus A_n) = X \setminus \bigcap_n A_n$ and $\bigcap_n A_n$ is analytic when $A_n$ are analytic, so $X \setminus \bigcap_n A_n$ is coanalytic). ✓
+
+So: $f$ usa $\implies$ $\{f < c\}$ is coanalytic. And $f$ lsa $\implies$ $\{f < c\}$ is analytic.
+
+Now, $\inf_{N,n} U_{N,n}$: $\{\inf U_{N,n} < c\} = \bigcup_{N,n} \{U_{N,n} < c\}$. Each $U_{N,n}$ is usa, so $\{U_{N,n} < c\}$ is coanalytic. Countable union of coanalytic is coanalytic. So $\{\inf U_{N,n} < c\}$ is coanalytic. This means $\inf U_{N,n}$ is usa (since $\{f < c\}$ coanalytic $\iff$ $f$ usa).
+
+So $I = \inf_{N,n} U_{N,n}$ is usa. Again upper semianalytic, not lower!
+
+Hmm, so both approaches give upper semianalytic. That makes sense because $\bar{F}$ is usa, and integrating a usa function gives usa.
+
+But we want $I$ to be lsa. So maybe I should work with $F$ instead of $\bar{F}$.
+
+$I(x,a) = \int_0^\infty (1 - F(x,a,t)) dt = \int_0^\infty 1 \, dt - \int_0^\infty F(x,a,t) dt$... but $\int_0^\infty 1 \, dt = \infty$, so this doesn't work directly.
+
+Let me use a different representation. $I(x,a) = \int u \, dp$. We can also write:
+
+$I(x,a) = \int_0^\infty p(\{u > t\}|x,a) dt$
+
+But also, using $F$:
+
+For $u$ nonneg, $\int u \, dp = \int_0^\infty p(\{u > t\}) dt$. This is the standard layer cake. There's no way around using $\{u > t\}$ which is coanalytic.
+
+Alternatively, $\int u \, dp = \sup \{\int s \, dp : s \leq u, s \text{ simple}\}$. If we use simple functions $s = \sum_k \alpha_k \mathbf{1}_{B_k}$ with $B_k$ Borel and $s \leq u$, then $\int s \, dp = \sum_k \alpha_k p(B_k|x,a)$ is lsa (since $p(B_k|\cdot)$ is lsa for Borel $B_k$, and nonneg linear combinations of lsa are lsa). Then $I = \sup_s \int s \, dp$ is a sup of lsa functions.
+
+$\{I > c\} = \bigcup_s \{\int s \, dp > c\}$. Each $\int s \, dp$ is lsa, so $\{\int s \, dp > c\}$ is coanalytic (since lsa means $\{f < c\}$ analytic, so $\{f > c\}$ is coanalytic). Countable union of coanalytic is coanalytic. So $\{I > c\}$ is coanalytic, meaning $I$ is usa.
+
+Again usa! So it seems like $I$ is upper semianalytic, not lower semianalytic.
+
+Wait, but the standard result says the integral should be lower semianalytic. Let me re-examine.
+
+Hmm, maybe I have the convention wrong. Let me reconsider.
+
+Actually, I think the issue is with the convention. In many references on stochastic control and analytic sets (including Bertsekas-Shreve), the convention for "lower semianalytic" is actually $\{f > c\}$ is analytic, NOT $\{f < c\}$ is analytic.
+
+Let me re-examine. The term "lower semianalytic" should be analogous to "lower semicontinuous". $f$ is lower semicontinuous (lsc) if $\{f > c\}$ is open (equivalently, $\{f \leq c\}$ is closed). So "lower semianalytic" should mean $\{f > c\}$ is analytic.
+
+With this convention:
+- $f$ is lsa if $\{f > c\}$ is analytic for all $c$.
+- $f$ is usa if $\{f < c\}$ is analytic for all $c$.
+
+Now let's redo the analysis:
+
+**Infimum projection**: $f^*(x) = \inf_a f(x,a)$. $\{f^* > c\} = \{x : \inf_a f(x,a) > c\} = \{x : \forall a \in D_x, f(x,a) > c\}$. This is $\text{proj}_X(D) \setminus \text{proj}_X(\{f \leq c\} \cap D)$. With $f$ lsa ($\{f > c\}$ analytic), $\{f \leq c\} = \bigcap_n \{f > c + 1/n\}^c$... $\{f > c+1/n\}$ is analytic, so $\{f > c+1/n\}^c$ is coanalytic, so $\{f \leq c\}$ is coanalytic. Then $\{f \leq c\} \cap D$ is intersection of coanalytic and analytic, and its projection is not obviously analytic. So $\{f^* > c\}$ is not obviously analytic. ✗
+
+Hmm, so with this convention, the infimum projection doesn't work for $\{f^* > c\}$. But what about $\{f^* < c\}$?
+
+$\{f^* < c\} = \{x : \inf_a f(x,a) < c\} = \{x : \exists a \in D_x, f(x,a) < c\} = \text{proj}_X(\{f < c\} \cap D)$. With $f$ lsa ($\{f > c\}$ analytic), $\{f < c\}$: is this analytic? $\{f < c\} = \bigcup_n \{f \leq c - 1/n\} = \bigcup_n \bigcap_m \{f > c - 1/n + 1/m\}^c$... this is a countable union of countable intersections of complements of analytic sets, which is a countable union of coanalytic sets, which is coanalytic. So $\{f < c\}$ is coanalytic, not analytic.
+
+So with the convention $\{f > c\}$ analytic (lsa), $\{f^* < c\}$ involves $\{f < c\}$ which is coanalytic, and the projection of (coanalytic $\cap$ analytic) is not obviously analytic.
+
+This is getting confusing. Let me just look at what convention makes everything work.
+
+**Convention 1**: lsa means $\{f < c\}$ is analytic.
+- Infimum: $\{f^* < c\} = \text{proj}(\{f < c\} \cap D)$ is analytic. ✓ ($f^*$ is lsa)
+- Sum: $\{f + g < c\}$... if $f, g$ are lsa and nonneg, is $f + g$ lsa? $\{f + g < c\} = \bigcup_{q \in \mathbb{Q}} \{f < q\} \cap \{g < c - q\}$. Each $\{f < q\}$ and $\{g < c-q\}$ are analytic, so their intersection is analytic, and the countable union is analytic. ✓
+- Integral: $I = \int u \, dp$. $\{I < c\}$ is analytic? We need to show this.
+
+**Convention 2**: lsa means $\{f > c\}$ is analytic.
+- Infimum: $\{f^* < c\} = \text{proj}(\{f < c\} \cap D)$. $\{f < c\}$ is coanalytic (with this convention). Not obviously analytic. ✗
+- But $\{f^* > c\} = \{x : \forall a, f(x,a) > c\}$. Not obviously analytic either. ✗
+
+So Convention 1 ($\{f < c\}$ analytic) is the one that makes the infimum projection work. This is the Bertsekas-Shreve convention.
+
+Now, for the integral with Convention 1:
+
+$I(x,a) = \int u \, dp$. We want $\{I < c\}$ to be analytic.
+
+$I(x,a) < c$ iff $\int u(y) p(dy|x,a) < c$.
+
+For nonneg $u$: $I(x,a) = \sup\{\int s \, dp : s \leq u, s \text{ simple Borel}\}$.
+
+$\{I < c\} = \{I \leq c\} \setminus \{I = c\}$... hmm, or $\{I < c\} = \bigcup_n \{I \leq c - 1/n\}$.
+
+$\{I \leq c\} = \bigcap_n \{I < c + 1/n\}$... this is circular.
+
+Let me try: $\{I < c\} = \bigcup_{n} \{I \leq c - 1/n\}$ (for $c > 0$). And $\{I \leq c\} = \{\sup_s \int s \, dp \leq c\} = \bigcap_s \{\int s \, dp \leq c\}$. Each $\int s \, dp$ is lsa (as we showed, nonneg linear combination of $p(B|\cdot)$ which is lsa). $\{\int s \, dp \leq c\} = \bigcap_m \{\int s \, dp < c + 1/m\}$ is analytic (countable intersection of analytic). So $\{I \leq c\} = \bigcap_s \{\int s \, dp \leq c\}$ is a countable intersection (over countably many simple $s$) of analytic sets, hence analytic. Then $\{I < c\} = \bigcup_n \{I \leq c - 1/n\}$ is a countable union of analytic sets, hence analytic. ✓
+
+Wait, is the set of simple Borel functions $s \leq u$ countable? We can restrict to simple functions with rational values and Borel sets from a countable generating class. Since $X$ is standard Borel, the Borel $\sigma$-algebra is countably generated, and simple functions with rational coefficients and sets from the countable generator form a countable family. But we need $s \leq u$, and $u$ is not Borel, so the condition $s \leq u$ is not a Borel condition on $s$.
+
+Hmm, but we don't need to enumerate all simple $s \leq u$. We need:
+
+$I(x,a) = \sup\{\int s \, dp : s \leq u, s \text{ simple Borel}\}$.
+
+The key is: is the sup over a countable set? If we can restrict to a countable family of simple Borel functions, then yes.
+
+For a nonneg measurable function $u$, we have the standard approximation:
+$$u_n(y) = \sum_{k=0}^{n2^n - 1} \frac{k}{2^n} \mathbf{1}_{\{k/2^n \leq u(y) < (k+1)/2^n\}} + n \mathbf{1}_{\{u(y) \geq n\}}$$
+
+But the sets $\{k/2^n \leq u < (k+1)/2^n\}$ may not be Borel (since $u$ is only lsa, not Borel). So $u_n$ may not be Borel.
+
+However, we can use a different approximation. Since $u$ is lsa ($\{u < c\}$ analytic), $u$ is universally measurable. For universally measurable $u$, we can find Borel functions $g_n \uparrow u$... but only if $u$ is measurable with respect to a complete $\sigma$-algebra that contains the Borel sets. Universal measurability means $u$ is measurable with respect to the completion of the Borel $\sigma$-algebra under every probability measure. 
+
+Actually, I think the issue is more subtle. Let me think about whether we can use a countable family.
+
+The integral $I(x,a) = \int u \, dp(\cdot|x,a)$. For each fixed $(x,a)$, $p(\cdot|x,a)$ is a probability measure. Since $u$ is universally measurable (being lsa), $u$ is $p(\cdot|x,a)$-measurable for each $(x,a)$. So the integral is well-defined.
+
+Now, for each probability measure $\mu$ on $X$, since $u$ is $\mu$-measurable (universally measurable), there exist Borel functions $g_n^\mu \uparrow u$ $\mu$-a.e. But these depend on $\mu = p(\cdot|x,a)$, which varies with $(x,a)$.
+
+This is getting complicated. Let me try a completely different approach.
+
+**Approach via the epigraph:**
+
+$I(x,a) = \int u \, dp$. The epigraph of $I$ is $\{(x,a,c) : I(x,a) \leq c\}$.
+
+$I(x,a) \leq c$ iff $\int u \, dp(\cdot|x,a) \leq c$.
+
+By the definition of the integral (for nonneg functions), $\int u \, dp \leq c$ iff for every simple Borel $s \leq u$, $\int s \, dp \leq c$.
+
+$\{(x,a,c) : I(x,a) \leq c\} = \bigcap_s \{(x,a,c) : \int s \, dp(\cdot|x,a) \leq c\}$.
+
+Each $\int s \, dp$ is lsa (in $(x,a)$), so $\{(x,a) : \int s \, dp \leq c\}$ is analytic (as $\{\int s \, dp < c + 1/n\}$ is analytic for all $n$, and $\{\int s \, dp \leq c\} = \bigcap_n \{\int s \, dp < c + 1/n\}$ is analytic). So $\{(x,a,c) : \int s \, dp \leq c\}$ is analytic in $(x,a,c)$ (it's the epigraph of an lsa function, which is analytic).
+
+The intersection over all simple Borel $s$ is an intersection over an uncountable family, which we can't directly conclude is analytic.
+
+But we can reduce to a countable family. The key observation: for a nonneg function $u$ and a probability measure $\mu$, $\int u \, d\mu = \sup\{\int s \, d\mu : s \leq u, s \text{ simple Borel with rational values}\}$. And the set of simple Borel functions with rational values is determined by countably many Borel sets (from a countable generator). But the condition $s \leq u$ depends on $u$ which is not Borel.
+
+Hmm, let me try yet another approach. 
+
+**Approach using the definition of the integral directly:**
+
+$I(x,a) = \int u \, dp(\cdot|x,a)$. Since $u \geq 0$, $I(x,a) = \int_0^\infty p(\{u > t\}|x,a) dt$ (layer cake / Tonelli).
+
+$I(x,a) < c$ iff $\int_0^\infty p(\{u > t\}|x,a) dt < c$.
+
+Since $t \mapsto p(\{u > t\}|x,a)$ is non-increasing, the integral $\int_0^\infty p(\{u > t\}|x,a) dt$ can be computed as:
+
+$\int_0^\infty p(\{u > t\}|x,a) dt = \sup_{N} \int_0^N p(\{u > t\}|x,a) dt$
+
+and for each $N$:
+
+$\int_0^N p(\{u > t\}|x,a) dt = \inf_{n} \frac{N}{n} \sum_{k=0}^{n-1} p(\{u > kN/n\}|x,a)$ (upper Riemann sums for non-increasing function)
+
+$= \inf_n \frac{N}{n} \sum_{k=0}^{n-1} (1 - p(\{u \leq kN/n\}|x,a))$
+
+$= \inf_n (N - \frac{N}{n} \sum_{k=0}^{n-1} p(\{u \leq kN/n\}|x,a))$
+
+$= N - \sup_n \frac{N}{n} \sum_{k=0}^{n-1} p(\{u \leq kN/n\}|x,a)$
+
+$= N - \sup_n \frac{N}{n} \sum_{k=0}^{n-1} F(x,a, kN/n)$
+
+where $F(x,a,t) = p(\{u \leq t\}|x,a)$ is lsa in $(x,a)$ (since $\{u \leq t\}$ is analytic and $p$ of analytic sets is lsa).
+
+So $I(x,a) = \sup_N (N - \sup_n \frac{N}{n} \sum_{k=0}^{n-1} F(x,a, kN/n))$.
+
+$= \sup_N \inf_n (N - \frac{N}{n} \sum_{k=0}^{n-1} F(x,a, kN/n))$.
+
+This involves sup of inf, which is hard to analyze in terms of analyticity.
+
+OK, I think I'm overcomplicating this. Let me look at the problem from a higher level.
+
+The problem is a standard result in the theory of partially observable Markov decision processes (POMDPs) or more generally in the Bertsekas-Shreve framework. The result is:
+
+**Theorem (Bertsekas-Shreve, Proposition 7.50)**: Under the given conditions, $\eta_u$ is lower semianalytic, $\eta_u^*$ is lower semianalytic, and for any $\epsilon > 0$, there exists a universally measurable $\epsilon$-optimal selector.
+
+The key ingredients are:
+1. Lower semianalytic functions are closed under addition (for nonneg functions).
+2. The integral of a lower semianalytic function with respect to a lower semianalytic kernel is lower semianalytic.
+3. The infimum projection of a lower semianalytic function over an analytic set is lower semianalytic.
+4. The Jankov-von Neumann selection theorem (quantitative version).
+
+For ingredient 2, the standard proof in Bertsekas-Shreve uses the following:
+
+**Lemma (Bertsekas-Shreve, Lemma 7.30.2)**: If $u: X \to [0,\infty]$ is lower semianalytic and $p$ is a stochastic kernel such that $(x,a) \mapsto p(B|x,a)$ is lower semianalytic for each Borel $B$, then $(x,a) \mapsto \int u \, dp(\cdot|x,a)$ is lower semianalytic.
+
+The proof uses the fact that $u$ being lsa means $u = \sup_n u_n$ where $u_n$ are lsa simple functions of the form $u_n = \sum_k c_k \mathbf{1}_{A_k}$ with $A_k$ analytic. 
+
+Wait, can we write $u = \sup_n u_n$ with $u_n$ simple lsa functions using analytic sets?
+
+With the convention $\{u < c\}$ is analytic (lsa), the sets $\{u \geq c\}$ are coanalytic, and $\{u > c\}$ is coanalytic. So we can't directly use $\{u > c\}$ as analytic sets.
+
+But $\{u \leq c\}$ is analytic (as we showed: $\{u \leq c\} = \bigcap_n \{u < c + 1/n\}$, countable intersection of analytic = analytic). And $\{u < c\}$ is analytic (by definition).
+
+So the sets we have available as analytic are: $\{u < c\}$ and $\{u \leq c\}$.
+
+Can we approximate $u$ from below using these? 
+
+$u_n(y) = \sum_{k=0}^{n2^n - 1} \frac{k}{2^n} \mathbf{1}_{\{u(y) \leq k/2^n\}} \cdot \mathbf{1}_{\{u(y) > (k-1)/2^n\}}$... but $\{u > (k-1)/2^n\}$ is coanalytic.
+
+Alternatively, use the "lower" approximation:
+$u_n(y) = \inf\{c \in \mathbb{Q} : u(y) \leq c + 1/n\}$... this doesn't give simple functions.
+
+Hmm, let me think about this differently. 
+
+Actually, I think the key insight is that for lsa $u$ (with $\{u < c\}$ analytic), we can write:
+
+$u(y) = \sup\{r \in \mathbb{Q} : u(y) > r\}$
+
+and $\{u > r\}$ is coanalytic. So $u = \sup_r r \cdot \mathbf{1}_{\{u > r\}}$, but $\{u > r\}$ is coanalytic.
+
+For the integral: $\int u \, dp = \int \sup_r r \mathbf{1}_{\{u > r\}} \, dp = \sup_r r \cdot p(\{u > r\})$ (by monotone convergence, since $r \mathbf{1}_{\{u > r\}}$ is increasing in... no, it's not increasing in $r$).
+
+Actually, $u = \sup_n u_n$ where $u_n(y) = \sum_{k=1}^{n2^n} \frac{k-1}{2^n} \mathbf{1}_{\{u(y) \geq k/2^n\}}$. But $\{u \geq k/2^n\}$ is coanalytic.
+
+Hmm. Let me try the approach from the other direction. 
+
+$u(y) = \inf\{c \in \mathbb{Q} : u(y) < c\} + 0$... no, $\inf\{c : u(y) < c\} = u(y)$ (since $\{u < c\}$ is analytic, and $u = \inf\{c : u < c\}$). But this doesn't give a simple function approximation.
+
+OK, I think the issue is that with the convention $\{u < c\}$ analytic, the natural approximation is from above, not from below. We can write $u = \inf_n v_n$ where $v_n$ are simple functions using analytic sets $\{u < c\}$.
+
+$v_n(y) = \sum_{k=0}^{n2^n} \frac{k+1}{2^n} \mathbf{1}_{\{k/2^n \leq u(y) < (k+1)/2^n\}} + (n+1) \mathbf{1}_{\{u(y) \geq n\}}$
+
+But $\{k/2^n \leq u < (k+1)/2^n\} = \{u < (k+1)/2^n\} \setminus \{u < k/2^n\}$, which is the difference of two analytic sets, not necessarily analytic.
+
+Alternatively, $v_n(y) = \sum_{k=1}^{n2^n} \frac{k}{2^n} \mathbf{1}_{\{u(y) < k/2^n\}} - \sum_{k=1}^{n2^n} \frac{k}{2^n} \mathbf{1}_{\{u(y) < (k-1)/2^n\}}$... this telescopes to $\frac{n2^n}{2^n} \mathbf{1}_{\{u < n\}} = n \mathbf{1}_{\{u < n\}}$. Not useful.
+
+Let me try: $v_n(y) = \sum_{k=0}^{n2^n - 1} \frac{k+1}{2^n} (\mathbf{1}_{\{u < (k+1)/2^n\}} - \mathbf{1}_{\{u < k/2^n\}}) + n \mathbf{1}_{\{u \geq n\}}$.
+
+This telescopes to $\frac{1}{2^n} \sum_{k=0}^{n2^n-1} \mathbf{1}_{\{u < (k+1)/2^n\}} + n \mathbf{1}_{\{u \geq n\}}$... no, let me compute more carefully.
+
+$v_n = \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} \mathbf{1}_{\{k/2^n \leq u < (k+1)/2^n\}} + n \mathbf{1}_{\{u \geq n\}}$
+
+$= \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} (\mathbf{1}_{\{u < (k+1)/2^n\}} - \mathbf{1}_{\{u < k/2^n\}}) + n(1 - \mathbf{1}_{\{u < n\}})$
+
+$= \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} \mathbf{1}_{\{u < (k+1)/2^n\}} - \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} \mathbf{1}_{\{u < k/2^n\}} + n - n\mathbf{1}_{\{u < n\}}$
+
+$= \sum_{k=1}^{n2^n} \frac{k}{2^n} \mathbf{1}_{\{u < k/2^n\}} - \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} \mathbf{1}_{\{u < k/2^n\}} + n - n\mathbf{1}_{\{u < n\}}$
+
+$= \frac{n2^n}{2^n} \mathbf{1}_{\{u < n\}} - \frac{1}{2^n} \mathbf{1}_{\{u < 0\}} + n - n\mathbf{1}_{\{u < n\}}$ (telescoping, and $\{u < 0\} = \emptyset$ since $u \geq 0$)
+
+$= n \mathbf{1}_{\{u < n\}} + n - n\mathbf{1}_{\{u < n\}} = n$.
+
+That's just $n$, which is wrong. I made an error. Let me redo.
+
+$v_n(y) = \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} \mathbf{1}_{\{k/2^n \leq u(y) < (k+1)/2^n\}} + n \mathbf{1}_{\{u(y) \geq n\}}$
+
+This is a simple function that takes the value $(k+1)/2^n$ when $u(y) \in [k/2^n, (k+1)/2^n)$ and $n$ when $u(y) \geq n$. So $v_n(y) \geq u(y)$ and $v_n(y) \leq u(y) + 1/2^n$ when $u(y) < n$, and $v_n(y) = n \leq u(y)$ when $u(y) \geq n$. So $v_n \geq u$ when $u < n$ and $v_n = n \leq u$ when $u \geq n$. So $v_n \geq \min(u, n)$ and $v_n \leq \min(u, n) + 1/2^n$ when $u < n$. As $n \to \infty$, $v_n \to u$ from above (when $u < \infty$).
+
+But the sets $\{k/2^n \leq u < (k+1)/2^n\}$ are differences of analytic sets, which are not necessarily analytic. So $v_n$ is not a simple lsa function.
+
+However, we can write $v_n$ using only analytic sets:
+
+$v_n(y) = \sum_{k=1}^{n2^n} \frac{k}{2^n} \mathbf{1}_{\{u(y) < k/2^n\}} - \sum_{k=0}^{n2^n-1} \frac{k}{2^n} \mathbf{1}_{\{u(y) < k/2^n\}}$
+
+Hmm, this doesn't simplify nicely.
+
+Actually, there's a cleaner way. Note that:
+
+$v_n(y) = \frac{1}{2^n} \sum_{k=1}^{n2^n} \mathbf{1}_{\{u(y) < k/2^n\}}$
+
+Let me verify: if $u(y) \in [j/2^n, (j+1)/2^n)$ for $0 \leq j < n2^n$, then $\{u < k/2^n\}$ is true for $k > j$ and false for $k \leq j$. So $\sum_{k=1}^{n2^n} \mathbf{1}_{\{u < k/2^n\}} = n2^n - j$. And $v_n = (n2^n - j)/2^n = n - j/2^n$. But we wanted $v_n = (j+1)/2^n$. These don't match.
+
+Let me try: $v_n(y) = \frac{1}{2^n} \sum_{k=0}^{n2^n-1} \mathbf{1}_{\{u(y) \geq k/2^n\}}$. But $\{u \geq k/2^n\}$ is coanalytic, not analytic.
+
+OK, how about: $v_n(y) = \frac{1}{2^n} \sum_{k=1}^{n2^n} \mathbf{1}_{\{u(y) < k/2^n\}}$.
+
+If $u(y) \in [j/2^n, (j+1)/2^n)$, then $\mathbf{1}_{\{u < k/2^n\}} = 1$ iff $k > j$, so the sum is $n2^n - j$. And $v_n = (n2^n - j)/2^n = n - j/2^n$. 
+
+Hmm, that gives $v_n = n - j/2^n$ when $u \in [j/2^n, (j+1)/2^n)$. So $v_n = n - \lfloor 2^n u \rfloor        — AI历史解题过程（thinking）
+#   deepmath_103k_00005268         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>deepmath_103k_00005268</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Find the radius of convergence of the power series \(\sum_{n=1}^{\infty} a_n z^{n}\), where \(a_n\) is the number of divisors of \(n^{50}\).
+
+## Standard Solution
+
+Okay, so I need to find the radius of convergence for the power series \(\sum_{n=1}^{\infty} a_n z^{n}\), where \(a_n\) is the number of divisors of \(n^{50}\). Hmm, let's recall how to find the radius of convergence. I think it's usually done using the root test or the ratio test. The formula involves the limit superior of \(|a_n|^{1/n}\) as \(n\) approaches infinity. The radius of convergence \(R\) is then \(1/\limsup_{n \to \infty} |a_n|^{1/n}\). Yeah, that sounds right.
+
+First, let me confirm the formula. The radius of convergence \(R\) for the series \(\sum a_n z^n\) is given by \(1/\limsup_{n \to \infty} |a_n|^{1/n}\). So I need to figure out the growth rate of \(a_n\), which is the number of divisors of \(n^{50}\). Then take the nth root of that and find the lim sup. The reciprocal of that will be the radius.
+
+Alright, so the key here is understanding how the number of divisors of \(n^{50}\) behaves as \(n\) grows. Let me recall that if a number \(m\) has prime factorization \(m = p_1^{e_1} p_2^{e_2} \dots p_k^{e_k}\), then the number of divisors of \(m\) is \((e_1 + 1)(e_2 + 1) \dots (e_k + 1)\). So for \(n^{50}\), if \(n\) is factored into primes as \(n = p_1^{f_1} p_2^{f_2} \dots p_k^{f_k}\), then \(n^{50} = p_1^{50f_1} p_2^{50f_2} \dots p_k^{50f_k}\). Therefore, the number of divisors \(a_n\) is \((50f_1 + 1)(50f_2 + 1) \dots (50f_k + 1)\).
+
+So \(a_n\) is the product over all primes dividing \(n\) of \(50f_i + 1\), where \(f_i\) is the exponent of the prime \(p_i\) in the prime factorization of \(n\). Hmm. So the number of divisors depends on the exponents in the prime factorization of \(n\). But how does this behave as \(n\) grows?
+
+I need to estimate the maximum possible value of \(a_n\) in terms of \(n\). Because the radius of convergence depends on the lim sup of \(|a_n|^{1/n}\), which is determined by the growth rate of \(a_n\). If \(a_n\) grows polynomially in \(n\), then \(a_n^{1/n}\) would go to 1, so the radius would be 1. If \(a_n\) grows exponentially, then the radius would be smaller. But the divisor function is known to grow slower than exponentially, right? Wait, the number of divisors function \(d(n)\) is \(O(n^\epsilon)\) for any \(\epsilon > 0\). So even though it can get large, it doesn't grow exponentially. However, in our case, \(a_n = d(n^{50})\). Let's see.
+
+Wait, \(d(n^{50})\) is multiplicative, since the number of divisors is multiplicative over prime powers. So if \(n\) is a prime power, say \(n = p^k\), then \(n^{50} = p^{50k}\), so \(d(n^{50}) = 50k + 1\). For general \(n\), if \(n\) has prime factorization \(n = \prod_{p|n} p^{k_p}\), then \(d(n^{50}) = \prod_{p|n} (50k_p + 1)\).
+
+So, to find the maximum growth of \(a_n\), we need to consider numbers \(n\) with many prime factors, each raised to some power, such that the product \(\prod (50k_p + 1)\) is as large as possible relative to \(n\). Alternatively, to maximize \(a_n\) for a given \(n\), we need to structure the prime factors of \(n\) such that the number of divisors is maximized. But since \(a_n\) is multiplicative, perhaps the maximum occurs when \(n\) is a product of small primes each raised to the first power. But wait, if \(n\) is square-free, then each exponent \(k_p = 1\), so each term in the product is \(50*1 + 1 = 51\). So if \(n\) is square-free with \(m\) distinct prime factors, then \(a_n = 51^m\). However, the value of \(n\) in this case is the product of the first \(m\) primes. So \(n\) grows roughly like \(e^{m}\) by the prime number theorem, since the product of the first \(m\) primes is approximately \(e^{m}\). So in this case, \(a_n = 51^m\) and \(n \approx e^{m}\). So \(a_n \approx 51^m\) and \(n \approx e^{m}\), so \(m \approx \log n\). Therefore, substituting back, \(a_n \approx 51^{\log n} = n^{\log 51}\). Wait, is that right?
+
+Wait, if \(n \approx e^{m}\), then \(m \approx \log n\), so \(a_n = 51^m = 51^{\log n} = e^{\log 51 \cdot \log n} = n^{\log 51}\). Since \(e^{\log 51 \cdot \log n} = (e^{\log n})^{\log 51} = n^{\log 51}\). But \(\log 51\) is natural log or base 10? Wait, here it's natural log because we're using exponentials. Wait, no, if we have \(51^{\log n}\), that's equivalent to \(e^{\log 51 \cdot \log n}\). Wait, actually, regardless of the base. So in general, \(a_n\) can be as large as \(n^{\log 51}\) when \(n\) is square-free with many prime factors.
+
+But hold on, \(\log 51\) is approximately \(\ln 51 \approx 3.9318\). So that would imply that \(a_n\) can grow as fast as \(n^{3.9318}\), which is a polynomial growth. Therefore, \(a_n\) is bounded by a polynomial in \(n\), so when we take the nth root, \(a_n^{1/n} \approx (n^c)^{1/n} = e^{c \cdot (\log n)/n} \to 1\) as \(n \to \infty\), since \((\log n)/n \to 0\). Therefore, the lim sup of \(a_n^{1/n}\) is 1, so the radius of convergence is 1. Hmm, is that correct?
+
+But wait, let me verify. If \(a_n\) can be as large as \(n^{\log 51}\), then \(a_n^{1/n} = e^{(\log 51) \cdot (\log n)/n}\). As \(n\) approaches infinity, \((\log n)/n\) approaches 0, so this exponent goes to 0, so \(a_n^{1/n} \to e^0 = 1\). Therefore, the lim sup is 1, so \(R = 1/1 = 1\). So the radius of convergence is 1.
+
+But wait, let's check another angle. Maybe there's a better way to estimate \(a_n\). Let's recall that the maximal order of the divisor function. For the standard divisor function \(d(n)\), the maximal order is roughly \(2^{(1 + o(1)) \log n / \log \log n}\), which is super-polylogarithmic but still sub-exponential. But in our case, \(a_n = d(n^{50})\). So if we consider \(n\) such that \(d(n^{50})\) is maximized.
+
+But perhaps the same principle applies. Let me recall that for any \(k\), the maximal order of \(d(n^k)\) is similar to \(d(n)\), but scaled. Wait, if \(n\) is square-free, then \(d(n^k) = (k+1)^{\omega(n)}\), where \(\omega(n)\) is the number of distinct prime factors of \(n\). So in that case, similar to the above, if we take \(n\) to be square-free with many prime factors, then \(d(n^{50}) = 51^{\omega(n)}\). And since the number of distinct prime factors \(\omega(n)\) can be as large as roughly \(\log n / \log \log n\) for \(n\) being the product of the first few primes. But actually, the maximal \(\omega(n)\) is about \(\log n / \log \log n\), but the product of the first \(m\) primes is roughly \(e^{m}\), as before. So if \(n\) is the product of the first \(m\) primes, then \(\omega(n) = m\), and \(n \approx e^{m}\). So then \(d(n^{50}) = 51^m\), and \(m \approx \log n / \log \log n\) ? Wait, no, if \(n \approx e^{m}\), then \(m \approx \log n\). Wait, if \(n\) is the product of the first \(m\) primes, then by the prime number theorem, the product is roughly \(e^{m}\), so indeed, \(m \approx \log n\). Therefore, in that case, \(d(n^{50}) \approx 51^{\log n}\), which is \(n^{\log 51}\) as before.
+
+But \(\log 51\) is a constant, so \(d(n^{50})\) can grow polynomially with \(n\). Hence, \(a_n\) is at most polynomial in \(n\), so \(a_n^{1/n}\) tends to 1. Therefore, the lim sup is 1, so the radius of convergence is 1. So that would be the answer.
+
+But let me check for some specific cases. For example, take \(n\) prime. Then \(a_n = d(n^{50}) = 50 + 1 = 51\). So for prime \(n\), \(a_n = 51\). For \(n = p^2\), then \(a_n = d(p^{100}) = 100 + 1 = 101\). So for squares of primes, \(a_n = 101\). For \(n = p^k\), \(a_n = 50k + 1\). So in this case, if \(n\) is a prime power, \(a_n\) grows linearly with \(k\), but \(n = p^k\) grows exponentially with \(k\) if \(p\) is fixed. So \(a_n\) is linear in \(k\), \(n\) is exponential in \(k\), so \(a_n\) is logarithmic in \(n\). Therefore, \(a_n^{1/n}\) would be roughly \((\log n)^{1/n}\), which tends to 1 as \(n\) grows. So that's even smaller.
+
+On the other hand, if \(n\) is square-free with many prime factors, as we discussed, then \(a_n = 51^m\), where \(m\) is the number of prime factors, and \(n\) is the product of the first \(m\) primes. So \(n \approx e^{m}\), so \(m \approx \log n\). Therefore, \(a_n = 51^{\log n} = n^{\log 51}\), which is a polynomial in \(n\), so \(a_n^{1/n} = n^{\log 51 / n} = e^{\log 51 \cdot (\log n)/n} \to e^0 = 1\). So in both cases, whether \(n\) is a prime power or square-free with many primes, \(a_n^{1/n}\) tends to 1. What about other cases?
+
+Suppose \(n\) has a mixed factorization with some primes raised to higher powers. For instance, if \(n\) is the product of a square-free number and a prime power. Then the number of divisors would be a product of factors like \(50k + 1\) for each prime. But in order to maximize the number of divisors, it's better to have more small exponents than a few large ones. Because increasing the number of distinct prime factors gives a multiplicative increase, while increasing exponents gives an additive increase. So for maximal \(a_n\), the best is to have as many distinct primes as possible. Therefore, the maximum of \(a_n\) occurs when \(n\) is square-free with as many prime factors as possible, which gives the \(n^{\log 51}\) growth. So even if we have a mix, the maximum is still dominated by the square-free case.
+
+Therefore, regardless of the factorization, the maximal growth rate of \(a_n\) is polynomial in \(n\), which when taking the nth root and limit, gives 1. So the lim sup of \(a_n^{1/n}\) is 1, hence the radius of convergence is 1.
+
+But let me check another approach. Maybe using the generating function for the number of divisors. Wait, but the generating function here is already given as \(\sum a_n z^n\), where \(a_n = d(n^{50})\). But perhaps we can relate this to a Dirichlet generating function. The Dirichlet generating function for the divisor function is \(\zeta(s)^2\), but for \(d(n^k)\), it might be more complicated.
+
+Wait, for the divisor function \(d(n)\), the Dirichlet series is \(\zeta(s)^2\). For \(d(n^k)\), which counts the number of ways to write \(n^k\) as a product of two numbers, maybe the Dirichlet series is \(\zeta(s)^{k+1}\), but I need to confirm. Wait, actually, the number of divisors of \(n\) is \(d(n) = \sum_{d|n} 1\), so the Dirichlet series is \(\zeta(s)^2\). For the number of divisors of \(n^k\), it's the number of ways to write \(n^k\) as a product of two numbers. But since \(n^k\) is a perfect k-th power, maybe the divisor function counts divisors of \(n^k\), which are of the form \(d^1, d^2, ..., d^k\) where \(d|n\). Wait, no, any divisor of \(n^k\) is of the form \(p_1^{e_1} \dots p_r^{e_r}\) where \(0 \leq e_i \leq k f_i\) if \(n = p_1^{f_1} \dots p_r^{f_r}\). Wait, maybe the Dirichlet generating function for \(d(n^k)\) would be \(\zeta(s)^{k+1}\) if that's the case. But I'm not sure. However, maybe this is a detour.
+
+Alternatively, perhaps I can use the fact that \(d(n^{50})\) is multiplicative. Since the divisor function is multiplicative, and \(n^{50}\) is multiplicative over \(n\), then \(a_n = d(n^{50})\) is multiplicative. Therefore, the generating function \(\sum_{n=1}^\infty a_n z^n\) can be written as a product over primes. For each prime \(p\), the generating function for \(a_{p^k} z^{p^k}\) would be the sum over \(k \geq 0\) of \(d(p^{50k}) z^{p^k}\). But \(d(p^{50k}) = 50k + 1\). So each local factor at prime \(p\) would be \(1 + \sum_{k=1}^\infty (50k + 1) z^{p^k}\). Hmm, that seems complicated. However, the radius of convergence of the entire series is determined by the closest singularity to the origin in the generating function. But if each prime contributes a factor with radius of convergence 1, then the overall radius might still be 1. But I'm not sure.
+
+Alternatively, maybe we can use the root test more directly. We need to compute \(\limsup_{n \to \infty} |a_n|^{1/n}\). As we saw, \(a_n\) can be as large as \(n^{\log 51}\), which is \(e^{\log 51 \cdot \log n}\). Then \(|a_n|^{1/n} = e^{\log 51 \cdot (\log n)/n}\). As \(n\) approaches infinity, \((\log n)/n\) approaches 0, so the exponent approaches 0, hence \(|a_n|^{1/n}\) approaches \(e^0 = 1\). Therefore, the lim sup is 1, so the radius of convergence is 1.
+
+Alternatively, if \(a_n\) is bounded by a polynomial in \(n\), say \(n^c\), then \(a_n^{1/n} \leq (n^c)^{1/n} = e^{c (\log n)/n} \to 1\). Therefore, the lim sup is 1. Hence, regardless of the polynomial growth rate, as long as \(a_n\) is polynomial in \(n\), the radius of convergence is 1.
+
+But to confirm, let's consider that for any \(\epsilon > 0\), \(d(n) = O(n^\epsilon)\). So \(d(n^{50})\) is \(O(n^{50 \epsilon})\). Choosing \(\epsilon\) small enough, say \(\epsilon = 1/50\), then \(d(n^{50}) = O(n^{1})\), so \(a_n = O(n)\). Therefore, \(a_n^{1/n} \leq (C n)^{1/n} \to 1\) as \(n \to \infty\). Therefore, the lim sup is 1.
+
+Alternatively, even if \(a_n\) can be as large as \(n^{\log 51}\), which is a higher degree polynomial, the nth root still tends to 1. So regardless of the polynomial degree, as long as the coefficients are polynomial in \(n\), the radius of convergence is 1.
+
+Therefore, I think the conclusion is that the radius of convergence is 1.
+
+But let me check an example. Suppose all \(a_n = 1\), then the radius of convergence is 1. If \(a_n = n^k\), then the radius is still 1, because \(n^{k/n} \to 1\). So yes, even polynomial coefficients give radius 1. If \(a_n\) grows exponentially, say \(a_n = e^{cn}\), then the radius would be \(e^{-c}\). But here, \(a_n\) is not exponential. So in our case, since \(a_n\) is polynomial, the radius is 1. Therefore, the answer is 1.
+
+Wait, but let me make sure I didn't miss anything. Suppose \(a_n\) can grow faster than any polynomial. Wait, but from the divisor function theory, \(d(n)\) is \(O(n^\epsilon)\) for any \(\epsilon > 0\). So \(d(n^{50})\) is \(O(n^{50 \epsilon})\). So by choosing \(\epsilon = 1/50\), we get \(d(n^{50}) = O(n^{1})\), hence \(a_n\) is linear. Therefore, even the maximal growth is linear, so \(a_n\) is at most linear. Wait, but earlier we saw that \(a_n\) can be as large as \(n^{\log 51}\), which is super-linear because \(\log 51 \approx 3.93\). Wait, that contradicts. Wait, maybe my initial estimation was wrong.
+
+Wait, if \(n\) is square-free with \(m\) primes, then \(n\) is the product of the first \(m\) primes, which is approximately \(e^{m}\). Then \(a_n = 51^m\). So \(a_n = 51^m\) while \(n \approx e^{m}\). Therefore, \(a_n \approx 51^{\log n}\), since \(m \approx \log n\). So \(a_n \approx n^{\log 51}\). Wait, but \(\log 51\) is natural log? Wait, no, if \(n = e^{m}\), then \(m = \ln n\), so \(a_n = 51^{\ln n} = e^{\ln 51 \cdot \ln n} = n^{\ln 51}\). Wait, \(\ln 51\) is approximately 3.93, so \(a_n \approx n^{3.93}\), which is a polynomial of degree about 3.93. But the divisor function is supposed to be \(O(n^\epsilon)\) for any \(\epsilon > 0\). But this seems contradictory. What's going on here?
+
+Ah, maybe the discrepancy is because \(d(n^{50})\) is not \(d(n)\) but \(d(n^{50})\). The standard divisor function \(d(n)\) is \(O(n^\epsilon)\), but here we have \(d(n^{50})\). However, if \(n\) is square-free, \(d(n^{50}) = 51^{\omega(n)}\), where \(\omega(n)\) is the number of distinct prime factors. So if \(\omega(n)\) is as large as possible, which is roughly \(\log n / \log \log n\), then \(d(n^{50}) = 51^{\log n / \log \log n}\). That is, \(d(n^{50}) = e^{(\log 51) \cdot (\log n / \log \log n)}\). Then \(d(n^{50})^{1/n} = e^{(\log 51) \cdot (\log n) / (n \log \log n)}\). As \(n\) approaches infinity, \((\log n)/(n \log \log n)\) approaches 0, so the exponent approaches 0, so \(d(n^{50})^{1/n} \to 1\). Therefore, even if \(d(n^{50})\) can be as large as \(e^{(\log 51) \cdot (\log n / \log \log n)}\), which is super-polynomial but sub-exponential, the nth root still tends to 1. So the lim sup is 1.
+
+But wait, in the case where \(n\) is square-free with many primes, \(d(n^{50}) = 51^{\omega(n)}\), and \(\omega(n)\) can be up to roughly \(\log n / \log \log n\) for \(n\) with many prime factors. So \(d(n^{50}) \approx 51^{\log n / \log \log n} = e^{(\log 51) \cdot \log n / \log \log n}\). Taking the nth root, we get \(e^{(\log 51) \cdot (\log n) / (n \log \log n)}\), which tends to \(e^{0} = 1\) as \(n \to \infty\). Therefore, even in the case of maximal \(a_n\), the nth root still goes to 1. Therefore, the lim sup is 1, hence the radius of convergence is 1.
+
+Therefore, I think the answer is 1.
+
+**Final Answer**
+The radius of convergence is \boxed{1}.
+</think>
+
+To find the radius of convergence of the power series \(\sum_{n=1}^{\infty} a_n z^{n}\), where \(a_n\) is the number of divisors of \(n^{50}\), we use the root test. The radius of convergence \(R\) is given by \(1/\limsup_{n \to \infty} |a_n|^{1/n}\).
+
+1. **Understanding \(a_n\)**: The number of divisors of \(n^{50}\) (denoted \(d(n^{50})\)) depends on the prime factorization of \(n\). If \(n = p_1^{k_1} p_2^{k_2} \cdots p_m^{k_m}\), then \(n^{50} = p_1^{50k_1} p_2^{50k_2} \cdots p_m^{50k_m}\), and the number of divisors is \((50k_1 + 1)(50k_2 + 1) \cdots (50k_m + 1)\).
+
+2. **Maximizing \(a_n\)**: For \(a_n\) to be maximized, \(n\) should be square-free with many prime factors. If \(n\) is square-free with \(m\) prime factors, then \(a_n = 51^m\). The product of the first \(m\) primes (which is approximately \(e^m\)) implies \(m \approx \log n\). Thus, \(a_n \approx 51^{\log n} = n^{\log 51}\).
+
+3. **Growth Rate Analysis**: The growth rate of \(a_n\) is polynomial in \(n\). For any polynomial growth \(n^c\), the nth root \(a_n^{1/n}\) behaves like \(e^{c (\log n)/n}\), which tends to 1 as \(n \to \infty\).
+
+4. **Conclusion**: The lim sup of \(a_n^{1/n}\) as \(n \to \infty\) is 1. Therefore, the radius of convergence is \(1/1 = 1\).
+
+\[
+\boxed{1}
+\]
+
+## AI's Thinking (Attempted Solution Process)
+
+The problem asks about the existence of a universally measurable $\epsilon$-optimal selector for a lower semianalytic function. This is a classic result in the theory of analytic sets and measurable selection — specifically the Jankov-von Neumann selection theorem and its extension to lower semianalytic functions.
+
+Let me think through this carefully.
+
+We have:
+- Standard Borel spaces $(X, \mathcal{X})$ and $(A, \mathcal{A})$
+- $D \subseteq X \times A$ analytic
+- $c: D \to [0,\infty]$ lower semianalytic
+- Stochastic kernel $p(\cdot|\cdot)$ with $(x,a) \mapsto p(B|x,a)$ lower semianalytic for each $B \in \mathcal{X}$, and $B \mapsto p(B|x,a)$ a probability measure
+- $\eta_u(x,a) = c(x,a) + \int_X u(y) p(dy|x,a)$ for lower semianalytic $u: X \to [0,\infty]$
+- $\eta_u^*(x) = \inf_{a \in D_x} \eta_u(x,a)$ for $x \in \text{proj}_X(D)$
+
+Question: Given $\epsilon > 0$, does there exist a universally measurable $\varphi: \text{proj}_X(D) \to A$ with $\varphi(x) \in D_x$ for all $x$ and $\eta_u(x, \varphi(x)) \leq \eta_u^*(x) + \epsilon$?
+
+Key steps:
+
+1. **$\eta_u$ is lower semianalytic**: We need to show $(x,a) \mapsto \eta_u(x,a)$ is lower semianalytic on $D$.
+   - $c$ is lower semianalytic by assumption.
+   - The integral $\int u(y) p(dy|x,a)$: since $u$ is lower semianalytic and $p$ is a kernel with lower semianalytic $(x,a) \mapsto p(B|x,a)$, the integral is lower semianalytic. This is a standard result (see Bertsekas-Shreve or the theory of analytic sets). The key fact: if $u$ is lower semianalytic and $p$ has lower semianalytic $x \mapsto p(B|x)$, then $x \mapsto \int u \, dp(x)$ is lower semianalytic.
+
+   So $\eta_u$ is lower semianalytic on $D$.
+
+2. **$\eta_u^*$ is lower semianalytic**: The infimum over $a \in D_x$ of a lower semianalytic function on an analytic set is lower semianalytic. This is a fundamental property: if $f: X \times A \to [0,\infty]$ is lower semianalytic and $D$ is analytic, then $g(x) = \inf_{a: (x,a) \in D} f(x,a)$ is lower semianalytic.
+
+3. **Measurable selection**: The Jankov-von Neumann theorem (and its quantitative version) states that for a lower semianalytic function $f$ on an analytic set $D \subseteq X \times A$, given $\epsilon > 0$, there exists a universally measurable selector $\varphi: \text{proj}_X(D) \to A$ with $\varphi(x) \in D_x$ and $f(x, \varphi(x)) \leq f^*(x) + \epsilon$ where $f^*(x) = \inf_{a \in D_x} f(x,a)$.
+
+Applying this with $f = \eta_u$ gives the result.
+
+Let me write this up more carefully.
+
+**Step 1: $\eta_u$ is lower semianalytic.**
+
+A function $f: D \to [0,\infty]$ is lower semianalytic if $\{f > \alpha\}$ is analytic for all $\alpha \in \mathbb{R}$, or equivalently $\{f \leq \alpha\}$... actually the standard definition: $f$ is lower semianalytic if for every $\alpha \in \mathbb{R}$, the set $\{x : f(x) < \alpha\}$ is analytic, or equivalently $\{x : f(x) > \alpha\}$ is analytic. Let me use the convention: $f$ is lower semianalytic if $\{f > r\}$ is analytic for all $r \in \mathbb{R}$ (or equivalently $\{f \geq r\}$... there are various conventions). The key property is:
+
+- Sum of two nonneg lower semianalytic functions is lower semianalytic.
+- If $u$ is lower semianalytic on $X$ and $p$ is a stochastic kernel with $(x,a) \mapsto p(B|x,a)$ lower semianalytic for each $B$, then $(x,a) \mapsto \int u \, dp(\cdot|x,a)$ is lower semianalytic.
+
+The second fact is the crucial one. It follows from the monotone approximation of $u$ by simple functions. Since $u$ is lower semianalytic and nonneg, we can write $u = \sup_n u_n$ where $u_n$ are simple lower semianalytic functions (or use the approximation $u = \lim_{n} u_n$ with $u_n = \sum_{k} \frac{1}{2^n} \mathbf{1}_{\{u > k/2^n\}}$). Each $\{u > k/2^n\}$ is analytic. Then $\int u \, dp = \sup_n \int u_n \, dp$, and each $\int u_n \, dp$ is a sum of terms of the form $\frac{1}{2^n} p(\{u > k/2^n\} | x, a)$, which is lower semianalytic since $(x,a) \mapsto p(B|x,a)$ is lower semianalytic for analytic $B$... 
+
+Wait, we need $p(B|x,a)$ to be lower semianalytic for analytic $B$, not just Borel $B$. The assumption says $(x,a) \mapsto p(B|x,a)$ is lower semianalytic for each $B \in \mathcal{X}$ (Borel). But $\{u > k/2^n\}$ is analytic, not necessarily Borel.
+
+Hmm, but there's a standard result: if $p$ is a stochastic kernel such that $(x,a) \mapsto p(B|x,a)$ is lower semianalytic for each Borel $B$, then for any analytic set $B$, $(x,a) \mapsto p(B|x,a)$ is also lower semianalytic. This is because analytic sets can be obtained via the Suslin operation on Borel sets, and the probability measure's behavior on analytic sets is determined by its behavior on Borel sets, combined with the lower semianalyticity.
+
+Actually, more precisely: if $B$ is analytic, then $p(B|x,a)$ is a lower semianalytic function of $(x,a)$. This is a standard result. The reason: $B = \text{proj}_{X \times A}(C)$ for some Borel $C$ in a higher-dimensional space, and by the capacity/measure properties, $p(B|x,a) = \sup \{ p(F|x,a) : F \subseteq B, F \text{ Borel} \}$ (for probability measures, analytic sets are universally measurable and their measure equals the sup of measures of compact/Borel subsets). Actually for a probability measure, an analytic set is universally measurable, and its measure is well-defined. The lower semianalyticity of $(x,a) \mapsto p(B|x,a)$ for analytic $B$ follows from the Lusin theorem / capacitability arguments.
+
+So the integral $\int u \, dp$ is lower semianalytic, hence $\eta_u$ is lower semianalytic.
+
+**Step 2: $\eta_u^*$ is lower semianalytic.**
+
+This is the standard "infimum projection" theorem: if $f: X \times A \to [0,\infty]$ is lower semianalytic and $D \subseteq X \times A$ is analytic, then $g(x) = \inf_{a \in D_x} f(x,a)$ is lower semianalytic on $\text{proj}_X(D)$.
+
+This follows because $\{g > \alpha\} = \text{proj}_X(\{(x,a) \in D : f(x,a) > \alpha\})$, and since $f$ is lower semianalytic, $\{f > \alpha\}$ is analytic, so $\{(x,a) \in D : f(x,a) > \alpha\} = D \cap \{f > \alpha\}$ is analytic (intersection of analytic sets is analytic), and its projection is analytic. Hence $\{g > \alpha\}$ is analytic, so $g$ is lower semianalytic.
+
+Wait, I need to be careful. $\{g > \alpha\}$ means $\{x : \inf_{a \in D_x} f(x,a) > \alpha\}$. This equals $\{x : \forall a \in D_x, f(x,a) > \alpha\} = \text{proj}_X(D) \setminus \text{proj}_X(\{(x,a) \in D : f(x,a) \leq \alpha\})$.
+
+Hmm, that's not quite right either. Let me reconsider.
+
+$\{x : \inf_{a \in D_x} f(x,a) > \alpha\} = \{x : \forall a \in D_x, f(x,a) > \alpha\}$.
+
+This is $\text{proj}_X(D) \setminus \{x : \exists a \in D_x, f(x,a) \leq \alpha\}$.
+
+The set $\{x : \exists a \in D_x, f(x,a) \leq \alpha\} = \text{proj}_X(\{(x,a) \in D : f(x,a) \leq \alpha\})$.
+
+Now, $\{f \leq \alpha\}$ is the complement of $\{f > \alpha\}$. If $f$ is lower semianalytic, $\{f > \alpha\}$ is analytic, so $\{f \leq \alpha\}$ is coanalytic (not necessarily analytic). So $\{(x,a) \in D : f(x,a) \leq \alpha\}$ is the intersection of an analytic set and a coanalytic set, which is... not necessarily analytic.
+
+Hmm, so the projection might not be analytic. Let me reconsider.
+
+Actually, the right way to think about this: the standard result is that if $f$ is lower semianalytic, then $\inf_{a \in D_x} f(x,a)$ is lower semianalytic. Let me recall the proof.
+
+The standard approach uses the fact that for lower semianalytic $f$, $\{f < \alpha\}$ is analytic (using the convention that lower semianalytic means $\{f > \alpha\}$ is analytic, or $\{f < \alpha\}$ is analytic — there are different conventions).
+
+Let me use the convention from Bertsekas-Shreve: $f$ is lower semianalytic if $\{x : f(x) < c\}$ is analytic for every $c \in \mathbb{R}$. (Equivalently, $\{x : f(x) \geq c\}$ is coanalytic, or $\{x : f(x) > c\}$ is analytic... actually these aren't all equivalent.)
+
+Hmm, let me be more careful. In Bertsekas-Shreve ("Stochastic Optimal Control"), a function $f: X \to [-\infty, \infty]$ is lower semianalytic if for every $c \in \mathbb{R}$, the set $\{x : f(x) < c\}$ is analytic.
+
+With this convention:
+- $\{f < c\}$ is analytic.
+- $\{f \geq c\}$ is coanalytic (complement of analytic).
+
+Now, $g(x) = \inf_{a \in D_x} f(x,a)$. We want to show $\{g < c\}$ is analytic.
+
+$\{x : g(x) < c\} = \{x : \inf_{a \in D_x} f(x,a) < c\} = \{x : \exists a \in D_x, f(x,a) < c\}$.
+
+$= \text{proj}_X(\{(x,a) \in D : f(x,a) < c\})$.
+
+Since $f$ is lower semianalytic, $\{f < c\}$ is analytic. So $\{(x,a) \in D : f(x,a) < c\} = D \cap \{f < c\}$ is analytic (intersection of two analytic sets is analytic). The projection of an analytic set is analytic. So $\{g < c\}$ is analytic. Hence $g$ is lower semianalytic. ✓
+
+Great, so with the Bertsekas-Shreve convention, this works cleanly.
+
+**Step 3: The measurable selection theorem (Jankov-von Neumann, quantitative version).**
+
+The theorem states: Let $X, A$ be standard Borel spaces, $D \subseteq X \times A$ analytic, and $f: D \to [0, \infty]$ lower semianalytic. Define $f^*(x) = \inf_{a \in D_x} f(x,a)$ for $x \in \text{proj}_X(D)$. Then for any $\epsilon > 0$, there exists a universally measurable function $\varphi: \text{proj}_X(D) \to A$ such that $\varphi(x) \in D_x$ for all $x \in \text{proj}_X(D)$ and $f(x, \varphi(x)) \leq f^*(x) + \epsilon$ for all $x \in \text{proj}_X(D)$.
+
+This is exactly what we need with $f = \eta_u$.
+
+The proof of this theorem: Since $f^*$ is lower semianalytic (Step 2), $f^* + \epsilon$ is also lower semianalytic. Consider the set $E = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$. We need to show $E$ is analytic (or at least that its projection is $\text{proj}_X(D)$ and it admits a universally measurable selector).
+
+Actually, the standard proof goes like this:
+
+For each $n$, define $D_n = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$. We need $\text{proj}_X(D_n) = \text{proj}_X(D)$ (which holds by definition of infimum) and then apply the Jankov-von Neumann selection theorem to get a universally measurable selector.
+
+But we need $D_n$ to be analytic for the selection theorem. Is it?
+
+$D_n = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$.
+
+$f(x,a) - f^*(x) \leq \epsilon$... this involves subtraction which is tricky for $[0,\infty]$-valued functions.
+
+Alternative approach: The set $\{(x,a) : f(x,a) \leq f^*(x) + \epsilon\}$ can be written as:
+
+$\{(x,a) \in D : f(x,a) \leq g(x) + \epsilon\}$ where $g = f^*$ is lower semianalytic.
+
+Hmm, this is $\{(x,a) : f(x,a) - \epsilon \leq g(x)\}$, but again subtraction is problematic.
+
+Let me think about this differently. The standard approach in Bertsekas-Shreve (Proposition 7.50 or similar) uses the following:
+
+Define $h(x,a) = f(x,a) - f^*(x)$ (where we handle $\infty$ carefully). Actually, a cleaner approach:
+
+Consider the set $S = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$. 
+
+We can write: $(x,a) \in S$ iff $f(x,a) \leq f^*(x) + \epsilon$ iff for all $c \in \mathbb{Q}$, if $f(x,a) > c$ then $f^*(x) + \epsilon > c$, i.e., $f^*(x) > c - \epsilon$.
+
+Hmm, this is getting complicated. Let me think about the standard proof more carefully.
+
+Actually, the standard proof of the quantitative selection theorem uses a different approach. Here's one common method:
+
+**Method via the Jankov-von Neumann theorem directly:**
+
+The Jankov-von Neumann theorem says: if $D \subseteq X \times A$ is analytic and $\text{proj}_X(D) = X$ (or we work on $\text{proj}_X(D)$), then there exists a universally measurable $\varphi: \text{proj}_X(D) \to A$ with $\varphi(x) \in D_x$.
+
+For the quantitative version, we need to construct an analytic set $E \subseteq D$ with $\text{proj}_X(E) = \text{proj}_X(D)$ such that for $(x,a) \in E$, $f(x,a) \leq f^*(x) + \epsilon$.
+
+One approach: For each rational $q$, define 
+$$E_q = \{(x,a) \in D : f(x,a) \leq q + \epsilon, f^*(x) \geq q - \epsilon\}$$
+No, this doesn't quite work either.
+
+Let me try another approach. Consider the function $h(x,a) = f(x,a) - f^*(x)$ defined appropriately. Actually, let's use the following:
+
+Define $G = \{(x,a, r) \in D \times \mathbb{R} : f(x,a) \leq r + \epsilon, r \geq f^*(x) - \epsilon\}$... this is getting messy.
+
+Let me look at this from the Bertsekas-Shreve perspective. In Bertsekas-Shreve, the relevant result is:
+
+**Proposition (Bertsekas-Shreve, Prop. 7.50)**: Let $D$ be an analytic subset of $X \times A$ and $f: D \to [-\infty, \infty]$ be lower semianalytic. Then there exists a universally measurable $\varphi: \text{proj}_X(D) \to A$ such that $(x, \varphi(x)) \in D$ for all $x \in \text{proj}_X(D)$ and $f(x, \varphi(x)) = f^*(x)$ when $f^*(x) > -\infty$, and $f(x, \varphi(x)) \leq f^*(x) + \epsilon$ for any given $\epsilon > 0$.
+
+Actually, I think the exact statement varies. Let me just construct the proof.
+
+**Proof of the selection theorem:**
+
+Since $f^*$ is lower semianalytic, for each $n \in \mathbb{N}$, the set $\{x : f^*(x) < n\}$ is analytic. 
+
+Define for each rational $q \geq 0$:
+$$A_q = \{(x,a) \in D : f(x,a) \leq q + \epsilon\}$$
+
+Since $f$ is lower semianalytic, $\{f \leq q + \epsilon\}$ is... well, $\{f < q + \epsilon + \delta\}$ is analytic for each $\delta > 0$, so $\{f \leq q + \epsilon\} = \bigcap_{\delta > 0, \delta \in \mathbb{Q}} \{f < q + \epsilon + \delta\}$ is a countable intersection of analytic sets, which is analytic (countable intersection of analytic sets is analytic? No! Countable intersection of analytic sets is analytic — yes, this is true for standard Borel spaces).
+
+Wait, is countable intersection of analytic sets analytic? Yes: $\bigcap_n A_n = \text{proj}_X(\{(x, (a_1, a_2, \ldots)) : x \in A_{n} \text{ for all } n\})$... actually the standard result is that countable unions and countable intersections of analytic sets are analytic. Yes, this is true.
+
+So $\{f \leq q + \epsilon\}$ is analytic (as a countable intersection of analytic sets $\{f < q + \epsilon + 1/n\}$).
+
+Hmm wait, actually $\{f \leq c\} = \bigcap_{n=1}^\infty \{f < c + 1/n\}$, and each $\{f < c + 1/n\}$ is analytic (since $f$ is lower semianalytic), and countable intersection of analytic sets is analytic. So $\{f \leq c\}$ is analytic. ✓
+
+Now, I want to construct an analytic set $E \subseteq D$ such that $\text{proj}_X(E) = \text{proj}_X(D)$ and for $(x,a) \in E$, $f(x,a) \leq f^*(x) + \epsilon$.
+
+Approach: Define 
+$$E = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$$
+
+We need to show $E$ is analytic. 
+
+$E = \{(x,a) \in D : f(x,a) - \epsilon \leq f^*(x)\}$.
+
+Consider the function $h(x,a) = f(x,a) - \epsilon$ (with the convention $\infty - \epsilon = \infty$). Is $h$ lower semianalytic? If $f$ is lower semianalytic, then $f - \epsilon$ is lower semianalytic (shifting by a constant preserves lower semianalyticity). ✓
+
+Now, $E = \{(x,a) \in D : h(x,a) \leq f^*(x)\}$ where $h = f - \epsilon$ is lower semianalytic and $f^*$ is lower semianalytic.
+
+$\{h \leq f^*\} = \{(x,a) : h(x,a) \leq f^*(x)\}$. 
+
+This is $\{(x,a) : \forall q \in \mathbb{Q}, h(x,a) > q \implies f^*(x) \geq q\}$... hmm, or equivalently:
+
+$\{h \leq f^*\} = \{(x,a) : \neg (h(x,a) > f^*(x))\} = \{(x,a) : \neg \exists q \in \mathbb{Q}, h(x,a) > q > f^*(x)\}$
+
+$= \{(x,a) : \forall q \in \mathbb{Q}, \neg (h(x,a) > q \text{ and } f^*(x) < q)\}$
+
+$= \text{proj}_X(D) \times A \setminus \bigcup_{q \in \mathbb{Q}} (\{h > q\} \cap \{f^* < q\})$
+
+Now $\{h > q\}$: since $h$ is lower semianalytic, $\{h < q\}$ is analytic, so $\{h > q\}$... hmm, $\{h > q\}$ is not necessarily analytic. $\{h \geq q\}$ is coanalytic. $\{h > q\} = \bigcup_n \{h \geq q + 1/n\}$... no. $\{h > q\} = \bigcup_{n} \{h \geq q + 1/n\}$? No, that's not right either. $\{h > q\} = \bigcup_{\delta > 0, \delta \in \mathbb{Q}} \{h \geq q + \delta\}$... but $\{h \geq q + \delta\}$ is coanalytic, not analytic.
+
+Hmm, so this approach of directly showing $E$ is analytic is problematic.
+
+Let me reconsider. Maybe the standard proof doesn't show $E$ is analytic directly, but uses a different construction.
+
+**Alternative approach: Lusin's theorem / Arsenin-Kunugui**
+
+Actually, let me think about this differently. The standard proof of the quantitative selection theorem in Bertsekas-Shreve uses the following:
+
+Since $f^*$ is lower semianalytic and $f^* + \epsilon$ is lower semianalytic, define:
+$$D_\epsilon = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$$
+
+The key insight is that $\text{proj}_X(D_\epsilon) = \text{proj}_X(D)$ (by definition of infimum, for each $x$ there exists $a \in D_x$ with $f(x,a) \leq f^*(x) + \epsilon$).
+
+But we need $D_\epsilon$ to be "nice enough" for selection. The issue is whether $D_\epsilon$ is analytic.
+
+Actually, let me reconsider. Maybe we don't need $D_\epsilon$ to be analytic. The Jankov-von Neumann theorem works for analytic sets. But there are more general selection theorems.
+
+Actually, I recall now. The standard approach is:
+
+**Step 1**: Show $f^*$ is lower semianalytic (done).
+
+**Step 2**: For each $n$, define the analytic set:
+$$D_n = \{(x,a) \in D : f(x,a) < f^*(x) + \epsilon\}$$
+
+Wait, $\{f < f^* + \epsilon\}$... let me think about whether this is analytic.
+
+$\{(x,a) : f(x,a) < f^*(x) + \epsilon\} = \{(x,a) : \exists q \in \mathbb{Q}, f(x,a) < q < f^*(x) + \epsilon\}$
+
+$= \bigcup_{q \in \mathbb{Q}} \{f < q\} \cap \{f^* + \epsilon > q\}$
+
+$= \bigcup_{q \in \mathbb{Q}} \{f < q\} \cap \{f^* > q - \epsilon\}$
+
+Now, $\{f < q\}$ is analytic (lower semianalyticity of $f$). $\{f^* > q - \epsilon\}$: since $f^*$ is lower semianalytic, $\{f^* < q - \epsilon\}$ is analytic, so $\{f^* > q - \epsilon\}$ is coanalytic. Hmm, so $\{f < q\} \cap \{f^* > q - \epsilon\}$ is the intersection of an analytic set and a coanalytic set, which is not necessarily analytic.
+
+So $\{f < f^* + \epsilon\}$ is a countable union of sets that are intersections of analytic and coanalytic — these are $\Sigma^1_1 \cap \Pi^1_1$ sets, sometimes called "Souslin" sets or "Borel" in some contexts... actually they're in the class $\Delta^1_1$ only if both the set and its complement are analytic. The intersection of analytic and coanalytic is $\Sigma^1_1 \cap \Pi^1_1 = \Delta^1_1$? No, $\Delta^1_1$ is the class of Borel sets. The intersection of a $\Sigma^1_1$ set and a $\Pi^1_1$ set is in $\Sigma^1_1 \cap \Pi^1_1$, which is $\Delta^1_1$ = Borel? No, that's not right. $\Sigma^1_1 \cap \Pi^1_1$ means sets that are both analytic and coanalytic, which by Souslin's theorem are exactly the Borel sets. But the intersection of an analytic set and a coanalytic set is not necessarily both analytic and coanalytic.
+
+Hmm, I think I'm overcomplicating this. Let me take a step back and recall the actual standard proof.
+
+**The actual standard proof (from Bertsekas-Shreve or similar):**
+
+The key theorem is the **Jankov-von Neumann selection theorem** in its quantitative form. Here's the standard approach:
+
+1. $f^*$ is lower semianalytic (shown above).
+2. Define $g = f^* + \epsilon$, which is lower semianalytic.
+3. Consider the set $E = \{(x,a) \in D : f(x,a) \leq g(x)\}$.
+4. Show that $\text{proj}_X(E) = \text{proj}_X(D)$.
+5. Show that $E$ admits a universally measurable selector.
+
+For step 5, we don't necessarily need $E$ to be analytic. The key is that $E$ can be expressed in a way that allows measurable selection.
+
+Actually, I think the standard approach is different. Let me recall.
+
+**Approach via approximation:**
+
+Since $f^*$ is lower semianalytic, we can approximate it. For each $n$, define:
+$$f_n^*(x) = \begin{cases} f^*(x) & \text{if } f^*(x) \leq n \\ n & \text{if } f^*(x) > n \end{cases}$$
+
+No, this is getting complicated. Let me try yet another approach.
+
+**Direct approach using the definition of infimum and analytic selection:**
+
+For each $n \in \mathbb{N}$, define:
+$$E_n = \{(x,a) \in D : f(x,a) \leq n + \epsilon\} \cap \{x : f^*(x) \geq n\} \text{ (projected appropriately)}$$
+
+No, this doesn't work cleanly either.
+
+Let me try the approach from the literature more carefully. I'll look at this from the perspective of the "measurable selection via analytic graph" approach.
+
+**The correct approach:**
+
+The set we want to select from is $E = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$.
+
+Claim: $E$ is analytic.
+
+Proof of claim: We write
+$$E = \{(x,a) \in D : f(x,a) - \epsilon \leq f^*(x)\}$$
+
+Let $h(x,a) = f(x,a) - \epsilon$ (with $\infty - \epsilon = \infty$). Then $h$ is lower semianalytic (constant shift preserves lower semianalyticity).
+
+Now, $E = \{(x,a) \in D : h(x,a) \leq f^*(x)\}$.
+
+$\{h \leq f^*\} = \{(x,a) : \forall q \in \mathbb{Q}, h(x,a) \leq q \text{ or } f^*(x) \geq q\}$
+
+Hmm, let me think about this differently. 
+
+$\{h \leq f^*\} = \{(x,a) : \neg(h(x,a) > f^*(x))\}$
+
+$h(x,a) > f^*(x)$ iff $\exists q \in \mathbb{Q}$ such that $h(x,a) > q$ and $f^*(x) < q$.
+
+So $\{h > f^*\} = \bigcup_{q \in \mathbb{Q}} \{h > q\} \cap \{f^* < q\}$.
+
+Now, $\{f^* < q\}$ is analytic (lower semianalyticity of $f^*$). 
+
+$\{h > q\}$: $h$ is lower semianalytic, so $\{h < q\}$ is analytic. $\{h > q\} = \{h < q\}^c$... no. $\{h > q\} = \bigcup_{n} \{h \geq q + 1/n\}$. And $\{h \geq q + 1/n\} = \{h < q + 1/n\}^c$, which is coanalytic. So $\{h > q\}$ is a countable union of coanalytic sets, which is coanalytic (since $\Pi^1_1$ is closed under countable unions? No, $\Pi^1_1$ is closed under countable intersections, and $\Sigma^1_1$ is closed under countable unions. Countable union of coanalytic sets is... $\bigcup_n (X \setminus A_n) = X \setminus \bigcap_n A_n$ where $A_n$ are analytic. $\bigcap_n A_n$ is analytic (countable intersection of analytic is analytic). So $\bigcup_n (X \setminus A_n) = X \setminus \bigcap_n A_n$ is coanalytic. ✓)
+
+So $\{h > q\}$ is coanalytic. Then $\{h > q\} \cap \{f^* < q\}$ is the intersection of a coanalytic set and an analytic set. This is in general $\Delta^1_1$? No, it's $\Sigma^1_1 \cap \Pi^1_1$ in the sense of being both... no. The intersection of a coanalytic ($\Pi^1_1$) set and an analytic ($\Sigma^1_1$) set is in $\Sigma^1_1 \cap \Pi^1_1$? 
+
+A set in $\Sigma^1_1 \cap \Pi^1_1$ is a set that is both analytic and coanalytic. The intersection of an analytic set and a coanalytic set is both analytic and coanalytic? No! The intersection of an analytic set $A$ and a coanalytic set $B$ is: $A \cap B$ is analytic (since $B = X \setminus C$ for analytic $C$, so $A \cap B = A \setminus C = A \cap (X \setminus C)$; the difference of analytic sets is not necessarily analytic). Actually, $A \cap B$ where $A$ is analytic and $B$ is coanalytic: $A \cap B \subseteq A$ so it's a subset of an analytic set, but it need not be analytic itself.
+
+Hmm, so $\{h > q\} \cap \{f^* < q\}$ is the intersection of a coanalytic and an analytic set, which is in the class $\Pi^1_1 \cap \Sigma^1_1$... no, it's just some set that might not be analytic.
+
+So $\{h > f^*\} = \bigcup_q (\text{coanalytic} \cap \text{analytic})$, which is a countable union of potentially non-analytic sets. This doesn't directly give us analyticity.
+
+OK so the direct approach of showing $E$ is analytic seems difficult. Let me think about the standard proof differently.
+
+**The standard proof via the Jankov-von Neumann theorem:**
+
+I think the key insight is that we don't need $E$ to be analytic. Instead, we use a more refined selection theorem. Here's the approach:
+
+The Jankov-von Neumann theorem in its basic form says: if $D \subseteq X \times A$ is analytic with $\text{proj}_X(D) = X$, then there exists a universally measurable selector.
+
+For the quantitative version, the standard approach (see, e.g., Bertsekas-Shreve Proposition 7.50, or the survey by Bogachev) is:
+
+**Method 1: Via the graph of the $\epsilon$-optimal set being "analytically sufficient".**
+
+Define $E = \{(x,a) \in D : f(x,a) \leq f^*(x) + \epsilon\}$. Even if $E$ is not analytic, we can still find a universally measurable selector if $E$ is "universally measurable as a set" in the product, i.e., if $E$ is universally measurable in $X \times A$.
+
+Actually, I think the right approach is:
+
+**Claim**: $E$ is universally measurable in $X \times A$ (i.e., measurable with respect to every complete probability measure on $X \times A$).
+
+If $E$ is universally measurable and $\text{proj}_X(E) = \text{proj}_X(D)$, then by a measurable selection theorem for universally measurable sets (which is a standard extension of Jankov-von Neumann), there exists a universally measurable selector.
+
+But is $E$ universally measurable? $E = D \cap \{h \leq f^*\}$ where $D$ is analytic (hence universally measurable) and $\{h \leq f^*\}$... we need to show $\{h \leq f^*\}$ is universally measurable.
+
+$\{h > f^*\} = \bigcup_{q \in \mathbb{Q}} \{h > q\} \cap \{f^* < q\}$.
+
+$\{f^* < q\}$ is analytic, hence universally measurable.
+$\{h > q\}$ is coanalytic, hence universally measurable (coanalytic sets are universally measurable by Lusin's theorem).
+
+So $\{h > q\} \cap \{f^* < q\}$ is universally measurable (intersection of universally measurable sets is universally measurable).
+
+$\{h > f^*\}$ is a countable union of universally measurable sets, hence universally measurable.
+
+$\{h \leq f^*\} = (X \times A) \setminus \{h > f^*\}$ is universally measurable.
+
+$E = D \cap \{h \leq f^*\}$ is universally measurable. ✓
+
+Now, $\text{proj}_X(E) = \text{proj}_X(D)$: For each $x \in \text{proj}_X(D)$, by definition of $f^*(x) = \inf_{a \in D_x} f(x,a)$, there exists $a \in D_x$ with $f(x,a) \leq f^*(x) + \epsilon$ (since $\epsilon > 0$). So $(x,a) \in E$, hence $x \in \text{proj}_X(E)$. ✓
+
+Now we need: **If $E \subseteq X \times A$ is universally measurable and $\text{proj}_X(E) = \text{proj}_X(D)$ (which is analytic), then there exists a universally measurable $\varphi: \text{proj}_X(D) \to A$ with $(x, \varphi(x)) \in E$ for all $x$.**
+
+This is a standard extension of the Jankov-von Neumann theorem. The idea: since $E$ is universally measurable, for any probability measure $\mu$ on $X$, we can find a Borel set $E_\mu$ with $E_\mu \subseteq E$ (or $E \triangle E_\mu$ being $\mu$-null in some sense) and apply the standard selection theorem. 
+
+Actually, the more precise statement: A universally measurable set $E \subseteq X \times A$ with $\text{proj}_X(E) = S$ (where $S$ is analytic, or more generally universally measurable) admits a universally measurable selector. This follows from the fact that universally measurable functions are exactly those measurable with respect to the completion of every probability measure, and the Jankov-von Neumann theorem can be extended to this setting.
+
+Let me think about this more carefully. The standard Jankov-von Neumann theorem gives a universally measurable selector for an analytic set. For a universally measurable set $E$, we proceed as follows:
+
+For any probability measure $\mu$ on $X$, consider the completion $\bar{\mu}$. Since $E$ is universally measurable, there exists a Borel set $B_\mu$ such that $E \triangle B_\mu$ is $\bar{\mu} \otimes \nu$-null for every probability $\nu$ on $A$ (or more precisely, $E$ is measurable with respect to the completion of $\mu \otimes \nu$ for every $\nu$). 
+
+Hmm, actually the universal measurability of $E$ in $X \times A$ means: for every probability measure $\lambda$ on $X \times A$, there exist Borel sets $B_1, B_2$ with $B_1 \subseteq E \subseteq B_2$ and $\lambda(B_2 \setminus B_1) = 0$.
+
+The selection theorem for universally measurable sets: This is indeed a standard result. See, e.g., Bogachev's "Measure Theory" or the original references. The key is:
+
+**Theorem (Extension of Jankov-von Neumann)**: Let $X, Y$ be standard Borel spaces and $E \subseteq X \times Y$ be a universally measurable set. Then there exists a universally measurable function $\varphi: \text{proj}_X(E) \to Y$ such that $(x, \varphi(x)) \in E$ for all $x \in \text{proj}_X(E)$.
+
+This can be proved by reducing to the analytic case: for each probability measure $\mu$ on $X$, find a Borel set $B \supseteq E$ (or $B \subseteq E$) that differs from $E$ by a null set, apply Jankov-von Neumann to $B$, and then patch together using the universal measurability framework.
+
+Actually, a cleaner approach: Since $E$ is universally measurable, there exist analytic sets $A_1, A_2$ with $A_1 \subseteq E \subseteq A_2$ and such that for every probability $\lambda$ on $X \times A$, $\lambda(A_2 \setminus A_1) = 0$. (This is because universally measurable sets are exactly those sandwiched between analytic sets with null difference for every measure — actually, this is the definition of "Souslin measurable" or "universally measurable" in some formulations.)
+
+Hmm, actually I need to be more careful. A universally measurable set is one that is $\lambda$-measurable for every probability measure $\lambda$. For standard Borel spaces, a set is universally measurable iff it is in the completion of the Borel $\sigma$-algebra with respect to every probability measure. This is equivalent to being measurable with respect to the $\sigma$-algebra generated by analytic sets (the "Souslin" $\sigma$-algebra), but I need to be careful about the exact relationship.
+
+Actually, in standard Borel spaces, the universally measurable $\sigma$-algebra is the completion of the Borel $\sigma$-algebra under all probability measures. It contains all analytic sets (since analytic sets are universally measurable by Lusin's theorem). 
+
+For the selection theorem: if $E$ is universally measurable and $\text{proj}_X(E) = S$, we can find a universally measurable selector. Here's a sketch:
+
+1. Since $E$ is universally measurable, for each probability $\mu$ on $X$, there exists a Borel set $E_\mu \supseteq E$ such that $(E_\mu \setminus E)$ is "small" in the sense that its projection onto $X$ has $\mu$-measure 0 (or more precisely, we can find $E_\mu$ Borel with $E_\mu \supseteq E$ and for $\mu$-a.e. $x$, the sections $(E_\mu)_x$ and $E_x$ coincide).
+
+Actually, this is getting complicated. Let me use a different, cleaner approach.
+
+**Cleaner approach using the Lusin-Novikov theorem or direct construction:**
+
+Actually, I think the cleanest approach for this problem is to use the following well-known result directly:
+
+**Theorem (Bertsekas-Shreve, Proposition 7.50 or Corollary 7.50.1)**: Let $X$ and $A$ be standard Borel spaces, $D \subseteq X \times A$ be analytic, and $f: D \to [-\infty, \infty]$ be lower semianalytic. Let $f^*(x) = \inf_{a \in D_x} f(x,a)$. Then:
+(a) $f^*$ is lower semianalytic.
+(b) For any $\epsilon > 0$, there exists a universally measurable $\varphi: \text{proj}_X(D) \to A$ such that $\varphi(x) \in D_x$ and $f(x, \varphi(x)) \leq f^*(x) + \epsilon$ for all $x \in \text{proj}_X(D)$.
+
+This is exactly the result we need, applied to $f = \eta_u$.
+
+So the proof structure is:
+1. Show $\eta_u$ is lower semianalytic (using the properties of $c$ and the integral).
+2. Apply the selection theorem.
+
+Let me now write up the complete proof.
+
+**Detailed proof:**
+
+**Part 1: $\eta_u$ is lower semianalytic on $D$.**
+
+We need to show $(x,a) \mapsto \eta_u(x,a) = c(x,a) + \int_X u(y) p(dy|x,a)$ is lower semianalytic.
+
+- $c$ is lower semianalytic by assumption.
+- We claim $I(x,a) := \int_X u(y) p(dy|x,a)$ is lower semianalytic.
+
+To show $I$ is lower semianalytic, we use the standard approximation of $u$ by simple functions. Since $u: X \to [0,\infty]$ is lower semianalytic, for each $n \in \mathbb{N}$, define:
+$$u_n(y) = \sum_{k=0}^{n \cdot 2^n - 1} \frac{k}{2^n} \mathbf{1}_{\{k/2^n \leq u(y) < (k+1)/2^n\}} + n \cdot \mathbf{1}_{\{u(y) \geq n\}}$$
+
+Wait, but $\{k/2^n \leq u < (k+1)/2^n\}$ involves both $\{u \geq k/2^n\}$ (coanalytic) and $\{u < (k+1)/2^n\}$ (analytic), so these sets might not be analytic.
+
+Let me use a different approximation. Since $u$ is lower semianalytic and nonneg, we can write:
+$$u(y) = \sup_{n \in \mathbb{N}} u_n(y)$$
+where 
+$$u_n(y) = \sum_{k=1}^{n \cdot 2^n} \frac{1}{2^n} \mathbf{1}_{\{u(y) > k/2^n\}}$$
+
+Each $\{u > k/2^n\}$ is analytic (since $u$ is lower semianalytic, $\{u > k/2^n\}$... wait, with the convention that lower semianalytic means $\{u < c\}$ is analytic, then $\{u > c\}$ is coanalytic, not analytic).
+
+Hmm, I need to be careful about the convention. Let me use the convention from Bertsekas-Shreve: $f$ is lower semianalytic if $\{f < c\}$ is analytic for all $c \in \mathbb{R}$.
+
+With this convention, $\{u > c\}$ is coanalytic (complement of $\{u \leq c\} = \bigcap_n \{u < c + 1/n\}$, which is a countable intersection of analytic sets, hence analytic; so $\{u > c\}$ is coanalytic).
+
+Wait, $\{u \leq c\} = \bigcap_{n=1}^\infty \{u < c + 1/n\}$, and each $\{u < c + 1/n\}$ is analytic, so $\{u \leq c\}$ is analytic (countable intersection of analytic sets is analytic). Then $\{u > c\} = \{u \leq c\}^c$ is coanalytic.
+
+And $\{u \geq c\} = \bigcap_{n=1}^\infty \{u > c - 1/n\}$. Each $\{u > c - 1/n\}$ is coanalytic, so $\{u \geq c\}$ is a countable intersection of coanalytic sets, which is coanalytic (since $\Pi^1_1$ is closed under countable intersections). So $\{u \geq c\}$ is coanalytic.
+
+And $\{u < c\}$ is analytic (by definition). $\{u > c\}$ is coanalytic.
+
+Now, for the approximation: $u = \sup_n u_n$ where $u_n$ are simple functions. We want $u_n$ to be built from analytic sets so that $p(\text{analytic set}|x,a)$ is lower semianalytic.
+
+Using $\{u < c\}$ is analytic:
+
+$$u_n(y) = \sum_{k=0}^{n \cdot 2^n - 1} \frac{k}{2^n} \mathbf{1}_{\{k/2^n \leq u(y) < (k+1)/2^n\}} + n \cdot \mathbf{1}_{\{u(y) \geq n\}}$$
+
+The set $\{k/2^n \leq u < (k+1)/2^n\} = \{u < (k+1)/2^n\} \setminus \{u < k/2^n\}$. This is the difference of two analytic sets, which is not necessarily analytic.
+
+Alternatively, use the "layer cake" representation:
+$$u(y) = \int_0^\infty \mathbf{1}_{\{u(y) > t\}} dt$$
+
+So $I(x,a) = \int_X u(y) p(dy|x,a) = \int_X \int_0^\infty \mathbf{1}_{\{u(y) > t\}} dt \, p(dy|x,a) = \int_0^\infty p(\{u > t\}|x,a) dt$ (by Tonelli's theorem, since everything is nonneg).
+
+Now, $\{u > t\}$ is coanalytic. We need $p(\{u > t\}|x,a)$ to be lower semianalytic in $(x,a)$.
+
+For a coanalytic set $C$, is $p(C|x,a)$ lower semianalytic? 
+
+For analytic sets, $p(B|x,a)$ is lower semianalytic (this is a standard result, as I discussed earlier). For coanalytic sets, $p(C|x,a) = 1 - p(X \setminus C|x,a)$. If $X \setminus C$ is analytic, then $p(X \setminus C|x,a)$ is lower semianalytic, so $p(C|x,a) = 1 - p(X \setminus C|x,a)$. But $1 - g$ where $g$ is lower semianalytic is upper semianalytic, not lower semianalytic. So $p(C|x,a)$ is upper semianalytic for coanalytic $C$.
+
+So the layer cake approach gives $I(x,a) = \int_0^\infty p(\{u > t\}|x,a) dt$ where $p(\{u > t\}|x,a)$ is upper semianalytic, which doesn't directly help.
+
+Let me try a different approach. Use the approximation from below:
+
+$$u(y) = \sup_n u_n(y) \text{ where } u_n(y) = \sum_{k=1}^{n2^n} \frac{k-1}{2^n} \mathbf{1}_{\{u(y) \geq k/2^n\}}$$
+
+Wait, $\{u \geq k/2^n\}$ is coanalytic, so $p(\{u \geq k/2^n\}|x,a)$ is upper semianalytic. Not helpful.
+
+Let me try approximation from below using analytic sets:
+
+$$u_n(y) = \sum_{k=0}^{n2^n - 1} \frac{k}{2^n} \mathbf{1}_{\{u(y) > k/2^n\}}$$
+
+Wait, but this uses $\{u > k/2^n\}$ which is coanalytic. Hmm.
+
+OK here's the issue: with the convention that $\{u < c\}$ is analytic, the "natural" sets for lower semianalytic functions are the sublevel sets $\{u < c\}$. The superlevel sets $\{u > c\}$ are coanalytic.
+
+But for the integral, we want to approximate $u$ from below. The standard approach in this context is:
+
+**Key fact**: If $u$ is lower semianalytic and nonneg, then $u = \sup_n u_n$ where each $u_n$ is a nonneg simple function of the form $u_n = \sum_i \alpha_i \mathbf{1}_{A_i}$ with $A_i$ analytic. 
+
+How? Note that $u$ is lower semianalytic means $\{u < c\}$ is analytic. Equivalently, $\{u \geq c\}$ is coanalytic. But also, $u$ lower semianalytic means $u$ is the supremum of a sequence of Borel measurable functions... no, that's lower semicontinuous. Lower semianalytic is different.
+
+Actually, a lower semianalytic function $f: X \to [-\infty, \infty]$ can be written as $f(x) = \sup\{g(x) : g \leq f, g \text{ is Borel measurable}\}$? No, that's not right either.
+
+Let me recall: $f$ is lower semianalytic iff $\{f < c\}$ is analytic for all $c$. This is equivalent to: $f$ is the pointwise supremum of a sequence of Borel measurable functions? No, that would make $\{f > c\} = \bigcup_n \{g_n > c\}$ which would be Borel (countable union of Borel), making $f$ Borel measurable. That's too strong.
+
+Actually, lower semianalytic functions are more general than Borel functions. Every Borel measurable function is lower semianalytic (and upper semianalytic), but not vice versa.
+
+The correct characterization: $f: X \to [0, \infty]$ is lower semianalytic iff there exists an analytic set $G \subseteq X \times \mathbb{R}$ such that $f(x) = \inf\{r : (x,r) \in G\}$ (or something like that). 
+
+Alternatively, $f$ is lower semianalytic iff its hypograph $\{(x,r) : r < f(x)\}$ is analytic, i.e., $\{(x,r) : r < f(x)\} = \{(x,r) : f(x) > r\}$ is analytic. Wait, but we said $\{f > c\}$ is coanalytic for lower semianalytic $f$ (with the $\{f < c\}$ analytic convention). 
+
+I think there might be a convention issue. Let me look at this more carefully.
+
+In Bertsekas-Shreve, the definition is: $f: X \to [-\infty, \infty]$ is **lower semianalytic** if for every $c \in \mathbb{R}$, the set $\{x \in X : f(x) < c\}$ is analytic.
+
+This is equivalent to: the **hypograph** $\{(x, c) : f(x) > c\}$... no. $\{f < c\}$ analytic means the **sublevel sets** are analytic. The **epigraph** $\{(x,c) : f(x) \leq c\}$: $\{f \leq c\} = \bigcap_n \{f < c + 1/n\}$ is analytic (countable intersection of analytic sets). So the epigraph is analytic.
+
+Actually, $\{(x,c) : f(x) \leq c\}$ being analytic is the key property. The epigraph of $f$ is analytic. This is equivalent to $f$ being lower semianalytic.
+
+Now, for the integral: $I(x,a) = \int u \, dp(\cdot|x,a)$.
+
+The standard result (Bertsekas-Shreve, Lemma 7.30 or similar) states:
+
+**If $u: X \to [0,\infty]$ is lower semianalytic and $p$ is a stochastic kernel from $D$ to $X$ such that $(x,a) \mapsto p(B|x,a)$ is lower semianalytic for each $B \in \mathcal{X}$, then $(x,a) \mapsto \int u \, dp(\cdot|x,a)$ is lower semianalytic.**
+
+The proof uses the fact that for lower semianalytic $u$, we can write:
+$$u(y) = \sup_{n} \phi_n(y)$$
+where $\phi_n$ are simple functions of the form $\phi_n = \sum_k c_{n,k} \mathbf{1}_{B_{n,k}}$ with $B_{n,k}$ Borel.
+
+Wait, can we? If $u$ is lower semianalytic, is it the sup of Borel simple functions? 
+
+Actually, yes! Here's why: $u$ is lower semianalytic means $\{u < c\}$ is analytic. But analytic sets are universally measurable, and in particular, $u$ is universally measurable. A universally measurable function is one that is measurable with respect to the universal completion of the Borel $\sigma$-algebra. 
+
+But we need more: we need $u$ to be approximable from below by Borel functions. For a nonneg universally measurable function $u$, we can write $u = \sup_n u_n$ where $u_n$ are Borel simple functions, but only if $u$ is Borel measurable. For universally measurable but not Borel functions, this isn't directly possible.
+
+Hmm, let me reconsider. The key property we need is:
+
+For lower semianalytic $u: X \to [0,\infty]$, $u = \sup_n u_n$ where each $u_n$ is a nonneg simple lower semianalytic function of the form $u_n = \sum_k \alpha_{n,k} \mathbf{1}_{A_{n,k}}$ with $A_{n,k}$ analytic.
+
+Is this true? We need $\{u > c\}$ to be analytic for this... but we showed $\{u > c\}$ is coanalytic for lower semianalytic $u$.
+
+Wait, I think I have the convention backwards. Let me re-examine.
+
+In some references, "lower semianalytic" means $\{f > c\}$ is analytic (i.e., the superlevel sets are analytic). In others (like Bertsekas-Shreve), it means $\{f < c\}$ is analytic.
+
+Let me check: in Bertsekas-Shreve, a function $f$ is lower semianalytic if $\{x : f(x) < c\}$ is analytic for all $c$. This is the convention where sublevel sets are analytic.
+
+But in some other references (e.g., some probability theory texts), lower semianalytic means $\{f > c\}$ is analytic, which would correspond to superlevel sets being analytic.
+
+The naming "lower semianalytic" should be analogous to "lower semicontinuous": $f$ is lower semicontinuous if $\{f > c\}$ is open. So "lower semianalytic" should mean $\{f > c\}$ is analytic. This is the convention where superlevel sets are analytic.
+
+But Bertsekas-Shreve uses the opposite convention! Let me double-check.
+
+Actually, I just recalled: in Bertsekas-Shreve, $f$ is lower semianalytic if $\{f < c\}$ is analytic. The analogy is: $f$ is lower semicontinuous if $\{f \leq c\}$ is closed, equivalently $\{f > c\}$ is open. And $f$ is upper semicontinuous if $\{f < c\}$ is open. So "lower semianalytic" with $\{f < c\}$ analytic doesn't directly correspond to lower semicontinuous.
+
+Hmm, actually, let me reconsider. $f$ is lower semicontinuous iff $\{f > c\}$ is open for all $c$. The analogy with analytic would be: $f$ is "lower semianalytic" if $\{f > c\}$ is analytic. This is the convention in some references.
+
+But in Bertsekas-Shreve, I believe the convention is: $f$ is lower semianalytic if $\{f \leq c\}$ is analytic, or equivalently $\{f < c\}$ is analytic. Let me think about which convention makes the theory work.
+
+With $\{f < c\}$ analytic:
+- $f^*(x) = \inf_a f(x,a)$: $\{f^* < c\} = \text{proj}_X(\{f < c\} \cap D)$ is analytic. ✓ (infimum preserves lower semianalyticity)
+- $-f$ would be "upper semianalytic" with $\{-f < c\} = \{f > -c\}$... this would be coanalytic.
+
+With $\{f > c\}$ analytic:
+- $f^*(x) = \inf_a f(x,a)$: $\{f^* > c\} = \{x : \inf_a f(x,a) > c\} = \{x : \forall a \in D_x, f(x,a) > c\}$. This is $\text{proj}_X(D) \setminus \text{proj}_X(\{f \leq c\} \cap D)$. $\{f \leq c\} = \bigcap_n \{f > c + 1/n\}^c$... with $\{f > c\}$ analytic, $\{f \leq c\}$ is coanalytic. So $\{f \leq c\} \cap D$ is intersection of coanalytic and analytic, and its projection is... not obviously analytic. So $\{f^* > c\}$ is not obviously analytic. ✗
+
+So the convention $\{f < c\}$ analytic is the one that makes the infimum projection work. This is the Bertsekas-Shreve convention. Good.
+
+Now, with this convention, for the integral:
+
+$I(x,a) = \int u \, dp(\cdot|x,a)$. We want $\{I < c\}$ to be analytic.
+
+$I(x,a) < c$ iff $\int u \, dp(\cdot|x,a) < c$.
+
+By the layer cake representation: $I(x,a) = \int_0^\infty p(\{u > t\}|x,a) dt$.
+
+$\{u > t\}$ is coanalytic (as we showed). $p(\{u > t\}|x,a) = 1 - p(\{u \leq t\}|x,a)$. $\{u \leq t\} = \bigcap_n \{u < t + 1/n\}$ is analytic. So $p(\{u \leq t\}|x,a)$ is lower semianalytic (by the assumption on $p$ extended to analytic sets). Then $p(\{u > t\}|x,a) = 1 - p(\{u \leq t\}|x,a)$ is upper semianalytic.
+
+So $I(x,a) = \int_0^\infty (1 - p(\{u \leq t\}|x,a)) dt$. The integrand is upper semianalytic, and integrating an upper semianalytic function... this doesn't directly give lower semianalyticity.
+
+Hmm, let me try a different approach. Let me use the approximation:
+
+$u = \sup_n u_n$ where $u_n \uparrow u$ and each $u_n$ is a simple function built from analytic sets.
+
+With $\{u < c\}$ analytic, the sets $\{u \geq c\}$ are coanalytic. So we can't directly build simple functions from analytic indicator sets that approximate $u$ from below.
+
+But we can use the following: since $u$ is lower semianalytic (with $\{u < c\}$ analytic), $u$ is also universally measurable. For universally measurable $u$, we can find Borel functions $u_n \uparrow u$ (this is a property of universally measurable functions: they are measurable with respect to the completion, so they can be approximated by Borel functions a.e., but we need everywhere).
+
+Actually, for a universally measurable function $u: X \to [0,\infty]$, we can find Borel functions $\underline{u}_n \leq u$ with $\underline{u}_n \uparrow u$ pointwise? This is true if $u$ is measurable with respect to a complete $\sigma$-algebra. But universal measurability means measurable with respect to every complete probability measure, not with respect to a single complete $\sigma$-algebra.
+
+Hmm, actually, I think the key result is:
+
+**Lemma**: If $u: X \to [0,\infty]$ is lower semianalytic, then $u = \sup_n g_n$ where $g_n$ are Borel measurable functions $X \to [0,\infty]$.
+
+Is this true? A lower semianalytic function is universally measurable. A universally measurable function $u$ can be sandwiched: for each $n$, there exist Borel functions $g_n \leq u \leq h_n$ with $h_n - g_n \leq 1/n$... but this is only $\mu$-a.e. for a specific $\mu$, not everywhere.
+
+Actually, I don't think a universally measurable function can always be written as a sup of Borel functions. For example, the indicator of a coanalytic non-Borel set is universally measurable but cannot be written as a sup of Borel functions (since such a sup would be Borel).
+
+So this approach doesn't work directly. Let me think about the integral differently.
+
+**The correct approach for the integral:**
+
+The standard result (Bertsekas-Shreve, Lemma 7.30.2 or Proposition 7.46) is:
+
+**If $u: X \to [0,\infty]$ is lower semianalytic and $p$ is a stochastic kernel with $(x,a) \mapsto p(B|x,a)$ lower semianalytic for each Borel $B$, then $(x,a) \mapsto \int u \, dp(\cdot|x,a)$ is lower semianalytic.**
+
+The proof uses the following key idea:
+
+Since $u$ is lower semianalytic, the epigraph $E = \{(y, r) \in X \times \mathbb{R} : u(y) \leq r\}$ is analytic. (Because $\{u \leq r\} = \bigcap_n \{u < r + 1/n\}$ is a countable intersection of analytic sets, hence analytic. So $E = \{(y,r) : u(y) \leq r\}$ is analytic in $X \times \mathbb{R}$.)
+
+Now, $I(x,a) = \int u \, dp(\cdot|x,a)$. We want to show $\{I < c\}$ is analytic.
+
+$I(x,a) < c$ iff $\int u \, dp < c$ iff (by definition of the integral of a nonneg function) there exists a simple function $s \leq u$ with $\int s \, dp < c$... no, that's not right. $\int u \, dp = \sup \{\int s \, dp : s \leq u, s \text{ simple Borel}\}$. So $\int u \, dp < c$ iff for all simple Borel $s \leq u$, $\int s \, dp < c$. This is a universal quantifier, which is hard to make analytic.
+
+Alternatively, $I(x,a) < c$ iff there exists $n$ such that $\int \min(u, n) \, dp < c - 1/n$ (for $c > 0$)... this is getting complicated.
+
+Let me try the direct approach. $I(x,a) < c$ iff $\int u \, dp(\cdot|x,a) < c$.
+
+Using the definition: $\int u \, dp = \int_0^\infty p(\{u > t\}|x,a) dt$ (Tonelli). So $I(x,a) < c$ iff $\int_0^\infty p(\{u > t\}|x,a) dt < c$.
+
+Now, $p(\{u > t\}|x,a) = 1 - p(\{u \leq t\}|x,a)$. Let $F(x,a,t) = p(\{u \leq t\}|x,a)$. Then $I(x,a) = \int_0^\infty (1 - F(x,a,t)) dt = \int_0^\infty \bar{F}(x,a,t) dt$ where $\bar{F} = 1 - F = p(\{u > t\}|x,a)$.
+
+$F(x,a,t) = p(\{u \leq t\}|x,a)$ is lower semianalytic in $(x,a)$ for each $t$ (since $\{u \leq t\}$ is analytic). So $\bar{F}(x,a,t) = 1 - F(x,a,t)$ is upper semianalytic in $(x,a)$ for each $t$.
+
+$I(x,a) < c$ iff $\int_0^\infty \bar{F}(x,a,t) dt < c$.
+
+Since $\bar{F} \geq 0$, $I(x,a) < c$ iff there exists $N$ such that $\int_0^N \bar{F}(x,a,t) dt < c$ (since $\int_0^\infty = \lim_{N \to \infty} \int_0^N$). And $\int_0^N \bar{F} dt < c$ iff there exists a partition $0 = t_0 < t_1 < \ldots < t_m = N$ with $\sum_i \bar{F}(x,a,t_i)(t_{i+1} - t_i) < c$... but this uses upper sums, and $\bar{F}$ is upper semianalytic, so this gives an upper semianalytic condition, not lower.
+
+Hmm, this is the wrong direction. Let me try lower sums.
+
+$\int_0^N \bar{F} dt \geq \sum_i \bar{F}(x,a,t_{i+1})(t_{i+1} - t_i)$ (lower sum for decreasing... no, $\bar{F}$ is not necessarily monotone).
+
+Actually, $F(x,a,t) = p(\{u \leq t\}|x,a)$ is non-decreasing in $t$ (since $\{u \leq t\}$ is increasing in $t$). So $\bar{F}(x,a,t) = 1 - F(x,a,t)$ is non-increasing in $t$. 
+
+For a non-increasing function, $\int_0^N \bar{F} dt = \lim_{n \to \infty} \frac{N}{n} \sum_{k=1}^n \bar{F}(x,a, kN/n)$ (right Riemann sum, which is a lower sum for non-increasing functions). Wait, for non-increasing $\bar{F}$, the right Riemann sum $\frac{N}{n} \sum_{k=1}^n \bar{F}(kN/n)$ is a lower sum (since $\bar{F}$ is non-increasing, the infimum on $[(k-1)N/n, kN/n]$ is $\bar{F}(kN/n)$). So $\int_0^N \bar{F} dt = \sup_n \frac{N}{n} \sum_{k=1}^n \bar{F}(x,a, kN/n)$.
+
+Now, $\bar{F}(x,a, kN/n) = 1 - F(x,a, kN/n)$ is upper semianalytic. The sum $\frac{N}{n} \sum_k \bar{F}(x,a, kN/n)$ is a finite sum of upper semianalytic functions, which is upper semianalytic. The supremum over $n$ of upper semianalytic functions is... upper semianalytic (since $\{g > c\} = \bigcup_n \{g_n > c\}$ and $\{g_n > c\}$ is analytic for upper semianalytic $g_n$... wait, upper semianalytic means $\{g > c\}$ is coanalytic or $\{g < c\}$ is analytic?).
+
+I'm getting confused with the conventions. Let me restart with clear definitions.
+
+**Clear definitions:**
+- $f$ is **lower semianalytic** (lsa) if $\{f < c\}$ is analytic for all $c \in \mathbb{R}$.
+- $f$ is **upper semianalytic** (usa) if $\{f > c\}$ is analytic for all $c \in \mathbb{R}$, equivalently $-f$ is lsa.
+
+Properties:
+- $f$ lsa $\implies$ $\{f \leq c\} = \bigcap_n \{f < c + 1/n\}$ is analytic (countable intersection of analytic). So $\{f > c\}$ is coanalytic.
+- $f$ usa $\implies$ $\{f \geq c\} = \bigcap_n \{f > c - 1/n\}$ is analytic. So $\{f < c\}$ is coanalytic.
+- $f$ lsa and usa $\implies$ $f$ is Borel (by Souslin's theorem, since $\{f < c\}$ and $\{f > c\}$ are both analytic, hence $\{f < c\}$ is both analytic and coanalytic, hence Borel).
+
+Now, for the integral $I(x,a) = \int u \, dp$:
+
+$F(x,a,t) = p(\{u \leq t\}|x,a)$. $\{u \leq t\}$ is analytic (since $u$ is lsa). By the assumption on $p$ (extended to analytic sets), $F$ is lsa in $(x,a)$.
+
+$\bar{F}(x,a,t) = 1 - F(x,a,t) = p(\{u > t\}|x,a)$. Since $F$ is lsa, $\bar{F}$ is usa (since $\{\bar{F} < c\} = \{1 - F < c\} = \{F > 1-c\}$, and $\{F > 1-c\}$ is coanalytic since $F$ is lsa; so $\{\bar{F} < c\}$ is coanalytic, meaning $\bar{F}$ is usa). ✓
+
+$I(x,a) = \int_0^\infty \bar{F}(x,a,t) dt$.
+
+$\bar{F}$ is non-increasing in $t$ and usa in $(x,a)$ for each $t$.
+
+$I(x,a) = \sup_N \int_0^N \bar{F} dt = \sup_N \sup_n S_{N,n}(x,a)$
+
+where $S_{N,n}(x,a) = \frac{N}{n} \sum_{k=1}^n \bar{F}(x,a, kN/n)$ is a lower Riemann sum.
+
+Each $S_{N,n}$ is a finite sum of usa functions, hence usa. The sup of usa functions: $\{S_{N,n} > c\}$ is analytic (usa), so $\{\sup_{N,n} S_{N,n} > c\} = \bigcup_{N,n} \{S_{N,n} > c\}$ is analytic (countable union of analytic). So $I = \sup_{N,n} S_{N,n}$ is usa.
+
+But we want $I$ to be lsa, not usa! 
+
+Hmm, so this approach shows $I$ is upper semianalytic, not lower semianalytic. That's the wrong direction.
+
+Wait, maybe I should use upper Riemann sums instead. For a non-increasing function $\bar{F}$, the upper Riemann sum is $\frac{N}{n} \sum_{k=0}^{n-1} \bar{F}(x,a, kN/n)$ (left endpoints). The integral equals the infimum of upper sums: $\int_0^N \bar{F} dt = \inf_n \frac{N}{n} \sum_{k=0}^{n-1} \bar{F}(x,a, kN/n)$.
+
+$U_{N,n}(x,a) = \frac{N}{n} \sum_{k=0}^{n-1} \bar{F}(x,a, kN/n)$ is usa (sum of usa). The infimum of usa functions: $\{\inf_{N,n} U_{N,n} < c\} = \bigcup_{N,n} \{U_{N,n} < c\}$. $\{U_{N,n} < c\}$: since $U_{N,n}$ is usa, $\{U_{N,n} < c\}$ is coanalytic. So $\{\inf U_{N,n} < c\}$ is a countable union of coanalytic sets, which is coanalytic. So $\inf U_{N,n}$ is lsa? 
+
+Wait: $\{f < c\}$ coanalytic means $f$ is... $\{f < c\}$ coanalytic $\iff$ $\{f \geq c\}$ analytic $\iff$ $f$ is usa? No. Let me recheck.
+
+$f$ is lsa $\iff$ $\{f < c\}$ is analytic.
+$f$ is usa $\iff$ $\{f > c\}$ is analytic $\iff$ $\{-f < c\}$ is analytic $\iff$ $-f$ is lsa $\iff$ $\{f < c\}$ is coanalytic (since $\{f < c\} = \{-f > -c\}$ and $\{-f > -c\}$ is coanalytic when $-f$ is lsa).
+
+Wait: $f$ is usa $\iff$ $\{f > c\}$ is analytic. And $\{f < c\} = \{f > c\}^c \cup \{f = c\}$... no, $\{f < c\}$ and $\{f > c\}$ are not complements. $\{f < c\}^c = \{f \geq c\}$.
+
+Let me redo: $f$ is usa $\iff$ $\{f > c\}$ is analytic for all $c$. Then $\{f \leq c\} = \bigcap_n \{f > c + 1/n\}^c$... $\{f > c+1/n\}$ is analytic, so $\{f > c+1/n\}^c$ is coanalytic, so $\{f \leq c\}$ is a countable intersection of coanalytic sets, which is coanalytic. So $\{f < c\} \subseteq \{f \leq c\}$ is a subset of a coanalytic set, but $\{f < c\}$ itself: $\{f < c\} = \bigcup_n \{f \leq c - 1/n\}$. Each $\{f \leq c - 1/n\}$ is coanalytic (as shown), so $\{f < c\}$ is a countable union of coanalytic sets, which is coanalytic (since $\bigcup_n (X \setminus A_n) = X \setminus \bigcap_n A_n$ and $\bigcap_n A_n$ is analytic when $A_n$ are analytic, so $X \setminus \bigcap_n A_n$ is coanalytic). ✓
+
+So: $f$ usa $\implies$ $\{f < c\}$ is coanalytic. And $f$ lsa $\implies$ $\{f < c\}$ is analytic.
+
+Now, $\inf_{N,n} U_{N,n}$: $\{\inf U_{N,n} < c\} = \bigcup_{N,n} \{U_{N,n} < c\}$. Each $U_{N,n}$ is usa, so $\{U_{N,n} < c\}$ is coanalytic. Countable union of coanalytic is coanalytic. So $\{\inf U_{N,n} < c\}$ is coanalytic. This means $\inf U_{N,n}$ is usa (since $\{f < c\}$ coanalytic $\iff$ $f$ usa).
+
+So $I = \inf_{N,n} U_{N,n}$ is usa. Again upper semianalytic, not lower!
+
+Hmm, so both approaches give upper semianalytic. That makes sense because $\bar{F}$ is usa, and integrating a usa function gives usa.
+
+But we want $I$ to be lsa. So maybe I should work with $F$ instead of $\bar{F}$.
+
+$I(x,a) = \int_0^\infty (1 - F(x,a,t)) dt = \int_0^\infty 1 \, dt - \int_0^\infty F(x,a,t) dt$... but $\int_0^\infty 1 \, dt = \infty$, so this doesn't work directly.
+
+Let me use a different representation. $I(x,a) = \int u \, dp$. We can also write:
+
+$I(x,a) = \int_0^\infty p(\{u > t\}|x,a) dt$
+
+But also, using $F$:
+
+For $u$ nonneg, $\int u \, dp = \int_0^\infty p(\{u > t\}) dt$. This is the standard layer cake. There's no way around using $\{u > t\}$ which is coanalytic.
+
+Alternatively, $\int u \, dp = \sup \{\int s \, dp : s \leq u, s \text{ simple}\}$. If we use simple functions $s = \sum_k \alpha_k \mathbf{1}_{B_k}$ with $B_k$ Borel and $s \leq u$, then $\int s \, dp = \sum_k \alpha_k p(B_k|x,a)$ is lsa (since $p(B_k|\cdot)$ is lsa for Borel $B_k$, and nonneg linear combinations of lsa are lsa). Then $I = \sup_s \int s \, dp$ is a sup of lsa functions.
+
+$\{I > c\} = \bigcup_s \{\int s \, dp > c\}$. Each $\int s \, dp$ is lsa, so $\{\int s \, dp > c\}$ is coanalytic (since lsa means $\{f < c\}$ analytic, so $\{f > c\}$ is coanalytic). Countable union of coanalytic is coanalytic. So $\{I > c\}$ is coanalytic, meaning $I$ is usa.
+
+Again usa! So it seems like $I$ is upper semianalytic, not lower semianalytic.
+
+Wait, but the standard result says the integral should be lower semianalytic. Let me re-examine.
+
+Hmm, maybe I have the convention wrong. Let me reconsider.
+
+Actually, I think the issue is with the convention. In many references on stochastic control and analytic sets (including Bertsekas-Shreve), the convention for "lower semianalytic" is actually $\{f > c\}$ is analytic, NOT $\{f < c\}$ is analytic.
+
+Let me re-examine. The term "lower semianalytic" should be analogous to "lower semicontinuous". $f$ is lower semicontinuous (lsc) if $\{f > c\}$ is open (equivalently, $\{f \leq c\}$ is closed). So "lower semianalytic" should mean $\{f > c\}$ is analytic.
+
+With this convention:
+- $f$ is lsa if $\{f > c\}$ is analytic for all $c$.
+- $f$ is usa if $\{f < c\}$ is analytic for all $c$.
+
+Now let's redo the analysis:
+
+**Infimum projection**: $f^*(x) = \inf_a f(x,a)$. $\{f^* > c\} = \{x : \inf_a f(x,a) > c\} = \{x : \forall a \in D_x, f(x,a) > c\}$. This is $\text{proj}_X(D) \setminus \text{proj}_X(\{f \leq c\} \cap D)$. With $f$ lsa ($\{f > c\}$ analytic), $\{f \leq c\} = \bigcap_n \{f > c + 1/n\}^c$... $\{f > c+1/n\}$ is analytic, so $\{f > c+1/n\}^c$ is coanalytic, so $\{f \leq c\}$ is coanalytic. Then $\{f \leq c\} \cap D$ is intersection of coanalytic and analytic, and its projection is not obviously analytic. So $\{f^* > c\}$ is not obviously analytic. ✗
+
+Hmm, so with this convention, the infimum projection doesn't work for $\{f^* > c\}$. But what about $\{f^* < c\}$?
+
+$\{f^* < c\} = \{x : \inf_a f(x,a) < c\} = \{x : \exists a \in D_x, f(x,a) < c\} = \text{proj}_X(\{f < c\} \cap D)$. With $f$ lsa ($\{f > c\}$ analytic), $\{f < c\}$: is this analytic? $\{f < c\} = \bigcup_n \{f \leq c - 1/n\} = \bigcup_n \bigcap_m \{f > c - 1/n + 1/m\}^c$... this is a countable union of countable intersections of complements of analytic sets, which is a countable union of coanalytic sets, which is coanalytic. So $\{f < c\}$ is coanalytic, not analytic.
+
+So with the convention $\{f > c\}$ analytic (lsa), $\{f^* < c\}$ involves $\{f < c\}$ which is coanalytic, and the projection of (coanalytic $\cap$ analytic) is not obviously analytic.
+
+This is getting confusing. Let me just look at what convention makes everything work.
+
+**Convention 1**: lsa means $\{f < c\}$ is analytic.
+- Infimum: $\{f^* < c\} = \text{proj}(\{f < c\} \cap D)$ is analytic. ✓ ($f^*$ is lsa)
+- Sum: $\{f + g < c\}$... if $f, g$ are lsa and nonneg, is $f + g$ lsa? $\{f + g < c\} = \bigcup_{q \in \mathbb{Q}} \{f < q\} \cap \{g < c - q\}$. Each $\{f < q\}$ and $\{g < c-q\}$ are analytic, so their intersection is analytic, and the countable union is analytic. ✓
+- Integral: $I = \int u \, dp$. $\{I < c\}$ is analytic? We need to show this.
+
+**Convention 2**: lsa means $\{f > c\}$ is analytic.
+- Infimum: $\{f^* < c\} = \text{proj}(\{f < c\} \cap D)$. $\{f < c\}$ is coanalytic (with this convention). Not obviously analytic. ✗
+- But $\{f^* > c\} = \{x : \forall a, f(x,a) > c\}$. Not obviously analytic either. ✗
+
+So Convention 1 ($\{f < c\}$ analytic) is the one that makes the infimum projection work. This is the Bertsekas-Shreve convention.
+
+Now, for the integral with Convention 1:
+
+$I(x,a) = \int u \, dp$. We want $\{I < c\}$ to be analytic.
+
+$I(x,a) < c$ iff $\int u(y) p(dy|x,a) < c$.
+
+For nonneg $u$: $I(x,a) = \sup\{\int s \, dp : s \leq u, s \text{ simple Borel}\}$.
+
+$\{I < c\} = \{I \leq c\} \setminus \{I = c\}$... hmm, or $\{I < c\} = \bigcup_n \{I \leq c - 1/n\}$.
+
+$\{I \leq c\} = \bigcap_n \{I < c + 1/n\}$... this is circular.
+
+Let me try: $\{I < c\} = \bigcup_{n} \{I \leq c - 1/n\}$ (for $c > 0$). And $\{I \leq c\} = \{\sup_s \int s \, dp \leq c\} = \bigcap_s \{\int s \, dp \leq c\}$. Each $\int s \, dp$ is lsa (as we showed, nonneg linear combination of $p(B|\cdot)$ which is lsa). $\{\int s \, dp \leq c\} = \bigcap_m \{\int s \, dp < c + 1/m\}$ is analytic (countable intersection of analytic). So $\{I \leq c\} = \bigcap_s \{\int s \, dp \leq c\}$ is a countable intersection (over countably many simple $s$) of analytic sets, hence analytic. Then $\{I < c\} = \bigcup_n \{I \leq c - 1/n\}$ is a countable union of analytic sets, hence analytic. ✓
+
+Wait, is the set of simple Borel functions $s \leq u$ countable? We can restrict to simple functions with rational values and Borel sets from a countable generating class. Since $X$ is standard Borel, the Borel $\sigma$-algebra is countably generated, and simple functions with rational coefficients and sets from the countable generator form a countable family. But we need $s \leq u$, and $u$ is not Borel, so the condition $s \leq u$ is not a Borel condition on $s$.
+
+Hmm, but we don't need to enumerate all simple $s \leq u$. We need:
+
+$I(x,a) = \sup\{\int s \, dp : s \leq u, s \text{ simple Borel}\}$.
+
+The key is: is the sup over a countable set? If we can restrict to a countable family of simple Borel functions, then yes.
+
+For a nonneg measurable function $u$, we have the standard approximation:
+$$u_n(y) = \sum_{k=0}^{n2^n - 1} \frac{k}{2^n} \mathbf{1}_{\{k/2^n \leq u(y) < (k+1)/2^n\}} + n \mathbf{1}_{\{u(y) \geq n\}}$$
+
+But the sets $\{k/2^n \leq u < (k+1)/2^n\}$ may not be Borel (since $u$ is only lsa, not Borel). So $u_n$ may not be Borel.
+
+However, we can use a different approximation. Since $u$ is lsa ($\{u < c\}$ analytic), $u$ is universally measurable. For universally measurable $u$, we can find Borel functions $g_n \uparrow u$... but only if $u$ is measurable with respect to a complete $\sigma$-algebra that contains the Borel sets. Universal measurability means $u$ is measurable with respect to the completion of the Borel $\sigma$-algebra under every probability measure. 
+
+Actually, I think the issue is more subtle. Let me think about whether we can use a countable family.
+
+The integral $I(x,a) = \int u \, dp(\cdot|x,a)$. For each fixed $(x,a)$, $p(\cdot|x,a)$ is a probability measure. Since $u$ is universally measurable (being lsa), $u$ is $p(\cdot|x,a)$-measurable for each $(x,a)$. So the integral is well-defined.
+
+Now, for each probability measure $\mu$ on $X$, since $u$ is $\mu$-measurable (universally measurable), there exist Borel functions $g_n^\mu \uparrow u$ $\mu$-a.e. But these depend on $\mu = p(\cdot|x,a)$, which varies with $(x,a)$.
+
+This is getting complicated. Let me try a completely different approach.
+
+**Approach via the epigraph:**
+
+$I(x,a) = \int u \, dp$. The epigraph of $I$ is $\{(x,a,c) : I(x,a) \leq c\}$.
+
+$I(x,a) \leq c$ iff $\int u \, dp(\cdot|x,a) \leq c$.
+
+By the definition of the integral (for nonneg functions), $\int u \, dp \leq c$ iff for every simple Borel $s \leq u$, $\int s \, dp \leq c$.
+
+$\{(x,a,c) : I(x,a) \leq c\} = \bigcap_s \{(x,a,c) : \int s \, dp(\cdot|x,a) \leq c\}$.
+
+Each $\int s \, dp$ is lsa (in $(x,a)$), so $\{(x,a) : \int s \, dp \leq c\}$ is analytic (as $\{\int s \, dp < c + 1/n\}$ is analytic for all $n$, and $\{\int s \, dp \leq c\} = \bigcap_n \{\int s \, dp < c + 1/n\}$ is analytic). So $\{(x,a,c) : \int s \, dp \leq c\}$ is analytic in $(x,a,c)$ (it's the epigraph of an lsa function, which is analytic).
+
+The intersection over all simple Borel $s$ is an intersection over an uncountable family, which we can't directly conclude is analytic.
+
+But we can reduce to a countable family. The key observation: for a nonneg function $u$ and a probability measure $\mu$, $\int u \, d\mu = \sup\{\int s \, d\mu : s \leq u, s \text{ simple Borel with rational values}\}$. And the set of simple Borel functions with rational values is determined by countably many Borel sets (from a countable generator). But the condition $s \leq u$ depends on $u$ which is not Borel.
+
+Hmm, let me try yet another approach. 
+
+**Approach using the definition of the integral directly:**
+
+$I(x,a) = \int u \, dp(\cdot|x,a)$. Since $u \geq 0$, $I(x,a) = \int_0^\infty p(\{u > t\}|x,a) dt$ (layer cake / Tonelli).
+
+$I(x,a) < c$ iff $\int_0^\infty p(\{u > t\}|x,a) dt < c$.
+
+Since $t \mapsto p(\{u > t\}|x,a)$ is non-increasing, the integral $\int_0^\infty p(\{u > t\}|x,a) dt$ can be computed as:
+
+$\int_0^\infty p(\{u > t\}|x,a) dt = \sup_{N} \int_0^N p(\{u > t\}|x,a) dt$
+
+and for each $N$:
+
+$\int_0^N p(\{u > t\}|x,a) dt = \inf_{n} \frac{N}{n} \sum_{k=0}^{n-1} p(\{u > kN/n\}|x,a)$ (upper Riemann sums for non-increasing function)
+
+$= \inf_n \frac{N}{n} \sum_{k=0}^{n-1} (1 - p(\{u \leq kN/n\}|x,a))$
+
+$= \inf_n (N - \frac{N}{n} \sum_{k=0}^{n-1} p(\{u \leq kN/n\}|x,a))$
+
+$= N - \sup_n \frac{N}{n} \sum_{k=0}^{n-1} p(\{u \leq kN/n\}|x,a)$
+
+$= N - \sup_n \frac{N}{n} \sum_{k=0}^{n-1} F(x,a, kN/n)$
+
+where $F(x,a,t) = p(\{u \leq t\}|x,a)$ is lsa in $(x,a)$ (since $\{u \leq t\}$ is analytic and $p$ of analytic sets is lsa).
+
+So $I(x,a) = \sup_N (N - \sup_n \frac{N}{n} \sum_{k=0}^{n-1} F(x,a, kN/n))$.
+
+$= \sup_N \inf_n (N - \frac{N}{n} \sum_{k=0}^{n-1} F(x,a, kN/n))$.
+
+This involves sup of inf, which is hard to analyze in terms of analyticity.
+
+OK, I think I'm overcomplicating this. Let me look at the problem from a higher level.
+
+The problem is a standard result in the theory of partially observable Markov decision processes (POMDPs) or more generally in the Bertsekas-Shreve framework. The result is:
+
+**Theorem (Bertsekas-Shreve, Proposition 7.50)**: Under the given conditions, $\eta_u$ is lower semianalytic, $\eta_u^*$ is lower semianalytic, and for any $\epsilon > 0$, there exists a universally measurable $\epsilon$-optimal selector.
+
+The key ingredients are:
+1. Lower semianalytic functions are closed under addition (for nonneg functions).
+2. The integral of a lower semianalytic function with respect to a lower semianalytic kernel is lower semianalytic.
+3. The infimum projection of a lower semianalytic function over an analytic set is lower semianalytic.
+4. The Jankov-von Neumann selection theorem (quantitative version).
+
+For ingredient 2, the standard proof in Bertsekas-Shreve uses the following:
+
+**Lemma (Bertsekas-Shreve, Lemma 7.30.2)**: If $u: X \to [0,\infty]$ is lower semianalytic and $p$ is a stochastic kernel such that $(x,a) \mapsto p(B|x,a)$ is lower semianalytic for each Borel $B$, then $(x,a) \mapsto \int u \, dp(\cdot|x,a)$ is lower semianalytic.
+
+The proof uses the fact that $u$ being lsa means $u = \sup_n u_n$ where $u_n$ are lsa simple functions of the form $u_n = \sum_k c_k \mathbf{1}_{A_k}$ with $A_k$ analytic. 
+
+Wait, can we write $u = \sup_n u_n$ with $u_n$ simple lsa functions using analytic sets?
+
+With the convention $\{u < c\}$ is analytic (lsa), the sets $\{u \geq c\}$ are coanalytic, and $\{u > c\}$ is coanalytic. So we can't directly use $\{u > c\}$ as analytic sets.
+
+But $\{u \leq c\}$ is analytic (as we showed: $\{u \leq c\} = \bigcap_n \{u < c + 1/n\}$, countable intersection of analytic = analytic). And $\{u < c\}$ is analytic (by definition).
+
+So the sets we have available as analytic are: $\{u < c\}$ and $\{u \leq c\}$.
+
+Can we approximate $u$ from below using these? 
+
+$u_n(y) = \sum_{k=0}^{n2^n - 1} \frac{k}{2^n} \mathbf{1}_{\{u(y) \leq k/2^n\}} \cdot \mathbf{1}_{\{u(y) > (k-1)/2^n\}}$... but $\{u > (k-1)/2^n\}$ is coanalytic.
+
+Alternatively, use the "lower" approximation:
+$u_n(y) = \inf\{c \in \mathbb{Q} : u(y) \leq c + 1/n\}$... this doesn't give simple functions.
+
+Hmm, let me think about this differently. 
+
+Actually, I think the key insight is that for lsa $u$ (with $\{u < c\}$ analytic), we can write:
+
+$u(y) = \sup\{r \in \mathbb{Q} : u(y) > r\}$
+
+and $\{u > r\}$ is coanalytic. So $u = \sup_r r \cdot \mathbf{1}_{\{u > r\}}$, but $\{u > r\}$ is coanalytic.
+
+For the integral: $\int u \, dp = \int \sup_r r \mathbf{1}_{\{u > r\}} \, dp = \sup_r r \cdot p(\{u > r\})$ (by monotone convergence, since $r \mathbf{1}_{\{u > r\}}$ is increasing in... no, it's not increasing in $r$).
+
+Actually, $u = \sup_n u_n$ where $u_n(y) = \sum_{k=1}^{n2^n} \frac{k-1}{2^n} \mathbf{1}_{\{u(y) \geq k/2^n\}}$. But $\{u \geq k/2^n\}$ is coanalytic.
+
+Hmm. Let me try the approach from the other direction. 
+
+$u(y) = \inf\{c \in \mathbb{Q} : u(y) < c\} + 0$... no, $\inf\{c : u(y) < c\} = u(y)$ (since $\{u < c\}$ is analytic, and $u = \inf\{c : u < c\}$). But this doesn't give a simple function approximation.
+
+OK, I think the issue is that with the convention $\{u < c\}$ analytic, the natural approximation is from above, not from below. We can write $u = \inf_n v_n$ where $v_n$ are simple functions using analytic sets $\{u < c\}$.
+
+$v_n(y) = \sum_{k=0}^{n2^n} \frac{k+1}{2^n} \mathbf{1}_{\{k/2^n \leq u(y) < (k+1)/2^n\}} + (n+1) \mathbf{1}_{\{u(y) \geq n\}}$
+
+But $\{k/2^n \leq u < (k+1)/2^n\} = \{u < (k+1)/2^n\} \setminus \{u < k/2^n\}$, which is the difference of two analytic sets, not necessarily analytic.
+
+Alternatively, $v_n(y) = \sum_{k=1}^{n2^n} \frac{k}{2^n} \mathbf{1}_{\{u(y) < k/2^n\}} - \sum_{k=1}^{n2^n} \frac{k}{2^n} \mathbf{1}_{\{u(y) < (k-1)/2^n\}}$... this telescopes to $\frac{n2^n}{2^n} \mathbf{1}_{\{u < n\}} = n \mathbf{1}_{\{u < n\}}$. Not useful.
+
+Let me try: $v_n(y) = \sum_{k=0}^{n2^n - 1} \frac{k+1}{2^n} (\mathbf{1}_{\{u < (k+1)/2^n\}} - \mathbf{1}_{\{u < k/2^n\}}) + n \mathbf{1}_{\{u \geq n\}}$.
+
+This telescopes to $\frac{1}{2^n} \sum_{k=0}^{n2^n-1} \mathbf{1}_{\{u < (k+1)/2^n\}} + n \mathbf{1}_{\{u \geq n\}}$... no, let me compute more carefully.
+
+$v_n = \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} \mathbf{1}_{\{k/2^n \leq u < (k+1)/2^n\}} + n \mathbf{1}_{\{u \geq n\}}$
+
+$= \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} (\mathbf{1}_{\{u < (k+1)/2^n\}} - \mathbf{1}_{\{u < k/2^n\}}) + n(1 - \mathbf{1}_{\{u < n\}})$
+
+$= \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} \mathbf{1}_{\{u < (k+1)/2^n\}} - \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} \mathbf{1}_{\{u < k/2^n\}} + n - n\mathbf{1}_{\{u < n\}}$
+
+$= \sum_{k=1}^{n2^n} \frac{k}{2^n} \mathbf{1}_{\{u < k/2^n\}} - \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} \mathbf{1}_{\{u < k/2^n\}} + n - n\mathbf{1}_{\{u < n\}}$
+
+$= \frac{n2^n}{2^n} \mathbf{1}_{\{u < n\}} - \frac{1}{2^n} \mathbf{1}_{\{u < 0\}} + n - n\mathbf{1}_{\{u < n\}}$ (telescoping, and $\{u < 0\} = \emptyset$ since $u \geq 0$)
+
+$= n \mathbf{1}_{\{u < n\}} + n - n\mathbf{1}_{\{u < n\}} = n$.
+
+That's just $n$, which is wrong. I made an error. Let me redo.
+
+$v_n(y) = \sum_{k=0}^{n2^n-1} \frac{k+1}{2^n} \mathbf{1}_{\{k/2^n \leq u(y) < (k+1)/2^n\}} + n \mathbf{1}_{\{u(y) \geq n\}}$
+
+This is a simple function that takes the value $(k+1)/2^n$ when $u(y) \in [k/2^n, (k+1)/2^n)$ and $n$ when $u(y) \geq n$. So $v_n(y) \geq u(y)$ and $v_n(y) \leq u(y) + 1/2^n$ when $u(y) < n$, and $v_n(y) = n \leq u(y)$ when $u(y) \geq n$. So $v_n \geq u$ when $u < n$ and $v_n = n \leq u$ when $u \geq n$. So $v_n \geq \min(u, n)$ and $v_n \leq \min(u, n) + 1/2^n$ when $u < n$. As $n \to \infty$, $v_n \to u$ from above (when $u < \infty$).
+
+But the sets $\{k/2^n \leq u < (k+1)/2^n\}$ are differences of analytic sets, which are not necessarily analytic. So $v_n$ is not a simple lsa function.
+
+However, we can write $v_n$ using only analytic sets:
+
+$v_n(y) = \sum_{k=1}^{n2^n} \frac{k}{2^n} \mathbf{1}_{\{u(y) < k/2^n\}} - \sum_{k=0}^{n2^n-1} \frac{k}{2^n} \mathbf{1}_{\{u(y) < k/2^n\}}$
+
+Hmm, this doesn't simplify nicely.
+
+Actually, there's a cleaner way. Note that:
+
+$v_n(y) = \frac{1}{2^n} \sum_{k=1}^{n2^n} \mathbf{1}_{\{u(y) < k/2^n\}}$
+
+Let me verify: if $u(y) \in [j/2^n, (j+1)/2^n)$ for $0 \leq j < n2^n$, then $\{u < k/2^n\}$ is true for $k > j$ and false for $k \leq j$. So $\sum_{k=1}^{n2^n} \mathbf{1}_{\{u < k/2^n\}} = n2^n - j$. And $v_n = (n2^n - j)/2^n = n - j/2^n$. But we wanted $v_n = (j+1)/2^n$. These don't match.
+
+Let me try: $v_n(y) = \frac{1}{2^n} \sum_{k=0}^{n2^n-1} \mathbf{1}_{\{u(y) \geq k/2^n\}}$. But $\{u \geq k/2^n\}$ is coanalytic, not analytic.
+
+OK, how about: $v_n(y) = \frac{1}{2^n} \sum_{k=1}^{n2^n} \mathbf{1}_{\{u(y) < k/2^n\}}$.
+
+If $u(y) \in [j/2^n, (j+1)/2^n)$, then $\mathbf{1}_{\{u < k/2^n\}} = 1$ iff $k > j$, so the sum is $n2^n - j$. And $v_n = (n2^n - j)/2^n = n - j/2^n$. 
+
+Hmm, that gives $v_n = n - j/2^n$ when $u \in [j/2^n, (j+1)/2^n)$. So $v_n = n - \lfloor 2^n u \rfloor

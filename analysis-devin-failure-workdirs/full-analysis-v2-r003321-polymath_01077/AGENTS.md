@@ -1,0 +1,861 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_01077</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Let \(2S\) be the total weight of a certain set of weights. We call a natural number \(k\) average if it is possible to choose \(k\) weights from the set such that their total weight equals \(S\). What is the maximum number of average numbers that a set of \(100\) weights can have?
+
+## Standard Solution
+
+The maximum number of average numbers is \(97\).
+
+If the number \(k = m\) is average, then the number \(k = 100 - m\) is also average. Therefore, if the number \(k = 1\) is not average, then the number \(k = 99\) is also not average, and the number of average numbers is at most \(97\) (since \(k \neq 100\)). If, however, the number \(k = 1\) is average, then the weight of one of the weights equals \(S\), and consequently, only \(k = 99\) is also an average number. Thus, the number of average numbers does not exceed \(97\).
+
+To construct an example of a set of \(100\) weights where all numbers from \(2\) to \(98\) (a total of \(97\) numbers) are average, consider the following: Let \(a_1 = a_2 = 1\), and for \(n = 1, 2, \ldots, 97\), let \(a_{n+2} = a_n + a_{n+1}\), forming consecutive Fibonacci numbers. Let \(S = a_1 + a_2 + \ldots + a_{98}\). Choose \(a_{100} = S - a_{99}\). Then the total weight of all weights equals \(2S\), and at the same time, \(a_{100} + a_{99} = a_{100} + a_{98} + a_{97} = \ldots = a_{100} + a_{98} + a_{96} + \ldots + a_6 + a_4 + a_2 + a_1 = S\). Therefore, the average numbers are \(2, 3, 4, \ldots, 51\). Consequently, the numbers \(100 - 2 = 98, 100 - 3 = 97, \ldots, 100 - 48 = 52\) will also be average, i.e., all numbers from \(2\) to \(98\) are average.
+
+\(\boxed{97}\)
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me think about this problem carefully.
+
+We have a set of 100 weights with total weight $2S$. A natural number $k$ is called "average" if we can choose $k$ weights from the set whose total weight equals $S$ (half the total). We want to find the maximum number of average numbers possible.
+
+Let me first check for answer leaks. The problem statement is clean - no solutions, no hints, no formalization notes. Good.
+
+Let me think about this problem.
+
+Let the weights be $w_1, w_2, \ldots, w_{100}$ with $\sum w_i = 2S$. We want to find subsets $A \subseteq \{1,\ldots,100\}$ such that $\sum_{i \in A} w_i = S$. The number of average numbers is the number of distinct values of $|A|$ over all such subsets.
+
+Let me think about what's achievable.
+
+First, let's think about constructions. 
+
+Construction idea: Take 50 weights equal to 1 and 50 weights equal to 3. Total = 50 + 150 = 200, so $S = 100$. We need subsets summing to 100. If we take $a$ ones and $b$ threes with $a + 3b = 100$ and $0 \le a \le 50$, $0 \le b \le 50$. Then $a = 100 - 3b$, need $0 \le 100 - 3b \le 50$, so $50/3 \le b \le 100/3$, i.e., $17 \le b \le 33$. That gives 17 values. Not great.
+
+Better construction: Let's try to make many subset sizes achievable.
+
+Key idea: If we have weights that are "flexible", we can achieve many sizes. 
+
+Let me think about the problem differently. Consider the complement: if a subset $A$ of size $k$ sums to $S$, then its complement has size $100 - k$ and also sums to $S$. So average numbers come in pairs $(k, 100-k)$. If $k = 50$ is average, it's self-paired. So the number of average numbers is always odd (since pairs contribute 2, plus possibly 50).
+
+Actually wait, that's not quite right. The set of average numbers is symmetric around 50: if $k$ is average, so is $100 - k$. So the count is $2m + \epsilon$ where $\epsilon \in \{0, 1\}$ depending on whether 50 is average.
+
+So the maximum is at most 99 (all numbers from 1 to 99), but that seems too high. Let me think about constraints.
+
+Actually, can we achieve all of 1 through 99? That would require for each $k$ from 1 to 99, a subset of size $k$ summing to $S$.
+
+Let me think about a construction. Consider weights $w_1 = w_2 = \cdots = w_{99} = 1$ and $w_{100} = 101$. Total = $99 + 101 = 200$, $S = 100$. 
+
+Subsets summing to 100: Either include $w_{100}=101$ (too big alone, and with any positive weights exceeds 100) — no. Or don't include it, need 100 ones from 99 available — impossible. So no average numbers. Bad.
+
+Let me try: $w_1 = \cdots = w_{100} = 2$. Total = 200, $S = 100$. Need subsets of size $k$ summing to $100$, i.e., $2k = 100$, $k = 50$. Only one average number.
+
+Let me think more cleverly. 
+
+Construction: Take 50 weights of value 1 and 50 weights of value 3. Total = 200, S = 100. As computed, $a + 3b = 100$, $a + b = k$, $0 \le a \le 50$, $0 \le b \le 50$. From $a = 100 - 3b$, $k = 100 - 2b$. For $17 \le b \le 33$: $k$ ranges from $100 - 66 = 34$ to $100 - 34 = 66$. That's 33 values: $34, 36, 38, \ldots, 66$. Wait, $k = 100 - 2b$, so $k$ is always even. $b$ from 17 to 33 gives $k$ from 66 to 34, all even. So 17 average numbers.
+
+Hmm, let me try a different approach. 
+
+Construction with more flexibility: Use weights that allow fine-grained control.
+
+Let me try: 99 weights of value 1 and 1 weight of value 101. Total = 200, S = 100. To get sum 100: either use the big weight 101 — no, too big. Or use 100 ones — only 99 available. So 0 average numbers.
+
+Try: 98 weights of 1, 1 weight of 2, 1 weight of 100. Total = 98 + 2 + 100 = 200, S = 100. Subsets summing to 100:
+- Use the 100 weight alone: size 1. ✓
+- Use 98 ones + the 2: size 99, sum 100. ✓
+- Use 98 ones: sum 98, no.
+- Use the 2 + 98 ones = 100, size 99. ✓
+- Use 100 alone, size 1. ✓
+- Combinations without 100: need sum 100 from 98 ones and one 2. Max is 100. So 98 ones + 2 = 100, size 99. Or 98 ones = 98 ≠ 100. 
+- With 100: 100 + anything > 100. So only {100}.
+
+So average numbers: 1 and 99. Just 2.
+
+Let me think about this more systematically.
+
+The key insight: we want many subset sizes $k$ such that some $k$-subset sums to $S$.
+
+Let me think about a construction that gives many average numbers.
+
+Construction: Let $n = 100$. Take weights $w_1, \ldots, w_{100}$. 
+
+Idea: Use a "base" of equal weights plus some special weights.
+
+Let me try: 50 weights of value 1, 50 weights of value 3. We got 17 average numbers (even numbers from 34 to 66).
+
+What if we use 3 values? Say $a$ weights of 1, $b$ weights of 2, $c$ weights of 3, with $a + b + c = 100$ and $a + 2b + 3c = 2S$.
+
+We want subsets summing to $S$ with many different sizes.
+
+Let me try $a = 50, b = 0, c = 50$: got 17.
+Let me try $a = 34, b = 32, c = 34$: total = 34 + 64 + 102 = 200, S = 100. Subset: $x$ ones, $y$ twos, $z$ threes, $x + 2y + 3z = 100$, $0 \le x \le 34, 0 \le y \le 32, 0 \le z \le 34$. Size $k = x + y + z$.
+
+This is more flexible. For each valid $(x,y,z)$, we get a size $k = x + y + z$. The question is how many distinct $k$ values are achievable.
+
+From $x = 100 - 2y - 3z$, $k = 100 - 2y - 3z + y + z = 100 - y - 2z$. Constraints: $0 \le 100 - 2y - 3z \le 34$, $0 \le y \le 32$, $0 \le z \le 34$.
+
+From $0 \le 100 - 2y - 3z$: $2y + 3z \le 100$.
+From $100 - 2y - 3z \le 34$: $2y + 3z \ge 66$.
+
+So $66 \le 2y + 3z \le 100$, $0 \le y \le 32$, $0 \le z \le 34$.
+
+$k = 100 - y - 2z$. We want to know the range of $k$.
+
+To minimize $k$: maximize $y + 2z$. With $2y + 3z \le 100$ and $y \le 32, z \le 34$. Maximize $y + 2z$. If $z = 34$, $2y \le 100 - 102 < 0$, infeasible. $z = 32$: $2y \le 100 - 96 = 4$, $y \le 2$. $y + 2z = 2 + 64 = 66$. $k = 34$. Also need $2y + 3z \ge 66$: $4 + 96 = 100 \ge 66$. ✓. $k = 34$.
+
+To maximize $k$: minimize $y + 2z$. With $2y + 3z \ge 66$. Minimize $y + 2z$ subject to $2y + 3z \ge 66$, $y, z \ge 0$. If $y = 0, z = 22$: $3 \cdot 22 = 66 \ge 66$. ✓. $y + 2z = 44$. $k = 56$. But also need $2y + 3z \le 100$: $66 \le 100$. ✓. And $x = 100 - 0 - 66 = 34 \le 34$. ✓. $k = 56$.
+
+If $y = 33$... $y \le 32$. $y = 32, z = 0$: $2 \cdot 32 = 64 < 66$. Need $z \ge 1$: $64 + 3 = 67 \ge 66$. $y + 2z = 32 + 2 = 34$. $k = 66$. $x = 100 - 64 - 3 = 33 \le 34$. ✓. $k = 66$.
+
+So $k$ ranges potentially from 34 to 66. But can we get all integers in between? $k = 100 - y - 2z$. As $y$ increases by 1, $k$ decreases by 1. As $z$ increases by 1, $k$ decreases by 2. So $k$ can change by 1 (via $y$) or 2 (via $z$). Since we can change by 1, we can potentially get all values in a range.
+
+Let me check: can we get $k = 34, 35, 36, \ldots, 66$?
+
+$k = 100 - y - 2z = 35$: $y + 2z = 65$. E.g., $z = 0, y = 65 > 32$. No. $z = 17, y = 31$: $2 \cdot 31 + 3 \cdot 17 = 62 + 51 = 113 > 100$. No. $z = 16, y = 33 > 32$. $z = 17, y = 31$: $113 > 100$. Hmm. $z = 32, y = 1$: $y + 2z = 65$. $2 + 96 = 98 \le 100$. ✓. $x = 100 - 2 - 96 = 2 \ge 0$. ✓. $k = 35$. ✓.
+
+$k = 36$: $y + 2z = 64$. $z = 32, y = 0$: $0 + 96 = 96 \le 100$, $0 + 96 = 96 \ge 66$. ✓. $x = 100 - 0 - 96 = 4$. ✓. $k = 36$. ✓.
+
+It seems like we can get all values from 34 to 66, which is 33 values. That's better than 17 but still not great.
+
+Hmm, let me think about this differently. Maybe I should think about what the theoretical maximum is.
+
+Upper bound thoughts:
+- By the complement symmetry, average numbers come in pairs $(k, 100-k)$, so the count is at most 99 (if all of 1 through 99 are average) and is always odd.
+- But can we actually achieve close to 99?
+
+Let me think about whether we can achieve all $k$ from 1 to 99.
+
+For $k = 1$: need a single weight equal to $S$. So one weight must be $S = $ half the total.
+For $k = 99$: need 99 weights summing to $S$, meaning the excluded weight is also $S$. So another weight must be $S$.
+
+For $k = 2$: need 2 weights summing to $S$.
+For $k = 98$: need 98 weights summing to $S$, meaning 2 excluded weights sum to $S$.
+
+So for $k = 1$ and $k = 99$: we need at least one weight equal to $S$. If one weight is $S$, then the other 99 weights sum to $S$. Then $k = 99$ works (take all other 99). And $k = 1$ works (take that one weight).
+
+For $k = 2$: need 2 weights summing to $S$. 
+For $k = 98$: need 2 weights summing to $S$ (the excluded ones).
+
+So we need: among our 100 weights, for each $k$ from 1 to 50, there's a $k$-subset summing to $S$ (and by complement, $100-k$ is also average).
+
+Let me think about a specific construction aiming for many average numbers.
+
+Construction: Let one weight be $S$, and the remaining 99 weights sum to $S$. Among those 99, we want many subset sizes to achieve various sums.
+
+Actually, let me think about it as: we need subsets of various sizes summing to $S$.
+
+Let me try a "powers of 2" type construction or an arithmetic progression.
+
+Let me try: weights $1, 2, 3, \ldots, 100$. Total = 5050, $S = 2525$. We need subsets of size $k$ summing to 2525 for as many $k$ as possible.
+
+The minimum sum of a $k$-subset is $1 + 2 + \cdots + k = k(k+1)/2$.
+The maximum sum of a $k$-subset is $100 + 99 + \cdots + (101-k) = k(201-k)/2$.
+
+For a $k$-subset to sum to 2525, we need $k(k+1)/2 \le 2525 \le k(201-k)/2$.
+
+$k(k+1)/2 \le 2525$: $k \le 70$ (since $70 \cdot 71/2 = 2485 \le 2525$, $71 \cdot 72/2 = 2556 > 2525$). So $k \le 70$.
+
+$k(201-k)/2 \ge 2525$: $k(201-k) \ge 5050$. $k = 30$: $30 \cdot 171 = 5130 \ge 5050$. ✓. $k = 29$: $29 \cdot 172 = 4988 < 5050$. So $k \ge 30$.
+
+So for $k$ from 30 to 70, the sum 2525 is in the achievable range. But is every integer sum in the range achievable? For a $k$-subset of $\{1, \ldots, 100\}$, the achievable sums form a contiguous range from $k(k+1)/2$ to $k(201-k)/2$ (this is a well-known result). So for $30 \le k \le 70$, 2525 is achievable.
+
+By complement, $100 - k$ is also average for $30 \le k \le 70$, i.e., $30 \le 100-k \le 70$, i.e., $30 \le k' \le 70$. Wait, that's the same range. So the average numbers are $30, 31, \ldots, 70$, which is 41 values.
+
+Hmm, can we do better? The issue is that with $\{1, 2, \ldots, 100\}$, the range of $k$ is limited to $[30, 70]$.
+
+What if we use a different set of weights to widen this range?
+
+The constraint is: for a $k$-subset to sum to $S$, we need $S$ to be between the min and max $k$-subset sums. The min $k$-subset sum is the sum of the $k$ smallest weights, and the max is the sum of the $k$ largest weights.
+
+To maximize the range of $k$, we want the min $k$-subset sum to be $\le S$ for small $k$ and the max $k$-subset sum to be $\ge S$ for small $k$ (and symmetrically for large $k$).
+
+If the weights are $w_1 \le w_2 \le \cdots \le w_{100}$, then:
+- Min $k$-subset sum: $w_1 + \cdots + w_k$
+- Max $k$-subset sum: $w_{100-k+1} + \cdots + w_{100}$
+
+We need $w_1 + \cdots + w_k \le S \le w_{100-k+1} + \cdots + w_{100}$ for $k$ to be potentially average.
+
+Also, $S = (w_1 + \cdots + w_{100})/2$.
+
+Let $P_k = w_1 + \cdots + w_k$ (prefix sum) and $Q_k = w_{100-k+1} + \cdots + w_{100}$ (suffix sum). Note $P_k + Q_k \le 2S$ always (with equality only if $k = 50$ and the middle weights are 0, but weights are positive... actually weights could be any positive reals? The problem says "weights" so I assume positive reals, or maybe positive integers? Let me re-read.
+
+"Let $2S$ be the total weight of a certain set of weights." - weights are probably positive real numbers (or positive integers). The problem says "natural number $k$", so $k$ is a natural number. Let me assume weights are positive reals for maximum generality, but actually for competition problems, weights are often positive integers. Let me consider both.
+
+Actually, the problem doesn't specify. Let me assume weights are positive real numbers (or positive integers - I'll check if it matters).
+
+Hmm, actually for this type of problem, I think the weights are positive real numbers. But let me think about whether the answer changes.
+
+Let me think about the upper bound more carefully.
+
+For $k$ to be average, we need $P_k \le S$ (the $k$ smallest weights sum to at most $S$) and $Q_k \ge S$ (the $k$ largest weights sum to at least $S$). But also, we need $S$ to be achievable as a $k$-subset sum, which requires more than just being in the range — but if the weights are "generic" (like an arithmetic progression), the achievable sums form a contiguous range.
+
+Wait, but with real-valued weights, the set of achievable $k$-subset sums is a finite set (there are $\binom{100}{k}$ subsets), so it's not automatically contiguous. But if weights are integers and the achievable sums form a contiguous range (which happens for arithmetic progressions), then we just need $S$ to be in the range.
+
+Let me think about the upper bound. We need:
+1. $P_k \le S$ for $k$ to be average (necessary condition).
+2. $Q_k \ge S$ for $k$ to be average (necessary condition).
+
+Note $P_k + Q_{100-k} = 2S$ (since $P_k$ is the sum of the $k$ smallest and $Q_{100-k}$ is the sum of the $100-k$ largest, which together are all 100 weights). So $P_k \le S \iff Q_{100-k} \ge S$, which is the condition for $100-k$ to be average. This confirms the symmetry.
+
+Now, $P_k$ is increasing in $k$, and $P_k \le S$ gives $k \le K$ for some $K$. Similarly, $Q_k \ge S$ gives $k \ge K'$ for some $K'$. By symmetry, $K' = 100 - K$. So the necessary condition gives $100 - K \le k \le K$, a range of $2K - 99$ values (if $K \ge 50$).
+
+Wait, let me be more careful. $P_k \le S$ for $k \le K$ where $K$ is the largest $k$ with $P_k \le S$. $Q_k \ge S$ for $k \ge K'$ where $K'$ is the smallest $k$ with $Q_k \ge S$. By the relation $P_k + Q_{100-k} = 2S$, $Q_k \ge S \iff P_{100-k} \le S \iff 100-k \le K \iff k \ge 100 - K$. So $K' = 100 - K$.
+
+The necessary condition for $k$ to be average is $100 - K \le k \le K$. The number of such $k$ is $K - (100-K) + 1 = 2K - 99$.
+
+To maximize this, we want $K$ as large as possible. $K$ is the largest $k$ with $P_k \le S = (P_{100})/2$. So $P_K \le P_{100}/2 < P_{K+1}$.
+
+Can $K = 99$? That would require $P_{99} \le S = P_{100}/2$, i.e., $P_{99} \le P_{100}/2$, i.e., $P_{99} \le w_{100}/2$ (since $P_{100} = P_{99} + w_{100}$, so $P_{99} \le (P_{99} + w_{100})/2$, i.e., $P_{99} \le w_{100}$). So we need the largest weight to be at least the sum of all other weights. If $w_{100} \ge P_{99}$, then $K = 99$ and the necessary condition allows $k$ from 1 to 99.
+
+But wait, we also need $Q_k \ge S$, which for $k = 1$ means $w_{100} \ge S$. And $S = P_{100}/2 = (P_{99} + w_{100})/2$. So $w_{100} \ge (P_{99} + w_{100})/2 \iff w_{100} \ge P_{99}$. Consistent.
+
+So if $w_{100} \ge P_{99}$ (the largest weight is at least the sum of all others), then the necessary condition allows all $k$ from 1 to 99. But is the sufficient condition also met?
+
+If $w_{100} > P_{99}$, then $S = (P_{99} + w_{100})/2 > P_{99}$, so no subset of the first 99 weights can sum to $S$ (their total is $P_{99} < S$). The only way to get sum $S$ is to include $w_{100}$. But $w_{100} > S$ (since $w_{100} > P_{99}$ means $w_{100} > (P_{99} + w_{100})/2 = S$... wait: $w_{100} \ge P_{99}$, $S = (P_{99} + w_{100})/2 \le w_{100}$. If $w_{100} = P_{99}$, then $S = w_{100}$ and we can take just $w_{100}$ (size 1) or all of the first 99 (size 99). If $w_{100} > P_{99}$, then $S < w_{100}$, so including $w_{100}$ already exceeds $S$, and not including it means we can only use the first 99 which sum to $P_{99} < S$. So no subset sums to $S$ at all! Zero average numbers.
+
+So the extreme case $w_{100} \ge P_{99}$ is actually bad unless $w_{100} = P_{99}$ exactly, in which case we get only $k = 1$ and $k = 99$.
+
+So the necessary condition is not sufficient, and pushing $K$ to 99 is counterproductive. We need a more nuanced analysis.
+
+Let me reconsider. The real question is: for how many values of $k$ can we find a $k$-subset summing to $S$?
+
+Let me think about this problem from the perspective of competition math. This feels like it could be a competition problem with a clean answer.
+
+Let me think about small cases first to get intuition.
+
+Case $n = 2$ (2 weights): $w_1 + w_2 = 2S$. Average $k$ means a $k$-subset sums to $S$. $k=1$: need $w_1 = S$ or $w_2 = S$, i.e., $w_1 = w_2 = S$. $k=2$: need $w_1 + w_2 = S$, but $w_1 + w_2 = 2S \neq S$ (unless $S = 0$). So max average numbers for $n=2$: if $w_1 = w_2$, then $k=1$ is average (both weights equal $S$). So max is 1.
+
+Wait, but $k$ ranges over natural numbers. For $n = 2$, $k$ can be 1 or 2. $k = 2$ requires $w_1 + w_2 = S = (w_1 + w_2)/2$, so $w_1 + w_2 = 0$, impossible for positive weights. $k = 1$ requires one weight $= S$. If $w_1 = w_2 = S$, then $k = 1$ is average. Max = 1.
+
+Case $n = 4$: weights $w_1, w_2, w_3, w_4$, total $2S$. Average numbers: $k \in \{1, 2, 3, 4\}$ (well, $k \le 4$). $k = 4$ needs total $= S$, impossible. $k = 3$ needs a 3-subset summing to $S$, equivalently the excluded weight $= S$. $k = 1$ needs a weight $= S$. $k = 2$ needs a 2-subset summing to $S$.
+
+By symmetry, $k$ and $4-k$ are both average or neither. So possible average number counts: 0, 2, or 3 (if $k=2$ is average, it's self-paired).
+
+Can we get 3? Need $k = 1, 2, 3$ all average. $k=1$: some weight $= S$. $k=3$: some weight $= S$ (the excluded one). $k=2$: some pair sums to $S$.
+
+If $w_1 = S$, then $w_2 + w_3 + w_4 = S$. For $k=3$: need some weight $= S$, which is $w_1$. Exclude $w_1$, take $w_2, w_3, w_4$, sum $= S$. ✓. For $k=2$: need some pair summing to $S$. We have $w_2 + w_3 + w_4 = S$. Need a pair from $\{w_2, w_3, w_4\}$ summing to $S$, or a pair involving $w_1 = S$ summing to $S$ (need the other to be 0, not allowed). So need a pair from $\{w_2, w_3, w_4\}$ summing to $S = w_2 + w_3 + w_4$. That means the third one is 0, not allowed. Or a pair $(w_1, w_i) = (S, w_i)$ summing to $S$ needs $w_i = 0$. Not allowed.
+
+Hmm, so for $n = 4$, can we get 3 average numbers? Let me try specific weights. $w_1 = 3, w_2 = 1, w_3 = 1, w_4 = 1$. Total = 6, $S = 3$. $k=1$: $w_1 = 3 = S$. ✓. $k=3$: exclude $w_1$, take $\{w_2, w_3, w_4\}$, sum = 3 = $S$. ✓. $k=2$: need a pair summing to 3. $w_1 + w_2 = 4 \neq 3$. $w_2 + w_3 = 2 \neq 3$. $w_1 + w_2 = 4$. No pair sums to 3. So $k=2$ is not average. Only 2 average numbers.
+
+Try $w_1 = 2, w_2 = 2, w_3 = 1, w_4 = 1$. Total = 6, $S = 3$. $k=1$: no weight equals 3. $k=2$: $w_1 + w_3 = 3$. ✓. $w_1 + w_4 = 3$. ✓. $k=3$: exclude $w_1$, sum = 4 ≠ 3. Exclude $w_3$, sum = 5 ≠ 3. No. So only $k=2$. 1 average number.
+
+Try $w_1 = 3, w_2 = 2, w_3 = 1, w_4 = 0$... no, weights must be positive.
+
+Try $w_1 = 3, w_2 = 2, w_3 = 2, w_4 = 1$. Total = 8, $S = 4$. $k=1$: no weight = 4. $k=2$: $w_1 + w_4 = 4$. ✓. $w_2 + w_3 = 4$. ✓. $k=3$: exclude $w_1$: $2+2+1=5\neq 4$. Exclude $w_2$: $3+2+1=6$. Exclude $w_3$: same. Exclude $w_4$: $3+2+2=7$. No. So only $k=2$. 1 average number.
+
+Hmm, for $n=4$, it seems hard to get 3. Let me try $w_1 = 2, w_2 = 1, w_3 = 1, w_4 = 2$. Total = 6, $S = 3$. $k=1$: no. $k=2$: $w_1 + w_2 = 3$. ✓. $w_1 + w_3 = 3$. ✓. $w_2 + w_4 = 3$. ✓. $w_3 + w_4 = 3$. ✓. $k=3$: exclude $w_1$: $1+1+2=4\neq 3$. Exclude $w_2$: $2+1+2=5$. No. So only $k=2$.
+
+What about $w_1 = 1, w_2 = 1, w_3 = 1, w_4 = 1$? Total = 4, $S = 2$. $k=1$: no. $k=2$: $1+1=2$. ✓. $k=3$: $1+1+1=3\neq 2$. So only $k=2$. 1 average number.
+
+It seems for $n=4$, the max might be 2. Let me try to get 3.
+
+For 3 average numbers with $n=4$, we need $k \in \{1, 2, 3\}$ (since $k=4$ is impossible). Need $k=1$: a weight $= S$. Say $w_1 = S$. Then $w_2 + w_3 + w_4 = S$. $k=3$: exclude $w_1$, take $w_2+w_3+w_4 = S$. ✓. $k=2$: need a pair summing to $S$. The pair must be from $\{w_2, w_3, w_4\}$ (since any pair with $w_1 = S$ needs the other to be 0). But $w_2 + w_3 + w_4 = S$, so a pair from them summing to $S$ means the third is 0. Contradiction. So $k=2$ is impossible when $k=1$ is achieved via a single weight $= S$.
+
+Alternatively, $k=1$ could be achieved by multiple weights $= S$. If $w_1 = w_2 = S$, then $w_3 + w_4 = 0$, impossible.
+
+So for $n=4$, max average numbers = 2? Wait, can we even get 2? We need $k=1$ and $k=3$ (paired) or $k=2$ alone.
+
+$k=1$ and $k=3$: need a weight $= S$. $w_1 = S$, $w_2 + w_3 + w_4 = S$. $k=3$: exclude $w_1$. ✓. So yes, 2 average numbers. E.g., $w = (3, 1, 1, 1)$.
+
+$k=2$ alone: e.g., $w = (2, 1, 1, 2)$, $S = 3$, $k=2$: $2+1=3$. ✓. 1 average number.
+
+So for $n=4$, max = 2.
+
+For $n=2$, max = 1. For $n=4$, max = 2. Pattern: max = $n/2$?
+
+For $n=6$: max = 3? Let me check.
+
+Hmm wait, let me reconsider. For $n=4$, we got max 2, which is $n/2 = 2$. For $n=2$, max 1 = $n/2$.
+
+Let me check $n=6$. Can we get more than 3?
+
+For $n=6$, average numbers range from 1 to 5 (k=6 impossible). By symmetry, pairs $(k, 6-k)$: $(1,5), (2,4), (3,3)$. So max possible is 5 (if all are average) or we could have 3 (if only $k=3$) etc.
+
+Can we get 5? Need $k=1,2,3,4,5$ all average.
+
+$k=1$: a weight $= S$. Say $w_1 = S$. Then $w_2+\cdots+w_6 = S$.
+$k=5$: exclude $w_1$, take rest. ✓.
+$k=2$: a pair summing to $S$. Can't involve $w_1 = S$ (other would be 0). So pair from $\{w_2,\ldots,w_6\}$ summing to $S = w_2+\cdots+w_6$. Means the other three sum to 0. Impossible.
+
+So if $k=1$ is average (via a weight $= S$), then $k=2$ is impossible. So we can't have all 5.
+
+What if $k=1$ is not average but $k=2,3,4,5$ are? That's 4 average numbers. But $k=5$ requires a weight $= S$ (the excluded one), which gives $k=1$ too. So $k=5$ implies $k=1$. Contradiction. So if $k=5$ is average, $k=1$ is too, and then $k=2$ is impossible.
+
+So the maximum for $n=6$ with $k=1$ and $k=5$ average: $k \in \{1, 5\}$, and we can try to also get $k=3$. $k=2$ and $k=4$ are impossible (as shown, $k=2$ is impossible when $k=1$ is via a weight $= S$, and $k=4$ is the complement of $k=2$).
+
+So with $k=1$: can get $\{1, 3, 5\}$ = 3 average numbers. Or without $k=1$: can get $\{2, 3, 4\}$ = 3 average numbers. Or $\{2, 4\}$ = 2. Or $\{3\}$ = 1.
+
+Can we get $\{2, 3, 4\}$? $k=2$: a pair sums to $S$. $k=4$: a 4-subset sums to $S$, equivalently a 2-subset (complement) sums to $S$. Same condition. $k=3$: a 3-subset sums to $S$.
+
+Example: $w = (1, 1, 1, 1, 1, 1)$, total = 6, $S = 3$. $k=2$: $1+1=2\neq 3$. $k=3$: $1+1+1=3$. ✓. $k=4$: $1+1+1+1=4\neq 3$. So only $k=3$. 1 average number.
+
+Example: $w = (1, 2, 1, 2, 1, 1)$, total = 8, $S = 4$. $k=2$: $2+2=4$. ✓. $1+2=3\neq 4$. $k=3$: $2+1+1=4$. ✓. $k=4$: complement of $k=2$. ✓. So $\{2, 3, 4\}$ = 3 average numbers. ✓.
+
+Can we get 4 for $n=6$? We'd need either $\{1, 2, 4, 5\}$ (but $k=1$ implies $k=2$ impossible) or $\{1, 3, 4, 5\}$ (but $k=5$ implies $k=1$, and $k=1$ implies $k=2$ impossible, but $k=4$ is complement of $k=2$, so $k=4$ impossible too). Or $\{2, 3, 4, 5\}$ (but $k=5$ implies $k=1$ implies $k=2$ impossible). So 4 is impossible for $n=6$.
+
+So max for $n=6$ is 3 = $n/2$.
+
+Pattern: max = $n/2$ for even $n$? For $n=100$, that would be 50.
+
+Wait, but let me check $n=6$ more carefully. Can we get $\{1, 3, 5\}$?
+
+$w_1 = S$, $w_2 + \cdots + w_6 = S$. $k=3$: a 3-subset summing to $S$. Could be $\{w_1, w_2, w_3\}$ if $w_2 + w_3 = 0$, no. Or a 3-subset from $\{w_2, \ldots, w_6\}$ summing to $S = w_2 + \cdots + w_6$, meaning the other 2 sum to 0, no. Or $\{w_1, w_i, w_j\}$ summing to $S = w_1$, so $w_i + w_j = 0$, no.
+
+Hmm, so $k=3$ is also impossible when $k=1$ is via $w_1 = S$ and all other weights are positive? Wait, that can't be right. Let me re-examine.
+
+$w_1 = S$, $w_2 + w_3 + w_4 + w_5 + w_6 = S$. A 3-subset summing to $S$:
+- Includes $w_1$: $w_1 + w_i + w_j = S + w_i + w_j > S$. No (since $w_i, w_j > 0$).
+- Doesn't include $w_1$: 3 weights from $\{w_2, \ldots, w_6\}$ summing to $S = w_2 + \cdots + w_6$. So the other 2 sum to 0. No.
+
+So indeed $k=3$ is impossible! So with $k=1$ average, we only get $\{1, 5\}$ = 2 average numbers for $n=6$.
+
+So for $n=6$, the max is 3 (from $\{2, 3, 4\}$), which is $n/2$.
+
+Hmm wait, but I showed that $\{2, 3, 4\}$ is achievable. Let me also check: can we do better than $n/2$?
+
+For $n=6$, $n/2 = 3$, and we showed 4 is impossible. So max = 3.
+
+For $n=4$, $n/2 = 2$, and we showed 3 is impossible. So max = 2.
+
+For $n=2$, $n/2 = 1$. Max = 1. ✓.
+
+So the pattern suggests max = $n/2$ for even $n$. For $n=100$, max = 50.
+
+But wait, I need to verify this more carefully. Let me think about $n=8$.
+
+For $n=8$, $n/2 = 4$. Can we get 5?
+
+Average numbers from 1 to 7, symmetric around 4. Pairs: $(1,7), (2,6), (3,5), (4,4)$. 
+
+If $k=1$ is average (weight $= S$), then $k=2$ is impossible (as before), so $k=6$ is impossible too. We'd get at most $\{1, 3, 4, 5, 7\}$... but wait, is $k=3$ possible?
+
+With $w_1 = S$, $w_2 + \cdots + w_8 = S$. $k=3$: 3-subset summing to $S$. Including $w_1$: $S + w_i + w_j > S$. No. Not including $w_1$: 3 from $\{w_2,\ldots,w_8\}$ summing to $S = w_2+\cdots+w_8$, so other 4 sum to 0. No. So $k=3$ impossible.
+
+Similarly $k=4$: including $w_1$: $S + 3$ weights $> S$. Not including: 4 from remaining 7 summing to $S = $ sum of all 7, so other 3 sum to 0. No. So $k=4$ impossible.
+
+So with $k=1$: only $\{1, 7\}$, 2 average numbers.
+
+Without $k=1$ (and $k=7$): possible average numbers from $\{2, 3, 4, 5, 6\}$. Can we get all 5?
+
+$k=2$ and $k=6$ are complements. $k=3$ and $k=5$ are complements. $k=4$ is self-complement.
+
+Need: a 2-subset summing to $S$, a 3-subset summing to $S$, a 4-subset summing to $S$.
+
+Example: $w = (1, 1, 1, 1, 1, 1, 1, 1)$, total = 8, $S = 4$. $k=2$: $1+1=2\neq 4$. $k=3$: $3\neq 4$. $k=4$: $4 = 4$. ✓. Only $k=4$. 1 average number.
+
+Example: $w = (1, 3, 1, 3, 1, 3, 1, 3)$, total = 16, $S = 8$. $k=2$: $3+3=6\neq 8$, $1+3=4\neq 8$, $1+1=2\neq 8$. No. $k=3$: $3+3+1=7\neq 8$, $3+3+3=9\neq 8$, $3+1+1=5\neq 8$. No. $k=4$: $3+3+1+1=8$. ✓. Only $k=4$.
+
+Let me try to get $\{2, 3, 4, 5, 6\}$ for $n=8$.
+
+$w = (1, 2, 3, 4, 1, 2, 3, 4)$, total = 20, $S = 10$. $k=2$: $4+4=8\neq 10$, $3+4=7$, $2+4=6$, $1+4=5$, $3+3=6$, etc. No pair sums to 10. $k=3$: $4+4+2=10$. ✓. $4+3+3=10$. ✓. $k=4$: $4+4+1+1=10$. ✓. $4+3+2+1=10$. ✓. $3+3+2+2=10$. ✓. $k=5$: complement of $k=3$. ✓. $k=6$: complement of $k=2$. $k=2$ not average, so $k=6$ not average. So $\{3, 4, 5\}$ = 3 average numbers.
+
+Let me try to also get $k=2$. Need a pair summing to 10. With total 20, $S=10$. 
+
+$w = (1, 2, 3, 4, 4, 3, 2, 1)$, total = 20, $S = 10$. $k=2$: $4+4=8\neq 10$. No pair sums to 10. Hmm.
+
+$w = (2, 8, 1, 1, 1, 1, 1, 1)$, total = 16, $S = 8$. $k=2$: $8+2=10\neq 8$. $2+1=3$. $1+1=2$. No. $k=1$: $w_2 = 8 = S$. ✓. But then $k=2$ impossible. Hmm.
+
+Let me try: $w = (4, 6, 1, 1, 1, 1, 1, 1)$, total = 16, $S = 8$. $k=2$: $4+6=10\neq 8$. $6+1=7$. $4+1=5$. $1+1=2$. No. $k=3$: $6+1+1=8$. ✓. $4+1+1=6\neq 8$. $k=4$: $4+1+1+1=7\neq 8$. $6+1+1+1=9\neq 8$. $4+1+1+1+1=8$... that's 5. Hmm. $k=4$: $4+1+1+1=7$, $6+1+1+1=9$, $1+1+1+1=4$. No. $k=5$: $6+1+1+1+1=10\neq 8$. $4+1+1+1+1=8$. ✓. $k=6$: complement of $k=2$. Not average. $k=7$: complement of $k=1$. Not average (no weight = 8). So $\{3, 5\}$ = 2 average numbers.
+
+This is getting complicated. Let me think more theoretically.
+
+Key observation: If $w_1 = S$ (some weight equals $S$), then any subset containing $w_1$ has sum $> S$ (since other weights are positive), and any subset not containing $w_1$ has sum $\le S - w_1 = 0$... wait, no. The remaining weights sum to $S$, so a subset of them sums to at most $S$. It sums to exactly $S$ only if it includes all of them. So the only subsets summing to $S$ are $\{w_1\}$ and $\{w_2, \ldots, w_n\}$. So only $k=1$ and $k=n-1$ are average. 2 average numbers.
+
+So having a weight equal to $S$ is very restrictive. To get many average numbers, we should avoid having any weight equal to $S$.
+
+Now, without any weight $= S$, the average numbers come from $\{2, 3, \ldots, n-2\}$ (since $k=1$ and $k=n-1$ require a weight $= S$). By symmetry, the count is even (pairs $(k, n-k)$ for $k = 2, \ldots, n/2 - 1$, plus possibly $k = n/2$).
+
+For $n = 100$: without a weight $= S$, average numbers are from $\{2, \ldots, 98\}$, symmetric around 50. Pairs: $(2, 98), (3, 97), \ldots, (49, 51)$, and $k=50$. So max possible is $2 \times 48 + 1 = 97$. But can we achieve all of them?
+
+Hmm wait, but earlier for small cases, we couldn't achieve everything. Let me think about what constraints exist.
+
+Let me think about it differently. Consider the weights sorted: $w_1 \le w_2 \le \cdots \le w_{100}$. For a $k$-subset to sum to $S$, we need the minimum $k$-subset sum $\le S \le$ maximum $k$-subset sum. The min $k$-subset sum is $\sum_{i=1}^k w_i$ and the max is $\sum_{i=100-k+1}^{100} w_i$.
+
+Let $P_k = \sum_{i=1}^k w_i$ (prefix) and $Q_k = \sum_{i=100-k+1}^{100} w_i$ (suffix). Note $P_k + Q_{100-k} = 2S$.
+
+For $k$ to be potentially average: $P_k \le S \le Q_k$, i.e., $P_k \le S$ and $P_{100-k} \le S$ (since $Q_k = 2S - P_{100-k}$, so $Q_k \ge S \iff P_{100-k} \le S$).
+
+So the condition is $P_k \le S$ and $P_{100-k} \le S$, i.e., $\max(P_k, P_{100-k}) \le S$.
+
+If $k \le 50$, then $P_k \le P_{100-k}$, so the condition is $P_{100-k} \le S$.
+
+So for $k \le 50$, $k$ is potentially average iff $P_{100-k} \le S$.
+
+$P_{100-k} \le S = P_{100}/2$ means the sum of the $100-k$ smallest weights is at most half the total. Equivalently, the sum of the $k$ largest weights is at least $S$.
+
+For $k = 50$: $P_{50} \le S$, which is always true since $P_{50} \le P_{100}/2 = S$ iff the 50 smallest sum to at most half, which is true iff the 50 largest sum to at least half, which is always true (since the 50 largest are each $\ge$ the 50 smallest). Actually, $P_{50} \le Q_{50} = 2S - P_{50}$, so $P_{50} \le S$. Always true. So $k = 50$ always satisfies the necessary condition.
+
+For $k = 49$: need $P_{51} \le S$. $P_{51} = P_{50} + w_{51}$. Since $w_{51} \ge w_{50} \ge \cdots$, this could exceed $S$.
+
+For $k = 2$: need $P_{98} \le S$, i.e., the 98 smallest weights sum to at most $S$, i.e., the 2 largest weights sum to at least $S$. This is a strong condition.
+
+So to make small $k$ potentially average, we need the largest few weights to carry a lot of the total weight. But if the largest weights are too large, we run into the problem that they can't be part of subsets summing to $S$ (they'd exceed $S$).
+
+This is the tension. Let me think about it more carefully.
+
+Actually, the necessary condition (being in the range) is not sufficient. We also need $S$ to actually be achievable as a $k$-subset sum. For integer weights forming an arithmetic progression, the achievable sums are contiguous, so the necessary condition is sufficient. But for general weights, it might not be.
+
+Let me think about the problem with the assumption that we can choose weights to make the achievable sums contiguous (e.g., using an arithmetic progression or similar).
+
+So the question becomes: what is the maximum number of $k$ values such that $P_{100-k} \le S$ (for $k \le 50$), and by symmetry $P_k \le S$ (for $k \ge 50$)?
+
+Wait, I need to also ensure $P_k \le S$ for the subset to be able to sum to $S$ (the min $k$-subset sum $\le S$). For $k \le 50$, $P_k \le P_{50} \le S$, so this is automatic. For $k \ge 50$, $P_k \le S$ is the binding condition, and by symmetry $P_{100-k} \le S$ is automatic.
+
+So the condition for $k$ to be in the achievable range (necessary condition) is:
+- $k \le 50$: $P_{100-k} \le S$
+- $k \ge 50$: $P_k \le S$
+
+By symmetry, it's enough to consider $k \le 50$: $P_{100-k} \le S$.
+
+$P_{100-k} \le S = P_{100}/2$ iff $Q_k \ge S$ iff the $k$ largest weights sum to at least $S$.
+
+So we want to maximize the number of $k \in \{1, \ldots, 50\}$ such that $Q_k \ge S$ (the $k$ largest weights sum to at least half the total), AND $S$ is actually achievable as a $k$-subset sum.
+
+But there's also the constraint that $S$ must be achievable, not just in range. And there's the constraint from the other side: we need $P_k \le S$ (min $k$-subset sum $\le S$), which for $k \le 50$ is automatic.
+
+But wait, there's another issue. If $Q_k \ge S$ but the largest weight $w_{100} > S$, then no subset containing $w_{100}$ can sum to $S$ (it would exceed), and subsets not containing $w_{100}$ have max sum $Q_k - w_{100}$ which might be $< S$. So we need to be more careful.
+
+Let me think about this differently. Let me consider the problem as: we have 100 positive numbers summing to $2S$. We want to maximize the number of $k$ such that some $k$-subset sums to $S$.
+
+Let me think about an explicit construction that achieves many average numbers.
+
+Construction idea: Use weights that form an arithmetic progression. Let $w_i = a + (i-1)d$ for some $a, d > 0$. Then the total is $100a + d \cdot \frac{99 \cdot 100}{2} = 100a + 4950d$. $S = 50a + 2475d$.
+
+The min $k$-subset sum is $\sum_{i=1}^k (a + (i-1)d) = ka + d \cdot \frac{k(k-1)}{2}$.
+The max $k$-subset sum is $\sum_{i=100-k+1}^{100} (a + (i-1)d) = ka + d \cdot \sum_{i=100-k+1}^{100} (i-1) = ka + d \cdot \left(\frac{99 \cdot 100}{2} - \frac{(99-k)(100-k)}{2}\right)$.
+
+Hmm, this is getting complicated. Let me just use $w_i = i$ (i.e., $a = 1, d = 1$). Total = 5050, $S = 2525$.
+
+As computed before, the achievable $k$ range is $[30, 70]$, giving 41 average numbers. (Since for an AP, the $k$-subset sums form a contiguous range, and 2525 is in the range for $30 \le k \le 70$.)
+
+Can we do better with a different AP? Let's try $w_i = i$ but with different parameters.
+
+Actually, the issue with $w_i = i$ is that the range $[30, 70]$ is determined by when $S = 2525$ falls between the min and max $k$-subset sums. To widen this range, we need the weights to be more "uniform" (so that the min and max $k$-subset sums are closer together, making $S$ achievable for more $k$ values).
+
+If all weights are equal ($w_i = c$), then $S = 50c$, and a $k$-subset sums to $kc$. We need $kc = 50c$, so $k = 50$. Only 1 average number. Too uniform.
+
+If weights are nearly equal, say $w_i = 1 + \epsilon \cdot i$ for small $\epsilon$, then the range of achievable $k$ would be close to $[50, 50]$, i.e., very narrow. That's worse.
+
+If weights are very spread out (like $w_i = i$), we get $[30, 70]$. If we spread more, say $w_i = i^2$, the range would be even narrower (since the large weights dominate, making it hard to hit $S$ with few or many weights).
+
+Hmm, actually with $w_i = i$, we got $[30, 70]$ = 41 values. Let me see if a different distribution can do better.
+
+The key quantity is: for how many $k$ is $P_{100-k} \le S \le Q_k$ (equivalently, $P_{100-k} \le S$ and $P_k \le S$)?
+
+For $k \le 50$: need $P_{100-k} \le S$, i.e., $Q_k \ge S$.
+For $k \ge 50$: need $P_k \le S$.
+
+By symmetry, the number of valid $k$ is $2 \cdot |\{k \le 50 : Q_k \ge S\}| - [50 \text{ is valid}]$... actually let me think again.
+
+The valid $k$ are those where both $P_k \le S$ and $Q_k \ge S$. Since $P_k + Q_{100-k} = 2S$, $P_k \le S \iff Q_{100-k} \ge S$. So the condition is $Q_k \ge S$ and $Q_{100-k} \ge S$.
+
+For $k \le 50$: $Q_k \ge S$ is the binding condition (since $Q_{100-k} \ge Q_{50} \ge S$ always... wait, is $Q_{50} \ge S$? $Q_{50}$ is the sum of the 50 largest, $P_{50}$ is the sum of the 50 smallest, $P_{50} + Q_{50} = 2S$, and $Q_{50} \ge P_{50}$, so $Q_{50} \ge S$. Yes.)
+
+So for $k \le 50$, the condition is $Q_k \ge S$.
+For $k \ge 50$, the condition is $Q_{100-k} \ge S$, i.e., $Q_{100-k} \ge S$ where $100-k \le 50$.
+
+So the number of valid $k$ (necessary condition) is:
+$|\{k : 1 \le k \le 50, Q_k \ge S\}| + |\{k : 50 \le k \le 99, Q_{100-k} \ge S\}| - 1$ (subtracting 1 for $k=50$ counted twice).
+
+$= 2 \cdot |\{k : 1 \le k \le 50, Q_k \ge S\}| - 1$ (since $k=50$ is always valid, $Q_{50} \ge S$).
+
+Wait, but we also need to check $k=50$ is counted in both. Let $m = |\{k : 1 \le k \le 49, Q_k \ge S\}|$. Then valid $k \le 50$: $m + 1$ (including $k=50$). Valid $k \ge 50$: $m + 1$ (by symmetry, $k = 100 - j$ for $j \le 49$ with $Q_j \ge S$, plus $k=50$). Total: $(m+1) + (m+1) - 1 = 2m + 1$.
+
+So the number of $k$ satisfying the necessary condition is $2m + 1$ where $m = |\{k : 1 \le k \le 49, Q_k \ge S\}|$.
+
+To maximize $m$, we want $Q_k \ge S$ for as many small $k$ as possible. $Q_k$ is the sum of the $k$ largest weights. $Q_k \ge S$ means the $k$ largest weights carry at least half the total.
+
+The most extreme case: if the largest weight $w_{100} \ge S$, then $Q_1 \ge S$, and $m$ could be up to 49. But as we showed, if $w_{100} \ge S$, then $w_{100} > S$ (if $w_{100} > P_{99}$) leads to no average numbers, and $w_{100} = S$ leads to only $k=1$ and $k=99$.
+
+So the necessary condition can be satisfied for all $k$, but the sufficient condition (actually achieving sum $S$) fails.
+
+The real constraint is more subtle. Let me think about what's really going on.
+
+When we have a weight $w_{100}$ that's very large (close to $S$), subsets containing it can only sum to $S$ if the other elements in the subset sum to $S - w_{100}$, which is small. So we can only form subsets of size 1 (just $w_{100}$, if $w_{100} = S$) or subsets containing $w_{100}$ plus a few small weights.
+
+Let me think about the problem from a different angle. 
+
+Let me consider the "subset sum" structure. We have 100 positive reals summing to $2S$. We want to find subsets summing to $S$ of as many different sizes as possible.
+
+Let me think about an explicit construction that might achieve a lot.
+
+Construction: Take 50 pairs of equal weights. Specifically, let the weights be $a_1, a_1, a_2, a_2, \ldots, a_{50}, a_{50}$ where $a_1 < a_2 < \cdots < a_{50}$ and $\sum 2a_i = 2S$, so $\sum a_i = S$.
+
+Now, a subset summing to $S$ can be formed by choosing, for each pair, either 0, 1, or 2 of the weights. If we choose exactly 1 from each pair, we get a subset of size 50 summing to $\sum a_i = S$. So $k = 50$ is always average.
+
+But can we get other sizes? If we choose 2 from some pairs and 0 from others, with the constraint that the sum is still $S$. Choosing 2 from pair $i$ contributes $2a_i$ instead of $a_i$, and choosing 0 contributes 0 instead of $a_i$. So the change in sum is $\sum_{i \in A} a_i - \sum_{j \in B} a_j$ where $A$ is the set of pairs we take 2 from and $B$ is the set we take 0 from. We need this to be 0, i.e., $\sum_{i \in A} a_i = \sum_{j \in B} a_j$. The size changes by $|A| - |B|$.
+
+So we can get size $50 + |A| - |B|$ for any disjoint $A, B$ with $\sum_{i \in A} a_i = \sum_{j \in B} a_j$.
+
+This is like a subset sum problem on the $a_i$'s. If the $a_i$'s are chosen well, we can get many different $|A| - |B|$ values.
+
+For example, if $a_i = i$ for $i = 1, \ldots, 50$, then $\sum a_i = 1275 = S$. We need disjoint $A, B \subseteq \{1, \ldots, 50\}$ with $\sum A = \sum B$. The size change is $|A| - |B|$.
+
+$\sum A = \sum B$ with $A, B$ disjoint. The simplest: $A = \{i\}, B = \{j\}$ with $i = j$, but they must be disjoint, so $i \neq j$ and $i = j$ is impossible. So single-element swaps don't work (unless $a_i = a_j$, but we assumed distinct).
+
+Two-element: $A = \{i, j\}, B = \{k\}$ with $a_i + a_j = a_k$. E.g., $1 + 2 = 3$. So $A = \{1, 2\}, B = \{3\}$: size change $2 - 1 = 1$, giving $k = 51$. And by complement, $k = 49$.
+
+$A = \{1, 4\}, B = \{5\}$: $1 + 4 = 5$. Size change 1, $k = 51$ again.
+
+$A = \{1, 2, 4\}, B = \{3, 4\}$... wait, disjoint. $A = \{1, 2, 4\}, B = \{7\}$: $1+2+4 = 7$. Size change $3 - 1 = 2$, $k = 52$.
+
+$A = \{1, 2\}, B = \{3\}$: size change 1.
+$A = \{1, 2, 3\}, B = \{6\}$: $1+2+3=6$. Size change 2.
+$A = \{1, 2, 3, 4\}, B = \{10\}$: $1+2+3+4=10$. Size change 3.
+...
+$A = \{1, 2, \ldots, m\}, B = \{m(m+1)/2\}$: if $m(m+1)/2 \le 50$. $m = 9$: $45 \le 50$. Size change $9 - 1 = 8$. $m = 10$: $55 > 50$. So up to size change 8.
+
+But we can also do $A = \{1, 2, \ldots, m\}, B = \{m(m+1)/2\}$ for $m$ up to 9, giving size changes 1 through 8. And by reversing ($B$ large, $A$ small), size changes $-1$ through $-8$. So $k$ from 42 to 58, which is 17 values.
+
+But we can probably do better. Let me think...
+
+Actually, with $a_i = i$ for $i = 1, \ldots, 50$, we can find many equal-sum disjoint pairs. The question is what size changes $|A| - |B|$ are achievable with $\sum A = \sum B$, $A, B$ disjoint subsets of $\{1, \ldots, 50\}$.
+
+This is related to the "balanced partition" problem. We can get various size differences.
+
+But this construction might not be optimal. Let me think about the problem from a higher level.
+
+Actually, let me reconsider the problem. I think the answer might be 99, or 50, or some other clean number. Let me think about what constructions and bounds are known.
+
+Let me reconsider. The problem asks for the maximum number of average numbers for a set of 100 weights. Let me think about whether we can achieve 99 (all of 1 through 99).
+
+For $k = 1$: need a weight $= S$. But as shown, this severely restricts other $k$ values. So 99 is impossible.
+
+For $k = 2$: need a pair summing to $S$. This doesn't require any single weight $= S$.
+
+So maybe the answer excludes $k = 1$ and $k = 99$, and the max is 97 (all of 2 through 98)?
+
+But for $n = 6$, we showed max is 3, which is $\{2, 3, 4\}$, i.e., all of 2 through 4 = $n/2$. That's $n/2 - 1$ values on each side plus the middle... $n - 3$ values? For $n = 6$, $n - 3 = 3$. For $n = 4$, $n - 3 = 1$, but we got 2. Hmm, that doesn't match.
+
+Let me re-examine $n = 4$. We got max 2, which is $\{1, 3\}$. But $\{2\}$ alone gives 1. And $\{1, 3\}$ gives 2. So the max is 2.
+
+For $n = 6$, max is 3: $\{2, 3, 4\}$.
+
+For $n = 8$, let me try to find the max.
+
+Can we get $\{2, 3, 4, 5, 6\}$ = 5 average numbers for $n = 8$?
+
+We need: a 2-subset, 3-subset, 4-subset, 5-subset, 6-subset all summing to $S$.
+
+By complement, 2-subset and 6-subset are equivalent, 3-subset and 5-subset are equivalent. So we need: a 2-subset, 3-subset, and 4-subset summing to $S$.
+
+Let me try: $w = (1, 2, 3, 4, 5, 6, 7, 8)$, total = 36, $S = 18$.
+$k=2$: $8+7=15\neq 18$, $8+6=14$, ... no pair sums to 18. Hmm. $10+8$... no, max is 8. $8+7=15 < 18$. So no 2-subset sums to 18. $k=2$ not average.
+
+The problem is that with $w_i = i$, the 2 largest sum to 15 < 18. So $k=2$ is not in range.
+
+Let me try weights where the 2 largest sum to at least $S$. 
+
+$w = (1, 1, 1, 1, 1, 1, 1, 15)$, total = 22, $S = 11$. $k=2$: $15+1=16\neq 11$. No. $k=1$: $w_8 = 15 \neq 11$. No weight = 11. $k=7$: exclude $w_8$: $7 \neq 11$. Exclude $w_1$: $16 \neq 11$. No. Hmm, this doesn't work well.
+
+Let me try: $w = (2, 2, 2, 2, 2, 2, 2, 2, 2, 2)$... that's 10 weights. For $n=8$: $w = (3, 3, 3, 3, 3, 3, 3, 3)$, total = 24, $S = 12$. $k=2$: $3+3=6\neq 12$. $k=4$: $3+3+3+3=12$. ✓. Only $k=4$.
+
+Let me try: $w = (1, 1, 1, 1, 5, 5, 5, 5)$, total = 24, $S = 12$. $k=2$: $5+5=10\neq 12$, $5+1=6$, $1+1=2$. No. $k=3$: $5+5+1=11\neq 12$, $5+5+5=15\neq 12$, $5+1+1=7$. No. $k=4$: $5+5+1+1=12$. ✓. $k=5$: $5+5+5+1+1=17\neq 12$, $5+5+1+1+1=13\neq 12$, $5+1+1+1+1=9\neq 12$. No. $k=6$: complement of $k=2$. No. So only $k=4$. 1 average number.
+
+Let me try: $w = (1, 2, 3, 6, 1, 2, 3, 6)$, total = 24, $S = 12$. $k=2$: $6+6=12$. ✓. $k=3$: $6+3+3=12$. ✓. $6+3+2=11\neq 12$. $6+3+1=10$. $6+2+2=10$. $6+6+1=13$. $3+3+6=12$. ✓. $k=4$: $6+3+2+1=12$. ✓. $6+6+1+1=14\neq 12$. $3+3+3+3=12$. ✓. $6+3+1+2=12$. ✓. $k=5$: complement of $k=3$. ✓. $k=6$: complement of $k=2$. ✓. So $\{2, 3, 4, 5, 6\}$ = 5 average numbers!
+
+So for $n = 8$, we can get 5. Can we get more? The only remaining are $k=1$ and $k=7$. $k=1$ needs a weight $= 12$. No weight is 12. $k=7$ needs a weight $= 12$ (excluded). No. So max for $n=8$ is at least 5.
+
+Can we get 7? Need $k=1$ and $k=7$ too. $k=1$ needs a weight $= S$. If we add a weight $= S$, say $w_8 = S = 12$, then the other 7 sum to 12. $k=7$: exclude $w_8$, take rest, sum = 12 = $S$. ✓. $k=1$: $w_8 = 12 = S$. ✓. But now $k=2$: need a pair summing to 12. $w_8 + w_i = 12 + w_i > 12$. So pair must be from the other 7, summing to 12 = sum of all 7. So the other 5 sum to 0. Impossible. So $k=2$ not average. So we'd get $\{1, 7\}$ only, or $\{1, 4, 7\}$ if $k=4$ works.
+
+$k=4$ with $w_8 = 12$: including $w_8$: $12 + 3$ others $> 12$. Not including: 4 from the 7 summing to 12 = sum of all 7, so other 3 sum to 0. No. So $k=4$ not average either. So with a weight $= S$, we only get $\{1, 7\}$ = 2.
+
+So for $n = 8$, max is 5 (without $k=1, 7$) or 2 (with $k=1, 7$). Max is 5.
+
+$n/2 = 4$, but we got 5. So the pattern $n/2$ is wrong!
+
+Let me re-examine. For $n = 8$, max = 5. For $n = 6$, max = 3. For $n = 4$, max = 2. For $n = 2$, max = 1.
+
+$n = 2$: 1
+$n = 4$: 2
+$n = 6$: 3
+$n = 8$: 5
+
+Hmm, $n = 8$ gives 5, not 4. Let me double-check the $n = 8$ construction.
+
+$w = (1, 2, 3, 6, 1, 2, 3, 6)$, total = 24, $S = 12$.
+$k=2$: $\{6, 6\}$ sums to 12. ✓ (positions 4 and 8).
+$k=3$: $\{6, 3, 3\}$ sums to 12. ✓ (positions 4, 3, 7 or 4, 7, 3).
+$k=4$: $\{6, 3, 2, 1\}$ sums to 12. ✓ (positions 4, 3, 2, 1).
+$k=5$: complement of $k=3$. Exclude $\{6, 3, 3\}$, take $\{1, 2, 1, 2, 6\}$... wait, let me be more careful.
+
+The weights are at positions 1-8: $w_1=1, w_2=2, w_3=3, w_4=6, w_5=1, w_6=2, w_7=3, w_8=6$.
+
+$k=3$ subset: $\{w_3, w_4, w_7\} = \{3, 6, 3\}$, sum = 12. ✓. Complement: $\{w_1, w_2, w_5, w_6, w_8\} = \{1, 2, 1, 2, 6\}$, sum = 12, size 5. ✓.
+
+$k=2$ subset: $\{w_4, w_8\} = \{6, 6\}$, sum = 12. ✓. Complement: $\{w_1, w_2, w_3, w_5, w_6, w_7\} = \{1, 2, 3, 1, 2, 3\}$, sum = 12, size 6. ✓.
+
+$k=4$ subset: $\{w_1, w_2, w_3, w_4\} = \{1, 2, 3, 6\}$, sum = 12. ✓. Complement: $\{w_5, w_6, w_7, w_8\} = \{1, 2, 3, 6\}$, sum = 12, size 4. ✓. (Self-complement in size.)
+
+So average numbers: $\{2, 3, 4, 5, 6\}$ = 5. ✓.
+
+Great, so for $n = 8$, max $\geq 5$. And we showed max $\leq 5$ (since $k=1, 7$ can't be added without losing $k=2, 6$). Actually, we showed that having $k=1$ prevents $k=2$. But could we have $k=1$ and $k=3$ without $k=2$? That would give $\{1, 3, 4, 5, 7\}$... wait, but $k=1$ prevents $k=3$ too (as shown earlier: with a weight $= S$, $k=3$ requires 3 from the rest summing to $S = $ sum of all rest, impossible). So $k=1$ only gives $\{1, 7\}$.
+
+So for $n=8$, max = 5.
+
+Sequence: 1, 2, 3, 5 for $n = 2, 4, 6, 8$.
+
+Hmm, let me compute more carefully. $n = 2$: max 1. $n = 4$: max 2. $n = 6$: max 3. $n = 8$: max 5.
+
+Differences: 1, 1, 2. Hmm, not obvious.
+
+Wait, let me reconsider $n = 6$. Can we get more than 3?
+
+For $n = 6$, without $k=1, 5$: possible $k \in \{2, 3, 4\}$. Can we get all 3? Yes, as shown: $w = (1, 2, 1, 2, 1, 1)$, total = 8, $S = 4$. $k=2$: $2+2=4$. ✓. $k=3$: $2+1+1=4$. ✓. $k=4$: complement of $k=2$. ✓. So $\{2, 3, 4\}$ = 3.
+
+Can we get 4 for $n=6$? We'd need $k \in \{1, 2, 3, 4\}$ or $\{2, 3, 4, 5\}$ or $\{1, 2, 3, 5\}$ etc. But $k=1$ prevents $k=2$ and $k=3$ (as shown). $k=5$ implies $k=1$. So with $k \in \{1, 5\}$: only 2. Without: $\{2, 3, 4\}$ = 3. So max = 3.
+
+OK so the sequence is 1, 2, 3, 5 for $n = 2, 4, 6, 8$.
+
+Let me try $n = 10$. Without $k=1, 9$: possible $k \in \{2, 3, 4, 5, 6, 7, 8\}$. By symmetry, need $k \in \{2, 3, 4, 5\}$ (and complements give $8, 7, 6$). So max possible is 7 (if $k = 2, 3, 4, 5$ all work, plus complements $6, 7, 8$, and $k=5$ is self-paired... wait, $n = 10$, complement of $k$ is $10 - k$. $k=5$ complement is 5. So $k=5$ is self-paired. $k=2 \leftrightarrow 8$, $k=3 \leftrightarrow 7$, $k=4 \leftrightarrow 6$. So if $k = 2, 3, 4, 5$ all work, we get $\{2, 3, 4, 5, 6, 7, 8\}$ = 7.
+
+Can we achieve this? Let me try a construction similar to the $n=8$ one.
+
+For $n = 8$: $w = (1, 2, 3, 6, 1, 2, 3, 6)$. The key was having two copies of $(1, 2, 3, 6)$ which sums to 12 = $S$, and $6+6 = 12$, $6+3+3 = 12$, $6+3+2+1 = 12$.
+
+For $n = 10$: try $w = (1, 2, 3, 4, 10, 1, 2, 3, 4, 10)$. Total = 40, $S = 20$. $k=2$: $10+10=20$. ✓. $k=3$: $10+4+... $ hmm, $10+4+6$... no 6. $10+4+4=18\neq 20$. $10+10+1=21\neq 20$. $4+4+10=18$. $10+3+3=16$. $10+4+3+3$... that's 4. $k=3$: need 3 weights summing to 20. $10+10+0$... no. $10+4+6$... no 6. $10+4+4=18$. $10+3+4+3$... 4 weights. Hmm, $10+5+5$... no 5. With weights $\{1,2,3,4,10,1,2,3,4,10\}$, 3-subsets summing to 20: $10+10+0$ no. $10+4+6$ no. $10+4+4=18$. $10+3+4+3$... 4 elements. I don't think any 3-subset sums to 20. 
+
+Let me try a different construction. $w = (1, 2, 3, 4, 5, 1, 2, 3, 4, 5)$. Total = 30, $S = 15$. $k=2$: $5+5=10\neq 15$. $5+4=9$. No. Max 2-subset sum is 10 < 15. So $k=2$ not in range.
+
+Need the 2 largest to sum to at least $S$. So need some large weights.
+
+$w = (1, 1, 1, 1, 1, 5, 5, 5, 5, 5)$. Total = 30, $S = 15$. $k=2$: $5+5=10\neq 15$. No. $k=3$: $5+5+5=15$. ✓. $k=4$: $5+5+5+1=16\neq 15$. $5+5+1+1=12\neq 15$. $5+5+5+5=20$. $5+5+1+1+1+1+1=15$... that's 7. $k=5$: $5+5+5+1+1=17\neq 15$. $5+5+1+1+1=13\neq 15$. $5+1+1+1+1+1+5$... Hmm. $k=5$: $5+5+5+5+5=25$. $5+5+5+5+1=21$. $5+5+5+1+1=17$. $5+5+1+1+1=13$. $5+1+1+1+1=9$. $1+1+1+1+1=5$. None equal 15. $k=7$: complement of $k=3$. ✓. $k=2$: no. $k=8$: complement of $k=2$. No. So $\{3, 7\}$ = 2. Not great.
+
+Let me try the approach from the $n=8$ construction more carefully. The idea was to have two copies of a multiset $A$ that sums to $S$, where $A$ has nice subset-sum properties.
+
+For $n = 8$: $A = \{1, 2, 3, 6\}$, $\sum A = 12 = S$. Two copies: $\{1,2,3,6,1,2,3,6\}$.
+
+Subsets summing to $S = 12$:
+- Take one copy of $A$: size 4. ✓
+- Take $\{6, 6\}$: size 2. ✓ (both 6's from different copies)
+- Take $\{6, 3, 3\}$: size 3. ✓ (6 from one copy, 3,3 from both)
+- Take $\{6, 3, 2, 1\}$: size 4. ✓ (one full copy)
+- Take $\{6, 6, 1, 2, 3, 3, 2, 1\}$... that's everything.
+
+The key is that within $A = \{1, 2, 3, 6\}$, we have subsets summing to various values, and by combining elements from both copies, we can form subsets of different sizes summing to $S$.
+
+More precisely: if we take $x$ from copy 1 and $S - x$ from copy 2, the total is $S$ and the size is $|x| + |S-x|$ where $|x|$ is the number of elements in the subset of copy 1 summing to $x$, and $|S-x|$ is the number in copy 2 summing to $S-x$.
+
+Since both copies are the same, we need: for various values $x$, both $x$ and $S - x$ are achievable as subset sums of $A$, and we want $|x| + |S - x|$ to take many different values.
+
+For $A = \{1, 2, 3, 6\}$, $S = 12$:
+- $x = 0$: $|x| = 0$, $S - x = 12 = \sum A$, $|S-x| = 4$. Size = 4.
+- $x = 6$: $|x| = 1$ (just {6}), $S - x = 6$, $|S-x| = 1$. Size = 2.
+- $x = 3$: $|x| = 1$ ({3}), $S - x = 9 = 3 + 6$, $|S-x| = 2$. Size = 3.
+- $x = 9 = 3+6$: $|x| = 2$, $S - x = 3$, $|S-x| = 1$. Size = 3.
+- $x = 1$: $|x| = 1$, $S - x = 11 = 1+2+3+5$... no, $11 = 2+3+6$, $|S-x| = 3$. Size = 4.
+- $x = 2$: $|x| = 1$, $S-x = 10 = 1+3+6$, $|S-x| = 3$. Size = 4.
+- $x = 12$: $|x| = 4$, $S - x = 0$, $|S-x| = 0$. Size = 4.
+- $x = 7 = 1+6$: $|x| = 2$, $S - x = 5 = 2+3$, $|S-x| = 2$. Size = 4.
+- $x = 5 = 2+3$: $|x| = 2$, $S - x = 7 = 1+6$, $|S-x| = 2$. Size = 4.
+- $x = 8 = 2+6$: $|x| = 2$, $S - x = 4 = 1+3$, $|S-x| = 2$. Size = 4.
+- $x = 4 = 1+3$: $|x| = 2$, $S - x = 8 = 2+6$, $|S-x| = 2$. Size = 4.
+- $x = 10 = 1+3+6$: $|x| = 3$, $S - x = 2$, $|S-x| = 1$. Size = 4.
+- $x = 11 = 2+3+6$: $|x| = 3$, $S - x = 1$, $|S-x| = 1$. Size = 4.
+
+So sizes achieved: 2, 3, 4. And by complement (in the full set of 8), also 6, 5, 4. So $\{2, 3, 4, 5, 6\}$. 5 average numbers. ✓.
+
+But we can also form subsets not of the "split between two copies" form. E.g., $\{6, 3, 3\}$ takes 6 from copy 1 and 3, 3 from both copies. This is $x = 6$ (from copy 1) and $S - x = 6 = 3 + 3$ (3 from each copy). But wait, we can take 3 from copy 1 and 3 from copy 2, that's $|S-x| = 2$. So size = 1 + 2 = 3. ✓.
+
+Actually, the "split" approach is general enough if we allow taking elements from both copies in each part. Let me reconsider.
+
+A subset of the 8 weights summing to $S$ can be described by which elements we take from copy 1 ($A_1 \subseteq A$) and which from copy 2 ($A_2 \subseteq A$). The sum is $\text{sum}(A_1) + \text{sum}(A_2) = S$, and the size is $|A_1| + |A_2|$.
+
+So we need $\text{sum}(A_1) + \text{sum}(A_2) = S$ where $A_1, A_2$ are subsets of $A = \{1, 2, 3, 6\}$. The size is $|A_1| + |A_2|$.
+
+For each pair $(s_1, s_2)$ with $s_1 + s_2 = S = 12$ where $s_1$ is a subset sum of $A$ and $s_2$ is a subset sum of $A$, the achievable sizes are $|A_1| + |A_2|$ where $\text{sum}(A_1) = s_1, \text{sum}(A_2) = s_2$.
+
+The subset sums of $A = \{1, 2, 3, 6\}$ and their sizes:
+- 0: size 0
+- 1: size 1
+- 2: size 1
+- 3: size 1
+- 1+2=3: size 2 (also achievable as size 1)
+- 1+3=4: size 2
+- 2+3=5: size 2
+- 6: size 1
+- 1+6=7: size 2
+- 2+6=8: size 2
+- 3+6=9: size 2
+- 1+2+6=9: size 3 (also as size 2)
+- 1+3+6=10: size 3
+- 2+3+6=11: size 3
+- 1+2+3=6: size 3 (also as size 1 via {6})
+- 1+2+3+6=12: size 4
+
+So for each sum $s$, the possible sizes:
+- 0: {0}
+- 1: {1}
+- 2: {1}
+- 3: {1, 2}
+- 4: {2}
+- 5: {2}
+- 6: {1, 3}
+- 7: {2}
+- 8: {2}
+- 9: {2, 3}
+- 10: {3}
+- 11: {3}
+- 12: {4}
+
+Now, for $s_1 + s_2 = 12$, the possible total sizes $|A_1| + |A_2|$:
+- (0, 12): 0 + 4 = 4
+- (1, 11): 1 + 3 = 4
+- (2, 10): 1 + 3 = 4
+- (3, 9): {1,2} + {2,3} = {3, 4, 5}
+- (4, 8): 2 + 2 = 4
+- (5, 7): 2 + 2 = 4
+- (6, 6): {1,3} + {1,3} = {2, 4, 6}
+- (7, 5): 2 + 2 = 4
+- (8, 4): 2 + 2 = 4
+- (9, 3): {2,3} + {1,2} = {3, 4, 5}
+- (10, 2): 3 + 1 = 4
+- (11, 1): 3 + 1 = 4
+- (12, 0): 4 + 0 = 4
+
+So achievable sizes: from (3,9) and (9,3): 3, 4, 5. From (6,6): 2, 4, 6. All together: {2, 3, 4, 5, 6}. ✓. 5 values.
+
+Now, to maximize the number of distinct sizes, we want $A$ to have many subset sums $s$ with many possible sizes, and many pairs $(s, S-s)$ both achievable.
+
+The key insight: the number of average numbers is determined by the variety of $|A_1| + |A_2|$ values where $\text{sum}(A_1) + \text{sum}(A_2) = S$.
+
+This is getting complex. Let me think about the problem from a competition perspective.
+
+Actually, let me reconsider the problem. Maybe the answer is 99.
+
+Wait, I showed that $k=1$ and $k=99$ require a weight $= S$, which prevents $k=2$ and $k=98$. So 99 is impossible.
+
+What about 97? That's all of $\{2, 3, \ldots, 98\}$. Is this achievable?
+
+For $n = 8$, we got 5 = all of $\{2, 3, 4, 5, 6\} = \{2, \ldots, n-2\}$. So $n - 3 = 5$.
+
+For $n = 6$, we got 3 = all of $\{2, 3, 4\} = \{2, \ldots, n-2\}$. So $n - 3 = 3$.
+
+For $n = 4$, we got 2 = $\{1, 3\}$, which is NOT $\{2\} = \{2, \ldots, n-2\}$ (that would be just $\{2\}$, 1 value). So $n = 4$ is different — we got 2, which is more than $n - 3 = 1$.
+
+Hmm, so for $n = 4$, the max is 2 (using $k=1, 3$), but $\{2\}$ alone gives 1. So the max uses $k=1$ and $k=3$.
+
+For $n \geq 6$, it seems better to avoid $k=1$ and use $\{2, \ldots, n-2\}$.
+
+For $n = 4$: $\{2, \ldots, n-2\} = \{2\}$, 1 value. But $\{1, 3\}$ gives 2. So max = 2.
+For $n = 6$: $\{2, \ldots, n-2\} = \{2, 3, 4\}$, 3 values. $\{1, 5\}$ gives 2. So max = 3.
+For $n = 8$: $\{2, \ldots, n-2\} = \{2, 3, 4, 5, 6\}$, 5 values. $\{1, 7\}$ gives 2. So max = 5.
+
+So for $n \geq 6$, max = $n - 3$ (all of $\{2, \ldots, n-2\}$), and for $n = 4$, max = 2, and for $n = 2$, max = 1.
+
+Wait, but I need to verify that $\{2, \ldots, n-2\}$ is always achievable for $n \geq 6$. I showed it for $n = 6$ and $n = 8$. Let me check $n = 10$.
+
+For $n = 10$, can we achieve all of $\{2, 3, 4, 5, 6, 7, 8\}$?
+
+Using the two-copies construction: $A$ has 5 elements, two copies give 10 weights. $S = \sum A$. We need for each $k$ from 2 to 8, a pair of subsets $(A_1, A_2)$ of $A$ with $\text{sum}(A_1) + \text{sum}(A_2) = S$ and $|A_1| + |A_2| = k$.
+
+Equivalently, $\text{sum}(A_1) = s$, $\text{sum}(A_2) = S - s$, and $|A_1| + |A_2| = k$.
+
+We want $k$ to range from 2 to 8. Since $|A_1|, |A_2| \in \{0, 1, 2, 3, 4, 5\}$, $k$ ranges from 0 to 10. We want $k \in \{2, 3, 4, 5, 6, 7, 8\}$.
+
+By the complement symmetry (replacing $A_1$ by $A \setminus A_1$ and $A_2$ by $A \setminus A_2$), if $(A_1, A_2)$ gives size $k$ and sum $S$, then $(A \setminus A_1, A \setminus A_2)$ gives size $10 - k$ and sum $2S - S = S$. So sizes come in pairs $(k, 10-k)$. We need $k = 2, 3, 4$ (and $k=5$ is self-paired), giving $k = 2, 3, 4, 5, 6, 7, 8$.
+
+So we need to find $A$ (5 elements) such that for $k = 2, 3, 4, 5$, there exist $A_1, A_2 \subseteq A$ with $\text{sum}(A_1) + \text{sum}(A_2) = \text{sum}(A)$ and $|A_1| + |A_2| = k$.
+
+$k = 5$: Take $A_1 = A, A_2 = \emptyset$. Size 5, sum $S$. ✓. (Or $A_1 = \emptyset, A_2 = A$.)
+
+$k = 2$: Need $|A_1| + |A_2| = 2$ and $\text{sum}(A_1) + \text{sum}(A_2) = S$. So $|A_1| = 1, |A_2| = 1$ (or vice versa). Need $a_i + a_j = S$ for some $a_i, a_j \in A$ (possibly $i = j$ if there are repeated elements, but $A$ is a set... well, $A$ is a multiset since we have two copies). Actually, $A_1$ and $A_2$ are subsets of the same multiset $A$, so $a_i$ and $a_j$ are elements of $A$ (possibly the same value if it appears twice, but $A$ is a set of 5 elements). So we need two elements of $A$ summing to $S = \sum A$. That means the other 3 sum to 0, impossible for positive elements.
+
+Hmm, so $k = 2$ is impossible with this construction if $A$ has 5 positive elements! Because $|A_1| = 1, |A_2| = 1$ means two elements summing to $S = $ sum of all 5, impossible.
+
+Wait, but for $n = 8$ with $A = \{1, 2, 3, 6\}$ (4 elements), $k = 2$ worked because $6 + 6 = 12 = S$. Here $A_1 = \{6\}, A_2 = \{6\}$, both subsets of $A$. But $A = \{1, 2, 3, 6\}$ and $6 \in A$, so $A_1 = \{6\}$ and $A_2 = \{6\}$ — but these are subsets of the same $A$, and $6$ appears once in $A$. So $A_1 = \{6\}$ uses the 6 from copy 1, and $A_2 = \{6\}$ uses the 6 from copy 2. That's fine — $A_1$ and $A_2$ are independently chosen subsets of $A$.
+
+So for $k = 2$: $|A_1| = 1, |A_2| = 1$, need $a + b = S$ where $a, b \in A$ (not necessarily distinct). For $A = \{1, 2, 3, 6\}$, $S = 12$, $6 + 6 = 12$. ✓.
+
+For 5-element $A$: need two elements (possibly the same) summing to $S = \sum A$. If $A = \{a_1, \ldots, a_5\}$, need $a_i + a_j = \sum A$ for some $i, j$. This means the other 3 elements sum to 0, impossible. Unless $a_i = a_j$ and... no, even then, $2a_i = \sum A$ means the other 4 sum to $\sum A - 2a_i + a_i = \sum A - a_i$... wait, $a_i + a_j = \sum A$ where $a_i, a_j \in A$. If $i \neq j$: $a_i + a_j = a_1 + a_2 + a_3 + a_4 + a_5$, so the other 3 sum to 0. If $i = j$: $2a_i = \sum A$, so the other 4 sum to $\sum A - a_i = a_i$. So the other 4 elements sum to $a_i$. That's possible!
+
+So for $k = 2$ with 5-element $A$: need some $a_i$ with $2a_i = \sum A$, i.e., $a_i = S/2$, and the other 4 sum to $a_i = S/2$.
+
+Example: $A = \{1, 1, 1, 1, 4\}$, $S = 8$, $a_5 = 4 = S/2$. Other 4 sum to 4 = $a_5$. ✓. So $k = 2$: $A_1 = \{4\}, A_2 = \{4\}$, sum = 8 = $S$. ✓.
+
+But now check other $k$ values:
+$k = 3$: $|A_1| + |A_2| = 3$, $\text{sum}(A_1) + \text{sum}(A_2) = 8$. Options: $(|A_1|, |A_2|) = (1, 2)$ or $(2, 1)$. Need $a + (b + c) = 8$ where $a \in A$ and $b, c \in A$. $4 + 1 + 1 = 6 \neq 8$. $4 + 1 + 1 = 6$. $1 + 4 + 1 = 6$. Hmm, $4 + 4 = 8$ but that's $|A_1| = 1, |A_2| = 1$, size 2. For size 3: $a + b + c = 8$ with $a \in A_1, \{b,c\} \subseteq A_2$. $4 + 1 + 3$... no 3. $4 + 1 + 1 = 6$. $1 + 1 + 1 = 3$. $4 + 4 + 0$... no. Doesn't seem to work. $1 + (4 + 1) = 6 \neq 8$. $4 + (1 + 1) = 6 \neq 8$. $4 + (4 + ...) $... can't use 4 twice from same copy. $4 + (1 + 1) = 6$. $1 + (4 + 1) = 6$. $1 + (1 + 1) = 3$. None give 8.
+
+So $k = 3$ doesn't work with $A = \{1, 1, 1, 1, 4\}$. Let me try a different $A$.
+
+For $k = 2$: need $a_i + a_j = S$ (two elements, possibly same, from $A$).
+For $k = 3$: need three elements (split as 1+2 or 2+1 or 3+

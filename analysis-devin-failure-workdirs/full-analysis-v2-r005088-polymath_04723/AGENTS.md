@@ -1,0 +1,1041 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_04723</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Consider a set of $n$ lines in the plane such that any two lines intersect, but no three lines pass through the same point. These lines divide the plane into several regions. An "angular region" is an unbounded region bounded by exactly two half-lines (i.e., it is an angle formed by the intersection of two lines that contains no other lines). 
+
+Let $m(n)$ be the minimum number of such angular regions possible for $n$ lines, and $M(n)$ be the maximum number of such angular regions possible.
+
+Calculate the value of $m(1996) + M(1996)$.
+
+## Standard Solution
+
+Based on the original solution:
+1. The minimum number of angular regions $m(n)$ for any $n \ge 3$ is 3. This is derived from the fact that the convex hull of the vertices of the arrangement must have at least 3 vertices, each corresponding to an angular region.
+2. The maximum number of angular regions $M(n)$ for $n$ lines is $n$ if $n$ is odd and $n-1$ if $n$ is even. 
+3. For $n = 1996$ (which is even):
+   - The minimum number is $m(1996) = 3$.
+   - The maximum number is $M(1996) = 1996 - 1 = 1995$.
+4. The sum is $3 + 1995 = 1998$.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. We have n lines in general position (any two intersect, no three concurrent). They divide the plane into regions. An "angular region" is an unbounded region bounded by exactly two half-lines.
+
+Let me think about this carefully.
+
+For n lines in general position, the total number of regions is n(n+1)/2 + 1. The unbounded regions: each line contributes 2 unbounded regions along its direction, but they're shared... Actually, the number of unbounded regions for n lines in general position is 2n.
+
+Wait, let me reconsider. For n lines in general position, the number of unbounded regions is 2n. Each line has 2 "ends" going to infinity, and these create 2n unbounded regions.
+
+Now, an "angular region" is an unbounded region bounded by exactly two half-lines. So among the 2n unbounded regions, some are bounded by exactly two half-lines (angular regions), and others are bounded by more than two half-lines.
+
+Wait, can an unbounded region be bounded by more than two half-lines? Let me think. An unbounded region is a region that extends to infinity. For a region to be unbounded, it must "escape" to infinity. 
+
+Actually, let me think about what unbounded regions look like. Consider the arrangement of lines. Each unbounded region is bounded by a sequence of edges. Since it's unbounded, it goes to infinity. The boundary of an unbounded region consists of some line segments and some half-lines (rays going to infinity).
+
+Actually, for an unbounded region, the boundary consists of exactly two rays (half-lines going to infinity) connected by a chain of line segments. If the chain of line segments is empty (the two rays meet at a point), then the region is an "angular region" bounded by exactly two half-lines.
+
+So an angular region is an unbounded region where the two rays meet directly at a vertex (intersection point of two lines), with no line segments in between.
+
+Let me think about this differently. Consider the arrangement. The unbounded regions correspond to the "gaps" between consecutive lines at infinity. There are 2n such gaps (n lines, each with 2 directions, giving 2n rays at infinity, and 2n gaps between consecutive rays).
+
+For each unbounded region, its boundary consists of two rays going to infinity, connected by a polygonal chain. The region is "angular" if this polygonal chain is just a single vertex (i.e., the two rays share a common endpoint).
+
+Let me think about when an unbounded region is angular.
+
+Consider two consecutive rays at infinity. These rays belong to two lines, say line A and line B. The two rays go to infinity in directions that are adjacent. The unbounded region between them is bounded by these two rays and possibly some line segments connecting them.
+
+The two rays have endpoints (the "last" intersection point on each line before going to infinity). If these two endpoints are the same point (i.e., the two lines intersect, and that intersection is the endpoint of both rays), then the region is angular.
+
+If the endpoints are different, then there's a chain of line segments connecting them, and the region is not angular.
+
+So an angular region occurs when two consecutive rays at infinity share a common endpoint, which is the intersection point of their two lines.
+
+Let me think about this more carefully using the concept of "levels" or the arrangement structure.
+
+Alternative approach: Let me think about the dual or about the convex hull of the arrangement.
+
+Actually, let me think about it in terms of the lines and their intersection points.
+
+Consider the arrangement of n lines. Each line has n-1 intersection points on it, dividing it into n segments (2 rays and n-2 bounded segments). The rays go to infinity.
+
+For each line, sort its intersection points. The two extreme points on each line are the endpoints of the two rays.
+
+An angular region is formed when two rays (from different lines) that are adjacent at infinity share the same endpoint.
+
+Let me think about the structure at infinity. The 2n rays at infinity are ordered cyclically. Consecutive rays at infinity bound unbounded regions. An unbounded region is angular iff the two consecutive rays share an endpoint.
+
+Two rays share an endpoint iff they come from two lines that intersect at a point, and that intersection point is the extreme point on both lines in the appropriate direction.
+
+Let me formalize. Consider line i. It has two rays. One ray goes in direction θ_i (the direction of the line) and the other goes in direction θ_i + π. The endpoint of the ray going in direction θ_i is the intersection point of line i with the line that has the "last" intersection when going in direction θ_i.
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+Let me think about the "upper envelope" and "lower envelope" concepts, or more generally, the k-levels.
+
+Actually, let me think about this problem from a combinatorial perspective.
+
+Consider n lines in general position. The 2n rays at infinity are ordered. Between consecutive rays, there's an unbounded region. The unbounded region between two consecutive rays is angular iff the two rays meet at a common point.
+
+Two consecutive rays at infinity meet at a common point iff they are the two rays of the "wedge" formed at the intersection of their two parent lines, and this wedge is not cut by any other line.
+
+So: an angular region corresponds to a pair of lines (A, B) such that the wedge at their intersection point (in a particular direction) is not cut by any other line.
+
+At each intersection point of two lines, there are 4 wedges (angles). A wedge is "angular region" if no other line passes through the interior of that wedge (extending to infinity).
+
+Wait, but a wedge at an intersection point is an angular region iff no other line intersects the interior of that wedge. Because if another line crosses the wedge, it divides it into a bounded part and a smaller unbounded part, and the unbounded part would be bounded by a ray of the other line and one of the original rays—not by both original rays.
+
+So the number of angular regions = number of wedges (at all intersection points) that are not cut by any other line.
+
+At each intersection point, there are 4 wedges. Some of them are not cut by any other line.
+
+Now, the question is: what is the minimum and maximum number of such "uncut" wedges over all arrangements of n lines in general position?
+
+Total wedges = 4 * C(n,2) = 4 * n(n-1)/2 = 2n(n-1).
+
+But many of these are cut by other lines. The angular regions are the uncut ones.
+
+Let me think about the total number of unbounded regions: 2n. Each unbounded region has a boundary consisting of 2 rays and some line segments. The number of angular regions is the number of unbounded regions with 0 line segments in their boundary.
+
+Let me think about the total number of line segments in the boundaries of all unbounded regions. Each unbounded region has some number of line segments (0 or more) in its boundary. The total number of (ray, segment) transitions... hmm.
+
+Actually, let me think about it differently. Each ray at infinity is part of exactly one unbounded region on each side... no, each ray is on the boundary of exactly one unbounded region (the one on its "outer" side). Wait, no. Each ray separates two regions, one of which is unbounded (the outer one) and one of which could be bounded or unbounded.
+
+Hmm, actually each ray separates two unbounded regions? No. A ray is a half-line going to infinity. On one side of the ray is an unbounded region, and on the other side is another region that could be bounded or unbounded.
+
+Wait, no. A ray goes to infinity. The regions on both sides of a ray near infinity are both unbounded (since they extend to infinity along the ray). Actually, that's not right either. Near infinity, the ray separates two regions, both of which are unbounded (they extend to infinity in directions close to the ray's direction).
+
+Hmm, let me reconsider. The 2n rays at infinity are ordered cyclically. Between consecutive rays, there's exactly one unbounded region. So there are exactly 2n unbounded regions, each between two consecutive rays.
+
+Each unbounded region is bounded by exactly 2 rays (the two consecutive rays) and some number of line segments connecting them. If 0 line segments, it's angular.
+
+Now, the total number of line segments in the boundaries of all 2n unbounded regions. Each line segment in the arrangement is on the boundary of exactly 2 regions. A line segment is on the boundary of an unbounded region iff it's "exposed" to infinity in some sense.
+
+Actually, let me count differently. Consider the "outer face" structure. The total number of edges (line segments + rays) in the arrangement is: each line is divided into n segments (2 rays + (n-2) line segments), so total edges = n * n = n². Wait: n lines, each divided into n pieces (n-1 intersection points divide each line into n pieces: 2 rays and n-2 segments). So total edges = n².
+
+Total vertices = C(n,2) = n(n-1)/2.
+
+By Euler's formula: V - E + F = 2 (for the planar graph, but we need to be careful about the unbounded face). Actually for an arrangement of lines, V - E + F = 1 + 1 = 2 where F includes the unbounded face... let me just use the standard formula.
+
+V = n(n-1)/2, E = n², F = E - V + 1 + 1 = n² - n(n-1)/2 + 2 = n² - n²/2 + n/2 + 2 = n²/2 + n/2 + 2 = n(n+1)/2 + 1. Yes, that's the standard formula.
+
+Now, the 2n unbounded regions. Let's count the total number of edges (segments + rays) on the boundaries of all unbounded regions.
+
+Each of the 2n rays is on the boundary of exactly 1 unbounded region (the one between it and the next ray). Wait, actually each ray is on the boundary of exactly 1 unbounded region? No. A ray separates two unbounded regions (the ones on either side of it at infinity). So each ray is on the boundary of exactly 2 unbounded regions.
+
+Hmm wait. Let me reconsider. The 2n rays are ordered at infinity: r_1, r_2, ..., r_{2n}. Between r_i and r_{i+1} is unbounded region U_i. So ray r_i is on the boundary of U_{i-1} and U_i. So each ray is on the boundary of 2 unbounded regions. Total ray-boundary incidences = 2 * 2n = 4n.
+
+Now, each unbounded region U_i has 2 rays on its boundary (r_i and r_{i+1}) plus some line segments. Let s_i = number of line segments on the boundary of U_i. Then:
+
+Total segment-boundary incidences for unbounded regions = sum of s_i.
+
+Each line segment is on the boundary of 2 regions. A line segment is on the boundary of an unbounded region iff it's "exposed" to the outside. How many line segments are on the boundary of at least one unbounded region?
+
+A line segment is on the boundary of an unbounded region iff it's on the "convex hull" of the arrangement, i.e., it's part of the outer boundary.
+
+The number of line segments on the boundary of unbounded regions: each such segment is on the boundary of exactly 1 unbounded region (and 1 bounded region), or it could be on the boundary of 2 unbounded regions (if it's a "bridge" to infinity on both sides, but that can't happen for a line segment).
+
+Actually, a line segment is on the boundary of 2 regions. If both are unbounded, that would mean the segment separates two unbounded regions, which would mean the segment is between two consecutive rays at infinity—but consecutive rays at infinity define a single unbounded region, not two. So a line segment can be on the boundary of at most 1 unbounded region.
+
+So: total segment-boundary incidences = number of line segments that are on the boundary of some unbounded region.
+
+Let's call this number S. Then sum of s_i = S, and the number of angular regions = number of i with s_i = 0.
+
+We have: sum of s_i = S, and there are 2n unbounded regions. The number of angular regions = 2n - (number of i with s_i ≥ 1) ≥ 2n - S.
+
+Also, the number of angular regions = 2n - |{i : s_i ≥ 1}|. Since each s_i ≥ 0 and sum s_i = S, we have |{i : s_i ≥ 1}| ≤ S, so angular regions ≥ 2n - S. And angular regions ≤ 2n - S + (S - |{i: s_i ≥ 1}|)... hmm, this isn't leading anywhere directly.
+
+Let me think about S differently. S = number of line segments on the boundary of unbounded regions. 
+
+The boundary of all unbounded regions together forms the "outer face" structure. The total number of edges on the outer boundary = 2n (rays) + S (segments). 
+
+Hmm, let me think about S in terms of the arrangement. 
+
+Consider the "convex hull" of the intersection points. The intersection points that are on the convex hull are the "extreme" points. The outer boundary of the arrangement consists of the rays and the line segments connecting consecutive hull vertices.
+
+Actually, the structure is: the unbounded regions' boundaries form a closed walk around the arrangement. The vertices on this walk are the intersection points that are "extreme" in some direction, and the edges are rays and segments.
+
+Let me think about it as follows. The arrangement has a set of vertices (intersection points). Some of these vertices are "on the boundary" (i.e., on the boundary of some unbounded region). A vertex is on the boundary iff it's an endpoint of some ray, i.e., it's an extreme point on some line.
+
+For each line, the 2 extreme intersection points (leftmost and rightmost, or in terms of the line's parameter, the minimum and maximum) are the endpoints of the 2 rays. So there are at most 2n such extreme points, but some might coincide (if the same intersection point is extreme on both lines).
+
+A vertex (intersection of lines i and j) is the endpoint of a ray of line i iff it's the extreme intersection point on line i in some direction. It's the endpoint of a ray of line j iff it's the extreme point on line j in some direction.
+
+The number of distinct extreme vertices: each line has 2 extreme points, giving 2n extreme point incidences. But a single vertex can be extreme for both of its lines. Let's say a vertex is "doubly extreme" if it's an extreme point on both of its lines. If there are d doubly extreme vertices, then the number of distinct extreme vertices = 2n - d.
+
+Now, the boundary walk of the unbounded regions: it visits each extreme vertex, and between consecutive extreme vertices (in the cyclic order around the arrangement), there's either a ray (if the two extreme vertices are on different lines and the connection goes through infinity) or a line segment (if the two extreme vertices are on the same line and connected by a segment of that line).
+
+Hmm, this is getting complicated. Let me try a different approach.
+
+Let me think about the problem in terms of the number of angular regions directly.
+
+An angular region corresponds to a pair of consecutive rays at infinity that share a common endpoint. Two consecutive rays at infinity share a common endpoint iff they are the two rays of the same "wedge" at an intersection point, and that wedge is not cut by any other line.
+
+Equivalently, consider the intersection point P of lines A and B. The 4 wedges at P. A wedge is an angular region iff no other line intersects the interior of that wedge (the part extending to infinity).
+
+A line C intersects the interior of a wedge at P iff C separates the two rays of the wedge (i.e., C crosses the wedge). Since C doesn't pass through P (general position), C either crosses the wedge or doesn't.
+
+For a wedge at P (intersection of A and B), the wedge is uncut iff all other n-2 lines pass through the opposite wedge (the vertically opposite wedge at P). Because a line not through P must cross exactly 2 of the 4 wedges at P (the two opposite wedges), and it avoids the other 2. Wait, no. A line not passing through P crosses exactly 2 of the 4 wedges: it enters one wedge and exits through the opposite wedge. So it crosses 2 opposite wedges and avoids the other 2 opposite wedges.
+
+So for a given wedge W at P, a line C avoids W iff C crosses the wedge opposite to W. The wedge W is uncut iff all n-2 other lines avoid W, i.e., all n-2 lines cross the wedge opposite to W.
+
+So: wedge W at P is an angular region iff all n-2 other lines pass through the opposite wedge at P.
+
+Now, the opposite wedge at P is also a wedge. For all n-2 lines to pass through a specific wedge at P, that wedge must be "wide enough" or positioned correctly.
+
+Let me rephrase: at intersection point P of lines A and B, there are 4 wedges. The n-2 other lines each cross exactly one pair of opposite wedges. So the n-2 lines are partitioned: some cross wedges (W1, W3) and some cross wedges (W2, W4), where W1-W3 and W2-W4 are the two pairs of opposite wedges.
+
+Wait, that's not right. Each line crosses one pair of opposite wedges. But different lines can cross different pairs. Actually, at point P, the 4 wedges are determined by lines A and B. A third line C crosses exactly 2 opposite wedges. Which pair depends on the slope of C relative to A and B.
+
+If C's slope is between the slopes of A and B (in the angular sense), C crosses one pair of opposite wedges. If C's slope is outside, C crosses the other pair.
+
+Hmm, more precisely: lines A and B divide the plane into 4 wedges. A line C (not through P) crosses 2 of these 4 wedges. The 2 wedges it crosses are opposite to each other. Which pair depends on the direction of C relative to A and B.
+
+The 4 wedges can be labeled by the angular sectors: if A has direction α and B has direction β (with α < β < α + π), the 4 wedges are the sectors (α, β), (β, α+π), (α+π, β+π), (β+π, α+2π). A line C with direction γ crosses the wedges that contain direction γ and γ+π. So C crosses the pair of opposite wedges containing γ and γ+π.
+
+So: if γ is between α and β (mod π), C crosses wedges (α, β) and (α+π, β+π). If γ is between β and α+π, C crosses wedges (β, α+π) and (β+π, α+2π).
+
+So the n-2 other lines are split into two groups based on whether their direction is between A and B's directions or not. Let's say k lines have directions between A and B, and n-2-k have directions outside.
+
+Wedge (α, β) is crossed by the k lines with directions between α and β. It's an angular region iff k = 0, i.e., no line has direction between A and B.
+
+Wedge (β, α+π) is crossed by the n-2-k lines. It's an angular region iff n-2-k = 0, i.e., k = n-2, all lines have directions between A and B.
+
+Wedge (α+π, β+π) is crossed by the k lines. Angular iff k = 0.
+Wedge (β+π, α+2π) is crossed by the n-2-k lines. Angular iff n-2-k = 0.
+
+So at intersection point P of lines A and B:
+- If k = 0 (no other line has direction between A and B): wedges (α,β) and (α+π,β+π) are angular. That's 2 angular regions.
+- If k = n-2 (all other lines have directions between A and B): wedges (β,α+π) and (β+π,α+2π) are angular. That's 2 angular regions.
+- If 0 < k < n-2: no wedge at P is angular. 0 angular regions.
+
+Wait, but this seems to say that at each intersection point, we get either 0 or 2 angular regions. And we get 2 angular regions iff the two lines are "adjacent" in the angular ordering of line directions.
+
+Let me verify: k = 0 means no other line has direction between A and B. This means A and B are adjacent in the circular ordering of line directions (mod π). Similarly, k = n-2 means all other lines are between A and B, which means A and B are adjacent in the circular ordering (but on the other side).
+
+Wait, directions are mod π (since a line has direction θ and θ+π). So the n lines have n directions in [0, π). The circular ordering of these n directions on the circle [0, π) has n gaps. Two lines are "adjacent" in this ordering if their directions are consecutive.
+
+If A and B are adjacent in the direction ordering, then k = 0 or k = n-2 (depending on which side we consider as "between"). Actually, if A and B are adjacent, there are no directions between them on one side and all n-2 directions on the other side. So k = 0 (if we define "between" as the short arc) or k = n-2 (the long arc). Either way, we get 2 angular regions at P.
+
+If A and B are not adjacent, then 0 < k < n-2, and we get 0 angular regions.
+
+So the total number of angular regions = 2 * (number of adjacent pairs in the direction ordering).
+
+The number of adjacent pairs in a circular ordering of n elements is exactly n (each element has 2 neighbors, but each adjacency is counted once, so n adjacencies).
+
+Wait, so the number of angular regions is always 2n, regardless of the arrangement?!
+
+That can't be right, because the problem asks for min and max, implying they're different.
+
+Let me re-examine. I think I made an error. Let me reconsider.
+
+The issue is: I claimed that a wedge at P is an angular region iff no other line crosses it. But is that sufficient? The wedge being uncut means no line passes through its interior. But does that guarantee the region is an "angular region" as defined?
+
+An angular region is an unbounded region bounded by exactly two half-lines. If no line crosses the wedge, then the wedge itself is a region of the arrangement, and it's bounded by exactly 2 half-lines (the two rays from P). So yes, it's an angular region.
+
+But wait—could it be that the wedge is cut by a line that doesn't pass through P but still intersects the wedge? No, I already accounted for that: a line C crosses the wedge iff it passes through its interior.
+
+Hmm, but actually, I need to be more careful. The wedge at P is the region between two rays from P. A line C crosses this wedge iff C intersects the interior of the wedge. Since C is a full line (not a ray), C crosses the wedge iff C enters and exits the wedge, which happens iff C's direction is in the angular range of the wedge (or the opposite wedge).
+
+Wait, I think my analysis was correct. Let me re-examine with a small example.
+
+n = 2: Two lines intersecting. 4 wedges, all uncut (no other lines). So 4 angular regions. But 2n = 4 unbounded regions, all angular. So number of angular regions = 4 = 2n. And adjacent pairs = 2 (on a circle of 2 elements, there are 2 adjacencies). 2 * 2 = 4. ✓
+
+n = 3: Three lines in general position. 2n = 6 unbounded regions. Let me count angular regions.
+
+Three lines with directions, say, 0°, 60°, 120° (in [0, 180°)). The adjacent pairs are (0°, 60°), (60°, 120°), (120°, 0°) [wrapping around]. So 3 adjacent pairs, giving 2 * 3 = 6 angular regions. But there are only 6 unbounded regions, so all are angular?
+
+Let me verify with a specific example. Three lines forming a triangle. The 6 unbounded regions: 3 are "angular" (at the vertices of the triangle, the exterior angles) and 3 are... hmm, wait.
+
+Actually, for 3 lines forming a triangle, the unbounded regions: there are 6. Three of them are the regions "outside" each edge of the triangle (these are bounded by 2 rays and 1 segment, so not angular). Three of them are at the vertices (the exterior angles, which are angular).
+
+Wait, that gives 3 angular regions, not 6. So my analysis is wrong!
+
+Let me recheck. For 3 lines with directions 0°, 60°, 120°:
+
+At the intersection of lines with directions 0° and 60°: k = number of lines with direction between 0° and 60° = 0 (the third line has direction 120°, which is not between 0° and 60°). So this pair is adjacent, and we get 2 angular regions.
+
+At the intersection of lines with directions 0° and 120°: k = number of lines with direction between 0° and 120° = 1 (the 60° line). So 0 < k < n-2 = 1, which means 0 < 1 < 1 is false. Actually k = 1 and n-2 = 1, so k = n-2. So this pair is also "adjacent" (on the other side), and we get 2 angular regions.
+
+At the intersection of lines with directions 60° and 120°: k = number of lines with direction between 60° and 120° = 0. Adjacent, 2 angular regions.
+
+So total = 6 angular regions. But I just argued that for a triangle, only 3 are angular. Let me recheck the triangle case.
+
+Three lines forming a triangle. Let's say:
+- Line A: y = 0 (direction 0°)
+- Line B: y = x (direction 45°)  
+- Line C: y = -x + 2 (direction 135°)
+
+Directions: 0°, 45°, 135°.
+
+Adjacent pairs: (0°, 45°), (45°, 135°), (135°, 0°). All 3 pairs are adjacent. So 6 angular regions.
+
+But wait, let me actually draw this. The three lines form a triangle. The 6 unbounded regions:
+
+At each vertex of the triangle, there's an exterior angle (the region outside the triangle at that vertex). These are angular regions. There are 3 vertices, so 3 angular regions from the vertices.
+
+But also, at each vertex, there's another wedge on the opposite side. Let me think...
+
+At the intersection of A (y=0) and B (y=x), which is at (0,0). The 4 wedges:
+1. Above both lines (between direction 0° and 45°, the narrow wedge pointing up-right) — this contains the triangle interior partially? No, the triangle is formed by all three lines.
+
+Actually, let me be more careful. The triangle formed by y=0, y=x, y=-x+2 has vertices at (0,0), (1,1), and (2,0).
+
+At (0,0) (intersection of A and B):
+- Wedge between ray of A going left (direction 180°) and ray of B going down-left (direction 225°): this is the wedge pointing down-left. Is it cut by line C? Line C is y = -x + 2, direction 135°. Does C cross this wedge? The wedge is between directions 180° and 225°. C's direction is 135°, and 135° + 180° = 315°. Neither 135° nor 315° is between 180° and 225°. So C doesn't cross this wedge. This wedge is angular. ✓
+
+- Wedge between ray of A going right (direction 0°) and ray of B going up-right (direction 45°): between 0° and 45°. C's direction is 135°, not between 0° and 45°. So C doesn't cross. Angular. ✓
+
+- Wedge between ray of B going up-right (45°) and ray of A going right (0°)... wait, I need to be more careful about which wedges are which.
+
+Let me redo this. At (0,0), line A goes in directions 0° and 180°, line B goes in directions 45° and 225°. The 4 wedges are:
+1. (0°, 45°): between A's right ray and B's up-right ray.
+2. (45°, 180°): between B's up-right ray and A's left ray.
+3. (180°, 225°): between A's left ray and B's down-left ray.
+4. (225°, 360°) = (225°, 0°): between B's down-left ray and A's right ray.
+
+Line C has direction 135° (and 315°). 
+- Wedge 1 (0°, 45°): 135° not in (0°,45°), 315° not in (0°,45°). Not crossed. Angular.
+- Wedge 2 (45°, 180°): 135° in (45°, 180°). Crossed. Not angular.
+- Wedge 3 (180°, 225°): 315° not in (180°,225°), 135° not in (180°,225°). Not crossed. Angular.
+- Wedge 4 (225°, 360°): 315° in (225°, 360°). Crossed. Not angular.
+
+So at (0,0), 2 angular regions. ✓
+
+At (1,1) (intersection of B and C): B has directions 45° and 225°, C has directions 135° and 315°.
+Wedges:
+1. (45°, 135°)
+2. (135°, 225°)
+3. (225°, 315°)
+4. (315°, 45°) = (315°, 405°)
+
+Line A has direction 0° (and 180°).
+- Wedge 1 (45°, 135°): 0° not in, 180° not in. Not crossed. Angular.
+- Wedge 2 (135°, 225°): 180° in. Crossed. Not angular.
+- Wedge 3 (225°, 315°): 0° not in, 180° not in. Not crossed. Angular.
+- Wedge 4 (315°, 405°): 0° = 360° in (315°, 405°). Crossed. Not angular.
+
+2 angular regions. ✓
+
+At (2,0) (intersection of A and C): A has directions 0° and 180°, C has directions 135° and 315°.
+Wedges:
+1. (0°, 135°)
+2. (135°, 180°)
+3. (180°, 315°)
+4. (315°, 360°)
+
+Line B has direction 45° (and 225°).
+- Wedge 1 (0°, 135°): 45° in. Crossed. Not angular.
+- Wedge 2 (135°, 180°): 225° not in, 45° not in. Not crossed. Angular.
+- Wedge 3 (180°, 315°): 225° in. Crossed. Not angular.
+- Wedge 4 (315°, 360°): 45° not in, 225° not in. Not crossed. Angular.
+
+2 angular regions. ✓
+
+Total: 6 angular regions. And there are 2n = 6 unbounded regions, so all 6 are angular.
+
+But wait, I earlier thought that for a triangle, some unbounded regions are bounded by 2 rays and 1 segment. Let me recheck.
+
+The unbounded region "above" the triangle (above edge BC from (0,0) to (1,1) and above edge from (1,1) to (2,0))... hmm, actually with these specific lines, let me think about what the regions look like.
+
+The three lines y=0, y=x, y=-x+2 form a triangle with vertices (0,0), (1,1), (2,0). The interior of the triangle is the bounded region.
+
+The 6 unbounded regions:
+1. Below y=0 (the half-plane y < 0, but also bounded by the other lines...). Actually, below y=0 and below y=x (for x < 0) — this is the angular region at (0,0) in wedge 3 (180°, 225°).
+2. Below y=0 and below y=-x+2 (for x > 2) — angular region at (2,0) in wedge 4 (315°, 360°).
+3. Above y=x and above y=-x+2 (for x near 1, y > 1) — angular region at (1,1) in wedge 1 (45°, 135°).
+4. Below y=x (for x < 0) and above y=0 — angular region at (0,0) in wedge 1 (0°, 45°). Wait, this is the region to the left, between y=0 and y=x for x < 0. That's an angular region.
+5. Above y=-x+2 (for x > 2) and above y=0 — angular region at (2,0) in wedge 2 (135°, 180°). This is the region to the right of (2,0), between y=0 going right and y=-x+2 going up-left.
+6. Below y=x and below y=-x+2 (for x near 1, y < 0) — angular region at (1,1) in wedge 3 (225°, 315°).
+
+Hmm, so all 6 unbounded regions are angular for 3 lines? Let me verify region 5 more carefully.
+
+Region 5: at (2,0), wedge 2 is (135°, 180°). This is between C's ray going up-left (135°) and A's ray going left (180°). So this is the region above y=-x+2 and above y=0, for x < 2 but... wait, that doesn't sound right. Let me think again.
+
+At (2,0), A goes right (0°) and left (180°), C goes up-left (135°) and down-right (315°). Wedge 2 (135°, 180°) is between C's up-left ray and A's left ray. This is the region that's above line C (y > -x+2) and below line A (y < 0)... no.
+
+The wedge between directions 135° and 180° at point (2,0): this is the region above the line C (since C goes up-left at 135°) and below line A (since A goes left at 180°, i.e., y=0). So this is the region where y > -x+2 and y < 0, near (2,0). For x slightly less than 2, -x+2 is slightly positive, so y > -x+2 > 0 contradicts y < 0. Hmm, that doesn't work.
+
+I think I'm confusing myself with the wedge directions. Let me be more careful.
+
+At point (2,0):
+- Line A (y=0) goes in directions 0° (right, toward x > 2) and 180° (left, toward x < 2).
+- Line C (y = -x+2) goes in directions 135° (up-left) and 315° (down-right).
+
+The 4 wedges, going counterclockwise:
+1. (0°, 135°): between A's right ray and C's up-left ray. This is the region above y=0 and above y=-x+2, for x > 2. This is a large unbounded region.
+2. (135°, 180°): between C's up-left ray and A's left ray. This is the region above y=-x+2 and below y=0... but wait, at (2,0), going in direction 135° is up-left, and direction 180° is left. The wedge between them (going counterclockwise from 135° to 180°) is a narrow wedge pointing left, slightly above the x-axis. This is the region where y > -x+2 and y < 0, for x < 2. But for x < 2, -x+2 > 0, so y > -x+2 > 0 and y < 0 is impossible. 
+
+I think the issue is that the wedge (135°, 180°) is actually the region below C and above A, not above C and below A. Let me think about this more carefully.
+
+A wedge at a point between two rays is the region "swept" going counterclockwise from one ray to the other. The wedge (135°, 180°) at (2,0) is the set of points that can be reached from (2,0) by going in a direction between 135° and 180°. This is the region up-left from (2,0), between the C ray (going up-left) and the A ray (going left). 
+
+For a point in this wedge, it's above line A (y > 0) and below line C (y < -x+2). For x slightly less than 2, -x+2 is slightly positive, so 0 < y < -x+2 is possible. E.g., (1.9, 0.05): y=0.05 > 0 ✓, y=0.05 < -1.9+2=0.1 ✓. So this is a valid region.
+
+Is this region cut by line B (y=x)? At (1.9, 0.05), y=0.05 < x=1.9, so we're below line B. The wedge extends to infinity in directions between 135° and 180°. Line B (y=x) has direction 45°/225°. Does B cross this wedge? B crosses the wedge iff B's direction (45° or 225°) is in the angular range (135°, 180°) or (315°, 360°). 225° is not in (135°, 180°), and 45° is not in (135°, 180°). So B doesn't cross this wedge. So it's angular. ✓
+
+OK so my analysis was correct. For 3 lines in general position, all 6 unbounded regions are angular. That means m(3) = M(3) = 6 = 2·3.
+
+Hmm, but the problem asks for min and max, suggesting they're different for n=1996. Let me reconsider whether my analysis is correct.
+
+Wait, I think I need to reconsider. My analysis showed that the number of angular regions = 2 × (number of adjacent pairs in direction ordering) = 2n. But this seems to be independent of the arrangement, which would mean m(n) = M(n) = 2n for all n, and m(1996) + M(1996) = 4 × 1996 = 7984.
+
+But that seems too simple for a competition problem. Let me re-examine my logic.
+
+The key claim was: a wedge at intersection point P of lines A and B is an angular region iff no other line crosses it, and this happens iff A and B are adjacent in the direction ordering.
+
+But wait—is it really true that a wedge being uncut makes it an angular region? Let me reconsider the definition.
+
+An "angular region" is an unbounded region bounded by exactly two half-lines. If a wedge at P is uncut, then the wedge is a region of the arrangement, and it's bounded by exactly 2 half-lines (the two rays from P). So yes, it's an angular region.
+
+But could there be angular regions that are not wedges at intersection points? An angular region is bounded by exactly 2 half-lines. These 2 half-lines must be rays of 2 different lines (since a single line's two rays go in opposite directions and can't form a wedge). The two rays must share an endpoint (since the region is bounded by exactly these 2 half-lines and nothing else, they must meet at a point). That endpoint is the intersection of the two lines. So every angular region is a wedge at some intersection point.
+
+And a wedge at an intersection point is a region of the arrangement iff it's uncut. So the angular regions are exactly the uncut wedges.
+
+So my analysis seems correct: the number of angular regions = 2 × (number of adjacent pairs in the circular ordering of line directions) = 2n.
+
+But this gives m(n) = M(n) = 2n, which seems too simple. Let me double-check with n=4.
+
+Hmm wait, I think I need to reconsider more carefully. Let me re-examine the claim that a line C crosses a wedge iff C's direction is in the angular range of the wedge.
+
+A line C with direction γ crosses the wedge (α, β) at point P iff C intersects the interior of the wedge. The wedge (α, β) is the set of points P + t·(cos θ, sin θ) for t > 0 and α < θ < β. Line C passes through P's neighborhood; does it intersect this wedge?
+
+Line C has direction γ. C is the set of points P_C + s·(cos γ, sin γ) for all s, where P_C is some point on C (not P, since C doesn't pass through P in general position). 
+
+C intersects the wedge (α, β) iff C passes through some point in the wedge. Since C is a line with direction γ, it intersects the wedge iff the line C enters the angular sector (α, β) at some positive distance from P.
+
+This happens iff γ or γ+π is in the range (α, β) (mod 2π), AND the line C actually reaches the wedge (which it does, since C is a full line and the wedge extends to infinity).
+
+Wait, but C might not pass through the wedge even if its direction is in the range, if C is "on the wrong side" of P. No—a line with direction γ where γ ∈ (α, β) will eventually enter the wedge (α, β) as it extends in the γ direction, because the wedge extends to infinity in that direction. Similarly, if γ+π ∈ (α, β), C will enter the wedge in the γ+π direction.
+
+But actually, C might pass through P's neighborhood on the opposite side. Let me think again. C is a line not passing through P. C has direction γ. The line C divides the plane into two half-planes. P is on one side. The wedge (α, β) at P extends to infinity. C intersects this wedge iff C crosses the wedge.
+
+Since the wedge is an infinite sector, C (a full line) intersects it iff C's direction is such that C passes through the sector. A line with direction γ intersects the sector (α, β) (centered at P) iff γ ∈ (α, β) or γ+π ∈ (α, β) (mod 2π). This is because the line, extended in both directions, sweeps out all directions γ and γ+π, and it will cross the sector if either of these directions falls in the sector's angular range.
+
+But wait, this isn't quite right either. The line C doesn't pass through P, so it's offset. But the sector extends to infinity, so eventually the line C (going in direction γ) will be far from P in direction γ, and if γ ∈ (α, β), it will be inside the sector. The offset doesn't matter because the sector is infinite.
+
+Hmm, but what if the line C is on the opposite side of P? For example, if γ ∈ (α, β) but C is entirely on the other side of P (in the direction γ+π). Then C going in direction γ would be going away from the sector... no, C is a full line, it goes in both directions. In direction γ, it goes toward the sector (if γ ∈ (α, β)), and since the sector is infinite, C will enter it.
+
+Actually, I think the correct statement is: C crosses the wedge (α, β) at P iff exactly one of γ, γ+π is in (α, β) (mod 2π). If both are in (α, β), that's impossible since (α, β) has angular width < π (it's a wedge at an intersection of two lines, so width < π... actually the width could be anything from 0 to π, but not π since the lines are distinct).
+
+Wait, the 4 wedges at P have angular widths that sum to 2π, and opposite wedges have the same width. The widths are θ, π-θ, θ, π-θ for some θ ∈ (0, π). So each wedge has width < π, and thus γ and γ+π can't both be in the same wedge.
+
+So C crosses wedge (α, β) iff γ ∈ (α, β) or γ+π ∈ (α, β), and these are mutually exclusive. This is equivalent to: C crosses the wedge iff C's direction (mod π) falls in the angular range of the wedge or its opposite wedge.
+
+OK so my original analysis holds. Let me re-examine with n=4 to make sure.
+
+4 lines with directions 0°, 30°, 60°, 90°. Adjacent pairs: (0°,30°), (30°,60°), (60°,90°), (90°,0°). 4 adjacent pairs, so 8 angular regions = 2×4.
+
+Let me verify by checking one non-adjacent pair. Lines at 0° and 60°: k = number of lines with direction between 0° and 60° = 1 (the 30° line). n-2 = 2. So 0 < 1 < 2, not adjacent, 0 angular regions at this intersection. ✓
+
+And one adjacent pair: 0° and 30°. k = 0 (no lines between 0° and 30°). So 2 angular regions. ✓
+
+Total: 4 adjacent pairs × 2 = 8 = 2n. ✓
+
+Now let me try a different configuration. 4 lines with directions 0°, 10°, 20°, 170°. Adjacent pairs: (0°,10°), (10°,20°), (20°,170°), (170°,0°). Still 4 adjacent pairs, 8 angular regions.
+
+Hmm, so it really does seem like the answer is always 2n, regardless of the arrangement. The number of adjacent pairs in a circular ordering of n elements is always n.
+
+But wait, I should double-check this more carefully. The "direction ordering" is on the circle [0, π). With n points on this circle, there are exactly n gaps (adjacent pairs). Each adjacent pair gives 2 angular regions. So total = 2n.
+
+But hold on — I need to make sure that the 2 angular regions from each adjacent pair are distinct, i.e., different adjacent pairs give different angular regions.
+
+Each angular region is a wedge at a specific intersection point, in a specific direction. Two different intersection points give different wedges (different vertices). Two different wedges at the same intersection point are different regions. So yes, all 2n angular regions are distinct.
+
+And we showed that the only angular regions are those from adjacent pairs, and each adjacent pair gives exactly 2. So the total is always 2n.
+
+Wait, but I should also check: could two different adjacent pairs give the same angular region? An angular region is a wedge at an intersection point. Two different pairs of lines have different intersection points (general position: no three concurrent). So no two pairs share an intersection point. Thus all angular regions are distinct.
+
+So m(n) = M(n) = 2n for all n ≥ 2, and m(1996) + M(1996) = 2·1996 + 2·1996 = 4·1996 = 7984.
+
+Hmm, but this seems surprisingly simple for what looks like a competition problem. Let me reconsider whether my analysis is correct by thinking about it more carefully.
+
+Actually, wait. I want to reconsider whether my claim about "adjacent in direction ordering" is correct. Let me re-examine.
+
+At intersection P of lines A (direction α) and B (direction β), with α < β < α + π (WLOG). The 4 wedges are:
+- W1: (α, β) — angular width β - α
+- W2: (β, α + π) — angular width α + π - β
+- W3: (α + π, β + π) — angular width β - α (same as W1)
+- W4: (β + π, α + 2π) — angular width α + 2π - β = α + π - (β - π) = ... = 2π - (β + π - α) = π - (β - α - π)... let me just compute: α + 2π - β = 2π - (β - α). Hmm, that's > π since β - α < π. 
+
+Wait, I think I messed up. Let me redo. α and β are directions in [0, π). Say α < β. The line A has directions α and α + π. The line B has directions β and β + π. The 4 wedges at P, going counterclockwise:
+- (α, β): width β - α
+- (β, α + π): width α + π - β
+- (α + π, β + π): width β - α
+- (β + π, α + 2π): width α + 2π - β = 2π - (β - α)
+
+Wait, α + 2π - β = 2π - β + α. Since 0 ≤ α < β < π, we have 2π - β + α > 2π - π + 0 = π. So this wedge has width > π? That can't be right.
+
+Oh I see the issue. The 4 wedges should have widths summing to 2π, with opposite wedges equal. W1 and W3 both have width β - α. W2 has width α + π - β = π - (β - α). W4 should have width π - (β - α) as well. Let me recompute: β + π to α + 2π is α + 2π - (β + π) = α + π - β = π - (β - α). Yes, that's correct. I made an arithmetic error before.
+
+So W2 and W4 both have width π - (β - α), and W1 and W3 both have width β - α. Good.
+
+Now, a line C with direction γ crosses:
+- W1 = (α, β) iff γ ∈ (α, β) or γ + π ∈ (α, β). Since γ ∈ [0, π), γ + π ∈ [π, 2π). So γ + π ∈ (α, β) is impossible (since α, β < π). So C crosses W1 iff γ ∈ (α, β).
+- W3 = (α + π, β + π) iff γ ∈ (α + π, β + π) or γ + π ∈ (α + π, β + π). γ ∈ [0,π) so γ ∉ (α+π, β+π). γ + π ∈ [π, 2π), and (α+π, β+π) ⊂ (π, 2π), so C crosses W3 iff γ + π ∈ (α + π, β + π), i.e., γ ∈ (α, β). Same condition as W1.
+- W2 = (β, α + π) iff γ ∈ (β, α + π) or γ + π ∈ (β, α + π). γ ∈ [0,π), so γ ∈ (β, α+π) is possible (since β < π and α + π > π, so (β, α+π) ∩ [0,π) = (β, π)). And γ + π ∈ (β, α+π) requires γ + π < α + π, i.e., γ < α, and γ + π > β, i.e., γ > β - π. Since γ ≥ 0 and β < π, γ > β - π is always true. So γ + π ∈ (β, α+π) iff γ < α. Combined: C crosses W2 iff γ ∈ (β, π) or γ ∈ [0, α) = γ ∈ (β, π) ∪ [0, α) = γ ∉ [α, β]. 
+
+Wait, let me be more careful. C crosses W2 iff γ ∈ (β, α+π) or γ+π ∈ (β, α+π).
+- γ ∈ (β, α+π): since γ ∈ [0,π), this is γ ∈ (β, π).
+- γ+π ∈ (β, α+π): γ+π ∈ (β, α+π) means β < γ+π < α+π, i.e., β-π < γ < α. Since γ ≥ 0 and β < π, β-π < 0, so this is γ ∈ [0, α).
+
+So C crosses W2 iff γ ∈ (β, π) ∪ [0, α) = γ ∉ [α, β]. (Assuming α < β.)
+
+Similarly, C crosses W4 iff γ ∉ [α, β] (same condition as W2, since W4 is opposite to W2).
+
+So:
+- C crosses W1 and W3 iff γ ∈ (α, β).
+- C crosses W2 and W4 iff γ ∉ [α, β], i.e., γ ∈ [0, α) ∪ (β, π).
+
+This confirms: the n-2 other lines are split into k lines with γ ∈ (α, β) and n-2-k lines with γ ∉ [α, β].
+
+- W1 is angular iff k = 0 (no line crosses it).
+- W3 is angular iff k = 0.
+- W2 is angular iff n-2-k = 0, i.e., k = n-2.
+- W4 is angular iff k = n-2.
+
+So:
+- If k = 0: W1 and W3 are angular. 2 angular regions.
+- If k = n-2: W2 and W4 are angular. 2 angular regions.
+- If 0 < k < n-2: 0 angular regions.
+
+k = 0 means no line has direction in (α, β), i.e., α and β are adjacent in the direction ordering (no direction between them).
+k = n-2 means all lines have direction in (α, β), i.e., α and β are adjacent in the direction ordering (no direction between them on the other side).
+
+Either way, α and β are adjacent in the circular ordering of directions on [0, π).
+
+The number of adjacent pairs in a circular ordering of n elements is n. Each gives 2 angular regions. Total = 2n.
+
+This is independent of the arrangement! So m(n) = M(n) = 2n.
+
+Therefore m(1996) + M(1996) = 2 × 1996 + 2 × 1996 = 4 × 1996 = 7984.
+
+Wait, but I'm second-guessing myself because this seems too clean. Let me verify with n=4 by trying to construct an arrangement where not all unbounded regions are angular.
+
+4 lines with directions 0°, 45°, 90°, 135°. Let me place them to form a specific arrangement.
+
+Line 1: y = 0 (direction 0°)
+Line 2: y = x (direction 45°)
+Line 3: x = 0 (direction 90°)
+Line 4: y = -x + 10 (direction 135°)
+
+Adjacent pairs in direction ordering: (0°, 45°), (45°, 90°), (90°, 135°), (135°, 0°). 4 pairs, 8 angular regions.
+
+Let me check a non-adjacent pair, say lines 1 (0°) and 3 (90°). Their intersection is at (0, 0). k = number of lines with direction in (0°, 90°) = 1 (line 2 at 45°). n-2 = 2. So 0 < 1 < 2, no angular regions at this intersection. ✓
+
+Now let me check if there's an unbounded region that's not angular. There are 2n = 8 unbounded regions, and 8 angular regions, so all unbounded regions are angular.
+
+Is this always the case? If the number of angular regions = 2n = number of unbounded regions, then every unbounded region is angular. This means no unbounded region has any line segments in its boundary.
+
+Is this true? For n lines in general position, is every unbounded region angular?
+
+Consider the "outer boundary" of the arrangement. If every unbounded region is angular, then the boundary of each unbounded region consists of exactly 2 rays meeting at a vertex. This means the "outer face" is very simple.
+
+But consider 4 lines that form a convex quadrilateral (4 intersection points forming a convex quadrilateral, with the 4 lines being the sides). Wait, 4 lines in general position have C(4,2) = 6 intersection points, not 4.
+
+Let me think of a specific example. 4 lines:
+- y = 0
+- y = x
+- y = -x + 10
+- y = 2x - 5
+
+Hmm, this is getting complicated. Let me think about it more abstractly.
+
+Consider 4 lines with directions 0°, 10°, 20°, 30°. All directions are close together. The adjacent pairs are (0°,10°), (10°,20°), (20°,30°), (30°,0°). 4 pairs, 8 angular regions.
+
+Now, the intersection of lines at 0° and 20°: k = 1 (the 10° line is between them), n-2 = 2, so 0 < 1 < 2, no angular regions. The intersection of 0° and 30°: k = 2 (10° and 20° are between them), n-2 = 2, so k = n-2, which means 2 angular regions. But wait, 0° and 30° are adjacent (on the other side, since no directions are between 30° and 0° going the long way around through 180°). So this is an adjacent pair, and we get 2 angular regions. ✓
+
+OK so I'm now fairly convinced the answer is 2n for both min and max. Let me also think about whether there could be a configuration where some unbounded region is NOT angular.
+
+If all unbounded regions are angular, then the outer boundary of the arrangement consists only of rays, no line segments. This means the "convex hull" of the arrangement (the outer boundary) has no edges—every vertex on the outer boundary is connected to infinity by rays on both sides.
+
+Is this always the case? Consider the arrangement of n lines. The outer boundary is the boundary between the unbounded regions and the bounded regions. If every unbounded region is angular, then each unbounded region is a wedge at some vertex, and the outer boundary consists of just the vertices (no edges between them on the outer boundary).
+
+But actually, the outer boundary does have edges—the rays. Each unbounded region is bounded by 2 rays. The rays are the edges on the outer boundary. There are 2n rays, and each is shared by 2 unbounded regions. So the outer boundary has 2n ray-edges and 2n unbounded regions, each bounded by 2 rays. The vertices on the outer boundary are the endpoints of the rays.
+
+If every unbounded region is angular, then each pair of consecutive rays (at infinity) shares an endpoint. This means the 2n rays form n pairs, each pair sharing an endpoint (the intersection of their two lines). And these n vertices are the only vertices on the outer boundary.
+
+Is this always the case? I believe so, based on my analysis. The key insight is that the direction ordering determines everything, and there are always exactly n adjacent pairs.
+
+Hmm, but let me think of a potential counterexample. Consider 4 lines where 3 of them form a triangle and the 4th cuts through the triangle. 
+
+Lines: y = 0, y = x, y = -x + 2, y = 0.5x + 0.1 (direction about 26.6°).
+
+Directions: 0°, 26.6°, 45°, 135°. Adjacent pairs: (0°, 26.6°), (26.6°, 45°), (45°, 135°), (135°, 0°). 4 pairs, 8 angular regions.
+
+The 4th line (y = 0.5x + 0.1) cuts through the triangle. Does this create any non-angular unbounded regions?
+
+According to my analysis, no—there are exactly 8 angular regions and 8 unbounded regions, so all are angular.
+
+Let me verify by checking the intersection of y=0 and y=-x+2 (directions 0° and 135°). These are adjacent (no direction between 135° and 0° going through 180°). k = 0 (no lines with direction in (135°, 180°) ∪ [0°, 0°)... wait, I need to be careful about the circular ordering.
+
+Directions in [0°, 180°): 0°, 26.6°, 45°, 135°. The pair (135°, 0°) is adjacent on the circle (going from 135° to 180° to 0°, there are no directions in between). So k for this pair: lines with direction in (135°, 180°) ∪ [0°, 0°) = (135°, 180°) = none. So k = 0, and we get 2 angular regions. ✓
+
+Now let me check the intersection of y=0 and y=x (directions 0° and 45°). k = lines with direction in (0°, 45°) = 1 (the 26.6° line). n-2 = 2. 0 < 1 < 2, so no angular regions at this intersection.
+
+But in the original 3-line arrangement (without the 4th line), this intersection had 2 angular regions. Adding the 4th line "destroyed" these 2 angular regions but "created" 2 new ones at the intersection of the 4th line with its adjacent lines. So the total remains 2n.
+
+This makes sense: adding a line with a new direction creates 2 new adjacencies (the new direction is between two existing directions, breaking one adjacency and creating two new ones). Wait, no: adding a new direction to the circular ordering breaks one adjacency and creates two new ones, for a net gain of 1 adjacency. And each adjacency gives 2 angular regions, so the net gain is 2 angular regions, which matches going from 2(n-1) to 2n.
+
+OK, I'm now very confident that the number of angular regions is always 2n, regardless of the arrangement. So m(n) = M(n) = 2n, and m(1996) + M(1996) = 4 × 1996 = 7984.
+
+Actually, hold on. Let me reconsider the problem statement. It says "an angular region is an unbounded region bounded by exactly two half-lines (i.e., it is an angle formed by the intersection of two lines that contains no other lines)."
+
+The parenthetical confirms my understanding: it's a wedge at an intersection point that contains no other lines. So my analysis is correct.
+
+But wait, I want to make sure I haven't overlooked something. The problem says "bounded by exactly two half-lines." Could there be an unbounded region bounded by, say, 3 half-lines? That would be a region that extends to infinity in 3 directions, which doesn't make geometric sense for a region of a line arrangement. Each unbounded region extends to infinity in a single "direction" (between two consecutive rays at infinity), so it's bounded by exactly 2 rays. The question is whether there are additional line segments in the boundary.
+
+So the unbounded regions are always bounded by exactly 2 rays, plus possibly some line segments. An angular region is one with 0 additional line segments. My analysis shows that all unbounded regions have 0 additional line segments, i.e., all 2n unbounded regions are angular.
+
+Hmm, but is this really true? Let me think of a potential counterexample more carefully.
+
+Consider 4 lines:
+- L1: y = 0 (direction 0°)
+- L2: y = 100x (direction ~89.4°)  
+- L3: y = -100x + 100 (direction ~90.6°)
+- L4: y = 0.01x - 100 (direction ~0.57°)
+
+Directions: 0°, 0.57°, 89.4°, 90.6°. Adjacent pairs: (0°, 0.57°), (0.57°, 89.4°), (89.4°, 90.6°), (90.6°, 0°). 4 pairs, 8 angular regions.
+
+Now, consider the unbounded region between the rays of L1 and L4 going to the right (direction ~0° and ~0.57°). These two lines are nearly parallel and both nearly horizontal. Their intersection is far to the left (since L1 is y=0 and L4 is y=0.01x-100, they intersect at x=10000). The wedge at their intersection pointing right is very narrow and contains no other lines (since L2 and L3 are nearly vertical). So this is an angular region. ✓
+
+Now consider the unbounded region between L2 and L3 going upward. L2 and L3 are nearly parallel and nearly vertical. Their intersection: y=100x and y=-100x+100, so x=0.5, y=50. The wedge pointing up contains no other lines (L1 and L4 are nearly horizontal). Angular. ✓
+
+What about the unbounded region between L4 going right and L2 going up? These are at directions 0.57° and 89.4°. They're adjacent in the ordering (0.57°, 89.4°). Their intersection: y=0.01x-100 and y=100x, so 100x = 0.01x - 100, x ≈ -1, y ≈ -100. The wedge at this intersection... does it contain L1 or L3?
+
+L1 (y=0) has direction 0°, which is not in (0.57°, 89.4°). L3 (y=-100x+100) has direction 90.6°, which is not in (0.57°, 89.4°). So no lines cross this wedge. Angular. ✓
+
+And the unbounded region between L3 (90.6°) and L1 (0°), going through 180°. These are adjacent. Their intersection: y=0 and y=-100x+100, so x=1, y=0. The wedge at (1,0) in the direction (90.6°, 180°) (the one going up-left). Does L2 or L4 cross it?
+
+L2 has direction 89.4°, not in (90.6°, 180°). L4 has direction 0.57°, not in (90.6°, 180°). So no lines cross. Angular. ✓
+
+Great, so all 8 unbounded regions are angular, as expected.
+
+Now let me try to think of a case where an unbounded region might NOT be angular. 
+
+Consider the intersection of two non-adjacent lines, say L1 (0°) and L3 (90.6°) in the above example. k = 2 (L2 at 89.4° and L4 at 0.57° are between them). n-2 = 2, so k = n-2, which means... wait, that means L1 and L3 ARE adjacent (on the other side). But I said the adjacent pairs were (0°, 0.57°), (0.57°, 89.4°), (89.4°, 90.6°), (90.6°, 0°). L1 (0°) and L3 (90.6°) are adjacent via the pair (90.6°, 0°). So k should be 0, not 2.
+
+Let me recompute. For the pair (0°, 90.6°), "between" them means directions in (0°, 90.6°). That's 0.57° and 89.4°, so k = 2. And n-2 = 2, so k = n-2. This means all other lines are between them, so they're adjacent on the other side (the arc from 90.6° to 180° to 0° has no directions). So yes, (0°, 90.6°) is an adjacent pair, and we get 2 angular regions at their intersection. ✓
+
+OK so I've thoroughly convinced myself. The answer is 2n for both min and max.
+
+Actually, wait. I want to reconsider once more. I've been assuming that the "direction" of a line is well-defined mod π, and that the circular ordering on [0, π) is the right thing. But let me make sure the argument about wedges is correct.
+
+The key step is: at the intersection of lines A (direction α) and B (direction β), a wedge is uncut iff α and β are adjacent in the direction ordering. I proved this by showing that the number of lines crossing a wedge equals the number of lines with directions in a certain interval, and the wedge is uncut iff this count is 0 or n-2, which happens iff α and β are adjacent.
+
+This is correct. And the number of adjacent pairs in a circular ordering of n elements is always n. So the total number of angular regions is always 2n.
+
+Therefore:
+m(1996) = M(1996) = 2 × 1996 = 3992
+m(1996) + M(1996) = 3992 + 3992 = 7984
+
+Hmm wait, but I realize I should double-check this with a case where I can clearly see a non-angular unbounded region. Let me think about n=4 more carefully.
+
+4 lines forming a convex quadrilateral shape. Let me take:
+- L1: y = 0 (direction 0°)
+- L2: x = 0 (direction 90°)  
+- L3: y = -x + 1 (direction 135°)
+- L4: y = 2x + 1 (direction arctan(2) ≈ 63.4°)
+
+Directions: 0°, 63.4°, 90°, 135°. Adjacent pairs: (0°, 63.4°), (63.4°, 90°), (90°, 135°), (135°, 0°). 4 pairs, 8 angular regions.
+
+Let me check the intersection of L1 (0°) and L3 (135°). k = lines with direction in (0°, 135°) = 2 (L2 at 90° and L4 at 63.4°). n-2 = 2, so k = n-2. This means L1 and L3 are adjacent (on the other side, via 135° → 180° → 0°). 2 angular regions at this intersection.
+
+The intersection of L1 and L3: y=0 and y=-x+1, so x=1, y=0. Point (1,0).
+
+The 4 wedges at (1,0):
+- W1 (0°, 135°): between L1's right ray and L3's up-left ray. This is the large wedge above y=0 and above y=-x+1, pointing up. k=2 lines cross it. Not angular.
+- W2 (135°, 180°): between L3's up-left ray and L1's left ray. Narrow wedge pointing left, slightly up. No lines cross it (L2 at 90° and L4 at 63.4° are not in (135°, 180°)). Angular. ✓
+- W3 (180°, 315°): between L1's left ray and L3's down-right ray. Large wedge below y=0 and below y=-x+1, pointing down. k=2 lines cross it. Not angular.
+- W4 (315°, 360°): between L3's down-right ray and L1's right ray. Narrow wedge pointing right, slightly down. No lines cross it. Angular. ✓
+
+So at (1,0), W2 and W4 are angular. W2 is the region above L3 and below L1, for x < 1. W4 is the region below L3 and above L1, for x > 1.
+
+Now let me check: is W4 really an unbounded region of the arrangement? W4 is the wedge at (1,0) between directions 315° and 360° (i.e., pointing right and slightly down). It's bounded by L1's right ray (y=0, x>1) and L3's down-right ray (y=-x+1, x>1, i.e., y<0 for x>1). 
+
+Does L2 (x=0) cross this wedge? L2 has direction 90°, not in (315°, 360°). So no. Does L4 (y=2x+1) cross this wedge? L4 has direction 63.4°, not in (315°, 360°). So no. W4 is uncut, so it's a region of the arrangement. ✓
+
+And W2: the wedge at (1,0) between directions 135° and 180°, pointing left and slightly up. Bounded by L3's up-left ray (y=-x+1, x<1, y>0) and L1's left ray (y=0, x<1). Does L2 (x=0) cross it? L2 at x=0: in this wedge, x < 1 and 0 < y < -x+1. At x=0, 0 < y < 1. L2 is the line x=0, which passes through (0, y) for all y. At (0, 0.5), is this in the wedge? The wedge is between directions 135° and 180° from (1,0). The point (0, 0.5) is at direction atan2(0.5, -1) = 180° - 26.6° = 153.4° from (1,0). Yes, 153.4° is in (135°, 180°). And the distance is sqrt(1 + 0.25) > 0. So (0, 0.5) is in the wedge. And L2 passes through this point. So L2 DOES cross the wedge!
+
+Wait, that contradicts my earlier analysis! Let me recheck.
+
+L2 has direction 90°. The wedge W2 is (135°, 180°). I said L2 crosses W2 iff L2's direction (90°) is in (135°, 180°) or 90° + 180° = 270° is in (135°, 180°). 90° is not in (135°, 180°), and 270° is not in (135°, 180°). So L2 should NOT cross W2.
+
+But I just showed that L2 (x=0) passes through (0, 0.5), which is in the wedge W2 at (1,0). So L2 DOES cross W2. Contradiction!
+
+Let me re-examine. The issue is: does the line x=0 (direction 90°) cross the wedge (135°, 180°) at (1,0)?
+
+The wedge (135°, 180°) at (1,0) consists of points (1,0) + t(cos θ, sin θ) for t > 0, θ ∈ (135°, 180°). These are points with x < 1 and 0 < y < (1-x) (roughly, above the x-axis and below the line y=-x+1, for x < 1).
+
+The line x=0 passes through (0, y) for all y. For y ∈ (0, 1), the point (0, y) is in the wedge (since 0 < 1 and 0 < y < -0+1 = 1). So yes, L2 crosses the wedge.
+
+But according to my formula, L2 (direction 90°) should cross W2 = (135°, 180°) iff 90° ∈ (135°, 180°) or 270° ∈ (135°, 180°). Neither is true. So my formula is WRONG!
+
+Where did I go wrong? Let me re-derive.
+
+The claim was: a line C with direction γ crosses the wedge (α, β) at point P iff γ ∈ (α, β) or γ + π ∈ (α, β) (mod 2π).
+
+But this is wrong! The line C doesn't pass through P. C is a line with direction γ, offset from P. C crosses the wedge (α, β) at P iff C intersects the interior of the wedge.
+
+The wedge (α, β) at P is an infinite sector. A line C with direction γ intersects this sector iff C passes through some point in the sector. 
+
+If γ ∈ (α, β), then C going in direction γ will eventually enter the sector (since the sector is infinite in direction γ). ✓
+
+If γ + π ∈ (α, β), then C going in direction γ + π will enter the sector. ✓
+
+But what if γ ∉ (α, β) and γ + π ∉ (α, β)? Can C still cross the wedge?
+
+In my example: γ = 90°, wedge = (135°, 180°). γ = 90° ∉ (135°, 180°), γ + π = 270° ∉ (135°, 180°). But C (x=0) does cross the wedge.
+
+So the claim is false! A line can cross a wedge even if its direction is not in the wedge's angular range.
+
+How? The line x=0 has direction 90°. The wedge (135°, 180°) at (1,0) contains points like (0, 0.5). The line x=0 passes through (0, 0.5). The line x=0 is vertical, and the wedge extends to the left and slightly up from (1,0). The line x=0 crosses the wedge because the wedge extends far enough to the left to reach x=0.
+
+So my entire analysis is WRONG. The direction of a line doesn't determine whether it crosses a wedge; the position (offset) of the line also matters.
+
+This makes the problem much more complex. Let me reconsider.
+
+OK so the key error was: a line C crosses a wedge at P iff C's direction is in the wedge's angular range. This is wrong because C doesn't pass through P, so the offset matters.
+
+Let me reconsider the problem from scratch.
+
+A wedge at intersection point P of lines A and B is an angular region iff no other line crosses the wedge. Whether a line C crosses the wedge depends on both C's direction and C's position (offset from P).
+
+So the number of angular regions depends on the arrangement (not just the directions), and the problem of finding min and max is non-trivial.
+
+Let me reconsider.
+
+The correct criterion: a line C crosses the wedge (α, β) at P iff C intersects the interior of the wedge. The wedge is an infinite sector at P. C is a line not through P. C crosses the wedge iff C enters the sector, which happens iff C intersects one of the two rays bounding the wedge at a point other than P, OR C passes through the interior of the wedge.
+
+Actually, a line C crosses the wedge (α, β) at P iff C intersects the interior of the wedge. Since the wedge is convex (it's an intersection of two half-planes), C crosses it iff C intersects both boundary rays of the wedge (at points other than P), or C intersects one boundary ray and extends into the wedge.
+
+More precisely: C crosses the wedge iff C intersects the interior of the wedge. The wedge is bounded by two rays from P. C (a line not through P) crosses the wedge iff C intersects both rays (at distinct points from P). This is because the wedge is a convex cone, and a line crosses it iff it enters and exits, which requires intersecting both boundary rays.
+
+Wait, that's not quite right either. A line could cross the wedge by intersecting one ray and then extending to infinity within the wedge (if the line's direction is within the wedge's angular range). Or it could cross by intersecting both rays.
+
+Hmm, let me think about this more carefully. The wedge (α, β) at P is the set {P + t·u : t > 0, u is a unit vector with angle in (α, β)}. This is a convex cone. A line C (not through P) intersects this cone iff C passes through some point in the cone.
+
+Case 1: C's direction is in (α, β) or (α+π, β+π). Then C, going to infinity in that direction, will eventually be in the cone. So C intersects the cone. (C crosses the wedge.)
+
+Case 2: C's direction is in (β, α+π) or (β+π, α+2π). Then C's direction is not in the cone's angular range. But C could still intersect the cone if C passes through it. Since the cone is infinite, C intersects it iff C crosses one of the boundary rays. If C's direction is not in the cone's range, C can only intersect the cone by crossing both boundary rays (entering and exiting).
+
+Wait, actually, if C's direction is not in (α, β) or (α+π, β+π), then C doesn't go to infinity within the cone. But C could still pass through the cone by crossing both boundary rays. In this case, C enters the cone through one ray and exits through the other.
+
+So: C crosses the wedge iff either:
+(a) C's direction is in (α, β) or (α+π, β+π) (C goes to infinity within the wedge), OR
+(b) C intersects both boundary rays of the wedge (C passes through the wedge).
+
+In case (a), C always crosses the wedge regardless of its position.
+In case (b), C crosses the wedge only if its position allows it to intersect both rays.
+
+So the condition for a wedge to be uncut is more complex: not only must no line have direction in the wedge's angular range, but also no line with direction outside the range should intersect both boundary rays.
+
+This makes the problem much more geometric and dependent on the specific arrangement.
+
+OK so my initial analysis was wrong. Let me restart.
+
+Let me reconsider the problem. We need to find the minimum and maximum number of angular regions over all arrangements of n lines in general position.
+
+An angular region is an unbounded region bounded by exactly 2 half-lines (rays). As I argued, these correspond to uncut wedges at intersection points.
+
+Let me think about this differently. Consider the arrangement of n lines. The 2n unbounded regions are between consecutive rays at infinity. Each unbounded region is bounded by 2 rays and some line segments. It's angular iff there are 0 line segments.
+
+The total number of line segments on the boundaries of unbounded regions: let's call this S. Then the number of angular regions = 2n - (number of unbounded regions with ≥1 segment) ≥ 2n - S. But this isn't tight because one unbounded region could have multiple segments.
+
+Actually, the number of angular regions = |{i : s_i = 0}| where s_i is the number of segments on the boundary of the i-th unbounded region. We have sum s_i = S.
+
+To maximize angular regions, we want to minimize the number of unbounded regions with s_i > 0, which means concentrating segments in as few unbounded regions as possible. To minimize angular regions, we want to maximize the number of unbounded regions with s_i > 0, which means spreading segments across as many unbounded regions as possible.
+
+But first, let me understand S better.
+
+S = total number of line segments on the boundaries of all unbounded regions. Each such segment is on the boundary of exactly 1 unbounded region (as I argued before). So S = number of line segments that are on the boundary of some unbounded region.
+
+A line segment is on the boundary of an unbounded region iff it's "exposed" to the outside. These are the segments on the "convex hull" of the arrangement.
+
+The structure: the unbounded regions' boundaries form a closed walk around the arrangement. This walk alternates between rays (going to infinity) and chains of line segments (connecting consecutive ray endpoints on the same "side" of the arrangement).
+
+Actually, let me think about it as follows. The 2n rays at infinity are ordered. Consecutive rays bound unbounded regions. For each pair of consecutive rays, if they share an endpoint, the region is angular (0 segments). If they don't share an endpoint, there's a chain of segments connecting the two endpoints.
+
+The endpoints of the rays are the "extreme" intersection points on each line. Each line has 2 extreme points (the leftmost and rightmost intersections on that line, in terms of the line's parameterization). These are the endpoints of the 2 rays.
+
+Now, the 2n ray endpoints (with multiplicity, since a point can be the endpoint of rays from 2 different lines) are arranged around the "outside" of the arrangement. The boundary walk visits these endpoints in order, connecting consecutive endpoints either by a ray (going to infinity and back) or by a chain of segments.
+
+Wait, I think the structure is: going around the arrangement, we alternate between rays (going out to infinity) and chains of segments (connecting two consecutive ray-endpoints along the boundary of the arrangement).
+
+Let me think about this more carefully using the concept of the "outer face" of the arrangement.
+
+The outer face is the union of all unbounded regions. Its boundary is a closed walk. This walk consists of 2n rays and some number of line segments. The walk visits the "extreme" vertices of the arrangement.
+
+Each extreme vertex is the endpoint of 1 or 2 rays. If it's the endpoint of 2 rays (from 2 different lines), then the two rays meet at this vertex, and the walk goes: ... → ray → vertex → ray → ... (no segments between them). This corresponds to an angular region.
+
+If it's the endpoint of 1 ray, then the walk goes: ... → ray → vertex → segment → ... (there are segments connecting this vertex to the next one).
+
+Wait, but each vertex is the intersection of 2 lines, and it could be the extreme point on 0, 1, or 2 of those lines.
+
+Let me define: a vertex v (intersection of lines A and B) is "extreme on A" if v is the extreme intersection point on A in some direction (i.e., v is the endpoint of one of A's rays). Similarly for B.
+
+If v is extreme on both A and B, then 2 rays meet at v, and the angular region at v (in the appropriate wedge) is uncut iff... well, it's an angular region iff the wedge is uncut. But wait, if v is the endpoint of rays from both A and B, then the two rays meet at v, and the wedge between them is a candidate angular region. But it might be cut by other lines.
+
+Hmm, I think I was overcomplicating this. Let me go back to the direct approach.
+
+An angular region is an unbounded region bounded by exactly 2 rays (and no segments). The 2n unbounded regions are each bounded by 2 rays and some segments. The number of angular regions is the number with 0 segments.
+
+Let me think about the boundary walk of the outer face. This walk goes around the arrangement, visiting extreme vertices. Between consecutive extreme vertices, there's either a single ray (if they share a vertex, i.e., it's the same vertex—no, that doesn't make sense) or a chain of segments.
+
+Actually, let me think about it differently. The boundary of the outer face is a closed walk that alternates between:
+- Rays: going from a vertex to infinity (and conceptually "back" from infinity to the next vertex).
+- Segment chains: connecting two vertices along the boundary.
+
+The walk has 2n rays (one for each ray in the arrangement). Between consecutive rays (in the walk), there's a segment chain (possibly empty) connecting the endpoint of one ray to the endpoint of the next.
+
+If the segment chain is empty, the two rays share an endpoint, and the unbounded region between them is angular.
+
+If the segment chain is non-empty, the unbounded region between them has segments in its boundary, and is not angular.
+
+So the number of angular regions = number of pairs of consecutive rays (in the walk) that share an endpoint = number of "empty" segment chains.
+
+Now, the total number of segments in all segment chains = S (the total number of segments on the outer boundary). The number of non-empty segment chains = number of unbounded regions that are not angular = 2n - (number of angular regions).
+
+Each non-empty segment chain has at least 1 segment. So 2n - (angular regions) ≤ S, i.e., angular regions ≥ 2n - S.
+
+Also, the number of segment chains (including empty ones) = 2n (one for each pair of consecutive rays). The number of non-empty ones = 2n - (angular regions). The total segments S = sum of lengths of non-empty chains. So S ≥ 2n - (angular regions), giving angular regions ≥ 2n - S.
+
+And angular regions ≤ 2n - (number of non-empty chains) + (S - number of non-empty chains) ... no, this isn't useful.
+
+Let me think about S. S is the number of line segments on the outer boundary. Each line has n-2 segments (between consecutive intersection points). A segment is on the outer boundary iff it's "exposed" (on the boundary of an unbounded region).
+
+A segment on line A between consecutive intersection points P and Q is on the outer boundary iff the region on one side of it is unbounded. This happens iff P and Q are consecutive extreme points on A, i.e., there's no intersection point between them that's "more extreme."
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+The number of segments on the outer boundary = (number of edges on the outer boundary) - (number of rays on the outer boundary) = (total edges on outer boundary) - 2n.
+
+By the structure of the outer face: the outer face boundary is a closed walk with V_outer vertices and E_outer edges. The edges include 2n rays and S segments. So E_outer = 2n + S.
+
+The vertices on the outer boundary are the "extreme" vertices (endpoints of rays). Let V_outer = number of distinct extreme vertices.
+
+Each extreme vertex is the endpoint of 1 or 2 rays. If d vertices are endpoints of 2 rays (doubly extreme), then 2n = (V_outer - d) * 1 + d * 2 = V_outer + d, so V_outer = 2n - d.
+
+The closed walk has V_outer vertices and E_outer = 2n + S edges. For a closed walk, the number of edges equals the number of vertices (if it's a simple cycle). But the outer face boundary might not be a simple cycle if the arrangement has a complex structure.
+
+Actually, for an arrangement of lines, the outer face boundary is a single closed walk (the arrangement is connected). The walk visits each extreme vertex, and between consecutive vertices, there's either a ray (to infinity and back) or a segment chain.
+
+Hmm, I think the walk structure is: it's a cycle that visits the extreme vertices in order. Between consecutive vertices, there's either a single segment (if they're connected by a segment on the outer boundary) or a ray (if they're connected via infinity).
+
+Wait, no. The walk goes: vertex → ray → infinity → ray → vertex → segment → vertex → ray → infinity → ... This doesn't quite work because going to infinity and back involves 2 rays.
+
+Let me think about it more carefully. The outer face is the complement of the bounded regions. Its boundary is a collection of edges. The boundary walk starts at a vertex, goes along a ray to infinity, comes back along another ray to a (possibly different) vertex, then goes along segments to the next vertex, then along a ray to infinity, etc.
+
+So the walk alternates: (ray, ray, segment chain), (ray, ray, segment chain), ... No, that's not right either.
+
+Actually, the boundary of the outer face consists of all the rays and the exposed segments. The walk goes: start at a vertex, follow a ray to infinity, then follow the next ray back from infinity to a vertex, then follow a segment chain to the next vertex, then follow a ray to infinity, etc.
+
+So the pattern is: ray, ray, [segment chain], ray, ray, [segment chain], ...
+
+No wait. Between two consecutive rays at infinity, there's one unbounded region. The boundary of this region consists of the two rays and the segment chain between their endpoints. So the walk goes: ray1 (from vertex A to infinity), ray2 (from infinity to vertex B), segment chain (from B to A if A=B, or from B to the next vertex).
+
+Hmm, I think the correct structure is:
+
+The 2n rays are ordered at infinity: r_1, r_2, ..., r_{2n}. Between r_i and r_{i+1} is unbounded region U_i. The boundary of U_i consists of r_i, r_{i+1}, and a segment chain connecting the endpoint of r_i to the endpoint of r_{i+1}.
+
+The segment chain is empty iff the endpoints of r_i and r_{i+1} are the same vertex (i.e., the two rays share an endpoint).
+
+The outer boundary walk goes: endpoint of r_1 → r_1 → infinity → r_2 → endpoint of r_2 → segment chain → endpoint of r_3 → r_3 → infinity → r_4 → endpoint of r_4 → ... 
+
+Wait, this isn't right. The segment chain connects the endpoint of r_{i+1} to the endpoint of r_{i+2}, not to the endpoint of r_i.
+
+Let me reconsider. The unbounded region U_i is between r_i and r_{i+1}. Its boundary is: r_i (from its endpoint to infinity), r_{i+1} (from infinity to its endpoint), and the segment chain from the endpoint of r_{i+1} to the endpoint of r_i. But this segment chain is part of the boundary of U_i, and it's traversed from r_{i+1}'s endpoint to r_i's endpoint.
+
+So the outer boundary walk is: ... → endpoint of r_i → r_i → infinity → r_{i+1} → endpoint of r_{i+1} → segment chain → endpoint of r_i → ...
+
+But this means the segment chain connects the endpoint of r_{i+1} back to the endpoint of r_i. If they're the same, the chain is empty (angular region). If different, the chain has ≥1 segment.
+
+And then from endpoint of r_i, we continue to r_{i+2}? No, from endpoint of r_i, we'd go along r_i again... I'm getting confused.
+
+Let me think about it as a graph. The outer face boundary is a cycle in the planar graph. The vertices on this cycle are the extreme vertices. The edges are the rays and the exposed segments. The cycle visits each extreme vertex and uses each ray exactly once.
+
+The cycle: starting from an extreme vertex v_1, follow a ray to infinity, come back along the next ray to v_2, follow exposed segments to v_3, follow a ray to infinity, come back to v_4, follow segments to v_5, etc.
+
+Actually, I think the structure is: the cycle alternates between pairs of rays (going to infinity and back) and segment chains (connecting vertices). But the pairing of rays depends on the structure.
+
+Hmm, let me try a different approach. Let me just think about specific small cases and try to find the pattern.
+
+For n=2: 2 lines, 4 unbounded regions, all angular. m(2) = M(2) = 4 = 2·2.
+
+For n=3: 3 lines, 6 unbounded regions. I showed earlier that all 6 are angular. m(3) = M(3) = 6 = 2·3.
+
+Wait, is that right? Let me reconsider with 3 lines that form a triangle where one line is nearly parallel to another.
+
+3 lines: y=0, y=0.001x, y=x-1. Directions: 0°, 0.057°, 45°. 
+
+The three intersection points:
+- y=0 and y=0.001x: (0, 0)
+- y=0 and y=x-1: (1, 0)
+- y=0.001x and y=x-1: 0.001x = x-1, x = 1/0.999 ≈ 1.001, y ≈ 0.001
+
+So the three intersection points are very close together. Let me check the unbounded regions.
+
+The 6 rays at infinity, ordered by direction:
+- y=0 going right (0°)
+- y=0.001x going right (0.057°)
+- y=x-1 going up-right (45°)
+- y=0 going left (180°)
+- y=0.001x going down-left (180.057°)
+- y=x-1 going down-left (225°)
+
+Ordered: 0°, 0.057°, 45°, 180°, 180.057°, 225°.
+
+Unbounded regions:
+1. Between 0° and 0.057°: rays of y=0 (right) and y=0.001x (right). Endpoints: (1,0) and (0,0). Different endpoints, so there's a segment chain. The segment from (0,0) to (1,0) on y=0 is on the boundary. So this region has 1 segment. NOT angular.
+
+Wait, but I need to check: is the segment from (0,0) to (1,0) on y=0 actually on the boundary of this unbounded region? This segment is between the intersection of y=0 with y=0.001x (at (0,0)) and the intersection of y=0 with y=x-1 (at (1,0)). The region above this segment and below y=0.001x (for x > 0) and below y=x-1 (for x > 1)... hmm, this is getting complicated.
+
+Let me reconsider. The unbounded region between the 0° ray (y=0, x>1, going right from (1,0)) and the 0.057° ray (y=0.001x, x>0, going right from (0,0)). 
+
+This region is bounded by:
+- The ray of y=0 going right from (1,0)
+- The ray of y=0.001x going right from (0,0)
+- The segment of y=0 from (0,0) to (1,0)? No, that's not right. The segment from (0,0) to (1,0) is on y=0, and it's between the two intersection points on y=0. But the unbounded region between the 0° and 0.057° rays should be the thin region between y=0 and y=0.001x, for large x.
+
+For large x, y=0 and y=0.001x are far apart (y=0.001x grows). So the region between them (for large x) is actually bounded by y=0 below and y=0.001x above, and it extends to infinity. But does y=x-1 cut through this region?
+
+For large x, y=x-1 is way above y=0.001x, so it doesn't affect this region. The region between the 0° and 0.057° rays is the region between y=0 and y=0.001x for x > some value. But near the intersection points, the region might be cut by y=x-1.
+
+Actually, the region between rays at 0° and 0.057° is the region that's above y=0 (for x > 1) and below y=0.001x (for x > 0). For x > 1, this is 0 < y < 0.001x. Does y=x-1 enter this region? y=x-1 > 0.001x for x > 1/0.999 ≈ 1.001. So for x > 1.001, y=x-1 is above y=0.001x, hence not in the region. For 1 < x < 1.001, y=x-1 is between 0 and 0.001x, so y=x-1 is in the region. So y=x-1 does cut through this region!
+
+So the unbounded region between 0° and 0.057° is cut by y=x-1. It's not angular. It has at least 1 segment in its boundary.
+
+So for n=3, not all unbounded regions are angular! My earlier analysis was wrong because I incorrectly assumed that a line crosses a wedge iff its direction is in the wedge's angular range.
+
+Let me recount for this specific arrangement.
+
+3 lines: y=0, y=0.001x, y=x-1. Directions: 0°, 0.057°, 45°.
+
+6 unbounded regions (between consecutive rays at infinity):
+1. (0°, 0.057°): between y=0 right and y=0.001x right. Cut by y=x-1 (as shown). Not angular.
+2. (0.057°, 45°): between y=0.001x right and y=x-1 right. Is this cut by y=0? For large x, the region is between y=0.001x and y=x-1. y=0 is below both, so not in this region. But near the intersection points... The intersection of y=0.001x and y=x-1 is at (1.001, 0.001). The ray of y=0.001x goes right from (0,0), and the ray of y=x-1 goes up-right from (1,0). The region between them (for large x) is 0.001x < y < x-1. y=0 is not in this range for large x. But does y=0 cut the region near the intersection points? The region near (1.001, 0.001) between the two rays... y=0 passes through (1, 0), which is below this region. So y=0 doesn't cut this region. Angular? 
+
+Wait, I need to check more carefully. The ray of y=0.001x goes right from (0,0). The ray of y=x-1 goes up-right from (1,0). The unbounded region between them (at infinity, between directions 0.057° and 45°) is the region above y=0.001x and below y=x-1, for large x. Does y=0 cut this? y=0 is below y=0.001x for x > 0, so no. So this region is not cut by y=0. Angular. ✓
+
+3. (45°, 180°): between y=x-1 up-right and y=0 left. The region above y=x-1 and above y=0, for large x going up. Does y=0.001x cut this? For large x, y=0.001x is way below y=x-1, so no. Angular? 
+
+Hmm, but near the intersection points, y=0.001x might cut the region. The ray of y=x-1 goes up-right from (1,0), and the ray of y=0 goes left from (0,0). The region between them (between directions 45° and 180°) is above both lines. For points near (0,0) going up-left, the region is above y=0 and above y=x-1. Does y=0.001x pass through this? y=0.001x at x=-100 is y=-0.1, which is below y=0. So for x < 0, y=0.001x is below y=0, hence not in the region (which is above y=0). For x > 0, y=0.001x is above y=0 but below y=x-1 (for x > 1). So y=0.001x is between y=0 and y=x-1, not above both. So y=0.001x doesn't cut this region. Angular. ✓
+
+4. (180°, 180.057°): between y=0 left and y=0.001x down-left. The region below y=0 and above y=0.001x, for x < 0. For x < 0, y=0.001x < 0 < y=0, so the region is y=0.001x < y < 0. Does y=x-1 cut this? For x < 0, y=x-1 < -1, which is below y=0.001x (which is close to 0 for x close to 0). So y=x-1 is below the region. Not cut. Angular? 
+
+Wait, for x very negative, y=0.001x is very negative, and y=x-1 is even more negative. So y=x-1 is below y=0.001x for x < 0 (since x-1 < 0.001x for x < 1/0.999, which includes all x < 0). So y=x-1 is below the region. Not cut. Angular. ✓
+
+5. (180.057°, 225°): between y=0.001x down-left and y=x-1 down-left. The region below y=0.001x and below y=x-1, for x going to -infinity. For x < 0, y=x-1 < y=0.001x (as computed), so the region is y < x-1. Does y=0 cut this? y=0 > x-1 for x < 1, so y=0 is above the region. Not cut. Angular. ✓
+
+6. (225°, 360°): between y=x-1 down-left and y=0 right. The region below y=x-1 and below y=0, for x going to +infinity in the down direction. Hmm, let me think. The ray at 225° is y=x-1 going down-left (x decreasing, y decreasing). The ray at 360°=0° is y=0 going right (x increasing, y=0). The region between them (going counterclockwise from 225° to 360°) is the region below y=x-1 and below y=0, for x > 1 (roughly). 
+
+Actually, the region between directions 225° and 360° at infinity is the region that's below both y=x-1 and y=0. For x > 1, y=x-1 > 0 = y=0, so "below both" means y < 0. For x < 1, y=x-1 < 0, so "below both" means y < x-1. Does y=0.001x cut this region? For x > 0, y=0.001x > 0, which is above y=0, hence not in the region (which is below y=0). For x < 0, y=0.001x < 0, and we need y < x-1 < 0.001x (for x < 0). So y=0.001x is above the region. Not cut. Angular? 
+
+Hmm wait, for x < 0, the region is y < x-1 (since x-1 < 0). And y=0.001x is between x-1 and 0 (since x-1 < 0.001x < 0 for x < 0). So y=0.001x is above the region. Not cut. Angular. ✓
+
+So for this arrangement: 5 angular regions out of 6. Region 1 is not angular.
+
+But wait, I need to recount. Let me be more careful about region 1.
+
+Region 1: between rays at 0° (y=0, going right from (1,0)) and 0.057° (y=0.001x, going right from (0,0)). This is the region between y=0 and y=0.001x, for x > 0 (roughly). But y=x-1 cuts through it (for 1 < x < 1.001, y=x-1 is between 0 and 0.001x). So this region is divided by y=x-1 into two parts: a bounded part (between x=1 and x=1.001) and an unbounded part (for x > 1.001). The unbounded part is bounded by y=0 (right from some point), y=0.001x (right from some point), and y=x-1 (right from (1.001, 0.001)).
+
+Actually, the unbounded part of this region is bounded by:
+- y=0 going right from (1,0) — but wait, y=x-1 intersects y=0 at (1,0), so the ray of y=0 going right from (1,0) is cut by y=x-1 at (1,0). The segment of y=0 from (0,0) to (1,0) is between the intersections with y=0.001x and y=x-1.
+
+Hmm, I think the unbounded region between 0° and 0.057° is actually split by y=x-1 into a bounded region and a different unbounded region. Let me reconsider.
+
+The arrangement of 3 lines divides the plane into 7 regions (3·4/2 + 1 = 7). 6 are unbounded, 1 is bounded.
+
+The 6 unbounded regions are between consecutive rays at infinity. I listed them above. Region 1 is between 0° and 0.057°. I claimed it's cut by y=x-1. But if it's cut, then it's not a single region—it's split into a bounded and an unbounded part. The unbounded part is still one of the 6 unbounded regions, but its boundary includes segments from y=x-1.
+
+Wait, no. The 6 unbounded regions are well-defined: they're the regions between consecutive rays at infinity. Each is a single region. If a line cuts through the "wedge" between two consecutive rays, the unbounded region's boundary includes segments from that line.
+
+So region 1 (between 0° and 0.057°) is an unbounded region whose boundary includes:
+- The ray of y=0 going right from (1,0)
+- The ray of y=0.001x going right from (0,0)
+- The segment of y=x-1 from (1,0) to (1.001, 0.001)
+- The segment of y=0 from (0,0) to (1,0)
+
+Wait, that's 4 edges (2 rays and 2 segments). So this region is not angular (it has 2 segments).
+
+Hmm, but actually, the boundary should be

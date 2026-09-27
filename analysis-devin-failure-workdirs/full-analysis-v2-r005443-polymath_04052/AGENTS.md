@@ -1,0 +1,1064 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_04052</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Problem 5. (7 points) Find the largest natural number $N$ for which the equation $99 x+100 y+101 z=N$ has a unique solution $(x, y, z)$ in natural numbers.
+
+## Standard Solution
+
+Solution: We will prove that the sought number is 5251. Let $(x, y, z)$ be the unique solution of the given equation for some $N$. Then:
+
+- first, $x=1$ or $z=1$ - otherwise $(x-1, y+2, z-1)$ is also a solution;
+- second, $y \leq 2$ - otherwise $(x+1, y-2, z+1)$ is also a solution.
+
+This means that the unique solution of the equation has one of the following four forms: 1) $(x, 1,1)$; 2) $(x, 2,1)$; 3) $(1,1, z)$; 4) $(1,2, z)$. In each of these cases, we will find the largest possible $N$.
+
+1) $99 x+100+101=N$. Suppose that for this $N$ there exists another solution in natural numbers: $99 x+100+101=99 x_{0}+100 y_{0}+101 z_{0}$ (where $x>x_{0} \geq 1, y_{0} \geq 1, z_{0} \geq 1$), i.e., $99(x-x_{0})=100(y_{0}-1)+101(z_{0}-1)$. This means that the equality $99 x^{\prime}=100 y^{\prime}+101 z^{\prime}(0<x^{\prime}<x, y^{\prime} \geq 0, z^{\prime} \geq 0)$ holds. Let the smallest possible $x^{\prime}$ be equal to $x_{0}^{\prime}$ (and is obtained at $y_{0}^{\prime}$ and $z_{0}^{\prime}$). This number will be the largest $x$ that does not allow another solution: indeed, at $x=x_{0}^{\prime}+a$, where $a$ is a natural number, in addition to the solution $(x, 1,1)$, we have the solution $(a, 1+y_{0}^{\prime}, 1+z_{0}^{\prime})$, and at $x=x_{0}^{\prime}$, there will be no other solution, since it will correspond to $x^{\prime}<x=x_{0}^{\prime}$.
+
+Now we will find $x_{0}^{\prime}$. We have $99 x^{\prime}=100 y^{\prime}+101 z^{\prime}=99(y^{\prime}+z^{\prime})+y^{\prime}+2 z^{\prime}$, hence $y^{\prime}+2 z^{\prime}$ is divisible by 99. The number $x^{\prime}$ will be the smallest when $y^{\prime}+2 z^{\prime}=99$ (indeed, if $y^{\prime}+2 z^{\prime} \geq 198$, then $y^{\prime}+z^{\prime} \geq 99$, which gives a much larger $x^{\prime}$). Under this condition, $x^{\prime}$ will be the smallest when the sum $y^{\prime}+z^{\prime}$ is the smallest, i.e., $y_{0}^{\prime}=1, z_{0}^{\prime}=49$. From this, for $x$ we get $x_{0}^{\prime}=(100+101 \cdot 49) / 99=51$. Then $N=99 \cdot 51+100 \cdot 1+101 \cdot 1=5250$.
+
+2) $99 x+100 \cdot 2+101=N$. Similarly to 1), the existence of another solution means that the equality $99 x^{\prime}+100=100 y^{\prime}+101 z^{\prime}(0<x^{\prime}<x, y^{\prime} \geq 0, z^{\prime} \geq 0)$ holds. The case $y^{\prime} \geq 1$ has already been considered in 1). We assume that $y^{\prime}=0$ and $99 x^{\prime}+100=101 z^{\prime}$. We get $99(x^{\prime}-z^{\prime}+1)=2 z^{\prime}-1$. The smallest $z^{\prime}$ for which such an equality is possible is clearly 50, from which the smallest $x^{\prime}$ will be equal to $(101 \cdot 50-100) / 99=50$. In this case, for $N$ we get $N=99 \cdot 50+100 \cdot 2+101 \cdot 1=5251$.
+3) $99+100+101 z=N$. The existence of another solution means that the equality $101 z^{\prime}=99 x^{\prime}+100 y^{\prime}(0<z^{\prime}<z, x^{\prime} \geq 0, y^{\prime} \geq 0)$ holds. Similarly to 1), we seek the smallest possible $z^{\prime}$. We have $101 z^{\prime}=101(x^{\prime}+y^{\prime})-2 x^{\prime}-y^{\prime}$, hence $2 x^{\prime}+y^{\prime}$ is divisible by 101. If $2 x^{\prime}+y^{\prime} \geq 202$, then $(x^{\prime}+y^{\prime}) \geq 101$, which gives a much larger $z^{\prime}$ than when $2 x^{\prime}+y^{\prime}=101$. Thus, $x_{0}^{\prime}=50, y_{0}^{\prime}=1$, so $z_{0}^{\prime}=(99 \cdot 50+100) / 101=50$ and $N=99+100+101 \cdot 50=5249$.
+4) $99+100 \cdot 2+101 z=N$. The existence of another solution means that the equality $101 z^{\prime}+100=99 x^{\prime}+100 y^{\prime}(0<z^{\prime}<z, x^{\prime} \geq 0, y^{\prime} \geq 0)$ holds. The case $y^{\prime} \geq 1$ has already been considered in 1). Therefore, $y^{\prime}=0$ and $101 z^{\prime}+100=99 x^{\prime}$. We get $99(x^{\prime}-z^{\prime}-1)=2 z^{\prime}+1$. The smallest $z^{\prime}$ for which such an equality is possible is 49 (at $x_{0}^{\prime}=51$), from which $N=99+100 \cdot 2+101 \cdot 49=5248$.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. The problem asks for the largest natural number N such that 99x + 100y + 101z = N has a unique solution in natural numbers.
+
+First, I need to clarify what "natural numbers" means. In many competition contexts (especially Eastern European/Russian), natural numbers start from 1. Let me assume natural numbers = positive integers {1, 2, 3, ...}.
+
+Wait, but this is Problem 5 worth 7 points, likely from a competition. Let me think about whether natural numbers include 0 or not. In many competition traditions, natural numbers start from 1. But let me consider both cases.
+
+Actually, let me think about this more carefully. The problem says "natural numbers" (натуральные числа). In Russian mathematical tradition, natural numbers are {1, 2, 3, ...} (positive integers).
+
+Let me work with natural numbers = {1, 2, 3, ...}.
+
+We want 99x + 100y + 101z = N to have a unique solution (x, y, z) with x, y, z ≥ 1.
+
+Let me substitute x' = x-1, y' = y-1, z' = z-1, where x', y', z' ≥ 0.
+Then 99(x'+1) + 100(y'+1) + 101(z'+1) = N
+99x' + 100y' + 101z' = N - 300.
+
+So we need 99x' + 100y' + 101z' = N - 300 to have a unique solution in non-negative integers.
+
+Let M = N - 300. We need to find the largest M such that 99x + 100y + 101z = M has a unique solution in non-negative integers, then N = M + 300.
+
+Note that 99, 100, 101 are consecutive integers. Let me think about the structure.
+
+If (x, y, z) is a solution to 99x + 100y + 101z = M, then we can look at "moves" that preserve the sum. The key relations:
+- 100 = 99 + 1, so increasing x by 1 and decreasing... no.
+- 101 - 99 = 2, 100 - 99 = 1, 101 - 100 = 1.
+
+Moves that preserve the sum:
+- Increase x by 1, decrease y by 0, decrease z by ... no, we need 99a + 100b + 101c = 0 for a move.
+
+The lattice of relations: 99a + 100b + 101c = 0.
+
+Basic relations:
+- 100·99 - 99·100 = 0: (a,b,c) = (-100, 99, 0), i.e., decrease x by 100, increase y by 99.
+- 101·99 - 99·101 = 0: (a,b,c) = (-101, 0, 99), i.e., decrease x by 101, increase z by 99.
+- 101·100 - 100·101 = 0: (a,b,c) = (0, -101, 100), i.e., decrease y by 101, increase z by 100.
+
+Also smaller relations:
+- 99·1 + 101·1 - 100·2 = 99 + 101 - 200 = 0: (a,b,c) = (1, -2, 1), i.e., increase x by 1, decrease y by 2, increase z by 1.
+- 100·1 - 99·1 - 1·1... no, 100 - 99 - 1 = 0 but 1 isn't a coefficient of z. Wait: 100·1 = 99·1 + 1, but 1 isn't 101·c. Let me redo.
+
+99a + 100b + 101c = 0. The smallest relations:
+- (1, -2, 1): 99 - 200 + 101 = 0. ✓
+- (1, 1, -2+...) let me check: 99 + 100 - 101·something. 99 + 100 = 199, not divisible by 101.
+- (-1, 2, -1): same as above negated.
+- (100, -99, 0): 9900 - 9900 = 0. ✓
+- (101, 0, -99): 9999 - 9999 = 0. ✓
+- (0, 101, -100): 10100 - 10100 = 0. ✓
+- (1, -101, 100): 99 - 10100 + 10100 = 99. No.
+- Let me find more small ones. 99a + 100b + 101c = 0. 
+  - c = 0: 99a + 100b = 0 → a = 100k, b = -99k. Smallest: (100, -99, 0).
+  - c = 1: 99a + 100b = -101. Try b = -1: 99a = -1, no. b = -2: 99a = 99, a = 1. So (1, -2, 1). ✓
+  - c = -1: 99a + 100b = 101. b = 1: 99a = 1, no. b = 2: 99a = -99, a = -1. So (-1, 2, -1). Same as above.
+  - c = 2: 99a + 100b = -202. b = -2: 99a = -2, no. b = -3: 99a = 98, no. b = -4: 99a = 198, a = 2. So (2, -4, 2) = 2·(1,-2,1).
+  - c = 99: 99a + 100b = -9999. b = -99: 99a = -99, a = -1. So (-1, -99, 99). Check: -99 - 9900 + 9999 = 0. ✓ This is a new relation!
+  - c = 100: 99a + 100b = -10100. b = -100: 99a = -100, no. b = -101: 99a = -99, a = -1. So (-1, -101, 100). Check: -99 - 10100 + 10100 = -99. No! Let me recompute: -99 - 10100 + 10100 = -99 ≠ 0. Error.
+  
+  Let me redo: c = 100: 99a + 100b = -10100. b = -100: 99a = -100, no. b = -101: 99a = -10100 + 10100 = 0, a = 0. So (0, -101, 100). That's the relation we already had.
+
+  c = 99: 99a + 100b = -9999. b = -99: 99a = -9999 + 9900 = -99, a = -1. So (-1, -99, 99). Check: -99 - 9900 + 9999 = 0. ✓
+
+So the fundamental relations are:
+- r1 = (1, -2, 1): 99 - 200 + 101 = 0
+- r2 = (100, -99, 0): 9900 - 9900 = 0
+- r3 = (-1, -99, 99): -99 - 9900 + 9999 = 0
+
+Note r3 = r2 - r1·99 = (100, -99, 0) - (99, -198, 99) = (1, 99, -99). Hmm, that doesn't match. Let me recheck.
+
+r2 - 99·r1 = (100 - 99, -99 - (-198), 0 - 99) = (1, 99, -99). Check: 99 + 9900 - 9999 = 0. ✓ So (1, 99, -99) is also a relation. And (-1, -99, 99) is its negative.
+
+So the lattice of relations is generated by r1 = (1, -2, 1) and r2 = (100, -99, 0). (Since r3 is a combination.)
+
+Actually, the lattice of all integer relations is a rank 2 sublattice of Z^3. The generators are r1 = (1, -2, 1) and r2 = (100, -99, 0).
+
+Now, for a given M, the number of solutions (x, y, z) in non-negative integers to 99x + 100y + 101z = M is the number of lattice points in the intersection of the plane 99x + 100y + 101z = M with the non-negative octant.
+
+Two solutions are connected by the relation lattice. So if (x0, y0, z0) is one solution, all solutions are of the form (x0, y0, z0) + k·r1 + m·r2 for integers k, m, provided they stay non-negative.
+
+For the solution to be unique, we need that no other lattice point in the relation orbit is in the non-negative octant.
+
+This is a complex problem. Let me think about it differently.
+
+Let me think about it from the perspective of: for which M is there exactly one representation?
+
+Let me parametrize. Fix z. Then 99x + 100y = M - 101z. For this to have a solution in non-negative integers, we need M - 101z ≥ 0 (so z ≤ M/101) and the equation 99x + 100y = M - 101z to have solutions.
+
+For 99x + 100y = S (where S = M - 101z), since gcd(99, 100) = 1, solutions exist for all S ≥ 0 except S = 1 (by the Chicken McNugget theorem, the largest non-representable is 99·100 - 99 - 100 = 9801). Wait, actually for two coprime numbers a, b, the largest non-representable number is ab - a - b = 99·100 - 99 - 100 = 9801. So for S > 9801, there's always a solution. For S = 1, there's no solution. For other S ≤ 9801, there may or may not be.
+
+Given S = 99x + 100y, the solutions are: if (x0, y0) is one solution, then all solutions are (x0 + 100t, y0 - 99t) for integer t. The number of non-negative solutions is the number of t such that x0 + 100t ≥ 0 and y0 - 99t ≥ 0.
+
+This is getting complex. Let me think about the structure more carefully.
+
+For a fixed z, let S = M - 101z. The number of non-negative solutions to 99x + 100y = S is:
+- 0 if S is not representable (or S < 0)
+- Some positive number if S is representable.
+
+The total number of solutions to 99x + 100y + 101z = M is the sum over z = 0, 1, ..., floor(M/101) of (number of non-negative solutions to 99x + 100y = M - 101z).
+
+For uniqueness, we need exactly one z value to give exactly one solution, and all other z values to give 0 solutions.
+
+For 99x + 100y = S to have exactly one non-negative solution: the solutions form an arithmetic progression (x0 + 100t, y0 - 99t). There's exactly one non-negative solution when the range of valid t is a single integer. This happens when the "width" of the solution set is small enough.
+
+Specifically, if (x0, y0) is the solution with smallest x ≥ 0 (i.e., 0 ≤ x0 < 100, or x0 is the smallest non-negative x), then the solutions are (x0 + 100t, y0 - 99t) for t = 0, 1, ..., T where T = floor(y0/99). The number of solutions is T + 1 = floor(y0/99) + 1.
+
+For exactly one solution, we need y0 < 99, i.e., y0 ≤ 98.
+
+So for 99x + 100y = S with exactly one non-negative solution, we need: S is representable, and in the representation with 0 ≤ x ≤ 99 (the unique representation with 0 ≤ x ≤ 99, since x mod 100 determines y), we need y ≤ 98.
+
+Actually, let me be more careful. Given S, the representation 99x + 100y = S with 0 ≤ x ≤ 99 is unique (if it exists): x ≡ S · 99^{-1} (mod 100). Since 99 ≡ -1 (mod 100), 99^{-1} ≡ -1 (mod 100), so x ≡ -S (mod 100), i.e., x ≡ (100 - S mod 100) mod 100. Then y = (S - 99x)/100.
+
+For this to be a valid non-negative solution, we need y ≥ 0, i.e., S ≥ 99x. And for exactly one solution, we need y < 99, i.e., y ≤ 98.
+
+So: 99x + 100y = S has exactly one non-negative solution iff:
+1. S ≥ 0
+2. Let x = (100 - (S mod 100)) mod 100 (the unique x in {0, ..., 99}).
+3. y = (S - 99x) / 100 ≥ 0 (i.e., S ≥ 99x, and S - 99x ≡ 0 mod 100, which is guaranteed by construction).
+4. y ≤ 98.
+
+And 99x + 100y = S has no non-negative solution iff either S < 0, or S ≥ 0 but y < 0 (i.e., S < 99x where x is as above), which means S is not representable.
+
+The non-representable values of 99x + 100y are exactly those S where, with x as defined above, y < 0. Since x ∈ {0, ..., 99} and y = (S - 99x)/100, y < 0 means S < 99x. The largest non-representable is when x = 99, S = 99·99 - 1 = 9800... wait, let me think. When x = 99, we need S < 99·99 = 9801 and S ≡ -99·99 ≡ ... hmm, S mod 100 = (100 - x) mod 100 = (100 - 99) mod 100 = 1. So S ≡ 1 (mod 100) and S < 9801. The largest such S is 9801. And y = (9801 - 99·99)/100 = (9801 - 9801)/100 = 0. Wait, that gives y = 0, which is valid! So 9801 IS representable: 99·99 + 100·0 = 9801.
+
+Hmm, let me reconsider. The Frobenius number for 99 and 100 is 99·100 - 99 - 100 = 9801. So 9801 is NOT representable as 99x + 100y with x, y ≥ 0. But I just computed 99·99 = 9801 = 99·99 + 100·0. That's a representation! 
+
+Oh wait, the Frobenius number is the largest number that CANNOT be represented. For coprime a, b, it's ab - a - b. So 99·100 - 99 - 100 = 9801 should not be representable. But 99·99 = 9801 is clearly representable (x=99, y=0). 
+
+I think I'm confusing myself. The Frobenius number g(a,b) = ab - a - b for coprime a, b. g(99, 100) = 9900 - 99 - 100 = 9701. Not 9801. Let me recompute: 99·100 = 9900. 9900 - 99 - 100 = 9701. So the largest non-representable number is 9701.
+
+Let me verify: is 9701 representable? x = (100 - 9701 mod 100) mod 100 = (100 - 1) mod 100 = 99. y = (9701 - 99·99)/100 = (9701 - 9801)/100 = -100/100 = -1. So y = -1 < 0. Not representable. ✓
+
+Is 9702 representable? x = (100 - 2) mod 100 = 98. y = (9702 - 99·98)/100 = (9702 - 9702)/100 = 0. So (98, 0). ✓
+
+OK so the largest non-representable is 9701.
+
+Now, back to the main problem. We need to find the largest M such that 99x + 100y + 101z = M has exactly one non-negative integer solution.
+
+The total count is sum over z of count(S_z) where S_z = M - 101z and count(S) is the number of non-negative solutions to 99x + 100y = S.
+
+For exactly one total solution, we need exactly one z to give count = 1, and all others to give count = 0.
+
+Let me think about this differently. For large M, there will be many z values giving solutions, so the count will be large. As M decreases, eventually we get to a point where only one z works.
+
+Let me think about what happens for a given z. S_z = M - 101z. For S_z to be representable (count ≥ 1), we need S_z ≥ 0 and S_z not in the set of non-representable numbers for (99, 100).
+
+The non-representable numbers for (99, 100) are: those S ≥ 0 where, with x = (100 - S mod 100) mod 100, we have 99x > S. There are (99-1)(100-1)/2 = 99·98/2 = 4851 such numbers.
+
+For the solution to be unique, we need:
+- For exactly one z0, S_{z0} is representable with exactly one representation (y ≤ 98 in the canonical form).
+- For all other z, S_z is either negative or non-representable.
+
+Let me think about the structure. As z varies, S_z = M - 101z takes values M, M-101, M-202, .... These are spaced 101 apart.
+
+For large M, many of these will be representable (and with multiple representations). We want to find the largest M where exactly one is representable with exactly one representation.
+
+Let me think about when S is representable with exactly one representation. As computed, this requires:
+- S ≥ 0
+- x = (100 - S mod 100) mod 100, y = (S - 99x)/100
+- 0 ≤ y ≤ 98
+
+The number of representations is floor(y/99) + 1. So exactly one representation iff y ≤ 98, i.e., y ∈ {0, 1, ..., 98}.
+
+And S is representable (at least one) iff y ≥ 0.
+S is non-representable iff y < 0 (given S ≥ 0).
+
+Now, for the total count to be 1, we need:
+- One z0 with y_{z0} ∈ {0, ..., 98} (exactly one rep)
+- All other z with either S_z < 0 or y_z < 0 (non-representable)
+
+Let me think about the z values. z ranges from 0 to floor(M/101). For z = floor(M/101), S_z = M - 101·floor(M/101) = M mod 101, which is in {0, 1, ..., 100}.
+
+For z = floor(M/101) - 1, S_z = (M mod 101) + 101, which is in {101, ..., 201}.
+Etc.
+
+For z = 0, S_0 = M.
+
+Now, for large M, S_0 = M is large, so y_0 will be large (many representations). We need to find M such that only one z gives a representable S with y ≤ 98.
+
+Hmm, this is getting complicated. Let me think about it more carefully.
+
+Actually, let me reconsider. The number of representations for S_z is floor(y_z / 99) + 1 where y_z = (S_z - 99·x_z)/100 and x_z = (100 - S_z mod 100) mod 100.
+
+For the total to be 1, we need sum_z (floor(y_z/99) + 1) · [S_z representable] = 1.
+
+This means exactly one z gives a representable S_z with floor(y_z/99) = 0 (i.e., y_z ≤ 98), and all other z give non-representable S_z.
+
+Let me think about which z values could give the unique solution. 
+
+For the largest M with unique solution, I expect the unique solution to have a large z (so that S_z is small, giving few representations) and the other z values to give non-representable S.
+
+Actually, let me think about this from a different angle. Let me consider the "gaps" in representability.
+
+For two consecutive z values, say z and z+1, we have S_z and S_{z+1} = S_z - 101. The question is whether both can be representable.
+
+If S_z is representable as 99x + 100y, then S_z - 101 = 99x + 100y - 101. Can this be represented? 101 = 99 + 2 = 100 + 1. So S_z - 101 = 99(x-1) + 100y - 2 = 99x + 100(y-1) - 1. Neither is directly a valid representation.
+
+Actually, 101 = 99·1 + 100·1 - 99 + 100 - 99... this isn't leading anywhere. Let me think about it mod 100.
+
+S_z mod 100 determines x_z. S_{z+1} = S_z - 101, so S_{z+1} mod 100 = (S_z - 1) mod 100. So x_{z+1} = (100 - (S_z - 1) mod 100) mod 100 = (x_z + 1) mod 100.
+
+If x_z < 99, then x_{z+1} = x_z + 1, and y_{z+1} = (S_{z+1} - 99·x_{z+1})/100 = (S_z - 101 - 99(x_z + 1))/100 = (S_z - 99x_z - 200)/100 = y_z - 2.
+
+If x_z = 99, then x_{z+1} = 0, and y_{z+1} = (S_z - 101 - 0)/100 = (S_z - 101)/100 = (99·99 + 100y_z - 101)/100 = (9801 + 100y_z - 101)/100 = (9700 + 100y_z)/100 = 97 + y_z.
+
+So:
+- If x_z < 99: y_{z+1} = y_z - 2
+- If x_z = 99: y_{z+1} = y_z + 97
+
+This is a key insight! As z increases by 1 (moving to smaller S), y changes by -2 (usually) or +97 (when x wraps around from 99 to 0).
+
+Similarly, as z decreases by 1 (moving to larger S), y changes by +2 (usually) or -97 (when x wraps from 0 to 99).
+
+Now, S_z is representable iff y_z ≥ 0, and has exactly one representation iff 0 ≤ y_z ≤ 98.
+
+For the total count to be 1, we need exactly one z with 0 ≤ y_z ≤ 98, and all other z with y_z < 0.
+
+Let me think about the sequence of y values as z goes from 0 (largest S) to z_max (smallest S, S = M mod 101).
+
+As z increases, y generally decreases by 2, but occasionally jumps up by 97 (when x wraps). The x values cycle: x_0, x_0 + 1, x_0 + 2, ..., wrapping at 100. So x wraps every 100 steps of z (since x increases by 1 each step, mod 100). But wait, x_z = (x_0 + z) mod 100. So x wraps every 100 steps.
+
+Over 100 steps of z, y changes by: 99 times -2 and 1 time +97 = 99·(-2) + 97 = -198 + 97 = -101. So over 100 steps, y decreases by 101. That makes sense because S decreases by 101·100 = 10100 over 100 steps, and 99x + 100y = S, with x cycling back, so 100y decreases by 10100, y decreases by 101.
+
+OK so the y values form a sequence that generally trends downward (by 2 per step, with periodic jumps up of 97).
+
+For large M, y_0 is very large, and the sequence of y values is positive for many z values, giving many representations. As M decreases, y_0 decreases, and fewer z values give positive y.
+
+We want the largest M where exactly one z gives y_z ∈ {0, ..., 98}.
+
+Let me think about the "boundary" where y values transition from positive to negative. 
+
+For a given M, the z values with y_z ≥ 0 form a contiguous range (roughly), and within that range, the y values are large for small z and small for large z. The number of representations is sum of (floor(y_z/99) + 1) over z with y_z ≥ 0.
+
+For uniqueness, we need this sum to be 1, meaning exactly one z with 0 ≤ y_z ≤ 98 and no z with y_z ≥ 99.
+
+Hmm, but the y values don't decrease monotonically—they jump up by 97 periodically. So the set of z with y_z ≥ 0 might not be contiguous.
+
+Let me reconsider. The y sequence: starting from y_0, each step y decreases by 2 (or increases by 97 when wrapping). The wrapping happens every 100 steps. So in each block of 100 consecutive z values, y starts at some value, decreases by 2 for 99 steps, then jumps up by 97, ending at a value 101 less than the start.
+
+Within a block of 100 (between two wraps), y decreases by 2 each step. So if y starts at Y at the beginning of a block, the values are Y, Y-2, Y-4, ..., Y-198. Then after the wrap, it jumps to Y-198+97 = Y-101, and the next block starts at Y-101.
+
+For y_z ∈ {0, ..., 98} (exactly one representation), within a block starting at Y, the values Y, Y-2, ..., Y-198 hit the range {0, ..., 98} when Y - 2k ∈ {0, ..., 98} for some k ∈ {0, ..., 99}. This gives k ∈ {(Y-98)/2, ..., Y/2}, so the number of such k is about 49 or 50 (depending on parity).
+
+For y_z ≥ 99 (multiple representations), within a block starting at Y, the values ≥ 99 are Y, Y-2, ..., down to 99 or 100. The number of such values is about (Y - 99)/2 + 1 (if Y ≥ 99).
+
+For y_z < 0 (non-representable), the values Y - 2k < 0, i.e., k > Y/2.
+
+So within each block, the z values split into:
+- Multiple rep: y ≥ 99 (top of the block)
+- Single rep: 0 ≤ y ≤ 98 (middle)
+- No rep: y < 0 (bottom of the block)
+
+For the total count to be 1, we need across all blocks, exactly one z in the "single rep" range and no z in the "multiple rep" range.
+
+Since the blocks are at decreasing y levels (each block starts 101 lower than the previous), eventually we reach a block where the starting Y is in a range where there's no "multiple rep" zone.
+
+For no "multiple rep" in a block, we need Y ≤ 98 (the starting value is already in single-rep range or below). But then the block has Y, Y-2, ..., Y-198, and the single-rep values are those in {0, ..., 98}. If Y ≤ 98, then Y itself is in single-rep range (if Y ≥ 0). The next value Y-2 might also be in {0, ..., 98} if Y-2 ≥ 0. So we could have multiple single-rep values in this block.
+
+For exactly one single-rep value in a block with no multiple-rep values: we need the block to have exactly one value in {0, ..., 98} and all others < 0. The values in the block are Y, Y-2, Y-4, ..., Y-198. For exactly one in {0, ..., 98}: we need exactly one of these to be in {0, ..., 98}. Since they're spaced 2 apart and the range {0, ..., 98} has 99 values, there are about 49-50 values in this range for a typical block. So for exactly one, we'd need Y to be very small (like Y ∈ {0, 1}) so that only Y is in the range and Y-2 < 0.
+
+If Y = 0: values are 0, -2, -4, .... Only 0 is in {0, ..., 98}. One single-rep value. ✓
+If Y = 1: values are 1, -1, -3, .... Only 1 is in {0, ..., 98}. One single-rep value. ✓
+If Y = 2: values are 2, 0, -2, .... Both 2 and 0 are in {0, ..., 98}. Two single-rep values. ✗
+
+So for a block to contribute exactly one single-rep value with no multiple-rep, we need Y ∈ {0, 1}.
+
+But we also need all other blocks to contribute 0 single-rep values and 0 multiple-rep values. The blocks before this one (with larger Y) would have multiple-rep values, which is bad. The blocks after (with smaller Y) would have all values < 0, which is fine.
+
+Wait, but we also need to consider that the block before this one might end with some values in the single-rep range. Let me think about the transition.
+
+The block before ends at Y_prev - 198, then jumps to Y_prev - 198 + 97 = Y_prev - 101 = Y (the start of the current block). So Y = Y_prev - 101.
+
+If Y = 0, then Y_prev = 101. The previous block has values 101, 99, 97, 95, ..., 101-198 = -97. The values ≥ 99 are 101 and 99 (two multiple-rep values). So the previous block contributes 2 multiple-rep values. That's bad—we need 0 multiple-rep values total.
+
+If Y = 1, then Y_prev = 102. The previous block has values 102, 100, 98, 96, ..., -96. Values ≥ 99: 102, 100 (two multiple-rep). Bad.
+
+Hmm, so the block before always has multiple-rep values. This means we can't have a block with Y ∈ {0, 1} as the only contributing block, because the previous block has multiple-rep values.
+
+Unless... the previous block is the z = 0 block and doesn't exist (i.e., the unique solution is at z = 0). But if z = 0 is the unique solution, then S_0 = M, and we need y_0 ∈ {0, ..., 98} and all z > 0 to be non-representable.
+
+If y_0 ∈ {0, ..., 98} and x_0 is some value, then for z = 1: y_1 = y_0 - 2 (if x_0 < 99) or y_1 = y_0 + 97 (if x_0 = 99).
+
+If x_0 < 99: y_1 = y_0 - 2. For y_1 < 0, we need y_0 < 2, so y_0 ∈ {0, 1}. Then y_1 = -2 or -1, both < 0. ✓
+  For z = 2: y_2 = y_1 - 2 = y_0 - 4 (if x_1 < 99, which is true since x_1 = x_0 + 1 < 100). y_2 < 0. ✓
+  This continues until the wrap. The wrap happens at z = 100 - x_0. At that point, y jumps up by 97.
+  
+  Before the wrap, y values are y_0, y_0 - 2, y_0 - 4, ..., all negative after the first. At the wrap (z = 100 - x_0), y jumps from y_0 - 2(100 - x_0) to y_0 - 2(100 - x_0) + 97 = y_0 - 200 + 2x_0 + 97 = y_0 + 2x_0 - 103.
+  
+  For this to be < 0 (non-representable), we need y_0 + 2x_0 < 103.
+  
+  After the wrap, y continues decreasing by 2. The next wrap is at z = 200 - x_0, where y jumps from y_0 + 2x_0 - 103 - 2·99 = y_0 + 2x_0 - 103 - 198 = y_0 + 2x_0 - 301 to y_0 + 2x_0 - 301 + 97 = y_0 + 2x_0 - 204. For this to be < 0: y_0 + 2x_0 < 204. Since we already need y_0 + 2x_0 < 103, this is satisfied.
+  
+  In general, after the k-th wrap (at z = 100k - x_0), y = y_0 + 2x_0 - 103k. For this to be < 0: y_0 + 2x_0 < 103k. For k = 1: y_0 + 2x_0 < 103. For k ≥ 2: automatically satisfied if k = 1 condition holds (since 103k ≥ 206 > 103 > y_0 + 2x_0).
+  
+  Wait, but I also need to check the values just before each wrap, which are the most negative (and thus safely < 0). And the values just after each wrap are the largest in each block, so those are the ones to check.
+  
+  After the 1st wrap: y = y_0 + 2x_0 - 103. Need < 0: y_0 + 2x_0 < 103. ✓ (this is the binding constraint)
+  After the 2nd wrap: y = y_0 + 2x_0 - 206. Need < 0: y_0 + 2x_0 < 206. Automatically satisfied.
+  Etc.
+  
+  But wait, I also need to check that the values right after the wrap are < 0, AND that within each block, no value enters {0, ..., 98}. Since within a block, y decreases by 2 from the post-wrap value, if the post-wrap value is < 0, all values in the block are < 0. ✓
+  
+  Also, I need to check the values between z = 1 and the first wrap. These are y_0 - 2, y_0 - 4, ..., y_0 - 2(99 - x_0). Since y_0 ≤ 1, y_0 - 2 ≤ -1 < 0. ✓ All negative.
+  
+  And the value at z = 0: y_0 ∈ {0, 1}. This is the unique solution. ✓
+  
+  But wait, I also need to make sure that z = 0 is the only z with a valid solution. What about z values beyond the last wrap? Eventually S_z = M - 101z becomes negative, and there are no solutions. The last valid z is z_max = floor(M/101). For z = z_max, S_z = M mod 101 ∈ {0, ..., 100}. We need this to be non-representable (or have y < 0).
+  
+  Actually, for z beyond the range where S_z ≥ 0, there are no solutions. So I only need to worry about z from 0 to z_max.
+
+  Hmm, this is getting complicated. Let me also consider the case x_0 = 99.
+
+If x_0 = 99: y_1 = y_0 + 97. For y_0 ∈ {0, ..., 98}, y_1 = y_0 + 97 ∈ {97, ..., 195}. If y_1 ≥ 99 (i.e., y_0 ≥ 2), then z = 1 has multiple representations. Bad. If y_1 ∈ {0, ..., 98} (i.e., y_0 ∈ {0, 1}), then y_1 ∈ {97, 98}, which is in single-rep range. So z = 1 also has a single representation. That gives 2 total, not 1. Bad.
+
+  So x_0 = 99 doesn't work for uniqueness (unless y_0 is such that y_1 < 0, but y_1 = y_0 + 97 ≥ 97 > 0 always). So x_0 = 99 always gives at least 2 solutions. Bad.
+
+So we need x_0 < 99 and y_0 ∈ {0, 1}.
+
+Now, with x_0 < 99 and y_0 ∈ {0, 1}, the constraint is y_0 + 2x_0 < 103 (from the first wrap analysis). Since y_0 ≤ 1, we need 2x_0 < 103 - y_0, i.e., 2x_0 ≤ 102 - y_0, i.e., x_0 ≤ (102 - y_0)/2.
+
+If y_0 = 0: x_0 ≤ 51.
+If y_0 = 1: x_0 ≤ 50. (since 2x_0 < 102, x_0 ≤ 50)
+
+Wait, let me recheck. y_0 + 2x_0 < 103. 
+If y_0 = 0: 2x_0 < 103, x_0 ≤ 51.
+If y_0 = 1: 2x_0 < 102, x_0 ≤ 50.
+
+Hmm wait, but I also need to check the values at the END of the first block (just before the first wrap), and the values in between more carefully. Let me re-examine.
+
+Within the first block (z = 0 to z = 99 - x_0, since the wrap happens when x goes from 99 to 0, which is at z = 100 - x_0... wait, let me recompute.
+
+x_z = (x_0 + z) mod 100. The wrap (x going from 99 to 0) happens when x_0 + z ≡ 0 (mod 100), i.e., z = 100 - x_0 (if x_0 > 0) or z = 0 (if x_0 = 0, but then the first wrap is at z = 100).
+
+Wait, if x_0 = 0, then x_z = z mod 100. The wrap happens at z = 100 (x goes from 99 to 0). So the first block is z = 0 to z = 99, and the wrap is at z = 100.
+
+If x_0 = 51, then x_z = (51 + z) mod 100. The wrap happens at z = 49 (x goes from 99 to 0). So the first block is z = 0 to z = 48, and the wrap is at z = 49.
+
+Hmm, I think I need to be more careful. Let me re-derive.
+
+For z = 0, 1, 2, ..., the x values are x_0, x_0+1, x_0+2, ... (mod 100). The y values are y_0, y_0-2, y_0-4, ... until the wrap, then y jumps up by 97.
+
+The wrap happens at the first z where x_0 + z ≡ 0 (mod 100), i.e., z = (100 - x_0) mod 100. If x_0 = 0, the wrap is at z = 100. If x_0 = 51, the wrap is at z = 49.
+
+At the wrap, z = 100 - x_0 (assuming x_0 > 0), the y value just before the wrap (at z = 99 - x_0) is y_0 - 2(99 - x_0) = y_0 - 198 + 2x_0. Then at z = 100 - x_0, y = y_0 - 198 + 2x_0 + 97 = y_0 + 2x_0 - 101.
+
+Wait, I think I had an error. Let me redo. At z = 100 - x_0, x = (x_0 + 100 - x_0) mod 100 = 0. The y value: y = (S_z - 99·0)/100 = S_z / 100 = (M - 101(100 - x_0))/100 = (M - 10100 + 101x_0)/100.
+
+And y_0 = (M - 99x_0)/100. So y at z = 100 - x_0 is (M - 10100 + 101x_0)/100 = (M - 99x_0 - 10100 + 200x_0)/100 = y_0 + (200x_0 - 10100)/100 = y_0 + 2x_0 - 101.
+
+So after the first wrap, y = y_0 + 2x_0 - 101. For this to be < 0: y_0 + 2x_0 < 101.
+
+Hmm, I had 103 before, but now I get 101. Let me recheck.
+
+The y value at z = 100 - x_0: I need to be more careful. Let me use the recurrence.
+
+For z from 0 to 98 - x_0 (if x_0 ≤ 98), x increases from x_0 to 98, and y decreases by 2 each step. At z = 99 - x_0, x = 99, y = y_0 - 2(99 - x_0). At z = 100 - x_0, x = 0, y = y_0 - 2(99 - x_0) + 97 = y_0 - 198 + 2x_0 + 97 = y_0 + 2x_0 - 101.
+
+So after the first wrap, y = y_0 + 2x_0 - 101. For non-representability: y_0 + 2x_0 - 101 < 0, i.e., y_0 + 2x_0 ≤ 100.
+
+If y_0 = 0: 2x_0 ≤ 100, x_0 ≤ 50.
+If y_0 = 1: 2x_0 ≤ 99, x_0 ≤ 49.
+
+Wait, but I also need to check the value at z = 99 - x_0 (just before the wrap). y = y_0 - 2(99 - x_0) = y_0 - 198 + 2x_0. For this to be < 0: y_0 + 2x_0 < 198. Since y_0 + 2x_0 ≤ 100, this is satisfied. ✓
+
+And the values at z = 1, 2, ..., 98 - x_0: y = y_0 - 2z. For z ≥ 1, y ≤ y_0 - 2 ≤ -1 (since y_0 ≤ 1). ✓ All negative.
+
+Now, after the first wrap, the second block starts at y = y_0 + 2x_0 - 101 (which is < 0). The y values in the second block are y_0 + 2x_0 - 101, y_0 + 2x_0 - 103, ..., decreasing by 2. All < 0. ✓
+
+The second wrap happens at z = 200 - x_0. y after second wrap = y_0 + 2x_0 - 101 - 101 = y_0 + 2x_0 - 202. Even more negative. ✓
+
+So all subsequent blocks have all y < 0. ✓
+
+But wait, I need to also ensure that S_z ≥ 0 for these z values. If S_z < 0, there are no solutions, which is fine. But if S_z ≥ 0 and y_z < 0, that's also fine (non-representable). So either way, it's fine.
+
+Actually, I realize I need to be more careful. When S_z < 0, there are no solutions (z > floor(M/101)). When S_z ≥ 0 but y_z < 0, S_z is non-representable. Both contribute 0 to the count. So we're fine.
+
+So the conditions for uniqueness (with the unique solution at z = 0) are:
+1. x_0 < 99 (so that the wrap doesn't happen at z = 1)
+2. y_0 ∈ {0, 1} (so that z = 0 is the only single-rep z in the first block)
+3. y_0 + 2x_0 ≤ 100 (so that after the first wrap, y < 0)
+
+Wait, condition 2 says y_0 ∈ {0, 1}. But actually, y_0 could be larger if the subsequent values y_0 - 2, y_0 - 4, ... are all < 0. That requires y_0 - 2 < 0, i.e., y_0 ≤ 1. So yes, y_0 ∈ {0, 1}.
+
+Hmm, but actually I realize there might be other configurations where the unique solution is not at z = 0. Let me reconsider.
+
+The unique solution could be at any z = z*. The key insight is that the y values form a sequence that decreases by 2 per step (with periodic jumps of +97). For uniqueness, we need exactly one y value in {0, ..., 98} and all others < 0 (or S < 0).
+
+The y values near z* look like: ..., y_{z*-1}, y_{z*}, y_{z*+1}, ... where consecutive values differ by ±2 or +97 (at wraps).
+
+If y_{z*} ∈ {0, ..., 98} and y_{z*-1} < 0 and y_{z*+1} < 0:
+- y_{z*+1} = y_{z*} - 2 (if no wrap) or y_{z*} + 97 (if wrap).
+  - If no wrap: y_{z*+1} = y_{z*} - 2 < 0 requires y_{z*} ≤ 1.
+  - If wrap: y_{z*+1} = y_{z*} + 97 ≥ 97 > 0. Bad (unless y_{z*} + 97 ≥ 99, in which case it's multiple-rep, also bad). So wrap at z* + 1 is always bad.
+  
+- y_{z*-1} = y_{z*} + 2 (if no wrap between z*-1 and z*) or y_{z*} - 97 (if wrap).
+  - If no wrap: y_{z*-1} = y_{z*} + 2. For < 0: y_{z*} < -2. But y_{z*} ≥ 0. Contradiction. So y_{z*-1} ≥ 2 > 0. Bad!
+  
+  Wait, that's a problem. If there's no wrap between z*-1 and z*, then y_{z*-1} = y_{z*} + 2 ≥ 2, which is in {0, ..., 98} (if y_{z*} ≤ 96). So y_{z*-1} is also a single-rep value, giving at least 2 solutions. Bad.
+  
+  If there IS a wrap between z*-1 and z* (i.e., x goes from 99 to 0 at z*), then y_{z*-1} = y_{z*} - 97. For < 0: y_{z*} < 97. So y_{z*} ∈ {0, ..., 96}. And y_{z*+1} = y_{z*} - 2 (no wrap at z*+1 since x just reset to 0). For < 0: y_{z*} ≤ 1.
+
+So the unique solution must be at a wrap point (where x wraps from 99 to 0), with y_{z*} ∈ {0, 1}.
+
+At a wrap point z* = 100k - x_0 for some k ≥ 1 (or z* = 0 if x_0 = 0, but we showed x_0 = 0 doesn't work because then z* = 0 is not a wrap point... actually if x_0 = 0, then z = 0 has x = 0, and the previous z = -1 would have x = 99, but z = -1 doesn't exist. So z = 0 with x_0 = 0 is like a "virtual wrap point").
+
+Hmm, let me reconsider. The wrap happens at z values where x_z = 0, i.e., z ≡ -x_0 (mod 100). The first such z is z* = (100 - x_0) mod 100. If x_0 = 0, z* = 0. If x_0 > 0, z* = 100 - x_0.
+
+At z = z*, y = y_0 + 2x_0 - 101·k where k is the number of wraps that have occurred. For the first wrap (k = 1), y = y_0 + 2x_0 - 101.
+
+For the unique solution to be at z* (first wrap), we need:
+- y_{z*} = y_0 + 2x_0 - 101 ∈ {0, 1}
+- y_{z*-1} = y_{z*} - 97 ∈ {... , -2, -1} (i.e., < 0): y_{z*} < 97. ✓ (since y_{z*} ≤ 1)
+- y_{z*+1} = y_{z*} - 2 < 0: y_{z*} ≤ 1. ✓
+- All other z values have y < 0 or S < 0.
+
+The values before z* in the first block: y_0, y_0 - 2, ..., y_0 - 2(z* - 1). These need to be < 0 (except we need to check if any are in {0, ..., 98}). Wait, actually we need ALL of them to be < 0 (non-representable) or ≥ 99 (but ≥ 99 would give multiple reps, which is also bad). So we need all of them to be < 0.
+
+y_0 is the largest value in the first block. For all values in the first block (before z*) to be < 0, we need y_0 < 0. But y_0 < 0 means z = 0 is non-representable, which is fine.
+
+Wait, but if y_0 < 0, then M is not representable with z = 0. And the values decrease from there, so all z < z* are non-representable. Then at z = z*, y = y_0 + 2x_0 - 101 ∈ {0, 1}, which is the unique solution. And after z*, y decreases and stays < 0 (until the next wrap, where it jumps up but remains < 0 if the condition is met).
+
+So the conditions are:
+1. y_0 < 0 (z = 0 is non-representable, and all z < z* are non-representable)
+2. y_{z*} = y_0 + 2x_0 - 101 ∈ {0, 1} (unique solution at z*)
+3. After z*, all y < 0 (no more representable values)
+
+For condition 3: after z*, the next wrap is at z* + 100, where y = y_{z*} - 101. Since y_{z*} ∈ {0, 1}, y after next wrap = -101 or -100, both < 0. ✓ And within the block after z*, y decreases from y_{z*} (≤ 1) by 2, so y_{z*+1} = y_{z*} - 2 ≤ -1 < 0. ✓ All subsequent values are < 0. ✓
+
+So conditions 1 and 2 are the key constraints:
+- y_0 < 0
+- y_0 + 2x_0 - 101 ∈ {0, 1}
+
+From condition 2: y_0 = 101 - 2x_0 or y_0 = 102 - 2x_0.
+From condition 1: y_0 < 0, so 101 - 2x_0 < 0 or 102 - 2x_0 < 0.
+
+Case A: y_0 = 101 - 2x_0 < 0 → 2x_0 > 101 → x_0 ≥ 51.
+Case B: y_0 = 102 - 2x_0 < 0 → 2x_0 > 102 → x_0 ≥ 52.
+
+Now, we also need x_0 ∈ {0, ..., 99} (since x_0 is the canonical x value for z = 0).
+
+And M = 99x_0 + 100y_0. But y_0 < 0, so M = 99x_0 + 100y_0. We need M ≥ 0 (well, M can be anything, but we need S_z = M - 101z to be non-negative for z = z*, which it will be since y_{z*} ≥ 0 implies S_{z*} = 99·0 + 100·y_{z*} = 100·y_{z*} ≥ 0, so M ≥ 101·z*).
+
+Actually, M = 99x_0 + 100y_0. With y_0 < 0, M = 99x_0 + 100y_0 could be negative. We need M to be a valid number (≥ 0, since N = M + 300 and N ≥ 300 for natural numbers starting at 1).
+
+Wait, actually M = N - 300 and we need N to be a natural number, so M can be any integer ≥ -300 (if natural numbers start at 1, the minimum N is 99+100+101 = 300, so M ≥ 0). Actually, if x, y, z ≥ 1, then N ≥ 300, so M ≥ 0.
+
+But with y_0 < 0, M = 99x_0 + 100y_0. For M ≥ 0: 99x_0 ≥ -100y_0 = 100(2x_0 - 101) (in case A) or 100(2x_0 - 102) (in case B).
+
+Case A: y_0 = 101 - 2x_0, x_0 ≥ 51.
+M = 99x_0 + 100(101 - 2x_0) = 99x_0 + 10100 - 200x_0 = 10100 - 101x_0.
+For M ≥ 0: x_0 ≤ 100. Since x_0 ≤ 99, this is satisfied (10100 - 101·99 = 10100 - 9999 = 101 > 0). ✓
+
+M = 10100 - 101x_0 = 101(100 - x_0).
+z* = 100 - x_0 (first wrap).
+M = 101·z*. So S_{z*} = M - 101·z* = 0. And y_{z*} = 0, x_{z*} = 0. So the unique solution is (x, y, z) = (0, 0, z*) in the shifted variables, i.e., (1, 1, z* + 1) in the original variables.
+
+N = M + 300 = 101(100 - x_0) + 300.
+
+To maximize N, we minimize x_0. In case A, x_0 ≥ 51. So x_0 = 51 gives M = 101(100 - 51) = 101·49 = 4949, N = 5249.
+
+But wait, we need to verify that with x_0 = 51, y_0 = 101 - 102 = -1 < 0. ✓ And the unique solution is at z* = 49, with (x, y, z) = (0, 0, 49), i.e., N = 101·49 + 300 = 4949 + 300 = 5249.
+
+Let me verify: 99·1 + 100·1 + 101·49 = 99 + 100 + 4949 = 5148. Hmm, that's not 5249. Let me recompute.
+
+Wait, I think I'm confusing myself. Let me recompute.
+
+M = 101(100 - x_0) = 101·49 = 4949. N = M + 300 = 5249.
+The unique solution in non-negative integers: (x', y', z') = (0, 0, 49), so 99·0 + 100·0 + 101·49 = 4949 = M. ✓
+The unique solution in natural numbers: (x, y, z) = (1, 1, 50), so 99·1 + 100·1 + 101·50 = 99 + 100 + 5050 = 5249 = N. ✓
+
+But wait, is this really unique? Let me check if there are other solutions.
+
+For M = 4949, we need 99x + 100y + 101z = 4949 with x, y, z ≥ 0.
+
+z = 49: 99x + 100y = 4949 - 4949 = 0. Only (0, 0). ✓ 1 solution.
+z = 48: 99x + 100y = 4949 - 4848 = 101. x = (100 - 101 mod 100) mod 100 = (100 - 1) mod 100 = 99. y = (101 - 99·99)/100 = (101 - 9801)/100 = -9700/100 = -97 < 0. Non-representable. ✓
+z = 50: 99x + 100y = 4949 - 5050 = -101 < 0. No solution. ✓
+z = 0: 99x + 100y = 4949. x = (100 - 49) mod 100 = 51. y = (4949 - 99·51)/100 = (4949 - 5049)/100 = -100/100 = -1 < 0. Non-representable. ✓
+
+Let me check a few more:
+z = 1: 99x + 100y = 4848. x = (100 - 48) mod 100 = 52. y = (4848 - 99·52)/100 = (4848 - 5148)/100 = -300/100 = -3 < 0. ✓
+z = 47: 99x + 100y = 4949 - 4747 = 202. x = (100 - 2) mod 100 = 98. y = (202 - 99·98)/100 = (202 - 9702)/100 = -9500/100 = -95 < 0. ✓
+
+Looks good. But I should check all z values systematically. Let me think about whether there could be a z I'm missing.
+
+The y values for z = 0, 1, ..., 48 are: y_0 = -1, y_1 = -3, y_2 = -5, ..., y_48 = -1 - 2·48 = -97. All < 0. ✓ (These are all before the wrap at z = 49.)
+
+At z = 49 (wrap): y = -1 + 2·51 - 101 = -1 + 102 - 101 = 0. ✓ (Unique solution.)
+
+For z = 50, 51, ..., 148 (next block): y = 0 - 2, 0 - 4, ..., 0 - 2·99 = -198. Then at z = 149 (next wrap): y = -198 + 97 = -101. All < 0. ✓
+
+And for z ≥ 50, S_z = 4949 - 101z < 0 when z > 49, so actually z = 50 already gives S = -101 < 0. So there are no solutions for z ≥ 50. ✓
+
+Great, so M = 4949, N = 5249 is a candidate.
+
+Case B: y_0 = 102 - 2x_0, x_0 ≥ 52.
+M = 99x_0 + 100(102 - 2x_0) = 99x_0 + 10200 - 200x_0 = 10200 - 101x_0.
+z* = 100 - x_0.
+S_{z*} = M - 101z* = 10200 - 101x_0 - 101(100 - x_0) = 10200 - 101x_0 - 10100 + 101x_0 = 100.
+y_{z*} = 1 (since S = 100, x = 0, y = 1). So the unique solution is (0, 1, z*).
+
+N = M + 300 = 10200 - 101x_0 + 300 = 10500 - 101x_0.
+To maximize N, minimize x_0. x_0 = 52 gives N = 10500 - 5252 = 5248.
+
+Hmm, 5248 < 5249. So case A with x_0 = 51 gives a larger N.
+
+But wait, can we get even larger N from case A with x_0 = 51? Let me check if x_0 can be smaller.
+
+In case A, x_0 ≥ 51. If x_0 = 51, N = 5249. Can we do better?
+
+What about case A with the unique solution at a later wrap (k = 2, 3, ...)?
+
+If the unique solution is at the k-th wrap (k ≥ 2), then:
+y_{z*} = y_0 + 2x_0 - 101k ∈ {0, 1}
+y_0 < 0 (all values before z* are non-representable)
+
+But we also need all values between the (k-1)-th wrap and the k-th wrap to be < 0. After the (k-1)-th wrap, y = y_0 + 2x_0 - 101(k-1). This needs to be < 0. And the values in that block decrease from there, so they're all < 0. ✓
+
+But we also need the values between the (k-2)-th wrap and the (k-1)-th wrap to be < 0, etc. All the way back to z = 0.
+
+The largest y value in each block is right after the wrap. The largest overall is y_0 (at z = 0, before any wrap). So if y_0 < 0, all values before the first wrap are < 0. After the first wrap, y = y_0 + 2x_0 - 101. If this is < 0, all values in the second block are < 0. Etc.
+
+For the k-th wrap to have y ∈ {0, 1}:
+y_0 + 2x_0 - 101k ∈ {0, 1}
+
+And for all previous blocks to have y < 0:
+y_0 < 0 (block 0)
+y_0 + 2x_0 - 101 < 0 (block 1)
+...
+y_0 + 2x_0 - 101(k-1) < 0 (block k-1)
+
+The binding constraint is y_0 + 2x_0 - 101(k-1) < 0, i.e., y_0 + 2x_0 < 101(k-1) + 1, i.e., y_0 + 2x_0 ≤ 101(k-1).
+
+And y_0 + 2x_0 - 101k ∈ {0, 1}, so y_0 + 2x_0 = 101k or 101k + 1.
+
+If y_0 + 2x_0 = 101k: need 101k ≤ 101(k-1) = 101k - 101. This gives 0 ≤ -101. Contradiction! ✗
+
+If y_0 + 2x_0 = 101k + 1: need 101k + 1 ≤ 101(k-1) = 101k - 101. This gives 1 ≤ -101. Contradiction! ✗
+
+So for k ≥ 2, the constraints are contradictory! The unique solution can only be at the first wrap (k = 1) or at z = 0 (which we already analyzed).
+
+Wait, I think I need to reconsider. The condition for block k-1 (just before the k-th wrap) is that all y values are < 0. The largest y in block k-1 is right after the (k-1)-th wrap, which is y_0 + 2x_0 - 101(k-1). For this to be < 0: y_0 + 2x_0 < 101(k-1) + 1, i.e., y_0 + 2x_0 ≤ 101(k-1).
+
+But y_0 + 2x_0 = 101k (or 101k + 1), and 101k > 101(k-1). So the condition fails. The values in block k-1 would have y ≥ 0, meaning they're representable. So there would be additional solutions. ✗
+
+This confirms that the unique solution can only be at the first wrap (k = 1) or at z = 0.
+
+We already analyzed z = 0 (which requires x_0 < 99, y_0 ∈ {0, 1}, and y_0 + 2x_0 ≤ 100). The maximum N from z = 0 is:
+- y_0 = 0, x_0 = 50: M = 99·50 + 100·0 = 4950, N = 5250.
+  Wait, let me check: y_0 = 0, x_0 = 50. Condition: y_0 + 2x_0 ≤ 100 → 0 + 100 = 100 ≤ 100. ✓
+  
+  But wait, I need to re-examine. For z = 0 to be the unique solution, I need y_0 ∈ {0, 1} and y_{z*} (after first wrap) < 0. Let me recheck with the corrected formula.
+
+  y after first wrap = y_0 + 2x_0 - 101. For < 0: y_0 + 2x_0 < 101, i.e., y_0 + 2x_0 ≤ 100.
+  
+  If y_0 = 0, x_0 = 50: y_0 + 2x_0 = 100 ≤ 100. ✓ M = 99·50 = 4950, N = 5250.
+  If y_0 = 1, x_0 = 49: y_0 + 2x_0 = 99 ≤ 100. ✓ M = 99·49 + 100 = 4851 + 100 = 4951, N = 5251.
+
+Wait, N = 5251 > 5250! Let me check this more carefully.
+
+y_0 = 1, x_0 = 49: M = 99·49 + 100·1 = 4851 + 100 = 4951. N = 5251.
+The unique solution: z = 0, x = 49, y = 1. So 99·49 + 100·1 + 101·0 = 4951. ✓
+In natural numbers: x = 50, y = 2, z = 1. 99·50 + 100·2 + 101·1 = 4950 + 200 + 101 = 5251. ✓
+
+Let me verify uniqueness. y_0 = 1, x_0 = 49.
+z = 0: y = 1, x = 49. One solution. ✓
+z = 1: x = 50, y = 1 - 2 = -1 < 0. Non-representable. ✓
+z = 2: x = 51, y = -3. ✗
+...
+z = 48: x = 97, y = 1 - 96 = -95. ✗
+z = 49: x = 98, y = 1 - 98 = -97. ✗
+z = 50: x = 99, y = 1 - 100 = -99. ✗
+z = 51: wrap! x = 0, y = -99 + 97 = -2 < 0. ✗
+z = 52: x = 1, y = -4. ✗
+...
+
+All other z give y < 0 or S < 0. ✓
+
+But wait, I need to also check z values where S_z < 0. z = 49: S = 4951 - 4949 = 2. x = (100 - 2) mod 100 = 98. y = (2 - 99·98)/100 = (2 - 9702)/100 = -97. Non-representable. ✓
+
+z = 50: S = 4951 - 5050 = -99 < 0. No solution. ✓
+
+So N = 5251 is achievable. Can we do better?
+
+Let me try y_0 = 1, x_0 = 50: y_0 + 2x_0 = 101 > 100. Condition fails. After first wrap, y = 101 - 101 = 0 ≥ 0. So z = 51 (first wrap) also has a solution. Two solutions. ✗
+
+y_0 = 0, x_0 = 50: y_0 + 2x_0 = 100 ≤ 100. ✓ M = 4950, N = 5250.
+y_0 = 1, x_0 = 49: y_0 + 2x_0 = 99 ≤ 100. ✓ M = 4951, N = 5251.
+y_0 = 0, x_0 = 51: y_0 + 2x_0 = 102 > 100. ✗
+y_0 = 1, x_0 = 50: y_0 + 2x_0 = 101 > 100. ✗
+
+So from z = 0, the maximum N is 5251 (with y_0 = 1, x_0 = 49).
+
+From the first wrap (k = 1):
+Case A: y_0 = 101 - 2x_0, x_0 ≥ 51. M = 10100 - 101x_0. N = 10400 - 101x_0.
+  x_0 = 51: N = 10400 - 5151 = 5249.
+  
+Case B: y_0 = 102 - 2x_0, x_0 ≥ 52. M = 10200 - 101x_0. N = 10500 - 101x_0.
+  x_0 = 52: N = 10500 - 5252 = 5248.
+
+So from the first wrap, the maximum N is 5249.
+
+Comparing: z = 0 gives N = 5251, first wrap gives N = 5249. So z = 0 is better.
+
+But wait, I think I need to also consider the case where the unique solution is at z = 0 with x_0 = 0. If x_0 = 0, then z = 0 is also a wrap point (x wraps from 99 to 0, but there's no z = -1). Let me check.
+
+If x_0 = 0: y_0 ∈ {0, 1}. y_0 + 2·0 = y_0 ≤ 100. ✓
+y_0 = 0: M = 0, N = 300. The unique solution is (1, 1, 1). But is it unique? 99 + 100 + 101 = 300. Any other? 99x + 100y + 101z = 300 with x, y, z ≥ 1. Since 99 + 100 + 101 = 300 is the minimum, (1, 1, 1) is the only solution. ✓ But N = 300 is small.
+
+y_0 = 1: M = 100, N = 400. Solution: (0, 1, 0) in non-negative, i.e., (1, 2, 1) in natural. 99 + 200 + 101 = 400. Is it unique? Let me check. 99x + 100y + 101z = 400, x, y, z ≥ 1. 99(x-1) + 100(y-1) + 101(z-1) = 400 - 300 = 100. 99x' + 100y' + 101z' = 100, x', y', z' ≥ 0. z' = 0: 99x' + 100y' = 100. x' = 0, y' = 1. ✓ z' = 1: 99x' + 100y' = -1 < 0. ✗. So unique. ✓ But N = 400 is small.
+
+OK so the z = 0 case with x_0 = 49, y_0 = 1 gives N = 5251, which is the largest so far.
+
+But wait, I think I may have missed something. Let me reconsider the problem more carefully.
+
+I've been assuming the unique solution is at z = 0 or at the first wrap. But what if the unique solution is at z = 0 and there's no wrap before S becomes negative? In that case, the conditions might be different.
+
+Actually, I think I've been thorough. Let me also consider: what if the unique solution is at some z* that's not a wrap point, but the adjacent y values are negative due to S being negative (not due to y < 0)?
+
+For z > z_max = floor(M/101), S_z < 0, so no solutions. If z* = z_max, then z* + 1 has S < 0 (no solution), and z* - 1 has y_{z*-1} = y_{z*} + 2 (if no wrap) which is ≥ 2 > 0, so it's representable. Bad.
+
+Unless z* - 1 is a wrap point, but then z* is right after a wrap, and y_{z*} = y_{z*-1} + 97... no, if z* - 1 is a wrap point (x goes from 99 to 0 at z* - 1), then y_{z*} = y_{z*-1} - 2 (no, the wrap is at z* - 1, so y jumps at z* - 1, and then y_{z*} = y_{z*-1} - 2).
+
+Hmm, I'm getting confused. Let me re-clarify.
+
+The wrap happens at z values where x_z = 0 (and x_{z-1} = 99). At these z values, y_z = y_{z-1} + 97 (the jump up). For z values where x_z > 0 (no wrap), y_z = y_{z-1} - 2.
+
+So if z* is a wrap point (x_{z*} = 0, x_{z*-1} = 99), then:
+- y_{z*} = y_{z*-1} + 97
+- y_{z*+1} = y_{z*} - 2 (since x_{z*+1} = 1 > 0, no wrap)
+
+For z* to be the unique solution:
+- y_{z*} ∈ {0, ..., 98}
+- y_{z*-1} = y_{z*} - 97 < 0 → y_{z*} < 97 ✓ (since y_{z*} ≤ 98, need y_{z*} ≤ 96... wait, y_{z*} < 97 means y_{z*} ≤ 96)
+
+Hmm wait, y_{z*-1} = y_{z*} - 97. For y_{z*-1} < 0: y_{z*} < 97, i.e., y_{z*} ≤ 96.
+
+But we also need y_{z*} ∈ {0, ..., 98} for single representation. So y_{z*} ∈ {0, ..., 96}.
+
+And y_{z*+1} = y_{z*} - 2 < 0: y_{z*} ≤ 1.
+
+So y_{z*} ∈ {0, 1}. Same as before.
+
+And for z* + 2, z* + 3, ...: y decreases by 2, all < 0. Until the next wrap at z* + 100, where y = y_{z*} - 101 < 0. ✓
+
+And for z* - 2, z* - 3, ..., back to the previous wrap or z = 0: y = y_{z*-1} - 2, y_{z*-1} - 4, ..., all < y_{z*-1} < 0. ✓ (until the previous wrap, where y jumps up, but we need that to be < 0 too)
+
+The previous wrap is at z* - 100 (if z* ≥ 100). y at previous wrap = y_{z*} + 101. For < 0: y_{z*} < -101. But y_{z*} ≥ 0. Contradiction. So if z* ≥ 100, the previous wrap has y ≥ 101 > 0, meaning there are representable values. Bad.
+
+If z* < 100, the previous wrap doesn't exist (z* is the first wrap). Then we need y_0 < 0 (all values from z = 0 to z* - 1 are < 0). This is the case we already analyzed.
+
+So the unique solution is either at z = 0 (with x_0 < 99, y_0 ∈ {0, 1}, y_0 + 2x_0 ≤ 100) or at the first wrap z* = 100 - x_0 (with y_0 < 0, y_{z*} ∈ {0, 1}).
+
+We found:
+- z = 0: max N = 5251 (x_0 = 49, y_0 = 1)
+- First wrap: max N = 5249 (x_0 = 51, case A)
+
+But wait, I need to double-check the z = 0 case more carefully. I claimed the condition is y_0 + 2x_0 ≤ 100, but let me re-derive.
+
+For z = 0 to be the unique solution:
+1. y_0 ∈ {0, 1} (z = 0 has exactly one representation)
+2. y_1 < 0 (z = 1 is non-representable)
+3. All z ≥ 2 are non-representable (or S < 0)
+
+y_1 = y_0 - 2 (if x_0 < 99) or y_0 + 97 (if x_0 = 99).
+If x_0 = 99: y_1 = y_0 + 97 ≥ 97 > 0. Bad. So x_0 < 99.
+If x_0 < 99: y_1 = y_0 - 2 ≤ -1 < 0. ✓ (since y_0 ≤ 1)
+
+For z = 2: y_2 = y_1 - 2 = y_0 - 4 (if x_1 < 99, i.e., x_0 + 1 < 99, i.e., x_0 < 98). If x_0 = 98: x_1 = 99, so y_2 = y_1 + 97 = y_0 - 2 + 97 = y_0 + 95. For < 0: y_0 < -95. But y_0 ≥ 0. Bad.
+
+So if x_0 = 98, z = 2 has y = y_0 + 95 ≥ 95 > 0. Bad. So x_0 < 98.
+
+More generally, the first wrap is at z* = 100 - x_0. For z < z*, y_z = y_0 - 2z, all < 0 for z ≥ 1 (since y_0 ≤ 1). ✓
+
+At z = z* (first wrap): y = y_0 - 2(z* - 1) + 97 = y_0 - 2(99 - x_0) + 97 = y_0 - 198 + 2x_0 + 97 = y_0 + 2x_0 - 101.
+
+For this to be < 0: y_0 + 2x_0 < 101, i.e., y_0 + 2x_0 ≤ 100. ✓
+
+After the first wrap, all subsequent y values are < 0 (as shown). ✓
+
+Also, for z > z_max = floor(M/101), S < 0, no solutions. ✓
+
+So the condition is: y_0 ∈ {0, 1}, x_0 ∈ {0, ..., 97} (since x_0 < 98), and y_0 + 2x_0 ≤ 100.
+
+Wait, I said x_0 < 98, but actually x_0 < 99 is enough for y_1 < 0. The issue with x_0 = 98 is at z = 2 (the wrap at z = 2). Let me recheck.
+
+If x_0 = 98: z* = 100 - 98 = 2. At z = 2, y = y_0 + 2·98 - 101 = y_0 + 95. For < 0: y_0 < -95. Bad.
+
+So x_0 = 98 doesn't work (unless y_0 < -95, but y_0 ≥ 0). The condition y_0 + 2x_0 ≤ 100 already excludes this: y_0 + 196 ≤ 100 → y_0 ≤ -96. Bad.
+
+So the condition y_0 + 2x_0 ≤ 100 automatically ensures x_0 ≤ 50 (if y_0 = 0) or x_0 ≤ 49 (if y_0 = 1). These are all < 98. ✓
+
+So the maximum N from z = 0 is:
+- y_0 = 1, x_0 = 49: M = 99·49 + 100·1 = 4951, N = 5251.
+- y_0 = 0, x_0 = 50: M = 99·50 = 4950, N = 5250.
+
+N = 5251 is the maximum from z = 0.
+
+Now, can we also consider the first wrap case more carefully? We had:
+Case A: y_0 = 101 - 2x_0, x_0 ≥ 51. N = 10400 - 101x_0. Max at x_0 = 51: N = 5249.
+Case B: y_0 = 102 - 2x_0, x_0 ≥ 52. N = 10500 - 101x_0. Max at x_0 = 52: N = 5248.
+
+Both less than 5251.
+
+Hmm, but wait. I think I need to also check: in the first wrap case, do I need y_0 < 0 strictly, or can y_0 = 0?
+
+If y_0 = 0 and the unique solution is at the first wrap: then z = 0 has y = 0, which is a single-rep solution. So there are at least 2 solutions (z = 0 and z = z*). Bad. So y_0 < 0 is needed. ✓
+
+What about y_0 = -1? Then z = 0 is non-representable (y < 0). The first wrap has y = -1 + 2x_0 - 101 = 2x_0 - 102. For y ∈ {0, 1}: 2x_0 - 102 ∈ {0, 1} → x_0 = 51 (y = 0) or x_0 = 51.5 (not integer). So x_0 = 51, y_{z*} = 0. This is case A with x_0 = 51. M = 99·51 + 100·(-1) = 5049 - 100 = 4949. N = 5249. ✓
+
+y_0 = -2: first wrap y = -2 + 2x_0 - 101 = 2x_0 - 103. For {0, 1}: x_0 = 51.5 or 52. x_0 = 52, y = 1. M = 99·52 + 100·(-2) = 5148 - 200 = 4948. N = 5248. ✓
+
+These match what we had. And they're all less than 5251.
+
+So the answer is N = 5251.
+
+But wait, I should double-check this more carefully. Let me verify that N = 5251 has a unique solution and N = 5252 does not.
+
+N = 5251: M = 4951. 99x + 100y + 101z = 4951, x, y, z ≥ 0.
+The unique solution is (49, 1, 0): 99·49 + 100·1 + 0 = 4851 + 100 = 4951. ✓
+
+Let me check all z values:
+z = 0: 99x + 100y = 4951. x = (100 - 51) mod 100 = 49. y = (4951 - 99·49)/100 = (4951 - 4851)/100 = 1. ✓ One solution: (49, 1, 0).
+z = 1: 99x + 100y = 4850. x = (100 - 50) mod 100 = 50. y = (4850 - 99·50)/100 = (4850 - 4950)/100 = -1. ✗
+z = 2: 99x + 100y = 4749. x = 51. y = (4749 - 5049)/100 = -3. ✗
+...
+
+For z = 1 to z = 49 (before first wrap at z = 51):
+y_z = 1 - 2z. For z = 1: -1. z = 2: -3. ... z = 49: -97. All < 0. ✗
+
+z = 50: x = 99, y = 1 - 100 = -99. ✗
+z = 51: wrap. x = 0, y = -99 + 97 = -2. ✗
+z = 52: x = 1, y = -4. ✗
+...
+
+For z ≥ 50: S_z = 4951 - 101z. z = 49: S = 4951 - 4949 = 2. x = 98, y = (2 - 9702)/100 = -97. ✗
+z = 50: S = 4951 - 5050 = -99 < 0. ✗
+
+So indeed, only z = 0 gives a solution, and it's unique. ✓
+
+N = 5252: M = 4952. 99x + 100y + 101z = 4952.
+z = 0: 99x + 100y = 4952. x = (100 - 52) mod 100 = 48. y = (4952 - 99·48)/100 = (4952 - 4752)/100 = 2. Solution: (48, 2, 0). ✓
+z = 1: 99x + 100y = 4851. x = 49. y = (4851 - 4851)/100 = 0. Solution: (49, 0, 1). ✓
+
+Two solutions! So N = 5252 does not have a unique solution. ✓
+
+Let me also check N = 5251 more carefully. Is there really only one solution?
+
+z = 0: (49, 1, 0). ✓
+z = 1: 99x + 100y = 4850. x = 50, y = (4850 - 4950)/100 = -1. ✗
+z = 49: 99x + 100y = 2. x = 98, y = (2 - 9702)/100 = -97. ✗
+
+What about z = 50? S = 4951 - 5050 = -99 < 0. ✗
+
+And for negative z? Not allowed. So yes, unique. ✓
+
+Actually, hold on. I want to make sure I haven't missed any z values. z ranges from 0 to floor(4951/101) = floor(49.019...) = 49. So z ∈ {0, 1, ..., 49}. I've checked z = 0 (solution) and z = 1, 49 (no solution). The y values for z = 1 to 49 are 1 - 2z = -1, -3, ..., -97, all < 0. So no solutions for z = 1 to 49. ✓
+
+Great, so N = 5251 is the answer.
+
+But wait, I assumed natural numbers start from 1. Let me reconsider if natural numbers include 0.
+
+If natural numbers include 0 (i.e., x, y, z ≥ 0), then we don't shift, and N = M. The answer would be M = 4951, so N = 4951.
+
+Hmm, the problem says "natural numbers." In the context of this problem (which appears to be from a competition, possibly Russian/Eastern European), natural numbers typically start from 1. But in some traditions, they include 0.
+
+Let me reconsider. The problem says "Find the largest natural number N for which the equation 99x + 100y + 101z = N has a unique solution (x, y, z) in natural numbers."
+
+If natural numbers = {1, 2, 3, ...}, then N = 5251.
+If natural numbers = {0, 1, 2, ...}, then N = 4951.
+
+The problem is worth 7 points, which suggests it's from a serious competition. In most competition traditions (especially Russian), natural numbers start from 1.
+
+Actually, let me reconsider. Looking at the problem again: "99x + 100y + 101z = N" with "natural numbers." If natural numbers start from 1, the minimum value is 99 + 100 + 101 = 300. If they start from 0, the minimum is 0.
+
+I'll go with natural numbers = {1, 2, 3, ...}, giving N = 5251.
+
+Hmm, but let me reconsider once more. Actually, in many olympiad problems, especially those from Russia, "natural numbers" (натуральные числа) indeed means positive integers {1, 2, 3, ...}. So I'll go with N = 5251.
+
+Wait, but I should double-check my analysis. Let me re-examine the case where the unique solution is at z = 0 more carefully, considering all possible z values.
+
+For M = 4951, x_0 = 49, y_0 = 1:
+- z = 0: S = 4951, x = 49, y = 1. One solution. ✓
+- z = 1 to 49: S = 4951 - 101z, all positive. But y = 1 - 2z < 0 for z ≥ 1. Non-representable. ✓
+- z = 50: S = 4951 - 5050 = -99 < 0. No solution. ✓
+
+Total: 1 solution. ✓
+
+For M = 4952 (N = 5252):
+- z = 0: S = 4952, x = 48, y = 2. One solution.
+- z = 1: S = 4851, x = 49, y = 0. One solution.
+Total: 2 solutions. ✗
+
+So N = 5252 doesn't work, N = 5251 does. ✓
+
+Now let me also verify that there's no larger N that works, perhaps with a different structure that I haven't considered.
+
+I've shown that the unique solution must be at z = 0 or at the first wrap. For z = 0, the maximum N is 5251. For the first wrap, the maximum N is 5249. So N = 5251 is the overall maximum.
+
+But wait, I want to make sure I haven't missed the case where the unique solution is at z = 0 with x_0 = 99. I dismissed this because y_1 = y_0 + 97 ≥ 97, but what if y_0 is such that y_1 is in the multiple-rep range (≥ 99)? That would still give multiple solutions, so it's bad. And if y_1 ∈ {0, ..., 98}, that's also a second solution. So x_0 = 99 always gives ≥ 2 solutions. ✓
+
+Also, I should consider: what if the unique solution has y_0 = 0 and x_0 = 50? M = 4950, N = 5250.
+z = 0: (50, 0, 0). One solution.
+z = 1: S = 4849, x = 51, y = (4849 - 5049)/100 = -2. ✗
+...
+z = 49: S = 4950 - 4949 = 1. x = 99, y = (1 - 9801)/100 = -98. ✗
+z = 50: S = 4950 - 5050 = -100 < 0. ✗
+
+After first wrap at z = 50: y = 0 + 100 - 101 = -1 < 0. ✗
+So unique. ✓ N = 5250 works but is less than 5251.
+
+What about y_0 = 1, x_0 = 49, which gives N = 5251? Already verified. ✓
+
+Can we push further? y_0 = 1, x_0 = 50: y_0 + 2x_0 = 101 > 100. After first wrap at z = 50: y = 101 - 101 = 0. So z = 50 also has a solution. Two solutions. ✗
+
+y_0 = 2, x_0 = 49: y_0 + 2x_0 = 100 ≤ 100. But y_0 = 2 means z = 0 has floor(2/99) + 1 = 1 representation. And z = 1: y = 0, which is also a single-rep solution. Two solutions. ✗
+
+Wait, y_0 = 2: z = 0 has y = 2, which gives 1 representation (since 2 < 99). z = 1: y = 0, also 1 representation. So 2 total. ✗
+
+So y_0 = 2 doesn't work because z = 1 also has a solution. This is consistent with our condition y_0 ∈ {0, 1}.
+
+OK, I'm now confident the answer is N = 5251.
+
+Actually, let me reconsider once more. I want to make sure about the definition of "natural numbers" in this problem. The problem is labeled "Problem 5. (7 points)" which looks like it could be from a national or international olympiad.
+
+Looking at the coefficients 99, 100, 101 and the structure of the problem, this seems like it could be from a Russian or Eastern European olympiad. In those traditions, natural numbers = {1, 2, 3, ...}.
+
+With this definition, the answer is N = 5251.
+
+Let me also sanity-check by considering the problem with natural numbers = {0, 1, 2, ...}. Then N = 4951, and the unique solution is (49, 1, 0). Let me verify:
+99·49 + 100·1 + 101·0 = 4851 + 100 = 4951. ✓
+Any other? z = 1: 99x + 100y = 4850. x = 50, y = -1. ✗
+z = 49: 99x + 100y = 2. x = 98, y = -97. ✗
+Unique. ✓
+
+And N = 4952: z = 0 gives (48, 2, 0), z = 1 gives (49, 0, 1). Two solutions. ✗
+
+So if natural numbers include 0, the answer is 4951. If they start from 1, the answer is 5251.
+
+Given the competition context, I'll go with natural numbers = {1, 2, 3, ...} and N = 5251.
+
+Hmm, actually, let me reconsider. I realize I should think about this more carefully. Let me re-examine whether there might be larger values of N that I'm missing, perhaps with the unique solution at a non-obvious location.
+
+I've proven that the unique solution must be at z = 0 or at the first wrap point. The key argument was:
+1. If the unique solution is at z* and z* is not a wrap point, then y_{z*-1} = y_{z*} + 2 ≥ 2 > 0, so z*-1 also has a solution. Contradiction.
+2. If z* is a wrap point and z* is not the first wrap, then the previous wrap has y ≥ 101 > 0, giving additional solutions. Contradiction.
+3. If z* is the first wrap, we derived the conditions and found max N = 5249.
+4. If z* = 0 (which is a "virtual" wrap point if x_0 = 0, or just the starting point), we derived conditions and found max N = 5251.
+
+Wait, actually for z* = 0, I need to be more careful. z* = 0 is a wrap point only if x_0 = 0. If x_0 > 0, z = 0 is not a wrap point, and the argument in step 1 would say y_{-1} = y_0 + 2, but z = -1 doesn't exist. So z = 0 can be the unique solution even if it's not a wrap point, because there's no z = -1 to worry about.
+
+So the analysis for z = 0 is: y_0 ∈ {0, 1} (for single rep), y_1 < 0 (for no solution at z = 1), and all z ≥ 2 have no solutions. The condition y_1 < 0 requires x_0 < 99 (so no wrap at z = 1) and y_0 ≤ 1. And the condition for all z ≥ 2 reduces to y after first wrap < 0, i.e., y_0 + 2x_0 ≤ 100.
+
+This gives max N = 5251 (y_0 = 1, x_0 = 49).
+
+I'm confident the answer is N = 5251.
+
+Actually, let me reconsider once more. I want to make sure that for the z = 0 case, I'm correctly handling the case where z = 0 is not a wrap point and x_0 > 0.
+
+For z = 0 with x_0 > 0: z = 0 is not a wrap point. The "previous" z would be z = -1, which doesn't exist. So we only need to worry about z ≥ 1. The conditions are:
+- y_0 ∈ {0, 1} (single rep at z = 0)
+- y_1 < 0 (no solution at z = 1): requires x_0 < 99 and y_0 ≤ 1 (already satisfied)
+- All z ≥ 2: no solutions. This requires y after first wrap < 0, i.e., y_0 + 2x_0 - 101 < 0, i.e., y_0 + 2x_0 ≤ 100.
+
+With y_0 = 1, x_0 = 49: y_0 + 2x_0 = 99 ≤ 100. ✓ N = 5251.
+With y_0 = 1, x_0 = 50: y_0 + 2x_0 = 101 > 100. ✗
+
+So N = 5251 is indeed the maximum.
+
+Let me also think about whether the problem might intend natural numbers to include 0. In some competition traditions (e.g., French, some ISO standards), natural numbers include 0. But in most olympiad traditions (Russian, Chinese, IMO), natural numbers = positive integers.
+
+Given that this is a 7-point problem (likely from a national olympiad), and the tradition in most such competitions is natural numbers = {1, 2, 3, ...}, I'll go with N = 5251.
+
+Hmm, actually, I just realized I should double-check my formula. Let me re-derive M from x_0 and y_0.
+
+M = 99x_0 + 100y_0.
+
+With x_0 = 49, y_0 = 1: M = 99·49 + 100·1 = 4851 + 100 = 4951.
+N = M + 300 = 5251.
+
+The unique solution in natural numbers: (x, y, z) = (x_0 + 1, y_0 + 1, 1) = (50, 2, 1).
+Check: 99·50 + 100·2 + 101·1 = 4950 + 200 + 101 = 5251. ✓
+
+Now let me also verify that no other solution exists in natural numbers.
+Any solution (x, y, z) with x, y, z ≥ 1 corresponds to (x-1, y-1, z-1) with non-negative integers summing to M = 4951. We've shown the only non-negative solution is (49, 1, 0), so the only natural number solution is (50, 2, 1). ✓
+
+So the answer is N = 5251.
+
+Let me write up the proof.
+
+Actually, I realize I should also handle the case where natural numbers might include 0. Let me present the solution for both cases, or just pick the most likely interpretation.
+
+Given the problem structure and competition context, I'll go with natural numbers = {1, 2, 3, ...} and N = 5251.
+
+Let me now write a clean proof.
+
+Proof outline:
+1. Substitute x' = x-1, y' = y-1, z' = z-1 to reduce to non-negative integers. M = N - 300.
+2. Analyze the number of non-negative solutions to 99x + 100y + 101z = M.
+3. For fixed z, the number of solutions to 99x + 100y = M - 101z depends on the canonical representation.
+4. Show that for uniqueness, the solution must be at z = 0 or at the first "wrap" point.
+5. Derive conditions and find maximum N = 5251.
+
+Let me write this up properly.
+
+Hmm, actually I want to reconsider whether the answer might be different. Let me think about this problem from a higher level.
+
+The key observation is that 99, 100, 101 are three consecutive integers. The relation 99·1 + 101·1 = 100·2 means that (x, y, z) → (x+1, y-2, z+1) preserves the sum. This is the smallest relation.
+
+For the equation to have a unique solution, we need the solution to be "isolated" in the sense that no relation can be applied to get another valid solution.
+
+The solution (x, y, z) is unique iff:
+- (x+1, y-2, z+1) is invalid (y < 2 or some coordinate negative in original)
+- (x-1, y+2, z-1) is invalid
+- (x+100, y-99, z) is invalid
+- (x-100, y+99, z) is invalid
+- (x+1, y+99, z-99) is invalid (from relation (1, 99, -99))
+- (x-1, y-99, z+99) is invalid
+- And all other combinations...
+
+This is more complex. My earlier analysis using the z-parametrization should be correct, but let me verify with a different approach.
+
+Actually, my analysis is correct. The z-parametrization captures all solutions, and I've shown that the unique solution must be at z = 0 (in the shifted variables) with specific conditions on x_0 and y_0.
+
+Let me finalize the proof.
+
+Wait, I want to triple-check by trying N = 5251 and a few values around it.
+
+N = 5251, M = 4951:
+z' = 0: 99x' + 100y' = 4951. x' = 49, y' = 1. ✓ (unique)
+z' = 1: 99x' + 100y' = 4850. x' = 50, y' = (4850 - 4950)/100 = -1. ✗
+z' = 49: 99x' + 100y' = 2. x' = 98, y' = (2 - 9702)/100 = -97. ✗
+Total: 1. ✓
+
+N = 5252, M = 4952:
+z' = 0: 99x' + 100y' = 4952. x' = 48, y' = 2. ✓
+z' = 1: 99x' + 100y' = 4851. x' = 49, y' = 0. ✓
+Total: 2. ✗
+
+N = 5250, M = 4950:
+z' = 0: 99x' + 100y' = 4950. x' = 50, y' = 0. ✓
+z' = 1: 99x' + 100y' = 4849. x' = 51, y' = (4849 - 5049)/100 = -2. ✗
+z' = 49: 99x' + 100y' = 1. x' = 99, y' = (1 - 9801)/100 = -98. ✗
+z' = 50: S = 4950 - 5050 = -100 < 0. ✗
+Total: 1. ✓ (But N = 5250 < 5251)
+
+So N = 5251 is indeed the largest.
+
+Now, let me also consider: is the problem perhaps using natural numbers = {0, 1, 2, ...}? In that case, the answer would be 4951. Let me check the problem source.
+
+The problem says "Problem 5. (7 points)" which is likely from a specific competition. Without knowing the exact source, I'll consider both interpretations.
+
+Given that the problem uses "natural numbers" without further specification, and given that this appears to be from a competition where natural numbers typically mean positive integers, I'll go with N = 5251.
+
+But actually, let me reconsider. Some competitions (especially those influenced by the French tradition or ISO 80000-2) define natural numbers to include 0. If the problem is from such a tradition, the answer would be 4951.
+
+I think the safest approach is to present the solution for natural numbers = {1, 2, 3, ...} (the more common olympiad convention) and get N = 5251.
+
+Let me write the proof now.
+
+Actually, I want to reconsider one more time. Let me re-examine whether my analysis is complete.
+
+I claimed that the unique solution must be at z = 0 or

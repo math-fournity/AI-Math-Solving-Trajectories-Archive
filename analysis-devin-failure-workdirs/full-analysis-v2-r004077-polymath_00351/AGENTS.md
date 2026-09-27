@@ -1,0 +1,882 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_00351</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Let $f(n)$ be the minimum number of edges in a simple graph with $n$ vertices such that the graph is guaranteed to contain two triangles that share exactly one vertex. Find the value of $f(10)$.
+
+## Standard Solution
+
+The original solution proves that for a simple graph with $n$ vertices, the minimum number of edges required to guarantee the existence of two triangles sharing exactly one vertex is $m = \lfloor \frac{n^2}{4} \rfloor + 2$. Substituting $n=10$ into this formula gives $m = \lfloor \frac{100}{4} \rfloor + 2 = 25 + 2 = 27$.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We need to find $f(10)$, the minimum number of edges in a simple graph with 10 vertices such that the graph is **guaranteed** to contain two triangles that share exactly one vertex.
+
+So $f(n)$ = the minimum number of edges such that **every** simple graph on $n$ vertices with at least $f(n)$ edges contains two triangles sharing exactly one vertex (a "bowtie" or "butterfly" - two triangles with exactly one common vertex).
+
+Equivalently, $f(n) - 1$ is the maximum number of edges in a graph on $n$ vertices that does NOT contain two triangles sharing exactly one vertex.
+
+So I need to find the extremal number: the maximum number of edges in a graph on 10 vertices with no "butterfly" (two triangles sharing exactly one vertex), then add 1.
+
+Let me think about what graphs avoid having two triangles sharing exactly one vertex.
+
+Two triangles sharing exactly one vertex: this is a configuration where there exist vertices $a, b, c, d, e$ with triangles $abc$ and $ade$ (sharing vertex $a$), where $\{b,c\} \cap \{d,e\} = \emptyset$.
+
+So we need to avoid: a vertex $v$ that is in two triangles that are otherwise vertex-disjoint.
+
+Let me think about the structure of graphs avoiding this configuration.
+
+**Case 1: Triangle-free graphs.** These obviously avoid the configuration. The maximum triangle-free graph on $n$ vertices is the Turán graph $T_2(n)$ (complete bipartite, balanced), with $\lfloor n^2/4 \rfloor$ edges. For $n=10$, that's 25 edges.
+
+But we can do better - we can have triangles as long as no two triangles share exactly one vertex.
+
+**Case 2: Graphs with triangles but no butterfly.**
+
+Let me think about what structures allow triangles but avoid the butterfly.
+
+If a graph has triangles, consider the structure. If two triangles share an edge, that's fine (they share two vertices, not exactly one). If two triangles share exactly one vertex, that's the forbidden configuration.
+
+So the constraint is: no vertex is the unique common vertex of two triangles with disjoint other vertices.
+
+Let me think about this differently. Consider a graph where we take a complete bipartite graph $K_{a,b}$ and add some edges within one part.
+
+Actually, let me think about specific constructions.
+
+**Construction A: Complete bipartite $K_{5,5}$.** 25 edges, triangle-free, no butterfly. ✓
+
+**Construction B: $K_{5,5}$ plus one edge within a part.** Say we add edge $uv$ within part $A$. Now any common neighbor $w$ of $u$ and $v$ in part $B$ creates a triangle $uvw$. Since $|B|=5$, there are 5 such triangles, all sharing the edge $uv$. Two triangles $uvw_1$ and $uvw_2$ share the edge $uv$ (two vertices), not exactly one vertex. So no butterfly! This gives 26 edges.
+
+Can we add more edges within part $A$? Suppose we add edges forming a graph $H$ on part $A$ (5 vertices). Each edge $uv$ in $H$ creates triangles with all common neighbors in $B$. 
+
+Now, consider two edges $e_1 = u_1v_1$ and $e_2 = u_2v_2$ in $H$. If they share a vertex, say $u_1 = u_2 = u$, then triangles $u v_1 w$ and $u v_2 w'$ (for $w, w' \in B$ common neighbors). If $w \neq w'$, these two triangles share only vertex $u$ - that's a butterfly! 
+
+Wait, but $w$ and $w'$ need to be common neighbors of both endpoints. Let me reconsider.
+
+If $e_1 = uv_1$ and $e_2 = uv_2$ are edges in $H$ (sharing vertex $u$), and $w_1$ is a common neighbor of $u$ and $v_1$ in $B$, and $w_2$ is a common neighbor of $u$ and $v_2$ in $B$. In $K_{5,5}$, every vertex in $B$ is adjacent to every vertex in $A$, so every $w \in B$ is a common neighbor of $u$ and $v_1$, and also of $u$ and $v_2$.
+
+So triangle $T_1 = \{u, v_1, w_1\}$ and triangle $T_2 = \{u, v_2, w_2\}$. These share vertex $u$. They share exactly one vertex iff $v_1 \neq v_2$ (which is true since $e_1 \neq e_2$) and $w_1 \neq w_2$ and $v_1 \neq w_2$ (always true since $v_1 \in A, w_2 \in B$) and $v_2 \neq w_1$ (always true). So if $w_1 \neq w_2$, we get a butterfly.
+
+Since $|B| = 5 \geq 2$, we can choose $w_1 \neq w_2$. So if $H$ has two edges sharing a vertex, we get a butterfly.
+
+Therefore, $H$ must be a **matching** (no two edges share a vertex). On 5 vertices, a matching has at most 2 edges.
+
+So Construction B with a matching of size 2 in part $A$: $K_{5,5}$ (25 edges) + 2 edges = 27 edges. No butterfly because:
+- Two triangles from the same edge in $H$ share that edge (2 vertices).
+- Two triangles from different edges in $H$: the edges are disjoint, so the triangles are vertex-disjoint (since the edges are in $A$ and the third vertices are in $B$; if the third vertices are the same, the triangles share one vertex in $B$ but that vertex is not in $A$... wait let me check).
+
+Triangle $T_1 = \{u_1, v_1, w\}$ from edge $u_1v_1$ and triangle $T_2 = \{u_2, v_2, w\}$ from edge $u_2v_2$, where $u_1v_1$ and $u_2v_2$ are disjoint edges in $A$, and $w \in B$. These share vertex $w$ only. That's a butterfly!
+
+So even with a matching, if two edges in $H$ have a common neighbor in $B$ (which they all do in $K_{5,5}$), we get a butterfly.
+
+Hmm, so we can only have ONE edge in $H$? Let me reconsider.
+
+With $K_{5,5}$ and one edge $uv$ in $A$: 26 edges. All triangles use edge $uv$, so any two triangles share edge $uv$ (2 vertices). No butterfly. ✓
+
+With $K_{5,5}$ and two disjoint edges $u_1v_1, u_2v_2$ in $A$: 27 edges. Triangle $\{u_1, v_1, w\}$ and triangle $\{u_2, v_2, w\}$ share only $w$. Butterfly! ✗
+
+So with $K_{5,5}$, we can add at most 1 edge within a part. That gives 26.
+
+But maybe we should also add edges within part $B$? If we add one edge in $A$ and one edge in $B$: edge $u_1v_1$ in $A$ and edge $w_1w_2$ in $B$. Triangles from $u_1v_1$: $\{u_1, v_1, w\}$ for each $w \in B$. Triangles from $w_1w_2$: $\{w_1, w_2, u\}$ for each $u \in A$. 
+
+Triangle $\{u_1, v_1, w_1\}$ (from edge in $A$) and triangle $\{w_1, w_2, u_1\}$ (from edge in $B$): share vertices $u_1$ and $w_1$. That's 2 vertices, not a butterfly.
+
+Triangle $\{u_1, v_1, w_1\}$ and triangle $\{w_1, w_2, u_2\}$ where $u_2 \neq u_1, v_1$: share only $w_1$. Butterfly! ✗
+
+So we can't have edges in both parts either (with $K_{5,5}$).
+
+Hmm wait, let me reconsider. Maybe the optimal construction isn't based on $K_{5,5}$.
+
+Let me think more broadly. What's the maximum number of edges in a graph on $n$ vertices with no butterfly (two triangles sharing exactly one vertex)?
+
+Let me think about this as an extremal problem. The forbidden configuration is the "butterfly" graph $B$ (two triangles sharing one vertex, 5 vertices, 6 edges).
+
+Actually, let me think about what graphs can be butterfly-free.
+
+**Key insight:** If a vertex $v$ is in two triangles that don't share an edge, then those two triangles share only $v$ (butterfly) unless they share another vertex. Two triangles through $v$ that share an edge through $v$ means they share another vertex. So:
+
+A vertex $v$ is in a butterfly iff $v$ is in two triangles whose other vertices are disjoint (i.e., the two triangles don't share an edge).
+
+Equivalently, $v$ is NOT in a butterfly iff all triangles containing $v$ pairwise share an edge (through $v$), which means all triangles containing $v$ share a common edge through $v$. 
+
+Wait, that's not quite right. Let me think again. If $v$ is in triangles $T_1, T_2, \ldots$, and no two of them form a butterfly at $v$, then every pair $T_i, T_j$ must share an edge. Since they both contain $v$, sharing an edge means sharing another vertex. So the "other two vertices" of $T_i$ and $T_j$ must overlap.
+
+If triangles through $v$ are $\{v, a_i, b_i\}$, then for every pair, $\{a_i, b_i\} \cap \{a_j, b_j\} \neq \emptyset$. By the Erdős–Ko–Rado type argument, this means either all pairs share a common element, or we have a special structure.
+
+Actually, for a family of 2-element sets where every two intersect, by EKR, if there are at least 3 such sets, they must all share a common element (for 2-element sets, the intersecting family either is a star or consists of the 3 edges of a triangle). 
+
+Case (i): All triangles through $v$ share a common neighbor $u$. Then all triangles through $v$ are of the form $\{v, u, w\}$ for various $w$. The edges $vw$ and $uw$ must exist for each such $w$. So the triangles through $v$ correspond to common neighbors of $v$ and $u$.
+
+Case (ii): The triangles through $v$ are exactly $\{v, a, b\}, \{v, b, c\}, \{v, a, c\}$ (the three edges of a triangle on $\{a, b, c\}$). This gives 3 triangles, and any two share an edge. But we can't add a 4th triangle through $v$ without creating a butterfly (since a 4th triangle $\{v, x, y\}$ would need to intersect all three of $\{a,b\}, \{b,c\}, \{a,c\}$, which requires $x$ or $y$ to be in $\{a,b,c\}$, but then it would share an edge with at most 2 of the 3, not all... actually let me check: $\{x,y\}$ must intersect $\{a,b\}, \{b,c\}, \{a,c\}$. If $x = a$, then $\{a,y\}$ intersects $\{a,b\}$ and $\{a,c\}$ but needs to intersect $\{b,c\}$, so $y \in \{b,c\}$. If $y = b$, we get $\{v, a, b\}$ which is already counted. If $y = c$, we get $\{v, a, c\}$, already counted. So no new triangle can be added.)
+
+So for each vertex $v$, the triangles through $v$ are either:
+- All share a common edge through $v$ (star of triangles), or
+- Form a $K_4$ (the triangle case with $v, a, b, c$ all mutually adjacent, giving 3 triangles through $v$).
+
+Wait, in case (ii), $v, a, b, c$ form a $K_4$? We need edges $va, vb, vc, ab, bc, ac$. Yes, that's $K_4$ on $\{v, a, b, c\}$, and the 3 triangles through $v$ are the 3 faces of this $K_4$ containing $v$.
+
+Now, the graph is butterfly-free. Let me think about the structure more carefully.
+
+Let me consider the "triangle structure" of the graph. 
+
+**Approach: Think about the structure of butterfly-free graphs.**
+
+Let me consider the graph $G$ on $n$ vertices, butterfly-free. Let me think about what the graph can look like.
+
+One important class: graphs where every edge is in at most one triangle. These are butterfly-free (since a butterfly requires two triangles, and if they share a vertex but not an edge, each triangle has an edge not in the other triangle). Actually wait, a butterfly has two triangles sharing exactly one vertex. Each triangle has 3 edges, and they share 0 edges. So if every edge is in at most one triangle, can we still have a butterfly? The two triangles in a butterfly share no edges, so the edge condition doesn't directly prevent it. But actually, the butterfly configuration has 6 edges, and no edge is shared between the two triangles. So "every edge in at most one triangle" doesn't prevent butterflies.
+
+Hmm, let me reconsider.
+
+Let me think about specific constructions for $n = 10$.
+
+**Construction 1: $K_{5,5}$ + 1 edge.** 26 edges, butterfly-free as shown.
+
+**Construction 2: Two copies of $K_5$ sharing one vertex.** This has $5 + 5 - 1 = 9$ vertices and $10 + 10 = 20$ edges. But this graph HAS a butterfly (the shared vertex is in triangles from both copies). So this doesn't work.
+
+**Construction 3: $K_5$ on vertices $\{1,2,3,4,5\}$ plus $K_{5,5}$... no, that's too many vertices.**
+
+Let me think differently. 
+
+**Construction 4: Complete bipartite $K_{a,b}$ plus a clique on one side.**
+
+Take $K_{a,b}$ with parts $A$ (size $a$) and $B$ (size $b$), and add a clique on $A$. The triangles are all triples $\{u, v, w\}$ where $u, v \in A$ (adjacent, which they are since $A$ is a clique) and $w \in B$. So every pair in $A$ with every vertex in $B$ forms a triangle.
+
+Now, two triangles $\{u_1, v_1, w_1\}$ and $\{u_2, v_2, w_2\}$. They share exactly one vertex iff exactly one of $u_1, v_1$ equals one of $u_2, v_2$ (and $w_1 \neq w_2$, and no cross-equality). 
+
+If $w_1 \neq w_2$ and the pairs $\{u_1, v_1\}$ and $\{u_2, v_2\}$ share exactly one vertex, we get a butterfly. Since $A$ is a clique, any two pairs in $A$ that share a vertex give a butterfly (as long as $|B| \geq 2$ so we can pick $w_1 \neq w_2$).
+
+So this construction has butterflies unless $|B| \leq 1$ or $|A| \leq 2$ (so no two pairs in $A$ share a vertex, meaning $A$ has at most 2 vertices, i.e., at most one pair).
+
+If $|A| = 2, |B| = 8$: $K_{2,8}$ has 16 edges, plus 1 edge in $A$ = 17 edges. All triangles share the edge in $A$. No butterfly. But only 17 edges, less than 26.
+
+**Construction 5: $K_{a,b}$ plus a matching on one side.**
+
+As we saw, with $K_{5,5}$, we can add at most 1 edge (matching of size 1) to avoid butterflies. Because two disjoint edges in the matching, combined with a common neighbor in $B$, create a butterfly.
+
+What if $|B| = 1$? Then $K_{a,1}$ plus a clique on $A$: this is a clique on $A$ plus a universal vertex to $A$. Triangles are $\{u, v, w\}$ where $w$ is the single vertex in $B$ and $uv$ is an edge in $A$. Two triangles $\{u_1, v_1, w\}$ and $\{u_2, v_2, w\}$ share vertex $w$ and possibly vertices in $A$. They share exactly one vertex ($w$) iff $\{u_1,v_1\} \cap \{u_2,v_2\} = \emptyset$. So we need: no two disjoint edges in $A$. This means $A$'s edge set is an intersecting family of 2-sets, which by EKR is either a star or a triangle (for $|A| \geq 4$, must be a star).
+
+If $A$ is a star (all edges through one vertex $v$), then $A$ has $|A|-1$ edges, and total edges = $(|A|-1) + |A| = 2|A| - 1$. With $|A| = 9, |B| = 1$: $2 \cdot 9 - 1 = 17$ edges. Less than 26.
+
+If $A$ is a triangle ($|A| = 3$, 3 edges), $|B| = 7$: $3 + 21 = 24$ edges. Less than 26.
+
+Hmm, these are all worse than 26.
+
+**Construction 6: What about non-complete bipartite?**
+
+Let me think about this more carefully. Maybe the answer is larger than 26.
+
+Let me reconsider. The question is about the extremal number for the butterfly graph. Let me think about what's known.
+
+The butterfly graph (two triangles sharing one vertex) has 5 vertices and 6 edges. The extremal number $\text{ex}(n, \text{butterfly})$ is the maximum number of edges in an $n$-vertex graph with no butterfly.
+
+Let me think about upper bounds.
+
+**Claim: In a butterfly-free graph, each vertex is in at most... ** Let me think about the degree of each vertex and the triangles through it.
+
+For a vertex $v$, let $d(v)$ be its degree. The number of triangles through $v$ is the number of edges in $G[N(v)]$ (the subgraph induced by neighbors of $v$). For no butterfly at $v$, the edges of $G[N(v)]$ must form an intersecting family (every two edges share a vertex). As discussed, this means $G[N(v)]$ is either a star or a triangle (or a subgraph thereof).
+
+So $G[N(v)]$ has at most $\max(d(v)-1, 3)$ edges... wait, a star on $d(v)$ vertices has $d(v)-1$ edges, and a triangle has 3 edges. So the number of edges in $G[N(v)]$ is at most $\max(d(v)-1, 3)$.
+
+But actually, for $d(v) \geq 4$, the star gives $d(v) - 1$ edges, and the triangle gives 3. So it's $\max(d(v)-1, 3)$. For $d(v) = 3$, star gives 2, triangle gives 3, so max is 3. For $d(v) = 2$, max is 1. For $d(v) \leq 1$, max is 0.
+
+Now, the total number of triangles in $G$ is $\frac{1}{3} \sum_v t(v)$ where $t(v)$ is the number of triangles through $v$.
+
+Also, the number of edges in $G[N(v)]$ equals $t(v)$.
+
+Hmm, this is getting complex. Let me try to think about the problem from the perspective of known results or direct computation for $n = 10$.
+
+Actually, let me think about a different construction.
+
+**Construction 7: $K_4$ plus bipartite connections.**
+
+Take a $K_4$ on vertices $\{1,2,3,4\}$. This has 6 edges and 4 triangles. Each vertex is in 3 triangles (the 3 faces of $K_4$ through that vertex). As we noted, the 3 triangles through a vertex in $K_4$ form case (ii) above, so no butterfly within $K_4$.
+
+Now add 6 more vertices $\{5,6,7,8,9,10\}$. We want to add as many edges as possible without creating a butterfly.
+
+If we connect the new vertices to the $K_4$ and among themselves, we need to be careful.
+
+Let me think about what edges we can add. 
+
+If a new vertex $w$ is connected to two vertices $u, v$ of the $K_4$ where $uv$ is an edge, then $\{u, v, w\}$ is a triangle. Now, vertex $u$ is already in triangles $\{u, 2, 3\}, \{u, 2, 4\}, \{u, 3, 4\}$ (if $u = 1$). The new triangle $\{u, v, w\}$ must share an edge with each existing triangle through $u$. 
+
+For example, if $u = 1, v = 2$: new triangle $\{1, 2, w\}$. Existing triangles through 1: $\{1,2,3\}, \{1,2,4\}, \{1,3,4\}$. 
+- $\{1,2,w\}$ and $\{1,2,3\}$ share edge $\{1,2\}$. ✓
+- $\{1,2,w\}$ and $\{1,2,4\}$ share edge $\{1,2\}$. ✓
+- $\{1,2,w\}$ and $\{1,3,4\}$ share only vertex 1. ✗ Butterfly!
+
+So connecting $w$ to vertices 1 and 2 of the $K_4$ creates a butterfly at vertex 1 (triangles $\{1,2,w\}$ and $\{1,3,4\}$ share only vertex 1).
+
+What if $w$ is connected to only one vertex of $K_4$? Then no triangle involving $w$ and the $K_4$. 
+
+What if $w$ is connected to two non-adjacent vertices of $K_4$? In $K_4$, all pairs are adjacent, so this is impossible.
+
+So any new vertex can be connected to at most 1 vertex of the $K_4$ without creating a butterfly (if connected to 2, they'd be adjacent in $K_4$, creating a triangle that forms a butterfly with an existing triangle).
+
+Wait, unless the new vertex is connected to all 4 vertices of $K_4$. Then $w$ forms triangles $\{w, u, v\}$ for each edge $uv$ of $K_4$. The triangles through $w$ are $\{w,1,2\}, \{w,1,3\}, \{w,1,4\}, \{w,2,3\}, \{w,2,4\}, \{w,3,4\}$. Do any two of these form a butterfly at $w$? $\{w,1,2\}$ and $\{w,3,4\}$ share only $w$. Butterfly! ✗
+
+So connecting $w$ to all 4 doesn't work either.
+
+What about connecting $w$ to exactly 3 vertices of $K_4$, say $\{1,2,3\}$? Triangles through $w$: $\{w,1,2\}, \{w,1,3\}, \{w,2,3\}$. These form a triangle in $N(w)$ (on $\{1,2,3\}$), which is case (ii). So no butterfly at $w$. But we need to check butterflies at other vertices.
+
+At vertex 1: triangles through 1 are $\{1,2,3\}, \{1,2,4\}, \{1,3,4\}$ (from $K_4$) and $\{1,2,w\}, \{1,3,w\}$ (new). Now $\{1,2,w\}$ and $\{1,3,4\}$ share only vertex 1. Butterfly! ✗
+
+So connecting $w$ to 3 vertices of $K_4$ also fails.
+
+What about connecting $w$ to exactly 2 vertices, say 1 and 2? As shown, butterfly at vertex 1.
+
+So each new vertex can be connected to at most 1 vertex of $K_4$. That gives at most 6 additional edges (one per new vertex), plus edges among the 6 new vertices.
+
+Among the 6 new vertices, we can have a triangle-free graph (to avoid butterflies involving only new vertices). The maximum triangle-free graph on 6 vertices is $K_{3,3}$ with 9 edges.
+
+But we also need to check: if a new vertex $w$ is connected to vertex 1 of $K_4$, and $w$ has a neighbor $w'$ among the new vertices, does this create issues? Triangle $\{1, w, w'\}$ would require edge $1w'$, but $w'$ is connected to at most 1 vertex of $K_4$, which might not be vertex 1. If $w'$ is also connected to vertex 1, then $\{1, w, w'\}$ is a triangle (if $ww'$ is an edge). Then at vertex 1, we have triangles $\{1,2,3\}, \{1,2,4\}, \{1,3,4\}$ (from $K_4$) and $\{1, w, w'\}$. The triangle $\{1, w, w'\}$ and $\{1, 2, 3\}$ share only vertex 1 (since $w, w' \notin \{2,3\}$). Butterfly! ✗
+
+So if two new vertices are both connected to the same vertex of $K_4$ and are adjacent to each other, we get a butterfly. 
+
+This is getting complicated. Let me try a different approach.
+
+**Let me think about the problem more carefully using the structure theorem.**
+
+In a butterfly-free graph, for each vertex $v$, the graph $G[N(v)]$ is either a star or a triangle (or a subgraph of one of these).
+
+Let me consider two cases for the overall structure:
+
+**Case A: $G$ is triangle-free.** Then $\text{ex}(n, \text{butterfly}) \geq \lfloor n^2/4 \rfloor = 25$ for $n=10$.
+
+**Case B: $G$ has triangles.** 
+
+Let me think about graphs with triangles that are butterfly-free.
+
+Consider a graph $G$ that is butterfly-free and has at least one triangle. Let $T = \{a, b, c\}$ be a triangle. 
+
+For vertex $a$: all triangles through $a$ must pairwise share an edge. The triangle $\{a,b,c\}$ is one. Any other triangle through $a$ must share an edge with $\{a,b,c\}$, so it must contain edge $ab$ or $ac$ (and a fourth vertex). 
+
+Similarly for $b$ and $c$.
+
+Let me think about the "triangle core" - the set of edges that are in triangles.
+
+Actually, let me try to think about this more carefully with a cleaner approach.
+
+**Structure of butterfly-free graphs:**
+
+Let $G$ be butterfly-free. Consider the set of all triangles in $G$. 
+
+**Claim:** The triangles in $G$ can be partitioned into "clusters" where each cluster is either:
+1. A set of triangles all sharing a common edge (a "book"), or
+2. A $K_4$ (4 triangles on 4 vertices).
+
+And triangles from different clusters are vertex-disjoint.
+
+Wait, is this true? Let me check. If two triangles share a vertex but not an edge, that's a butterfly. So any two triangles that share a vertex must share an edge. 
+
+If triangle $T_1$ and $T_2$ share an edge $e$, and $T_2$ and $T_3$ share an edge $f \neq e$, then $T_1$ and $T_3$ share at least one vertex (the vertex of $T_2$ that's in both $e$ and $f$... hmm, not necessarily).
+
+Let me think about this more carefully. Let's say triangles $T_1 = \{a, b, c\}$ and $T_2 = \{a, b, d\}$ share edge $ab$. And $T_2 = \{a, b, d\}$ and $T_3$ share an edge. $T_3$ could share edge $ab$ (so $T_3 = \{a, b, e\}$), edge $ad$ (so $T_3 = \{a, d, e\}$), or edge $bd$ (so $T_3 = \{b, d, e\}$).
+
+If $T_3 = \{a, d, e\}$: $T_1 = \{a,b,c\}$ and $T_3 = \{a,d,e\}$ share only vertex $a$. Butterfly! ✗
+
+So if $T_1$ and $T_2$ share edge $ab$, and $T_2$ and $T_3$ share an edge, then $T_3$ must share edge $ab$ with $T_2$ (not $ad$ or $bd$). Otherwise we get a butterfly.
+
+This means: if two triangles share an edge $e$, then every triangle that shares a vertex with either of them must also contain edge $e$. 
+
+More precisely: if $T_1, T_2$ share edge $e = uv$, then any triangle $T_3$ that shares a vertex with $T_1$ or $T_2$ must contain edge $e$.
+
+Proof: $T_3$ shares a vertex with $T_1 = \{u, v, w_1\}$. If $T_3$ contains $u$ but not $v$: $T_3 = \{u, x, y\}$ with $v \notin \{x,y\}$. Then $T_3$ and $T_2 = \{u, v, w_2\}$ share only $u$ (since $v \notin \{x,y\}$ and $w_2 \notin \{x,y\}$ presumably... wait, $w_2$ could be $x$ or $y$). 
+
+Hmm, let me be more careful. $T_1 = \{u, v, w_1\}$, $T_2 = \{u, v, w_2\}$ with $w_1 \neq w_2$. $T_3$ shares a vertex with $T_1$, say $T_3$ contains $u$. $T_3 = \{u, x, y\}$. 
+
+$T_3$ and $T_2$ must share an edge (since they share vertex $u$ and the graph is butterfly-free). So $\{u, x, y\} \cap \{u, v, w_2\}$ must contain an edge, i.e., at least 2 vertices. So either $v \in \{x, y\}$ or $w_2 \in \{x, y\}$ (or both).
+
+If $v \in \{x, y\}$: $T_3$ contains edge $uv$. ✓
+If $v \notin \{x, y\}$ but $w_2 \in \{x, y\}$: say $x = w_2$. Then $T_3 = \{u, w_2, y\}$. Now $T_3$ and $T_1 = \{u, v, w_1\}$ share vertex $u$. Do they share an edge? $\{u, w_2, y\} \cap \{u, v, w_1\}$: we need at least 2 common vertices. $u$ is common. Is $w_2 \in \{v, w_1\}$? $w_2 \neq w_1$ (given) and $w_2 \neq v$ (since $w_2$ is the third vertex of $T_2$, distinct from $u, v$). Is $y \in \{v, w_1\}$? If $y = v$, then $v \in \{x,y\}$, contradiction. If $y = w_1$, then $T_3 = \{u, w_2, w_1\}$. $T_3$ and $T_1 = \{u, v, w_1\}$ share vertices $u$ and $w_1$, so they share edge $uw_1$. ✓. But $T_3 = \{u, w_1, w_2\}$ and $T_2 = \{u, v, w_2\}$ share vertices $u$ and $w_2$, so they share edge $uw_2$. ✓.
+
+But now we have triangles $\{u,v,w_1\}, \{u,v,w_2\}, \{u,w_1,w_2\}$. These are the 3 triangles of $K_4$ on $\{u, v, w_1, w_2\}$ (minus the triangle $\{v, w_1, w_2\}$). Actually, for $K_4$ we'd also need edge $vw_1, vw_2, w_1w_2$. We have $vw_1$ (from $T_1$), $vw_2$ (from $T_2$), $uw_1$ (from $T_1$), $uw_2$ (from $T_2$), $uv$ (from both), and $w_1w_2$ (from $T_3$). So $\{u, v, w_1, w_2\}$ induces a $K_4$! And the 4 triangles are $\{u,v,w_1\}, \{u,v,w_2\}, \{u,w_1,w_2\}, \{v,w_1,w_2\}$.
+
+Now, $T_3 = \{u, w_1, w_2\}$ doesn't contain edge $uv$. So the claim "every triangle sharing a vertex with $T_1$ or $T_2$ must contain edge $uv$" is FALSE. The $K_4$ case is an exception.
+
+OK so the structure is more nuanced. Let me reconsider.
+
+**Revised structure:** In a butterfly-free graph, the triangles form clusters where each cluster is either:
+1. A "book": all triangles sharing a common edge.
+2. A $K_4$: all 4 triangles on 4 vertices.
+
+And triangles from different clusters are vertex-disjoint.
+
+Let me verify this. Suppose we have a $K_4$ on $\{u, v, w_1, w_2\}$. Can a triangle $T$ outside this $K_4$ share a vertex with a triangle in the $K_4$?
+
+Say $T$ shares vertex $u$ with triangle $\{u, v, w_1\}$. Then $T$ must share an edge with $\{u, v, w_1\}$, so $T$ contains $uv$ or $uw_1$ (and a new vertex $x \notin \{v, w_1, w_2\}$, or $x = w_2$ which gives an existing triangle).
+
+If $T = \{u, v, x\}$ with $x \notin \{w_1, w_2\}$: $T$ shares vertex $u$ with triangle $\{u, w_1, w_2\}$. Do they share an edge? $\{u, v, x\} \cap \{u, w_1, w_2\} = \{u\}$ (since $v, x \notin \{w_1, w_2\}$). Butterfly! ✗
+
+If $T = \{u, w_1, x\}$ with $x \notin \{v, w_2\}$: $T$ shares vertex $u$ with triangle $\{u, v, w_2\}$. $\{u, w_1, x\} \cap \{u, v, w_2\} = \{u\}$ (since $w_1, x \notin \{v, w_2\}$). Butterfly! ✗
+
+So no triangle outside the $K_4$ can share a vertex with a triangle in the $K_4$. 
+
+Similarly, for a book (all triangles sharing edge $uv$), can a triangle outside share a vertex? Say $T$ shares vertex $u$ with a book triangle $\{u, v, w\}$. $T$ must share an edge with $\{u, v, w\}$, so $T$ contains $uv$ or $uw$.
+
+If $T = \{u, v, x\}$ with $x \neq w$: this is another book triangle. ✓ (as long as it doesn't conflict with other book triangles - it shares edge $uv$ with all of them, so it's fine).
+
+If $T = \{u, w, x\}$ with $x \neq v$: $T$ shares vertex $u$ with another book triangle $\{u, v, w'\}$ ($w' \neq w$). $\{u, w, x\} \cap \{u, v, w'\} = \{u\}$ (since $w \neq w'$ and $x \neq v, w'$ assuming $x$ is new). Butterfly! ✗ (unless the book has only one triangle, i.e., only $\{u, v, w\}$, in which case there's no other book triangle to conflict with.)
+
+Hmm, so if the book has only one triangle $\{u, v, w\}$, then $T = \{u, w, x\}$ is OK as long as it doesn't create a butterfly with other triangles through $u$. But $T = \{u, w, x\}$ and $\{u, v, w\}$ share edge $uw$. ✓. And if there are no other triangles through $u$, then it's fine.
+
+But then $T = \{u, w, x\}$ and $\{u, v, w\}$ together form a $K_4$-like structure on $\{u, v, w, x\}$ (if $vx$ and $wx$ are edges... well, $wx$ is an edge from $T$, and $vw$ is an edge from the first triangle, but $vx$ might not be an edge). Actually, $\{u, v, w, x\}$ has edges $uv, uw, vw, ux, wx$ (5 edges), missing $vx$. The triangles are $\{u,v,w\}$ and $\{u,w,x\}$. These share edge $uw$. No butterfly.
+
+But now, can we add more triangles? If we add edge $vx$, we get $K_4$ on $\{u,v,w,x\}$ with 4 triangles. That's the $K_4$ case.
+
+OK, I think the structure is becoming clear. Let me try to formalize:
+
+**Structure Theorem (informal):** In a butterfly-free graph, the triangles can be grouped into connected components (where two triangles are "connected" if they share a vertex). Each component is either:
+- A single triangle
+- A book (multiple triangles sharing a common edge)
+- A $K_4$ (4 triangles on 4 vertices)
+
+And different components are vertex-disjoint.
+
+Wait, I showed that a book with ≥ 2 triangles can't have outside triangles sharing a vertex, and a $K_4$ can't either. What about a single triangle? A single triangle $\{a, b, c\}$ can have other triangles sharing a vertex, as long as they share an edge. E.g., $\{a, b, c\}$ and $\{a, b, d\}$ share edge $ab$. These form a book with 2 triangles. Or $\{a, b, c\}$ and $\{a, c, d\}$ share edge $ac$, forming a book. Or we could have $\{a, b, c\}, \{a, b, d\}, \{a, c, d\}$ which is 3 triangles on $\{a, b, c, d\}$ - this is a $K_4$ minus one triangle (missing $\{b, c, d\}$). Actually, for these 3 triangles, we need edges $ab, ac, bc, ad, bd, cd$ - that's all 6 edges of $K_4$, so it IS a $K_4$ with 4 triangles (the 4th being $\{b, c, d\}$).
+
+Hmm wait, $\{a,b,c\}, \{a,b,d\}, \{a,c,d\}$ requires edges $ab, ac, bc, ad, bd, cd$. With all these edges, $\{b,c,d\}$ is also a triangle. So we can't have exactly 3 of the 4 triangles of a $K_4$; if 3 are present, the 4th is too.
+
+So the components are: single triangle, book (≥ 2 triangles sharing an edge), or $K_4$ (4 triangles). And different components are vertex-disjoint.
+
+Actually, can a single triangle component have other triangles sharing a vertex? If triangle $\{a,b,c\}$ is a component by itself (no other triangle shares a vertex with it), then vertices $a, b, c$ are not in any other triangle. But they could still have edges to other vertices (just not forming triangles).
+
+OK so now the question is: given this structure, what's the maximum number of edges in a butterfly-free graph on 10 vertices?
+
+The graph consists of:
+1. Some "triangle components" (each being a single triangle, a book, or a $K_4$), which are vertex-disjoint.
+2. The remaining vertices (not in any triangle).
+3. Edges between different components and between components and triangle-free vertices, subject to the constraint that no new triangles are formed (which would need to be part of some component).
+
+Wait, actually edges between components can exist as long as they don't form triangles. If an edge between component $C_1$ and component $C_2$ forms a triangle with an edge in $C_1$, that triangle shares a vertex with a triangle in $C_1$, which would need to be in the same component - contradiction.
+
+So edges between different triangle components must not create any triangle. Similarly for edges between a triangle component and triangle-free vertices.
+
+This means: the graph can be seen as a "blow-up" where we have some cliques (the triangle components) and the rest of the graph is triangle-free, and edges between different parts don't create triangles.
+
+Hmm, this is getting complex. Let me try to think about it differently.
+
+**Alternative approach:** Let me think about the graph as having a set of "triangle clusters" (each being a book or $K_4$) that are vertex-disjoint, and the rest of the graph is structured to avoid creating new triangles involving these clusters.
+
+Let me consider the following approach: partition the vertex set into groups, where each group is either a triangle cluster (book or $K_4$) or a set of triangle-free vertices. Between groups, edges must not create triangles.
+
+To maximize edges, we want:
+1. Large, dense triangle clusters.
+2. Many edges between groups (without creating triangles).
+
+Edges between groups don't create triangles iff: for any three vertices $u, v, w$ where $u, v$ are in one group and $w$ is in another, if $uv$ is an edge and $uw, vw$ are edges, then $\{u,v,w\}$ is a triangle that should be in a cluster - but it spans two groups, contradiction. So: if $uv$ is an edge within a group and $w$ is in another group, then $w$ can be adjacent to at most one of $u, v$.
+
+This is a strong constraint. Let me think about what it means.
+
+If group $A$ has an edge $uv$, and vertex $w$ is outside $A$, then $w$ can be adjacent to at most one of $u, v$. In other words, $w$'s neighbors in $A$ form an independent set in $A$.
+
+For a book on edge $uv$ with pages $w_1, \ldots, w_k$ (so the book is $\{u, v, w_1, \ldots, w_k\}$ with triangles $\{u, v, w_i\}$), the edges within the book are: $uv, uw_i, vw_i$ for each $i$. An outside vertex $x$ can be adjacent to at most... well, $x$'s neighbors in the book must form an independent set. The independent sets in the book graph: since $u$ and $v$ are adjacent, $x$ can be adjacent to at most one of $u, v$. And $w_i$ and $w_j$ are not adjacent (for $i \neq j$), so $x$ can be adjacent to all $w_i$'s. But $w_i$ is adjacent to both $u$ and $v$, so if $x$ is adjacent to $w_i$ and to $u$, then $\{u, w_i, x\}$ is a triangle (since $uw_i$ is an edge). This triangle shares vertex $u$ with book triangle $\{u, v, w_j\}$ (for $j \neq i$). They share only $u$ (since $w_i \neq w_j$ and $v \neq x$). Butterfly! ✗ (if the book has ≥ 2 pages).
+
+If the book has only 1 page ($k = 1$, so it's a single triangle $\{u, v, w\}$), then $x$ adjacent to $w$ and $u$: triangle $\{u, w, x\}$ shares edge $uw$ with $\{u, v, w\}$. ✓. But then $\{u, w, x\}$ is a new triangle sharing a vertex with the existing triangle, so they should be in the same component. This means the "single triangle" grows.
+
+This is getting very involved. Let me try a computational approach instead - let me think about specific constructions and try to find the maximum.
+
+**Let me try to find good constructions for $n = 10$.**
+
+**Construction A: $K_{5,5}$ + 1 edge.** 26 edges.
+
+**Construction B: $K_4$ + independent set of 6, with careful connections.**
+
+$K_4$ on $\{1,2,3,4\}$ (6 edges). The remaining 6 vertices $\{5,...,10\}$ form an independent set (for now). Each of the 6 vertices can be connected to at most 1 vertex of the $K_4$ (as shown earlier, connecting to 2 vertices of $K_4$ creates a butterfly). Wait, actually I showed that connecting to 2 vertices of $K_4$ creates a butterfly. Let me re-examine: connecting $w$ to vertices 1 and 2 of $K_4$ creates triangle $\{1, 2, w\}$, which forms a butterfly with $\{1, 3, 4\}$ at vertex 1. ✗
+
+So each outside vertex connects to at most 1 vertex of $K_4$: at most 6 edges.
+
+Among the 6 outside vertices: they can form a triangle-free graph. But we also need to ensure no triangles involving $K_4$ vertices and outside vertices. If outside vertex $w$ is connected to $K_4$ vertex 1, and outside vertices $w, w'$ are adjacent, then $\{1, w, w'\}$ is a triangle only if $1w'$ is also an edge. So if $w'$ is not connected to vertex 1, no triangle. But if both $w$ and $w'$ are connected to vertex 1 and $ww'$ is an edge, then $\{1, w, w'\}$ is a triangle, which shares vertex 1 with $K_4$ triangles, creating a butterfly.
+
+So: outside vertices connected to the same $K_4$ vertex must not be adjacent to each other.
+
+To maximize edges among outside vertices while respecting this: partition the 6 outside vertices by which $K_4$ vertex they're connected to (or none). Vertices in the same group (connected to the same $K_4$ vertex) can't be adjacent. Vertices in different groups can be adjacent (as long as no triangle forms).
+
+If we connect each outside vertex to a distinct $K_4$ vertex (at most 4 can be connected, 4 vertices of $K_4$), and the remaining 2 are not connected to any $K_4$ vertex:
+
+Say vertices 5,6,7,8 are connected to $K_4$ vertices 1,2,3,4 respectively. Vertices 9,10 are not connected to $K_4$.
+
+Edges among $\{5,...,10\}$: 5 is not adjacent to... well, 5 is connected to $K_4$ vertex 1, 6 to vertex 2, etc. 5 and 6 can be adjacent (different $K_4$ vertices). Does $\{5, 6, x\}$ form a triangle for any $x$? Only if $5x$ and $6x$ are edges and $x$ is adjacent to both. Among the outside vertices, we need the graph to be triangle-free (since a triangle among outside vertices would be a new triangle component, which is fine as long as it doesn't share a vertex with existing triangles - but outside vertices are not in any triangle, so a triangle among them would be a new component, which is OK).
+
+Wait, actually a triangle among outside vertices is fine! It's a new triangle component, vertex-disjoint from the $K_4$. So the outside vertices can form any butterfly-free graph.
+
+But we need to be more careful: if outside vertices 5 and 6 are adjacent, and 5 is connected to $K_4$ vertex 1, and 6 is connected to $K_4$ vertex 2, does this create a triangle? $\{1, 5, 6\}$: needs edges $15, 56, 16$. $15$ ✓, $56$ ✓, $16$? Only if 6 is connected to 1, but 6 is connected to 2, not 1. So no triangle. ✓
+
+What about $\{5, 6, 7\}$ forming a triangle? 5-6 ✓, 6-7 ✓, 5-7 ✓. This is a triangle among outside vertices. It's a new component, vertex-disjoint from $K_4$. ✓. But then we need to check: does this triangle create butterflies with other triangles? It's vertex-disjoint from $K_4$, so no shared vertices, no butterfly. ✓.
+
+But wait, we also need the outside subgraph to be butterfly-free. If the outside subgraph (on 6 vertices) has a butterfly, that's a problem.
+
+So the outside subgraph on 6 vertices must be butterfly-free. The maximum butterfly-free graph on 6 vertices is what we're trying to figure out (recursively).
+
+This recursive structure suggests that the maximum butterfly-free graph might have a nice closed form.
+
+Let me think about this differently. Let me conjecture that the maximum butterfly-free graph on $n$ vertices is achieved by $K_{\lfloor n/2 \rfloor, \lceil n/2 \rceil}$ plus one edge, giving $\lfloor n^2/4 \rfloor + 1$ edges (for $n \geq 4$). For $n = 10$, that's 26.
+
+But wait, can we do better? Let me think about other constructions.
+
+**Construction C: $K_4$ on 4 vertices + $K_{3,3}$ on the other 6, with some cross edges.**
+
+$K_4$: 6 edges. $K_{3,3}$: 9 edges. Total so far: 15. Cross edges: each of the 6 $K_{3,3}$ vertices can connect to at most 1 $K_4$ vertex (as argued), giving at most 6 cross edges. Total: 21. Less than 26.
+
+But wait, the $K_{3,3}$ is triangle-free, so it's a valid butterfly-free graph on its own. And the cross edges don't create triangles (each outside vertex connects to only 1 $K_4$ vertex). But we need to verify no butterfly is created. Since no new triangles are formed (cross edges don't create triangles), the only triangles are in the $K_4$, and the $K_4$ is butterfly-free. ✓. 21 edges, less than 26.
+
+**Construction D: Multiple books.**
+
+A book $B_k$ is $k$ triangles sharing a common edge. It has $k+2$ vertices and $2k+1$ edges. It's butterfly-free (all triangles share the common edge).
+
+Can we have multiple books on disjoint vertex sets, plus cross edges?
+
+Two books $B_{k_1}$ on $V_1$ and $B_{k_2}$ on $V_2$, with $V_1 \cap V_2 = \emptyset$. Cross edges must not create triangles. An outside vertex $x$ (from $V_2$) adjacent to vertices in $V_1$: $x$'s neighbors in $V_1$ must form an independent set in the book graph. In $B_k$ with edge $uv$ and pages $w_1, \ldots, w_k$: the independent sets are subsets of $\{w_1, \ldots, w_k\}$ (since the $w_i$'s are pairwise non-adjacent) plus at most one of $u, v$. But if $x$ is adjacent to $w_i$ and $u$, triangle $\{u, w_i, x\}$ forms, sharing vertex $u$ with book triangle $\{u, v, w_j\}$ ($j \neq i$), creating a butterfly (if $k \geq 2$). So for $k \geq 2$, $x$ can be adjacent to at most one of $\{u, v\}$ and to none of the $w_i$'s (if adjacent to $u$ or $v$), or to all $w_i$'s but none of $u, v$.
+
+Wait, if $x$ is adjacent to $w_i$ only (not $u$ or $v$), then $x$ can be adjacent to all $w_i$'s. No triangle is formed (since $w_i$'s are not adjacent to each other, and $x$ is not adjacent to $u$ or $v$). So $x$ can be adjacent to all $k$ pages.
+
+If $x$ is adjacent to $u$ only (not $v$ or any $w_i$), that's 1 edge.
+
+If $x$ is adjacent to $u$ and $w_i$: triangle $\{u, w_i, x\}$, butterfly with $\{u, v, w_j\}$ for $j \neq i$. ✗ (for $k \geq 2$).
+
+So for a book $B_k$ with $k \geq 2$: an outside vertex can be adjacent to either (a) all pages (but not $u, v$), or (b) one of $u, v$ (but no pages), or (c) nothing.
+
+For a book $B_1$ (single triangle $\{u, v, w\}$): an outside vertex $x$ adjacent to $u$ and $w$: triangle $\{u, w, x\}$, shares edge $uw$ with $\{u, v, w\}$. No butterfly (only 1 existing triangle). But now $\{u, w, x\}$ is a new triangle sharing vertex $u$ with $\{u, v, w\}$, so they're in the same component. This grows the component. So for a single triangle, outside vertices can create new triangles sharing an edge, growing the component into a book or $K_4$.
+
+This is getting really complex. Let me try a more computational approach.
+
+Let me think about what the answer might be and try to verify.
+
+For $n = 10$, the bipartite construction gives 25 (triangle-free) or 26 (with one extra edge). Can we beat 26?
+
+**Construction E: $K_4$ + 6 vertices forming $K_{3,3}$, with cross edges from $K_{3,3}$ vertices to $K_4$ pages.**
+
+Hmm, $K_4$ doesn't have "pages" in the book sense. Let me reconsider.
+
+Actually, let me think about the $K_4$ case more carefully. In $K_4$ on $\{1,2,3,4\}$, every pair is an edge. An outside vertex $x$ can be adjacent to at most 1 vertex of $K_4$ (as shown). So at most 6 cross edges. Plus $K_4$ (6) + outside graph (butterfly-free on 6 vertices, at most... well, $K_{3,3}$ gives 9, or $K_{3,3}$ + 1 edge gives 10). Total: 6 + 6 + 10 = 22. Less than 26.
+
+What if we don't use $K_4$ but use a book instead?
+
+**Construction F: Book $B_k$ + remaining vertices.**
+
+Book $B_k$ on $k+2$ vertices with $2k+1$ edges. Remaining $n - k - 2$ vertices. Cross edges: each remaining vertex can be adjacent to all $k$ pages (but not the spine vertices $u, v$), giving $k(n - k - 2)$ cross edges. Or adjacent to one spine vertex, giving 1 edge each.
+
+If remaining vertices are adjacent to all pages: $k(n-k-2)$ cross edges. The remaining vertices among themselves: butterfly-free, at most $\lfloor (n-k-2)^2/4 \rfloor + 1$ edges (recursively).
+
+But we also need to check: if a remaining vertex $x$ is adjacent to all pages $w_1, \ldots, w_k$, and two remaining vertices $x, y$ are adjacent, and $y$ is also adjacent to page $w_i$, then $\{x, y, w_i\}$ is a triangle. This triangle shares vertex $w_i$ with book triangle $\{u, v, w_i\}$. They share only $w_i$ (since $x, y \notin \{u, v\}$). Butterfly! ✗ (for $k \geq 1$).
+
+So if remaining vertices are adjacent to pages, they can't be adjacent to each other (if they share a page neighbor). This is very restrictive.
+
+Alternatively, remaining vertices adjacent to pages form an independent set (no edges among them), and we get $k \cdot (n-k-2)$ cross edges but 0 edges among remaining vertices. Total: $2k + 1 + k(n-k-2) = 2k + 1 + kn - k^2 - 2k = kn - k^2 + 1$.
+
+For $n = 10$: $10k - k^2 + 1$. Maximized at $k = 5$: $50 - 25 + 1 = 26$. Same as before!
+
+For $k = 4$: $40 - 16 + 1 = 25$. For $k = 5$: 26. For $k = 6$: $60 - 36 + 1 = 25$.
+
+So the book construction with all remaining vertices adjacent to all pages gives 26 for $k = 5$ (book $B_5$ on 7 vertices, 3 remaining vertices adjacent to all 5 pages, 11 + 15 = 26 edges).
+
+Wait let me recompute. Book $B_5$: 5 triangles sharing edge $uv$, with pages $w_1, \ldots, w_5$. Vertices: $u, v, w_1, \ldots, w_5$ (7 vertices). Edges: $uv, uw_i, vw_i$ for $i = 1, \ldots, 5$: $1 + 10 = 11$ edges. Remaining 3 vertices $x_1, x_2, x_3$, each adjacent to all 5 pages: $3 \times 5 = 15$ edges. $x_1, x_2, x_3$ form an independent set (0 edges). Total: $11 + 15 = 26$.
+
+But wait, we need to verify no butterfly. The triangles are: $\{u, v, w_i\}$ for $i = 1, \ldots, 5$ (book triangles). Are there other triangles? $x_j$ is adjacent to $w_i$ but not to $u$ or $v$, and $x_j$'s are not adjacent to each other. So no triangle involves any $x_j$. The only triangles are the book triangles, all sharing edge $uv$. No butterfly. ✓. 26 edges.
+
+Can we do better by also adding edges among the $x_j$'s or connecting them to $u$ or $v$?
+
+If $x_1$ is also adjacent to $u$: then $\{u, w_i, x_1\}$ is a triangle (since $uw_i$ and $w_ix_1$ are edges). This shares vertex $u$ with book triangle $\{u, v, w_j\}$ ($j \neq i$). They share only $u$. Butterfly! ✗
+
+So $x_j$'s can't be adjacent to $u$ or $v$. 
+
+If $x_1$ and $x_2$ are adjacent: $\{x_1, x_2, w_i\}$ is a triangle (since $x_1w_i$ and $x_2w_i$ are edges). This shares vertex $w_i$ with book triangle $\{u, v, w_i\}$. They share only $w_i$. Butterfly! ✗
+
+So $x_j$'s can't be adjacent to each other. 26 is the max for this construction.
+
+**Can we beat 26 with a different approach?**
+
+Let me think about whether 26 is optimal or if we can do better.
+
+**Construction G: Book $B_k$ + remaining vertices, some adjacent to pages, some adjacent to spine.**
+
+Some remaining vertices adjacent to all pages (contributing $k$ edges each), some adjacent to one spine vertex (contributing 1 edge each). The ones adjacent to spine can have edges among themselves (triangle-free).
+
+Let $a$ vertices be adjacent to all pages, $b$ vertices adjacent to one spine vertex (say $u$), $c$ vertices adjacent to nothing. $a + b + c = n - k - 2 = 10 - k - 2 = 8 - k$.
+
+Edges: book ($2k+1$) + page-adjacent ($ka$) + spine-adjacent ($b$) + among spine-adjacent and none-adjacent vertices.
+
+The $a$ page-adjacent vertices form an independent set (can't be adjacent to each other, as shown). They also can't be adjacent to the $b$ spine-adjacent vertices (if $x$ is page-adjacent and $y$ is $u$-adjacent, and $xy$ is an edge, then $\{u, w_i, y\}$... wait, $y$ is adjacent to $u$ but not to $w_i$ (if $y$ is only spine-adjacent). Then $\{x, y, w_i\}$: $xw_i$ ✓, but $yw_i$? If $y$ is not adjacent to $w_i$, no triangle. So $xy$ edge is OK as long as no triangle forms.
+
+Hmm, but $\{x, y, w_i\}$ needs $xw_i, yw_i, xy$. If $y$ is not adjacent to $w_i$, no triangle. So $x$ and $y$ can be adjacent. But then, does this create any triangle? $\{x, y, u\}$: $xu$? $x$ is page-adjacent, not adjacent to $u$. So no. $\{x, y, v\}$: similarly no. So $xy$ is fine.
+
+But wait, the $b$ spine-adjacent vertices (adjacent to $u$) and $c$ none-adjacent vertices can form a butterfly-free graph among themselves. But we need to ensure no triangles involving $u$.
+
+If $y_1, y_2$ are both adjacent to $u$ and $y_1y_2$ is an edge, then $\{u, y_1, y_2\}$ is a triangle. This shares vertex $u$ with book triangle $\{u, v, w_i\}$. They share only $u$ (since $y_1, y_2 \notin \{v, w_i\}$). Butterfly! ✗ (for $k \geq 1$).
+
+So the $b$ spine-adjacent vertices must form an independent set (no edges among them). And they can't be adjacent to page-adjacent vertices either? Let me check: $y$ (adjacent to $u$) and $x$ (adjacent to pages) with edge $xy$. Triangle $\{u, y, x\}$? $uy$ ✓, $yx$ ✓, $ux$? $x$ is not adjacent to $u$. No triangle. ✓. Triangle $\{w_i, y, x\}$? $w_ix$ ✓, $xy$ ✓, $w_iy$? $y$ is not adjacent to $w_i$. No triangle. ✓. So $xy$ is fine.
+
+So the $b$ spine-adjacent vertices can be adjacent to the $a$ page-adjacent vertices and the $c$ none-adjacent vertices, but not to each other.
+
+Among the $c$ none-adjacent vertices: they can form any butterfly-free graph, and can be adjacent to $a$ page-adjacent and $b$ spine-adjacent vertices (as long as no triangles form).
+
+This is getting complicated. Let me just try to optimize.
+
+Total edges: $2k + 1 + ka + b + e(\text{among } b+c \text{ vertices, with } b \text{ independent}) + e(\text{between } a \text{ and } b+c)$.
+
+Hmm, the $a$ page-adjacent vertices can be adjacent to the $b + c$ other vertices (as long as no triangle forms). Since $a$ vertices are adjacent to all pages, and the $b$ vertices are adjacent to $u$, an edge between $a$-vertex $x$ and $b$-vertex $y$: does it create a triangle? $\{x, y, w_i\}$: needs $yw_i$, which is false. $\{x, y, u\}$: needs $xu$, which is false. So no triangle. ✓. So all $a \cdot (b+c)$ edges between $a$ and $b+c$ are allowed.
+
+Among the $b + c$ vertices: $b$ vertices form an independent set. $c$ vertices can form any butterfly-free graph. Edges between $b$ and $c$ vertices: $y$ (adjacent to $u$) and $z$ (none-adjacent), edge $yz$. Triangle $\{u, y, z\}$: $uy$ ✓, $yz$ ✓, $uz$? $z$ is none-adjacent, so $uz$ is false. No triangle. ✓. So all $bc$ edges between $b$ and $c$ are allowed.
+
+Among $c$ vertices: butterfly-free graph, max $\lfloor c^2/4 \rfloor + 1$ edges (recursively, but this is the same problem).
+
+So total edges: $2k + 1 + ka + b + a(b+c) + bc + \text{ex}(c, \text{butterfly})$.
+
+With $a + b + c = 8 - k$.
+
+Let me try $k = 5$, $a + b + c = 3$.
+
+- $a = 3, b = 0, c = 0$: $11 + 15 + 0 + 0 + 0 + 0 = 26$.
+- $a = 2, b = 1, c = 0$: $11 + 10 + 1 + 2 + 0 + 0 = 24$.
+- $a = 2, b = 0, c = 1$: $11 + 10 + 0 + 2 + 0 + 0 = 23$. (ex(1) = 0)
+- $a = 1, b = 2, c = 0$: $11 + 5 + 2 + 2 + 0 + 0 = 20$.
+- $a = 1, b = 1, c = 1$: $11 + 5 + 1 + 2 + 1 + 0 = 20$.
+- $a = 1, b = 0, c = 2$: $11 + 5 + 0 + 2 + 0 + 1 = 19$. (ex(2) = 1)
+- $a = 0, b = 3, c = 0$: $11 + 0 + 3 + 0 + 0 + 0 = 14$.
+- $a = 0, b = 0, c = 3$: $11 + 0 + 0 + 0 + 0 + 2 = 13$. (ex(3) = 2, triangle-free $K_{1,2}$, or $K_3$ which has a butterfly? No, $K_3$ is a single triangle, no butterfly. ex(3) = 3.) Actually ex(3, butterfly) = 3 (the triangle $K_3$ has no butterfly). So $11 + 3 = 14$.
+
+So for $k = 5$, the best is 26 with $a = 3$.
+
+Let me try $k = 4$, $a + b + c = 4$.
+
+- $a = 4, b = 0, c = 0$: $9 + 16 + 0 + 0 + 0 + 0 = 25$.
+- $a = 3, b = 1, c = 0$: $9 + 12 + 1 + 3 + 0 + 0 = 25$.
+- $a = 3, b = 0, c = 1$: $9 + 12 + 0 + 3 + 0 + 0 = 24$.
+- $a = 2, b = 2, c = 0$: $9 + 8 + 2 + 4 + 0 + 0 = 23$.
+- $a = 2, b = 1, c = 1$: $9 + 8 + 1 + 4 + 1 + 0 = 23$.
+- $a = 2, b = 0, c = 2$: $9 + 8 + 0 + 4 + 0 + 1 = 22$.
+- $a = 1, b = 3, c = 0$: $9 + 4 + 3 + 3 + 0 + 0 = 19$.
+- $a = 0, b = 0, c = 4$: $9 + 0 + 0 + 0 + 0 + 4 = 13$. (ex(4) = 4, $K_{2,2}$, or $K_4$ which has 6 edges and is butterfly-free! So ex(4) = 6.) $9 + 6 = 15$.
+
+Hmm wait, ex(4, butterfly): $K_4$ has 6 edges and 4 triangles, but no butterfly (as we showed, $K_4$ is butterfly-free). So ex(4) ≥ 6. Can we do better? $K_4$ has all $\binom{4}{2} = 6$ edges, so ex(4) = 6.
+
+- $a = 0, b = 0, c = 4$: $9 + 6 = 15$.
+
+Best for $k = 4$ is 25.
+
+Let me try $k = 3$, $a + b + c = 5$.
+
+- $a = 5, b = 0, c = 0$: $7 + 15 + 0 + 0 + 0 + 0 = 22$.
+- $a = 4, b = 1, c = 0$: $7 + 12 + 1 + 4 + 0 + 0 = 24$.
+- $a = 4, b = 0, c = 1$: $7 + 12 + 0 + 4 + 0 + 0 = 23$.
+- $a = 3, b = 2, c = 0$: $7 + 9 + 2 + 6 + 0 + 0 = 24$.
+- $a = 3, b = 1, c = 1$: $7 + 9 + 1 + 6 + 1 + 0 = 24$.
+- $a = 3, b = 0, c = 2$: $7 + 9 + 0 + 6 + 0 + 1 = 23$.
+- $a = 2, b = 3, c = 0$: $7 + 6 + 3 + 6 + 0 + 0 = 22$.
+- $a = 2, b = 2, c = 1$: $7 + 6 + 2 + 6 + 2 + 0 = 23$.
+- $a = 2, b = 1, c = 2$: $7 + 6 + 1 + 6 + 2 + 1 = 23$.
+- $a = 2, b = 0, c = 3$: $7 + 6 + 0 + 6 + 0 + 3 = 22$. (ex(3) = 3)
+- $a = 1, b = 4, c = 0$: $7 + 3 + 4 + 4 + 0 + 0 = 18$.
+- $a = 0, b = 0, c = 5$: $7 + 0 + 0 + 0 + 0 + 7 = 14$. (ex(5) = ? Let me compute: $K_{2,3}$ has 6 edges, $K_{2,3}$ + 1 edge = 7. Or $K_4$ + 1 vertex: $K_4$ (6) + 1 edge to new vertex = 7. Or book $B_2$ on 4 vertices (5 edges) + 1 vertex adjacent to both pages (2 edges) = 7. So ex(5) ≥ 7. Can we do 8? $K_5$ has 10 edges but has butterflies. $K_{2,3}$ + 2 edges: the 2 extra edges must be in the same part and share a vertex... wait, we showed that 2 edges in the same part of $K_{2,3}$ create a butterfly if they share a vertex, and if they don't share a vertex (matching), they create a butterfly via a common neighbor. So at most 1 extra edge: 7. What about $K_4$ + 1 vertex with 2 edges to $K_4$? We showed each outside vertex can connect to at most 1 $K_4$ vertex. So 6 + 1 = 7. What about book $B_3$ on 5 vertices? $2 \cdot 3 + 1 = 7$ edges. So ex(5) = 7.)
+
+Hmm, so for $k = 3$ the best is 24.
+
+Let me try $k = 6$, $a + b + c = 2$.
+
+- $a = 2, b = 0, c = 0$: $13 + 12 + 0 + 0 + 0 + 0 = 25$.
+- $a = 1, b = 1, c = 0$: $13 + 6 + 1 + 1 + 0 + 0 = 21$.
+- $a = 0, b = 0, c = 2$: $13 + 0 + 0 + 0 + 0 + 1 = 14$.
+
+Best for $k = 6$ is 25.
+
+$k = 7$, $a + b + c = 1$:
+- $a = 1$: $15 + 7 = 22$.
+- $b = 1$: $15 + 1 = 16$.
+- $c = 1$: $15 + 0 = 15$.
+
+$k = 2$, $a + b + c = 6$:
+- $a = 6$: $5 + 12 + 0 + 0 + 0 + 0 = 17$.
+- $a = 5, b = 1$: $5 + 10 + 1 + 5 + 0 + 0 = 21$.
+- $a = 4, b = 2$: $5 + 8 + 2 + 8 + 0 + 0 = 23$.
+- $a = 4, b = 1, c = 1$: $5 + 8 + 1 + 8 + 1 + 0 = 23$.
+- $a = 4, b = 0, c = 2$: $5 + 8 + 0 + 8 + 0 + 1 = 22$.
+- $a = 3, b = 3$: $5 + 6 + 3 + 9 + 0 + 0 = 23$.
+- $a = 3, b = 2, c = 1$: $5 + 6 + 2 + 9 + 2 + 0 = 24$.
+- $a = 3, b = 1, c = 2$: $5 + 6 + 1 + 9 + 2 + 1 = 24$.
+- $a = 3, b = 0, c = 3$: $5 + 6 + 0 + 9 + 0 + 3 = 23$.
+- $a = 2, b = 4$: $5 + 4 + 4 + 8 + 0 + 0 = 21$.
+- $a = 2, b = 3, c = 1$: $5 + 4 + 3 + 8 + 3 + 0 = 23$.
+- $a = 2, b = 2, c = 2$: $5 + 4 + 2 + 8 + 4 + 1 = 24$.
+- $a = 2, b = 1, c = 3$: $5 + 4 + 1 + 8 + 3 + 3 = 24$.
+- $a = 2, b = 0, c = 4$: $5 + 4 + 0 + 8 + 0 + 6 = 23$.
+- $a = 1, b = 5$: $5 + 2 + 5 + 5 + 0 + 0 = 17$.
+- $a = 0, b = 0, c = 6$: $5 + 0 + 0 + 0 + 0 + 10 = 15$. (ex(6) = ? $K_{3,3}$ + 1 = 10. Or book $B_4$ on 6 vertices: 9 edges. Or $K_4$ + $K_{2,2}$ with cross edges... Let me compute ex(6). $K_{3,3}$ + 1 edge = 10. Book $B_4$: 9. $K_4$ + 2 vertices each connected to 1 $K_4$ vertex + edge between them: 6 + 2 + 1 = 9. Hmm, $K_{3,3}$ + 1 = 10 seems best. Can we do 11? $K_{3,3}$ + 2 edges: as shown, 2 edges in same part create butterfly. What about non-complete bipartite? Let me think... Actually, let me just conjecture ex(6) = 10.)
+
+Best for $k = 2$ is 24.
+
+$k = 1$ (single triangle $\{u, v, w\}$), $a + b + c = 7$:
+
+With $k = 1$: book $B_1$ is a single triangle, 3 vertices, 3 edges. But for $k = 1$, the constraints are different (a single triangle can grow). Let me reconsider.
+
+Actually, for $k = 1$, the "book" is just a triangle $\{u, v, w\}$. Outside vertices adjacent to the "page" $w$ (there's only 1 page): each contributes 1 edge. Outside vertices adjacent to spine vertex $u$: each contributes 1 edge, and they must be independent.
+
+But with $k = 1$, the constraint about butterflies is weaker. If an outside vertex $x$ is adjacent to $w$ and $u$, triangle $\{u, w, x\}$ forms, sharing edge $uw$ with $\{u, v, w\}$. No butterfly (only 1 existing triangle through $u$ that doesn't share edge $uw$... wait, $\{u, v, w\}$ shares edge $uw$ with $\{u, w, x\}$. ✓). But now there are 2 triangles through $u$: $\{u, v, w\}$ and $\{u, w, x\}$, sharing edge $uw$. And through $w$: $\{u, v, w\}$ and $\{u, w, x\}$, sharing edge $uw$. No butterfly. ✓.
+
+But if another outside vertex $y$ is adjacent to $u$ and $v$, triangle $\{u, v, y\}$ forms. Now through $u$: $\{u, v, w\}, \{u, w, x\}, \{u, v, y\}$. $\{u, w, x\}$ and $\{u, v, y\}$ share only $u$. Butterfly! ✗
+
+So with $k = 1$, the analysis is more complex because the triangle can grow into a book or $K_4$. This is essentially the recursive case.
+
+I think the key insight is that the book construction with $k = 5$ and all remaining vertices adjacent to all pages gives 26, and this seems to be the best among the constructions I've tried. But I haven't proven it's optimal.
+
+Let me also try some other constructions.
+
+**Construction H: Two books on disjoint vertex sets.**
+
+Book $B_{k_1}$ on $V_1$ ($k_1 + 2$ vertices, $2k_1 + 1$ edges) and book $B_{k_2}$ on $V_2$ ($k_2 + 2$ vertices, $2k_2 + 1$ edges), $V_1 \cap V_2 = \emptyset$. Cross edges: vertices in $V_2$ adjacent to pages of $V_1$ and vice versa. But as shown, a vertex adjacent to all pages of a book (with $k \geq 2$) can't be adjacent to any vertex that's also adjacent to those pages (or to the spine). And the two books' triangles are vertex-disjoint, so no butterfly between them. But cross edges are limited.
+
+A vertex $x \in V_2$ adjacent to all $k_1$ pages of $V_1$: contributes $k_1$ edges. But $x$ can't be adjacent to other vertices in $V_2$ that are also adjacent to those pages (would create a triangle with a page, forming a butterfly with the book triangle). And $x$ can't be adjacent to $V_2$'s spine or pages in ways that create triangles with $V_1$'s pages.
+
+This is getting very complicated. Let me try a different approach.
+
+**Let me try to prove an upper bound of 26.**
+
+Claim: $\text{ex}(10, \text{butterfly}) = 25$, so $f(10) = 26$.
+
+Wait, I need to be more careful. $f(n)$ is the minimum number of edges that **guarantees** a butterfly. So $f(n) = \text{ex}(n, \text{butterfly}) + 1$.
+
+I've found a construction with 26 edges and no butterfly. So $\text{ex}(10, \text{butterfly}) \geq 26$, and $f(10) \geq 27$.
+
+Wait, let me re-examine. The construction $K_{5,5}$ + 1 edge has 26 edges and no butterfly. So $\text{ex}(10, \text{butterfly}) \geq 26$.
+
+And the book $B_5$ + 3 vertices adjacent to all 5 pages also has 26 edges and no butterfly.
+
+Can we achieve 27? Let me think harder.
+
+**Construction I: $K_{5,5}$ + 1 edge + more modifications.**
+
+$K_{5,5}$ with parts $A = \{a_1, \ldots, a_5\}$ and $B = \{b_1, \ldots, b_5\}$. Add edge $a_1a_2$ within $A$. This creates 5 triangles $\{a_1, a_2, b_j\}$ for $j = 1, \ldots, 5$, all sharing edge $a_1a_2$. No butterfly. 26 edges.
+
+Can we add another edge? If we add $a_1a_3$: triangles $\{a_1, a_3, b_j\}$ for $j = 1, \ldots, 5$. Now $\{a_1, a_2, b_1\}$ and $\{a_1, a_3, b_2\}$ share only $a_1$. Butterfly! ✗
+
+If we add $a_3a_4$ (disjoint from $a_1a_2$): triangles $\{a_3, a_4, b_j\}$. Now $\{a_1, a_2, b_1\}$ and $\{a_3, a_4, b_1\}$ share only $b_1$. Butterfly! ✗
+
+If we add $b_1b_2$ within $B$: triangles $\{b_1, b_2, a_i\}$ for $i = 1, \ldots, 5$. Now $\{a_1, a_2, b_1\}$ and $\{b_1, b_2, a_3\}$ share only $b_1$. Butterfly! ✗
+
+So we can't add any more edges to $K_{5,5}$ + 1 edge. 26 is the max for this base.
+
+**Construction J: Non-complete bipartite + more internal edges.**
+
+What if we don't use $K_{5,5}$ but a different bipartite graph, allowing more internal edges?
+
+Consider a bipartite graph with parts $A$ (size $a$) and $B$ (size $b$), $a + b = 10$. Add a matching $M$ of size $m$ within $A$. Each edge $a_ia_j$ in $M$ creates triangles with common neighbors of $a_i$ and $a_j$ in $B$. Two edges in $M$ create a butterfly if they have a common neighbor in $B$ (which happens if some $b \in B$ is adjacent to all 4 endpoints). To avoid this, the neighborhoods of different matching edges must be disjoint.
+
+So if matching edge $e_1 = a_1a_2$ has common neighbors $N_1 \subseteq B$ and $e_2 = a_3a_4$ has common neighbors $N_2 \subseteq B$, we need $N_1 \cap N_2 = \emptyset$ (otherwise a common neighbor $b$ creates triangles $\{a_1, a_2, b\}$ and $\{a_3, a_4, b\}$ sharing only $b$).
+
+Also, within a single matching edge $e = a_1a_2$ with common neighbors $N_e$, all triangles share edge $a_1a_2$, so no butterfly among them. ✓.
+
+But we also need to check: triangle $\{a_1, a_2, b\}$ (from matching edge $a_1a_2$) and triangle $\{a_1, a_3, b'\}$ (from matching edge $a_1a_3$... wait, matching edges are disjoint, so $a_1$ is in only one matching edge).
+
+Since $M$ is a matching, each vertex is in at most one matching edge. So triangles from different matching edges involve disjoint pairs in $A$. Two such triangles $\{a_1, a_2, b\}$ and $\{a_3, a_4, b'\}$: if $b = b'$, they share only $b$ (butterfly). If $b \neq b'$, they're vertex-disjoint. So we need $N_1 \cap N_2 = \emptyset$ for each pair of matching edges.
+
+To maximize total edges: bipartite edges + matching edges. The bipartite edges are between $A$ and $B$. For matching edge $a_ia_j$, the common neighbors in $B$ are the vertices adjacent to both $a_i$ and $a_j$. To maximize bipartite edges, we want each $a_i$ to be adjacent to many $b_j$'s, but the common neighbor sets of different matching edges must be disjoint.
+
+Let me set up: $|A| = a, |B| = b = 10 - a$. Matching of size $m$ in $A$ (using $2m$ vertices). The remaining $a - 2m$ vertices in $A$ are not in any matching edge.
+
+For matching edge $e_i$ (using vertices $a_{2i-1}, a_{2i}$), let $N_i \subseteq B$ be the common neighbors. We need $N_i \cap N_j = \emptyset$ for $i \neq j$.
+
+Each $a_{2i-1}$ and $a_{2i}$ is adjacent to all of $N_i$ (and possibly more of $B$, but the common neighbors are exactly $N_i$). To maximize edges, let's say $a_{2i-1}$ and $a_{2i}$ are adjacent to exactly $N_i$ (and no other $B$ vertices), and the remaining $a - 2m$ vertices are adjacent to all of $B$.
+
+Wait, but if a remaining vertex $a_k$ is adjacent to all of $B$, and $a_k$ is not in a matching edge, then $a_k$ doesn't create triangles (no edge within $A$ involving $a_k$). But $a_k$ could be adjacent to $a_{2i-1}$ or $a_{2i}$... no, we're only adding matching edges within $A$, so $a_k$ has no edges within $A$.
+
+Hmm, but we could add more edges within $A$ beyond the matching. But as we showed, two edges in $A$ sharing a vertex create a butterfly (if they have common neighbors in $B$). And two disjoint edges with a common neighbor also create a butterfly. So the edges within $A$ must form a matching, AND the common neighbor sets must be disjoint.
+
+Wait, but what if two edges in $A$ share a vertex but have no common neighbors? E.g., $a_1a_2$ with $N_1 = \{b_1\}$ and $a_1a_3$ with $N_2 = \{b_2\}$, $b_1 \neq b_2$. Triangle $\{a_1, a_2, b_1\}$ and $\{a_1, a_3, b_2\}$ share only $a_1$. Butterfly! ✗
+
+So even with disjoint common neighbor sets, two edges sharing a vertex create a butterfly. So edges within $A$ must form a matching (no shared vertices) AND have disjoint common neighbor sets.
+
+OK so with this setup:
+- Matching $M$ of size $m$ in $A$, with disjoint common neighbor sets $N_1, \ldots, N_m \subseteq B$.
+- Bipartite edges: each $a_{2i-1}, a_{2i}$ is adjacent to $N_i$ (at least), and possibly more of $B$ (but the common neighbors are exactly $N_i$, so they can be adjacent to $B \setminus N_i$ individually, just not both).
+- Remaining $A$ vertices (not in matching) are adjacent to all of $B$.
+
+Actually, to maximize edges, let me think about it differently. Let $a_{2i-1}$ be adjacent to $N_i \cup S_i$ and $a_{2i}$ be adjacent to $N_i \cup T_i$, where $S_i \cap T_i = \emptyset$ (so common neighbors are exactly $N_i$). The remaining $a - 2m$ vertices are adjacent to all $b$ vertices of $B$.
+
+Total bipartite edges: $\sum_i (|N_i| + |S_i| + |N_i| + |T_i|) + (a - 2m) \cdot b = \sum_i (2|N_i| + |S_i| + |T_i|) + (a-2m)b$.
+
+Subject to: $N_i \cap N_j = \emptyset$ for $i \neq j$, $S_i \cap T_i = \emptyset$, and $S_i, T_i \subseteq B \setminus N_i$ (they can be anything, even overlapping with $N_j$).
+
+To maximize: we want $|S_i| + |T_i|$ as large as possible. Since $S_i \cap T_i = \emptyset$ and $S_i, T_i \subseteq B$, $|S_i| + |T_i| \leq |B| = b$. And $|N_i| + |S_i| + |T_i| \leq b + |N_i|$... wait, $S_i, T_i \subseteq B \setminus N_i$? No, $S_i$ and $T_i$ can include vertices in $N_i$... actually, $N_i$ is the set of common neighbors, so $N_i = (\text{neighbors of } a_{2i-1}) \cap (\text{neighbors of } a_{2i}) \cap B$. If $a_{2i-1}$ is adjacent to $N_i \cup S_i$ and $a_{2i}$ is adjacent to $N_i \cup T_i$, then common neighbors are $N_i \cup (S_i \cap T_i)$. For common neighbors to be exactly $N_i$, we need $S_i \cap T_i = \emptyset$.
+
+So $|S_i| + |T_i| \leq |B \setminus N_i| + |B \setminus N_i| = 2(b - |N_i|)$... no, $S_i, T_i \subseteq B$ and $S_i \cap T_i = \emptyset$, so $|S_i| + |T_i| \leq b$. But also $S_i$ and $T_i$ can include vertices in $N_i$? No, $N_i \subseteq$ both neighbor sets, so $N_i \cap S_i = \emptyset$ and $N_i \cap T_i = \emptyset$ (since $S_i$ and $T_i$ are the "extra" neighbors beyond $N_i$). Wait, I defined $a_{2i-1}$'s neighbors as $N_i \cup S_i$, so $S_i \cap N_i = \emptyset$. Similarly $T_i \cap N_i = \emptyset$. And $S_i \cap T_i = \emptyset$. So $S_i, T_i \subseteq B \setminus N_i$ and $S_i \cap T_i = \emptyset$, giving $|S_i| + |T_i| \leq b - |N_i|$.
+
+Total bipartite edges for matching pair $i$: $2|N_i| + |S_i| + |T_i| \leq 2|N_i| + b - |N_i| = |N_i| + b$.
+
+To maximize, we want $|N_i|$ as large as possible. But $N_i$'s are disjoint, so $\sum |N_i| \leq b$.
+
+Total bipartite edges: $\sum_i (|N_i| + b) + (a - 2m) \cdot b = \sum_i |N_i| + mb + (a-2m)b = \sum|N_i| + (a-m)b$.
+
+With $\sum|N_i| \leq b$: total bipartite edges $\leq b + (a-m)b = (a - m + 1)b$.
+
+Total edges (bipartite + matching): $(a - m + 1)b + m$.
+
+For $n = 10$, $a + b = 10$:
+- $a = 5, b = 5, m = 1$: $(5 - 1 + 1) \cdot 5 + 1 = 5 \cdot 5 + 1 = 26$.
+- $a = 5, b = 5, m = 2$: $(5 - 2 + 1) \cdot 5 + 2 = 4 \cdot 5 + 2 = 22$.
+- $a = 6, b = 4, m = 1$: $(6 - 1 + 1) \cdot 4 + 1 = 6 \cdot 4 + 1 = 25$.
+- $a = 6, b = 4, m = 2$: $(6 - 2 + 1) \cdot 4 + 2 = 5 \cdot 4 + 2 = 22$.
+- $a = 7, b = 3, m = 1$: $(7 - 1 + 1) \cdot 3 + 1 = 7 \cdot 3 + 1 = 22$.
+- $a = 4, b = 6, m = 1$: $(4 - 1 + 1) \cdot 6 + 1 = 4 \cdot 6 + 1 = 25$.
+- $a = 4, b = 6, m = 2$: $(4 - 2 + 1) \cdot 6 + 2 = 3 \cdot 6 + 2 = 20$.
+- $a = 3, b = 7, m = 1$: $(3 - 1 + 1) \cdot 7 + 1 = 3 \cdot 7 + 1 = 22$.
+- $a = 8, b = 2, m = 1$: $(8) \cdot 2 + 1 = 17$.
+- $a = 8, b = 2, m = 4$: $(8-4+1) \cdot 2 + 4 = 10 + 4 = 14$.
+- $a = 2, b = 8, m = 1$: $(2) \cdot 8 + 1 = 17$.
+
+So the best is 26 with $a = 5, b = 5, m = 1$. This matches our earlier construction.
+
+But wait, I assumed the remaining $A$ vertices (not in matching) are adjacent to all of $B$. What if they're not? That would only reduce edges. And what if we add edges within $B$? We showed that adding an edge within $B$ creates a butterfly with the triangle from the $A$-matching edge (if they share a vertex). Let me double-check.
+
+If we add edge $b_1b_2$ in $B$, and $a_1a_2$ is the matching edge with $b_1 \in N_1$ (so $b_1$ is a common neighbor of $a_1, a_2$): triangle $\{a_1, a_2, b_1\}$ and triangle $\{b_1, b_2, a_i\}$ (for $a_i$ adjacent to both $b_1, b_2$). If $a_i = a_1$ (and $a_1$ is adjacent to $b_2$): $\{b_1, b_2, a_1\}$ and $\{a_1, a_2, b_1\}$ share vertices $a_1, b_1$ (edge $a_1b_1$). Not a butterfly. But $\{b_1, b_2, a_3\}$ (if $a_3$ adjacent to both $b_1, b_2$, and $a_3 \neq a_1, a_2$) and $\{a_1, a_2, b_1\}$ share only $b_1$. Butterfly! ✗
+
+So if any $a_i$ ($i \neq 1, 2$) is adjacent to both $b_1$ and $b_2$, we get a butterfly. In our construction, the remaining $A$ vertices are adjacent to all of $B$, so they're adjacent to both $b_1$ and $b_2$. ✗
+
+What if the remaining $A$ vertices are not adjacent to all of $B$? Then we lose bipartite edges but might gain the $B$-internal edge. Net effect: lose some bipartite edges, gain 1 edge. Probably not worth it.
+
+What if we also add a matching within $B$, with similar disjointness constraints? This gets very complex but seems unlikely to beat 26.
+
+**Let me also consider non-bipartite-based constructions.**
+
+**Construction K: Book $B_5$ + 3 vertices adjacent to all pages, plus 1 more edge.**
+
+We had 26 edges. Can we add 1 more? The 3 extra vertices $x_1, x_2, x_3$ are adjacent to all 5 pages $w_1, \ldots, w_5$ but not to each other or to $u, v$. 
+
+Adding edge $x_1x_2$: creates triangle $\{x_1, x_2, w_i\}$ for each $i$ (since both are adjacent to $w_i$). Triangle $\{x_1, x_2, w_1\}$ and book triangle $\{u, v, w_1\}$ share only $w_1$. Butterfly! ✗
+
+Adding edge $x_1u$: creates triangle $\{x_1, u, w_i\}$ (since $x_1w_i$ and $uw_i$ are edges). Triangle $\{x_1, u, w_1\}$ and book triangle $\{u, v, w_2\}$ share only $u$. Butterfly! ✗
+
+So no more edges can be added. 26 is the max for this construction.
+
+**Construction L: What about a different graph entirely?**
+
+Let me think about whether there's a fundamentally different construction that could beat 26.
+
+What about a graph that's "almost complete"? $K_{10}$ has 45 edges. We need to remove enough edges to destroy all butterflies. Each butterfly is a pair of triangles sharing exactly one vertex. 
+
+In $K_{10}$, the number of butterflies is huge. We'd need to remove many edges. This approach seems unlikely to beat 26.
+
+What about a graph based on a different structure, like a Petersen graph plus some edges? The Petersen graph has 15 edges and is triangle-free. Adding edges might create triangles but we'd need to be careful about butterflies.
+
+I think 26 is likely the answer for $\text{ex}(10, \text{butterfly})$, giving $f(10) = 27$.
+
+But wait, I should double-check by trying to prove an upper bound.
+
+**Upper bound attempt:**
+
+Let $G$ be a butterfly-free graph on 10 vertices with $e$ edges. I want to show $e \leq 26$.
+
+Hmm, actually, let me reconsider. Maybe the answer is higher. Let me think about whether there are constructions I'm missing.
+
+**Construction M: Complete graph on 4 vertices ($K_4$) + complete bipartite between remaining 6 and some of the 4.**
+
+$K_4$ on $\{1,2,3,4\}$: 6 edges. Each of the remaining 6 vertices can be adjacent to at most 1 vertex of $K_4$ (as shown). So at most 6 cross edges. The remaining 6 vertices form a butterfly-free graph: at most ex(6) edges.
+
+What is ex(6)? Let me compute more carefully.
+
+ex(6, butterfly): maximum edges in a 6-vertex butterfly-free graph.
+
+$K_{3,3}$ + 1 edge = 10. Can we do better?
+
+Book $B_4$ on 6 vertices: $2 \cdot 4 + 1 = 9$ edges. Less than 10.
+
+$K_4$ + 2 vertices, each adjacent to 1 $K_4$ vertex: 6 + 2 = 8. Plus edge between the 2 new vertices: 9. But does this create a butterfly? The 2 new vertices $x, y$ each adjacent to 1 $K_4$ vertex (say $x$ to 1, $y$ to 2). Edge $xy$. Triangle $\{1, x, y\}$? Needs $1y$, but $y$ is adjacent to 2, not 1. No triangle. ✓. Triangle $\{2, x, y\}$? Needs $2x$, but $x$ is adjacent to 1, not 2. No. ✓. So no new triangles. 9 edges, no butterfly. Less than 10.
+
+$K_4$ + 2 vertices, both adjacent to the same $K_4$ vertex (say 1), plus edge between them: 6 + 2 + 1 = 9. Triangle $\{1, x, y\}$: $1x$ ✓, $1y$ ✓, $xy$ ✓. Triangle! This shares vertex 1 with $K_4$ triangle $\{1, 2, 3\}$. Share only 1. Butterfly! ✗
+
+What about $K_{3,3}$ + 1 edge + modifications? We showed we can't add more edges to $K_{3,3}$ + 1 edge. So 10 seems to be ex(6).
+
+Actually wait, let me think about ex(6) more carefully. What about a graph that's not based on $K_{3,3}$?
+
+Consider the book $B_3$ on 5 vertices (7 edges) + 1 vertex adjacent to all 3 pages (3 edges) = 10 edges. Same as $K_{3,3}$ + 1.
+
+Can we get 11? Let me think... A graph on 6 vertices with 11 edges. $\binom{6}{2} = 15$, so we're removing 4 edges from $K_6$. $K_6$ has $\binom{6}{3} = 20$ triangles. We need to destroy all butterflies. This seems hard with only 4 edge removals.
+
+Actually, let me think about it differently. With 11 edges on 6 vertices, the average degree is $22/6 \approx 3.67$. The graph is quite dense. 
+
+Let me think about the complement: 4 missing edges. The complement has 4 edges on 6 vertices. 
+
+In $K_6$, a butterfly at vertex $v$ consists of two triangles through $v$ with disjoint other vertices. For $v$ with degree 5 in $K_6$, the triangles through $v$ are $\binom{5}{2} = 10$. We need all surviving triangles through $v$ to pairwise share an edge, i.e., the neighborhood graph $G[N(v)]$ is a star or triangle.
+
+If $v$ has degree $d$ in $G$, then $G[N(v)]$ has $d$ vertices. The edges of $G[N(v)]$ correspond to triangles through $v$. For no butterfly at $v$, $G[N(v)]$ is a star or triangle (or subgraph).
+
+If $d = 5$: $G[N(v)]$ on 5 vertices must be a star (≤ 4 edges) or triangle (3 edges) or subgraph. The number of edges in $G[N(v)]$ is the number of "non-edges" in the complement restricted to $N(v)$. In $K_6$, $G[N(v)]$ would be $K_5$ (10 edges). We need to reduce it to ≤ 4 edges (star) or exactly 3 (triangle), so we need to remove at least 6 edges from $K_5$ (for star) or 7 (for triangle). But we only have 4 missing edges total. So if any vertex has degree 5, we need at least 6 of the 4 missing edges to be in $N(v)$... impossible. So no vertex can have degree 5 with 11 edges.
+
+Wait, that's not right. The 4 missing edges are in the complement. $G[N(v)]$ is the induced subgraph of $G$ on $N(v)$. If $v$ has degree 5, $N(v)$ is all other 5 vertices. $G[N(v)]$ has $\binom{5}{2} - (\text{missing edges among } N(v))$ edges. We need this to be ≤ 4 (star) or = 3 (triangle). So missing edges among $N(v) \geq 10 - 4 = 6$ (for star) or $\geq 7$ (for triangle). But we only have 4 missing edges total. So degree 5 is impossible with 11 edges (and only 4 missing edges).

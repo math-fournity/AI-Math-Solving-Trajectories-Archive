@@ -1,0 +1,1162 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_04997</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+9.4. In a regular 100-gon, each vertex is covered by a cloth. It is known that exactly one of the cloths hides a coin. The following action is called an operation: choose any four cloths to check if there is a coin underneath, and after each operation, the cloths are returned to their original positions, while the coin is secretly moved to the cloth under an adjacent vertex. Find the minimum number of operations required to definitely find the coin.
+
+## Standard Solution
+
+9.4.33 times.
+
+Assume that a regular 100-gon is placed on a rotatable horizontal circular table, and the vector from the center to one vertex points due north. The initial positions of the vertices of the polygon are defined from due north in a counterclockwise direction as $0, 1, \cdots, 99$. Each operation and coin transfer will cause the table to rotate automatically by $\frac{2 \pi}{100}$ in a clockwise direction. This means the coin's position either remains unchanged or moves two positions clockwise. Therefore, the parity of the coin's position remains unchanged after each automatic rotation of the table.
+
+If a position cannot have a coin at a certain moment, it is called "empty." Otherwise, it is called "non-empty."
+Clearly, at the initial moment, the number of empty positions is 0.
+Thus, each operation can increase the number of empty positions by at most 4.
+
+Consecutive odd (even) empty positions form an odd (even) empty interval.
+
+If an odd (even) empty interval is not a proper subset of another odd (even) empty interval, it is called "maximal."
+Due to the transfer of the coin, after the table rotates,
+
+the counterclockwise endpoint of each maximal odd (even) empty interval will become non-empty. This indicates that during the entire process of finding the coin, the transfer of the coin will not increase the number of non-empty positions only in the following situation: when all odd (even) positions are empty, and all even (odd) positions are non-empty (this situation can occur at most once). In all other cases, the number of empty positions before this operation is at most 3 more than the number of empty positions before the previous operation. Thus, after 32 operations, the number of empty positions is at most $31 \times 3 + 4 = 97$, which does not guarantee finding the coin.
+
+Next, we show that the coin can be found in at most 33 operations.
+First, check positions $0, 2, 4, 6$.
+If the coin is found, the problem is solved;
+If not, then after the table rotates, positions $0, 2, 4$ are empty (assuming the coin is not found in the first 32 operations).
+
+Generally, if after the table rotates, it is known that $0, 2, \cdots, 2s$ are empty positions, then the next operation checks $2s+2, 2s+4, 2s+6, 2s+8$.
+
+After the coin transfer and table rotation, $0, 2, \cdots, 2s+6$ are empty positions. Thus, after 16 operations and table rotations, 48 empty positions are obtained, i.e., $0, 2, \cdots, 94$.
+The 17th operation checks $96, 98, 1, 3$.
+After the table rotates, 51 empty positions are obtained, i.e., $0, 1, 2, 4, 6, \cdots, 98$. Next, check $3, 5, 7, 9; 9, 11, 13, 15; \cdots$.
+
+After the 32nd operation and table rotation, 96 empty positions are obtained, i.e., $0, 1, 2, \cdots, 91, 92, 94, 96, 98$.
+
+The 33rd operation checks the last four positions $93, 95, 97, 99$, and the coin will certainly be found.
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We have a regular 100-gon. Each vertex has a cloth, exactly one cloth hides a coin. An operation: choose any 4 cloths to check. After each operation, the coin is secretly moved to an adjacent vertex (one step clockwise or counterclockwise).
+
+We need to find the minimum number of operations to definitely find the coin.
+
+This is a classic pursuit-evasion / searching problem on a cycle graph. The coin moves after each query. We query 4 vertices at a time, and after each query the coin moves to an adjacent vertex.
+
+Let me think about this more carefully.
+
+The coin is on some vertex. We query 4 vertices. If the coin is on one of those 4, we find it. If not, the coin moves to an adjacent vertex (the adversary chooses which adjacent vertex, to evade us).
+
+Wait, actually - "the coin is secretly moved to the cloth under an adjacent vertex." So after each operation, regardless of whether we found it, the coin moves to an adjacent vertex. But if we found it, we're done. So the coin moves only when we don't find it.
+
+Actually, let me re-read: "after each operation, the cloths are returned to their original positions, while the coin is secretly moved to the cloth under an adjacent vertex."
+
+So the sequence is:
+1. We choose 4 cloths and check them.
+2. If the coin is found, we're done.
+3. If not, the coin moves to an adjacent vertex.
+4. Repeat.
+
+The adversary controls:
+- Initial position of the coin
+- Which adjacent vertex the coin moves to after each failed operation
+
+We want a strategy that guarantees finding the coin regardless of the adversary's choices.
+
+This is a search game on a cycle of length 100, where the searcher queries 4 vertices per turn, and the target moves 1 step after each failed query.
+
+Let me think about the parity argument. This is key.
+
+The coin moves to an adjacent vertex each turn. So the parity of the coin's position changes each turn (on a cycle, if we label vertices 0-99, moving to adjacent changes parity... wait, on a cycle of even length 100, adjacent vertices have different parity). So after each move, the parity flips.
+
+At turn t (0-indexed), the coin has parity = (initial parity) XOR (t mod 2).
+
+When we query at turn t, before the coin moves, the coin is at some position. Let's track:
+- Turn 0: coin at initial position p0 (parity = p0 mod 2). We query 4 vertices. If found, done. If not, coin moves to adjacent → parity flips.
+- Turn 1: coin at parity = (p0+1) mod 2. We query. If not found, coin moves → parity flips back.
+- Turn 2: coin at parity = p0 mod 2. Etc.
+
+So at even turns, coin has parity = p0 mod 2. At odd turns, coin has parity = 1 - (p0 mod 2).
+
+The key insight: if we can determine the parity of the coin, we can restrict our search.
+
+Strategy idea: 
+- On even turns, query only even vertices (or only odd vertices).
+- On odd turns, query the opposite parity.
+
+If we query 4 even vertices on an even turn, and the coin is on an odd vertex, we definitely don't find it, but we also know the coin will move to an even vertex next turn.
+
+Wait, but we don't know p0's parity. The adversary chooses the initial position.
+
+Let me think about this differently. This is a well-known type of problem. Let me think about the structure.
+
+Actually, let me think about the problem on a path/cycle and the concept of "contaminated" vertices.
+
+At any point, the set of possible positions of the coin forms some set S. Initially S = all 100 vertices.
+
+When we query 4 vertices Q:
+- If the coin is in Q, we find it (game over, we win).
+- If the coin is not in Q, the coin is in S \ Q, and then it moves to an adjacent vertex. So the new set of possible positions is N(S \ Q), where N(X) is the set of all vertices adjacent to some vertex in X (including the vertex itself? No, just adjacent - the coin moves to an adjacent vertex, so it's the open neighborhood).
+
+Wait, "moved to the cloth under an adjacent vertex" - so the coin moves to a vertex adjacent to its current position. So if the coin is at vertex v, it moves to v-1 or v+1 (mod 100). So the new possible set is the open neighborhood of (S \ Q).
+
+So: S_{t+1} = N(S_t \ Q_t) where N is the open neighborhood (vertices adjacent to some vertex in the set).
+
+We want to reach a state where S_t ∩ Q_t ≠ ∅ for sure, i.e., |S_t| ≤ 4 and we query all of S_t. Actually, we want to guarantee that at some turn, the coin must be in our query set.
+
+Actually more precisely: we want to guarantee |S_t| ≤ 4 at some point, then we query all remaining possibilities. Or more generally, we want S_t ⊆ Q_t for some t.
+
+But the adversary chooses the initial position and the moves, so S_t represents all possible positions given optimal adversarial play. We want to shrink S_t to size ≤ 4 (or to a set we can cover).
+
+Wait, but actually S_t as I defined it is the set of all possible positions assuming the adversary plays optimally to maximize S_t. But the adversary might not always be able to keep all possibilities alive. Let me think again.
+
+Actually, S_t is the set of all positions the coin could be in, given that it has evaded all our queries so far. This is determined by our query strategy (which is deterministic or we can think of it as a decision tree). The adversary's choices are encoded in which branch of the decision tree we're on. But since we only continue if we don't find the coin, S_t is well-defined as the set of positions consistent with "coin not found in turns 0..t-1".
+
+So S_0 = {0, 1, ..., 99} (all vertices).
+After querying Q_0: if not found, coin was in S_0 \ Q_0, then moved. S_1 = N(S_0 \ Q_0).
+After querying Q_1: if not found, coin was in S_1 \ Q_1, then moved. S_2 = N(S_1 \ Q_1).
+...
+We want to find the minimum number of turns T such that there exists a strategy where S_T ⊆ Q_T (i.e., we're guaranteed to find the coin at turn T or earlier).
+
+Actually, we want S_T = ∅ after the query, meaning the coin must have been found. Or equivalently, at some turn t ≤ T, |S_t| ≤ 4 and Q_t ⊇ S_t.
+
+Hmm, let me reconsider. We want to guarantee finding the coin. We find it when the coin is in our query set. So we want: for some t, every possible position of the coin at turn t is in Q_t. That means S_t ⊆ Q_t, which requires |S_t| ≤ 4.
+
+So the goal is to minimize T such that we can force |S_T| ≤ 4 (and then query those vertices).
+
+Actually, we can be smarter - we don't need |S_t| ≤ 4 exactly. We need S_t ⊆ Q_t. If |S_t| ≤ 4, we set Q_t = S_t and we're done. So we need to reach |S_t| ≤ 4.
+
+Now, the question is: what's the minimum T?
+
+Let me think about the parity approach, which is standard for these problems.
+
+Key insight: On a cycle of even length, the coin alternates parity each turn. So:
+- At even turns (0, 2, 4, ...), the coin is on vertices of parity = p0 mod 2.
+- At odd turns (1, 3, 5, ...), the coin is on vertices of parity = 1 - p0 mod 2.
+
+If we could determine p0's parity, we'd know which parity class to search at each turn.
+
+Strategy: 
+Phase 1: Determine the parity of the coin.
+Phase 2: Search only the correct parity class.
+
+But how to determine parity? We can't directly. But we can use the following approach:
+
+On even turns, query 4 even vertices. On odd turns, query 4 odd vertices. (Or vice versa.)
+
+If the coin has even parity (p0 even):
+- At even turns, coin is on even vertices. Our query of 4 even vertices might catch it.
+- At odd turns, coin is on odd vertices. Our query of 4 odd vertices might catch it.
+
+If the coin has odd parity (p0 odd):
+- At even turns, coin is on odd vertices. Our query of 4 even vertices never catches it.
+- At odd turns, coin is on even vertices. Our query of 4 odd vertices never catches it.
+
+So if we query even vertices on even turns and odd vertices on odd turns, we only ever search one parity hypothesis. If it's wrong, we never catch the coin.
+
+Alternative: query even vertices on even turns, and even vertices on odd turns too. Then:
+- If p0 is even: at even turns, coin is even, we search even - might catch. At odd turns, coin is odd, we search even - never catch, but coin moves to even.
+- If p0 is odd: at even turns, coin is odd, we search even - never catch. At odd turns, coin is even, we search even - might catch.
+
+Hmm, this doesn't cleanly separate either.
+
+Let me think about this more carefully using the "contamination" framework.
+
+The standard approach for these "cop and robber" / pursuit-evasion search games on cycles:
+
+Consider the cycle as a path by "cutting" it. On a path of n vertices, if we search k vertices per turn and the target moves 1 step per turn, the search takes roughly n/k turns (sweeping from one end to the other).
+
+But on a cycle, the target can go around, so we need to handle both directions. The parity trick helps: by fixing a parity, we can effectively turn the cycle into a path.
+
+Let me think about the parity approach more carefully.
+
+Label vertices 0, 1, 2, ..., 99 on the cycle. Adjacent vertices differ by 1 mod 100.
+
+The coin's parity alternates: at time t, parity = (p0 + t) mod 2.
+
+Strategy using parity:
+- Suppose we hypothesize p0 is even. Then at even times, coin is even; at odd times, coin is odd.
+- At even times, we query even vertices. At odd times, we query odd vertices.
+- This way, we're always querying vertices of the same parity as the coin (under our hypothesis).
+- We sweep through the even vertices (50 of them) at even times, 4 at a time.
+- And sweep through the odd vertices (50 of them) at odd times, 4 at a time.
+
+But we have two hypotheses (p0 even or p0 odd). We need to handle both.
+
+If p0 is even: at even times coin is even, at odd times coin is odd. We query even at even times, odd at odd times → we're searching the right parity.
+If p0 is odd: at even times coin is odd, at odd times coin is even. We query even at even times, odd at odd times → we're searching the wrong parity always. We never catch the coin.
+
+So this only works for one hypothesis. We need to try both.
+
+Approach: First try hypothesis "p0 even" for some number of turns. If we don't find the coin, switch to hypothesis "p0 odd."
+
+But there's a subtlety: when we switch, the coin has been moving, so we need to track where it could be under the new hypothesis.
+
+Actually, let me think about this differently. Let me think about what happens when we search "wrong parity" - we never catch the coin, but the coin keeps moving. After T turns of wrong-parity searching, the coin could be anywhere (well, it could be at various places). So switching parity hypothesis after a failed sweep doesn't help because we've gained no information about the coin's position.
+
+Wait, that's not quite right. Even if we search the wrong parity, we do gain some information. Let me reconsider.
+
+When we query Q_t and don't find the coin, we learn the coin was not in Q_t at time t. This constrains the coin's position.
+
+Hmm, but if we're searching wrong parity, the coin is never in Q_t (since Q_t is all wrong parity), so we learn nothing. The coin could be at any vertex of the correct parity, and after moving, any vertex of the other parity. So S_t stays large.
+
+Actually, let me reconsider. Even when searching wrong parity, we do eliminate the queried vertices. But since the coin is on the other parity, it's never in our query set, so we eliminate nothing useful. The coin's possible positions remain all vertices of the correct parity (roughly).
+
+So the approach should be: search one parity hypothesis. If the coin is found, great. If not, after completing the sweep, we know the coin was of the other parity. Then we search the other parity.
+
+But the problem is: after the first sweep (which takes some number of turns), the coin has moved many times, and we need to track where it could be.
+
+Let me think about this more carefully with the "sweep" approach.
+
+Consider the cycle as vertices 0-99. Let's think of the even vertices as 0, 2, 4, ..., 98 (50 vertices) and odd vertices as 1, 3, 5, ..., 99 (50 vertices).
+
+Sweeping the even vertices: At even times t=0, 2, 4, ..., we query 4 even vertices. At odd times t=1, 3, 5, ..., we query 4 odd vertices (to maintain the sweep on the correct parity).
+
+Wait, I need to be more careful. Let me think of the "reduced" problem.
+
+If we know the coin's parity at each time, we can project the problem onto a path. The even vertices form a "path" in the sense that from even vertex 2i, the coin moves to odd vertex 2i±1, and then to even vertex 2i±2 or 2i. So in two steps, the coin on even vertices moves from 2i to 2i-2, 2i, or 2i+2. This is like a random walk on the even vertices (which form a cycle of 50).
+
+Hmm, this is getting complicated. Let me think about the problem differently.
+
+Actually, let me think about a simpler version first. Consider a path (not cycle) of n vertices, query k vertices per turn, target moves 1 step per turn after each failed query.
+
+On a path, the standard sweep works: query vertices 1, 2, ..., k at turn 0. Then k+1, ..., 2k at turn 1. Etc. But the target moves, so we need to be careful.
+
+Actually, on a path, if we sweep from left to right, querying k consecutive vertices, and the target moves 1 step per turn, the target can escape past our sweep if it moves in the same direction. So we need to sweep faster than the target moves.
+
+If we query k vertices per turn and the target moves 1 step per turn, a sweep that advances by k-1 vertices per turn (overlapping by 1) would maintain contact. Wait, let me think again.
+
+If at turn t we query vertices [a, a+k-1], and the target is at position x ≤ a-1 (to the left of our query), then after our query (not found), the target moves to x-1 or x+1. If the target moves right (x+1), it could enter our query range if x+1 ≥ a, i.e., x ≥ a-1. But x ≤ a-1, so x = a-1 and target moves to a. But we already queried a at turn t, and the target wasn't there. So the target was at a-1, moves to a or a-2. If it moves to a, it's now at a, which we'll query next turn if we advance our sweep.
+
+Hmm, this is getting complicated. Let me think about the specific problem structure.
+
+Actually, I recall that for these types of problems on cycles, the key idea is:
+
+1. Use parity to split the cycle into two "interleaved" paths.
+2. Sweep one parity class. If the coin is on that parity, we catch it.
+3. If not, sweep the other parity class.
+
+The total number of operations is roughly 2 × (50/4) × 2 = 50, but let me work out the details.
+
+Let me think about the sweep more carefully.
+
+Consider the even-parity hypothesis: the coin starts on an even vertex. At even times, the coin is on an even vertex; at odd times, on an odd vertex.
+
+At even times, we query even vertices. At odd times, we query odd vertices.
+
+Now, think of the even vertices as positions on a "reduced cycle" of 50. The coin at even time 2t is at some even vertex 2i. At odd time 2t+1, it's at odd vertex 2i±1. At even time 2t+2, it's at even vertex 2i, 2i+2, or 2i-2 (i.e., it moved from 2i to 2i±1 to 2i, 2i±2).
+
+So in the reduced cycle of 50 (even vertices), the coin moves -1, 0, or +1 every 2 turns. But the adversary chooses, so the coin can stay or move ±1 on the reduced cycle.
+
+Hmm wait, the coin must move to an adjacent vertex each turn. So from even vertex 2i at time 2t, it moves to 2i-1 or 2i+1 at time 2t+1. Then from there, it moves to 2i-2, 2i, or 2i+2 at time 2t+2. Wait: from 2i-1, adjacent vertices are 2i-2 and 2i. From 2i+1, adjacent vertices are 2i and 2i+2. So from 2i at time 2t, at time 2t+2 the coin is at 2i-2, 2i, or 2i+2. In the reduced cycle (index i), the coin goes from i to i-1, i, or i+1. So it's a lazy random walk (can stay or move ±1) on the reduced cycle of 50.
+
+This is harder to sweep because the coin can stay in place.
+
+Hmm, but actually, the key insight for these problems is different. Let me reconsider.
+
+Let me think about the problem from the perspective of "information" and the parity trick.
+
+The standard approach for "searching on a cycle with a moving target":
+
+1. Fix a parity. At even turns, query vertices of one parity; at odd turns, query vertices of the other parity. This ensures we're always querying the correct parity class (if our hypothesis about initial parity is correct).
+
+2. Within the correct parity class, sweep from one end to the other. Since the coin moves 1 step per turn, and we query 4 vertices per turn, we can advance our sweep by 3 vertices per turn (with 1-vertex overlap to prevent the coin from slipping through).
+
+Wait, but on a cycle, there's no "end." That's the whole point - we need to handle the circular structure.
+
+Let me think about this differently. Let me consider the problem on a path first, then extend to a cycle.
+
+Path of n vertices, query k per turn, target moves 1 step per turn (to adjacent vertex, must move).
+
+On a path, the target is constrained - it can't go past the endpoints. So a sweep from one end to the other works.
+
+If we query k consecutive vertices and advance by k-1 per turn (overlap 1), the target can't slip through:
+- At turn t, query [a, a+k-1]. Target not found, so target is outside [a, a+k-1].
+- Target moves 1 step. If target was at a-1, it moves to a-2 or a. But a is in our query, and we didn't find it, so target was at a-1 and moves to a-2 or a. Wait, the target moves AFTER our query. So at the time of our query, target is at a-1 (not in query). Then target moves to a-2 or a.
+- At turn t+1, query [a+k-1, a+2k-2] (advanced by k-1). Wait, I need to think about whether the target at a (after moving from a-1) is caught.
+
+Hmm, let me reconsider. If at turn t, target is at position x < a (to the left of our sweep), and we query [a, a+k-1], target not found. Target moves to x-1 or x+1.
+- If x = a-1: target moves to a-2 or a. If it moves to a, it's now at a.
+- At turn t+1, we query [a+1, a+k] (advanced by 1). Target at a is not in query. Hmm, that's bad.
+
+So advancing by 1 per turn doesn't work if the target can move toward our sweep.
+
+What if we advance by k-1 per turn?
+- Turn t: query [a, a+k-1]. Target at x ≤ a-1. Not found. Target moves to x±1.
+- Turn t+1: query [a+k-1, a+2k-2]. 
+  - If target was at a-1 and moved to a: target at a, not in [a+k-1, a+2k-2] (since a < a+k-1 for k≥2). Target survives. But target is now at a, behind our sweep. It will never be caught by a forward sweep.
+
+So a simple forward sweep doesn't work on a path either if the target can move toward the sweep!
+
+The key issue: the target can move in either direction. So a simple sweep from left to right can be evaded by the target moving left (away from the sweep) and then coming back after the sweep passes.
+
+Wait, but on a path, the target is bounded. If the target is at the left end and we sweep from left to right, the target can't go further left. Let me reconsider.
+
+On a path of n vertices (1, 2, ..., n), target must move to an adjacent vertex each turn. At the endpoints, the target has only one choice (from 1, must go to 2; from n, must go to n-1).
+
+If we sweep from left to right:
+- Turn 0: query {1, 2, 3, 4} (k=4). If target is in this set, found. If not, target is in {5, ..., n}. Target moves.
+- Turn 1: query {2, 3, 4, 5}. Wait, but the target could have been at 5 and moved to 4 or 6. If it moved to 4, it's in our query at turn 0... no, the target moves AFTER our query. So at turn 0, target is at 5 (not in query). Target moves to 4 or 6. At turn 1, we query {2, 3, 4, 5}. If target moved to 4, we catch it. If target moved to 6, we don't.
+
+Hmm, so if we advance by 1 each turn, the target can always escape by moving in the same direction as our sweep. We need to advance faster.
+
+If we advance by k-1 = 3 each turn:
+- Turn 0: query {1, 2, 3, 4}. Target not in this set, so target ∈ {5, ..., n}. Target moves.
+- Turn 1: query {4, 5, 6, 7}. Target was at 5, 6, ..., n. After moving, target is at 4, 5, 6, ..., n-1, or n+1 (but n+1 doesn't exist, so n-1 or n if at n). Wait, target at 5 moves to 4 or 6. Target at 6 moves to 5 or 7. Etc.
+  - If target was at 5 and moved to 4: target at 4, which is in our query {4, 5, 6, 7}. Found!
+  - If target was at 5 and moved to 6: target at 6, in our query. Found!
+  - If target was at 6 and moved to 5: target at 5, in our query. Found!
+  - If target was at 6 and moved to 7: target at 7, in our query. Found!
+  - If target was at 7 and moved to 6: in query. Found!
+  - If target was at 7 and moved to 8: target at 8, not in query {4,5,6,7}. Survives.
+  - If target was at 8 and moved to 7 or 9: 7 is in query (found), 9 is not.
+  
+So the target at 7 can escape to 8, and target at 8 can escape to 9, etc. The target can stay ahead of our sweep by moving right.
+
+But on a path, the target eventually hits the right end and must come back. So a sweep from left to right will eventually catch the target on a path.
+
+The question is how many turns. If the path has n vertices and we advance by k-1 per turn, and the target moves 1 per turn, the target can stay ahead for (n - k) / (k - 2) turns? No wait, let me think again.
+
+If we advance by k-1 per turn and the target moves 1 per turn in the same direction, the gap between our sweep front and the target decreases by (k-1) - 1 = k-2 per turn. Wait, no. Our sweep front advances by k-1, the target advances by 1, so the gap decreases by k-2 per turn.
+
+Hmm, but the target doesn't have to move in the same direction. The target can move back toward our sweep, but then it might get caught.
+
+Actually, the target's optimal strategy is to move away from the sweep (in the same direction). So the gap decreases by k-2 per turn. Starting gap is n - k (target starts at the far right, our sweep starts at the left). Time to close the gap: (n-k)/(k-2) turns.
+
+But wait, when the target reaches the right end, it must turn back. So the target can't keep moving right forever.
+
+On a path of n vertices, the target starts somewhere. In the worst case, the target starts at the far right (vertex n). Our sweep starts at the left (vertices 1, ..., k). The target moves right but is already at the end, so it must move left. Then it's moving toward our sweep.
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+Actually, for the cycle problem, the standard approach is:
+
+1. Use the parity trick to reduce the cycle to a path.
+2. Sweep the path.
+
+The parity trick: On a cycle of even length, if we know the coin's parity at each turn, we can "cut" the cycle. Here's how:
+
+If we know the coin is on even vertices at even turns and odd vertices at odd turns, then we can think of the "reduced" problem on the 50 even vertices. The coin moves on this reduced cycle of 50, moving -1, 0, or +1 every 2 turns.
+
+But the "0" move (staying in place on the reduced cycle) is the problem. It means the coin can stay put, making it harder to sweep.
+
+Hmm, actually, let me reconsider. The coin must move every turn. From even vertex 2i, it goes to 2i-1 or 2i+1 (odd). From odd vertex 2i+1, it goes to 2i or 2i+2 (even). So in 2 turns, from 2i, the coin goes to 2i-2, 2i, or 2i+2. The "stay" option (2i) happens when the coin goes 2i → 2i+1 → 2i or 2i → 2i-1 → 2i.
+
+So on the reduced cycle of 50, the coin can stay or move ±1 every 2 turns. This is indeed a lazy walk.
+
+For a lazy walk (can stay or move ±1), sweeping is harder. But there's a trick: if we query 2 consecutive even vertices at an even turn, and 2 consecutive odd vertices at the next odd turn, we can effectively "block" the coin.
+
+Actually, let me think about this problem from a higher level. I think the answer might be 50 or something related. Let me think about what's known.
+
+Actually, I recall that for the problem of searching on a cycle of n vertices with k searchers per turn and the target moving 1 step per turn, the answer involves the parity trick and is roughly 2 * ceil(n/(2k)) * 2 or something like that. But I need to work it out carefully.
+
+Let me reconsider the problem. We have 100 vertices, query 4 per turn, target moves 1 per turn.
+
+Let me think about the parity approach step by step.
+
+Step 1: We don't know the initial parity. We'll try one parity first, then the other.
+
+Step 2: Assume the coin starts on an even vertex (hypothesis H_even). Then at even turns, the coin is on even vertices; at odd turns, on odd vertices.
+
+Step 3: We want to sweep the even vertices. At even turns, we query even vertices. At odd turns, we query odd vertices.
+
+But we also need to handle the case where the hypothesis is wrong. If H_even is wrong (coin starts odd), then at even turns the coin is on odd vertices, and at odd turns on even vertices. Our queries (even at even, odd at odd) would always miss. We'd waste all our turns.
+
+So we need to first try H_even for some turns, and if we don't find the coin, try H_odd.
+
+But when we switch from H_even to H_odd, we need to account for the time that has passed. After T turns of trying H_even (and failing), the coin has moved T times. Under H_odd, the coin started odd, and after T moves, it's on parity (1 + T) mod 2. So at turn T (which is the first turn of the H_odd phase), the coin's parity is (1 + T) mod 2.
+
+Hmm, this is getting complicated. Let me think about a cleaner approach.
+
+Alternative approach: Don't use parity at all. Just try to sweep the cycle.
+
+On a cycle, a sweep doesn't work directly because the target can go around. But if we "block" a section of the cycle, we can turn it into a path.
+
+With 4 queries per turn, we can block 4 consecutive vertices. If we keep 4 vertices "blocked" (queried) at the same position every turn, the target can't cross this barrier. Then the cycle becomes a path (with the barrier as the cut), and we can sweep the path with the remaining... wait, we only have 4 queries total, not 4 extra.
+
+Hmm, so we can't both block and sweep with only 4 queries.
+
+Let me reconsider. With 4 queries per turn, we need to both maintain a barrier and sweep. That's not possible with only 4 queries.
+
+OK so let me think about the parity approach more carefully, because I think that's the right approach.
+
+The parity approach for cycles:
+
+On a cycle of even length n = 2m, label vertices 0, 1, ..., 2m-1. The coin alternates parity each turn.
+
+Key insight: If we query only even vertices at even turns and only odd vertices at odd turns, then:
+- If the coin started even: we're always querying the right parity. The coin is constrained to the parity class we're searching.
+- If the coin started odd: we're always querying the wrong parity. We never find the coin, but we also don't gain information.
+
+If the coin started even, the problem reduces to searching on a "path" of m = 50 even vertices. But as I noted, on the reduced cycle, the coin can stay or move ±1 every 2 turns.
+
+Wait, but here's the thing: at even turns, we query 4 even vertices. At odd turns, we query 4 odd vertices. The odd-turn queries serve to "block" the coin's movement through the odd vertices.
+
+Let me think about this more carefully. At even turn 2t, the coin is on some even vertex. We query 4 even vertices. If not found, the coin moves to an adjacent odd vertex. At odd turn 2t+1, the coin is on an odd vertex. We query 4 odd vertices. If not found, the coin moves to an adjacent even vertex.
+
+The odd-turn queries block certain odd vertices, preventing the coin from passing through them. This is how we create a "barrier" on the reduced cycle.
+
+Specifically, if at odd turn 2t+1 we query odd vertices {2i+1, 2i+3, 2j+1, 2j+3} (or some set of 4 odd vertices), the coin can't be on those odd vertices. So the coin's movement from even vertex 2a to even vertex 2b (in 2 turns) is constrained: the coin goes 2a → (2a±1) → (2a±1)±1 = 2a, 2a±2. But the intermediate odd vertex 2a±1 must not be in our query set. If 2a+1 is in our query set, the coin can't go through 2a+1, so it can only go through 2a-1, reaching 2a-2 or 2a. Similarly, if 2a-1 is in our query set, the coin can only go through 2a+1, reaching 2a or 2a+2.
+
+So by querying odd vertices at odd turns, we block certain "edges" of the reduced cycle. The reduced cycle has 50 vertices (even vertices) and 50 edges (each edge corresponds to an odd vertex between two consecutive even vertices). By querying 4 odd vertices, we block 4 edges of the reduced cycle.
+
+This turns the reduced cycle into a set of paths! With 4 blocked edges, the reduced cycle of 50 is split into at most 4 paths (if the blocked edges are spread out) or fewer paths (if they're clustered).
+
+But we're also querying 4 even vertices at even turns, which is our "sweep" on the reduced cycle.
+
+Hmm, I think the right approach is:
+
+At even turns, query 4 consecutive even vertices (sweeping). At odd turns, query 4 consecutive odd vertices that are "ahead" of the sweep, to block the coin from escaping.
+
+Let me think about this concretely. Consider the reduced cycle of 50 even vertices: 0, 2, 4, ..., 98 (I'll use indices 0, 1, 2, ..., 49 for the reduced cycle).
+
+At even turn 0: query even vertices 0, 2, 4, 6 (reduced indices 0, 1, 2, 3).
+At odd turn 1: query odd vertices 7, 9, 11, 13 (these are between even vertices 6-8, 8-10, 10-12, 12-14, i.e., reduced edges 3-4, 4-5, 5-6, 6-7). This blocks the coin from moving right past reduced index 3.
+
+Wait, I need to be more careful. Odd vertex 7 is between even vertices 6 and 8. If we query odd vertex 7 at turn 1, the coin can't be at 7. So the coin can't move from 6 to 8 (through 7) or from 8 to 6 (through 7). This blocks the reduced edge between index 3 (vertex 6) and index 4 (vertex 8).
+
+So if at turn 1 we query odd vertices 7, 9, 11, 13, we block reduced edges 3-4, 4-5, 5-6, 6-7. This means the coin (on the reduced cycle) can't cross from index ≤ 3 to index ≥ 4 (or vice versa) through these edges.
+
+Combined with the sweep at turn 0 (querying reduced indices 0-3), the coin is either:
+- At reduced indices 0-3 (caught at turn 0)
+- At reduced indices 4-49 (to the right of our sweep)
+
+After turn 0 (not found), coin is at indices 4-49. Coin moves to an odd vertex. At turn 1, we query odd vertices 7, 9, 11, 13, blocking edges 3-4, 4-5, 5-6, 6-7. So the coin (at an odd vertex adjacent to indices 4-49) can't cross to indices ≤ 3 through the blocked edges.
+
+Wait, but the coin is at an odd vertex at turn 1. The odd vertices adjacent to even index 4 are 7 and 9 (vertices 8 and 10... no, even vertex 8 is index 4, its adjacent odd vertices are 7 and 9). Hmm, I'm getting confused with the indexing.
+
+Let me redo this with explicit vertex numbers.
+
+Vertices: 0, 1, 2, ..., 99 on the cycle. Even vertices: 0, 2, 4, ..., 98. Odd vertices: 1, 3, 5, ..., 99.
+
+Reduced cycle: even vertices indexed as e_0 = 0, e_1 = 2, e_2 = 4, ..., e_49 = 98. Reduced edge i connects e_i and e_{i+1 mod 50}, which passes through odd vertex 2i+1 (mod 100).
+
+Wait: e_i = 2i, e_{i+1} = 2(i+1) = 2i+2. The odd vertex between them is 2i+1. So reduced edge i (between e_i and e_{i+1}) passes through odd vertex 2i+1.
+
+But also, reduced edge 49 (between e_49 = 98 and e_0 = 0) passes through odd vertex 99.
+
+OK so:
+- Turn 0 (even): query even vertices {0, 2, 4, 6} = {e_0, e_1, e_2, e_3}.
+  - If coin is even and at one of these, found.
+  - If not found, coin is at some even vertex in {e_4, ..., e_49} (assuming H_even).
+  - Coin moves to an adjacent odd vertex.
+  
+- Turn 1 (odd): query odd vertices {7, 9, 11, 13}.
+  - These block reduced edges 3 (e_3-e_4, through odd 7), 4 (e_4-e_5, through odd 9), 5 (e_5-e_6, through odd 11), 6 (e_6-e_7, through odd 13).
+  - If coin is at one of these odd vertices, found.
+  - If not found, coin is at an odd vertex not in {7, 9, 11, 13}.
+  - The coin then moves to an adjacent even vertex.
+
+After turn 1, the coin is at an even vertex. Which even vertices are possible?
+
+The coin was at some even vertex in {e_4, ..., e_49} after turn 0. It moved to an odd vertex. The odd vertex is adjacent to its even position. Then at turn 1, if the odd vertex is not in {7, 9, 11, 13}, the coin survives and moves to an adjacent even vertex.
+
+The key question: can the coin cross from the right side (e_4, ..., e_49) to the left side (e_0, ..., e_3)?
+
+The coin at e_4 = 8 can move to odd 7 or 9. Odd 7 and 9 are both in our query, so the coin can't be at 7 or 9. So the coin at e_4 can't move to any odd vertex without being caught! Wait, that means if the coin was at e_4, it must move to 7 or 9, both of which we query. So the coin would be found at turn 1.
+
+Hmm, that's actually good. It means the coin can't be at e_4 after turn 0 (if it were, it would be caught at turn 1). So after turn 1, the coin is at some even vertex in {e_5, ..., e_49} ∪ {some vertices on the left that it could reach}.
+
+Wait, let me reconsider. After turn 0, the coin is at an even vertex in {e_4, ..., e_49}. It moves to an odd vertex. The possible odd vertices are:
+- From e_4 = 8: odd 7 or 9. Both queried at turn 1. Coin caught.
+- From e_5 = 10: odd 9 or 11. Both queried. Coin caught.
+- From e_6 = 12: odd 11 or 13. Both queried. Coin caught.
+- From e_7 = 14: odd 13 or 15. 13 is queried, 15 is not. Coin can be at 15.
+- From e_8 = 16: odd 15 or 17. Neither queried. Coin can be at 15 or 17.
+- ...
+- From e_49 = 98: odd 97 or 99. Neither queried. Coin can be at 97 or 99.
+
+So after turn 1 (not found), the coin is at an odd vertex in {15, 17, 19, ..., 99, and also 1, 3, 5} (the odd vertices on the left side, reachable from e_49 = 98 through 99, or from e_0 = 0 through 1, etc.)
+
+Wait, I need to be more careful. After turn 0, the coin is in {e_4, ..., e_49}. The coin at e_49 = 98 moves to 97 or 99. 99 is the odd vertex between e_49 and e_0. If the coin is at 99, it can then move to e_0 = 0 or e_49 = 98. So the coin can wrap around to e_0!
+
+So the blocking at turn 1 (querying odd 7, 9, 11, 13) blocks the coin from crossing from the right side to the left side through edges 3-6. But the coin can still go around the other way (through edge 49, i.e., odd vertex 99) to reach e_0.
+
+So the blocking only works if we block all the way around, which we can't with only 4 queries.
+
+Hmm, so the simple approach of blocking 4 edges isn't enough to cut the cycle into a path. We need a different strategy.
+
+Let me reconsider. The key issue is that on a cycle, the coin can go around. The parity trick is supposed to help with this, but as I showed, the coin can still wrap around through the unblocked edges.
+
+Let me think about this differently. Maybe the approach is to sweep in one direction, and the parity ensures the coin can't "slip through" the sweep.
+
+Here's the idea: at even turns, query 4 consecutive even vertices, advancing by 3 each even turn (so overlapping by 1). At odd turns, query 4 consecutive odd vertices, also advancing by 3, positioned to block the coin from slipping through the sweep.
+
+Wait, I think the right way to think about it is:
+
+At even turn 2t, query even vertices {e_{3t}, e_{3t+1}, e_{3t+2}, e_{3t+3}} (4 consecutive even vertices, advancing by 3 each even turn).
+
+At odd turn 2t+1, query odd vertices that block the coin from crossing the sweep boundary.
+
+The sweep boundary at even turn 2t is at e_{3t} (left edge) and e_{3t+3} (right edge). The coin, if to the right of the sweep, is at e_{3t+4}, ..., e_{49}, e_0, ..., e_{3t-1} (wrapping around).
+
+To prevent the coin from crossing from right to left (through the right edge of the sweep), we need to block the odd vertices between e_{3t+3} and e_{3t+4}, and also between e_{3t+4} and e_{3t+5}, etc. But we only have 4 odd vertices to query.
+
+Hmm, actually, I think the point is that at the odd turn, we query the odd vertices that are "just ahead" of the sweep, to prevent the coin from slipping back through.
+
+Let me think about it as follows:
+
+At even turn 2t, we query even vertices {e_{a}, e_{a+1}, e_{a+2}, e_{a+3}}. The coin (if not found) is not in this set. It's in the rest of the even vertices. The coin moves to an odd vertex.
+
+At odd turn 2t+1, we query odd vertices {o_{a+3}, o_{a+4}, o_{a+5}, o_{a+6}} where o_i is the odd vertex between e_i and e_{i+1} (i.e., o_i = 2i+1 mod 100). Wait, let me use a cleaner notation.
+
+Let me define: o_i = 2i+1 (the odd vertex between e_i = 2i and e_{i+1} = 2i+2), for i = 0, ..., 48. And o_49 = 99 (between e_49 = 98 and e_0 = 0).
+
+At even turn 2t, query {e_{3t}, e_{3t+1}, e_{3t+2}, e_{3t+3}} (indices mod 50).
+At odd turn 2t+1, query {o_{3t+3}, o_{3t+4}, o_{3t+5}, o_{3t+6}} (indices mod 50).
+
+The idea: at even turn 2t, we sweep even vertices 3t to 3t+3. The coin, if to the right, is at e_{3t+4} or beyond. At odd turn 2t+1, we block odd vertices o_{3t+3} to o_{3t+6}, which are the odd vertices between e_{3t+3} and e_{3t+7}. This prevents the coin from crossing from the right side (e_{3t+4} and beyond) to the left side (e_{3t+3} and below) through these edges.
+
+But the coin can still go around the other way! The cycle has 50 even vertices, and we're only blocking 4 edges. The coin can go the long way around.
+
+Unless... the sweep is fast enough that the coin can't go around the long way before the sweep completes.
+
+The sweep covers 50 even vertices, advancing 3 per even turn. So it takes 50/3 ≈ 17 even turns, i.e., 34 total turns (17 even + 17 odd). During this time, the coin can move 34 steps. On the reduced cycle of 50, the coin moves at most 1 per 2 turns (in the reduced cycle), so in 34 turns, the coin moves at most 17 steps on the reduced cycle. The sweep advances 3 per 2 turns, so in 34 turns, the sweep advances 51 positions, covering the whole cycle.
+
+But the coin can also go the other way. If the coin is just to the right of the sweep and goes right (away from the sweep), and the sweep also goes right, the sweep catches up at rate 3-1 = 2 per 2 turns (in reduced cycle terms, sweep advances 3, coin advances 1, gap closes by 2). Wait, but the coin can also stay in place (lazy walk), so the coin advances 0 or 1 per 2 turns.
+
+Hmm, I think the key insight is that the coin can stay in place on the reduced cycle (by bouncing back and forth between two adjacent vertices). So the sweep advancing 3 per 2 turns will catch a stationary coin in at most 50/3 * 2 ≈ 34 turns.
+
+But the coin can also move away from the sweep. If the coin moves away at rate 1 per 2 turns and the sweep advances at rate 3 per 2 turns, the gap closes at rate 2 per 2 turns. The maximum gap is 50 - 4 = 46 (coin starts just to the right of the sweep's initial position, and the sweep covers 4). So the time to close the gap is 46/2 * 2 = 46 turns. But the coin can also go around the cycle, so it might not need to go 46 steps - it can go the other way.
+
+Wait, but if the coin goes the other way (toward the sweep), it might get caught by the sweep. So the coin's best strategy is to go away from the sweep. But the sweep is advancing, so the coin can't go away forever on a cycle.
+
+Let me think about this more carefully. On the reduced cycle of 50, the sweep covers 4 consecutive vertices and advances 3 per 2 turns. The coin is on the reduced cycle and can move -1, 0, or +1 per 2 turns.
+
+If the coin moves in the same direction as the sweep (away from it), the gap closes at rate 3 - 1 = 2 per 2 turns. If the coin stays, gap closes at rate 3 per 2 turns. If the coin moves toward the sweep, gap closes at rate 3 + 1 = 4 per 2 turns (and the coin might get caught).
+
+The coin's best strategy is to move away from the sweep. The gap starts at most 46 (if the coin is just to the right of the initial sweep position). The gap closes at rate 2 per 2 turns. So it takes 46/2 = 23 "reduced turns" (each 2 actual turns), i.e., 46 actual turns.
+
+But wait, the coin can also go around the cycle. After going 46 steps to the right, the coin reaches the left side of the sweep. But by then, the sweep has advanced 23 * 3 = 69 positions, which is more than 50, so the sweep has wrapped around and is now ahead of the coin. Hmm, this needs more careful analysis.
+
+Actually, I think I'm overcomplicating this. Let me think about the problem differently.
+
+Let me consider a cleaner formulation. On the reduced cycle of 50 (even vertices), the coin does a lazy walk (stay or ±1 per 2 turns). We query 4 consecutive vertices every 2 turns (at even turns), advancing by 3 each time. At odd turns, we query 4 consecutive odd vertices to block the coin from crossing the sweep boundary.
+
+Wait, actually, I realize the odd-turn queries serve a crucial purpose: they prevent the coin from crossing the sweep boundary. Without them, the coin could slip through the sweep.
+
+Let me re-examine. At even turn 2t, we query even vertices {e_a, e_{a+1}, e_{a+2}, e_{a+3}}. The coin is not in this set (if not found). The coin moves to an odd vertex. At odd turn 2t+1, we query odd vertices {o_{a+3}, o_{a+4}, o_{a+5}, o_{a+6}}. 
+
+The coin, after turn 2t, is at an odd vertex adjacent to its even position. If the coin was at e_{a+4} (just to the right of the sweep), it moves to o_{a+3} or o_{a+4}. Both are in our odd query! So the coin is caught.
+
+If the coin was at e_{a+5}, it moves to o_{a+4} or o_{a+5}. Both in our query. Caught.
+
+If the coin was at e_{a+6}, it moves to o_{a+5} or o_{a+6}. Both in our query. Caught.
+
+If the coin was at e_{a+7}, it moves to o_{a+6} or o_{a+7}. o_{a+6} is in our query, o_{a+7} is not. Coin can survive by going to o_{a+7}.
+
+So the coin at e_{a+4}, e_{a+5}, e_{a+6} is caught at turn 2t+1. The coin at e_{a+7} or beyond can survive.
+
+After turn 2t+1 (not found), the coin is at an odd vertex in {o_{a+7}, o_{a+8}, ..., o_{a-1}} (the odd vertices to the right of the block, wrapping around). The coin then moves to an even vertex.
+
+From o_{a+7}, the coin moves to e_{a+7} or e_{a+8}. From o_{a+8}, to e_{a+8} or e_{a+9}. Etc.
+
+So after turn 2t+1, the coin is at an even vertex in {e_{a+7}, e_{a+8}, ..., e_{a-1}} (wrapping around, this is the set of even vertices to the right of the block, excluding those caught).
+
+Wait, but the coin can also wrap around. From o_{a-1} (which is o_{49+a-1 mod 50}), the coin moves to e_{a-1} or e_a. But e_a is in our sweep at turn 2t! However, the coin is now at turn 2t+2, not 2t. At turn 2t+2, we query a new set of even vertices.
+
+Hmm, I think the key point is: after the odd-turn block, the coin is confined to the region {e_{a+7}, ..., e_{a-1}} (the even vertices to the right of the block, wrapping around to just before the sweep). This region has 50 - 7 = 43 vertices.
+
+Wait, let me recount. The sweep at turn 2t covers e_a, ..., e_{a+3} (4 vertices). The block at turn 2t+1 covers o_{a+3}, ..., o_{a+6} (4 odd vertices), which blocks edges a+3, a+4, a+5, a+6. This means the coin can't cross between e_{a+3} and e_{a+4}, e_{a+4} and e_{a+5}, e_{a+5} and e_{a+6}, e_{a+6} and e_{a+7}.
+
+But the coin was already to the right of e_{a+3} (since it wasn't in the sweep). The block prevents the coin from crossing back to the left. So the coin is confined to {e_{a+7}, ..., e_{a-1}} (the even vertices to the right of the block, which is 50 - 4 - 3 = 43 vertices).
+
+Wait, let me recount. The even vertices are e_0, ..., e_49 (50 vertices). The sweep covers e_a, ..., e_{a+3} (4 vertices). The block covers edges a+3, ..., a+6, which means the coin can't be at e_{a+4}, e_{a+5}, e_{a+6} (because to reach these from the right, it would need to cross a blocked edge, and to reach them from the left, it would need to be in the sweep region).
+
+Actually, I showed above that the coin at e_{a+4}, e_{a+5}, e_{a+6} is caught at turn 2t+1. So after turn 2t+1, the coin is in {e_{a+7}, ..., e_{a-1}} (43 vertices, wrapping around).
+
+Now, at turn 2t+2, we advance the sweep: query {e_{a+3}, e_{a+4}, e_{a+5}, e_{a+6}}. But the coin is in {e_{a+7}, ..., e_{a-1}}, so the coin is not in the sweep (since e_{a+3}, ..., e_{a+6} are not in {e_{a+7}, ..., e_{a-1}}). So we don't find the coin at turn 2t+2.
+
+Hmm, that's wasteful. The sweep at turn 2t+2 covers vertices that the coin can't be at. We're wasting a turn.
+
+I think the issue is that the sweep and block overlap too much. Let me reconsider the strategy.
+
+Maybe the sweep should advance by more. Let me reconsider.
+
+At even turn 2t, sweep covers e_a, ..., e_{a+3}. Block at turn 2t+1 covers o_{a+3}, ..., o_{a+6}. After turn 2t+1, coin is in {e_{a+7}, ..., e_{a-1}} (43 vertices).
+
+At even turn 2t+2, we should sweep the next section. The coin is in {e_{a+7}, ..., e_{a-1}}. We should query e_{a+7}, ..., e_{a+10} (the leftmost 4 vertices of the remaining region). Then block at turn 2t+3 with o_{a+10}, ..., o_{a+13}.
+
+After turn 2t+3, coin is in {e_{a+14}, ..., e_{a-1}} (36 vertices).
+
+So each 2-turn cycle reduces the remaining region by 7 vertices (4 swept + 3 blocked). Wait: from 43 to 36 is a reduction of 7. But we started with 50, and after the first 2-turn cycle, we have 43. So reduction of 7 per 2 turns.
+
+Wait, let me recheck. Initially, coin is in all 50 even vertices (under H_even). 
+
+Turn 0: sweep e_0, ..., e_3. Coin not found → coin in {e_4, ..., e_49} (46 vertices).
+Turn 1: block o_3, ..., o_6. Coin caught if at e_4, e_5, e_6. After: coin in {e_7, ..., e_49} (43 vertices).
+
+Turn 2: sweep e_7, ..., e_10. Coin not found → coin in {e_11, ..., e_49} (39 vertices).
+Turn 3: block o_10, ..., o_13. Coin caught if at e_11, e_12, e_13. After: coin in {e_14, ..., e_49} (36 vertices).
+
+So each 2-turn cycle eliminates 7 vertices. Starting from 50, we need ceil(50/7) = 8 cycles, but the last cycle might catch the coin.
+
+After 7 cycles (14 turns): 50 - 7*7 = 50 - 49 = 1 vertex remaining. So after 14 turns, only 1 even vertex remains, and we catch it at turn 14 (even turn).
+
+Wait, let me recount. After 7 cycles (turns 0-13), remaining = 50 - 7*7 = 1. At turn 14 (even), we sweep 4 vertices including that 1 remaining vertex. Found!
+
+So under H_even, it takes 14 + 1 = 15 turns? Wait, let me be more careful.
+
+After cycle 0 (turns 0-1): 43 remaining.
+After cycle 1 (turns 2-3): 36 remaining.
+After cycle 2 (turns 4-5): 29 remaining.
+After cycle 3 (turns 6-7): 22 remaining.
+After cycle 4 (turns 8-9): 15 remaining.
+After cycle 5 (turns 10-11): 8 remaining.
+After cycle 6 (turns 12-13): 1 remaining.
+
+At turn 14 (even): sweep 4 vertices. The 1 remaining vertex is among them. Found!
+
+So under H_even, it takes at most 15 turns (turns 0-14).
+
+But wait, we need to also handle H_odd. If the coin starts on an odd vertex, our entire H_even sweep (turns 0-14) fails. We learn nothing (since we're querying the wrong parity every turn). Then we need to do the H_odd sweep.
+
+But here's the problem: after 15 turns of H_even sweep, the coin has moved 15 times. Under H_odd, the coin started odd, and after 15 moves, it's on parity (1 + 15) mod 2 = 0, i.e., even. So at turn 15, the coin is on an even vertex.
+
+Hmm wait, but we don't know the coin's position at all after the failed H_even sweep, because we gained no information (we queried wrong parity every time). So the coin could be at any vertex of the correct parity.
+
+Actually, that's not quite true. Even though we queried wrong parity, the coin still moved each turn. Under H_odd, at even turns the coin is on odd vertices, and we queried even vertices - so we learned the coin is not at those even vertices, but the coin wasn't at even vertices anyway (under H_odd at even turns). So indeed, we learned nothing.
+
+So after 15 turns of failed H_even sweep, under H_odd, the coin could be at any vertex of the correct parity at turn 15. Since 15 is odd, under H_odd the coin is on parity (1 + 15) mod 2 = 0, i.e., even. So the coin is at some even vertex, and it could be any of the 50 even vertices.
+
+Now we need to do the H_odd sweep. But the parity has shifted: at turn 15 (odd), the coin is on an even vertex (under H_odd). At turn 16 (even), the coin is on an odd vertex. Etc.
+
+So for the H_odd phase, at odd turns we query even vertices, and at even turns we query odd vertices. This is the opposite of the H_even phase.
+
+The H_odd sweep also takes 15 turns. So total = 15 + 15 = 30 turns.
+
+But wait, I need to check if 15 is correct for the sweep. Let me re-examine.
+
+Actually, I think I need to be more careful. Let me re-examine the sweep.
+
+After cycle 6 (turns 12-13), 1 vertex remains. At turn 14, we sweep 4 vertices. But we only need to query the 1 remaining vertex (plus 3 others that don't matter). So we find the coin at turn 14.
+
+But actually, at turn 14, the coin is on an even vertex (since 14 is even and H_even). The 1 remaining even vertex is where the coin must be. We query it (along with 3 other even vertices). Found!
+
+So the H_even phase takes 15 turns (turns 0-14, with the coin found at turn 14 at the latest).
+
+Hmm wait, I need to double-check the sweep more carefully. Let me re-examine whether the coin can escape by going around the cycle.
+
+The sweep advances by 7 vertices per 2 turns on the reduced cycle. The coin can move at most 1 vertex per 2 turns on the reduced cycle. So the sweep catches up to the coin. But can the coin go around the other way?
+
+The coin is confined to the region to the right of the block. The block prevents the coin from going left (past the sweep). So the coin can only go right. But the sweep is also going right, and faster (7 vs 1 per 2 turns). So the sweep catches the coin.
+
+But wait, the coin is on a cycle. "Right" eventually wraps around to "left." When the coin goes right and wraps around, it approaches the sweep from the left. But the block is there, preventing the coin from crossing.
+
+Hmm, but the block moves! At each 2-turn cycle, the block advances by 7. So the block is always ahead of the coin (since the block advances 7 per 2 turns and the coin advances at most 1 per 2 turns). The coin can never catch up to the block from behind.
+
+But what about the coin going the other way (left, toward the sweep)? The sweep is also advancing right, so the sweep is moving away from the coin. The coin going left would approach the sweep's previous position, but the sweep has moved on. However, the block is between the coin and the sweep's current position. Wait, no - the block is to the right of the sweep, and the coin is to the right of the block. So the coin is to the right of both the sweep and the block.
+
+If the coin goes left, it approaches the block. But the block is queried at odd turns, so the coin can't be at the block's position. The coin would need to cross the block to reach the sweep, but it can't.
+
+So the coin is confined between the block (on the left) and... nothing on the right. The coin can go right, but the sweep is advancing right faster, so the sweep eventually catches the coin from behind.
+
+Wait, I'm getting confused. Let me set up coordinates clearly.
+
+On the reduced cycle of 50, label positions 0, 1, ..., 49 clockwise. The sweep starts at position 0 and advances clockwise. The block is just ahead of the sweep.
+
+At cycle 0:
+- Turn 0: sweep positions 0, 1, 2, 3. Coin not in sweep → coin in {4, 5, ..., 49}.
+- Turn 1: block edges 3-4, 4-5, 5-6, 6-7 (by querying odd vertices corresponding to these edges). This means coin can't cross between position 3 and 4, 4 and 5, 5 and 6, 6 and 7.
+  - Coin at position 4: must move to odd vertex between 3-4 or 4-5. Both blocked. Caught!
+  - Coin at position 5: must move to odd vertex between 4-5 or 5-6. Both blocked. Caught!
+  - Coin at position 6: must move to odd vertex between 5-6 or 6-7. Both blocked. Caught!
+  - Coin at position 7: must move to odd vertex between 6-7 or 7-8. 6-7 blocked, 7-8 not. Coin survives at odd vertex between 7-8.
+  - Coin at position 8+: survives.
+  - After turn 1: coin in {7, 8, ..., 49} (but wait, coin at 7 survived, so coin is in {7, 8, ..., 49} = 43 positions).
+
+Hmm wait, I said coin at position 7 survives by going to the odd vertex between 7 and 8. Then at turn 2, the coin moves from that odd vertex to position 7 or 8. So after turn 1, the coin is at an odd vertex, and after moving (turn 1's move), it's at an even vertex in {7, 8, ..., 49}.
+
+Actually, I need to be more careful about the timing. Let me re-examine.
+
+Turn 0 (even): coin at even position. We query even positions 0-3. Not found. Coin moves to odd position.
+Turn 1 (odd): coin at odd position. We query odd positions (corresponding to edges 3-4, 4-5, 5-6, 6-7). Not found. Coin moves to even position.
+Turn 2 (even): coin at even position. We query even positions 7-10. Etc.
+
+So after turn 1, the coin is at an even position in {7, 8, ..., 49}. At turn 2, we query even positions 7-10. If the coin is at 7, 8, 9, or 10, found. If not, coin is in {11, ..., 49} (39 positions). Then at turn 3, we block edges 10-11, 11-12, 12-13, 13-14. Coin at 11, 12, 13 is caught. After turn 3, coin in {14, ..., 49} (36 positions).
+
+So the pattern is:
+- After turn 0: 46 positions
+- After turn 1: 43 positions (caught 3: positions 4, 5, 6)
+- After turn 2: 39 positions (caught 4: positions 7, 8, 9, 10)
+- After turn 3: 36 positions (caught 3: positions 11, 12, 13)
+- After turn 4: 32 positions (caught 4: positions 14, 15, 16, 17)
+- After turn 5: 29 positions (caught 3: positions 18, 19, 20)
+- ...
+
+Wait, this doesn't match my earlier calculation. Let me redo.
+
+The pattern per 2-turn cycle:
+- Even turn: sweep 4 positions, eliminate 4 (if coin not found, coin is not in these 4).
+- Odd turn: block 4 edges, eliminate 3 more positions (the 3 positions adjacent to the block on the right side, which can only move into the block).
+
+Wait, why 3 and not 4? Let me recheck.
+
+At turn 1, we block edges 3-4, 4-5, 5-6, 6-7. The coin is at an odd vertex. The coin was at even positions {4, 5, ..., 49} and moved to an odd vertex.
+
+Coin at position 4: moved to odd vertex between 3-4 or 4-5. Both blocked. Caught.
+Coin at position 5: moved to odd vertex between 4-5 or 5-6. Both blocked. Caught.
+Coin at position 6: moved to odd vertex between 5-6 or 6-7. Both blocked. Caught.
+Coin at position 7: moved to odd vertex between 6-7 or 7-8. 6-7 blocked, 7-8 not. Survives.
+
+So positions 4, 5, 6 are eliminated (3 positions). Position 7 survives.
+
+At turn 2, we sweep positions 7-10. If coin not found, positions 7-10 are eliminated (4 positions). Coin in {11, ..., 49} (39 positions).
+
+At turn 3, we block edges 10-11, 11-12, 12-13, 13-14. Coin at 11, 12, 13 eliminated (3 positions). Coin in {14, ..., 49} (36 positions).
+
+So per 2-turn cycle: eliminate 4 + 3 = 7 positions. Starting from 50:
+- After 0 turns: 50
+- After 2 turns: 50 - 4 = 46 (turn 0 sweep), then 46 - 3 = 43 (turn 1 block). So 43 after 2 turns.
+
+Wait, I need to be more careful. After turn 0 (sweep), 46 positions. After turn 1 (block), 43 positions. After turn 2 (sweep), 39. After turn 3 (block), 36. After turn 4 (sweep), 32. After turn 5 (block), 29. After turn 6 (sweep), 25. After turn 7 (block), 22. After turn 8 (sweep), 18. After turn 9 (block), 15. After turn 10 (sweep), 11. After turn 11 (block), 8. After turn 12 (sweep), 4. After turn 13 (block), 1. After turn 14 (sweep), 0 (found!).
+
+Wait, let me recount:
+- Turn 0: sweep 4. Remaining: 46.
+- Turn 1: block, eliminate 3. Remaining: 43.
+- Turn 2: sweep 4. Remaining: 39.
+- Turn 3: block, eliminate 3. Remaining: 36.
+- Turn 4: sweep 4. Remaining: 32.
+- Turn 5: block, eliminate 3. Remaining: 29.
+- Turn 6: sweep 4. Remaining: 25.
+- Turn 7: block, eliminate 3. Remaining: 22.
+- Turn 8: sweep 4. Remaining: 18.
+- Turn 9: block, eliminate 3. Remaining: 15.
+- Turn 10: sweep 4. Remaining: 11.
+- Turn 11: block, eliminate 3. Remaining: 8.
+- Turn 12: sweep 4. Remaining: 4.
+- Turn 13: block, eliminate 3. Remaining: 1.
+- Turn 14: sweep 4 (includes the 1 remaining). Found!
+
+So 15 turns for the H_even phase (turns 0-14).
+
+But wait, at turn 12, remaining is 4. We sweep 4 positions, which should be exactly the 4 remaining. So we find the coin at turn 12!
+
+Let me recheck. After turn 11, remaining is 8. At turn 12, we sweep 4 of the 8. If the coin is in those 4, found. If not, remaining is 4. At turn 13, we block, eliminating 3, remaining 1. At turn 14, we sweep and find.
+
+But we might find the coin earlier. The worst case is that the coin is always in the unswept portion. So:
+- Turn 12: sweep 4, coin not found (worst case). Remaining: 4.
+- Turn 13: block, eliminate 3. Remaining: 1.
+- Turn 14: sweep, find. 
+
+So worst case is 15 turns.
+
+Hmm, but actually, at turn 12, remaining is 4, and we sweep 4. The 4 remaining positions are exactly the 4 we sweep. So we must find the coin at turn 12!
+
+Wait, no. After turn 11, remaining is 8. At turn 12, we sweep 4 of those 8. If the coin is in the 4 we sweep, found. If not, the coin is in the other 4. Then at turn 13, we block, eliminating 3, leaving 1. At turn 14, we sweep and find.
+
+But can we choose which 4 of the 8 to sweep? Yes, we choose our query. We should sweep the 4 leftmost of the 8, so that the block at turn 13 can eliminate 3 more.
+
+So worst case: 15 turns for H_even.
+
+Hmm, but wait. After turn 12 (sweep 4, not found), remaining is 4. At turn 13, we block 4 edges. This eliminates 3 positions, leaving 1. At turn 14, we sweep and find.
+
+But can we do better? At turn 12, remaining is 4. Instead of sweeping 4 and potentially not finding the coin, what if we sweep all 4? If the coin is in those 4, we find it. If not, the coin is in the other 4. But we only have 4 queries, so we can only sweep 4. If the remaining is 8, we sweep 4 and the coin might be in the other 4.
+
+Actually, I realize I need to recheck whether the remaining after turn 11 is really 8.
+
+Let me recount from the start:
+- Start: 50 positions.
+- Turn 0: sweep 4. Remaining: 46.
+- Turn 1: block, eliminate 3. Remaining: 43.
+- Turn 2: sweep 4. Remaining: 39.
+- Turn 3: block, eliminate 3. Remaining: 36.
+- Turn 4: sweep 4. Remaining: 32.
+- Turn 5: block, eliminate 3. Remaining: 29.
+- Turn 6: sweep 4. Remaining: 25.
+- Turn 7: block, eliminate 3. Remaining: 22.
+- Turn 8: sweep 4. Remaining: 18.
+- Turn 9: block, eliminate 3. Remaining: 15.
+- Turn 10: sweep 4. Remaining: 11.
+- Turn 11: block, eliminate 3. Remaining: 8.
+- Turn 12: sweep 4. Remaining: 4 (if not found).
+- Turn 13: block, eliminate 3. Remaining: 1.
+- Turn 14: sweep 4 (includes the 1). Found!
+
+So worst case 15 turns. But can we do better at the end? When remaining is 4 at turn 12, we sweep 4. If found, done (13 turns). If not, remaining 4, then block eliminates 3, remaining 1, sweep finds at turn 14 (15 turns).
+
+Hmm, but when remaining is 4, can we just sweep all 4? We have 4 queries, so yes. If the coin is in those 4, we find it. But the coin might not be in those 4 (it's in the other 4 of the 8).
+
+Wait, I'm confusing myself. After turn 11, remaining is 8. At turn 12, we sweep 4 of the 8. The coin is in one of the 8. If it's in the 4 we sweep, found. If it's in the other 4, not found, and remaining is 4.
+
+Then at turn 13, we block 4 edges, eliminating 3, remaining 1. At turn 14, sweep and find.
+
+But can we do better? At turn 12, instead of sweeping 4, what if we block? Then we eliminate 3, remaining 5. At turn 13, sweep 4, remaining 1 (if not found). At turn 14, sweep and find. That's the same.
+
+Or at turn 12, sweep 4 (remaining 4 if not found). At turn 13, sweep 4 (the remaining 4). Found! That's 14 turns.
+
+Wait, can we do that? After turn 12, remaining is 4. At turn 13, we sweep those 4. But the coin moves after turn 12. So the coin is at an odd position at turn 13 (since 13 is odd and H_even). We need to query odd vertices at turn 13.
+
+Hmm, right. At odd turns, the coin is on an odd vertex (under H_even). We can't just sweep the remaining 4 even vertices at turn 13 because the coin is on an odd vertex.
+
+So at turn 13, we must query odd vertices. We block 4 odd vertices, eliminating 3 even positions, leaving 1. At turn 14, we sweep that 1 even vertex (plus 3 others). Found.
+
+So 15 turns for H_even.
+
+Now, for the full strategy:
+- Phase 1 (H_even): turns 0-14 (15 turns). If coin starts even, found by turn 14.
+- Phase 2 (H_odd): turns 15-29 (15 turns). If coin starts odd, found by turn 29.
+
+Total: 30 turns.
+
+But wait, I need to verify that the H_odd phase works correctly. After 15 turns of H_even (all failed), we know the coin started odd. At turn 15, the coin is on parity (1 + 15) mod 2 = 0, i.e., even. So at turn 15 (odd), the coin is on an even vertex.
+
+For the H_odd phase, the coin's parity is: at turn t, parity = (1 + t) mod 2. So:
+- Turn 15 (odd): parity = (1+15) mod 2 = 0 (even). 
+- Turn 16 (even): parity = (1+16) mod 2 = 1 (odd).
+- Turn 17 (odd): parity = 0 (even).
+- Etc.
+
+So at odd turns, coin is even; at even turns, coin is odd. This is the opposite of H_even.
+
+For the H_odd sweep, at odd turns we query even vertices, and at even turns we query odd vertices. The sweep works the same way, just with parity flipped. It takes 15 turns (turns 15-29).
+
+Total: 30 turns.
+
+But can we do better? Let me think about whether we can interleave the two hypotheses or use a more efficient strategy.
+
+Hmm, actually, I realize there might be an issue with my sweep analysis. Let me re-examine whether the coin can escape by going around the cycle.
+
+In my sweep, the coin is confined to the region to the right of the block. The block advances by 7 per 2 turns. The coin can move at most 1 per 2 turns (on the reduced cycle). So the block is always ahead of the coin. The coin can't catch up to the block.
+
+But what about the sweep? The sweep is behind the block. The sweep advances by 7 per 2 turns too (it's always 7 positions behind the block). The coin is between the sweep and the block (to the right of the sweep, to the left of the block). Wait, no - the coin is to the right of the block, not between the sweep and the block.
+
+Let me re-examine. After turn 0, the sweep covered positions 0-3. The coin is in {4, ..., 49}. After turn 1, the block covers edges 3-4, 4-5, 5-6, 6-7. The coin is in {7, ..., 49}. The block is at positions 4-6 (the blocked edges prevent crossing between 3-7). The sweep was at 0-3. The coin is at 7-49.
+
+So the coin is to the right of the block. The block prevents the coin from going left (past position 7 to position 6 and below). The coin can go right (toward 49 and wrap around to 0).
+
+But the sweep is at 0-3, which is to the left of the block. If the coin wraps around from 49 to 0, it would reach the sweep's position. But the sweep has moved on by then.
+
+Wait, the coin is at positions 7-49 (43 positions). It can move right (toward 49) and wrap around to 0, 1, 2, 3. But positions 0-3 were already swept at turn 0. The coin can't be at 0-3 because... actually, it can! The coin can wrap around.
+
+Hmm, this is the problem. The coin can go around the cycle and approach the sweep from the other side. Let me think about whether this is actually possible.
+
+The coin is at position 7-49 on the reduced cycle. It can move right (clockwise). After enough turns, it can reach position 0, 1, 2, 3 (which were swept earlier). But by then, the sweep has moved on.
+
+The sweep at turn 2 is at positions 7-10. At turn 4, positions 14-17. Etc. The sweep advances by 7 per 2 turns.
+
+The coin advances by at most 1 per 2 turns. So if the coin goes right (clockwise), it can reach position 0 after 43 * 2 = 86 turns (moving 1 per 2 turns). But the sweep completes in 15 turns. So the coin can't wrap around in time.
+
+Wait, the coin moves 1 per 2 turns on the reduced cycle. In 15 turns (7.5 reduced turns), the coin moves at most 7 positions (on the reduced cycle). Starting from position 7 (the leftmost remaining), the coin can reach position 14 at most. But the sweep at turn 14 is at position 7*7 = 49 (roughly). So the sweep has gone all the way around and is ahead of the coin.
+
+Hmm wait, the sweep advances 7 per 2 turns. In 14 turns (7 cycles), the sweep advances 7*7 = 49 positions. Starting from 0, it reaches 49. So the sweep covers positions 0, 7, 14, 21, 28, 35, 42, 49 (the starting positions of each sweep). Each sweep covers 4 consecutive positions. So the sweep covers:
+- Turn 0: 0-3
+- Turn 2: 7-10
+- Turn 4: 14-17
+- Turn 6: 21-24
+- Turn 8: 28-31
+- Turn 10: 35-38
+- Turn 12: 42-45
+- Turn 14: 49-3 (wrapping around, 49, 0, 1, 2)
+
+But wait, the coin can also go counterclockwise (left). But the block prevents the coin from going left past the block. So the coin can only go right (clockwise).
+
+The coin starts at some position in {7, ..., 49}. It can move at most 1 per 2 turns clockwise. In 14 turns, it moves at most 7 positions clockwise. So if it starts at 7, it can reach 14. If it starts at 49, it can reach 49 + 7 = 56 mod 50 = 6. But 6 is in the blocked region!
+
+Hmm, so the coin at 49 can go clockwise: 49 → 0 → 1 → ... → 6. But 6 is blocked. The block at turn 13 is at edges 45-46, 46-47, 47-48, 48-49. So the coin can't cross from 49 to 0 (edge 49 is blocked at turn 13).
+
+Wait, I need to track the block position at each turn. Let me redo this.
+
+Turn 0: sweep 0-3. Block at turn 1: edges 3-4, 4-5, 5-6, 6-7. Coin in {7, ..., 49}.
+Turn 2: sweep 7-10. Block at turn 3: edges 10-11, 11-12, 12-13, 13-14. Coin in {14, ..., 49}.
+Turn 4: sweep 14-17. Block at turn 5: edges 17-18, 18-19, 19-20, 20-21. Coin in {21, ..., 49}.
+Turn 6: sweep 21-24. Block at turn 7: edges 24-25, 25-26, 26-27, 27-28. Coin in {28, ..., 49}.
+Turn 8: sweep 28-31. Block at turn 9: edges 31-32, 32-33, 33-34, 34-35. Coin in {35, ..., 49}.
+Turn 10: sweep 35-38. Block at turn 11: edges 38-39, 39-40, 40-41, 41-42. Coin in {42, ..., 49}.
+Turn 12: sweep 42-45. Block at turn 13: edges 45-46, 46-47, 47-48, 48-49. Coin in {49}.
+
+Wait, after turn 12, coin is in {46, 47, 48, 49} (4 positions). Block at turn 13: edges 45-46, 46-47, 47-48, 48-49. This blocks all edges around positions 46-49. Coin at 46: must go to edge 45-46 or 46-47. Both blocked. Caught. Coin at 47: edges 46-47 or 47-48. Both blocked. Caught. Coin at 48: edges 47-48 or 48-49. Both blocked. Caught. Coin at 49: edges 48-49 or 49-0. 48-49 blocked, 49-0 not blocked. Survives by going to edge 49-0.
+
+So after turn 13, coin is at position 49 (or rather, at the odd vertex between 49 and 0). Then at turn 14, coin moves to position 49 or 0. We sweep positions 49, 0, 1, 2. Found!
+
+Wait, but what if the coin goes to 0? We sweep 49, 0, 1, 2, which includes 0. Found!
+
+So the coin is found at turn 14 in the worst case. 
+
+But I need to check: can the coin escape by going counterclockwise (left) instead of clockwise (right)?
+
+The coin is confined to the right of the block. The block prevents the coin from going left. But can the coin go left through the unblocked edges?
+
+The block at turn 1 blocks edges 3-4, 4-5, 5-6, 6-7. The coin is at positions 7-49. If the coin goes left (counterclockwise), it approaches the block. At position 7, going left means crossing edge 6-7, which is blocked. So the coin can't go left past position 7.
+
+But the block is only active at turn 1 (the odd turn). At turn 2 (even), the block is gone, and we sweep instead. So the coin could go left at turn 2.
+
+Hmm, this is a crucial point. The block is only active during the odd turn. At the even turn, there's no block. So the coin could slip through during the even turn.
+
+Wait, but the coin moves after each query. Let me re-examine the timing.
+
+Turn 0 (even): query even positions 0-3. Coin not found. Coin moves to odd position.
+Turn 1 (odd): query odd positions (block). Coin not found. Coin moves to even position.
+Turn 2 (even): query even positions 7-10. Coin not found. Coin moves to odd position.
+Turn 3 (odd): query odd positions (block). Coin not found. Coin moves to even position.
+...
+
+So at each even turn, we query even positions (sweep). At each odd turn, we query odd positions (block). The coin alternates between even and odd positions.
+
+The block at turn 1 prevents the coin from crossing certain edges at turn 1. But at turn 2, the coin is at an even position, and we query even positions (sweep). There's no block at turn 2.
+
+But the coin can't cross edges at turn 2 because the coin is at an even position and moves to an odd position. The crossing happens at the odd turn (when the coin is at an odd position and we block it). At the even turn, the coin is at an even position, and we sweep (query) even positions.
+
+So the block at odd turns is the only thing preventing the coin from crossing. Between odd turns, the coin moves from even to odd (at even turns) and from odd to even (at odd turns). The crossing of reduced-cycle edges happens at odd turns (when the coin is at an odd vertex, which is on a reduced-cycle edge).
+
+Wait, I think I need to be more precise. The reduced cycle has edges corresponding to odd vertices. The coin crosses a reduced-cycle edge when it passes through the corresponding odd vertex. This happens at odd turns (when the coin is at an odd vertex).
+
+At odd turns, we block certain odd vertices (query them). So the coin can't be at those odd vertices, meaning it can't cross those reduced-cycle edges.
+
+At even turns, the coin is at an even vertex. It moves to an odd vertex. But we don't block at even turns; we sweep even vertices. So the coin's movement from even to odd is unconstrained (except by the sweep, which eliminates certain even positions).
+
+So the block at odd turns is effective: it prevents the coin from crossing certain reduced-cycle edges at that turn. But at the next odd turn (2 turns later), the block has moved. Can the coin cross the edge between turns?
+
+No, because the coin only crosses reduced-cycle edges at odd turns (when it's at an odd vertex). Between two consecutive odd turns, the coin goes: odd → even → odd. At the even turn, the coin is at an even vertex (not crossing any edge). At the next odd turn, the coin is at an odd vertex again, and the new block is in place.
+
+So the block at each odd turn is effective for that turn. The coin can't cross the blocked edges at that turn. But the block moves to a new position at the next odd turn. Can the coin "slip through" the gap between the old block and the new block?
+
+Let me think about this. After turn 1, the block is at edges 3-4, 4-5, 5-6, 6-7. The coin is in {7, ..., 49}. At turn 2, the sweep is at 7-10. The coin (at an even position in {7, ..., 49}) is queried. If not found, coin is in {11, ..., 49}. Coin moves to an odd vertex.
+
+At turn 3, the block is at edges 10-11, 11-12, 12-13, 13-14. The coin (at an odd vertex) is queried. If not found, coin is in {14, ..., 49}.
+
+Can the coin slip from {11, ..., 49} to {0, ..., 6} between turns 2 and 3? The coin at turn 2 is at an even position in {11, ..., 49}. It moves to an odd vertex. The odd vertex is between two consecutive even positions. If the coin is at position 11, it moves to the odd vertex between 10-11 or 11-12. At turn 3, we block edges 10-11, 11-12, 12-13, 13-14. So odd vertices between 10-11 and 11-12 are blocked. Coin at 11 is caught.
+
+If the coin is at position 49, it moves to the odd vertex between 48-49 or 49-0. At turn 3, we block edges 10-11, 11-12, 12-13, 13-14. The odd vertex between 48-49 or 49-0 is not blocked. So the coin survives.
+
+Can the coin at position 49, moving to the odd vertex between 49-0, then move to position 0 at turn 4? Yes! At turn 3, the coin is at the odd vertex between 49-0 (not blocked). It moves to position 49 or 0. At turn 4, we sweep positions 14-17. Position 0 is not in the sweep. So the coin at position 0 survives.
+
+But wait, position 0 was swept at turn 0. The coin can't be at position 0 at turn 0 (it was queried). But at turn 4, the coin can be at position 0 (it moved there through the unblocked edge 49-0).
+
+So the coin can wrap around! This is a problem. The coin can escape by going counterclockwise (through the unblocked edge 49-0) and reach positions that were already swept.
+
+Hmm, so my sweep analysis was wrong. The coin can escape by going the other way around the cycle.
+
+Let me reconsider. The block at each odd turn only blocks 4 edges. The reduced cycle has 50 edges. The coin can go through any of the 46 unblocked edges.
+
+So the coin is not confined to the right of the block. It can go around the cycle through the unblocked edges. This means the sweep doesn't work as I described.
+
+I need a different approach.
+
+OK, let me reconsider the problem from scratch.
+
+The issue is that on a cycle, we can't block all edges. The coin can always go around. So we need a different strategy.
+
+Let me think about the problem as a pursuit-evasion game on a cycle.
+
+Alternative approach: Think of the cycle as two paths. Cut the cycle at one point, creating a path of 100 vertices. But the coin can go around the cut point.
+
+Hmm, let me think about the parity approach differently.
+
+Key insight: The parity of the coin's position alternates each turn. If we query only even vertices at even turns, we're searching the correct parity class (if the coin started even). The coin can't change its parity class at a given turn.
+
+On the reduced cycle (50 even vertices), the coin does a lazy walk (stay or ±1 per 2 turns). We query 4 consecutive even vertices per even turn. The coin can go around the reduced cycle.
+
+But here's the thing: the odd-turn queries (blocking) can help. If we block the right edges, we can cut the reduced cycle into a path, and then sweep the path.
+
+But we can only block 4 edges per odd turn, and the block is only active for that turn. The coin can cross unblocked edges at that turn, and at the next odd turn, the block has moved.
+
+Wait, but the coin can only cross one edge per 2 turns (one odd turn). So if we block the right 4 edges at each odd turn, we can prevent the coin from crossing certain edges.
+
+Hmm, but the coin can choose which edge to cross. If we block 4 edges, the coin can cross any of the other 46 edges.
+
+I think the key insight I'm missing is that the sweep itself acts as a barrier. The sweep queries 4 consecutive even vertices. The coin can't be at those vertices. So the sweep creates a "gap" in the reduced cycle. The coin can't cross this gap (because it would need to be at one of the swept vertices).
+
+But the sweep only lasts for one turn. At the next even turn, the sweep has moved. Can the coin cross the gap between turns?
+
+The coin is at an even position at even turns. At the even turn, the sweep blocks 4 even positions. The coin can't be at those positions. The coin moves to an odd position. At the odd turn, the coin is at an odd position. The coin moves to an even position. At the next even turn, the sweep has moved.
+
+Between two even turns, the coin goes: even → odd → even. The coin crosses one reduced-cycle edge (at the odd turn). If the edge is not blocked, the coin can cross.
+
+So the sweep at even turns doesn't prevent the coin from crossing the swept region, because the sweep moves before the coin can be caught crossing it.
+
+Hmm, I think the right approach is to combine the sweep and block to create a persistent barrier.
+
+Let me think about this differently. Consider the following strategy:
+
+At each turn t, query 4 consecutive vertices (not necessarily of the same parity). The sweep advances by some amount each turn.
+
+But the coin moves 1 step per turn. If the sweep advances by 3 per turn (overlap 1), the coin can stay ahead by moving in the same direction.
+
+On a cycle, the coin can always stay ahead. So a simple sweep doesn't work.
+
+The parity trick is supposed to help. Let me think about why.
+
+With the parity trick, at even turns we query even vertices, at odd turns odd vertices. The coin is always on the correct parity (under the right hypothesis). The sweep on the reduced cycle advances by some amount per 2 turns, and the coin moves at most 1 per 2 turns on the reduced cycle.
+
+But the coin can go around the reduced cycle. The key is: can the sweep catch the coin before it goes around?
+
+The reduced cycle has 50 vertices. The sweep covers 4 vertices per even turn and advances by 3 per even turn (or 7 per 2 turns with the block). The coin moves at most 1 per 2 turns.
+
+If the coin goes in the opposite direction of the sweep, the gap closes at rate 7 + 1 = 8 per 2 turns. If the coin goes in the same direction, the gap closes at rate 7 - 1 = 6 per 2 turns. If the coin stays, gap closes at rate 7 per 2 turns.
+
+The maximum gap is 50 - 4 = 46 (coin starts just ahead of the sweep). The gap closes at rate 6 per 2 turns (worst case). So it takes 46/6 * 2 ≈ 15.3 turns, i.e., 16 turns.
+
+But the coin can also go around the cycle. After going 46 steps ahead, the coin reaches the sweep's starting position. But the sweep has advanced 46 * 7/6 ≈ 53.7 positions, which is more than 50, so the sweep has lapped the coin. Hmm, this doesn't quite work because the cycle wraps around.
+
+Let me think about it more carefully. On the reduced cycle of 50, the sweep starts at position 0 and advances clockwise. The coin starts at some position in {4, ..., 49} (just ahead of the sweep). The coin can go clockwise (away from the sweep) or counterclockwise (toward the sweep).
+
+If the coin goes clockwise, the sweep catches up at rate 6 per 2 turns. The coin needs to stay ahead for the sweep to not catch it. The coin can go at most 1 per 2 turns, the sweep advances 7 per 2 turns. So the sweep gains 6 per 2 turns. Starting gap is at most 46. Time to catch: 46/6 * 2 ≈ 15.3 turns, so 16 turns.
+
+But the coin can also go counterclockwise. If the coin goes counterclockwise (toward the sweep), the sweep catches it faster (rate 8 per 2 turns). So the coin's best strategy is to go clockwise.
+
+But going clockwise, the coin will eventually wrap around and meet the sweep from behind. The sweep is also going clockwise. So the coin is chasing the sweep from behind, but the sweep is faster. The sweep will lap the coin and catch it.
+
+Wait, no. The coin is ahead of the sweep (clockwise). The sweep is catching up from behind. The coin goes clockwise to stay ahead. The sweep gains 6 per 2 turns. After 46/6 ≈ 7.7 cycles (15.3 turns), the sweep catches the coin.
+
+But can the coin go counterclockwise to escape? If the coin goes counterclockwise, it approaches the sweep from ahead. The sweep catches it at rate 8 per 2 turns. So the coin is caught even faster.
+
+What if the coin goes counterclockwise to go around the cycle and approach the sweep from behind? The coin needs to travel 50 - 46 = 4 positions counterclockwise to reach the sweep's starting position. But the sweep has moved on. The sweep advances 7 per 2 turns, so after 4/1 * 2 = 8 turns, the coin has moved 4 positions counterclockwise, and the sweep has moved 7 * 4 = 28 positions clockwise. The coin is at position 46 - 4 = 42, and the sweep is at position 28. The coin is still ahead of the sweep (42 > 28). So the coin hasn't escaped.
+
+Hmm, I think the sweep does work, but I need to account for the coin going around the cycle. Let me think about this as a pursuit on a circle.
+
+On a circle of 50, the sweep starts at 0 and goes clockwise at rate 7/2 per turn. The coin starts at some position p ∈ {4, ..., 49} and can move at rate 1/2 per turn in either direction.
+
+The sweep catches the coin when the sweep's position coincides with the coin's position. The sweep's position at time t is 7t/2 (mod 50). The coin's position at time t is p + d(t) where d(t) is the coin's displacement, |d(t)| ≤ t/2.
+
+The sweep catches the coin when 7t/2 ≡ p + d(t) (mod 50), i.e., 7t/2 - d(t) ≡ p (mod 50).
+
+Since |d(t)| ≤ t/2, we have 7t/2 - t/2 ≤ 7t/2 - d(t) ≤ 7t/2 + t/2, i.e., 3t ≤ 7t/2 - d(t) ≤ 4t.
+
+So 7t/2 - d(t) ranges from 3t to 4t. We need this to hit p (mod 50) for some p ∈ {4, ..., 49}.
+
+At time t, the range [3t, 4t] must contain a multiple of 50 plus some value in {4, ..., 49}. Since the range has length t, for t ≥ 50, the range covers at least 50 consecutive values, so it must hit every residue mod 50. So for t ≥ 50, the sweep is guaranteed to catch the coin.
+
+But we want the minimum t. For smaller t, we need [3t, 4t] to cover all residues mod 50 that the coin could be at.
+
+Hmm, this analysis is getting complicated. Let me think about it differently.
+
+Actually, I realize the issue with the coin wrapping around. The coin can go counterclockwise and cross the sweep's starting position (position 0). Since the sweep has moved on, the coin can reach positions 0, 1, 2, 3 (which were swept earlier). The coin is now behind the sweep. The sweep is ahead, going clockwise. The coin is behind, also going clockwise (to chase the sweep). But the sweep is faster, so the coin can't catch up. The sweep eventually laps the coin and catches it from behind.
+
+So the coin can be in two regions: ahead of the sweep (being chased) or behind the sweep (chasing). In either case, the sweep is faster and will catch the coin.
+
+The worst case is when the coin is just ahead of the sweep and goes clockwise at max speed. The sweep gains 6 per 2 turns. Starting gap is 46. Time to catch: ceil(46/6) * 2 = 8 * 2 = 16 turns.
+
+But wait, the coin can also go counterclockwise and get behind the sweep. Then the sweep needs to lap the coin. The sweep advances 7 per 2 turns, the coin advances 1 per 2 turns. The sweep laps the coin at rate 7 - 1 = 6 per 2 turns (if the coin goes clockwise) or 7 + 1 = 8 per 2 turns (if the coin goes counterclockwise). The lap distance is 50. Time to lap: 50/6 * 2 ≈ 16.7 turns, so 17 turns.
+
+Hmm, but the coin can switch directions. The worst case is when the coin maximizes the time until capture. Let me think about the optimal evasion strategy.
+
+On the reduced cycle of 50, the sweep covers 4 consecutive positions and advances 3 per even turn (7 per 2 turns including the block). The coin moves -1, 0, or +1 per 2 turns.
+
+Wait, I think I need to reconsider the sweep mechanics. The sweep doesn't just "advance" - it queries 4 positions at each even turn. The coin is caught if it's at one of the 4 queried positions. Between even turns, the coin can move.
+
+Let me re-examine whether the block is necessary. Without the block (only sweeping at even turns, doing nothing useful at odd turns), the coin can cross the swept region during the odd turn. With the block, the coin is prevented from crossing certain edges during the odd turn.
+
+But as I showed, the block only covers 4 edges, and the coin can cross unblocked edges. So the block doesn't fully confine the coin.
+
+Hmm, but the block does prevent the coin from crossing the edges just ahead of the sweep. This means the coin can't slip through the sweep's front. The coin can go around the back, but the sweep is faster and will catch up.
+
+Let me re-examine with the block. The block at each odd turn covers 4 edges just ahead of the sweep. This prevents the coin from crossing from ahead of the sweep to behind the sweep (through the sweep's front). The coin can go around the back (through the unblocked edges on the other side of the cycle), but the sweep is faster.
+
+So the coin is effectively confined to the region ahead of the sweep. The sweep advances at 7 per 2 turns, the coin moves at most 1 per 2 turns. The gap closes at rate 6 per 2 turns. Starting gap is 46. Time to catch: ceil(46/6) * 2 = 8 * 2 = 16 turns.
+
+Wait, but the coin can go around the back. Let me check if the block prevents this.
+
+The block is at edges just ahead of the sweep. The coin is ahead of the sweep. To go around the back, the coin needs to go counterclockwise (toward the sweep). But the block is between the coin and the sweep (just ahead of the sweep). The coin can't cross the block. So the coin can't go around the back through the block.
+
+But the coin can go around the back the other way - clockwise all the way around the cycle. The coin goes clockwise, past position 49, to position 0, 1, 2, 3 (behind the sweep). But the sweep has moved on, so these positions are unblocked. The coin can reach them.
+
+Wait, but the block is just ahead of the sweep. If the sweep is at positions a, a+1, a+2, a+3, the block is at edges a+3, a+4, a+5, a+6. The coin is at positions a+7 and beyond (clockwise). To go around the back, the coin goes clockwise to position 49, then 0, 1, ..., a-1. But a-1 is behind the sweep. The coin is now behind the sweep.
+
+But the block is at edges a+3, ..., a+6, which is ahead of the sweep. The coin going around the back doesn't cross the block. So the coin can go around the back.
+
+However, the sweep is advancing clockwise at 7 per 2 turns. The coin going clockwise at 1 per 2 turns. The sweep is faster. The sweep will eventually lap the coin and catch it from behind.
+
+So the coin can be in two situations:
+1. Ahead of the sweep (between the sweep and the block, or beyond the block). The sweep catches up at rate 6 per 2 turns.
+2. Behind the sweep (went around the back). The sweep laps the coin at rate 6 per 2 turns.
+
+In both cases, the sweep catches the coin at rate 6 per 2 turns. The maximum distance is 50 (the full cycle). Time to catch: ceil(50/6) * 2 = 9 * 2 = 18 turns.
+
+Hmm, but the coin starts ahead of the sweep (gap ≤ 46). If the coin goes around the back, it needs to travel 50 - 46 = 4 positions to get behind the sweep. This takes 4 / (1/2) = 8 turns. During these 8 turns, the sweep advances 7 * 4 = 28 positions. The coin is now at position 46 + 4 = 50 ≡ 0, and the sweep is at position 28. The coin is behind the sweep (0 < 28). The gap is 28 - 0 = 28. The sweep catches the coin at rate 6 per 2 turns. Time: 28/6 * 2 ≈ 9.3 turns. Total: 8 + 9.3 = 17.3 turns.
+
+Alternatively, the coin stays ahead of the sweep. Gap is 46, closing at 6 per 2 turns. Time: 46/6 * 2 ≈ 15.3 turns.
+
+So the coin's best strategy is to stay ahead (not go around the back). Time: 15.3 turns, so 16 turns.
+
+But wait, the coin can also switch between going ahead and going behind. The optimal strategy might be more complex. Let me think about the worst case more carefully.
+
+Actually, I think the key insight is that the block prevents the coin from crossing from ahead to behind. So the coin is always ahead of the sweep (in the region beyond the block). The coin can go clockwise (away from the sweep) or counterclockwise (toward the block). But the coin can't cross the block.
+
+So the coin is confined to the region {a+7, a+8, ..., a-1} (the positions ahead of the block, wrapping around to just before the sweep). This region shrinks as the sweep advances.
+
+Wait, but the block moves! At each odd turn, the block is at a new position (just ahead of the sweep's new position). So the block advances along with the sweep.
+
+The coin is confined to the region between the block and... the block (going around the cycle). The block is at one point on

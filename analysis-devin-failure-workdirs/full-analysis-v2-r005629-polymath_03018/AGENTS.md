@@ -1,0 +1,979 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_03018</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+What is the maximum number of cells that can be marked in a 20 * 20 board such that every cell is adjacent to at most one marked cell?
+
+## Standard Solution
+
+To solve the problem of marking the maximum number of cells on a 20x20 grid such that every cell (marked or unmarked) has at most one marked neighbor, we can use the concept of an open packing in a grid graph. This ensures that no two marked cells share a common neighbor.
+
+### Key Concepts:
+1. **Open Packing**: An open packing in a grid graph is a set of vertices such that no two vertices in the set share a common neighbor. This means each marked cell must be isolated in such a way that its neighbors do not overlap with the neighbors of any other marked cell.
+
+2. **Density of Open Packing**: For a grid graph, the maximum open packing density is known to be \( \frac{1}{5} \). This means that each marked cell effectively "occupies" 5 cells (itself and its four neighbors).
+
+### Calculation:
+Given a 20x20 grid, the total number of cells is \( 20 \times 20 = 400 \).
+
+Using the density of \( \frac{1}{5} \), the maximum number of marked cells can be calculated as:
+\[
+\frac{400}{5} = 80
+\]
+
+### Pattern Verification:
+To ensure this pattern works, we can verify it with a smaller example, such as a 5x5 grid. In a 5x5 grid, we can place 5 marks such that no two marks share a common neighbor. This pattern can be extended to a 20x20 grid by dividing it into 5x5 blocks.
+
+For example, in a 5x5 grid, marks can be placed at positions (1,1), (1,4), (3,3), (4,1), (4,4). Each of these marks has a 3x3 area around it that is unmarked, ensuring no overlap in their neighborhoods.
+
+### Conclusion:
+By applying this pattern to a 20x20 grid, we can place 80 marks such that each cell (marked or unmarked) has at most one marked neighbor. This satisfies the given condition.
+
+Thus, the maximum number of cells that can be marked is \(\boxed{80}\).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. We have a 20×20 board. We want to mark cells such that every cell is adjacent to at most one marked cell. Adjacent means sharing an edge (orthogonal adjacency, typically). Let me think about this.
+
+Actually, "adjacent" could mean sharing an edge or a corner. Let me consider both interpretations, but typically in these grid problems, adjacent means sharing an edge (4-neighborhood). Let me think about both.
+
+Wait, let me re-read: "every cell is adjacent to at most one marked cell". This includes marked cells themselves? A cell is adjacent to another cell. So for every cell (marked or not), the number of marked cells adjacent to it is at most 1.
+
+If adjacency is 4-neighborhood (sharing an edge):
+
+Let me think about this as a constraint. Each cell has at most 1 marked neighbor.
+
+Let me think of small cases. For a 2×2 board with 4-adjacency: each cell is adjacent to 2 others. If we mark 2 cells that are diagonally opposite, each cell has exactly 1 marked neighbor. Can we mark 3? If we mark 3 cells, the unmarked cell is adjacent to 2 marked cells (in 2×2, the unmarked cell is adjacent to 2 of the marked ones). So max is 2 for 2×2.
+
+Hmm, let me think more carefully. Actually let me think about this problem more generally.
+
+Let me think about it as: we want to place marks so that no cell has 2 or more marked neighbors.
+
+Consider the 4-adjacency case. Let me think about patterns.
+
+One approach: mark cells in a "sparse" pattern. 
+
+Let me think about rows. Consider a single row of length n. Each cell has at most 2 neighbors (left, right) within the row, plus up/down neighbors in adjacent rows. This gets complicated with 2D.
+
+Let me think about it differently. Let's consider the constraint: for each cell, at most 1 of its neighbors is marked.
+
+Consider a checkerboard-like or striped pattern.
+
+Pattern 1: Mark every other column entirely. In a 20×20 board, mark columns 1, 3, 5, ..., 19 (10 columns, 200 cells). Check: a cell in column 2 is adjacent to cells in columns 1 and 3 (both marked) — that's 2 marked neighbors. Violation!
+
+Pattern 2: Mark every other column but only every other row within. Like a 2D checkerboard with spacing 2. Mark cells (i,j) where i odd and j odd. That's 10×10 = 100 cells. Check: cell (2,2) is adjacent to (1,2), (3,2), (2,1), (2,3). None of these are marked (since marked requires both odd). Cell (2,1) is adjacent to (1,1) [marked], (3,1) [marked], (2,2), (2,0). So (2,1) has 2 marked neighbors. Violation!
+
+Hmm. So we need to be more careful.
+
+Let me think about this differently. The constraint is that the marked cells form a set where no two marked cells share a common neighbor. Equivalently, the "closed neighborhood" ... no. Let me re-read.
+
+"every cell is adjacent to at most one marked cell" — for every cell c, |{marked cells adjacent to c}| ≤ 1.
+
+So if two marked cells are both adjacent to some cell, that's a violation. Two marked cells that are at distance 2 (with a common neighbor) would cause the common neighbor to have 2 marked neighbors. Also, two marked cells that are adjacent to each other: each is adjacent to the other, so each has at least 1 marked neighbor. If a marked cell has another marked neighbor too, that's 2.
+
+So the constraints are:
+1. No two marked cells share a common neighbor (i.e., distance between any two marked cells is not 2 in the graph sense... actually distance ≥ 3).
+2. If two marked cells are adjacent (distance 1), then neither can have any other marked neighbor, and no cell can be adjacent to both... but adjacent marked cells are at distance 1, and they don't share a common neighbor necessarily. Wait, but the constraint is about every cell, including the marked cells themselves. If marked cell A is adjacent to marked cell B, then A has 1 marked neighbor (B). That's fine as long as A has no other marked neighbor. But also, is there a cell adjacent to both A and B? If A and B are adjacent horizontally, a cell above A is not adjacent to B (unless... no). Actually in 4-adjacency, two horizontally adjacent cells share no common neighbor. So two adjacent marked cells are OK as long as neither has another marked neighbor.
+
+This is getting complex. Let me think about upper bounds and constructions.
+
+Let me consider the problem with 4-adjacency (edge-sharing), which is the standard interpretation.
+
+Upper bound approach: Count edges between marked and unmarked, or use a charging argument.
+
+Alternative: Think of it as each unmarked cell "sees" at most 1 marked cell, and each marked cell sees at most 1 marked cell.
+
+Let me think about a construction. 
+
+Construction idea: Use a pattern with period 3. In each 3×3 block, place marks. 
+
+Let me try: mark cells where (i + 2j) mod 3 == 0 or some linear pattern. Actually, let me think about what patterns avoid two marks at distance ≤ 2 (in Manhattan/graph distance) except possibly distance 1 pairs that are isolated.
+
+Hmm, let me simplify. Let me first consider the stronger constraint where no two marked cells are at graph distance ≤ 2. This means every pair of marked cells is at distance ≥ 3. This is a "2-packing" or "distance-3 independent set."
+
+For a path of length n (1D), the max number of vertices with pairwise distance ≥ 3 is ceil(n/3). For a 20×20 grid... 2D packing with distance ≥ 3.
+
+But our actual constraint is weaker than distance ≥ 3, because we allow adjacent pairs (distance 1) as long as they're isolated. So the answer might be higher than the 2-packing number.
+
+Let me first compute the 2-packing number for 20×20 grid as a baseline, then see if we can do better using adjacent pairs.
+
+2-packing on grid: Place marks at positions (i,j) where (i mod 3, j mod 3) gives a pattern. If we use a pattern where marks are at (3a, 3b), that's 7×7 = 49 (for 0-indexed 0..19, positions 0,3,6,9,12,15,18 → 7 values). Distance between (0,0) and (0,3) is 3. Good. But we can do better with a hexagonal-like packing.
+
+Actually, the optimal 2-packing on a grid: we want to place points with Manhattan distance ≥ 3 between any two. The densest such packing... Let me think. In a pattern where we place a mark, the "exclusion zone" is all cells within Manhattan distance 2, which is a diamond of radius 2 (13 cells including center). But these overlap.
+
+A pattern: marks at (i, j) where (i + 2j) mod 5 == 0? Let me check distances. (0,0) and the next mark... (i+2j) mod 5 = 0. (0,0): 0. (3,1): 3+2=5. Distance |3|+|1|=4. (1,2): 1+4=5. Distance 3. (4,3): 4+6=10. Distance 7. Hmm, let me find the minimum distance between two marks in this pattern.
+
+Marks: (i,j) with i+2j ≡ 0 mod 5. The lattice generated by vectors with i+2j ≡ 0 mod 5. Basis vectors: (5,0) and (1,2) [since 1+4=5]. Wait, (1,2): 1+4=5≡0. (3,-1): 3-2=1, no. Let me find two short vectors: (1,2) has length 3, (5,0) has length 5, (3,-1): 3-2=1≠0. (2,-1): 2-2=0, yes! (2,-1) has length 3. So basis (1,2) and (2,-1), both length 3. The minimum distance is 3. Density: 1/5 of cells. So 400/5 = 80 marks.
+
+Can we do better than 1/5 density for 2-packing? The exclusion diamond has 13 cells but with optimal packing... Let me think about the theoretical max. Each mark "covers" itself and needs distance ≥ 3 from others. 
+
+Actually for Manhattan distance ≥ 3 packing, I recall the density is 1/5 for the infinite grid (achieved by the pattern above). Let me verify: the pattern i+2j ≡ 0 mod 5 gives 1/5 density and min distance 3. Is there a denser packing? 
+
+Consider that each mark needs an open ball of radius 2 (Manhattan) around it to be empty of other marks. The ball of radius 2 has 1+4+8 = 13 cells. But balls can overlap. The question is the packing density. For L1 metric on Z², the packing density (distance ≥ 3 = balls of radius 1 don't overlap, since distance ≥ 3 means balls of radius 1 are disjoint). Ball of radius 1 has 5 cells. So we're packing disjoint L1-balls of radius 1. Each ball has 5 cells, so density ≤ 1/5. And we achieved 1/5. 
+
+Wait, distance ≥ 3 means L1-balls of radius 1 (diameter 2, so radius 1 balls centered at marks are disjoint since centers are ≥ 3 apart, balls of radius 1 extend 1 in each direction, so they're disjoint iff centers are ≥ 3 apart). Each ball has 5 cells. Disjoint balls → at most 400/5 = 80 marks. And the pattern achieves 80. So the 2-packing number is exactly 80 (for the infinite grid; boundary effects might allow slightly more on a finite grid, but let me check).
+
+For a finite 20×20 grid, the boundary might let us squeeze a few more. But let me not worry about that yet.
+
+Now, the actual problem allows adjacent pairs. Can we beat 80?
+
+Let me think about whether using adjacent pairs helps. If we have two adjacent marked cells A, B, then:
+- A has 1 marked neighbor (B), fine.
+- B has 1 marked neighbor (A), fine.
+- Any cell adjacent to both A and B would have 2 marked neighbors — violation. In 4-adjacency, adjacent cells share no common neighbor, so this is fine.
+- But A's other neighbors (besides B) must be unmarked, and must not be adjacent to any other marked cell. Similarly for B.
+- Also, no cell adjacent to A (other than B) can be adjacent to another marked cell.
+
+So if A and B are adjacent, then all neighbors of A (except B) and all neighbors of B (except A) must have no other marked neighbor. This means: no marked cell can be at distance 2 from A or B (except through each other), and no marked cell can be adjacent to any neighbor of A or B.
+
+Effectively, the pair {A,B} acts like a "domino" that excludes a larger region. Let me think about whether this is more efficient than single marks.
+
+A single mark at distance ≥ 3 from all others excludes a ball of radius 1 (5 cells including itself, but the ball of radius 1 around it must be empty of other marks). Actually the "cost" is 5 cells per mark (the ball of radius 1).
+
+A pair of adjacent marks: they occupy 2 cells. Their neighbors: A has 3 other neighbors, B has 3 other neighbors (if horizontal pair, A=(i,j), B=(i,j+1): A's neighbors are (i-1,j),(i+1,j),(i,j-1); B's neighbors are (i-1,j+1),(i+1,j+1),(i,j+2)). Total 6 neighbor cells, all must be unmarked and have no other marked neighbor. The "exclusion" is that no other mark can be adjacent to any of these 6 cells, meaning no other mark within distance 2 of A or B (except A-B themselves). 
+
+The pair occupies 2 cells and excludes a region. The region within distance 1 of the pair (the union of balls of radius 1 around A and B) has: ball around A = 5 cells, ball around B = 5 cells, they share 2 cells (A and B are in each other's balls, and... A is in B's ball, B is in A's ball, and do they share any other? (i-1,j) and (i-1,j+1) are different. So overlap is just {A, B}, 2 cells). Union = 5+5-2 = 8 cells. But we also need that no other mark is at distance 2 from A or B (so that the neighbors of A and B don't have 2 marked neighbors). Hmm, actually let me reconsider.
+
+The constraint is: every cell has at most 1 marked neighbor. For the 6 neighbor cells of the pair, each currently has 1 marked neighbor (A or B). So none of them can have another marked neighbor. This means no marked cell can be adjacent to any of these 6 cells (other than A/B). A marked cell adjacent to one of these 6 cells would be at distance 2 from A or B. So no other mark at distance 2 from A or B.
+
+So the pair {A,B} requires: no other mark at distance ≤ 2 from A or B (in the graph), except A and B themselves. The exclusion zone is the union of balls of radius 2 around A and B. Ball of radius 2 around a cell has 13 cells. Union of two balls of radius 2 around adjacent cells... Ball of radius 2 around A = {cells at L1 distance ≤ 2 from A}, 13 cells. Ball of radius 2 around B, 13 cells. Overlap: cells at distance ≤ 2 from both A and B. Since A and B are adjacent (distance 1), the overlap is cells at distance ≤ 2 from both. A cell at distance d from A and distance d' from B with d ≤ 2, d' ≤ 2, and |d - d'| ≤ 1 (triangle inequality with |AB|=1). The overlap is substantial. 
+
+Union size: 13 + 13 - overlap. Let me compute for A=(0,0), B=(0,1). Cells at distance ≤ 2 from (0,0): {(0,0),(0,±1),(0,±2),(±1,0),(±1,±1),(±2,0)}. That's (0,0),(0,1),(0,-1),(0,2),(0,-2),(1,0),(-1,0),(1,1),(1,-1),(-1,1),(-1,-1),(2,0),(-2,0) = 13 cells. Cells at distance ≤ 2 from (0,1): (0,1),(0,0),(0,2),(0,-1)... wait (0,-1) is at distance 2 from (0,1)? |0|+|-1-1|=2, yes. (0,3),(1,1),(-1,1),(1,0),(-1,0),(1,2),(-1,2),(2,1),(-2,1). Let me list: (0,1),(0,0),(0,2),(0,3),(0,-1),(1,1),(-1,1),(1,0),(-1,0),(1,2),(-1,2),(2,1),(-2,1) = 13 cells.
+
+Overlap: cells in both lists. From A's list: (0,0),(0,1),(0,-1),(0,2),(0,-2),(1,0),(-1,0),(1,1),(1,-1),(-1,1),(-1,-1),(2,0),(-2,0). From B's list: (0,1),(0,0),(0,2),(0,3),(0,-1),(1,1),(-1,1),(1,0),(-1,0),(1,2),(-1,2),(2,1),(-2,1).
+
+Common: (0,0),(0,1),(0,-1),(0,2),(1,0),(-1,0),(1,1),(-1,1). That's 8 cells.
+
+Union = 13 + 13 - 8 = 18 cells. So the pair excludes 18 cells (including the 2 cells they occupy) and places 2 marks. Efficiency: 2/18 = 1/9 ≈ 0.111.
+
+For a single mark: excludes ball of radius 2 (13 cells), places 1 mark. Efficiency: 1/13 ≈ 0.077.
+
+Wait, but that's not right. For a single mark, the constraint is that no other mark is at distance ≤ 2. So the exclusion is ball of radius 2 = 13 cells, 1 mark. For a pair, exclusion is 18 cells, 2 marks. 
+
+2/18 vs 1/13: 2/18 = 0.111, 1/13 = 0.077. So pairs are more efficient! 2/18 = 1/9 > 1/13.
+
+Hmm wait, but I need to double-check the single mark exclusion. A single mark M: no other mark at distance ≤ 2 from M. So ball of radius 2 around M (13 cells) contains only M as a mark. That's 13 cells for 1 mark.
+
+A pair: 18 cells for 2 marks. So per cell, pairs give 2/18 = 1/9 marks per cell, singles give 1/13. Pairs are better.
+
+But can we mix? And what's the optimal tiling?
+
+If we tile the plane with pairs (dominoes) where each pair's exclusion zone doesn't overlap with others... The exclusion zone of a pair is 18 cells. If we can tile with these, we'd get density 2/18 = 1/9. But can we actually tile?
+
+Hmm, but the exclusion zones might not tile perfectly. Let me think about this more carefully.
+
+Actually, let me reconsider. The exclusion zone argument gives an upper bound only if the zones are disjoint. For singles, balls of radius 2 are disjoint (since marks are ≥ 3 apart), giving 13 cells per mark, so ≤ 400/13 ≈ 30.8, i.e., ≤ 30 marks. But we showed 80 marks are possible with the 2-packing! Contradiction?
+
+Oh wait, I think I confused myself. The 2-packing requires distance ≥ 3, which means balls of radius 1 (not 2) are disjoint. Ball of radius 1 has 5 cells. So 400/5 = 80. That's the 2-packing bound. Right.
+
+But the actual constraint is weaker than 2-packing. In the actual problem, two marks can be at distance 1 (adjacent) or distance 2 might be OK in some cases? Let me re-examine.
+
+Two marks at distance 2: they share a common neighbor (the cell between them). That common neighbor would have 2 marked neighbors. Violation! Unless... the two marks at distance 2 are in a straight line, like (0,0) and (0,2), common neighbor (0,1). (0,1) has 2 marked neighbors. Violation. Or (0,0) and (1,1), distance 2, common neighbors (0,1) and (1,0). Both have 2 marked neighbors. Violation.
+
+So two marks at distance 2 is always a violation. Two marks at distance 1 (adjacent): the only issue is if they share a common neighbor (they don't in 4-adjacency) or if one of them has another marked neighbor. So adjacent marks are OK as long as isolated from other marks by distance ≥ 3.
+
+So the constraint is: 
+- No two marks at distance 2.
+- If two marks are at distance 1, they form an isolated pair (no other mark within distance 2 of either, except each other).
+- Marks at distance ≥ 3 from each other are fine.
+
+So the structure is: marks form isolated singletons (distance ≥ 3 from all other marks) and isolated adjacent pairs (each pair is at distance ≥ 3 from all other marks, and within the pair, distance 1).
+
+Now, for the upper bound: each singleton excludes a ball of radius 1 (5 cells, disjoint from all other exclusion balls). Each pair excludes the union of two balls of radius 1 around the pair members, which is 8 cells (5+5-2), and this must be disjoint from all other exclusion zones.
+
+Wait, I need to reconsider. The exclusion for a singleton M: ball of radius 1 around M (5 cells) must contain no other mark. For a pair {A,B}: ball of radius 1 around A ∪ ball of radius 1 around B (8 cells) must contain no other mark (besides A, B).
+
+And these exclusion zones (balls of radius 1 around each mark) must be... well, for two singletons at distance ≥ 3, their balls of radius 1 are disjoint. For a singleton and a pair, the singleton must be at distance ≥ 3 from both A and B, so its ball of radius 1 is disjoint from the balls of radius 1 around A and B. For two pairs, all marks must be at distance ≥ 3 from each other (across pairs), so all balls of radius 1 are disjoint.
+
+So ALL balls of radius 1 around ALL marks are pairwise disjoint! (Because any two marks are either at distance 1 within a pair, or at distance ≥ 3.) 
+
+Wait, within a pair, the two balls of radius 1 overlap (they share the 2 cells A and B). So they're not disjoint. But across different groups (singletons or pairs), all balls are disjoint.
+
+So: let s = number of singletons, p = number of pairs. Total marks = s + 2p. 
+- Each singleton uses 5 cells (ball of radius 1).
+- Each pair uses 8 cells (union of two balls of radius 1).
+- All these regions are disjoint (across groups).
+- Total cells used: 5s + 8p ≤ 400.
+
+We want to maximize s + 2p subject to 5s + 8p ≤ 400, s, p ≥ 0 integers.
+
+Maximize s + 2p. Since each pair gives 2 marks for 8 cells (ratio 1/4) and each singleton gives 1 mark for 5 cells (ratio 1/5), pairs are more efficient. So we want as many pairs as possible.
+
+5s + 8p ≤ 400. To maximize s + 2p: set s = 0, then 8p ≤ 400, p ≤ 50, marks = 100. Or s = 0, p = 50, marks = 100.
+
+But wait, can we actually achieve 50 disjoint pairs each using 8 cells? That requires tiling the 20×20 grid with 50 copies of the 8-cell "pair exclusion" shape. 50 × 8 = 400. So we'd need a perfect tiling.
+
+The 8-cell shape (for a horizontal pair at (0,0),(0,1)): {(0,0),(0,1),(0,-1),(0,2),(1,0),(-1,0),(1,1),(-1,1)}. Hmm, this is a specific shape. Can we tile the 20×20 grid with this?
+
+Actually, the bound 5s + 8p ≤ 400 gives s + 2p ≤ 400/4 = 100 (when s=0, p=50). But this is an upper bound that assumes perfect tiling. The actual maximum might be less due to tiling constraints.
+
+Hmm, but actually the bound might not be tight. Let me reconsider whether the bound is even correct. The issue is that the exclusion zones might not tile perfectly, and boundary effects.
+
+Let me reconsider. Actually, I realize the bound 5s + 8p ≤ 400 might not be exactly right because the exclusion zones are balls of radius 1, and on the boundary, balls are smaller. Let me account for boundary effects.
+
+For a mark on the boundary, its ball of radius 1 is smaller (fewer neighbors). For a corner mark, ball of radius 1 has 3 cells. For an edge mark, 4 cells. For interior, 5 cells.
+
+This complicates the counting. Let me think about whether the answer is 100 or less.
+
+Let me try to construct a configuration with 100 marks.
+
+Idea: tile the 20×20 grid with horizontal dominoes (pairs) in a pattern where each pair's exclusion zone is disjoint.
+
+Consider placing pairs in a pattern. Let me think about a 4×4 block. Can I place 2 pairs (4 marks) in a 4×4 block? 4×4 = 16 cells, 2 pairs need 2×8 = 16 cells. So a perfect tiling of 4×4 with two 8-cell exclusion zones.
+
+Let me try. Place a horizontal pair at (0,0),(0,1) in a 4×4 block (rows 0-3, cols 0-3). Exclusion: (0,0),(0,1),(0,-1)[outside],(0,2),(1,0),(-1,0)[outside],(1,1),(-1,1)[outside]. Within the block: (0,0),(0,1),(0,2),(1,0),(1,1). That's 5 cells inside the block (3 are outside). 
+
+Hmm, the exclusion zone extends outside the block. This makes tiling tricky. Let me think differently.
+
+Let me try a specific construction. Consider the pattern where we place horizontal pairs at positions (3a, 4b) and (3a, 4b+1) for integers a, b. So pairs are at rows 0, 3, 6, 9, 12, 15, 18 (7 rows) and columns starting at 0, 4, 8, 12, 16 (5 starts). Each pair occupies (3a, 4b) and (3a, 4b+1).
+
+Check distance between pairs: (0,0)-(0,1) pair and (0,4)-(0,5) pair. Distance between (0,1) and (0,4) is 3. Good. (0,0)-(0,1) and (3,0)-(3,1): distance between (0,0) and (3,0) is 3. Good. (0,0)-(0,1) and (3,4)-(3,5): distance ≥ 3. Good.
+
+So this gives 7 × 5 = 35 pairs = 70 marks. But we want 100.
+
+The issue is that this pattern has gaps. Let me try to be more efficient.
+
+Let me reconsider. The exclusion zone of a horizontal pair at (r, c),(r, c+1) is:
+- (r, c-1), (r, c), (r, c+1), (r, c+2) [the row of the pair, extended by 1 on each side]
+- (r-1, c), (r-1, c+1) [above]
+- (r+1, c), (r+1, c+1) [below]
+
+So it's a 4×1 horizontal strip in row r, plus 2×1 strips in rows r-1 and r+1. Total 4+2+2 = 8 cells.
+
+For the exclusion zones to be disjoint, we need: between two pairs in the same row, the columns must not overlap. Pair at (r, c..c+1) excludes columns c-1 to c+2 in row r. Next pair at (r, c'..c'+1) excludes c'-1 to c'+2. For no overlap: c'+1 > c+2, i.e., c' ≥ c+4. So pairs in the same row must be at least 4 columns apart (start to start). In a row of 20, starts at 0, 4, 8, 12, 16 → 5 pairs per row.
+
+Between rows: pair at row r excludes rows r-1 and r+1 (partially). Next pair at row r' must not have overlapping exclusion. If r' = r+2, the pair at r+2 excludes rows r+1 and r+3. Row r+1 is excluded by both. Overlap in row r+1: pair at r excludes (r+1, c),(r+1,c+1); pair at r+2 excludes (r+1, c'),(r+1,c'+1). If these overlap (same columns), violation. If c' ≠ c and c' ≠ c±1, then (r+1,c),(r+1,c+1) and (r+1,c'),(r+1,c'+1) are disjoint as long as |c'-c| ≥ 2. But we also need the marks themselves to be at distance ≥ 3. Mark at (r, c+1) and mark at (r+2, c'): distance = 2 + |c+1-c'|. For distance ≥ 3: |c+1-c'| ≥ 1, so c' ≠ c+1. And distance from (r,c) to (r+2,c'): 2+|c-c'| ≥ 3, so |c-c'| ≥ 1, c' ≠ c.
+
+So if r' = r+2, we need c' ≠ c and c' ≠ c+1 (and also the exclusion zones in row r+1 don't overlap, which requires the 2-cell strips to be disjoint: {c, c+1} ∩ {c', c'+1} = ∅, so c' ≠ c, c' ≠ c+1, c'+1 ≠ c, c'+1 ≠ c+1, i.e., c' ∉ {c-1, c, c+1}).
+
+So c' ∉ {c-1, c, c+1}. This means we can stagger the pairs.
+
+Let me try: 
+- Row 0: pairs at columns 0, 4, 8, 12, 16 (5 pairs)
+- Row 2: pairs at columns 2, 6, 10, 14, 18 (5 pairs) [shifted by 2]
+- Row 4: pairs at columns 0, 4, 8, 12, 16 (5 pairs)
+- Row 6: pairs at columns 2, 6, 10, 14, 18 (5 pairs)
+- ...
+
+Check row 0 and row 2: c' = c+2 for each pair. c' ∉ {c-1, c, c+1}? c+2 ∉ {c-1, c, c+1} ✓. 
+
+Check distance: (0, 1) and (2, 2): distance 2+1 = 3 ✓. (0, 0) and (2, 2): distance 2+2 = 4 ✓. (0, 1) and (2, 0): distance 2+1 = 3 ✓.
+
+Rows: 0, 2, 4, 6, 8, 10, 12, 14, 16, 18 → 10 rows, 5 pairs each = 50 pairs = 100 marks!
+
+Wait, but I need to check that consecutive rows (0 and 2) don't have overlapping exclusion zones. Row 0 pair at (0, 0..1) excludes (1, 0), (1, 1). Row 2 pair at (2, 2..3) excludes (1, 2), (1, 3) and (3, 2), (3, 3). No overlap in row 1. ✓
+
+Row 0 pair at (0, 4..5) excludes (1, 4), (1, 5). Row 2 pair at (2, 2..3) excludes (1, 2), (1, 3). No overlap. ✓
+
+Row 0 pair at (0, 0..1) excludes (1, 0), (1, 1). Row 2 pair at (2, 6..7) excludes (1, 6), (1, 7). No overlap. ✓
+
+What about row 0 and row 4? Row 4 pair at (4, 0..1) excludes (3, 0), (3, 1). Row 2 pair at (2, 2..3) excludes (3, 2), (3, 3). No overlap. ✓ And distance between (0, 1) and (4, 0): 4+1 = 5 ≥ 3 ✓.
+
+What about row 0 and row 2, but also need to check that no mark in row 0 is at distance 2 from any mark in row 2. (0, 1) and (2, 2): distance 3 ✓. (0, 1) and (2, 0): distance 3 ✓. (0, 0) and (2, 2): distance 4 ✓. All good since the minimum distance between marks in adjacent pair-rows is 3.
+
+Now let me also check: does every cell have at most 1 marked neighbor? Let me verify a few cells.
+
+Cell (1, 0): neighbors are (0, 0)[marked], (2, 0)[unmarked], (1, 1)[unmarked], (1, -1)[outside]. 1 marked neighbor. ✓
+Cell (1, 1): neighbors (0, 1)[marked], (2, 1)[unmarked], (1, 0)[unmarked], (1, 2)[unmarked]. 1 marked. ✓
+Cell (1, 2): neighbors (0, 2)[unmarked], (2, 2)[marked], (1, 1)[unmarked], (1, 3)[unmarked]. 1 marked. ✓
+Cell (0, 2): neighbors (0, 1)[marked], (0, 3)[unmarked], (1, 2)[unmarked], (-1, 2)[outside]. 1 marked. ✓
+Cell (0, 3): neighbors (0, 2)[unmarked], (0, 4)[marked], (1, 3)[unmarked]. 1 marked. ✓
+Cell (1, 4): neighbors (0, 4)[marked], (2, 4)[unmarked], (1, 3)[unmarked], (1, 5)[unmarked]. 1 marked. ✓
+
+Wait, cell (0, 3) has neighbor (0, 4) which is marked. And (0, 2) is unmarked, (0, 4) is marked. So (0, 3) has 1 marked neighbor. But what about (0, 3) and the pair at (0, 4..5)? (0, 3) is adjacent to (0, 4) [marked] only. ✓
+
+What about cell (2, 1)? Neighbors: (1, 1)[unmarked], (3, 1)[unmarked], (2, 0)[unmarked], (2, 2)[marked]. 1 marked. ✓
+
+Cell (3, 1): neighbors (2, 1)[unmarked], (4, 1)[unmarked? row 4 has pairs at 0,1 so (4,1) is marked!], (3, 0)[unmarked], (3, 2)[unmarked]. Wait, (4, 1) is marked (part of pair (4, 0..1)). So (3, 1) has neighbor (4, 1) marked. Any other? (2, 1) unmarked, (3, 0) unmarked, (3, 2) unmarked. 1 marked. ✓
+
+Cell (3, 0): neighbors (2, 0)[unmarked], (4, 0)[marked], (3, 1)[unmarked], (3, -1)[outside]. 1 marked. ✓
+
+Cell (3, 2): neighbors (2, 2)[marked], (4, 2)[unmarked], (3, 1)[unmarked], (3, 3)[unmarked]. 1 marked. ✓
+
+Hmm, what about cell (2, 4)? Row 2 has pairs at columns 2, 6, 10, 14, 18. So (2, 2) and (2, 3) are marked, (2, 6) and (2, 7) are marked. (2, 4) is unmarked. Neighbors: (1, 4)[unmarked], (3, 4)[unmarked], (2, 3)[marked], (2, 5)[unmarked]. 1 marked. ✓
+
+What about cell (2, 3)? It's marked. Neighbors: (1, 3)[unmarked], (3, 3)[unmarked], (2, 2)[marked], (2, 4)[unmarked]. 1 marked neighbor. ✓
+
+Cell (2, 5): neighbors (1, 5)[unmarked], (3, 5)[unmarked], (2, 4)[unmarked], (2, 6)[marked]. 1 marked. ✓
+
+Looks like the construction works. Let me also check a potential issue: cell (1, 3). Neighbors: (0, 3)[unmarked], (2, 3)[marked], (1, 2)[unmarked], (1, 4)[unmarked]. 1 marked. ✓
+
+Cell (1, 5): neighbors (0, 5)[marked], (2, 5)[unmarked], (1, 4)[unmarked], (1, 6)[unmarked]. 1 marked. ✓
+
+Now let me check a tricky one. Cell (1, 6): neighbors (0, 6)[unmarked], (2, 6)[marked], (1, 5)[unmarked], (1, 7)[unmarked]. 1 marked. ✓
+
+What about cell (0, 6)? Row 0 has pairs at 0, 4, 8, 12, 16. So (0, 6) is unmarked. Neighbors: (0, 5)[marked], (0, 7)[unmarked], (1, 6)[unmarked]. 1 marked. ✓
+
+Cell (0, 7): neighbors (0, 6)[unmarked], (0, 8)[marked], (1, 7)[unmarked]. 1 marked. ✓
+
+OK so the construction gives 100 marks. Now I need to prove 100 is optimal (upper bound).
+
+Upper bound proof: We showed that all balls of radius 1 around marks are disjoint (across groups). Let me make this rigorous.
+
+Claim: For any two marks that are not in the same pair, their balls of radius 1 are disjoint.
+
+Proof: Two marks not in the same pair are at distance ≥ 3 (since distance 2 is forbidden, and distance 1 would make them a pair). If they're at distance ≥ 3, their balls of radius 1 are disjoint. ✓
+
+For two marks in the same pair (distance 1), their balls of radius 1 overlap in exactly 2 cells (the two marks themselves).
+
+So: let the marks be partitioned into singletons and pairs. Let s = #singletons, p = #pairs. Total marks = s + 2p.
+
+The union of all balls of radius 1 has size: 5s + 8p (each singleton contributes 5, each pair contributes 8, and all these are disjoint across groups). This union is a subset of the 20×20 grid (well, balls extend outside the grid for boundary marks, but the part inside the grid is ≤ 5s + 8p, and the part inside is ≥ ... hmm).
+
+Wait, actually for boundary marks, the ball of radius 1 is smaller (fewer cells inside the grid). So the total cells covered inside the grid is ≤ 5s + 8p. And since the covered cells are a subset of the 400 cells, we have:
+
+(cells covered inside grid) ≤ 5s + 8p
+
+But we need (cells covered inside grid) ≤ 400, which gives 5s + 8p ≤ ... no, that's not right because the covered cells inside the grid could be less than 5s + 8p (due to boundary).
+
+Hmm, so the bound 5s + 8p ≤ 400 doesn't directly follow. Let me reconsider.
+
+Actually, the balls of radius 1 around marks, restricted to the grid, are disjoint (across groups). The total number of grid cells covered is sum over marks of (number of neighbors + 1, restricted to grid). For interior marks, that's 5; for edge marks, 4; for corner marks, 3.
+
+So total covered = sum of (degree + 1) for each mark, where degree is the in-grid degree. This is ≤ 5(s + 2p) but we need a tighter bound.
+
+Hmm, the issue is that boundary marks have smaller balls, so the bound is weaker. Let me think about this differently.
+
+Actually, let's count more carefully. Let me count the total number of cells covered by the balls (restricted to grid). Each covered cell is counted once (disjoint). The covered cells are a subset of the 400 grid cells. So:
+
+∑_marks (1 + deg_in_grid(mark)) ≤ 400
+
+where deg_in_grid is the number of in-grid neighbors (2 for corner, 3 for edge, 4 for interior).
+
+For singletons: each contributes (1 + deg) cells.
+For pairs: each pair contributes (1 + deg(A)) + (1 + deg(B)) - 2 = deg(A) + deg(B) cells (subtracting 2 for the overlap of A and B in each other's balls).
+
+Hmm, this is getting complicated. Let me think about whether the upper bound of 100 still holds.
+
+Total marks = s + 2p. We want to show s + 2p ≤ 100.
+
+The covered cells (disjoint, inside grid) = ∑_singletons (1 + deg) + ∑_pairs (deg(A) + deg(B)) ≤ 400.
+
+For a singleton in the interior: contributes 5. For a pair in the interior: contributes 8.
+For boundary marks, contributions are smaller.
+
+To maximize s + 2p, we want to minimize the cost per mark. Pairs have cost 8 for 2 marks (ratio 4 per mark) in the interior. Singletons have cost 5 for 1 mark (ratio 5 per mark). On the boundary, costs are lower, which could allow more marks.
+
+Hmm, so boundary effects might allow more than 100? Let me think about this.
+
+For a pair on the boundary (say both marks on the top edge, row 0): A=(0,c), B=(0,c+1). deg(A) = 3 (neighbors: (0,c-1), (0,c+1), (1,c)), deg(B) = 3. Cost = 3 + 3 = 6 for 2 marks. Ratio 3 per mark. That's better than interior pairs (ratio 4)!
+
+For a pair at the corner: A=(0,0), B=(0,1). deg(A) = 2, deg(B) = 3. Cost = 2 + 3 = 5 for 2 marks. Ratio 2.5 per mark. Even better!
+
+So boundary pairs are more efficient, meaning we might be able to exceed 100.
+
+Hmm, this changes things. Let me reconsider.
+
+Actually wait. Let me reconsider the problem. Maybe the answer is higher than 100.
+
+Let me reconsider the upper bound more carefully. The constraint is:
+
+∑_singletons (1 + deg(M)) + ∑_pairs (deg(A) + deg(B)) ≤ 400
+
+where deg is the in-grid degree (number of neighbors within the 20×20 grid).
+
+We want to maximize s + 2p.
+
+For each singleton, cost = 1 + deg(M) ≥ 3 (corner) and marks = 1.
+For each pair, cost = deg(A) + deg(B) ≥ 5 (corner pair) and marks = 2.
+
+To maximize marks, minimize cost per mark. The best ratio is for corner pairs: 5/2 = 2.5. But there are limited corner pairs.
+
+This is an optimization problem. Let me think about it as: we want to place pairs and singletons to maximize total marks, where the "cost" of each mark depends on its position.
+
+Actually, let me reconsider. Maybe I should think about this problem differently. Let me reconsider whether the bound is tight.
+
+Hmm, let me reconsider the problem from scratch. Maybe I should think about it as a graph theory problem.
+
+Actually, let me reconsider whether 100 is achievable and optimal, or if we can do better.
+
+Let me try to construct a configuration with more than 100 marks by exploiting the boundary.
+
+Consider placing pairs along the boundary. On the top edge (row 0), we can place pairs at (0, 0..1), (0, 4..5), (0, 8..9), (0, 12..13), (0, 16..17). That's 5 pairs, 10 marks, using 5×6 = 30 cells (each pair on the top edge costs 6). Wait, but the exclusion zones of these pairs extend into row 1, and we need to make sure they don't conflict with pairs in row 2.
+
+Actually, let me think about this more carefully. Let me try to see if we can beat 100.
+
+Let me reconsider. In my construction, I had pairs in every other row (rows 0, 2, 4, ..., 18), with 5 pairs per row, giving 50 pairs = 100 marks. The "cost" per pair:
+- Row 0 (boundary): cost 6 per pair, 5 pairs = 30
+- Row 18 (boundary): cost 6 per pair, 5 pairs = 30
+- Rows 2, 4, ..., 16 (interior): cost 8 per pair, 9 rows × 5 pairs = 45 pairs, cost 360
+
+Wait, 30 + 30 + 360 = 420 > 400. That can't be right. Let me recompute.
+
+Oh wait, I think the issue is that the exclusion zones might not be perfectly disjoint, or I'm miscounting.
+
+Actually, let me recompute the cost. In my construction:
+- Row 0: pairs at (0, 0..1), (0, 4..5), (0, 8..9), (0, 12..13), (0, 16..17). 5 pairs.
+  - Each pair (0, c..c+1): deg(0,c) = 3 (if c > 0 and c < 19) or 2 (if c = 0). For c=0: deg(0,0)=2, deg(0,1)=3, cost=5. For c=4: deg(0,4)=3, deg(0,5)=3, cost=6. Similarly c=8,12: cost 6. For c=16: deg(0,16)=3, deg(0,17)=3, cost=6.
+  - Total cost for row 0: 5 + 6 + 6 + 6 + 6 = 29.
+
+- Row 18: similar to row 0 (bottom boundary). Pairs at (18, 2..3), (18, 6..7), (18, 10..11), (18, 14..15), (18, 18..19). 5 pairs.
+  - (18, 18..19): deg(18,18)=3, deg(18,19)=2, cost=5. Others cost 6.
+  - Total: 6+6+6+6+5 = 29.
+
+- Rows 2, 4, 6, 8, 10, 12, 14, 16: 8 rows. Each has 5 pairs, cost 8 each. Total: 8 × 5 × 8 = 320.
+
+Wait, but row 2 and row 16 are not boundary rows. Row 2 is interior (rows 1 and 3 exist). So cost 8 per pair. 8 rows × 5 pairs × 8 = 320.
+
+Total cost: 29 + 29 + 320 = 378 ≤ 400. ✓
+
+So the total cost is 378, which is less than 400. This means we have 22 cells uncovered. Can we add more marks?
+
+The uncovered cells are those not in any exclusion zone. Let me figure out which cells are uncovered.
+
+In my construction, the exclusion zones cover:
+- Row 0: pairs at cols 0-1, 4-5, 8-9, 12-13, 16-17. Exclusion in row 0: cols -1 to 2, 3 to 6, 7 to 10, 11 to 14, 15 to 18. Within grid: 0-2, 3-6, 7-10, 11-14, 15-18. That's cols 0-18 (18 cells). Cols 19 is uncovered in row 0.
+  
+  Wait, let me be more careful. Pair (0, 0..1) excludes in row 0: cols -1, 0, 1, 2 → within grid: 0, 1, 2. Pair (0, 4..5) excludes: 3, 4, 5, 6. Pair (0, 8..9): 7, 8, 9, 10. Pair (0, 12..13): 11, 12, 13, 14. Pair (0, 16..17): 15, 16, 17, 18. So row 0 covered: 0-18 (19 cells). Col 19 uncovered.
+
+- Row 1: excluded by row 0 pairs and row 2 pairs. Row 0 pairs exclude in row 1: cols 0, 1, 4, 5, 8, 9, 12, 13, 16, 17. Row 2 pairs (at cols 2..3, 6..7, 10..11, 14..15, 18..19) exclude in row 1: cols 2, 3, 6, 7, 10, 11, 14, 15, 18, 19. So row 1 covered: 0-19 (all 20 cells). ✓
+
+- Row 2: pairs at 2..3, 6..7, 10..11, 14..15, 18..19. Exclusion in row 2: 1-4, 5-8, 9-12, 13-16, 17-20→17-19. So cols 1-19 (19 cells). Col 0 uncovered.
+
+- Row 3: excluded by row 2 and row 4 pairs. Row 2 excludes: 2, 3, 6, 7, 10, 11, 14, 15, 18, 19. Row 4 (pairs at 0..1, 4..5, 8..9, 12..13, 16..17) excludes: 0, 1, 4, 5, 8, 9, 12, 13, 16, 17. Row 3 covered: 0-19 (all). ✓
+
+- Pattern repeats. Even rows (0, 4, 8, 12, 16) have pairs at 0, 4, 8, 12, 16 (cols 0-1, 4-5, etc.), covering cols 0-18, leaving col 19 uncovered. Even rows (2, 6, 10, 14) have pairs at 2, 6, 10, 14, 18, covering cols 1-19, leaving col 0 uncovered. Odd rows are fully covered.
+
+- Row 18: pairs at 2..3, 6..7, 10..11, 14..15, 18..19. Covers cols 1-19, leaving col 0 uncovered.
+- Row 19: excluded by row 18 pairs: cols 2, 3, 6, 7, 10, 11, 14, 15, 18, 19. Cols 0, 1, 4, 5, 8, 9, 12, 13, 16, 17 uncovered. That's 10 uncovered cells in row 19!
+
+Wait, row 19 is only excluded by row 18 pairs (there's no row 20). So row 19 has 10 uncovered cells: cols 0, 1, 4, 5, 8, 9, 12, 13, 16, 17.
+
+Hmm wait, but also row 19 is adjacent to row 18. The cells in row 19 that are adjacent to marked cells in row 18 already have 1 marked neighbor. Can we add marks in row 19?
+
+Cell (19, 0): neighbors (18, 0)[unmarked], (19, 1)[unmarked]. Currently 0 marked neighbors. Can we mark it? If we mark (19, 0), then (19, 1) would have neighbor (19, 0) marked. (19, 1) also has neighbor (18, 1)[unmarked], (19, 2)[unmarked]. So (19, 1) would have 1 marked neighbor. And (18, 0) would have neighbor (19, 0) marked, plus (18, 0)'s other neighbors: (17, 0)[unmarked], (18, 1)[unmarked]. So (18, 0) has 1 marked neighbor. OK.
+
+But wait, (19, 0) is at distance 2 from (18, 2) [marked]. (19, 0) → (18, 0) → (18, 1) → (18, 2)? No, distance from (19, 0) to (18, 2) is 1 + 2 = 3. OK, that's fine. But (19, 1) is at distance 1 from (19, 0) and distance 1 from (18, 1) and distance 2 from (18, 2). If we mark (19, 0), then (19, 1) has 1 marked neighbor (19, 0). (18, 1) has neighbors (18, 0)[unmarked], (18, 2)[marked], (17, 1)[unmarked], (19, 1)[unmarked]. So (18, 1) has 1 marked neighbor. Fine.
+
+But can we also mark (19, 1)? Then (19, 0) and (19, 1) form a pair. (19, 0) has 1 marked neighbor (19, 1). (19, 1) has 1 marked neighbor (19, 0). But (19, 1) is at distance 2 from (18, 2) [marked]: |19-18| + |1-2| = 2. So (19, 1) and (18, 2) are at distance 2, meaning they share a common neighbor. The common neighbors of (19, 1) and (18, 2) are (19, 2) and (18, 1). (19, 2) would have 2 marked neighbors: (19, 1) and (18, 2). Violation!
+
+So we can't mark (19, 1) if (18, 2) is marked. Can we mark just (19, 0)?
+
+(19, 0) marked. Check all cells:
+- (19, 0): neighbors (18, 0)[unmarked], (19, 1)[unmarked]. 0 marked neighbors (itself is marked but we count marked neighbors, not itself). Wait, (19, 0) is marked. Its neighbors are (18, 0) and (19, 1), both unmarked. 0 marked neighbors. ✓
+- (18, 0): neighbors (17, 0)[unmarked], (18, 1)[unmarked], (19, 0)[marked]. 1 marked. ✓
+- (19, 1): neighbors (18, 1)[unmarked], (19, 0)[marked], (19, 2)[unmarked]. 1 marked. ✓
+
+So marking (19, 0) as a singleton is fine! It's at distance ≥ 3 from all other marks? (19, 0) to (18, 2): distance 3. ✓. (19, 0) to (16, 0): distance 3. ✓. (19, 0) to (16, 1): distance 4. ✓. 
+
+So we can add (19, 0) as a singleton. Similarly, can we add (19, 1)?
+
+(19, 1) as a singleton: distance to (18, 2) is 2. Violation (common neighbor). So no.
+
+Can we add (19, 4)? Distance to (18, 6) is 1+2 = 3. ✓. Distance to (18, 3) is 1+1 = 2. (18, 3) is marked (part of pair 18, 2..3). So (19, 4) is at distance 2 from (18, 3). Violation. So no.
+
+(19, 5)? Distance to (18, 6) = 1+1 = 2. Violation. No.
+
+(19, 0): distance to (18, 2) = 3, to (18, 1) [unmarked] = 2 (but unmarked, doesn't matter). Actually we need distance to nearest marked cell ≥ 3 (for a singleton). (19, 0) to (18, 2) = 3 ✓, to (16, 0) = 3 ✓. So (19, 0) works.
+
+What about (19, 19)? Row 18 has pair at (18, 18..19). (19, 19) is at distance 1 from (18, 19) [marked]. So (19, 19) can't be a singleton (distance 1 to a mark means it's adjacent to a mark, and if we mark it, it forms a pair with (18, 19), but then (18, 18) is also marked and adjacent to (18, 19), so (18, 19) would have 2 marked neighbors). So (19, 19) can't be marked.
+
+What about (19, 0)? Already checked, works. What about (0, 19)? Row 0 has pair at (0, 16..17). (0, 19) is at distance 2 from (0, 17) [marked]. Violation. So no.
+
+Hmm, so from the uncovered cells in row 19 (cols 0, 1, 4, 5, 8, 9, 12, 13, 16, 17), only (19, 0) can be added (distance ≥ 3 from all marks). Let me check (19, 1): distance to (18, 2) = 2. No. (19, 4): distance to (18, 3) = 2. No. (19, 5): distance to (18, 6) = 2. No. Etc. So only (19, 0).
+
+Similarly, in row 0, col 19 is uncovered. (0, 19): distance to (0, 17) = 2. No.
+
+In even rows with col 0 uncovered (rows 2, 6, 10, 14, 18): (2, 0) is at distance 2 from (0, 0) [marked]? (2, 0) to (0, 0) = 2. Violation. (2, 0) to (2, 2) = 2. Violation. So no.
+
+In even rows with col 19 uncovered (rows 0, 4, 8, 12, 16): (0, 19) to (0, 17) = 2. No. (4, 19) to (4, 17) = 2. No. Etc.
+
+So from the 22 uncovered cells, only (19, 0) can be added. That gives 101 marks.
+
+Wait, can we also add marks in row 19 at other positions? Let me recheck. Row 19 uncovered cols: 0, 1, 4, 5, 8, 9, 12, 13, 16, 17. 
+
+(19, 0): nearest mark (18, 2) at distance 3, (16, 0) at distance 3. ✓
+(19, 1): nearest mark (18, 2) at distance 2. ✗
+(19, 4): nearest mark (18, 3) at distance 2. ✗
+(19, 5): nearest mark (18, 6) at distance 2. ✗
+(19, 8): nearest mark (18, 7) at distance 2. ✗
+(19, 9): nearest mark (18, 10) at distance 2. ✗
+(19, 12): nearest mark (18, 11) at distance 2. ✗
+(19, 13): nearest mark (18, 14) at distance 2. ✗
+(19, 16): nearest mark (18, 15) at distance 2. ✗
+(19, 17): nearest mark (18, 18) at distance 2. ✗
+
+So only (19, 0) can be added. Total: 101.
+
+Hmm, but can I also add (0, 19)? No, distance 2 to (0, 17). What about modifying the construction to also get a mark at (0, 19)?
+
+Alternatively, maybe I should redesign the construction to be more efficient on the boundaries.
+
+Let me think about this differently. Let me try to optimize the construction.
+
+Actually, let me reconsider. Maybe I should think about the problem more carefully and find the true maximum.
+
+Let me think about the upper bound more carefully.
+
+Upper bound: We have s singletons and p pairs. The balls of radius 1 around all marks (restricted to the grid) are disjoint across groups. The total number of grid cells covered is:
+
+C = ∑_singletons (1 + deg(M)) + ∑_pairs (deg(A) + deg(B))
+
+where deg is the in-grid degree. C ≤ 400.
+
+Total marks = s + 2p.
+
+Now, 1 + deg(M) ≥ 3 (corner: 3, edge: 4, interior: 5).
+deg(A) + deg(B) ≥ 5 (corner pair: 5, edge pair: 6, interior pair: 8).
+
+To maximize s + 2p subject to C ≤ 400, we want to minimize cost per mark. The best ratios:
+- Corner pair: 5/2 = 2.5
+- Edge pair: 6/2 = 3
+- Interior pair: 8/2 = 4
+- Corner singleton: 3/1 = 3
+- Edge singleton: 4/1 = 4
+- Interior singleton: 5/1 = 5
+
+So corner pairs are most efficient (2.5), then edge pairs and corner singletons (3), then interior pairs and edge singletons (4), etc.
+
+But there are limited corner and edge positions. Let me count:
+- Corners: 4 cells. A corner pair uses 2 adjacent cells, one of which is a corner. We can have at most 2 corner pairs (using 2 corners each)... actually, a corner pair is a pair where one mark is at a corner. Each corner can be part of at most one pair. 4 corners → at most 4 corner pairs? No, a corner pair uses a corner and an adjacent edge cell. Each corner can be in at most one pair. So at most 4 corner pairs (one per corner). But corner pairs at adjacent corners might conflict.
+
+This is getting complicated. Let me think about whether the answer is 100, 101, or something else.
+
+Actually, I wonder if the answer is just 100. Let me reconsider whether my counting of the construction is right, and whether 101 is actually achievable.
+
+Let me re-examine: can I really add (19, 0) to my construction?
+
+My construction has pairs at:
+- Rows 0, 4, 8, 12, 16: pairs at cols (0,1), (4,5), (8,9), (12,13), (16,17)
+- Rows 2, 6, 10, 14, 18: pairs at cols (2,3), (6,7), (10,11), (14,15), (18,19)
+
+Adding singleton at (19, 0).
+
+Check (19, 0): 
+- Distance to (18, 2) = |19-18| + |0-2| = 1 + 2 = 3. ✓ (≥ 3)
+- Distance to (18, 3) = 1 + 3 = 4. ✓
+- Distance to (16, 0) = 3 + 0 = 3. ✓
+- Distance to (16, 1) = 3 + 1 = 4. ✓
+- Distance to (18, 0) = 1 (but (18, 0) is unmarked). OK.
+
+So (19, 0) is at distance ≥ 3 from all marks. ✓
+
+Now check all cells affected by (19, 0):
+- (19, 0) is marked. Its neighbors: (18, 0) and (19, 1). Both unmarked. 0 marked neighbors for (19, 0). ✓
+- (18, 0): neighbors (17, 0), (18, 1), (19, 0). (19, 0) is marked. (17, 0) and (18, 1) unmarked. 1 marked. ✓
+- (19, 1): neighbors (18, 1), (19, 0), (19, 2). (19, 0) marked. 1 marked. ✓
+
+No cell gets 2 marked neighbors from adding (19, 0). ✓
+
+So 101 is achievable. Can we do even better?
+
+Let me think about whether we can also add something at the other corners or edges.
+
+Can we add (0, 19)? Distance to (0, 17) = 2. ✗.
+
+What if we modify the construction? Instead of pairs at (0, 16..17), use pairs at (0, 16..17) → shift to (0, 17..18)? Then (0, 19) is at distance 1 from (0, 18). If we make (0, 18..19) a pair, then (0, 16) is at distance 2 from (0, 18). But (0, 16) is unmarked. The issue is (0, 17) would be at distance 1 from both (0, 18) and... (0, 17) is between (0, 16) [unmarked] and (0, 18) [marked]. (0, 17) has 1 marked neighbor (0, 18). But (0, 15) is at distance 2 from (0, 17) [unmarked, doesn't matter]. Hmm, let me think about this differently.
+
+What if I redesign the construction to place pairs more efficiently near the boundaries?
+
+Let me try a different approach. Instead of the regular pattern, let me try to maximize marks by using boundary efficiency.
+
+Actually, let me step back and think about this problem more carefully. Let me consider the possibility that the answer is 100 or 101 or something else.
+
+Let me try a cleaner approach. Consider the 20×20 grid. Let me think about column-by-column.
+
+Actually, let me try to think about this problem in terms of a linear programming / counting bound.
+
+Alternative upper bound approach: Consider the "charging" scheme. For each marked cell, charge it to the cells in its closed neighborhood (ball of radius 1). Each cell gets charged at most once (since balls are disjoint across groups, and within a pair, the overlap is handled). Wait, I already did this.
+
+Let me try a different bound. Consider partitioning the grid into 2×2 blocks. There are 10×10 = 100 blocks. In each 2×2 block, how many marks can there be?
+
+In a 2×2 block with cells (a,b,c,d) where a=(2i,2j), b=(2i,2j+1), c=(2i+1,2j), d=(2i+1,2j+1):
+- a and b are adjacent, c and d are adjacent, a and c are adjacent, b and d are adjacent.
+- a and d are diagonal (distance 2), b and c are diagonal (distance 2).
+
+If we mark a and d (diagonal), they're at distance 2, which means cell b (or c) is a common neighbor with 2 marked neighbors. Violation. So we can't mark 2 diagonal cells.
+
+If we mark a and b (adjacent), they form a pair. Can we also mark c or d? c is adjacent to a, so a would have 2 marked neighbors (b and c). Violation. d is at distance 2 from a (through b or c). If d is marked, b is at distance 1 from both a and d → 2 marked neighbors. Violation. So if a and b are marked, c and d can't be marked. Max 2 in the block.
+
+If we mark only a: 1 mark. Can we mark 2 non-adjacent, non-diagonal cells? In a 2×2 block, any two cells are either adjacent or diagonal. So we can mark at most 2 (an adjacent pair), and if we mark 2, they must be adjacent.
+
+So each 2×2 block has at most 2 marks. 100 blocks × 2 = 200. That's a weak bound.
+
+Let me try 4×2 blocks or other partitions.
+
+Hmm, let me try a different approach. Consider 2×4 blocks (2 rows, 4 columns). How many marks can fit?
+
+Actually, let me think about this more carefully using the structure we've identified.
+
+Let me try to think about what the maximum is. I have a construction with 101. Let me see if I can do better.
+
+Let me try to optimize the boundary. In my construction, the bottom-right area has some slack. Let me try a modified construction.
+
+Actually, let me try a completely different approach. Let me think about the problem as follows:
+
+Consider the grid colored like a chessboard (black/white). Adjacent cells have different colors. A pair consists of one black and one white cell. A singleton is either color.
+
+Hmm, not sure this helps directly.
+
+Let me try to think about an upper bound of 100 or 101.
+
+Let me try the following approach: partition the 20×20 grid into 4×4 blocks. There are 5×5 = 25 blocks. In each 4×4 block, what's the maximum number of marks?
+
+In a 4×4 block, we can place 2 pairs (as in my construction, 4 marks per 4×4 block, using 2×8 = 16 cells). But with boundary effects, maybe more.
+
+Actually, in a 4×4 block in the interior, the max is 4 (2 pairs). On the boundary, maybe more. But this is getting complicated.
+
+Let me try a different approach to the upper bound. 
+
+Consider the 20×20 grid. Assign to each cell a "weight." For each marked cell, distribute weight to its closed neighborhood. Use a fractional charging argument.
+
+Actually, let me try the following clean approach:
+
+Claim: The maximum is 100.
+
+Wait, but I found a construction with 101. Let me double-check that construction.
+
+Hmm, actually let me re-examine. In my construction, I have 50 pairs = 100 marks, plus 1 singleton at (19, 0) = 101 marks. Let me verify more carefully that no cell has 2 marked neighbors.
+
+Let me check cell (18, 1). Neighbors: (17, 1), (18, 0), (18, 2), (19, 1). 
+- (17, 1): row 16 has pairs at (16, 0..1). So (17, 1) is excluded by (16, 1). Is (17, 1) marked? No, (17, 1) is not a mark (marks are in rows 0, 2, 4, ..., 18). (17, 1) is unmarked.
+- (18, 0): unmarked.
+- (18, 2): marked (part of pair (18, 2..3)).
+- (19, 1): unmarked.
+So (18, 1) has 1 marked neighbor. ✓
+
+Cell (19, 1): neighbors (18, 1), (19, 0), (19, 2).
+- (18, 1): unmarked.
+- (19, 0): marked (singleton).
+- (19, 2): unmarked.
+1 marked. ✓
+
+Cell (18, 0): neighbors (17, 0), (18, 1), (19, 0).
+- (17, 0): unmarked.
+- (18, 1): unmarked.
+- (19, 0): marked.
+1 marked. ✓
+
+Cell (17, 0): neighbors (16, 0), (17, 1), (18, 0).
+- (16, 0): marked (part of pair (16, 0..1)).
+- (17, 1): unmarked.
+- (18, 0): unmarked.
+1 marked. ✓
+
+Cell (16, 0): marked. Neighbors (15, 0), (16, 1), (17, 0).
+- (15, 0): unmarked (row 14 has pairs at (14, 2..3), so (15, 0) is not adjacent to any mark... wait, (14, 0) is unmarked, (16, 0) is marked. (15, 0) neighbors: (14, 0), (15, 1), (16, 0). (16, 0) is marked. So (15, 0) has 1 marked neighbor.)
+- (16, 1): marked (part of pair).
+- (17, 0): unmarked.
+So (16, 0) has 1 marked neighbor (16, 1). ✓
+
+OK, the construction with 101 seems valid. Let me see if I can push it further.
+
+Can I also add a singleton at (0, 19)? (0, 19) is at distance 2 from (0, 17) [marked]. ✗.
+
+What if I modify the top row? Instead of pairs at (0, 16..17), use a pair at (0, 17..18) and a singleton at (0, 19)? No, (0, 19) is at distance 1 from (0, 18), so they'd form a pair (0, 18..19). Then (0, 17) is at distance 1 from (0, 18) [marked] and distance 2 from (0, 19) [marked]. (0, 17) has 1 marked neighbor (0, 18). But (0, 16) is at distance 2 from (0, 18). (0, 16) neighbors: (0, 15), (0, 17), (1, 16). (0, 17) is unmarked. So (0, 16) has 0 marked neighbors. But wait, is (0, 16) at distance 2 from (0, 18)? Yes. Is there a common neighbor? (0, 17) is the common neighbor. (0, 17) has 1 marked neighbor (0, 18). But (0, 17) is also at distance 1 from (0, 18) and distance 1 from (0, 16) [unmarked]. So (0, 17) has 1 marked neighbor. Fine. But the constraint is that (0, 18) and (0, 16) are at distance 2, and (0, 17) is their common neighbor with 1 marked neighbor (only (0, 18)). But we also need to check: is (0, 16) at distance 2 from (0, 18)? The marks are (0, 18) and (0, 19). (0, 16) is unmarked. The issue is: does any cell have 2 marked neighbors because of (0, 18) and (0, 19)?
+
+(0, 18) and (0, 19) are a pair. (0, 17) is adjacent to (0, 18) [marked] but not to (0, 19). 1 marked neighbor. (1, 18) is adjacent to (0, 18) [marked]. (1, 19) is adjacent to (0, 19) [marked]. (1, 18) and (1, 19) are different cells. So no cell is adjacent to both (0, 18) and (0, 19) except... (0, 18) is adjacent to (0, 19), and (0, 19) is adjacent to (0, 18). Each has 1 marked neighbor (the other). ✓
+
+But now, (0, 18) is at distance 2 from (0, 16)? (0, 16) is unmarked, so that's fine. But (0, 18) is at distance 2 from (0, 16) which means (0, 17) is a common neighbor. (0, 17) has 1 marked neighbor. But we need: is (0, 16) a marked cell? No. So the distance-2 constraint only applies between marked cells. (0, 18) and (0, 16): (0, 16) is unmarked, so no constraint. ✓
+
+But what about (0, 18) and (0, 14..15) pair? (0, 14) and (0, 15) are marked. Distance from (0, 18) to (0, 15) = 3. ✓. Distance from (0, 18) to (0, 14) = 4. ✓. Good.
+
+So if I change the top row to have pairs at (0, 0..1), (0, 4..5), (0, 8..9), (0, 12..13), (0, 17..18), and singleton at (0, 19)... wait, (0, 19) is adjacent to (0, 18) [marked]. If (0, 19) is also marked, then (0, 18) has 2 marked neighbors: (0, 17)... no, (0, 17) is unmarked. (0, 18) neighbors: (0, 17), (0, 19), (1, 18). (0, 19) is marked. So (0, 18) has 1 marked neighbor. (0, 19) neighbors: (0, 18), (1, 19). (0, 18) is marked. 1 marked neighbor. So (0, 18) and (0, 19) form a pair. That's fine, but then I have a pair at (0, 17..18) and (0, 19) is also marked. Wait, (0, 17) is unmarked in this scenario. Let me reclarify.
+
+I want: pair at (0, 17..18) means (0, 17) and (0, 18) are both marked. Then (0, 19) is at distance 1 from (0, 18). If (0, 19) is also marked, (0, 18) has 2 marked neighbors: (0, 17) and (0, 19). Violation!
+
+So I can't have (0, 17), (0, 18), (0, 19) all marked. What about pair at (0, 18..19)? Then (0, 17) is unmarked. (0, 17) is at distance 1 from (0, 18) [marked]. 1 marked neighbor. (0, 16) is at distance 2 from (0, 18) [marked]. (0, 16) is unmarked. (0, 16) neighbors: (0, 15), (0, 17), (1, 16). If (0, 15) is unmarked (no pair at (0, 12..13) would make (0, 15) at distance 2 from (0, 13))... 
+
+Hmm, this is getting complicated. Let me try a different approach: just see if I can get more than 101 by trying different constructions.
+
+Let me try: can I get 102?
+
+What if I use a different pattern that's more efficient on all four boundaries?
+
+Let me try the following construction:
+- Rows 0, 4, 8, 12, 16: pairs at cols (1,2), (5,6), (9,10), (13,14), (17,18) [shifted by 1]
+- Rows 2, 6, 10, 14, 18: pairs at cols (0,1), (4,5), (8,9), (12,13), (16,17)
+
+Wait, this might allow boundary marks at (0, 19) and (19, 19) etc. Let me check.
+
+Row 0: pairs at (0, 1..2), (0, 5..6), (0, 9..10), (0, 13..14), (0, 17..18). 
+- (0, 19): distance to (0, 18) = 1. If (0, 19) is marked, (0, 18) has 2 marked neighbors: (0, 17) and (0, 19). Violation. So (0, 19) can't be marked.
+- (0, 0): distance to (0, 1) = 1. If (0, 0) is marked, (0, 1) has 2 marked neighbors: (0, 0) and (0, 2). Violation. So (0, 0) can't be marked.
+
+Row 18: pairs at (18, 0..1), (18, 4..5), (18, 8..9), (18, 12..13), (18, 16..17).
+- (18, 19): distance to (18, 17) = 2. ✗ (if we try to mark it as singleton)
+- (19, 0): distance to (18, 0) = 1. If marked, (18, 0) has 2 marked neighbors: (18, 1) and (19, 0). Violation.
+- (19, 19): distance to (18, 17) = 1+2 = 3. ✓. Distance to (18, 18) [unmarked] = 1. (18, 18) is unmarked. Distance to (16, 17) = 3+2 = 5. ✓. So (19, 19) can be a singleton!
+
+Hmm wait, let me check (19, 19) more carefully. (19, 19) neighbors: (18, 19) and (19, 18). Both unmarked. 0 marked neighbors. (18, 19) neighbors: (17, 19), (18, 18), (19, 19). If (19, 19) is marked, (18, 19) has 1 marked neighbor. (17, 19): neighbors (16, 19), (17, 18), (18, 19). (16, 19) is unmarked (row 16 has pairs at (16, 17..18), so (16, 19) is unmarked). (17, 18) is unmarked. (18, 19) is unmarked. 0 marked neighbors. (19, 18): neighbors (18, 18), (19, 17), (19, 19). (19, 19) marked. 1 marked neighbor.
+
+But wait, (19, 19) is at distance 2 from (18, 17) [marked]? |19-18| + |19-17| = 1 + 2 = 3. No, distance 3. ✓. (19, 19) is at distance 2 from (16, 18) [marked]? |19-16| + |19-18| = 3 + 1 = 4. ✓. 
+
+So (19, 19) can be added. But in this construction, can I also add (0, 0) or (0, 19)?
+
+(0, 0): distance to (0, 1) [marked] = 1. Can't be singleton. If part of a pair with (0, 1), then (0, 1) has 2 marked neighbors: (0, 0) and (0, 2). Violation. ✗.
+
+(0, 19): distance to (0, 18) [marked] = 1. Same issue. ✗.
+
+(19, 0): distance to (18, 0) [marked] = 1. ✗.
+
+So in this construction, I can add (19, 19) as a singleton. Total: 50 pairs + 1 = 101. Same as before.
+
+Can I add more? Let me check other boundary cells.
+
+(19, 3): distance to (18, 4) [marked] = 1+1 = 2. ✗.
+(19, 2): distance to (18, 1) [marked] = 1+1 = 2. ✗.
+(19, 4): distance to (18, 4) [marked] = 1. ✗.
+(19, 7): distance to (18, 8) [marked] = 1+1 = 2. ✗.
+(19, 19): ✓ (already added).
+
+What about (0, 0)? ✗. (0, 19)? ✗. (19, 0)? ✗.
+
+What about (1, 0)? Row 0 has pair at (0, 1..2). (1, 0) is at distance 1 from (0, 0) [unmarked] and distance 2 from (0, 1) [marked]. (1, 0) neighbors: (0, 0), (1, 1), (2, 0). (2, 0) is marked (part of pair (2, 0..1)). So (1, 0) has 1 marked neighbor (2, 0). If we mark (1, 0), then (1, 0) has 0 marked neighbors (its neighbors are (0, 0), (1, 1), (2, 0) — (2, 0) is marked, so 1 marked neighbor). Wait, if (1, 0) is marked, we need to check its neighbors. (1, 0) is marked, its neighbors: (0, 0) [unmarked], (2, 0) [marked], (1, 1) [unmarked]. So (1, 0) has 1 marked neighbor (2, 0). That means (1, 0) and (2, 0) are adjacent marks. They'd form a pair. But (2, 0) is already in a pair with (2, 1). So (2, 0) would have 2 marked neighbors: (2, 1) and (1, 0). Violation! ✗.
+
+So we can't add (1, 0). 
+
+It seems like 101 is the best I can do with this type of construction. Let me think about whether a fundamentally different construction could do better.
+
+Let me try to think about the upper bound more carefully.
+
+Upper bound attempt: Consider the 20×20 grid. Let me use a more refined counting argument.
+
+For each mark, define its "territory" as the ball of radius 1 around it (within the grid). Territories of marks in the same pair overlap (by 2 cells), territories across groups are disjoint.
+
+Total territory size = ∑_singletons (1 + deg(M)) + ∑_pairs (deg(A) + deg(B)) ≤ 400.
+
+Let me denote the marks. For each mark m, let w(m) = 1 + deg(m) (the ball size). For a pair (A, B), the territory is w(A) + w(B) - 2 (since A and B are in each other's balls).
+
+Total = ∑_all marks w(m) - 2p ≤ 400 (since each pair has an overlap of 2).
+
+∑_all marks w(m) = ∑_all marks (1 + deg(m)) = (s + 2p) + ∑_all marks deg(m).
+
+So (s + 2p) + ∑ deg(m) - 2p ≤ 400, i.e., s + ∑ deg(m) ≤ 400.
+
+Hmm, that gives s + ∑ deg(m) ≤ 400. Since deg(m) ≥ 2 for all cells, ∑ deg(m) ≥ 2(s + 2p). So s + 2(s + 2p) ≤ 400, i.e., 3s + 4p ≤ 400. And we want to maximize s + 2p.
+
+From 3s + 4p ≤ 400: s + 2p ≤ (400 - 3s)/4 * 2 + s = ... let me just optimize. 
+
+Maximize s + 2p subject to 3s + 4p ≤ 400. 
+
+If s = 0: 4p ≤ 400, p ≤ 100, marks = 200. But this is way more than 101. So this bound is too weak.
+
+The issue is that deg(m) ≥ 2 is too weak. Let me use a better bound on ∑ deg(m).
+
+Actually, the bound s + ∑ deg(m) ≤ 400 is correct but not tight enough. Let me think about why.
+
+∑ deg(m) is the sum of degrees of all marked cells. Each marked cell has degree 2 (corner), 3 (edge), or 4 (interior). The sum ∑ deg(m) counts the total number of edges incident to marked cells. Each such edge connects a marked cell to a neighbor. The constraint says that each cell has at most 1 marked neighbor, so each cell is the endpoint of at most 1 edge from a marked cell. So ∑ deg(m) = (number of edges from marked cells to their neighbors) = ∑_cells (number of marked neighbors) ≤ 400 (since each cell has at most 1 marked neighbor, and there are 400 cells).
+
+Wait, that's exactly what we have: ∑ deg(m) = ∑_cells |{marked neighbors}| ≤ 400. And s + ∑ deg(m) ≤ 400 gives s + (something ≤ 400) ≤ 400, so s ≤ 400 - ∑ deg(m). This doesn't directly bound s + 2p.
+
+Let me redo. We have:
+- Total marks: M = s + 2p.
+- ∑_cells |{marked neighbors}| = ∑_marks deg(m) ≤ 400 (each cell has ≤ 1 marked neighbor).
+- Also, ∑_marks deg(m) = ∑_marks (1 + deg(m)) - M = (total territory without overlap correction) - M.
+
+Hmm, let me think about this differently. 
+
+We have two constraints:
+1. ∑_marks deg(m) ≤ 400 (each cell has at most 1 marked neighbor).
+2. The territories (balls of radius 1) are disjoint across groups, so ∑_singletons (1+deg) + ∑_pairs (deg(A)+deg(B)) ≤ 400.
+
+From constraint 2: ∑_marks (1+deg(m)) - 2p ≤ 400, i.e., M + ∑ deg(m) - 2p ≤ 400, i.e., s + ∑ deg(m) ≤ 400.
+
+From constraint 1: ∑ deg(m) ≤ 400.
+
+These two give: s + ∑ deg(m) ≤ 400 and ∑ deg(m) ≤ 400. The first gives s ≤ 400 - ∑ deg(m). To maximize M = s + 2p, we need to relate p to these.
+
+From constraint 2: s + ∑ deg(m) ≤ 400. And M = s + 2p. We need another relation involving p.
+
+Hmm, I think the issue is that these constraints alone don't give a tight bound. Let me think about additional constraints.
+
+Additional constraint: No two marks at distance 2. This means the marks form a "distance-2-free" set, plus some adjacent pairs.
+
+Actually, let me think about it as a graph coloring / independent set problem.
+
+Let G be the graph where vertices are grid cells, and edges connect cells at distance 2 (in the original grid). Then no two marks can be adjacent in G (distance 2 is forbidden). Additionally, marks at distance 1 in the original grid are allowed only as isolated pairs.
+
+The "distance-2 graph" G: two cells are adjacent in G iff they're at Manhattan distance 2 in the grid. The maximum independent set in G is the 2-packing number, which we computed as 80.
+
+But our problem allows more than the 2-packing because of pairs. Each pair adds 1 extra mark (2 marks instead of 1) at the cost of excluding more cells.
+
+Hmm, let me think about this more carefully.
+
+Let me try a different approach to the upper bound. 
+
+Consider the 20×20 grid. Partition it into 4×4 blocks. There are 25 blocks. In each 4×4 block, the maximum number of marks is... let me compute.
+
+In a 4×4 block (interior, so all cells have degree 4 within the full grid, but within the block we need to consider the exclusion zones which may extend outside the block):
+
+Actually, the exclusion zones extend outside the block, so this partitioning approach doesn't directly work. Let me try a different partition.
+
+Let me try 5×4 blocks (5 rows, 4 columns). There are 4×5 = 20 blocks. In each 5×4 block... this is also complicated.
+
+Let me try yet another approach. Let me think about the problem column by column.
+
+Consider column j. The marks in column j form a set with no two at distance 2 (within the column, distance 2 means rows differ by 2). Also, marks in column j interact with marks in columns j-1 and j+1.
+
+This is getting complicated. Let me try to just compute the answer for small cases and see if there's a pattern.
+
+For a 1×n grid (path): each cell has at most 1 marked neighbor. Marks at distance 2 are forbidden (common neighbor). Adjacent marks form pairs. So the structure is: singletons at distance ≥ 3 from all others, and pairs (adjacent marks) at distance ≥ 3 from all other marks.
+
+For a path of length n, what's the maximum?
+
+Let me compute for small n:
+- n=1: 1 mark. (1 cell, mark it, 0 marked neighbors.) ✓
+- n=2: 2 marks (pair). Each has 1 marked neighbor. ✓
+- n=3: marks at 1,2 (pair). Cell 3 has 1 marked neighbor (cell 2). Cell 1 has 1 (cell 2). Cell 2 has 1 (cell 1). ✓. Can we do 3? All marked: cell 2 has 2 marked neighbors. ✗. So max = 2.
+  Alternatively: mark cell 2 only. 1 mark. Or marks at 1,3: distance 2, cell 2 has 2 marked neighbors. ✗. So max = 2.
+- n=4: marks at 1,2 (pair). Cell 3 has 1 marked neighbor. Cell 4 has 0. Can we add cell 4? Cell 4 is at distance 2 from cell 2. ✗. Marks at 1,2 and 4: cell 3 has 2 marked neighbors (2 and 4). ✗. Marks at 1,2 only: 2 marks. Or marks at 1, 4: distance 3. ✓. 2 marks. Or marks at 1,2, 4: ✗. So max = 2.
+  Wait, what about marks at 1 and 4? Distance 3. Cell 2 has 1 marked neighbor (1). Cell 3 has 1 marked neighbor (4). ✓. 2 marks. Same as pair.
+  What about 1,2 (pair) and that's it? 2 marks. Can we do 3? 1,2,4: ✗ (cell 3 has 2). 1,3,4: cell 2 has 1 (1), cell 3 has 2 (1 and 4)... wait, 1 and 3 are at distance 2. Cell 2 has 2 marked neighbors. ✗. 2,3 (pair) + 1? Cell 2 has 2 (1 and 3). ✗. So max = 2 for n=4.
+- n=5: marks at 1,2 (pair) and 5 (singleton, distance 3 from 2). Cell 3 has 1 (2). Cell 4 has 1 (5). Cell 5 has 0. ✓. 3 marks. Can we do 4? 1,2,5 and one more? 4: distance 1 from 5, pair (4,5). But 4 is at distance 2 from 2. ✗. 1,2,4,5: cell 3 has 2 (2,4). ✗. 1,2,5: 3 marks. 1,5: 2 marks. 2,3,5: 2,3 pair, 5 singleton at distance 2 from 3. ✗. 1,2,5: 3 marks. Seems like 3 is max for n=5.
+- n=6: 1,2 (pair), 5,6 (pair). Distance from 2 to 5 = 3. ✓. 4 marks. Can we do 5? 1,2,5,6 + ? 3: distance 1 from 2. Pair (2,3) but 2 already paired with 1. ✗. 4: distance 1 from 5. ✗. So 4 marks. Or 1,2,6: 3 marks. Or 1,4,5: 4 at distance 3 from 1, 5 at distance 1 from 4 (pair), 1 at distance 3 from 4. ✓. 3 marks. So 4 is max for n=6.
+  Pattern: for n=6, 4 marks = 2 pairs. n/3 * 2 = 4. ✓.
+- n=7: 1,2 (pair), 5,6 (pair). 4 marks. Can we add 7? Distance from 6 to 7 = 1. Pair (6,7) but 6 already paired with 5. ✗. 1,2,5,6: 4 marks. Or 1,2,6,7: distance 2 to 6 = 4. ✓. 4 marks. Or 1,2,5,7: 5,7 at distance 2. ✗. 1,2,5,6: 4. Can we do 5? Seems hard. 4 marks for n=7.
+  ceil(7/3)*2 = 4. ✓.
+
+Hmm, for 1D, the pattern seems to be: floor((n+1)/3) * 2 if n mod 3 == 2, else... let me compute more carefully.
+
+n=1: 1. n=2: 2. n=3: 2. n=4: 2. n=5: 3. n=6: 4. n=7: 4. n=8: 5? Let me check n=8.
+
+n=8: 1,2 (pair), 5,6 (pair). 4 marks. Can we add 8? Distance 6 to 8 = 2. ✗. 1,2, 6,7 (pair). Distance 2 to 6 = 4. ✓. 4 marks. Add 8? Distance 7 to 8 = 1, pair (7,8) but 7 paired with 6. ✗. 1,2, 5,6, 8: 6 to 8 = 2. ✗. 1,2, 6,7: 4. 1,2,5,6: 4. 2,3 (pair), 6,7 (pair): 4. 1, 4,5 (pair), 8: 4 at distance 3 from 1, 8 at distance 3 from 5. ✓. 4 marks. Can we do 5? 1,2, 4,5: 2 to 4 = 2. ✗. 1,2, 5,6, 8: 6 to 8 = 2. ✗. 1, 3,4 (pair), 6,7 (pair), 8: 3,4 pair, 6,7 pair. 4 to 6 = 2. ✗. Hmm. 1,2, 4,5, 7,8: 2 to 4 = 2. ✗. 1, 4,5, 8: 4 marks. 2,3, 5,6, 8: 3 to 5 = 2. ✗. 
+
+What about 1,2, 5, 7,8? 5 is singleton at distance 3 from 2, 7,8 is pair at distance 2 from 5. ✗. 1,2, 6,7: 4. 1, 4,5, 8: 4. 1,2,5,6: 4. I think 4 is max for n=8. But ceil(8/3)*2 = 6, which is wrong. Let me reconsider.
+
+Actually, for n=8: 1,2,5,6 gives 4. But what about 1,2,5,6,8? 6 to 8 = 2. ✗. 1,2,4,5,7,8? 2 to 4 = 2. ✗. 
+
+What about 3 pairs in 8 cells? Each pair needs 4 cells (the pair + 2 exclusion on each side... no, within the pair, exclusion is the pair itself + 1 on each side = 4 cells). 3 pairs × 4 = 12 > 8. So at most 2 pairs = 4 marks. But we might fit a singleton too.
+
+1,2 (pair, excludes 1,2,3), 5,6 (pair, excludes 4,5,6,7), 8 (singleton, excludes 7,8). But 7 is excluded by both 5,6 pair and 8 singleton. Overlap. 8 is at distance 2 from 6. ✗.
+
+1,2 (excludes 1,2,3), 5 (singleton, excludes 4,5,6), 7,8 (pair, excludes 6,7,8). 6 excluded by both. 5 to 7 = 2. ✗.
+
+So max for n=8 is 4. Pattern: floor(2n/5)? n=5: 2, but we got 3. No.
+
+Let me tabulate: n: 1,2,3,4,5,6,7,8 → max: 1,2,2,2,3,4,4,4.
+
+Differences: 1,0,0,1,1,0,0. Period 5? n=1:1, n=2:2, n=3:2, n=4:2, n=5:3, n=6:4, n=7:4, n=8:4, n=9:?, n=10:?
+
+n=9: 1,2 (pair), 5,6 (pair), 9 (singleton). 9 at distance 3 from 6. ✓. 5 marks. Or 1,2, 6,7, 9: 7 to 9 = 2. ✗. 1,2, 5,6, 9: 5 marks. ✓. Can we do 6? 1,2, 5,6, 8,9: 6 to 8 = 2. ✗. 1,2, 4,5, 7,8: 2 to 4 = 2. ✗. So 5 for n=9.
+
+n=10: 1,2, 5,6, 9,10. 6 to 9 = 3. ✓. 6 marks. 
+
+Pattern: n=1:1, 2:2, 3:2, 4:2, 5:3, 6:4, 7:4, 8:4, 9:5, 10:6.
+
+So the 1D pattern is: floor(2(n+1)/5) + something? n=5: 3, 2*6/5 = 2.4 → 2. No.
+
+Let me see: n=5: 3, n=10: 6. So 2n/5 rounded? n=5: 2, no. 3n/5? n=5: 3, n=10: 6, n=6: 3.6→3 or 4? We got 4. Hmm, 3*6/5 = 3.6, ceiling = 4. n=7: 3*7/5 = 4.2, ceiling = 5? But we got 4. No.
+
+Let me look at it differently. The pattern for 1D: groups of 5 cells give 2 marks (1 pair). But the first and last groups can be more efficient.
+
+n=5: 3 (1 pair + 1 singleton, or 1 pair using cells 1-3 and singleton at 5). Actually, 1,2 (pair) + 5 (singleton) = 3. The pair uses 4 cells (1,2,3,4 excluded... no, 1,2 pair excludes 1,2,3 (within the path, cell 0 doesn't exist). Actually in a path of 5, pair at 1,2 excludes cells 1,2,3 (cell 3 is adjacent to 2). Then cell 4 is at distance 2 from 2, cell 5 at distance 3. So singleton at 5. 3 marks in 5 cells.
+
+n=10: 1,2 (pair) + 5,6 (pair) + 9,10 (pair). 6 marks in 10 cells. Each pair uses 4 cells (pair + 1 on each side except boundary). 3 pairs × 4 = 12, but with boundary savings: first pair uses 3 (cells 1,2,3), last pair uses 3 (cells 8,9,10), middle pair uses 4 (cells 4,5,6,7). Total 3+4+3 = 10. ✓.
+
+So in 1D, the density approaches 2/5 = 0.4 for large n (with boundary bonuses).
+
+For 2D, my construction gives 100/400 = 0.25, or 101/400 = 0.2525. The 1D density is 0.4, which is higher, but 2D has more constraints (neighbors in 2 directions).
+
+Let me think about the 2D problem differently. 
+
+In my construction, each pair uses 8 cells (interior) and gives 2 marks. Density 2/8 = 1/4 = 0.25. On the boundary, pairs use 6 cells, density 2/6 = 1/3 ≈ 0.333. Corner pairs use 5 cells, density 2/5 = 0.4.
+
+The 1D density of 0.4 matches the corner pair density. Interesting.
+
+For the 2D grid, the optimal density is 1/4 (interior), with boundary bonuses. The question is: what's the exact maximum for 20×20?
+
+Let me think about the upper bound more carefully.
+
+Consider the 20×20 grid. Let me count the number of edges. The grid has 20*19 horizontal edges + 19*20 vertical edges = 760 + 760 = 1520 edges. Wait, 20 rows × 19 horizontal edges per row + 19 vertical edges per column × 20 columns = 380 + 380 = 760 edges. Hmm, let me recount. Horizontal edges: 20 rows × 19 = 380. Vertical edges: 19 × 20 = 380. Total 760 edges.
+
+Each cell has degree 2 (corner), 3 (edge), or 4 (interior). Sum of degrees = 4*2 + 4*3*... wait. 4 corners with degree 2, 4*18 = 72 edge cells with degree 3, 18*18 = 324 interior cells with degree 4. Sum = 4*2 + 72*3 + 324*4 = 8 + 216 + 1296 = 1520. And 760 edges × 2 = 1520. ✓.
+
+Now, the constraint: each cell has at most 1 marked neighbor. So the number of edges from marked cells to their neighbors is at most 400 (each cell contributes at most 1). This is ∑_marks deg(m) ≤ 400.
+
+Also, M = s + 2p (total marks). And ∑_marks deg(m) = ∑_marks deg(m).
+
+From the territory argument: s + ∑_marks deg(m) ≤ 400.
+
+So: s + ∑ deg(m) ≤ 400 and ∑ deg(m) ≤ 400.
+
+M = s + 2p. We need to bound M.
+
+From s + ∑ deg(m) ≤ 400: s ≤ 400 - ∑ deg(m).
+M = s + 2p ≤ 400 - ∑ deg(m) + 2p.
+
+We need to relate 2p to ∑ deg(m). For each pair, the two marks A, B are adjacent, so deg(A) + deg(B) ≥ ... well, A and B are adjacent, and they share no common neighbors. The pair contributes deg(A) + deg(B) to ∑ deg(m). And 2p = number of marks in pairs. So 2p ≤ ∑_pairs (deg(A) + deg(B)) / (min pair degree sum).
+
+For interior pairs, deg(A) + deg(B) = 8, contributing 2 marks. For edge

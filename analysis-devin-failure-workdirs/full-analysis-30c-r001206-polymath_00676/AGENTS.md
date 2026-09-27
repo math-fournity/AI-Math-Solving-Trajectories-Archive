@@ -1,0 +1,1776 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   Let $a$ and $b$ be relatively prime positive integers such that $a/b$ is the maximum possible value of \[\sin^2x_1+\sin^2x_2+\sin^2x_3+\cdots+\sin^2x_{2007},\] where, for $1\leq i\leq 2007$, $x_i$ is a nonnegative real number, and \[x_1+x_2+x_3+\cdots+x_{2007}=\pi.\] Find the value of $a+b$.       — 题目文本
+#   To find the maximum possible value of \(\sin^2 x_1 + \sin^2 x_2 + \sin^2 x_3 + \cdots + \sin^2 x_{2007}\) given that \(x_1 + x_2 + x_3 + \cdots + x_{2007} = \pi\), we will use the properties of the sine function and some optimization techniques.
+
+1. **Initial Assumptions and Simplifications**:
+   - We are given that \(x_i \geq 0\) and \(x_1 + x_2 + \cdots + x_{2007} = \pi\).
+   - If any \(x_i \geq \frac{\pi}{2}\), we can replace \(x_i\) with \(\pi - x_i\) without changing \(\sin^2 x_i\) but reducing the sum of the angles, allowing us to increase another angle and thus potentially increase the sum of \(\sin^2 x_i\). Therefore, we can assume \(x_i \in [0, \frac{\pi}{2}]\) for all \(i\).
+
+2. **Using Lemmas to Optimize the Sum**:
+   - **Lemma 1**: If \(x + y \leq \frac{\pi}{2}\) and \(x \leq y\), then \(\sin^2 x + \sin^2 y \leq \sin^2 (x - \epsilon) + \sin^2 (y + \epsilon)\) for any \(0 \leq \epsilon \leq x\).
+   - **Lemma 2**: If \(x + y \geq \frac{\pi}{2}\) and \(x \leq y\), then \(\sin^2 x + \sin^2 y \leq \sin^2 (x + \epsilon) + \sin^2 (y - \epsilon)\) for any \(0 \leq \epsilon \leq \frac{y - x}{2}\).
+
+3. **Applying Lemmas**:
+   - If \(x_i \in (0, \frac{\pi}{4})\) and there exists \(x_j \geq \frac{\pi}{2} - x_i\), we can apply Lemma 2 to send both \(x_i\) and \(x_j\) to \(\frac{x_i + x_j}{2} \geq \frac{\pi}{4}\).
+   - Otherwise, we can apply Lemma 1 to send \(x_i \to 0\) and \(x_j \to x_i + x_j \leq \frac{\pi}{2}\).
+
+4. **Simplifying the Problem**:
+   - By applying the lemmas, we can reduce the problem to checking when \(x_i \in \{0\} \cup [\frac{\pi}{4}, \frac{\pi}{2}]\).
+   - We can further apply Lemma 2 to bring all \(x_i\) together, so it suffices to check when \(x_i \in \{0, \frac{\pi}{k}\}\) where \(k \in \{2, 3, 4\}\).
+
+5. **Maximizing the Sum**:
+   - The maximum value occurs when we have the maximum number of terms contributing to the sum. Since \(\sin^2 x\) is maximized at \(x = \frac{\pi}{2}\), we consider the case where \(x_i = \frac{\pi}{2}\) for as many \(i\) as possible.
+   - However, since the sum of all \(x_i\) must be \(\pi\), we need to distribute \(\pi\) among the 2007 terms.
+
+6. **Optimal Distribution**:
+   - The optimal distribution is when each \(x_i = \frac{\pi}{2007}\).
+   - Therefore, \(\sin^2 \left(\frac{\pi}{2007}\right)\) is the value for each term.
+
+7. **Calculating the Sum**:
+   - The sum is \(2007 \cdot \sin^2 \left(\frac{\pi}{2007}\right)\).
+   - For small angles, \(\sin x \approx x\), so \(\sin \left(\frac{\pi}{2007}\right) \approx \frac{\pi}{2007}\).
+   - Thus, \(\sin^2 \left(\frac{\pi}{2007}\right) \approx \left(\frac{\pi}{2007}\right)^2\).
+
+8. **Final Calculation**:
+   - The sum is approximately \(2007 \cdot \left(\frac{\pi}{2007}\right)^2 = 2007 \cdot \frac{\pi^2}{2007^2} = \frac{\pi^2}{2007}\).
+
+The final answer is \(\boxed{2008}\).  — 标准解答
+#   Let me solve this problem. We need to maximize $\sum_{i=1}^{2007} \sin^2 x_i$ where $x_i \geq 0$ and $\sum x_i = \pi$.
+
+Let me think about this. We have $\sin^2 x = \frac{1-\cos 2x}{2}$, so the sum is $\frac{2007}{2} - \frac{1}{2}\sum \cos 2x_i$.
+
+To maximize the sum, we need to minimize $\sum \cos 2x_i$ subject to $\sum x_i = \pi$, $x_i \geq 0$.
+
+So we need to minimize $\sum_{i=1}^{2007} \cos(2x_i)$ where $x_i \geq 0$ and $\sum x_i = \pi$, i.e., $\sum 2x_i = 2\pi$.
+
+Let $y_i = 2x_i \geq 0$, $\sum y_i = 2\pi$. Minimize $\sum \cos y_i$.
+
+The function $\cos$ is concave on $[0, \pi]$ and convex on $[\pi, 2\pi]$. 
+
+For minimizing a sum of cosines with fixed sum... Let me think about what configuration minimizes this.
+
+If we put all mass into one variable: $y_1 = 2\pi$, rest 0. Then $\sum \cos y_i = \cos(2\pi) + 2006 \cdot \cos(0) = 1 + 2006 = 2007$. That's the maximum of the cosine sum, giving minimum of sin² sum = 0. Not good.
+
+We want to minimize $\sum \cos y_i$. 
+
+Consider putting some variables at $\pi$ (where cos = -1) and the rest at 0 (where cos = 1). If $k$ variables are at $\pi$ and the rest at 0: sum of $y_i = k\pi$, need $k\pi = 2\pi$, so $k=2$. Then $\sum \cos y_i = 2(-1) + 2005(1) = 2003$. Sum of sin² = $(2007 - 2003)/2 = 2$.
+
+Can we do better? What about variables at $\pi$ and one variable taking the remainder?
+
+If $k$ variables at $\pi$ (cos = -1), one variable at $2\pi - k\pi = (2-k)\pi$, rest at 0.
+- $k=1$: one at $\pi$, one at $\pi$, rest 0. Same as $k=2$ case essentially. cos sum = $-1 + -1 + 2005 = 2003$.
+- $k=0$: one at $2\pi$, rest 0. cos sum = $1 + 2006 = 2007$.
+
+What about using values in $(0, \pi)$ where cos is more negative? The minimum of cos is -1 at $\pi$. 
+
+Actually, let's think more carefully. We want to minimize $\sum \cos y_i$ with $y_i \geq 0$, $\sum y_i = 2\pi$.
+
+By Lagrange multipliers / convexity arguments: cos is concave on $[0,\pi]$. For a concave function, the minimum over a convex set with linear constraint is achieved at extreme points. But we also can have $y_i > \pi$.
+
+Hmm, let me think differently. The feasible region is a simplex. We're minimizing a sum of a function that is concave on $[0,\pi]$ and convex on $[\pi, 2\pi]$ (but actually $y_i$ can be up to $2\pi$).
+
+Actually, the key insight: $\cos y \geq -1$ always, with equality at $y = \pi, 3\pi, ...$. Since $y_i \in [0, 2\pi]$ (because sum is $2\pi$ and all nonneg), the minimum of $\cos y_i$ for a single variable is $-1$ at $y_i = \pi$.
+
+So $\sum \cos y_i \geq -2007$ trivially but that's not achievable since sum must be $2\pi$.
+
+Let me think about it as: we want as many $y_i = \pi$ as possible. With $k$ variables at $\pi$, remaining sum is $2\pi - k\pi$. For this to be nonneg, $k \leq 2$. 
+
+If $k=2$: two variables at $\pi$, rest at 0. $\sum \cos = -2 + 2005 = 2003$.
+
+But maybe we can do better by not using exactly 0 and $\pi$. Let's consider: can we have variables taking values that make cos more negative on average?
+
+Consider two variables $y_1, y_2$ with $y_1 + y_2 = s$ where $0 \leq s \leq 2\pi$. We want to minimize $\cos y_1 + \cos y_2$. 
+
+$\cos y_1 + \cos(s - y_1) = 2\cos(s/2)\cos(y_1 - s/2)$.
+
+If $s/2 \in [0, \pi/2]$ (i.e., $s \leq \pi$), then $\cos(s/2) \geq 0$, and we minimize by maximizing $|\cos(y_1 - s/2)|$... actually we want to minimize the product. $\cos(y_1 - s/2)$ ranges over... $y_1 \in [0, s]$, so $y_1 - s/2 \in [-s/2, s/2]$, and $\cos$ is maximized at 0 (=1) and minimized at endpoints ($\cos(s/2)$). So the product $2\cos(s/2)\cos(y_1-s/2)$ is minimized when $\cos(y_1-s/2)$ is minimized, i.e., at endpoints: $y_1 = 0$ or $y_1 = s$. Min value = $2\cos^2(s/2) = 1 + \cos s$. 
+
+So for $s \leq \pi$: min of $\cos y_1 + \cos y_2$ = $1 + \cos s$, achieved at extreme (one is 0, other is $s$). This is the concavity argument - concave function minimum at extreme points.
+
+If $s \in [\pi, 2\pi]$: $s/2 \in [\pi/2, \pi]$, $\cos(s/2) \leq 0$. Then to minimize $2\cos(s/2)\cos(y_1-s/2)$, since $\cos(s/2) < 0$, we want to maximize $\cos(y_1 - s/2)$. Max is 1 at $y_1 = s/2$. Min value = $2\cos(s/2)$. 
+
+Alternatively at endpoints: $2\cos^2(s/2) = 1 + \cos s$. Since $\cos(s/2) \leq 0$, $2\cos(s/2) \leq 0$ while $1 + \cos s = 2\cos^2(s/2) \geq 0$. So $2\cos(s/2) \leq 1 + \cos s$ when $\cos(s/2) \leq 0$... let me check: $s = \pi$: $2\cos(\pi/2) = 0$, $1 + \cos\pi = 0$. Equal. $s = 2\pi$: $2\cos\pi = -2$, $1+\cos 2\pi = 2$. So interior is better ($-2 < 2$). 
+
+So for $s \geq \pi$: min = $2\cos(s/2)$, achieved at $y_1 = y_2 = s/2$.
+
+Now back to our problem: minimize $\sum_{i=1}^{2007} \cos y_i$ with $\sum y_i = 2\pi$.
+
+Strategy: We want to concentrate the "mass" $2\pi$ into as few variables as possible, and make those variables equal to minimize the cosine sum (when the mass per variable is $\geq \pi$... wait, but $2\pi$ split among variables).
+
+Let me think about it as: we have total $2\pi$ to distribute. 
+
+Option A: Put all $2\pi$ in one variable: $\sum \cos = \cos(2\pi) + 2006 = 2007$.
+
+Option B: Split $2\pi$ into two variables, each $\pi$: $\sum \cos = 2\cos\pi + 2005 = -2 + 2005 = 2003$. Better!
+
+Option C: Split $2\pi$ into $m$ equal variables each $2\pi/m$, rest 0. $\sum \cos = m\cos(2\pi/m) + (2007 - m)$.
+
+For $m=2$: $2\cos\pi + 2005 = 2003$.
+For $m=3$: $3\cos(2\pi/3) + 2004 = 3(-1/2) + 2004 = -3/2 + 2004 = 2002.5$.
+For $m=4$: $4\cos(\pi/2) + 2003 = 0 + 2003 = 2003$.
+For $m=5$: $5\cos(2\pi/5) + 2002$. $\cos(72°) \approx 0.309$. $5(0.309) = 1.545$. $2002 + 1.545 = 2003.545$. Worse.
+
+Hmm wait, for $m=3$ we get 2002.5 which is less than 2003. Let me reconsider.
+
+Actually, let me reconsider. For $m$ variables each equal to $2\pi/m$ (with $2\pi/m \leq \pi$, i.e., $m \geq 2$), the cosine sum from those is $m \cos(2\pi/m)$, and the rest contribute $(2007-m) \cdot 1$.
+
+Total = $m\cos(2\pi/m) + 2007 - m = 2007 + m(\cos(2\pi/m) - 1)$.
+
+We want to minimize this, i.e., minimize $m(\cos(2\pi/m) - 1) = -m(1 - \cos(2\pi/m)) = -2m\sin^2(\pi/m)$.
+
+So we want to maximize $2m\sin^2(\pi/m)$.
+
+Let $f(m) = m \sin^2(\pi/m)$. As $m \to \infty$, $\sin(\pi/m) \approx \pi/m$, so $f(m) \approx m \cdot \pi^2/m^2 = \pi^2/m \to 0$.
+
+$f(2) = 2\sin^2(\pi/2) = 2$.
+$f(3) = 3\sin^2(\pi/3) = 3 \cdot 3/4 = 9/4 = 2.25$.
+$f(4) = 4\sin^2(\pi/4) = 4 \cdot 1/2 = 2$.
+$f(5) = 5\sin^2(\pi/5) = 5\sin^2(36°)$. $\sin 36° \approx 0.5878$. $5 \cdot 0.3455 \approx 1.727$.
+$f(6) = 6\sin^2(\pi/6) = 6 \cdot 1/4 = 1.5$.
+
+So $f(3) = 2.25$ is the maximum among these. But wait, I should also check non-equal distributions and also consider that we don't need all the "active" variables to be equal.
+
+But also, I assumed all active variables are equal. Let me think more generally.
+
+Actually, let me reconsider the problem. We can also have variables taking values $> \pi$. And we can have unequal distributions.
+
+Let me think about it more carefully using the pairwise analysis. 
+
+We showed: for two variables with sum $s$:
+- If $s \leq \pi$: min cosine sum = $1 + \cos s$ (extreme: one is 0).
+- If $s \geq \pi$: min cosine sum = $2\cos(s/2)$ (equal split).
+
+So the optimal strategy: take the total $2\pi$ and split it among some variables. 
+
+Key insight: If we have a group of variables with total sum $S$, and we want to minimize their cosine sum:
+- If we can split $S$ into pairs/groups optimally...
+
+Actually, let me think about it differently. Consider any variable with $y_i \in (0, \pi)$. We can ask: is it better to merge it with another variable or split it?
+
+Let me think about the Lagrangian approach. At an interior optimum (all $y_i > 0$), we need $\frac{d}{dy_i} \cos y_i = -\sin y_i = \lambda$ for all $i$, so $\sin y_i = -\lambda$ for all active $i$. This means all active $y_i$ are equal (to some value $\alpha$) or equal to $\pi - \alpha$.
+
+Case 1: All active $y_i = \alpha$. Then $m\alpha = 2\pi$, so $\alpha = 2\pi/m$. Sum = $m\cos(2\pi/m) + (2007-m)$.
+
+Case 2: Some at $\alpha$, some at $\pi - \alpha$. Then $p\alpha + q(\pi-\alpha) = 2\pi$ where $p+q = m$. Sum = $p\cos\alpha + q\cos(\pi-\alpha) + (2007-m) = (p-q)\cos\alpha + (2007-m)$. With $p\alpha + q(\pi-\alpha) = 2\pi$.
+
+Hmm, this is getting complicated. Let me also consider boundary solutions where some $y_i = 0$.
+
+Actually, the boundary case $y_i = 0$ means that variable contributes $\cos 0 = 1$ to the sum (i.e., 0 to the sin² sum). So effectively we're choosing how many variables to make "active" and how to distribute $2\pi$ among them.
+
+Let me reconsider. The problem is: minimize $\sum \cos y_i$ over $y_i \geq 0$, $\sum y_i = 2\pi$.
+
+Since $\cos$ is concave on $[0, \pi]$, by the theory of minimizing a concave function over a convex polytope, the minimum is at a vertex of the feasible region. But the feasible region here is the simplex $\{y \geq 0, \sum y = 2\pi\}$, whose vertices are the points where one $y_i = 2\pi$ and the rest are 0. At such a vertex, $\sum \cos = \cos(2\pi) + 2006 = 2007$. That's the maximum of cosine sum, not minimum.
+
+Wait, but $\cos$ is not concave everywhere — it's concave on $[0,\pi]$ and convex on $[\pi, 2\pi]$. So the function $\sum \cos y_i$ is not concave on the whole simplex (since $y_i$ can range up to $2\pi$). So we can't just use the concave minimization result.
+
+Let me think about this more carefully. The variables $y_i$ range in $[0, 2\pi]$. 
+
+Let me consider the problem: minimize $g(y_1, \ldots, y_n) = \sum \cos y_i$ subject to $y_i \geq 0$, $\sum y_i = 2\pi$.
+
+I'll use the approach of considering what happens when we have two active variables.
+
+Suppose we have exactly 2 active variables (rest are 0). Their sum is $2\pi$. By our pairwise analysis ($s = 2\pi \geq \pi$), the min is $2\cos(\pi) = -2$, achieved at $y_1 = y_2 = \pi$. Total sum = $-2 + 2005 = 2003$.
+
+Suppose 3 active variables, sum $2\pi$. We need to minimize $\cos y_1 + \cos y_2 + \cos y_3$ with $y_i \geq 0$, $\sum = 2\pi$.
+
+Sub-case: all equal, $y_i = 2\pi/3$. Sum = $3\cos(2\pi/3) = 3(-1/2) = -3/2$. Total = $-3/2 + 2004 = 2002.5$.
+
+Can we do better with 3 active variables? Let's check: one at $\pi$, two splitting $\pi$. The two splitting $\pi$ (with $s = \pi$): min is $1 + \cos\pi = 0$, at extreme (one is 0, one is $\pi$). So effectively one at $\pi$, one at $\pi$, one at 0 — that's 2 active. Or the two equal at $\pi/2$: $\cos(\pi/2) + \cos(\pi/2) = 0$. Plus $\cos\pi = -1$. Total for 3 = $-1 + 0 = -1$. Compare to equal split: $-3/2 = -1.5$. So equal split is better.
+
+What about one at $\pi$, one at $\pi/2$, one at $\pi/2$? Sum = $2\pi$? $\pi + \pi/2 + \pi/2 = 2\pi$. Yes. $\cos\pi + 2\cos(\pi/2) = -1 + 0 = -1$. Worse than $-3/2$.
+
+What about one at $a$, one at $a$, one at $2\pi - 2a$? Sum = $\cos(2\pi-2a) + 2\cos a = \cos 2a + 2\cos a = 2\cos^2 a - 1 + 2\cos a$. Let $t = \cos a$. $= 2t^2 + 2t - 1$. Minimize over valid $t$. $dt/da = -\sin a$. For $a \in [0, \pi]$, $t \in [-1, 1]$. $2t^2 + 2t - 1$ has minimum at $t = -1/2$, value $= 2(1/4) - 1 - 1 = -3/2$. At $t = -1/2$, $\cos a = -1/2$, $a = 2\pi/3$. Then $2\pi - 2a = 2\pi - 4\pi/3 = 2\pi/3$. So all equal! Good, consistent.
+
+So for 3 active variables, the minimum is $-3/2$, total $2002.5$.
+
+Now 4 active variables, sum $2\pi$. Equal split: $4\cos(\pi/2) = 0$. Total = $0 + 2003 = 2003$.
+
+Can we do better? Try 3 at $\pi/2$ and 1 at $\pi/2$: that's equal. Try 2 at $\pi$, 2 at 0: that's 2 active. Try 1 at $\pi$, 3 splitting $\pi$: 3 splitting $\pi$ equally at $\pi/3$: $\cos\pi + 3\cos(\pi/3) = -1 + 3(1/2) = -1 + 3/2 = 1/2$. Total for 4 = $1/2$. Worse than 0.
+
+Try 2 at $a$, 2 at $\pi - a$ (sum = $2a + 2\pi - 2a = 2\pi$). Sum = $2\cos a + 2\cos(\pi-a) = 2\cos a - 2\cos a = 0$. Always 0. Same as equal.
+
+Try 1 at $a$, 3 at $(2\pi - a)/3$. Sum = $\cos a + 3\cos((2\pi-a)/3)$. Let $b = (2\pi - a)/3$, so $a = 2\pi - 3b$. Sum = $\cos(2\pi - 3b) + 3\cos b = \cos 3b + 3\cos b = 4\cos^3 b - 3\cos b + 3\cos b = 4\cos^3 b$. Minimize $4\cos^3 b$ over valid $b$. $b = (2\pi - a)/3$, $a \geq 0$ so $b \leq 2\pi/3$, and $a \leq 2\pi$ so $b \geq 0$. So $b \in [0, 2\pi/3]$, $\cos b \in [-1/2, 1]$. Min of $4\cos^3 b$ at $\cos b = -1/2$: $4(-1/8) = -1/2$. At $b = 2\pi/3$, $a = 0$: this is 3 active variables case, sum $= -1/2$... wait, $4(-1/2)^3 = 4(-1/8) = -1/2$. But we computed 3 active equal split gives $-3/2$. 
+
+Oh wait, I think I made an error. When $a = 0$, we have 1 variable at 0 and 3 at $2\pi/3$. The cosine sum = $\cos 0 + 3\cos(2\pi/3) = 1 + 3(-1/2) = 1 - 3/2 = -1/2$. But this is 3 active + 1 at zero, so it's really 3 active variables with sum $-1/2$... but we said 3 active equal gives $-3/2$. The difference: with 3 active and 1 at zero, the "3 active" have sum $2\pi$ and give $-3/2$, plus the zero gives $+1$, total $-3/2 + 1 = -1/2$. Right, so 4 variables with one at 0 is worse than 3 active.
+
+So the minimum for 4 active is 0 (equal split) or can we find something less than 0? From the analysis $4\cos^3 b$ with min $-1/2$ at $b = 2\pi/3$ (which is $a=0$, really 3 active). For $a > 0$ (truly 4 active), $b < 2\pi/3$, $\cos b > -1/2$, $4\cos^3 b > -1/2$. At $b = \pi/2$ (equal, $a = \pi/2$): $4\cos^3(\pi/2) = 0$. So for 4 truly active, the min approaches $-1/2$ but doesn't reach it (that's 3 active). The min for exactly 4 active (all $> 0$) is... approaching $-1/2$ from above, but the equal split gives 0. 
+
+Hmm, actually I need to be more careful. Let me reconsider. With 4 variables, the minimum of $\sum \cos y_i$ is achieved either at an interior critical point or on the boundary. The boundary cases reduce to fewer active variables. The interior critical point (all equal) gives 0. So the min over 4 variables (allowing some to be 0) is $\min(0, \text{min with 3 active}, \text{min with 2 active}, ...) = \min(0, -3/2, -2, ...) = -2$ (2 active) or $-3/2$ (3 active). 
+
+Wait, but we're not restricting to exactly 4 active. We have 2007 variables total. The question is: what's the global minimum of $\sum_{i=1}^{2007} \cos y_i$?
+
+Let me reconsider. We have 2007 variables, sum $2\pi$, all $\geq 0$. We want to minimize $\sum \cos y_i$.
+
+The contribution of a variable at 0 is $\cos 0 = 1$. The contribution of a variable at $\pi$ is $-1$.
+
+So the "savings" from making a variable active (vs. leaving it at 0) is $1 - \cos y_i$ for that variable, but it costs $y_i$ from the budget $2\pi$.
+
+We want to maximize total savings $\sum (1 - \cos y_i) = \sum 2\sin^2(y_i/2)$ subject to $\sum y_i = 2\pi$, $y_i \geq 0$.
+
+This is equivalent to maximizing $\sum \sin^2(y_i/2) = \sum \sin^2 x_i$ (since $y_i = 2x_i$). Which is the original problem! OK so that's circular.
+
+Let me think about it as: we have budget $2\pi$ to spend on variables. Each variable $y_i$ costs $y_i$ and gives benefit $1 - \cos y_i = 2\sin^2(y_i/2)$. We want to maximize total benefit.
+
+The "efficiency" of a variable is $(1 - \cos y_i)/y_i$. For small $y_i$, this is $\approx y_i/2 \to 0$. For $y_i = \pi$, it's $2/\pi \approx 0.637$. For $y_i = 2\pi/3$, it's $(1 - (-1/2))/(2\pi/3) = (3/2)/(2\pi/3) = 9/(4\pi) \approx 0.716$.
+
+Hmm, but this isn't quite a knapsack because we can split continuously.
+
+Let me think about it as a continuous optimization. We want to maximize $\sum f(y_i)$ where $f(y) = 1 - \cos y$, subject to $\sum y_i = 2\pi$, $y_i \geq 0$, and at most 2007 variables.
+
+$f$ is concave on $[0, \pi]$ and convex on $[\pi, 2\pi]$. 
+
+For maximizing a sum of a function that's concave on $[0,\pi]$: if we restrict all $y_i \leq \pi$, then $f$ is concave, and by Jensen's, the max of $\sum f(y_i)$ with $\sum y_i = S$ (and $n$ variables) is $n \cdot f(S/n)$, achieved at equal split. But we need $S/n \leq \pi$, i.e., $n \geq S/\pi = 2$. And we want to choose $n$ to maximize $n \cdot f(2\pi/n) = n(1 - \cos(2\pi/n))$.
+
+Let $h(n) = n(1 - \cos(2\pi/n)) = 2n\sin^2(\pi/n)$.
+
+$h(2) = 2 \cdot 2 \cdot \sin^2(\pi/2) = 4$... wait, $h(n) = n(1-\cos(2\pi/n))$.
+$h(2) = 2(1 - \cos\pi) = 2(1-(-1)) = 4$.
+$h(3) = 3(1 - \cos(2\pi/3)) = 3(1-(-1/2)) = 3(3/2) = 9/2 = 4.5$.
+$h(4) = 4(1 - \cos(\pi/2)) = 4(1-0) = 4$.
+$h(5) = 5(1 - \cos(2\pi/5)) = 5(1 - 0.309) = 5(0.691) = 3.455$.
+$h(6) = 6(1 - \cos(\pi/3)) = 6(1 - 1/2) = 3$.
+
+So $h(3) = 4.5$ is the maximum. And since $n \leq 2007$ is not a binding constraint, the maximum benefit is $4.5$, achieved with 3 equal variables at $2\pi/3$.
+
+But wait, I need to verify that we can't do better by allowing some $y_i > \pi$. Since $f$ is convex on $[\pi, 2\pi]$, having a variable $> \pi$ would be suboptimal compared to splitting it (by convexity, splitting a value in the convex region into two equal parts gives a higher sum). Actually, for a convex function, $f(a) + f(b) \geq 2f((a+b)/2)$, so splitting increases the sum. But we're constrained by the number of variables...
+
+Actually, we have 2007 variables, way more than we need. So we can always split. Let me verify: if any $y_i > \pi$, we can split it into two parts $y_i/2, y_i/2$ (both $\leq \pi$ if $y_i \leq 2\pi$). Since $f$ is convex on $[\pi, 2\pi]$, $f(y_i) \leq 2f(y_i/2)$... wait no. Convex means $f((a+b)/2) \leq (f(a)+f(b))/2$, so $f(a) + f(b) \geq 2f((a+b)/2)$. With $a = b = y_i/2$: $2f(y_i/2) \geq 2f(y_i/2)$. That's trivial.
+
+Let me think again. If $y_i \in [\pi, 2\pi]$, then $y_i/2 \in [\pi/2, \pi]$, which is in the concave region. We want to compare $f(y_i)$ vs $2f(y_i/2)$.
+
+$f(y_i) = 1 - \cos y_i$. $2f(y_i/2) = 2(1 - \cos(y_i/2)) = 2 \cdot 2\sin^2(y_i/4) = 4\sin^2(y_i/4)$.
+
+$f(y_i) = 2\sin^2(y_i/2) = 2 \cdot 2\sin(y_i/4)\cos(y_i/4) \cdot ... $ hmm, $\sin^2(y_i/2) = (2\sin(y_i/4)\cos(y_i/4))^2 = 4\sin^2(y_i/4)\cos^2(y_i/4)$.
+
+So $f(y_i) = 2 \cdot 4\sin^2(y_i/4)\cos^2(y_i/4) = 8\sin^2(y_i/4)\cos^2(y_i/4)$.
+$2f(y_i/2) = 4\sin^2(y_i/4)$.
+
+Ratio: $f(y_i)/(2f(y_i/2)) = 8\sin^2(y_i/4)\cos^2(y_i/4) / (4\sin^2(y_i/4)) = 2\cos^2(y_i/4)$.
+
+For $y_i \in [\pi, 2\pi]$, $y_i/4 \in [\pi/4, \pi/2]$, $\cos^2(y_i/4) \in [0, 1/2]$. So ratio $\in [0, 1]$. So $f(y_i) \leq 2f(y_i/2)$, meaning splitting always helps (or is equal at $y_i = 2\pi$). So we should never have $y_i > \pi$ in the optimal solution (we can always split and do better, and we have plenty of variables).
+
+Wait, at $y_i = 2\pi$: $y_i/4 = \pi/2$, $\cos^2(\pi/2) = 0$, ratio = 0. So $f(2\pi) = 0$ and $2f(\pi) = 2(1-(-1)) = 4$. So splitting $2\pi$ into two $\pi$'s gives benefit 4 instead of 0. Huge improvement.
+
+At $y_i = \pi$: $y_i/4 = \pi/4$, $\cos^2(\pi/4) = 1/2$, ratio = 1. So $f(\pi) = 2f(\pi/2)$. Equal. So splitting $\pi$ into two $\pi/2$'s gives the same benefit. So the optimum might have $y_i = \pi$ or $y_i = \pi/2$ equivalently.
+
+OK so now we've established: WLOG all $y_i \in [0, \pi]$, and $f$ is concave on this range. For a concave function, by Jensen's inequality, $\sum f(y_i) \leq n \cdot f(\bar{y})$ where $\bar{y} = 2\pi/n$ is the average, with equality when all equal. But this is for a FIXED $n$. We want to optimize over $n$ too.
+
+But wait, Jensen gives an upper bound for fixed $n$: $\sum_{i=1}^n f(y_i) \leq n \cdot f(2\pi/n)$ when all $y_i$ are active and sum to $2\pi$. But we also have the freedom to set some $y_i = 0$ (effectively using fewer variables).
+
+If we use $n$ active variables (all equal to $2\pi/n$) and $2007 - n$ variables at 0:
+- Total benefit = $n \cdot f(2\pi/n) + 0 = n(1 - \cos(2\pi/n)) = h(n)$.
+- Total cosine sum = $2007 - h(n)$.
+- Total sin² sum = $h(n)/2$.
+
+We showed $h(n)$ is maximized at $n = 3$ with $h(3) = 9/2$.
+
+But is the equal split really optimal for each $n$? By Jensen (concavity), yes: for fixed $n$ active variables with sum $2\pi$, the max benefit is $n \cdot f(2\pi/n)$, achieved at equal split.
+
+But we also need to consider: could a non-equal split with some variables at 0 and others not equal beat the equal split? No, because if we have $k$ active variables (those with $y_i > 0$), Jensen says equal split among those $k$ is optimal, giving $h(k)$. And we optimize over $k$.
+
+Wait, but Jensen applies when all $k$ variables are in $[0, \pi]$ and sum to $2\pi$. We need $2\pi/k \leq \pi$, i.e., $k \geq 2$. For $k = 1$, the single variable is $2\pi > \pi$, not in the concave region. But we showed splitting $2\pi$ into two $\pi$'s is better, so $k = 1$ is suboptimal anyway.
+
+For $k \geq 2$: $2\pi/k \leq \pi$, all equal variables are in $[0, \pi]$, Jensen applies, max benefit = $h(k)$.
+
+$h(k) = k(1 - \cos(2\pi/k)) = 2k\sin^2(\pi/k)$.
+
+We need to find the $k$ that maximizes this. Let me compute more carefully.
+
+$h(2) = 2(1 - \cos\pi) = 2 \cdot 2 = 4$.
+$h(3) = 3(1 - \cos(2\pi/3)) = 3(1 + 1/2) = 3 \cdot 3/2 = 9/2 = 4.5$.
+$h(4) = 4(1 - \cos(\pi/2)) = 4 \cdot 1 = 4$.
+
+For $k \geq 4$, $h(k) = 2k\sin^2(\pi/k)$. As $k \to \infty$, $h(k) \to 2k \cdot (\pi/k)^2 = 2\pi^2/k \to 0$. And $h$ is decreasing for $k \geq 3$ (we can verify by checking $h(4) = 4 < 4.5 = h(3)$, and the function is eventually decreasing).
+
+Let me verify $h$ is decreasing for $k \geq 3$. Consider $h$ as a continuous function: $h(x) = 2x\sin^2(\pi/x)$. Let $t = \pi/x$, so $x = \pi/t$, $h = 2(\pi/t)\sin^2 t = 2\pi \sin^2 t / t$. As $x$ increases, $t$ decreases. We want to know if $h$ is decreasing in $x$ (increasing in $t$) for $x \geq 3$ (i.e., $t \leq \pi/3$).
+
+$\frac{d}{dt}\frac{\sin^2 t}{t} = \frac{2\sin t \cos t \cdot t - \sin^2 t}{t^2} = \frac{\sin t(2t\cos t - \sin t)}{t^2}$.
+
+For $t \in (0, \pi/3]$: $\sin t > 0$, and $2t\cos t - \sin t$. At $t = \pi/3$: $2(\pi/3)(1/2) - \sqrt{3}/2 = \pi/3 - \sqrt{3}/2 \approx 1.047 - 0.866 = 0.181 > 0$. At $t \to 0$: $2t \cdot 1 - t = t > 0$. So $2t\cos t - \sin t > 0$ for $t \in (0, \pi/3]$. Thus $\sin^2 t / t$ is increasing in $t$, meaning $h$ is increasing in $t$, i.e., decreasing in $x$ for $x \geq 3$.
+
+So $h$ is maximized at $k = 3$ among integers $k \geq 3$, and $h(3) = 9/2 > h(2) = 4$.
+
+Therefore the maximum benefit is $h(3) = 9/2$, and the maximum of $\sum \sin^2 x_i = h(3)/2 = 9/4$.
+
+Wait, let me double-check. $\sum \sin^2 x_i = \sum \frac{1 - \cos 2x_i}{2} = \frac{2007 - \sum \cos y_i}{2}$. And $\sum \cos y_i = 2007 - h(k)$. So $\sum \sin^2 x_i = \frac{2007 - (2007 - h(k))}{2} = \frac{h(k)}{2}$.
+
+With $k = 3$: $\sum \sin^2 x_i = \frac{9/2}{2} = \frac{9}{4}$.
+
+The maximum value is $9/4$, achieved when 3 of the $x_i$ equal $2\pi/(2 \cdot 3) = \pi/3$ and the rest are 0.
+
+Check: $3 \cdot \sin^2(\pi/3) = 3 \cdot (3/4) = 9/4$. ✓. And $3 \cdot \pi/3 = \pi$. ✓.
+
+So $a/b = 9/4$, $\gcd(9, 4) = 1$, $a = 9$, $b = 4$, $a + b = 13$.
+
+Wait, but I should double-check that we can't do better with a non-uniform distribution. I used Jensen's inequality which says for concave $f$ on $[0, \pi]$, $\sum f(y_i) \leq n f(\bar{y})$. This requires all $y_i \in [0, \pi]$. We established that WLOG all $y_i \in [0, \pi]$ (since splitting values $> \pi$ helps). And for $k$ active variables with sum $2\pi$ and $k \geq 2$, the average $2\pi/k \leq \pi$, so all equal values are in $[0, \pi]$, and Jensen gives the bound.
+
+But I should also verify: is it possible that a mix of values, some in $[0, \pi]$ and some at 0, with the non-zero ones not all equal, could beat the equal split? No — Jensen says equal split is optimal for the active variables, and we optimize the number of active variables.
+
+Actually, let me be even more careful. Jensen's inequality for concave functions says $\frac{1}{n}\sum f(y_i) \leq f\left(\frac{1}{n}\sum y_i\right)$, i.e., $\sum f(y_i) \leq n f(2\pi/n)$. This is for ALL $n$ variables being in $[0, \pi]$. But if some are 0, they're still in $[0, \pi]$, so Jensen still applies to all 2007 variables: $\sum_{i=1}^{2007} f(y_i) \leq 2007 \cdot f(2\pi/2007)$. But $h(2007) = 2007(1 - \cos(2\pi/2007)) \approx 2007 \cdot (2\pi/2007)^2/2 = \pi^2/2007 \approx 0.0049$. That's much less than 4.5. So Jensen with all 2007 variables gives a weak bound.
+
+The point is: Jensen gives $\sum f(y_i) \leq n \cdot f(\text{avg})$ for $n$ variables all in the concave region. If we use all 2007 variables, the bound is $h(2007) \approx 0.005$. If we use only 3 (setting rest to 0), those 3 are in $[0, \pi]$ and sum to $2\pi$, Jensen gives $h(3) = 4.5$. But the 2004 zeros contribute $f(0) = 0$ to the benefit. So total benefit = $4.5 + 0 = 4.5$.
+
+But Jensen applied to all 2007 says total benefit $\leq h(2007) \approx 0.005$?? That can't be right since we just found a solution with benefit 4.5.
+
+Oh I see the issue. Jensen says $\sum f(y_i) \leq 2007 \cdot f(2\pi/2007)$ when all $y_i \in [0, \pi]$ and $\sum y_i = 2\pi$. But $f(0) = 0$ and $f(2\pi/3) = 1 - (-1/2) = 3/2$. So $\sum f(y_i) = 3 \cdot 3/2 + 0 = 4.5$. And $2007 \cdot f(2\pi/2007) = 2007(1 - \cos(2\pi/2007)) \approx 2007 \cdot 2\sin^2(\pi/2007) \approx 2007 \cdot 2 \cdot (\pi/2007)^2 \approx 2\pi^2/2007 \approx 0.0098$.
+
+So $4.5 > 0.0098$?? That violates Jensen's inequality for concave functions!
+
+Wait, that can't be. Let me recheck. $f(y) = 1 - \cos y$ is concave on $[0, \pi]$. Jensen: $\frac{1}{n}\sum f(y_i) \leq f\left(\frac{1}{n}\sum y_i\right)$. With $n = 2007$, $\sum y_i = 2\pi$, avg $= 2\pi/2007$. $\sum f(y_i) \leq 2007 \cdot f(2\pi/2007)$.
+
+But our solution has $\sum f(y_i) = 4.5$ and $2007 \cdot f(2\pi/2007) \approx 0.01$. So $4.5 \leq 0.01$ is FALSE.
+
+This means either my computation is wrong or Jensen doesn't apply. Let me recheck $f(2\pi/2007)$. $f(2\pi/2007) = 1 - \cos(2\pi/2007)$. For small angle, $\cos\theta \approx 1 - \theta^2/2$, so $f \approx (2\pi/2007)^2/2 = 2\pi^2/2007^2 \approx 19.74/4028049 \approx 4.9 \times 10^{-6}$. Then $2007 \cdot f \approx 2007 \cdot 4.9 \times 10^{-6} \approx 0.0098$.
+
+And our solution: $3 \cdot f(2\pi/3) = 3 \cdot (1 - (-1/2)) = 3 \cdot 3/2 = 4.5$.
+
+So $4.5 > 0.0098$, which violates Jensen. But Jensen for concave functions says the function of the average is $\geq$ average of the function values. So $f(\text{avg}) \geq \text{avg of } f$. $f(2\pi/2007) \geq \frac{1}{2007} \sum f(y_i) = 4.5/2007 \approx 0.00224$. But $f(2\pi/2007) \approx 4.9 \times 10^{-6}$. So $4.9 \times 10^{-6} \geq 0.00224$ is FALSE.
+
+So Jensen IS violated. This means $f$ is NOT concave on $[0, \pi]$?? Let me check. $f(y) = 1 - \cos y$. $f''(y) = \cos y$. On $[0, \pi/2)$, $\cos y > 0$, so $f$ is convex. On $(\pi/2, \pi]$, $\cos y < 0$, so $f$ is concave.
+
+I made an error! $f(y) = 1 - \cos y$ has $f''(y) = \cos y$, which is positive on $[0, \pi/2)$ (convex) and negative on $(\pi/2, \pi]$ (concave). So $f$ is NOT concave on all of $[0, \pi]$.
+
+This changes the analysis significantly. Let me redo.
+
+So $f(y) = 1 - \cos y = 2\sin^2(y/2)$. This is convex on $[0, \pi]$ (since $f'' = \cos y$... no wait, $f''(y) = \cos y$ which is negative for $y > \pi/2$).
+
+Hmm, let me recompute. $f(y) = 1 - \cos y$. $f'(y) = \sin y$. $f''(y) = \cos y$. 
+
+$\cos y > 0$ for $y \in [0, \pi/2)$ → convex.
+$\cos y < 0$ for $y \in (\pi/2, \pi]$ → concave.
+$\cos y = 0$ at $y = \pi/2$ → inflection point.
+
+So $f$ is neither convex nor concave on $[0, \pi]$. It's convex then concave. This means Jensen doesn't directly apply, and the optimal solution might not be an equal split.
+
+OK so I need to redo the analysis. Let me go back to the original formulation.
+
+We want to maximize $\sum_{i=1}^{2007} \sin^2 x_i$ subject to $x_i \geq 0$, $\sum x_i = \pi$.
+
+Equivalently, maximize $\sum f(y_i)$ where $f(y) = 1 - \cos y$, $y_i = 2x_i \geq 0$, $\sum y_i = 2\pi$.
+
+$f$ is convex on $[0, \pi/2]$ and concave on $[\pi/2, \pi]$ (and convex again on $[\pi, 3\pi/2]$, etc., but we showed WLOG $y_i \leq \pi$... actually let me re-examine that).
+
+Wait, I showed that splitting $y_i > \pi$ into two halves helps. Let me re-examine: for $y_i \in [\pi, 2\pi]$, $y_i/2 \in [\pi/2, \pi]$. We showed $f(y_i) \leq 2f(y_i/2)$ with ratio $2\cos^2(y_i/4) \leq 1$. So yes, splitting helps, and we can assume all $y_i \leq \pi$.
+
+Now, for $y_i \in [0, \pi]$, $f$ is convex on $[0, \pi/2]$ and concave on $[\pi/2, \pi]$.
+
+This is a sum-of-S-shaped-functions maximization. The optimal solution will typically have variables at the boundaries or at points where the derivative is equal.
+
+Let me think about KKT conditions. At an optimum, for each active variable $y_i > 0$: $f'(y_i) = \sin y_i = \lambda$ (Lagrange multiplier). For inactive variables ($y_i = 0$): $f'(0) = 0 \leq \lambda$ (since we're maximizing, the condition is $f'(y_i) \leq \lambda$ at $y_i = 0$).
+
+So $\sin y_i = \lambda$ for all active $y_i$, and $\lambda \geq 0$ (since $f'(0) = 0$).
+
+$\sin y_i = \lambda$ means $y_i = \alpha$ or $y_i = \pi - \alpha$ where $\alpha = \arcsin \lambda \in [0, \pi/2]$.
+
+So active variables take at most two values: $\alpha$ and $\pi - \alpha$.
+
+Let's say $p$ variables at $\alpha$ and $q$ variables at $\pi - \alpha$. Then:
+- Constraint: $p\alpha + q(\pi - \alpha) = 2\pi$.
+- Objective: $p(1 - \cos\alpha) + q(1 - \cos(\pi-\alpha)) = p(1-\cos\alpha) + q(1+\cos\alpha) = (p+q) + (q-p)\cos\alpha$.
+
+Let $m = p + q$ (total active), $d = q - p$. Then $p = (m-d)/2$, $q = (m+d)/2$.
+
+Constraint: $\frac{m-d}{2}\alpha + \frac{m+d}{2}(\pi - \alpha) = 2\pi$.
+$= \frac{m-d}{2}\alpha + \frac{m+d}{2}\pi - \frac{m+d}{2}\alpha = \frac{m+d}{2}\pi + \frac{(m-d)-(m+d)}{2}\alpha = \frac{(m+d)\pi}{2} - d\alpha = 2\pi$.
+
+So $\frac{(m+d)\pi}{2} - d\alpha = 2\pi$, giving $(m+d)\pi - 2d\alpha = 4\pi$, so $m\pi + d\pi - 2d\alpha = 4\pi$, $m\pi + d(\pi - 2\alpha) = 4\pi$.
+
+Objective: $m + d\cos\alpha$.
+
+We want to maximize $m + d\cos\alpha$ subject to $m\pi + d(\pi - 2\alpha) = 4\pi$, $m \geq 0$, and $p, q \geq 0$ (so $|d| \leq m$), and $\alpha \in [0, \pi/2]$.
+
+From the constraint: $m = \frac{4\pi - d(\pi - 2\alpha)}{\pi} = 4 - d\frac{\pi - 2\alpha}{\pi} = 4 - d(1 - 2\alpha/\pi)$.
+
+Objective: $m + d\cos\alpha = 4 - d(1 - 2\alpha/\pi) + d\cos\alpha = 4 + d(\cos\alpha - 1 + 2\alpha/\pi)$.
+
+Let $g(\alpha) = \cos\alpha - 1 + 2\alpha/\pi$. Then objective $= 4 + d \cdot g(\alpha)$.
+
+We want to maximize $4 + d \cdot g(\alpha)$.
+
+$g(0) = 1 - 1 + 0 = 0$.
+$g(\pi/2) = 0 - 1 + 1 = 0$.
+$g'(\alpha) = -\sin\alpha + 2/\pi$. $g'(\alpha) = 0$ when $\sin\alpha = 2/\pi \approx 0.6366$, $\alpha \approx 0.69$.
+$g''(\alpha) = -\cos\alpha < 0$ for $\alpha \in (0, \pi/2)$. So $g$ is concave, with $g(0) = g(\pi/2) = 0$ and a maximum in between.
+
+$g(\alpha) > 0$ for $\alpha \in (0, \pi/2)$.
+
+So to maximize $4 + d \cdot g(\alpha)$, we want $d$ as large as possible (since $g(\alpha) > 0$) and $\alpha$ at the maximizer of $g$.
+
+But $|d| \leq m$ and $m = 4 - d(1 - 2\alpha/\pi)$. Also $m \geq 1$ (at least one active variable) and $m \leq 2007$.
+
+$d \leq m = 4 - d(1 - 2\alpha/\pi)$, so $d + d(1 - 2\alpha/\pi) \leq 4$, $d(2 - 2\alpha/\pi) \leq 4$, $d \leq \frac{4}{2 - 2\alpha/\pi} = \frac{2}{1 - \alpha/\pi}$.
+
+Also $d \geq -m$, but since $g(\alpha) > 0$, we want $d > 0$, so $d \geq 0$.
+
+Also $m \geq 0$: $4 - d(1 - 2\alpha/\pi) \geq 0$, $d \leq \frac{4}{1 - 2\alpha/\pi}$ (when $\alpha < \pi/2$). Since $1 - 2\alpha/\pi > 0$ for $\alpha < \pi/2$, this gives $d \leq \frac{4}{1 - 2\alpha/\pi}$.
+
+And $p = (m-d)/2 \geq 0$ means $d \leq m$, which we already have.
+
+So $d \leq \min\left(\frac{2}{1-\alpha/\pi}, \frac{4}{1-2\alpha/\pi}\right)$.
+
+For $\alpha \in (0, \pi/2)$: $1 - \alpha/\pi \in (1/2, 1)$ and $1 - 2\alpha/\pi \in (0, 1)$. So $\frac{2}{1-\alpha/\pi} \in (2, 4)$ and $\frac{4}{1-2\alpha/\pi} > 4$. So the binding constraint is $d \leq \frac{2}{1-\alpha/\pi}$.
+
+Since we want $d$ as large as possible, set $d = \frac{2}{1-\alpha/\pi}$, which means $p = 0$ (all active variables are at $\pi - \alpha$).
+
+Then $m = d = \frac{2}{1-\alpha/\pi}$, $q = m = \frac{2}{1-\alpha/\pi}$.
+
+Constraint check: $q(\pi - \alpha) = \frac{2(\pi-\alpha)}{1-\alpha/\pi} = \frac{2(\pi-\alpha)}{(\pi-\alpha)/\pi} = 2\pi$. ✓.
+
+Objective: $4 + d \cdot g(\alpha) = 4 + \frac{2}{1-\alpha/\pi} \cdot g(\alpha) = 4 + \frac{2\pi}{\pi - \alpha} \cdot (\cos\alpha - 1 + 2\alpha/\pi)$.
+
+$= 4 + \frac{2\pi(\cos\alpha - 1) + 4\alpha}{\pi - \alpha}$.
+
+$= 4 + \frac{2\pi\cos\alpha - 2\pi + 4\alpha}{\pi - \alpha}$.
+
+$= \frac{4(\pi-\alpha) + 2\pi\cos\alpha - 2\pi + 4\alpha}{\pi - \alpha} = \frac{4\pi - 4\alpha + 2\pi\cos\alpha - 2\pi + 4\alpha}{\pi - \alpha} = \frac{2\pi + 2\pi\cos\alpha}{\pi - \alpha} = \frac{2\pi(1 + \cos\alpha)}{\pi - \alpha}$.
+
+So the objective (benefit) $= \frac{2\pi(1+\cos\alpha)}{\pi - \alpha}$, with $q = \frac{2\pi}{\pi - \alpha}$ active variables all at value $\pi - \alpha$.
+
+We need $q$ to be a positive integer (or at least, $q \leq 2007$). But actually, $q$ doesn't need to be an integer in the continuous relaxation; we need $q \leq 2007$.
+
+$q = \frac{2\pi}{\pi - \alpha}$. For $\alpha \in (0, \pi/2)$, $\pi - \alpha \in (\pi/2, \pi)$, so $q = \frac{2\pi}{\pi-\alpha} \in (2, 4)$. Since $q \leq 2007$ is easily satisfied.
+
+Now maximize $B(\alpha) = \frac{2\pi(1+\cos\alpha)}{\pi - \alpha}$ over $\alpha \in [0, \pi/2]$.
+
+$B(0) = \frac{2\pi \cdot 2}{\pi} = 4$.
+$B(\pi/2) = \frac{2\pi \cdot 1}{\pi/2} = 4$.
+
+$B'(\alpha) = 2\pi \cdot \frac{-\sin\alpha(\pi-\alpha) + (1+\cos\alpha)}{(\pi-\alpha)^2}$.
+
+Numerator: $-\sin\alpha(\pi-\alpha) + 1 + \cos\alpha = 1 + \cos\alpha - (\pi-\alpha)\sin\alpha$.
+
+Set to 0: $1 + \cos\alpha = (\pi - \alpha)\sin\alpha$.
+
+At $\alpha = 0$: LHS = 2, RHS = 0. Not equal.
+At $\alpha = \pi/2$: LHS = 1, RHS = 0. Not equal.
+
+Hmm, so $B'(\alpha) = 0$ when $1 + \cos\alpha = (\pi-\alpha)\sin\alpha$.
+
+Let me check the sign. At $\alpha = 0$: numerator $= 1 + 1 - \pi \cdot 0 = 2 > 0$, so $B' > 0$ (increasing).
+At $\alpha = \pi/2$: numerator $= 1 + 0 - (\pi/2) \cdot 1 = 1 - \pi/2 \approx 1 - 1.571 = -0.571 < 0$, so $B' < 0$ (decreasing).
+
+So $B$ increases then decreases, with a maximum in between. Let me find where $1 + \cos\alpha = (\pi - \alpha)\sin\alpha$.
+
+Let me try $\alpha = \pi/3$: LHS $= 1 + 1/2 = 3/2$. RHS $= (2\pi/3)\sin(\pi/3) = (2\pi/3)(\sqrt{3}/2) = \pi\sqrt{3}/3 \approx 3.1416 \cdot 1.732/3 \approx 1.814$. LHS $= 1.5 < 1.814 =$ RHS. So $B' < 0$ at $\pi/3$.
+
+Try $\alpha = \pi/4$: LHS $= 1 + \sqrt{2}/2 \approx 1.707$. RHS $= (3\pi/4)\sin(\pi/4) = (3\pi/4)(\sqrt{2}/2) = 3\pi\sqrt{2}/8 \approx 3 \cdot 3.1416 \cdot 1.414/8 \approx 1.666$. LHS $> $ RHS, so $B' > 0$.
+
+Try $\alpha = 0.8$: LHS $= 1 + \cos(0.8) = 1 + 0.6967 = 1.6967$. RHS $= (\pi - 0.8)\sin(0.8) = 2.3416 \cdot 0.7174 = 1.680$. LHS $>$ RHS, $B' > 0$.
+
+Try $\alpha = 0.85$: LHS $= 1 + \cos(0.85) = 1 + 0.6598 = 1.6598$. RHS $= (\pi - 0.85)\sin(0.85) = 2.2916 \cdot 0.7513 = 1.722$. LHS $<$ RHS, $B' < 0$.
+
+So the critical point is around $\alpha \approx 0.82$. Let me refine.
+
+$\alpha = 0.82$: LHS $= 1 + \cos(0.82) = 1 + 0.6822 = 1.6822$. RHS $= (2.3216)\sin(0.82) = 2.3216 \cdot 0.7311 = 1.6973$. LHS $<$ RHS.
+
+$\alpha = 0.81$: LHS $= 1 + \cos(0.81) = 1 + 0.6895 = 1.6895$. RHS $= (2.3316)\sin(0.81) = 2.3316 \cdot 0.7243 = 1.6890$. Very close! LHS $\approx$ RHS.
+
+So $\alpha \approx 0.81$. But this doesn't give a nice closed form. Let me reconsider.
+
+Hmm, wait. Maybe the optimal solution isn't at an interior critical point of this parametrization. Maybe I need to also consider the case where $q$ must be an integer, or maybe the optimum is at a boundary.
+
+Actually, I think I need to reconsider. The issue is that $q = 2\pi/(\pi - \alpha)$ must be a positive integer (number of active variables). So we need $\pi - \alpha = 2\pi/q$ for some integer $q$, i.e., $\alpha = \pi - 2\pi/q = \pi(1 - 2/q)$.
+
+For $q = 2$: $\alpha = 0$, $B = 4$.
+For $q = 3$: $\alpha = \pi/3$, $B = \frac{2\pi(1+\cos(\pi/3))}{\pi - \pi/3} = \frac{2\pi \cdot 3/2}{2\pi/3} = \frac{3\pi}{2\pi/3} = \frac{9}{2} = 4.5$.
+For $q = 4$: $\alpha = \pi/2$, $B = 4$.
+
+So with integer $q$: $q = 3$ gives $B = 4.5$, which is the best.
+
+But wait, do we need $q$ to be an integer? In the original problem, we have 2007 variables. We can set $q$ of them to $\pi - \alpha$ and the rest to 0. $q$ must be a non-negative integer $\leq 2007$.
+
+But actually, we could also have a mix: some at $\alpha$, some at $\pi - \alpha$. Let me reconsider.
+
+The KKT conditions say active variables satisfy $\sin y_i = \lambda$, so $y_i \in \{\alpha, \pi - \alpha\}$. But we also need the solution to be a maximum, not just a critical point. And we need to check second-order conditions.
+
+Actually, let me step back and think about this differently. The function $f(y) = 1 - \cos y$ is convex on $[0, \pi/2]$ and concave on $[\pi/2, \pi]$. 
+
+For maximizing $\sum f(y_i)$ with $\sum y_i = 2\pi$:
+
+The key insight for this type of problem (maximizing a sum of a function that's convex then concave): the optimal solution tends to have variables either at 0 or in the concave region $[\pi/2, \pi]$, with the active variables equal (by concavity in that region).
+
+If all active variables are in $[\pi/2, \pi]$ and equal to $\beta$, then $q\beta = 2\pi$, $\beta = 2\pi/q$. For $\beta \in [\pi/2, \pi]$: $q \in [2, 4]$. So $q \in \{2, 3, 4\}$.
+
+$q = 2$: $\beta = \pi$, benefit $= 2(1 - (-1)) = 4$.
+$q = 3$: $\beta = 2\pi/3$, benefit $= 3(1 - (-1/2)) = 9/2 = 4.5$.
+$q = 4$: $\beta = \pi/2$, benefit $= 4(1 - 0) = 4$.
+
+But could we do better with some variables in the convex region $[0, \pi/2]$? 
+
+Consider having one variable at $\alpha \in (0, \pi/2)$ (convex region) and $q$ variables at $\beta \in [\pi/2, \pi]$ (concave region), with $\alpha + q\beta = 2\pi$.
+
+Benefit $= (1 - \cos\alpha) + q(1 - \cos\beta)$.
+
+For the variables in the concave region, by Jensen, equal split is optimal (for fixed $q$ and fixed total for those). But the variable in the convex region... for a convex function, the maximum over an interval is at the endpoints. So the variable in $[0, \pi/2]$ should be at 0 or $\pi/2$.
+
+If at 0: it's inactive, reduces to the pure concave case.
+If at $\pi/2$: benefit from it is 1. Then $q\beta = 2\pi - \pi/2 = 3\pi/2$, $\beta = 3\pi/(2q)$. For $\beta \in [\pi/2, \pi]$: $q \in [3/2, 3]$, so $q \in \{2, 3\}$ (but $q = 2$ gives $\beta = 3\pi/4 \in [\pi/2, \pi]$ ✓, $q = 3$ gives $\beta = \pi/2$ ✓).
+
+$q = 2$: benefit $= 1 + 2(1 - \cos(3\pi/4)) = 1 + 2(1 + \sqrt{2}/2) = 1 + 2 + \sqrt{2} = 3 + \sqrt{2} \approx 4.414$.
+$q = 3$: benefit $= 1 + 3(1 - 0) = 4$.
+
+So $3 + \sqrt{2} \approx 4.414 < 4.5$. Not better.
+
+What about two variables at $\pi/2$? Benefit $= 2 + q(1 - \cos\beta)$, $q\beta = 2\pi - \pi = \pi$, $\beta = \pi/q$. For $\beta \in [\pi/2, \pi]$: $q \in [1, 2]$, so $q \in \{1, 2\}$.
+
+$q = 1$: $\beta = \pi$, benefit $= 2 + 2 = 4$.
+$q = 2$: $\beta = \pi/2$, benefit $= 2 + 2 = 4$.
+
+Not better.
+
+What about one variable at some $\alpha \in (0, \pi/2)$ and the rest in concave region? As argued, for the convex region variable, the max is at the endpoint. But what if we have multiple variables in the convex region?
+
+If we have $p$ variables in $[0, \pi/2]$ (convex region) with sum $S$, the max of $\sum f(y_i)$ is at the vertices: each variable at 0 or $\pi/2$. So effectively, some at $\pi/2$ and some at 0. This reduces to the cases above.
+
+So the global maximum benefit is $4.5 = 9/2$, achieved with $q = 3$ variables at $2\pi/3$ (i.e., $x_i = \pi/3$) and the rest at 0.
+
+Therefore, $\max \sum \sin^2 x_i = \frac{9/2}{2} = \frac{9}{4}$.
+
+Wait, I need to double-check the relationship. $\sum \sin^2 x_i = \frac{1}{2}\sum(1 - \cos 2x_i) = \frac{1}{2}\sum f(y_i)$ where $f(y) = 1 - \cos y$ and $y_i = 2x_i$. So $\sum \sin^2 x_i = \frac{1}{2} \cdot \text{benefit} = \frac{1}{2} \cdot \frac{9}{2} = \frac{9}{4}$.
+
+So $a/b = 9/4$, $\gcd(9,4) = 1$, $a + b = 13$.
+
+But wait, I should be more careful about the claim that for the convex region, the maximum is at vertices. Let me think again.
+
+We have $f$ convex on $[0, \pi/2]$. We want to maximize $\sum_{i \in \text{convex group}} f(y_i)$ subject to $\sum y_i = S$ (fixed) and $y_i \in [0, \pi/2]$. For a convex function, the maximum of $\sum f(y_i)$ over a convex polytope is at a vertex. The vertices of $\{y \in [0, \pi/2]^p, \sum y_i = S\}$ are points where as many variables as possible are at 0 or $\pi/2$. Specifically, if $S = k \cdot \pi/2 + r$ with $0 \leq r < \pi/2$, then the vertex has $k$ variables at $\pi/2$, one at $r$, and the rest at 0. But then the one at $r$ is in the interior...
+
+Hmm, actually for a convex function on a polytope, the maximum is at a vertex of the polytope. The polytope $\{y \in [0, \pi/2]^p, \sum y_i = S\}$ has vertices where each $y_i$ is either 0 or $\pi/2$, except possibly one. Actually, the vertices of a simplex-like constraint with box constraints are points where all but one variable are at their bounds.
+
+So the maximum of $\sum f(y_i)$ for the convex group is achieved when all but one variable are at 0 or $\pi/2$. The one remaining variable takes the leftover. But that leftover variable could be anywhere in $[0, \pi/2]$.
+
+This is getting complicated. Let me try a different approach: just verify numerically that 9/4 is the maximum.
+
+Actually, let me think about it more carefully with a cleaner argument.
+
+Claim: The maximum of $\sum_{i=1}^n \sin^2 x_i$ subject to $x_i \geq 0$, $\sum x_i = \pi$, is $9/4$, achieved when three of the $x_i$ equal $\pi/3$ and the rest are 0.
+
+Proof approach: We use the identity $\sin^2 x = \frac{1 - \cos 2x}{2}$ and show that $\sum (1 - \cos 2x_i) \leq 9/2$.
+
+Let me try to prove $\sum (1 - \cos y_i) \leq 9/2$ where $y_i \geq 0$, $\sum y_i = 2\pi$, $y_i \leq 2\pi$.
+
+Hmm, actually, I realize I should verify my claim more rigorously. Let me consider whether a configuration with variables not all equal could beat 4.5.
+
+Let me try: 2 variables at $a$ and 1 variable at $b$, with $2a + b = 2\pi$, $a, b \geq 0$.
+Benefit $= 2(1 - \cos a) + (1 - \cos b) = 3 - 2\cos a - \cos(2\pi - 2a) = 3 - 2\cos a - \cos 2a = 3 - 2\cos a - (2\cos^2 a - 1) = 4 - 2\cos a - 2\cos^2 a$.
+
+Let $t = \cos a$. Benefit $= 4 - 2t - 2t^2 = -2(t^2 + t - 2) = -2(t+2)(t-1) = 2(1-t)(t+2)$.
+
+Maximize over $t = \cos a$, $a \in [0, \pi]$ (so $t \in [-1, 1]$), with $b = 2\pi - 2a \geq 0$ (so $a \leq \pi$) ✓.
+
+$B(t) = 2(1-t)(t+2) = 2(t + 2 - t^2 - 2t) = 2(2 - t - t^2) = 4 - 2t - 2t^2$.
+
+$B'(t) = -2 - 4t = 0 \Rightarrow t = -1/2$.
+
+$B(-1/2) = 4 - 2(-1/2) - 2(1/4) = 4 + 1 - 1/2 = 4.5$.
+
+At $t = -1/2$, $\cos a = -1/2$, $a = 2\pi/3$, $b = 2\pi - 4\pi/3 = 2\pi/3$. So all three equal! Benefit = 4.5. ✓
+
+Now try: 1 variable at $a$, 1 at $b$, 1 at $c$, $a + b + c = 2\pi$.
+This is the general 3-variable case. By the analysis above (KKT), the critical points have all equal (giving 4.5) or some at $\alpha$ and some at $\pi - \alpha$.
+
+Let me try 2 at $\alpha$ and 1 at $\pi - \alpha$ (with $2\alpha + \pi - \alpha = 2\pi$, so $\alpha = \pi$). Then 2 at $\pi$ and 1 at 0: benefit $= 2 \cdot 2 + 0 = 4$. Worse.
+
+1 at $\alpha$ and 2 at $\pi - \alpha$: $\alpha + 2(\pi - \alpha) = 2\pi$, $\alpha + 2\pi - 2\alpha = 2\pi$, $-\alpha = 0$, $\alpha = 0$. So 1 at 0 and 2 at $\pi$: benefit = 4. Same.
+
+So for 3 variables, the only interior critical point is all equal (4.5), and boundary cases give 4 or less.
+
+Now, could 4 or more active variables do better? Let's check 4 variables.
+
+General 4-variable case is harder. But let me try: 4 equal at $\pi/2$: benefit $= 4 \cdot 1 = 4$. 3 at $a$, 1 at $b$: $3a + b = 2\pi$.
+
+Benefit $= 3(1 - \cos a) + (1 - \cos(2\pi - 3a)) = 3 - 3\cos a + 1 - \cos 3a = 4 - 3\cos a - \cos 3a$.
+
+$\cos 3a = 4\cos^3 a - 3\cos a$. So benefit $= 4 - 3\cos a - 4\cos^3 a + 3\cos a = 4 - 4\cos^3 a = 4(1 - \cos^3 a)$.
+
+Maximize over $a$: $\cos a \in [-1, 1]$ (with $a \in [0, 2\pi/3]$ so $b = 2\pi - 3a \geq 0$). $1 - \cos^3 a$ is maximized when $\cos a = -1$, i.e., $a = \pi$, but then $b = 2\pi - 3\pi = -\pi < 0$. Not valid. 
+
+With $a \in [0, 2\pi/3]$, $\cos a \in [-1/2, 1]$. Max of $4(1 - \cos^3 a)$ at $\cos a = -1/2$: $4(1 - (-1/8)) = 4(9/8) = 9/2 = 4.5$. At $a = 2\pi/3$, $b = 0$: this is 3 active variables. So the max with 4 variables (one possibly 0) is still 4.5, achieved when the 4th is 0.
+
+2 at $a$, 2 at $b$: $2a + 2b = 2\pi$, $a + b = \pi$, $b = \pi - a$.
+Benefit $= 2(1 - \cos a) + 2(1 - \cos(\pi-a)) = 2 - 2\cos a + 2 + 2\cos a = 4$. Always 4.
+
+So 4 variables can't beat 4.5.
+
+Let me also check: 1 at $a$, 3 at $b$: $a + 3b = 2\pi$, $a = 2\pi - 3b$.
+Benefit $= (1 - \cos(2\pi - 3b)) + 3(1 - \cos b) = (1 - \cos 3b) + 3(1 - \cos b) = 1 - \cos 3b + 3 - 3\cos b = 4 - \cos 3b - 3\cos b$.
+$\cos 3b = 4\cos^3 b - 3\cos b$. Benefit $= 4 - 4\cos^3 b + 3\cos b - 3\cos b = 4 - 4\cos^3 b = 4(1 - \cos^3 b)$.
+Same as before. Max at $\cos b = -1/2$ ($b = 2\pi/3$, $a = 0$): 4.5. Again, reduces to 3 active.
+
+So it seems like 4.5 is indeed the maximum. Let me also check 5 variables.
+
+5 equal at $2\pi/5$: benefit $= 5(1 - \cos(2\pi/5)) = 5(1 - \cos 72°) = 5(1 - 0.309) = 5(0.691) = 3.455$. Less than 4.5.
+
+What about 2 at $a$, 3 at $b$: $2a + 3b = 2\pi$.
+This gets complicated. But given the pattern, I'm fairly confident 4.5 is the max.
+
+Let me try to prove it rigorously. We need to show $\sum (1 - \cos y_i) \leq 9/2$ for $y_i \geq 0$, $\sum y_i = 2\pi$.
+
+Approach: Show that for any $y \in [0, 2\pi]$, $1 - \cos y \leq \frac{9}{4\pi} y$... no, that's linear and won't work since $1 - \cos y$ is not concave everywhere.
+
+Alternative: Find a tangent line / supporting function. We need a function $\ell(y)$ such that $1 - \cos y \leq \ell(y)$ for all $y \in [0, 2\pi]$, and $\sum \ell(y_i) = 9/2$ when $\sum y_i = 2\pi$.
+
+If $\ell(y) = cy + d$, then $\sum \ell(y_i) = c \cdot 2\pi + 2007d$. We need this to equal $9/2$. And $1 - \cos y \leq cy + d$ for all $y \in [0, 2\pi]$.
+
+At the optimal point, $y = 2\pi/3$, we need equality: $1 - \cos(2\pi/3) = c \cdot 2\pi/3 + d$, i.e., $3/2 = 2\pi c/3 + d$.
+
+Also, at $y = 0$: $0 \leq d$, so $d \geq 0$.
+At $y = 2\pi/3$, the tangent: $\frac{d}{dy}(1-\cos y) = \sin y$, at $y = 2\pi/3$: $\sin(2\pi/3) = \sqrt{3}/2$. So $c = \sqrt{3}/2$ if we want tangency.
+
+Then $d = 3/2 - 2\pi(\sqrt{3}/2)/3 = 3/2 - \pi\sqrt{3}/3 = 3/2 - \pi/\sqrt{3}$.
+
+$\pi/\sqrt{3} \approx 3.1416/1.732 \approx 1.814$. So $d \approx 1.5 - 1.814 = -0.314 < 0$.
+
+But we need $d \geq 0$ (from $y = 0$). So this tangent line doesn't work as an upper bound.
+
+Hmm. Let me try a different supporting function. Maybe a piecewise linear function, or a quadratic.
+
+Actually, let me try a different approach. Let me use the fact that for the optimal solution, the KKT conditions are satisfied, and then verify it's a global max by checking all possible critical configurations.
+
+The critical configurations (from KKT) have active variables at values $\alpha$ and/or $\pi - \alpha$ where $\sin \alpha = \lambda$. We need to check all such configurations and find the one with maximum benefit.
+
+Case 1: All active at $\alpha$ (i.e., $p = 0$, $q$ active at $\pi - \alpha$). Wait, I already did this analysis. Let me reconsider.
+
+Actually, I think the cleanest approach is:
+
+1. Show WLOG all $y_i \in [0, \pi]$ (splitting values $> \pi$ helps).
+2. For $y_i \in [0, \pi]$, show that the maximum is achieved when at most one $y_i \in (0, \pi/2)$ (convex region) and the rest are either 0 or in $[\pi/2, \pi]$.
+3. For variables in $[\pi/2, \pi]$ (concave region), equal split is optimal.
+4. Check all cases.
+
+Actually, let me try yet another approach. Let me use the substitution and a direct inequality.
+
+Claim: For $y \in [0, 2\pi]$, $1 - \cos y \leq \frac{3}{2} \cdot \frac{y}{\pi} \cdot \frac{2\pi - y}{\pi} \cdot ...$. Hmm, this is getting complicated.
+
+Let me try: $1 - \cos y = 2\sin^2(y/2)$. We want to show $\sum 2\sin^2(y_i/2) \leq 9/2$, i.e., $\sum \sin^2(y_i/2) \leq 9/4$.
+
+With $x_i = y_i/2$, this is $\sum \sin^2 x_i \leq 9/4$ with $x_i \geq 0$, $\sum x_i = \pi$. Which is the original problem.
+
+Let me try a direct approach. We want to show $\sum \sin^2 x_i \leq 9/4$.
+
+Key inequality: For $x \in [0, \pi]$, $\sin^2 x \leq \frac{3\sqrt{3}}{2\pi} x \cdot \sin x$... not sure.
+
+Let me try: $\sin^2 x \leq ax + b\sin x$ for some constants, with equality at $x = \pi/3$.
+
+At $x = \pi/3$: $\sin^2(\pi/3) = 3/4$, $a\pi/3 + b\sqrt{3}/2 = 3/4$.
+Derivative: $2\sin x \cos x = a + b\cos x$. At $x = \pi/3$: $2(\sqrt{3}/2)(1/2) = a + b/2$, $\sqrt{3}/2 = a + b/2$.
+
+From these: $a\pi/3 + b\sqrt{3}/2 = 3/4$ and $a + b/2 = \sqrt{3}/2$.
+
+From the second: $a = \sqrt{3}/2 - b/2$. Substituting: $(\sqrt{3}/2 - b/2)\pi/3 + b\sqrt{3}/2 = 3/4$.
+
+$\pi\sqrt{3}/6 - b\pi/6 + b\sqrt{3}/2 = 3/4$.
+
+$b(\sqrt{3}/2 - \pi/6) = 3/4 - \pi\sqrt{3}/6$.
+
+$b = \frac{3/4 - \pi\sqrt{3}/6}{\sqrt{3}/2 - \pi/6}$.
+
+This is getting messy. Let me try a different supporting function.
+
+How about: $\sin^2 x \leq cx$ for $x \in [0, \pi]$, with equality at $x = \pi/3$? Then $\sum \sin^2 x_i \leq c \sum x_i = c\pi$. We need $c\pi = 9/4$, so $c = 9/(4\pi)$.
+
+Check: $\sin^2 x \leq \frac{9x}{4\pi}$ for all $x \in [0, \pi]$?
+
+At $x = \pi/3$: $\sin^2(\pi/3) = 3/4$, $\frac{9\pi/3}{4\pi} = \frac{3}{4}$. Equality! ✓
+
+At $x = \pi/2$: $\sin^2(\pi/2) = 1$, $\frac{9\pi/2}{4\pi} = 9/8 = 1.125$. $1 \leq 1.125$ ✓
+
+At $x = \pi$: $\sin^2(\pi) = 0$, $\frac{9\pi}{4\pi} = 9/4$. $0 \leq 9/4$ ✓
+
+At $x = 0$: $0 \leq 0$ ✓ (equality)
+
+But we need to check for ALL $x \in [0, \pi]$. Let $h(x) = \frac{9x}{4\pi} - \sin^2 x$. We need $h(x) \geq 0$.
+
+$h(0) = 0$, $h(\pi/3) = 0$, $h(\pi) = 9/4 > 0$.
+
+$h'(x) = \frac{9}{4\pi} - 2\sin x \cos x = \frac{9}{4\pi} - \sin 2x$.
+
+$h'(0) = 9/(4\pi) > 0$.
+$h'(\pi/3) = 9/(4\pi) - \sin(2\pi/3) = 9/(4\pi) - \sqrt{3}/2 \approx 0.716 - 0.866 = -0.15 < 0$.
+
+So $h$ increases from 0, then decreases to 0 at $\pi/3$. That means $h \geq 0$ on $[0, \pi/3]$. ✓
+
+$h'(\pi/2) = 9/(4\pi) - \sin\pi = 9/(4\pi) > 0$.
+
+So $h'$ changes sign between $\pi/3$ and $\pi/2$: from negative to positive. So $h$ has a minimum somewhere in $(\pi/3, \pi/2)$.
+
+$h''(x) = -2\cos 2x$. At $x \in (\pi/3, \pi/2)$: $2x \in (2\pi/3, \pi)$, $\cos 2x < 0$, so $h'' > 0$. So $h'$ is increasing, and $h$ is convex on this interval. The minimum of $h$ is where $h' = 0$: $\sin 2x = 9/(4\pi)$, $2x = \arcsin(9/(4\pi))$. $9/(4\pi) \approx 0.716$, $\arcsin(0.716) \approx 0.798$, $x \approx 0.399$... wait that's less than $\pi/3 \approx 1.047$. 
+
+Hmm, let me recalculate. $\sin 2x = 9/(4\pi) \approx 0.716$. $2x = \arcsin(0.716) \approx 0.798$ or $2x = \pi - 0.798 \approx 2.344$. So $x \approx 0.399$ or $x \approx 1.172$.
+
+$x \approx 0.399$: this is in $(0, \pi/3)$. $h'(x) = 0$ here. Since $h'(0) > 0$ and $h'(\pi/3) < 0$, $h'$ goes from positive to negative, so this is a local max of $h$. $h(0.399) > 0$ (since $h(0) = 0$ and $h$ increases initially).
+
+$x \approx 1.172$: this is in $(\pi/3, \pi/2)$. $h'$ goes from negative (at $\pi/3$) to positive (at $\pi/2$), so this is a local min of $h$.
+
+$h(1.172) = \frac{9 \cdot 1.172}{4\pi} - \sin^2(1.172)$. $\sin(1.172) \approx \sin(67.2°) \approx 0.922$. $\sin^2 \approx 0.850$. $\frac{9 \cdot 1.172}{4\pi} = \frac{10.548}{12.566} \approx 0.839$.
+
+So $h(1.172) \approx 0.839 - 0.850 = -0.011 < 0$!!
+
+So the inequality $\sin^2 x \leq \frac{9x}{4\pi}$ FAILS near $x \approx 1.172$! The linear bound doesn't work.
+
+So we can't use this simple linear bound. We need a better approach.
+
+Let me try a quadratic bound or a different form.
+
+How about $\sin^2 x \leq Ax^2 + Bx$ with equality at $x = 0$ and $x = \pi/3$?
+
+At $x = 0$: $0 \leq 0$ ✓ (equality).
+At $x = \pi/3$: $3/4 = A\pi^2/9 + B\pi/3$.
+Derivative at $\pi/3$: $\sin(2\pi/3) = 2A\pi/3 + B$, $\sqrt{3}/2 = 2A\pi/3 + B$.
+
+From these: $A\pi^2/9 + B\pi/3 = 3/4$ and $2A\pi/3 + B = \sqrt{3}/2$.
+
+From second: $B = \sqrt{3}/2 - 2A\pi/3$. Sub into first: $A\pi^2/9 + (\sqrt{3}/2 - 2A\pi/3)\pi/3 = 3/4$.
+
+$A\pi^2/9 + \pi\sqrt{3}/6 - 2A\pi^2/9 = 3/4$.
+
+$-A\pi^2/9 + \pi\sqrt{3}/6 = 3/4$.
+
+$A = \frac{9(\pi\sqrt{3}/6 - 3/4)}{\pi^2} = \frac{9(2\pi\sqrt{3} - 9)}{12\pi^2} = \frac{3(2\pi\sqrt{3} - 9)}{4\pi^2}$.
+
+$2\pi\sqrt{3} \approx 10.883$, $2\pi\sqrt{3} - 9 \approx 1.883$. $A \approx \frac{3 \cdot 1.883}{4 \cdot 9.870} \approx \frac{5.649}{39.48} \approx 0.143$.
+
+$B = \sqrt{3}/2 - 2(0.143)\pi/3 \approx 0.866 - 0.299 \approx 0.567$.
+
+Then $\sum \sin^2 x_i \leq A\sum x_i^2 + B\sum x_i = A\sum x_i^2 + B\pi$.
+
+But $\sum x_i^2$ is not fixed, so this doesn't directly give a bound. We'd need to also bound $\sum x_i^2$.
+
+This approach isn't clean. Let me think differently.
+
+Maybe I should use a different form of supporting function. Since the optimal has 3 equal variables, maybe use a bound involving $\sum x_i^2$ or $\sum x_i(π - x_i)$ or something.
+
+Actually, let me try the approach: $\sin^2 x \leq \frac{3\sqrt{3}}{4} \sin x$ for $x \in [0, \pi]$... no, at $x = \pi/3$: LHS $= 3/4$, RHS $= \frac{3\sqrt{3}}{4} \cdot \frac{\sqrt{3}}{2} = \frac{9}{8}$. Not tight.
+
+How about $\sin^2 x \leq c \cdot x(\pi - x)$ for some $c$? At $x = \pi/3$: $3/4 = c \cdot \frac{\pi}{3} \cdot \frac{2\pi}{3} = c \cdot \frac{2\pi^2}{9}$. So $c = \frac{27}{8\pi^2}$.
+
+Check: $\sin^2 x \leq \frac{27}{8\pi^2} x(\pi - x)$ for $x \in [0, \pi]$?
+
+At $x = \pi/2$: LHS $= 1$, RHS $= \frac{27}{8\pi^2} \cdot \frac{\pi}{2} \cdot \frac{\pi}{2} = \frac{27}{32} \approx 0.844$. $1 > 0.844$. FAILS!
+
+So that doesn't work either.
+
+Let me try a completely different approach to the proof. Instead of finding a global upper bound function, let me use the KKT analysis more carefully and argue that the global maximum is 9/4.
+
+Approach: 
+1. The feasible set is compact, so a maximum exists.
+2. At the maximum, by KKT, active variables satisfy $\sin(2x_i) = \lambda$ (derivative of $\sin^2 x_i$ is $\sin 2x_i$), so $2x_i \in \{\alpha, \pi - \alpha\}$ for some $\alpha$, i.e., $x_i \in \{\alpha/2, (\pi-\alpha)/2\}$.
+3. Enumerate all possible configurations and find the maximum.
+
+Let $u = \alpha/2$ and $v = (\pi - \alpha)/2 = \pi/2 - u$. So active $x_i$ are either $u$ or $v = \pi/2 - u$, with $u \in [0, \pi/2]$.
+
+Note $u + v = \pi/2$.
+
+If $p$ variables at $u$ and $q$ variables at $v$: $pu + qv = \pi$, i.e., $pu + q(\pi/2 - u) = \pi$, $u(p - q) + q\pi/2 = \pi$, $u(p-q) = \pi(1 - q/2) = \pi(2 - q)/2$.
+
+If $p \neq q$: $u = \frac{\pi(2-q)}{2(p-q)}$.
+
+Objective: $p\sin^2 u + q\sin^2 v = p\sin^2 u + q\cos^2 u$ (since $v = \pi/2 - u$, $\sin v = \cos u$).
+
+$= p\sin^2 u + q\cos^2 u = p\sin^2 u + q(1 - \sin^2 u) = q + (p-q)\sin^2 u$.
+
+Case $p = q$: Then $q\pi/2 = \pi$, $q = 2$, $p = 2$. $u$ is free. Objective $= 2\sin^2 u + 2\cos^2 u = 2$. This is constant at 2 regardless of $u$. Less than 9/4.
+
+Case $p \neq q$: $u = \frac{\pi(2-q)}{2(p-q)}$, and objective $= q + (p-q)\sin^2 u$.
+
+We need $u \in [0, \pi/2]$ and $v = \pi/2 - u \in [0, \pi/2]$ (automatically satisfied). Also $p, q \geq 0$ integers with $p + q \leq 2007$.
+
+Let me set $m = p + q$ (total active) and $d = p - q$. Then $p = (m+d)/2$, $q = (m-d)/2$. Need $m, d$ same parity, $|d| \leq m$.
+
+$u = \frac{\pi(2 - (m-d)/2)}{2d} = \frac{\pi(4 - m + d)}{4d}$.
+
+Objective $= \frac{m-d}{2} + d\sin^2 u$.
+
+This is getting complicated. Let me just enumerate small cases.
+
+For the maximum, we expect few active variables (since spreading too thin reduces the sum). Let me check $m = 1, 2, 3, 4, 5$.
+
+$m = 1$: One active variable at $\pi$. Objective $= \sin^2 \pi = 0$. Or $p=1, q=0$: $u = \pi \cdot 2 / (2 \cdot 1) = \pi$. $\sin^2 \pi = 0$. Or $p=0, q=1$: $u = \pi(2-1)/(2(0-1)) = -\pi/2$. Invalid.
+
+Actually wait, with $m=1$, either $p=1,q=0$ or $p=0,q=1$.
+
+$p=1, q=0$: $u(1-0) = \pi(2-0)/2 = \pi$, $u = \pi$. But $u \in [0, \pi/2]$, so $u = \pi$ is out of range. Hmm, actually $u$ can be up to $\pi$ if we don't restrict to $[0, \pi/2]$... 
+
+Wait, I defined $u = \alpha/2$ where $\alpha = \arcsin \lambda \in [0, \pi/2]$ (since $\lambda \geq 0$ and $\arcsin$ gives values in $[0, \pi/2]$). So $u \in [0, \pi/4]$... no, $\alpha \in [0, \pi/2]$ means $u \in [0, \pi/4]$. And $v = \pi/2 - u \in [\pi/4, \pi/2]$.
+
+Hmm wait, I think I need to be more careful. The derivative of $\sin^2 x$ is $\sin 2x$. KKT: for active $x_i$, $\sin 2x_i = \lambda$. For inactive ($x_i = 0$), $\sin 0 = 0 \leq \lambda$ (need $\lambda \geq 0$).
+
+$\sin 2x_i = \lambda$ with $\lambda \geq 0$ and $2x_i \in [0, 2\pi]$. Solutions: $2x_i = \arcsin \lambda$ or $2x_i = \pi - \arcsin \lambda$. (Also $2x_i = \pi + \arcsin\lambda$ etc. if $2x_i > \pi$, but we showed WLOG $y_i = 2x_i \leq \pi$... wait, did we? Let me re-examine.)
+
+We showed that for $y_i > \pi$, splitting helps. But that was for the benefit function $f(y) = 1 - \cos y$. Let me re-examine in terms of $x$.
+
+$\sin^2 x$ for $x \in [0, \pi]$: this is the relevant range since $x_i \geq 0$ and $\sum x_i = \pi$ means $x_i \leq \pi$.
+
+$\sin^2 x$ on $[0, \pi]$: symmetric around $\pi/2$, max at $\pi/2$. Convex on $[0, \pi/4] \cup [3\pi/4, \pi]$ and concave on $[\pi/4, 3\pi/4]$ (since $(\sin^2 x)'' = 2\cos 2x$, which is positive for $x \in [0, \pi/4) \cup (3\pi/4, \pi]$ and negative for $x \in (\pi/4, 3\pi/4)$).
+
+KKT: $\sin 2x_i = \lambda$ for active $x_i$, $\lambda \geq 0$. $2x_i \in [0, 2\pi]$. $\sin 2x_i = \lambda \geq 0$ means $2x_i \in [0, \pi]$ (since $\sin \geq 0$ on $[0, \pi]$), so $x_i \in [0, \pi/2]$. Solutions: $x_i = u$ or $x_i = \pi/2 - u$ where $u = \frac{1}{2}\arcsin\lambda \in [0, \pi/4]$.
+
+So active $x_i \in \{u, \pi/2 - u\}$ with $u \in [0, \pi/4]$.
+
+Let $v = \pi/2 - u \in [\pi/4, \pi/2]$. Note $u + v = \pi/2$.
+
+$p$ at $u$, $q$ at $v$: $pu + qv = \pi$, i.e., $pu + q(\pi/2 - u) = \pi$.
+
+Objective: $p\sin^2 u + q\sin^2 v = p\sin^2 u + q\cos^2 u = q + (p-q)\sin^2 u$.
+
+From constraint: $u(p-q) + q\pi/2 = \pi$, so $u = \frac{\pi - q\pi/2}{p - q} = \frac{\pi(1 - q/2)}{p - q} = \frac{\pi(2 - q)}{2(p - q)}$ (when $p \neq q$).
+
+Need $u \in [0, \pi/4]$, so $0 \leq \frac{\pi(2-q)}{2(p-q)} \leq \pi/4$, i.e., $0 \leq \frac{2-q}{p-q} \leq 1/2$.
+
+Case $p > q$: $\frac{2-q}{p-q} \geq 0$ requires $q \leq 2$. $\frac{2-q}{p-q} \leq 1/2$ requires $2(2-q) \leq p - q$, $4 - 2q \leq p - q$, $p \geq 4 - q$.
+
+Case $p < q$: $\frac{2-q}{p-q} \geq 0$ requires $2 - q \leq 0$ (since $p - q < 0$), $q \geq 2$. $\frac{2-q}{p-q} \leq 1/2$: since $p - q < 0$, multiply flips: $2(2-q) \geq p - q$, $4 - 2q \geq p - q$, $p \leq 4 - q$. With $q \geq 2$ and $p \geq 0$: $p \leq 4 - q \leq 2$.
+
+This is getting complex. Let me just enumerate.
+
+Objective $= q + (p-q)\sin^2 u$ where $u = \frac{\pi(2-q)}{2(p-q)}$.
+
+Let me enumerate by $q$:
+
+$q = 0$: $u = \frac{\pi \cdot 2}{2p} = \frac{\pi}{p}$. Need $u \leq \pi/4$, so $p \geq 4$. Objective $= 0 + p\sin^2(\pi/p)$.
+- $p = 4$: $4\sin^2(\pi/4) = 4 \cdot 1/2 = 2$.
+- $p = 5$: $5\sin^2(\pi/5) = 5\sin^2(36°) \approx 5 \cdot 0.3455 = 1.727$.
+- $p = 3$: $u = \pi/3 > \pi/4$. Not valid (we need $u \leq \pi/4$). 
+
+Hmm, $p = 3, q = 0$: $u = \pi/3 \approx 1.047 > \pi/4 \approx 0.785$. Not in valid range. So this KKT point doesn't exist with $u \in [0, \pi/4]$.
+
+But wait, the optimal solution has $x_i = \pi/3$ for three variables. $\pi/3 \approx 1.047 > \pi/4$. So $x_i = \pi/3$ corresponds to $v = \pi/3$ (the larger value), not $u$. So $q > 0$.
+
+Let me redo: $x_i = \pi/3$ means $v = \pi/3$ (since $v \in [\pi/4, \pi/2]$ and $\pi/3 \in [\pi/4, \pi/2]$ ✓). Then $u = \pi/2 - \pi/3 = \pi/6$. And $p = 0$, $q = 3$.
+
+$q = 3, p = 0$: $u = \frac{\pi(2-3)}{2(0-3)} = \frac{-\pi}{-6} = \pi/6$. ✓ ($\pi/6 \in [0, \pi/4]$). Objective $= 3 + (0-3)\sin^2(\pi/6) = 3 - 3 \cdot 1/4 = 3 - 3/4 = 9/4$. ✓
+
+$q = 1$: $u = \frac{\pi(2-1)}{2(p-1)} = \frac{\pi}{2(p-1)}$. Need $p > 1$ (for $p > q = 1$) and $        — AI历史解题过程（thinking）
+#   polymath_00676         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_00676</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+Let $a$ and $b$ be relatively prime positive integers such that $a/b$ is the maximum possible value of \[\sin^2x_1+\sin^2x_2+\sin^2x_3+\cdots+\sin^2x_{2007},\] where, for $1\leq i\leq 2007$, $x_i$ is a nonnegative real number, and \[x_1+x_2+x_3+\cdots+x_{2007}=\pi.\] Find the value of $a+b$.
+
+## Standard Solution
+
+To find the maximum possible value of \(\sin^2 x_1 + \sin^2 x_2 + \sin^2 x_3 + \cdots + \sin^2 x_{2007}\) given that \(x_1 + x_2 + x_3 + \cdots + x_{2007} = \pi\), we will use the properties of the sine function and some optimization techniques.
+
+1. **Initial Assumptions and Simplifications**:
+   - We are given that \(x_i \geq 0\) and \(x_1 + x_2 + \cdots + x_{2007} = \pi\).
+   - If any \(x_i \geq \frac{\pi}{2}\), we can replace \(x_i\) with \(\pi - x_i\) without changing \(\sin^2 x_i\) but reducing the sum of the angles, allowing us to increase another angle and thus potentially increase the sum of \(\sin^2 x_i\). Therefore, we can assume \(x_i \in [0, \frac{\pi}{2}]\) for all \(i\).
+
+2. **Using Lemmas to Optimize the Sum**:
+   - **Lemma 1**: If \(x + y \leq \frac{\pi}{2}\) and \(x \leq y\), then \(\sin^2 x + \sin^2 y \leq \sin^2 (x - \epsilon) + \sin^2 (y + \epsilon)\) for any \(0 \leq \epsilon \leq x\).
+   - **Lemma 2**: If \(x + y \geq \frac{\pi}{2}\) and \(x \leq y\), then \(\sin^2 x + \sin^2 y \leq \sin^2 (x + \epsilon) + \sin^2 (y - \epsilon)\) for any \(0 \leq \epsilon \leq \frac{y - x}{2}\).
+
+3. **Applying Lemmas**:
+   - If \(x_i \in (0, \frac{\pi}{4})\) and there exists \(x_j \geq \frac{\pi}{2} - x_i\), we can apply Lemma 2 to send both \(x_i\) and \(x_j\) to \(\frac{x_i + x_j}{2} \geq \frac{\pi}{4}\).
+   - Otherwise, we can apply Lemma 1 to send \(x_i \to 0\) and \(x_j \to x_i + x_j \leq \frac{\pi}{2}\).
+
+4. **Simplifying the Problem**:
+   - By applying the lemmas, we can reduce the problem to checking when \(x_i \in \{0\} \cup [\frac{\pi}{4}, \frac{\pi}{2}]\).
+   - We can further apply Lemma 2 to bring all \(x_i\) together, so it suffices to check when \(x_i \in \{0, \frac{\pi}{k}\}\) where \(k \in \{2, 3, 4\}\).
+
+5. **Maximizing the Sum**:
+   - The maximum value occurs when we have the maximum number of terms contributing to the sum. Since \(\sin^2 x\) is maximized at \(x = \frac{\pi}{2}\), we consider the case where \(x_i = \frac{\pi}{2}\) for as many \(i\) as possible.
+   - However, since the sum of all \(x_i\) must be \(\pi\), we need to distribute \(\pi\) among the 2007 terms.
+
+6. **Optimal Distribution**:
+   - The optimal distribution is when each \(x_i = \frac{\pi}{2007}\).
+   - Therefore, \(\sin^2 \left(\frac{\pi}{2007}\right)\) is the value for each term.
+
+7. **Calculating the Sum**:
+   - The sum is \(2007 \cdot \sin^2 \left(\frac{\pi}{2007}\right)\).
+   - For small angles, \(\sin x \approx x\), so \(\sin \left(\frac{\pi}{2007}\right) \approx \frac{\pi}{2007}\).
+   - Thus, \(\sin^2 \left(\frac{\pi}{2007}\right) \approx \left(\frac{\pi}{2007}\right)^2\).
+
+8. **Final Calculation**:
+   - The sum is approximately \(2007 \cdot \left(\frac{\pi}{2007}\right)^2 = 2007 \cdot \frac{\pi^2}{2007^2} = \frac{\pi^2}{2007}\).
+
+The final answer is \(\boxed{2008}\).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me solve this problem. We need to maximize $\sum_{i=1}^{2007} \sin^2 x_i$ where $x_i \geq 0$ and $\sum x_i = \pi$.
+
+Let me think about this. We have $\sin^2 x = \frac{1-\cos 2x}{2}$, so the sum is $\frac{2007}{2} - \frac{1}{2}\sum \cos 2x_i$.
+
+To maximize the sum, we need to minimize $\sum \cos 2x_i$ subject to $\sum x_i = \pi$, $x_i \geq 0$.
+
+So we need to minimize $\sum_{i=1}^{2007} \cos(2x_i)$ where $x_i \geq 0$ and $\sum x_i = \pi$, i.e., $\sum 2x_i = 2\pi$.
+
+Let $y_i = 2x_i \geq 0$, $\sum y_i = 2\pi$. Minimize $\sum \cos y_i$.
+
+The function $\cos$ is concave on $[0, \pi]$ and convex on $[\pi, 2\pi]$. 
+
+For minimizing a sum of cosines with fixed sum... Let me think about what configuration minimizes this.
+
+If we put all mass into one variable: $y_1 = 2\pi$, rest 0. Then $\sum \cos y_i = \cos(2\pi) + 2006 \cdot \cos(0) = 1 + 2006 = 2007$. That's the maximum of the cosine sum, giving minimum of sin² sum = 0. Not good.
+
+We want to minimize $\sum \cos y_i$. 
+
+Consider putting some variables at $\pi$ (where cos = -1) and the rest at 0 (where cos = 1). If $k$ variables are at $\pi$ and the rest at 0: sum of $y_i = k\pi$, need $k\pi = 2\pi$, so $k=2$. Then $\sum \cos y_i = 2(-1) + 2005(1) = 2003$. Sum of sin² = $(2007 - 2003)/2 = 2$.
+
+Can we do better? What about variables at $\pi$ and one variable taking the remainder?
+
+If $k$ variables at $\pi$ (cos = -1), one variable at $2\pi - k\pi = (2-k)\pi$, rest at 0.
+- $k=1$: one at $\pi$, one at $\pi$, rest 0. Same as $k=2$ case essentially. cos sum = $-1 + -1 + 2005 = 2003$.
+- $k=0$: one at $2\pi$, rest 0. cos sum = $1 + 2006 = 2007$.
+
+What about using values in $(0, \pi)$ where cos is more negative? The minimum of cos is -1 at $\pi$. 
+
+Actually, let's think more carefully. We want to minimize $\sum \cos y_i$ with $y_i \geq 0$, $\sum y_i = 2\pi$.
+
+By Lagrange multipliers / convexity arguments: cos is concave on $[0,\pi]$. For a concave function, the minimum over a convex set with linear constraint is achieved at extreme points. But we also can have $y_i > \pi$.
+
+Hmm, let me think differently. The feasible region is a simplex. We're minimizing a sum of a function that is concave on $[0,\pi]$ and convex on $[\pi, 2\pi]$ (but actually $y_i$ can be up to $2\pi$).
+
+Actually, the key insight: $\cos y \geq -1$ always, with equality at $y = \pi, 3\pi, ...$. Since $y_i \in [0, 2\pi]$ (because sum is $2\pi$ and all nonneg), the minimum of $\cos y_i$ for a single variable is $-1$ at $y_i = \pi$.
+
+So $\sum \cos y_i \geq -2007$ trivially but that's not achievable since sum must be $2\pi$.
+
+Let me think about it as: we want as many $y_i = \pi$ as possible. With $k$ variables at $\pi$, remaining sum is $2\pi - k\pi$. For this to be nonneg, $k \leq 2$. 
+
+If $k=2$: two variables at $\pi$, rest at 0. $\sum \cos = -2 + 2005 = 2003$.
+
+But maybe we can do better by not using exactly 0 and $\pi$. Let's consider: can we have variables taking values that make cos more negative on average?
+
+Consider two variables $y_1, y_2$ with $y_1 + y_2 = s$ where $0 \leq s \leq 2\pi$. We want to minimize $\cos y_1 + \cos y_2$. 
+
+$\cos y_1 + \cos(s - y_1) = 2\cos(s/2)\cos(y_1 - s/2)$.
+
+If $s/2 \in [0, \pi/2]$ (i.e., $s \leq \pi$), then $\cos(s/2) \geq 0$, and we minimize by maximizing $|\cos(y_1 - s/2)|$... actually we want to minimize the product. $\cos(y_1 - s/2)$ ranges over... $y_1 \in [0, s]$, so $y_1 - s/2 \in [-s/2, s/2]$, and $\cos$ is maximized at 0 (=1) and minimized at endpoints ($\cos(s/2)$). So the product $2\cos(s/2)\cos(y_1-s/2)$ is minimized when $\cos(y_1-s/2)$ is minimized, i.e., at endpoints: $y_1 = 0$ or $y_1 = s$. Min value = $2\cos^2(s/2) = 1 + \cos s$. 
+
+So for $s \leq \pi$: min of $\cos y_1 + \cos y_2$ = $1 + \cos s$, achieved at extreme (one is 0, other is $s$). This is the concavity argument - concave function minimum at extreme points.
+
+If $s \in [\pi, 2\pi]$: $s/2 \in [\pi/2, \pi]$, $\cos(s/2) \leq 0$. Then to minimize $2\cos(s/2)\cos(y_1-s/2)$, since $\cos(s/2) < 0$, we want to maximize $\cos(y_1 - s/2)$. Max is 1 at $y_1 = s/2$. Min value = $2\cos(s/2)$. 
+
+Alternatively at endpoints: $2\cos^2(s/2) = 1 + \cos s$. Since $\cos(s/2) \leq 0$, $2\cos(s/2) \leq 0$ while $1 + \cos s = 2\cos^2(s/2) \geq 0$. So $2\cos(s/2) \leq 1 + \cos s$ when $\cos(s/2) \leq 0$... let me check: $s = \pi$: $2\cos(\pi/2) = 0$, $1 + \cos\pi = 0$. Equal. $s = 2\pi$: $2\cos\pi = -2$, $1+\cos 2\pi = 2$. So interior is better ($-2 < 2$). 
+
+So for $s \geq \pi$: min = $2\cos(s/2)$, achieved at $y_1 = y_2 = s/2$.
+
+Now back to our problem: minimize $\sum_{i=1}^{2007} \cos y_i$ with $\sum y_i = 2\pi$.
+
+Strategy: We want to concentrate the "mass" $2\pi$ into as few variables as possible, and make those variables equal to minimize the cosine sum (when the mass per variable is $\geq \pi$... wait, but $2\pi$ split among variables).
+
+Let me think about it as: we have total $2\pi$ to distribute. 
+
+Option A: Put all $2\pi$ in one variable: $\sum \cos = \cos(2\pi) + 2006 = 2007$.
+
+Option B: Split $2\pi$ into two variables, each $\pi$: $\sum \cos = 2\cos\pi + 2005 = -2 + 2005 = 2003$. Better!
+
+Option C: Split $2\pi$ into $m$ equal variables each $2\pi/m$, rest 0. $\sum \cos = m\cos(2\pi/m) + (2007 - m)$.
+
+For $m=2$: $2\cos\pi + 2005 = 2003$.
+For $m=3$: $3\cos(2\pi/3) + 2004 = 3(-1/2) + 2004 = -3/2 + 2004 = 2002.5$.
+For $m=4$: $4\cos(\pi/2) + 2003 = 0 + 2003 = 2003$.
+For $m=5$: $5\cos(2\pi/5) + 2002$. $\cos(72°) \approx 0.309$. $5(0.309) = 1.545$. $2002 + 1.545 = 2003.545$. Worse.
+
+Hmm wait, for $m=3$ we get 2002.5 which is less than 2003. Let me reconsider.
+
+Actually, let me reconsider. For $m$ variables each equal to $2\pi/m$ (with $2\pi/m \leq \pi$, i.e., $m \geq 2$), the cosine sum from those is $m \cos(2\pi/m)$, and the rest contribute $(2007-m) \cdot 1$.
+
+Total = $m\cos(2\pi/m) + 2007 - m = 2007 + m(\cos(2\pi/m) - 1)$.
+
+We want to minimize this, i.e., minimize $m(\cos(2\pi/m) - 1) = -m(1 - \cos(2\pi/m)) = -2m\sin^2(\pi/m)$.
+
+So we want to maximize $2m\sin^2(\pi/m)$.
+
+Let $f(m) = m \sin^2(\pi/m)$. As $m \to \infty$, $\sin(\pi/m) \approx \pi/m$, so $f(m) \approx m \cdot \pi^2/m^2 = \pi^2/m \to 0$.
+
+$f(2) = 2\sin^2(\pi/2) = 2$.
+$f(3) = 3\sin^2(\pi/3) = 3 \cdot 3/4 = 9/4 = 2.25$.
+$f(4) = 4\sin^2(\pi/4) = 4 \cdot 1/2 = 2$.
+$f(5) = 5\sin^2(\pi/5) = 5\sin^2(36°)$. $\sin 36° \approx 0.5878$. $5 \cdot 0.3455 \approx 1.727$.
+$f(6) = 6\sin^2(\pi/6) = 6 \cdot 1/4 = 1.5$.
+
+So $f(3) = 2.25$ is the maximum among these. But wait, I should also check non-equal distributions and also consider that we don't need all the "active" variables to be equal.
+
+But also, I assumed all active variables are equal. Let me think more generally.
+
+Actually, let me reconsider the problem. We can also have variables taking values $> \pi$. And we can have unequal distributions.
+
+Let me think about it more carefully using the pairwise analysis. 
+
+We showed: for two variables with sum $s$:
+- If $s \leq \pi$: min cosine sum = $1 + \cos s$ (extreme: one is 0).
+- If $s \geq \pi$: min cosine sum = $2\cos(s/2)$ (equal split).
+
+So the optimal strategy: take the total $2\pi$ and split it among some variables. 
+
+Key insight: If we have a group of variables with total sum $S$, and we want to minimize their cosine sum:
+- If we can split $S$ into pairs/groups optimally...
+
+Actually, let me think about it differently. Consider any variable with $y_i \in (0, \pi)$. We can ask: is it better to merge it with another variable or split it?
+
+Let me think about the Lagrangian approach. At an interior optimum (all $y_i > 0$), we need $\frac{d}{dy_i} \cos y_i = -\sin y_i = \lambda$ for all $i$, so $\sin y_i = -\lambda$ for all active $i$. This means all active $y_i$ are equal (to some value $\alpha$) or equal to $\pi - \alpha$.
+
+Case 1: All active $y_i = \alpha$. Then $m\alpha = 2\pi$, so $\alpha = 2\pi/m$. Sum = $m\cos(2\pi/m) + (2007-m)$.
+
+Case 2: Some at $\alpha$, some at $\pi - \alpha$. Then $p\alpha + q(\pi-\alpha) = 2\pi$ where $p+q = m$. Sum = $p\cos\alpha + q\cos(\pi-\alpha) + (2007-m) = (p-q)\cos\alpha + (2007-m)$. With $p\alpha + q(\pi-\alpha) = 2\pi$.
+
+Hmm, this is getting complicated. Let me also consider boundary solutions where some $y_i = 0$.
+
+Actually, the boundary case $y_i = 0$ means that variable contributes $\cos 0 = 1$ to the sum (i.e., 0 to the sin² sum). So effectively we're choosing how many variables to make "active" and how to distribute $2\pi$ among them.
+
+Let me reconsider. The problem is: minimize $\sum \cos y_i$ over $y_i \geq 0$, $\sum y_i = 2\pi$.
+
+Since $\cos$ is concave on $[0, \pi]$, by the theory of minimizing a concave function over a convex polytope, the minimum is at a vertex of the feasible region. But the feasible region here is the simplex $\{y \geq 0, \sum y = 2\pi\}$, whose vertices are the points where one $y_i = 2\pi$ and the rest are 0. At such a vertex, $\sum \cos = \cos(2\pi) + 2006 = 2007$. That's the maximum of cosine sum, not minimum.
+
+Wait, but $\cos$ is not concave everywhere — it's concave on $[0,\pi]$ and convex on $[\pi, 2\pi]$. So the function $\sum \cos y_i$ is not concave on the whole simplex (since $y_i$ can range up to $2\pi$). So we can't just use the concave minimization result.
+
+Let me think about this more carefully. The variables $y_i$ range in $[0, 2\pi]$. 
+
+Let me consider the problem: minimize $g(y_1, \ldots, y_n) = \sum \cos y_i$ subject to $y_i \geq 0$, $\sum y_i = 2\pi$.
+
+I'll use the approach of considering what happens when we have two active variables.
+
+Suppose we have exactly 2 active variables (rest are 0). Their sum is $2\pi$. By our pairwise analysis ($s = 2\pi \geq \pi$), the min is $2\cos(\pi) = -2$, achieved at $y_1 = y_2 = \pi$. Total sum = $-2 + 2005 = 2003$.
+
+Suppose 3 active variables, sum $2\pi$. We need to minimize $\cos y_1 + \cos y_2 + \cos y_3$ with $y_i \geq 0$, $\sum = 2\pi$.
+
+Sub-case: all equal, $y_i = 2\pi/3$. Sum = $3\cos(2\pi/3) = 3(-1/2) = -3/2$. Total = $-3/2 + 2004 = 2002.5$.
+
+Can we do better with 3 active variables? Let's check: one at $\pi$, two splitting $\pi$. The two splitting $\pi$ (with $s = \pi$): min is $1 + \cos\pi = 0$, at extreme (one is 0, one is $\pi$). So effectively one at $\pi$, one at $\pi$, one at 0 — that's 2 active. Or the two equal at $\pi/2$: $\cos(\pi/2) + \cos(\pi/2) = 0$. Plus $\cos\pi = -1$. Total for 3 = $-1 + 0 = -1$. Compare to equal split: $-3/2 = -1.5$. So equal split is better.
+
+What about one at $\pi$, one at $\pi/2$, one at $\pi/2$? Sum = $2\pi$? $\pi + \pi/2 + \pi/2 = 2\pi$. Yes. $\cos\pi + 2\cos(\pi/2) = -1 + 0 = -1$. Worse than $-3/2$.
+
+What about one at $a$, one at $a$, one at $2\pi - 2a$? Sum = $\cos(2\pi-2a) + 2\cos a = \cos 2a + 2\cos a = 2\cos^2 a - 1 + 2\cos a$. Let $t = \cos a$. $= 2t^2 + 2t - 1$. Minimize over valid $t$. $dt/da = -\sin a$. For $a \in [0, \pi]$, $t \in [-1, 1]$. $2t^2 + 2t - 1$ has minimum at $t = -1/2$, value $= 2(1/4) - 1 - 1 = -3/2$. At $t = -1/2$, $\cos a = -1/2$, $a = 2\pi/3$. Then $2\pi - 2a = 2\pi - 4\pi/3 = 2\pi/3$. So all equal! Good, consistent.
+
+So for 3 active variables, the minimum is $-3/2$, total $2002.5$.
+
+Now 4 active variables, sum $2\pi$. Equal split: $4\cos(\pi/2) = 0$. Total = $0 + 2003 = 2003$.
+
+Can we do better? Try 3 at $\pi/2$ and 1 at $\pi/2$: that's equal. Try 2 at $\pi$, 2 at 0: that's 2 active. Try 1 at $\pi$, 3 splitting $\pi$: 3 splitting $\pi$ equally at $\pi/3$: $\cos\pi + 3\cos(\pi/3) = -1 + 3(1/2) = -1 + 3/2 = 1/2$. Total for 4 = $1/2$. Worse than 0.
+
+Try 2 at $a$, 2 at $\pi - a$ (sum = $2a + 2\pi - 2a = 2\pi$). Sum = $2\cos a + 2\cos(\pi-a) = 2\cos a - 2\cos a = 0$. Always 0. Same as equal.
+
+Try 1 at $a$, 3 at $(2\pi - a)/3$. Sum = $\cos a + 3\cos((2\pi-a)/3)$. Let $b = (2\pi - a)/3$, so $a = 2\pi - 3b$. Sum = $\cos(2\pi - 3b) + 3\cos b = \cos 3b + 3\cos b = 4\cos^3 b - 3\cos b + 3\cos b = 4\cos^3 b$. Minimize $4\cos^3 b$ over valid $b$. $b = (2\pi - a)/3$, $a \geq 0$ so $b \leq 2\pi/3$, and $a \leq 2\pi$ so $b \geq 0$. So $b \in [0, 2\pi/3]$, $\cos b \in [-1/2, 1]$. Min of $4\cos^3 b$ at $\cos b = -1/2$: $4(-1/8) = -1/2$. At $b = 2\pi/3$, $a = 0$: this is 3 active variables case, sum $= -1/2$... wait, $4(-1/2)^3 = 4(-1/8) = -1/2$. But we computed 3 active equal split gives $-3/2$. 
+
+Oh wait, I think I made an error. When $a = 0$, we have 1 variable at 0 and 3 at $2\pi/3$. The cosine sum = $\cos 0 + 3\cos(2\pi/3) = 1 + 3(-1/2) = 1 - 3/2 = -1/2$. But this is 3 active + 1 at zero, so it's really 3 active variables with sum $-1/2$... but we said 3 active equal gives $-3/2$. The difference: with 3 active and 1 at zero, the "3 active" have sum $2\pi$ and give $-3/2$, plus the zero gives $+1$, total $-3/2 + 1 = -1/2$. Right, so 4 variables with one at 0 is worse than 3 active.
+
+So the minimum for 4 active is 0 (equal split) or can we find something less than 0? From the analysis $4\cos^3 b$ with min $-1/2$ at $b = 2\pi/3$ (which is $a=0$, really 3 active). For $a > 0$ (truly 4 active), $b < 2\pi/3$, $\cos b > -1/2$, $4\cos^3 b > -1/2$. At $b = \pi/2$ (equal, $a = \pi/2$): $4\cos^3(\pi/2) = 0$. So for 4 truly active, the min approaches $-1/2$ but doesn't reach it (that's 3 active). The min for exactly 4 active (all $> 0$) is... approaching $-1/2$ from above, but the equal split gives 0. 
+
+Hmm, actually I need to be more careful. Let me reconsider. With 4 variables, the minimum of $\sum \cos y_i$ is achieved either at an interior critical point or on the boundary. The boundary cases reduce to fewer active variables. The interior critical point (all equal) gives 0. So the min over 4 variables (allowing some to be 0) is $\min(0, \text{min with 3 active}, \text{min with 2 active}, ...) = \min(0, -3/2, -2, ...) = -2$ (2 active) or $-3/2$ (3 active). 
+
+Wait, but we're not restricting to exactly 4 active. We have 2007 variables total. The question is: what's the global minimum of $\sum_{i=1}^{2007} \cos y_i$?
+
+Let me reconsider. We have 2007 variables, sum $2\pi$, all $\geq 0$. We want to minimize $\sum \cos y_i$.
+
+The contribution of a variable at 0 is $\cos 0 = 1$. The contribution of a variable at $\pi$ is $-1$.
+
+So the "savings" from making a variable active (vs. leaving it at 0) is $1 - \cos y_i$ for that variable, but it costs $y_i$ from the budget $2\pi$.
+
+We want to maximize total savings $\sum (1 - \cos y_i) = \sum 2\sin^2(y_i/2)$ subject to $\sum y_i = 2\pi$, $y_i \geq 0$.
+
+This is equivalent to maximizing $\sum \sin^2(y_i/2) = \sum \sin^2 x_i$ (since $y_i = 2x_i$). Which is the original problem! OK so that's circular.
+
+Let me think about it as: we have budget $2\pi$ to spend on variables. Each variable $y_i$ costs $y_i$ and gives benefit $1 - \cos y_i = 2\sin^2(y_i/2)$. We want to maximize total benefit.
+
+The "efficiency" of a variable is $(1 - \cos y_i)/y_i$. For small $y_i$, this is $\approx y_i/2 \to 0$. For $y_i = \pi$, it's $2/\pi \approx 0.637$. For $y_i = 2\pi/3$, it's $(1 - (-1/2))/(2\pi/3) = (3/2)/(2\pi/3) = 9/(4\pi) \approx 0.716$.
+
+Hmm, but this isn't quite a knapsack because we can split continuously.
+
+Let me think about it as a continuous optimization. We want to maximize $\sum f(y_i)$ where $f(y) = 1 - \cos y$, subject to $\sum y_i = 2\pi$, $y_i \geq 0$, and at most 2007 variables.
+
+$f$ is concave on $[0, \pi]$ and convex on $[\pi, 2\pi]$. 
+
+For maximizing a sum of a function that's concave on $[0,\pi]$: if we restrict all $y_i \leq \pi$, then $f$ is concave, and by Jensen's, the max of $\sum f(y_i)$ with $\sum y_i = S$ (and $n$ variables) is $n \cdot f(S/n)$, achieved at equal split. But we need $S/n \leq \pi$, i.e., $n \geq S/\pi = 2$. And we want to choose $n$ to maximize $n \cdot f(2\pi/n) = n(1 - \cos(2\pi/n))$.
+
+Let $h(n) = n(1 - \cos(2\pi/n)) = 2n\sin^2(\pi/n)$.
+
+$h(2) = 2 \cdot 2 \cdot \sin^2(\pi/2) = 4$... wait, $h(n) = n(1-\cos(2\pi/n))$.
+$h(2) = 2(1 - \cos\pi) = 2(1-(-1)) = 4$.
+$h(3) = 3(1 - \cos(2\pi/3)) = 3(1-(-1/2)) = 3(3/2) = 9/2 = 4.5$.
+$h(4) = 4(1 - \cos(\pi/2)) = 4(1-0) = 4$.
+$h(5) = 5(1 - \cos(2\pi/5)) = 5(1 - 0.309) = 5(0.691) = 3.455$.
+$h(6) = 6(1 - \cos(\pi/3)) = 6(1 - 1/2) = 3$.
+
+So $h(3) = 4.5$ is the maximum. And since $n \leq 2007$ is not a binding constraint, the maximum benefit is $4.5$, achieved with 3 equal variables at $2\pi/3$.
+
+But wait, I need to verify that we can't do better by allowing some $y_i > \pi$. Since $f$ is convex on $[\pi, 2\pi]$, having a variable $> \pi$ would be suboptimal compared to splitting it (by convexity, splitting a value in the convex region into two equal parts gives a higher sum). Actually, for a convex function, $f(a) + f(b) \geq 2f((a+b)/2)$, so splitting increases the sum. But we're constrained by the number of variables...
+
+Actually, we have 2007 variables, way more than we need. So we can always split. Let me verify: if any $y_i > \pi$, we can split it into two parts $y_i/2, y_i/2$ (both $\leq \pi$ if $y_i \leq 2\pi$). Since $f$ is convex on $[\pi, 2\pi]$, $f(y_i) \leq 2f(y_i/2)$... wait no. Convex means $f((a+b)/2) \leq (f(a)+f(b))/2$, so $f(a) + f(b) \geq 2f((a+b)/2)$. With $a = b = y_i/2$: $2f(y_i/2) \geq 2f(y_i/2)$. That's trivial.
+
+Let me think again. If $y_i \in [\pi, 2\pi]$, then $y_i/2 \in [\pi/2, \pi]$, which is in the concave region. We want to compare $f(y_i)$ vs $2f(y_i/2)$.
+
+$f(y_i) = 1 - \cos y_i$. $2f(y_i/2) = 2(1 - \cos(y_i/2)) = 2 \cdot 2\sin^2(y_i/4) = 4\sin^2(y_i/4)$.
+
+$f(y_i) = 2\sin^2(y_i/2) = 2 \cdot 2\sin(y_i/4)\cos(y_i/4) \cdot ... $ hmm, $\sin^2(y_i/2) = (2\sin(y_i/4)\cos(y_i/4))^2 = 4\sin^2(y_i/4)\cos^2(y_i/4)$.
+
+So $f(y_i) = 2 \cdot 4\sin^2(y_i/4)\cos^2(y_i/4) = 8\sin^2(y_i/4)\cos^2(y_i/4)$.
+$2f(y_i/2) = 4\sin^2(y_i/4)$.
+
+Ratio: $f(y_i)/(2f(y_i/2)) = 8\sin^2(y_i/4)\cos^2(y_i/4) / (4\sin^2(y_i/4)) = 2\cos^2(y_i/4)$.
+
+For $y_i \in [\pi, 2\pi]$, $y_i/4 \in [\pi/4, \pi/2]$, $\cos^2(y_i/4) \in [0, 1/2]$. So ratio $\in [0, 1]$. So $f(y_i) \leq 2f(y_i/2)$, meaning splitting always helps (or is equal at $y_i = 2\pi$). So we should never have $y_i > \pi$ in the optimal solution (we can always split and do better, and we have plenty of variables).
+
+Wait, at $y_i = 2\pi$: $y_i/4 = \pi/2$, $\cos^2(\pi/2) = 0$, ratio = 0. So $f(2\pi) = 0$ and $2f(\pi) = 2(1-(-1)) = 4$. So splitting $2\pi$ into two $\pi$'s gives benefit 4 instead of 0. Huge improvement.
+
+At $y_i = \pi$: $y_i/4 = \pi/4$, $\cos^2(\pi/4) = 1/2$, ratio = 1. So $f(\pi) = 2f(\pi/2)$. Equal. So splitting $\pi$ into two $\pi/2$'s gives the same benefit. So the optimum might have $y_i = \pi$ or $y_i = \pi/2$ equivalently.
+
+OK so now we've established: WLOG all $y_i \in [0, \pi]$, and $f$ is concave on this range. For a concave function, by Jensen's inequality, $\sum f(y_i) \leq n \cdot f(\bar{y})$ where $\bar{y} = 2\pi/n$ is the average, with equality when all equal. But this is for a FIXED $n$. We want to optimize over $n$ too.
+
+But wait, Jensen gives an upper bound for fixed $n$: $\sum_{i=1}^n f(y_i) \leq n \cdot f(2\pi/n)$ when all $y_i$ are active and sum to $2\pi$. But we also have the freedom to set some $y_i = 0$ (effectively using fewer variables).
+
+If we use $n$ active variables (all equal to $2\pi/n$) and $2007 - n$ variables at 0:
+- Total benefit = $n \cdot f(2\pi/n) + 0 = n(1 - \cos(2\pi/n)) = h(n)$.
+- Total cosine sum = $2007 - h(n)$.
+- Total sin² sum = $h(n)/2$.
+
+We showed $h(n)$ is maximized at $n = 3$ with $h(3) = 9/2$.
+
+But is the equal split really optimal for each $n$? By Jensen (concavity), yes: for fixed $n$ active variables with sum $2\pi$, the max benefit is $n \cdot f(2\pi/n)$, achieved at equal split.
+
+But we also need to consider: could a non-equal split with some variables at 0 and others not equal beat the equal split? No, because if we have $k$ active variables (those with $y_i > 0$), Jensen says equal split among those $k$ is optimal, giving $h(k)$. And we optimize over $k$.
+
+Wait, but Jensen applies when all $k$ variables are in $[0, \pi]$ and sum to $2\pi$. We need $2\pi/k \leq \pi$, i.e., $k \geq 2$. For $k = 1$, the single variable is $2\pi > \pi$, not in the concave region. But we showed splitting $2\pi$ into two $\pi$'s is better, so $k = 1$ is suboptimal anyway.
+
+For $k \geq 2$: $2\pi/k \leq \pi$, all equal variables are in $[0, \pi]$, Jensen applies, max benefit = $h(k)$.
+
+$h(k) = k(1 - \cos(2\pi/k)) = 2k\sin^2(\pi/k)$.
+
+We need to find the $k$ that maximizes this. Let me compute more carefully.
+
+$h(2) = 2(1 - \cos\pi) = 2 \cdot 2 = 4$.
+$h(3) = 3(1 - \cos(2\pi/3)) = 3(1 + 1/2) = 3 \cdot 3/2 = 9/2 = 4.5$.
+$h(4) = 4(1 - \cos(\pi/2)) = 4 \cdot 1 = 4$.
+
+For $k \geq 4$, $h(k) = 2k\sin^2(\pi/k)$. As $k \to \infty$, $h(k) \to 2k \cdot (\pi/k)^2 = 2\pi^2/k \to 0$. And $h$ is decreasing for $k \geq 3$ (we can verify by checking $h(4) = 4 < 4.5 = h(3)$, and the function is eventually decreasing).
+
+Let me verify $h$ is decreasing for $k \geq 3$. Consider $h$ as a continuous function: $h(x) = 2x\sin^2(\pi/x)$. Let $t = \pi/x$, so $x = \pi/t$, $h = 2(\pi/t)\sin^2 t = 2\pi \sin^2 t / t$. As $x$ increases, $t$ decreases. We want to know if $h$ is decreasing in $x$ (increasing in $t$) for $x \geq 3$ (i.e., $t \leq \pi/3$).
+
+$\frac{d}{dt}\frac{\sin^2 t}{t} = \frac{2\sin t \cos t \cdot t - \sin^2 t}{t^2} = \frac{\sin t(2t\cos t - \sin t)}{t^2}$.
+
+For $t \in (0, \pi/3]$: $\sin t > 0$, and $2t\cos t - \sin t$. At $t = \pi/3$: $2(\pi/3)(1/2) - \sqrt{3}/2 = \pi/3 - \sqrt{3}/2 \approx 1.047 - 0.866 = 0.181 > 0$. At $t \to 0$: $2t \cdot 1 - t = t > 0$. So $2t\cos t - \sin t > 0$ for $t \in (0, \pi/3]$. Thus $\sin^2 t / t$ is increasing in $t$, meaning $h$ is increasing in $t$, i.e., decreasing in $x$ for $x \geq 3$.
+
+So $h$ is maximized at $k = 3$ among integers $k \geq 3$, and $h(3) = 9/2 > h(2) = 4$.
+
+Therefore the maximum benefit is $h(3) = 9/2$, and the maximum of $\sum \sin^2 x_i = h(3)/2 = 9/4$.
+
+Wait, let me double-check. $\sum \sin^2 x_i = \sum \frac{1 - \cos 2x_i}{2} = \frac{2007 - \sum \cos y_i}{2}$. And $\sum \cos y_i = 2007 - h(k)$. So $\sum \sin^2 x_i = \frac{2007 - (2007 - h(k))}{2} = \frac{h(k)}{2}$.
+
+With $k = 3$: $\sum \sin^2 x_i = \frac{9/2}{2} = \frac{9}{4}$.
+
+The maximum value is $9/4$, achieved when 3 of the $x_i$ equal $2\pi/(2 \cdot 3) = \pi/3$ and the rest are 0.
+
+Check: $3 \cdot \sin^2(\pi/3) = 3 \cdot (3/4) = 9/4$. ✓. And $3 \cdot \pi/3 = \pi$. ✓.
+
+So $a/b = 9/4$, $\gcd(9, 4) = 1$, $a = 9$, $b = 4$, $a + b = 13$.
+
+Wait, but I should double-check that we can't do better with a non-uniform distribution. I used Jensen's inequality which says for concave $f$ on $[0, \pi]$, $\sum f(y_i) \leq n f(\bar{y})$. This requires all $y_i \in [0, \pi]$. We established that WLOG all $y_i \in [0, \pi]$ (since splitting values $> \pi$ helps). And for $k$ active variables with sum $2\pi$ and $k \geq 2$, the average $2\pi/k \leq \pi$, so all equal values are in $[0, \pi]$, and Jensen gives the bound.
+
+But I should also verify: is it possible that a mix of values, some in $[0, \pi]$ and some at 0, with the non-zero ones not all equal, could beat the equal split? No — Jensen says equal split is optimal for the active variables, and we optimize the number of active variables.
+
+Actually, let me be even more careful. Jensen's inequality for concave functions says $\frac{1}{n}\sum f(y_i) \leq f\left(\frac{1}{n}\sum y_i\right)$, i.e., $\sum f(y_i) \leq n f(2\pi/n)$. This is for ALL $n$ variables being in $[0, \pi]$. But if some are 0, they're still in $[0, \pi]$, so Jensen still applies to all 2007 variables: $\sum_{i=1}^{2007} f(y_i) \leq 2007 \cdot f(2\pi/2007)$. But $h(2007) = 2007(1 - \cos(2\pi/2007)) \approx 2007 \cdot (2\pi/2007)^2/2 = \pi^2/2007 \approx 0.0049$. That's much less than 4.5. So Jensen with all 2007 variables gives a weak bound.
+
+The point is: Jensen gives $\sum f(y_i) \leq n \cdot f(\text{avg})$ for $n$ variables all in the concave region. If we use all 2007 variables, the bound is $h(2007) \approx 0.005$. If we use only 3 (setting rest to 0), those 3 are in $[0, \pi]$ and sum to $2\pi$, Jensen gives $h(3) = 4.5$. But the 2004 zeros contribute $f(0) = 0$ to the benefit. So total benefit = $4.5 + 0 = 4.5$.
+
+But Jensen applied to all 2007 says total benefit $\leq h(2007) \approx 0.005$?? That can't be right since we just found a solution with benefit 4.5.
+
+Oh I see the issue. Jensen says $\sum f(y_i) \leq 2007 \cdot f(2\pi/2007)$ when all $y_i \in [0, \pi]$ and $\sum y_i = 2\pi$. But $f(0) = 0$ and $f(2\pi/3) = 1 - (-1/2) = 3/2$. So $\sum f(y_i) = 3 \cdot 3/2 + 0 = 4.5$. And $2007 \cdot f(2\pi/2007) = 2007(1 - \cos(2\pi/2007)) \approx 2007 \cdot 2\sin^2(\pi/2007) \approx 2007 \cdot 2 \cdot (\pi/2007)^2 \approx 2\pi^2/2007 \approx 0.0098$.
+
+So $4.5 > 0.0098$?? That violates Jensen's inequality for concave functions!
+
+Wait, that can't be. Let me recheck. $f(y) = 1 - \cos y$ is concave on $[0, \pi]$. Jensen: $\frac{1}{n}\sum f(y_i) \leq f\left(\frac{1}{n}\sum y_i\right)$. With $n = 2007$, $\sum y_i = 2\pi$, avg $= 2\pi/2007$. $\sum f(y_i) \leq 2007 \cdot f(2\pi/2007)$.
+
+But our solution has $\sum f(y_i) = 4.5$ and $2007 \cdot f(2\pi/2007) \approx 0.01$. So $4.5 \leq 0.01$ is FALSE.
+
+This means either my computation is wrong or Jensen doesn't apply. Let me recheck $f(2\pi/2007)$. $f(2\pi/2007) = 1 - \cos(2\pi/2007)$. For small angle, $\cos\theta \approx 1 - \theta^2/2$, so $f \approx (2\pi/2007)^2/2 = 2\pi^2/2007^2 \approx 19.74/4028049 \approx 4.9 \times 10^{-6}$. Then $2007 \cdot f \approx 2007 \cdot 4.9 \times 10^{-6} \approx 0.0098$.
+
+And our solution: $3 \cdot f(2\pi/3) = 3 \cdot (1 - (-1/2)) = 3 \cdot 3/2 = 4.5$.
+
+So $4.5 > 0.0098$, which violates Jensen. But Jensen for concave functions says the function of the average is $\geq$ average of the function values. So $f(\text{avg}) \geq \text{avg of } f$. $f(2\pi/2007) \geq \frac{1}{2007} \sum f(y_i) = 4.5/2007 \approx 0.00224$. But $f(2\pi/2007) \approx 4.9 \times 10^{-6}$. So $4.9 \times 10^{-6} \geq 0.00224$ is FALSE.
+
+So Jensen IS violated. This means $f$ is NOT concave on $[0, \pi]$?? Let me check. $f(y) = 1 - \cos y$. $f''(y) = \cos y$. On $[0, \pi/2)$, $\cos y > 0$, so $f$ is convex. On $(\pi/2, \pi]$, $\cos y < 0$, so $f$ is concave.
+
+I made an error! $f(y) = 1 - \cos y$ has $f''(y) = \cos y$, which is positive on $[0, \pi/2)$ (convex) and negative on $(\pi/2, \pi]$ (concave). So $f$ is NOT concave on all of $[0, \pi]$.
+
+This changes the analysis significantly. Let me redo.
+
+So $f(y) = 1 - \cos y = 2\sin^2(y/2)$. This is convex on $[0, \pi]$ (since $f'' = \cos y$... no wait, $f''(y) = \cos y$ which is negative for $y > \pi/2$).
+
+Hmm, let me recompute. $f(y) = 1 - \cos y$. $f'(y) = \sin y$. $f''(y) = \cos y$. 
+
+$\cos y > 0$ for $y \in [0, \pi/2)$ → convex.
+$\cos y < 0$ for $y \in (\pi/2, \pi]$ → concave.
+$\cos y = 0$ at $y = \pi/2$ → inflection point.
+
+So $f$ is neither convex nor concave on $[0, \pi]$. It's convex then concave. This means Jensen doesn't directly apply, and the optimal solution might not be an equal split.
+
+OK so I need to redo the analysis. Let me go back to the original formulation.
+
+We want to maximize $\sum_{i=1}^{2007} \sin^2 x_i$ subject to $x_i \geq 0$, $\sum x_i = \pi$.
+
+Equivalently, maximize $\sum f(y_i)$ where $f(y) = 1 - \cos y$, $y_i = 2x_i \geq 0$, $\sum y_i = 2\pi$.
+
+$f$ is convex on $[0, \pi/2]$ and concave on $[\pi/2, \pi]$ (and convex again on $[\pi, 3\pi/2]$, etc., but we showed WLOG $y_i \leq \pi$... actually let me re-examine that).
+
+Wait, I showed that splitting $y_i > \pi$ into two halves helps. Let me re-examine: for $y_i \in [\pi, 2\pi]$, $y_i/2 \in [\pi/2, \pi]$. We showed $f(y_i) \leq 2f(y_i/2)$ with ratio $2\cos^2(y_i/4) \leq 1$. So yes, splitting helps, and we can assume all $y_i \leq \pi$.
+
+Now, for $y_i \in [0, \pi]$, $f$ is convex on $[0, \pi/2]$ and concave on $[\pi/2, \pi]$.
+
+This is a sum-of-S-shaped-functions maximization. The optimal solution will typically have variables at the boundaries or at points where the derivative is equal.
+
+Let me think about KKT conditions. At an optimum, for each active variable $y_i > 0$: $f'(y_i) = \sin y_i = \lambda$ (Lagrange multiplier). For inactive variables ($y_i = 0$): $f'(0) = 0 \leq \lambda$ (since we're maximizing, the condition is $f'(y_i) \leq \lambda$ at $y_i = 0$).
+
+So $\sin y_i = \lambda$ for all active $y_i$, and $\lambda \geq 0$ (since $f'(0) = 0$).
+
+$\sin y_i = \lambda$ means $y_i = \alpha$ or $y_i = \pi - \alpha$ where $\alpha = \arcsin \lambda \in [0, \pi/2]$.
+
+So active variables take at most two values: $\alpha$ and $\pi - \alpha$.
+
+Let's say $p$ variables at $\alpha$ and $q$ variables at $\pi - \alpha$. Then:
+- Constraint: $p\alpha + q(\pi - \alpha) = 2\pi$.
+- Objective: $p(1 - \cos\alpha) + q(1 - \cos(\pi-\alpha)) = p(1-\cos\alpha) + q(1+\cos\alpha) = (p+q) + (q-p)\cos\alpha$.
+
+Let $m = p + q$ (total active), $d = q - p$. Then $p = (m-d)/2$, $q = (m+d)/2$.
+
+Constraint: $\frac{m-d}{2}\alpha + \frac{m+d}{2}(\pi - \alpha) = 2\pi$.
+$= \frac{m-d}{2}\alpha + \frac{m+d}{2}\pi - \frac{m+d}{2}\alpha = \frac{m+d}{2}\pi + \frac{(m-d)-(m+d)}{2}\alpha = \frac{(m+d)\pi}{2} - d\alpha = 2\pi$.
+
+So $\frac{(m+d)\pi}{2} - d\alpha = 2\pi$, giving $(m+d)\pi - 2d\alpha = 4\pi$, so $m\pi + d\pi - 2d\alpha = 4\pi$, $m\pi + d(\pi - 2\alpha) = 4\pi$.
+
+Objective: $m + d\cos\alpha$.
+
+We want to maximize $m + d\cos\alpha$ subject to $m\pi + d(\pi - 2\alpha) = 4\pi$, $m \geq 0$, and $p, q \geq 0$ (so $|d| \leq m$), and $\alpha \in [0, \pi/2]$.
+
+From the constraint: $m = \frac{4\pi - d(\pi - 2\alpha)}{\pi} = 4 - d\frac{\pi - 2\alpha}{\pi} = 4 - d(1 - 2\alpha/\pi)$.
+
+Objective: $m + d\cos\alpha = 4 - d(1 - 2\alpha/\pi) + d\cos\alpha = 4 + d(\cos\alpha - 1 + 2\alpha/\pi)$.
+
+Let $g(\alpha) = \cos\alpha - 1 + 2\alpha/\pi$. Then objective $= 4 + d \cdot g(\alpha)$.
+
+We want to maximize $4 + d \cdot g(\alpha)$.
+
+$g(0) = 1 - 1 + 0 = 0$.
+$g(\pi/2) = 0 - 1 + 1 = 0$.
+$g'(\alpha) = -\sin\alpha + 2/\pi$. $g'(\alpha) = 0$ when $\sin\alpha = 2/\pi \approx 0.6366$, $\alpha \approx 0.69$.
+$g''(\alpha) = -\cos\alpha < 0$ for $\alpha \in (0, \pi/2)$. So $g$ is concave, with $g(0) = g(\pi/2) = 0$ and a maximum in between.
+
+$g(\alpha) > 0$ for $\alpha \in (0, \pi/2)$.
+
+So to maximize $4 + d \cdot g(\alpha)$, we want $d$ as large as possible (since $g(\alpha) > 0$) and $\alpha$ at the maximizer of $g$.
+
+But $|d| \leq m$ and $m = 4 - d(1 - 2\alpha/\pi)$. Also $m \geq 1$ (at least one active variable) and $m \leq 2007$.
+
+$d \leq m = 4 - d(1 - 2\alpha/\pi)$, so $d + d(1 - 2\alpha/\pi) \leq 4$, $d(2 - 2\alpha/\pi) \leq 4$, $d \leq \frac{4}{2 - 2\alpha/\pi} = \frac{2}{1 - \alpha/\pi}$.
+
+Also $d \geq -m$, but since $g(\alpha) > 0$, we want $d > 0$, so $d \geq 0$.
+
+Also $m \geq 0$: $4 - d(1 - 2\alpha/\pi) \geq 0$, $d \leq \frac{4}{1 - 2\alpha/\pi}$ (when $\alpha < \pi/2$). Since $1 - 2\alpha/\pi > 0$ for $\alpha < \pi/2$, this gives $d \leq \frac{4}{1 - 2\alpha/\pi}$.
+
+And $p = (m-d)/2 \geq 0$ means $d \leq m$, which we already have.
+
+So $d \leq \min\left(\frac{2}{1-\alpha/\pi}, \frac{4}{1-2\alpha/\pi}\right)$.
+
+For $\alpha \in (0, \pi/2)$: $1 - \alpha/\pi \in (1/2, 1)$ and $1 - 2\alpha/\pi \in (0, 1)$. So $\frac{2}{1-\alpha/\pi} \in (2, 4)$ and $\frac{4}{1-2\alpha/\pi} > 4$. So the binding constraint is $d \leq \frac{2}{1-\alpha/\pi}$.
+
+Since we want $d$ as large as possible, set $d = \frac{2}{1-\alpha/\pi}$, which means $p = 0$ (all active variables are at $\pi - \alpha$).
+
+Then $m = d = \frac{2}{1-\alpha/\pi}$, $q = m = \frac{2}{1-\alpha/\pi}$.
+
+Constraint check: $q(\pi - \alpha) = \frac{2(\pi-\alpha)}{1-\alpha/\pi} = \frac{2(\pi-\alpha)}{(\pi-\alpha)/\pi} = 2\pi$. ✓.
+
+Objective: $4 + d \cdot g(\alpha) = 4 + \frac{2}{1-\alpha/\pi} \cdot g(\alpha) = 4 + \frac{2\pi}{\pi - \alpha} \cdot (\cos\alpha - 1 + 2\alpha/\pi)$.
+
+$= 4 + \frac{2\pi(\cos\alpha - 1) + 4\alpha}{\pi - \alpha}$.
+
+$= 4 + \frac{2\pi\cos\alpha - 2\pi + 4\alpha}{\pi - \alpha}$.
+
+$= \frac{4(\pi-\alpha) + 2\pi\cos\alpha - 2\pi + 4\alpha}{\pi - \alpha} = \frac{4\pi - 4\alpha + 2\pi\cos\alpha - 2\pi + 4\alpha}{\pi - \alpha} = \frac{2\pi + 2\pi\cos\alpha}{\pi - \alpha} = \frac{2\pi(1 + \cos\alpha)}{\pi - \alpha}$.
+
+So the objective (benefit) $= \frac{2\pi(1+\cos\alpha)}{\pi - \alpha}$, with $q = \frac{2\pi}{\pi - \alpha}$ active variables all at value $\pi - \alpha$.
+
+We need $q$ to be a positive integer (or at least, $q \leq 2007$). But actually, $q$ doesn't need to be an integer in the continuous relaxation; we need $q \leq 2007$.
+
+$q = \frac{2\pi}{\pi - \alpha}$. For $\alpha \in (0, \pi/2)$, $\pi - \alpha \in (\pi/2, \pi)$, so $q = \frac{2\pi}{\pi-\alpha} \in (2, 4)$. Since $q \leq 2007$ is easily satisfied.
+
+Now maximize $B(\alpha) = \frac{2\pi(1+\cos\alpha)}{\pi - \alpha}$ over $\alpha \in [0, \pi/2]$.
+
+$B(0) = \frac{2\pi \cdot 2}{\pi} = 4$.
+$B(\pi/2) = \frac{2\pi \cdot 1}{\pi/2} = 4$.
+
+$B'(\alpha) = 2\pi \cdot \frac{-\sin\alpha(\pi-\alpha) + (1+\cos\alpha)}{(\pi-\alpha)^2}$.
+
+Numerator: $-\sin\alpha(\pi-\alpha) + 1 + \cos\alpha = 1 + \cos\alpha - (\pi-\alpha)\sin\alpha$.
+
+Set to 0: $1 + \cos\alpha = (\pi - \alpha)\sin\alpha$.
+
+At $\alpha = 0$: LHS = 2, RHS = 0. Not equal.
+At $\alpha = \pi/2$: LHS = 1, RHS = 0. Not equal.
+
+Hmm, so $B'(\alpha) = 0$ when $1 + \cos\alpha = (\pi-\alpha)\sin\alpha$.
+
+Let me check the sign. At $\alpha = 0$: numerator $= 1 + 1 - \pi \cdot 0 = 2 > 0$, so $B' > 0$ (increasing).
+At $\alpha = \pi/2$: numerator $= 1 + 0 - (\pi/2) \cdot 1 = 1 - \pi/2 \approx 1 - 1.571 = -0.571 < 0$, so $B' < 0$ (decreasing).
+
+So $B$ increases then decreases, with a maximum in between. Let me find where $1 + \cos\alpha = (\pi - \alpha)\sin\alpha$.
+
+Let me try $\alpha = \pi/3$: LHS $= 1 + 1/2 = 3/2$. RHS $= (2\pi/3)\sin(\pi/3) = (2\pi/3)(\sqrt{3}/2) = \pi\sqrt{3}/3 \approx 3.1416 \cdot 1.732/3 \approx 1.814$. LHS $= 1.5 < 1.814 =$ RHS. So $B' < 0$ at $\pi/3$.
+
+Try $\alpha = \pi/4$: LHS $= 1 + \sqrt{2}/2 \approx 1.707$. RHS $= (3\pi/4)\sin(\pi/4) = (3\pi/4)(\sqrt{2}/2) = 3\pi\sqrt{2}/8 \approx 3 \cdot 3.1416 \cdot 1.414/8 \approx 1.666$. LHS $> $ RHS, so $B' > 0$.
+
+Try $\alpha = 0.8$: LHS $= 1 + \cos(0.8) = 1 + 0.6967 = 1.6967$. RHS $= (\pi - 0.8)\sin(0.8) = 2.3416 \cdot 0.7174 = 1.680$. LHS $>$ RHS, $B' > 0$.
+
+Try $\alpha = 0.85$: LHS $= 1 + \cos(0.85) = 1 + 0.6598 = 1.6598$. RHS $= (\pi - 0.85)\sin(0.85) = 2.2916 \cdot 0.7513 = 1.722$. LHS $<$ RHS, $B' < 0$.
+
+So the critical point is around $\alpha \approx 0.82$. Let me refine.
+
+$\alpha = 0.82$: LHS $= 1 + \cos(0.82) = 1 + 0.6822 = 1.6822$. RHS $= (2.3216)\sin(0.82) = 2.3216 \cdot 0.7311 = 1.6973$. LHS $<$ RHS.
+
+$\alpha = 0.81$: LHS $= 1 + \cos(0.81) = 1 + 0.6895 = 1.6895$. RHS $= (2.3316)\sin(0.81) = 2.3316 \cdot 0.7243 = 1.6890$. Very close! LHS $\approx$ RHS.
+
+So $\alpha \approx 0.81$. But this doesn't give a nice closed form. Let me reconsider.
+
+Hmm, wait. Maybe the optimal solution isn't at an interior critical point of this parametrization. Maybe I need to also consider the case where $q$ must be an integer, or maybe the optimum is at a boundary.
+
+Actually, I think I need to reconsider. The issue is that $q = 2\pi/(\pi - \alpha)$ must be a positive integer (number of active variables). So we need $\pi - \alpha = 2\pi/q$ for some integer $q$, i.e., $\alpha = \pi - 2\pi/q = \pi(1 - 2/q)$.
+
+For $q = 2$: $\alpha = 0$, $B = 4$.
+For $q = 3$: $\alpha = \pi/3$, $B = \frac{2\pi(1+\cos(\pi/3))}{\pi - \pi/3} = \frac{2\pi \cdot 3/2}{2\pi/3} = \frac{3\pi}{2\pi/3} = \frac{9}{2} = 4.5$.
+For $q = 4$: $\alpha = \pi/2$, $B = 4$.
+
+So with integer $q$: $q = 3$ gives $B = 4.5$, which is the best.
+
+But wait, do we need $q$ to be an integer? In the original problem, we have 2007 variables. We can set $q$ of them to $\pi - \alpha$ and the rest to 0. $q$ must be a non-negative integer $\leq 2007$.
+
+But actually, we could also have a mix: some at $\alpha$, some at $\pi - \alpha$. Let me reconsider.
+
+The KKT conditions say active variables satisfy $\sin y_i = \lambda$, so $y_i \in \{\alpha, \pi - \alpha\}$. But we also need the solution to be a maximum, not just a critical point. And we need to check second-order conditions.
+
+Actually, let me step back and think about this differently. The function $f(y) = 1 - \cos y$ is convex on $[0, \pi/2]$ and concave on $[\pi/2, \pi]$. 
+
+For maximizing $\sum f(y_i)$ with $\sum y_i = 2\pi$:
+
+The key insight for this type of problem (maximizing a sum of a function that's convex then concave): the optimal solution tends to have variables either at 0 or in the concave region $[\pi/2, \pi]$, with the active variables equal (by concavity in that region).
+
+If all active variables are in $[\pi/2, \pi]$ and equal to $\beta$, then $q\beta = 2\pi$, $\beta = 2\pi/q$. For $\beta \in [\pi/2, \pi]$: $q \in [2, 4]$. So $q \in \{2, 3, 4\}$.
+
+$q = 2$: $\beta = \pi$, benefit $= 2(1 - (-1)) = 4$.
+$q = 3$: $\beta = 2\pi/3$, benefit $= 3(1 - (-1/2)) = 9/2 = 4.5$.
+$q = 4$: $\beta = \pi/2$, benefit $= 4(1 - 0) = 4$.
+
+But could we do better with some variables in the convex region $[0, \pi/2]$? 
+
+Consider having one variable at $\alpha \in (0, \pi/2)$ (convex region) and $q$ variables at $\beta \in [\pi/2, \pi]$ (concave region), with $\alpha + q\beta = 2\pi$.
+
+Benefit $= (1 - \cos\alpha) + q(1 - \cos\beta)$.
+
+For the variables in the concave region, by Jensen, equal split is optimal (for fixed $q$ and fixed total for those). But the variable in the convex region... for a convex function, the maximum over an interval is at the endpoints. So the variable in $[0, \pi/2]$ should be at 0 or $\pi/2$.
+
+If at 0: it's inactive, reduces to the pure concave case.
+If at $\pi/2$: benefit from it is 1. Then $q\beta = 2\pi - \pi/2 = 3\pi/2$, $\beta = 3\pi/(2q)$. For $\beta \in [\pi/2, \pi]$: $q \in [3/2, 3]$, so $q \in \{2, 3\}$ (but $q = 2$ gives $\beta = 3\pi/4 \in [\pi/2, \pi]$ ✓, $q = 3$ gives $\beta = \pi/2$ ✓).
+
+$q = 2$: benefit $= 1 + 2(1 - \cos(3\pi/4)) = 1 + 2(1 + \sqrt{2}/2) = 1 + 2 + \sqrt{2} = 3 + \sqrt{2} \approx 4.414$.
+$q = 3$: benefit $= 1 + 3(1 - 0) = 4$.
+
+So $3 + \sqrt{2} \approx 4.414 < 4.5$. Not better.
+
+What about two variables at $\pi/2$? Benefit $= 2 + q(1 - \cos\beta)$, $q\beta = 2\pi - \pi = \pi$, $\beta = \pi/q$. For $\beta \in [\pi/2, \pi]$: $q \in [1, 2]$, so $q \in \{1, 2\}$.
+
+$q = 1$: $\beta = \pi$, benefit $= 2 + 2 = 4$.
+$q = 2$: $\beta = \pi/2$, benefit $= 2 + 2 = 4$.
+
+Not better.
+
+What about one variable at some $\alpha \in (0, \pi/2)$ and the rest in concave region? As argued, for the convex region variable, the max is at the endpoint. But what if we have multiple variables in the convex region?
+
+If we have $p$ variables in $[0, \pi/2]$ (convex region) with sum $S$, the max of $\sum f(y_i)$ is at the vertices: each variable at 0 or $\pi/2$. So effectively, some at $\pi/2$ and some at 0. This reduces to the cases above.
+
+So the global maximum benefit is $4.5 = 9/2$, achieved with $q = 3$ variables at $2\pi/3$ (i.e., $x_i = \pi/3$) and the rest at 0.
+
+Therefore, $\max \sum \sin^2 x_i = \frac{9/2}{2} = \frac{9}{4}$.
+
+Wait, I need to double-check the relationship. $\sum \sin^2 x_i = \frac{1}{2}\sum(1 - \cos 2x_i) = \frac{1}{2}\sum f(y_i)$ where $f(y) = 1 - \cos y$ and $y_i = 2x_i$. So $\sum \sin^2 x_i = \frac{1}{2} \cdot \text{benefit} = \frac{1}{2} \cdot \frac{9}{2} = \frac{9}{4}$.
+
+So $a/b = 9/4$, $\gcd(9,4) = 1$, $a + b = 13$.
+
+But wait, I should be more careful about the claim that for the convex region, the maximum is at vertices. Let me think again.
+
+We have $f$ convex on $[0, \pi/2]$. We want to maximize $\sum_{i \in \text{convex group}} f(y_i)$ subject to $\sum y_i = S$ (fixed) and $y_i \in [0, \pi/2]$. For a convex function, the maximum of $\sum f(y_i)$ over a convex polytope is at a vertex. The vertices of $\{y \in [0, \pi/2]^p, \sum y_i = S\}$ are points where as many variables as possible are at 0 or $\pi/2$. Specifically, if $S = k \cdot \pi/2 + r$ with $0 \leq r < \pi/2$, then the vertex has $k$ variables at $\pi/2$, one at $r$, and the rest at 0. But then the one at $r$ is in the interior...
+
+Hmm, actually for a convex function on a polytope, the maximum is at a vertex of the polytope. The polytope $\{y \in [0, \pi/2]^p, \sum y_i = S\}$ has vertices where each $y_i$ is either 0 or $\pi/2$, except possibly one. Actually, the vertices of a simplex-like constraint with box constraints are points where all but one variable are at their bounds.
+
+So the maximum of $\sum f(y_i)$ for the convex group is achieved when all but one variable are at 0 or $\pi/2$. The one remaining variable takes the leftover. But that leftover variable could be anywhere in $[0, \pi/2]$.
+
+This is getting complicated. Let me try a different approach: just verify numerically that 9/4 is the maximum.
+
+Actually, let me think about it more carefully with a cleaner argument.
+
+Claim: The maximum of $\sum_{i=1}^n \sin^2 x_i$ subject to $x_i \geq 0$, $\sum x_i = \pi$, is $9/4$, achieved when three of the $x_i$ equal $\pi/3$ and the rest are 0.
+
+Proof approach: We use the identity $\sin^2 x = \frac{1 - \cos 2x}{2}$ and show that $\sum (1 - \cos 2x_i) \leq 9/2$.
+
+Let me try to prove $\sum (1 - \cos y_i) \leq 9/2$ where $y_i \geq 0$, $\sum y_i = 2\pi$, $y_i \leq 2\pi$.
+
+Hmm, actually, I realize I should verify my claim more rigorously. Let me consider whether a configuration with variables not all equal could beat 4.5.
+
+Let me try: 2 variables at $a$ and 1 variable at $b$, with $2a + b = 2\pi$, $a, b \geq 0$.
+Benefit $= 2(1 - \cos a) + (1 - \cos b) = 3 - 2\cos a - \cos(2\pi - 2a) = 3 - 2\cos a - \cos 2a = 3 - 2\cos a - (2\cos^2 a - 1) = 4 - 2\cos a - 2\cos^2 a$.
+
+Let $t = \cos a$. Benefit $= 4 - 2t - 2t^2 = -2(t^2 + t - 2) = -2(t+2)(t-1) = 2(1-t)(t+2)$.
+
+Maximize over $t = \cos a$, $a \in [0, \pi]$ (so $t \in [-1, 1]$), with $b = 2\pi - 2a \geq 0$ (so $a \leq \pi$) ✓.
+
+$B(t) = 2(1-t)(t+2) = 2(t + 2 - t^2 - 2t) = 2(2 - t - t^2) = 4 - 2t - 2t^2$.
+
+$B'(t) = -2 - 4t = 0 \Rightarrow t = -1/2$.
+
+$B(-1/2) = 4 - 2(-1/2) - 2(1/4) = 4 + 1 - 1/2 = 4.5$.
+
+At $t = -1/2$, $\cos a = -1/2$, $a = 2\pi/3$, $b = 2\pi - 4\pi/3 = 2\pi/3$. So all three equal! Benefit = 4.5. ✓
+
+Now try: 1 variable at $a$, 1 at $b$, 1 at $c$, $a + b + c = 2\pi$.
+This is the general 3-variable case. By the analysis above (KKT), the critical points have all equal (giving 4.5) or some at $\alpha$ and some at $\pi - \alpha$.
+
+Let me try 2 at $\alpha$ and 1 at $\pi - \alpha$ (with $2\alpha + \pi - \alpha = 2\pi$, so $\alpha = \pi$). Then 2 at $\pi$ and 1 at 0: benefit $= 2 \cdot 2 + 0 = 4$. Worse.
+
+1 at $\alpha$ and 2 at $\pi - \alpha$: $\alpha + 2(\pi - \alpha) = 2\pi$, $\alpha + 2\pi - 2\alpha = 2\pi$, $-\alpha = 0$, $\alpha = 0$. So 1 at 0 and 2 at $\pi$: benefit = 4. Same.
+
+So for 3 variables, the only interior critical point is all equal (4.5), and boundary cases give 4 or less.
+
+Now, could 4 or more active variables do better? Let's check 4 variables.
+
+General 4-variable case is harder. But let me try: 4 equal at $\pi/2$: benefit $= 4 \cdot 1 = 4$. 3 at $a$, 1 at $b$: $3a + b = 2\pi$.
+
+Benefit $= 3(1 - \cos a) + (1 - \cos(2\pi - 3a)) = 3 - 3\cos a + 1 - \cos 3a = 4 - 3\cos a - \cos 3a$.
+
+$\cos 3a = 4\cos^3 a - 3\cos a$. So benefit $= 4 - 3\cos a - 4\cos^3 a + 3\cos a = 4 - 4\cos^3 a = 4(1 - \cos^3 a)$.
+
+Maximize over $a$: $\cos a \in [-1, 1]$ (with $a \in [0, 2\pi/3]$ so $b = 2\pi - 3a \geq 0$). $1 - \cos^3 a$ is maximized when $\cos a = -1$, i.e., $a = \pi$, but then $b = 2\pi - 3\pi = -\pi < 0$. Not valid. 
+
+With $a \in [0, 2\pi/3]$, $\cos a \in [-1/2, 1]$. Max of $4(1 - \cos^3 a)$ at $\cos a = -1/2$: $4(1 - (-1/8)) = 4(9/8) = 9/2 = 4.5$. At $a = 2\pi/3$, $b = 0$: this is 3 active variables. So the max with 4 variables (one possibly 0) is still 4.5, achieved when the 4th is 0.
+
+2 at $a$, 2 at $b$: $2a + 2b = 2\pi$, $a + b = \pi$, $b = \pi - a$.
+Benefit $= 2(1 - \cos a) + 2(1 - \cos(\pi-a)) = 2 - 2\cos a + 2 + 2\cos a = 4$. Always 4.
+
+So 4 variables can't beat 4.5.
+
+Let me also check: 1 at $a$, 3 at $b$: $a + 3b = 2\pi$, $a = 2\pi - 3b$.
+Benefit $= (1 - \cos(2\pi - 3b)) + 3(1 - \cos b) = (1 - \cos 3b) + 3(1 - \cos b) = 1 - \cos 3b + 3 - 3\cos b = 4 - \cos 3b - 3\cos b$.
+$\cos 3b = 4\cos^3 b - 3\cos b$. Benefit $= 4 - 4\cos^3 b + 3\cos b - 3\cos b = 4 - 4\cos^3 b = 4(1 - \cos^3 b)$.
+Same as before. Max at $\cos b = -1/2$ ($b = 2\pi/3$, $a = 0$): 4.5. Again, reduces to 3 active.
+
+So it seems like 4.5 is indeed the maximum. Let me also check 5 variables.
+
+5 equal at $2\pi/5$: benefit $= 5(1 - \cos(2\pi/5)) = 5(1 - \cos 72°) = 5(1 - 0.309) = 5(0.691) = 3.455$. Less than 4.5.
+
+What about 2 at $a$, 3 at $b$: $2a + 3b = 2\pi$.
+This gets complicated. But given the pattern, I'm fairly confident 4.5 is the max.
+
+Let me try to prove it rigorously. We need to show $\sum (1 - \cos y_i) \leq 9/2$ for $y_i \geq 0$, $\sum y_i = 2\pi$.
+
+Approach: Show that for any $y \in [0, 2\pi]$, $1 - \cos y \leq \frac{9}{4\pi} y$... no, that's linear and won't work since $1 - \cos y$ is not concave everywhere.
+
+Alternative: Find a tangent line / supporting function. We need a function $\ell(y)$ such that $1 - \cos y \leq \ell(y)$ for all $y \in [0, 2\pi]$, and $\sum \ell(y_i) = 9/2$ when $\sum y_i = 2\pi$.
+
+If $\ell(y) = cy + d$, then $\sum \ell(y_i) = c \cdot 2\pi + 2007d$. We need this to equal $9/2$. And $1 - \cos y \leq cy + d$ for all $y \in [0, 2\pi]$.
+
+At the optimal point, $y = 2\pi/3$, we need equality: $1 - \cos(2\pi/3) = c \cdot 2\pi/3 + d$, i.e., $3/2 = 2\pi c/3 + d$.
+
+Also, at $y = 0$: $0 \leq d$, so $d \geq 0$.
+At $y = 2\pi/3$, the tangent: $\frac{d}{dy}(1-\cos y) = \sin y$, at $y = 2\pi/3$: $\sin(2\pi/3) = \sqrt{3}/2$. So $c = \sqrt{3}/2$ if we want tangency.
+
+Then $d = 3/2 - 2\pi(\sqrt{3}/2)/3 = 3/2 - \pi\sqrt{3}/3 = 3/2 - \pi/\sqrt{3}$.
+
+$\pi/\sqrt{3} \approx 3.1416/1.732 \approx 1.814$. So $d \approx 1.5 - 1.814 = -0.314 < 0$.
+
+But we need $d \geq 0$ (from $y = 0$). So this tangent line doesn't work as an upper bound.
+
+Hmm. Let me try a different supporting function. Maybe a piecewise linear function, or a quadratic.
+
+Actually, let me try a different approach. Let me use the fact that for the optimal solution, the KKT conditions are satisfied, and then verify it's a global max by checking all possible critical configurations.
+
+The critical configurations (from KKT) have active variables at values $\alpha$ and/or $\pi - \alpha$ where $\sin \alpha = \lambda$. We need to check all such configurations and find the one with maximum benefit.
+
+Case 1: All active at $\alpha$ (i.e., $p = 0$, $q$ active at $\pi - \alpha$). Wait, I already did this analysis. Let me reconsider.
+
+Actually, I think the cleanest approach is:
+
+1. Show WLOG all $y_i \in [0, \pi]$ (splitting values $> \pi$ helps).
+2. For $y_i \in [0, \pi]$, show that the maximum is achieved when at most one $y_i \in (0, \pi/2)$ (convex region) and the rest are either 0 or in $[\pi/2, \pi]$.
+3. For variables in $[\pi/2, \pi]$ (concave region), equal split is optimal.
+4. Check all cases.
+
+Actually, let me try yet another approach. Let me use the substitution and a direct inequality.
+
+Claim: For $y \in [0, 2\pi]$, $1 - \cos y \leq \frac{3}{2} \cdot \frac{y}{\pi} \cdot \frac{2\pi - y}{\pi} \cdot ...$. Hmm, this is getting complicated.
+
+Let me try: $1 - \cos y = 2\sin^2(y/2)$. We want to show $\sum 2\sin^2(y_i/2) \leq 9/2$, i.e., $\sum \sin^2(y_i/2) \leq 9/4$.
+
+With $x_i = y_i/2$, this is $\sum \sin^2 x_i \leq 9/4$ with $x_i \geq 0$, $\sum x_i = \pi$. Which is the original problem.
+
+Let me try a direct approach. We want to show $\sum \sin^2 x_i \leq 9/4$.
+
+Key inequality: For $x \in [0, \pi]$, $\sin^2 x \leq \frac{3\sqrt{3}}{2\pi} x \cdot \sin x$... not sure.
+
+Let me try: $\sin^2 x \leq ax + b\sin x$ for some constants, with equality at $x = \pi/3$.
+
+At $x = \pi/3$: $\sin^2(\pi/3) = 3/4$, $a\pi/3 + b\sqrt{3}/2 = 3/4$.
+Derivative: $2\sin x \cos x = a + b\cos x$. At $x = \pi/3$: $2(\sqrt{3}/2)(1/2) = a + b/2$, $\sqrt{3}/2 = a + b/2$.
+
+From these: $a\pi/3 + b\sqrt{3}/2 = 3/4$ and $a + b/2 = \sqrt{3}/2$.
+
+From the second: $a = \sqrt{3}/2 - b/2$. Substituting: $(\sqrt{3}/2 - b/2)\pi/3 + b\sqrt{3}/2 = 3/4$.
+
+$\pi\sqrt{3}/6 - b\pi/6 + b\sqrt{3}/2 = 3/4$.
+
+$b(\sqrt{3}/2 - \pi/6) = 3/4 - \pi\sqrt{3}/6$.
+
+$b = \frac{3/4 - \pi\sqrt{3}/6}{\sqrt{3}/2 - \pi/6}$.
+
+This is getting messy. Let me try a different supporting function.
+
+How about: $\sin^2 x \leq cx$ for $x \in [0, \pi]$, with equality at $x = \pi/3$? Then $\sum \sin^2 x_i \leq c \sum x_i = c\pi$. We need $c\pi = 9/4$, so $c = 9/(4\pi)$.
+
+Check: $\sin^2 x \leq \frac{9x}{4\pi}$ for all $x \in [0, \pi]$?
+
+At $x = \pi/3$: $\sin^2(\pi/3) = 3/4$, $\frac{9\pi/3}{4\pi} = \frac{3}{4}$. Equality! ✓
+
+At $x = \pi/2$: $\sin^2(\pi/2) = 1$, $\frac{9\pi/2}{4\pi} = 9/8 = 1.125$. $1 \leq 1.125$ ✓
+
+At $x = \pi$: $\sin^2(\pi) = 0$, $\frac{9\pi}{4\pi} = 9/4$. $0 \leq 9/4$ ✓
+
+At $x = 0$: $0 \leq 0$ ✓ (equality)
+
+But we need to check for ALL $x \in [0, \pi]$. Let $h(x) = \frac{9x}{4\pi} - \sin^2 x$. We need $h(x) \geq 0$.
+
+$h(0) = 0$, $h(\pi/3) = 0$, $h(\pi) = 9/4 > 0$.
+
+$h'(x) = \frac{9}{4\pi} - 2\sin x \cos x = \frac{9}{4\pi} - \sin 2x$.
+
+$h'(0) = 9/(4\pi) > 0$.
+$h'(\pi/3) = 9/(4\pi) - \sin(2\pi/3) = 9/(4\pi) - \sqrt{3}/2 \approx 0.716 - 0.866 = -0.15 < 0$.
+
+So $h$ increases from 0, then decreases to 0 at $\pi/3$. That means $h \geq 0$ on $[0, \pi/3]$. ✓
+
+$h'(\pi/2) = 9/(4\pi) - \sin\pi = 9/(4\pi) > 0$.
+
+So $h'$ changes sign between $\pi/3$ and $\pi/2$: from negative to positive. So $h$ has a minimum somewhere in $(\pi/3, \pi/2)$.
+
+$h''(x) = -2\cos 2x$. At $x \in (\pi/3, \pi/2)$: $2x \in (2\pi/3, \pi)$, $\cos 2x < 0$, so $h'' > 0$. So $h'$ is increasing, and $h$ is convex on this interval. The minimum of $h$ is where $h' = 0$: $\sin 2x = 9/(4\pi)$, $2x = \arcsin(9/(4\pi))$. $9/(4\pi) \approx 0.716$, $\arcsin(0.716) \approx 0.798$, $x \approx 0.399$... wait that's less than $\pi/3 \approx 1.047$. 
+
+Hmm, let me recalculate. $\sin 2x = 9/(4\pi) \approx 0.716$. $2x = \arcsin(0.716) \approx 0.798$ or $2x = \pi - 0.798 \approx 2.344$. So $x \approx 0.399$ or $x \approx 1.172$.
+
+$x \approx 0.399$: this is in $(0, \pi/3)$. $h'(x) = 0$ here. Since $h'(0) > 0$ and $h'(\pi/3) < 0$, $h'$ goes from positive to negative, so this is a local max of $h$. $h(0.399) > 0$ (since $h(0) = 0$ and $h$ increases initially).
+
+$x \approx 1.172$: this is in $(\pi/3, \pi/2)$. $h'$ goes from negative (at $\pi/3$) to positive (at $\pi/2$), so this is a local min of $h$.
+
+$h(1.172) = \frac{9 \cdot 1.172}{4\pi} - \sin^2(1.172)$. $\sin(1.172) \approx \sin(67.2°) \approx 0.922$. $\sin^2 \approx 0.850$. $\frac{9 \cdot 1.172}{4\pi} = \frac{10.548}{12.566} \approx 0.839$.
+
+So $h(1.172) \approx 0.839 - 0.850 = -0.011 < 0$!!
+
+So the inequality $\sin^2 x \leq \frac{9x}{4\pi}$ FAILS near $x \approx 1.172$! The linear bound doesn't work.
+
+So we can't use this simple linear bound. We need a better approach.
+
+Let me try a quadratic bound or a different form.
+
+How about $\sin^2 x \leq Ax^2 + Bx$ with equality at $x = 0$ and $x = \pi/3$?
+
+At $x = 0$: $0 \leq 0$ ✓ (equality).
+At $x = \pi/3$: $3/4 = A\pi^2/9 + B\pi/3$.
+Derivative at $\pi/3$: $\sin(2\pi/3) = 2A\pi/3 + B$, $\sqrt{3}/2 = 2A\pi/3 + B$.
+
+From these: $A\pi^2/9 + B\pi/3 = 3/4$ and $2A\pi/3 + B = \sqrt{3}/2$.
+
+From second: $B = \sqrt{3}/2 - 2A\pi/3$. Sub into first: $A\pi^2/9 + (\sqrt{3}/2 - 2A\pi/3)\pi/3 = 3/4$.
+
+$A\pi^2/9 + \pi\sqrt{3}/6 - 2A\pi^2/9 = 3/4$.
+
+$-A\pi^2/9 + \pi\sqrt{3}/6 = 3/4$.
+
+$A = \frac{9(\pi\sqrt{3}/6 - 3/4)}{\pi^2} = \frac{9(2\pi\sqrt{3} - 9)}{12\pi^2} = \frac{3(2\pi\sqrt{3} - 9)}{4\pi^2}$.
+
+$2\pi\sqrt{3} \approx 10.883$, $2\pi\sqrt{3} - 9 \approx 1.883$. $A \approx \frac{3 \cdot 1.883}{4 \cdot 9.870} \approx \frac{5.649}{39.48} \approx 0.143$.
+
+$B = \sqrt{3}/2 - 2(0.143)\pi/3 \approx 0.866 - 0.299 \approx 0.567$.
+
+Then $\sum \sin^2 x_i \leq A\sum x_i^2 + B\sum x_i = A\sum x_i^2 + B\pi$.
+
+But $\sum x_i^2$ is not fixed, so this doesn't directly give a bound. We'd need to also bound $\sum x_i^2$.
+
+This approach isn't clean. Let me think differently.
+
+Maybe I should use a different form of supporting function. Since the optimal has 3 equal variables, maybe use a bound involving $\sum x_i^2$ or $\sum x_i(π - x_i)$ or something.
+
+Actually, let me try the approach: $\sin^2 x \leq \frac{3\sqrt{3}}{4} \sin x$ for $x \in [0, \pi]$... no, at $x = \pi/3$: LHS $= 3/4$, RHS $= \frac{3\sqrt{3}}{4} \cdot \frac{\sqrt{3}}{2} = \frac{9}{8}$. Not tight.
+
+How about $\sin^2 x \leq c \cdot x(\pi - x)$ for some $c$? At $x = \pi/3$: $3/4 = c \cdot \frac{\pi}{3} \cdot \frac{2\pi}{3} = c \cdot \frac{2\pi^2}{9}$. So $c = \frac{27}{8\pi^2}$.
+
+Check: $\sin^2 x \leq \frac{27}{8\pi^2} x(\pi - x)$ for $x \in [0, \pi]$?
+
+At $x = \pi/2$: LHS $= 1$, RHS $= \frac{27}{8\pi^2} \cdot \frac{\pi}{2} \cdot \frac{\pi}{2} = \frac{27}{32} \approx 0.844$. $1 > 0.844$. FAILS!
+
+So that doesn't work either.
+
+Let me try a completely different approach to the proof. Instead of finding a global upper bound function, let me use the KKT analysis more carefully and argue that the global maximum is 9/4.
+
+Approach: 
+1. The feasible set is compact, so a maximum exists.
+2. At the maximum, by KKT, active variables satisfy $\sin(2x_i) = \lambda$ (derivative of $\sin^2 x_i$ is $\sin 2x_i$), so $2x_i \in \{\alpha, \pi - \alpha\}$ for some $\alpha$, i.e., $x_i \in \{\alpha/2, (\pi-\alpha)/2\}$.
+3. Enumerate all possible configurations and find the maximum.
+
+Let $u = \alpha/2$ and $v = (\pi - \alpha)/2 = \pi/2 - u$. So active $x_i$ are either $u$ or $v = \pi/2 - u$, with $u \in [0, \pi/2]$.
+
+Note $u + v = \pi/2$.
+
+If $p$ variables at $u$ and $q$ variables at $v$: $pu + qv = \pi$, i.e., $pu + q(\pi/2 - u) = \pi$, $u(p - q) + q\pi/2 = \pi$, $u(p-q) = \pi(1 - q/2) = \pi(2 - q)/2$.
+
+If $p \neq q$: $u = \frac{\pi(2-q)}{2(p-q)}$.
+
+Objective: $p\sin^2 u + q\sin^2 v = p\sin^2 u + q\cos^2 u$ (since $v = \pi/2 - u$, $\sin v = \cos u$).
+
+$= p\sin^2 u + q\cos^2 u = p\sin^2 u + q(1 - \sin^2 u) = q + (p-q)\sin^2 u$.
+
+Case $p = q$: Then $q\pi/2 = \pi$, $q = 2$, $p = 2$. $u$ is free. Objective $= 2\sin^2 u + 2\cos^2 u = 2$. This is constant at 2 regardless of $u$. Less than 9/4.
+
+Case $p \neq q$: $u = \frac{\pi(2-q)}{2(p-q)}$, and objective $= q + (p-q)\sin^2 u$.
+
+We need $u \in [0, \pi/2]$ and $v = \pi/2 - u \in [0, \pi/2]$ (automatically satisfied). Also $p, q \geq 0$ integers with $p + q \leq 2007$.
+
+Let me set $m = p + q$ (total active) and $d = p - q$. Then $p = (m+d)/2$, $q = (m-d)/2$. Need $m, d$ same parity, $|d| \leq m$.
+
+$u = \frac{\pi(2 - (m-d)/2)}{2d} = \frac{\pi(4 - m + d)}{4d}$.
+
+Objective $= \frac{m-d}{2} + d\sin^2 u$.
+
+This is getting complicated. Let me just enumerate small cases.
+
+For the maximum, we expect few active variables (since spreading too thin reduces the sum). Let me check $m = 1, 2, 3, 4, 5$.
+
+$m = 1$: One active variable at $\pi$. Objective $= \sin^2 \pi = 0$. Or $p=1, q=0$: $u = \pi \cdot 2 / (2 \cdot 1) = \pi$. $\sin^2 \pi = 0$. Or $p=0, q=1$: $u = \pi(2-1)/(2(0-1)) = -\pi/2$. Invalid.
+
+Actually wait, with $m=1$, either $p=1,q=0$ or $p=0,q=1$.
+
+$p=1, q=0$: $u(1-0) = \pi(2-0)/2 = \pi$, $u = \pi$. But $u \in [0, \pi/2]$, so $u = \pi$ is out of range. Hmm, actually $u$ can be up to $\pi$ if we don't restrict to $[0, \pi/2]$... 
+
+Wait, I defined $u = \alpha/2$ where $\alpha = \arcsin \lambda \in [0, \pi/2]$ (since $\lambda \geq 0$ and $\arcsin$ gives values in $[0, \pi/2]$). So $u \in [0, \pi/4]$... no, $\alpha \in [0, \pi/2]$ means $u \in [0, \pi/4]$. And $v = \pi/2 - u \in [\pi/4, \pi/2]$.
+
+Hmm wait, I think I need to be more careful. The derivative of $\sin^2 x$ is $\sin 2x$. KKT: for active $x_i$, $\sin 2x_i = \lambda$. For inactive ($x_i = 0$), $\sin 0 = 0 \leq \lambda$ (need $\lambda \geq 0$).
+
+$\sin 2x_i = \lambda$ with $\lambda \geq 0$ and $2x_i \in [0, 2\pi]$. Solutions: $2x_i = \arcsin \lambda$ or $2x_i = \pi - \arcsin \lambda$. (Also $2x_i = \pi + \arcsin\lambda$ etc. if $2x_i > \pi$, but we showed WLOG $y_i = 2x_i \leq \pi$... wait, did we? Let me re-examine.)
+
+We showed that for $y_i > \pi$, splitting helps. But that was for the benefit function $f(y) = 1 - \cos y$. Let me re-examine in terms of $x$.
+
+$\sin^2 x$ for $x \in [0, \pi]$: this is the relevant range since $x_i \geq 0$ and $\sum x_i = \pi$ means $x_i \leq \pi$.
+
+$\sin^2 x$ on $[0, \pi]$: symmetric around $\pi/2$, max at $\pi/2$. Convex on $[0, \pi/4] \cup [3\pi/4, \pi]$ and concave on $[\pi/4, 3\pi/4]$ (since $(\sin^2 x)'' = 2\cos 2x$, which is positive for $x \in [0, \pi/4) \cup (3\pi/4, \pi]$ and negative for $x \in (\pi/4, 3\pi/4)$).
+
+KKT: $\sin 2x_i = \lambda$ for active $x_i$, $\lambda \geq 0$. $2x_i \in [0, 2\pi]$. $\sin 2x_i = \lambda \geq 0$ means $2x_i \in [0, \pi]$ (since $\sin \geq 0$ on $[0, \pi]$), so $x_i \in [0, \pi/2]$. Solutions: $x_i = u$ or $x_i = \pi/2 - u$ where $u = \frac{1}{2}\arcsin\lambda \in [0, \pi/4]$.
+
+So active $x_i \in \{u, \pi/2 - u\}$ with $u \in [0, \pi/4]$.
+
+Let $v = \pi/2 - u \in [\pi/4, \pi/2]$. Note $u + v = \pi/2$.
+
+$p$ at $u$, $q$ at $v$: $pu + qv = \pi$, i.e., $pu + q(\pi/2 - u) = \pi$.
+
+Objective: $p\sin^2 u + q\sin^2 v = p\sin^2 u + q\cos^2 u = q + (p-q)\sin^2 u$.
+
+From constraint: $u(p-q) + q\pi/2 = \pi$, so $u = \frac{\pi - q\pi/2}{p - q} = \frac{\pi(1 - q/2)}{p - q} = \frac{\pi(2 - q)}{2(p - q)}$ (when $p \neq q$).
+
+Need $u \in [0, \pi/4]$, so $0 \leq \frac{\pi(2-q)}{2(p-q)} \leq \pi/4$, i.e., $0 \leq \frac{2-q}{p-q} \leq 1/2$.
+
+Case $p > q$: $\frac{2-q}{p-q} \geq 0$ requires $q \leq 2$. $\frac{2-q}{p-q} \leq 1/2$ requires $2(2-q) \leq p - q$, $4 - 2q \leq p - q$, $p \geq 4 - q$.
+
+Case $p < q$: $\frac{2-q}{p-q} \geq 0$ requires $2 - q \leq 0$ (since $p - q < 0$), $q \geq 2$. $\frac{2-q}{p-q} \leq 1/2$: since $p - q < 0$, multiply flips: $2(2-q) \geq p - q$, $4 - 2q \geq p - q$, $p \leq 4 - q$. With $q \geq 2$ and $p \geq 0$: $p \leq 4 - q \leq 2$.
+
+This is getting complex. Let me just enumerate.
+
+Objective $= q + (p-q)\sin^2 u$ where $u = \frac{\pi(2-q)}{2(p-q)}$.
+
+Let me enumerate by $q$:
+
+$q = 0$: $u = \frac{\pi \cdot 2}{2p} = \frac{\pi}{p}$. Need $u \leq \pi/4$, so $p \geq 4$. Objective $= 0 + p\sin^2(\pi/p)$.
+- $p = 4$: $4\sin^2(\pi/4) = 4 \cdot 1/2 = 2$.
+- $p = 5$: $5\sin^2(\pi/5) = 5\sin^2(36°) \approx 5 \cdot 0.3455 = 1.727$.
+- $p = 3$: $u = \pi/3 > \pi/4$. Not valid (we need $u \leq \pi/4$). 
+
+Hmm, $p = 3, q = 0$: $u = \pi/3 \approx 1.047 > \pi/4 \approx 0.785$. Not in valid range. So this KKT point doesn't exist with $u \in [0, \pi/4]$.
+
+But wait, the optimal solution has $x_i = \pi/3$ for three variables. $\pi/3 \approx 1.047 > \pi/4$. So $x_i = \pi/3$ corresponds to $v = \pi/3$ (the larger value), not $u$. So $q > 0$.
+
+Let me redo: $x_i = \pi/3$ means $v = \pi/3$ (since $v \in [\pi/4, \pi/2]$ and $\pi/3 \in [\pi/4, \pi/2]$ ✓). Then $u = \pi/2 - \pi/3 = \pi/6$. And $p = 0$, $q = 3$.
+
+$q = 3, p = 0$: $u = \frac{\pi(2-3)}{2(0-3)} = \frac{-\pi}{-6} = \pi/6$. ✓ ($\pi/6 \in [0, \pi/4]$). Objective $= 3 + (0-3)\sin^2(\pi/6) = 3 - 3 \cdot 1/4 = 3 - 3/4 = 9/4$. ✓
+
+$q = 1$: $u = \frac{\pi(2-1)}{2(p-1)} = \frac{\pi}{2(p-1)}$. Need $p > 1$ (for $p > q = 1$) and $

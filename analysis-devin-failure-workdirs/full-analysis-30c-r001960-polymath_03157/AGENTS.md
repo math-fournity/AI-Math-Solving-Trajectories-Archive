@@ -1,0 +1,1766 @@
+# analysis_agents_md.md — devin cli分析任务的AGENTS.md模板
+# 
+# 占位符（用Python str.format或string.Template填充）：
+#   385 A certain school's 2014 graduates numbered 2014 students. The school's six leaders must sign each student's graduation album. It is known that each leader must and can only use one of the three designated colored pens, and the color choices for the six leaders signing 2014 albums can be represented as a $6 \times 2014$ grid, called a color selection scheme. Find the smallest positive integer $n$, such that there exists a color selection scheme where in any $n$ albums, there are 8 albums where any two albums have at most four leaders' signatures in the same color.       — 题目文本
+#   Let 1, 2, 3 represent three colors, and the colors used by six school leaders for signing in each memorial album be represented by a six-element ordered array
+$$
+\left(x_{1}, x_{2}, \cdots, x_{6}\right)\left(x_{i} \in\{1,2,3\}\right)
+$$
+
+This array is referred to as the sequence group $\left(x_{1}, x_{2}, \cdots, x_{6}\right)$. For $x_{2}, x_{3}, \cdots, x_{6} \in\{1,2,3\}$, the set
+$$
+\left\{\left(1, x_{2}, \cdots, x_{6}\right),\left(2, x_{2}, \cdots, x_{6}\right),\left(3, x_{2}, \cdots, x_{6}\right)\right\}
+$$
+
+is called a Type 1 set. Clearly, all sequence groups $\left(x_{1}, x_{2}, \cdots, x_{6}\right)\left(x_{i} \in\{1,2,3\}\right)$ belong to 243 types.
+
+Given $2014=8 \times 243+70$, we know that among 2014 memorial albums, there are nine albums of the same type. Select these nine albums;
+
+Given $2005=8 \times 243+61$, we know that among the remaining 2005 albums, there are another nine albums of the same type. Select these nine albums;
+
+Continuing this process, we can select seven times, obtaining a total of 63 albums. Among these, each set of eight albums includes at least two albums selected in the same round, which must be of the same type. This means that at least five school leaders signed with the same color in these two albums. This indicates that for any coloring scheme, there are 63 albums that do not meet the requirement. Therefore, $n \geqslant 64$.
+
+On the other hand, consider the set
+$$
+S=\left\{\left(x_{1}, x_{2}, \cdots, x_{6}\right) \mid x_{i} \in\left\{1,2,3 \mid, \sum_{i=1}^{6} x_{i}=0(\bmod 3)\right\}\right. \text {. }
+$$
+
+The number of elements in set $S$ is 243, and any two different elements in set $S$ have at most four components the same. Arbitrarily remove 19 elements from set $S$, leaving 224 elements to form set $T$. Divide the 2014 memorial albums into 224 groups, with the first 223 groups each containing 9 albums, and the last group containing 7 albums. Ensure that each group corresponds to an element in set $T$ (i.e., the signatures in the same group are identical, while those in different groups are different). Clearly, any 64 albums must belong to at least eight groups, thus there exist eight albums corresponding to eight different elements in set $T$. Therefore, any two albums among these have at most four school leaders' signatures in the same color.
+
+In summary, the minimum value of $n$ is 64.
+（Fang Tinggang, Chengdu No. 7 High School, Sichuan, 610041）  — 标准解答
+#   Let me analyze this problem carefully.
+
+We have 6 leaders, each using one of 3 colored pens to sign each of 2014 albums. So we have a 6×2014 grid where each entry is in {1,2,3} (colors).
+
+We need to find the smallest positive integer n such that there exists a coloring scheme where in any n albums (any n columns chosen from the 2014), there are 8 albums (8 columns) where any two of these 8 albums have at most 4 leaders' signatures in the same color.
+
+Let me restate: We have 2014 columns, each column is a vector in {1,2,3}^6. We need to find the smallest n such that there EXISTS a set of 2014 vectors with the property: any subset of n columns contains 8 columns that are pairwise "at most 4 matches" (i.e., for any two of the 8, they agree in at most 4 positions).
+
+Two columns agree in at most 4 positions means they differ in at least 2 positions. Equivalently, the Hamming distance between them is at least 2.
+
+So we need: among any n columns, there exist 8 that are pairwise at Hamming distance ≥ 2.
+
+Equivalently: we need to find the largest possible "bad" set - a set of columns where no 8 are pairwise at distance ≥ 2. Then n = (max bad set size) + 1.
+
+Wait, let me think more carefully. We want the smallest n such that there EXISTS a scheme (2014 vectors) with the property that any n columns contain 8 pairwise at distance ≥ 2.
+
+So for a given scheme S (set of 2014 vectors), define f(S) = largest m such that there exist m columns with no 8 pairwise at distance ≥ 2. We want to find a scheme S minimizing f(S), and then n = f(S) + 1.
+
+Actually, we want the smallest n such that there exists S with the property that every n-subset contains 8 pairwise at distance ≥ 2. This means f(S) < n for some S, i.e., f(S) ≤ n-1. So n = min_S f(S) + 1.
+
+So we need to find min over all schemes S of (max independent-like set), then add 1.
+
+Let me think about the structure. Two vectors in {1,2,3}^6 agree in at most 4 positions = differ in at least 2 positions = Hamming distance ≥ 2.
+
+A set of vectors pairwise at Hamming distance ≥ 2 is a code with minimum distance 2. A code with minimum distance 2 can detect one error. The maximum size of such a code in {1,2,3}^6... actually, a code with min distance ≥ 2 means no two codewords are equal in all but one position, i.e., no two codewords differ in exactly 0 or 1 position.
+
+Actually min distance ≥ 2 just means all codewords are distinct (distance ≥ 1) and no two differ in exactly 1 position. So it's a code where any two codewords differ in at least 2 positions.
+
+The maximum size of a code in {1,2,3}^6 with min distance ≥ 2: This is related to the concept of a code. For q-ary codes, A_q(n,d) is the max size. A_3(6,2) = 3^5 = 243 (since a code with min distance 2 over alphabet size q has max size q^(n-1), achieved by a parity-check-like code / MDS code). Actually, for q-ary codes with d=2, A_q(n,2) = q^(n-1). This is because we can use a single parity check: sum of coordinates ≡ 0 mod q, giving q^(n-1) codewords, and any two differ in at least 2 positions.
+
+So the maximum set of pairwise distance ≥ 2 vectors in {1,2,3}^6 has size 3^5 = 243.
+
+Now, the question is about the complement. We want: in any n columns, there exist 8 that are pairwise at distance ≥ 2.
+
+A "bad" set is a set of columns where you cannot find 8 pairwise at distance ≥ 2. The maximum bad set is the largest set where the maximum "distance-≥-2 clique" has size at most 7.
+
+Hmm, this is a Ramsey-type problem. Let me think about it differently.
+
+Consider the graph G on the 2014 columns where we connect two columns if they agree in at most 4 positions (distance ≥ 2). We want: any n vertices contain an independent... no wait, we want 8 that are pairwise at distance ≥ 2, which means 8 that form a clique in G. So we want: any n vertices contain a clique of size 8 in G.
+
+The complement graph G' connects two columns if they agree in 5 or 6 positions (distance 0 or 1). We want: any n vertices contain an independent set of size 8 in G'.
+
+So a "bad" set is a set where the independence number in G' is at most 7, i.e., the clique cover... no. A bad set is a set of vertices in G' with no independent set of size 8, meaning α(G'[bad]) ≤ 7.
+
+By Ramsey theory / Turán-type, if a graph on m vertices has α ≤ 7, then... by Turán's theorem (complement), the number of edges is at least... Actually, if α(G') ≤ 7, then by the complement, the clique number of the complement is ≤ 7, so by Turán, the complement has at most (1 - 1/7) * m²/2 edges, meaning G' has at least m(m-1)/2 - (1-1/7)m²/2 edges... this gives a lower bound on m.
+
+Wait, let me reconsider. Actually, let me think about what G' looks like. Two columns are adjacent in G' if they agree in 5 or 6 positions, i.e., distance 0 or 1.
+
+Distance 0 means identical. Distance 1 means they differ in exactly one position.
+
+So G' connects columns that are identical or differ in exactly one coordinate.
+
+Now, the key insight: Consider the equivalence classes / structure. Two vectors at distance ≤ 1 form a "ball" of radius 1. The structure of G' is that it's a graph where vertices at Hamming distance ≤ 1 are connected.
+
+A set with α ≤ 7 in G' means: no 8 vertices are pairwise at distance ≥ 2. Equivalently, the maximum code (min distance 2) within this set has size ≤ 7.
+
+Now, let's think about the structure of {1,2,3}^6. Total vectors: 3^6 = 729. But we have 2014 columns, so we must repeat vectors (since 2014 > 729).
+
+Key observation: If two columns are identical (distance 0), they are adjacent in G'. If we have many copies of the same vector, they form a clique in G', which doesn't help with independence.
+
+Let me think about this more carefully. We want to design a multiset of 2014 vectors (from 729 possible) such that any large enough subset contains 8 pairwise at distance ≥ 2.
+
+First, let's think about the structure of distance-≤-1 neighborhoods. For a vector v, the vectors at distance ≤ 1 from v are: v itself, and 6×2 = 12 vectors at distance 1. So the closed ball of radius 1 has size 13.
+
+Now, a code with min distance ≥ 2 in {1,2,3}^6 has max size 3^5 = 243. The 729 vectors can be partitioned into 243 "lines" where each line consists of vectors that differ only in the last coordinate (3 vectors per line, all at distance 1 from each other). Actually, more precisely, fixing the first 5 coordinates gives a "line" of 3 vectors (varying the 6th coordinate). Two vectors on the same line are at distance 1 (if different) or 0 (if same). Two vectors on different lines are at distance ≥ 1, and could be at distance 1 if they differ in exactly one of the first 5 coordinates and have the same 6th coordinate... no wait.
+
+Hmm, let me reconsider. Let me think of {1,2,3}^6 as a Hamming space. The relation "distance ≤ 1" is not an equivalence relation (it's not transitive). So we can't simply partition into classes.
+
+Let me think about this differently using the structure of the problem.
+
+The 729 vectors can be partitioned into 243 groups of 3, where each group is a "fiber" - vectors that agree in all coordinates except one. For instance, fix coordinates 1-5, vary coordinate 6: get 3 vectors pairwise at distance 1. This gives 3^5 = 243 fibers.
+
+Within each fiber, all 3 vectors are pairwise at distance 1, so they form a clique in G'. An independent set in G' can contain at most 1 vector from each fiber (since any two in the same fiber are at distance 1).
+
+But vectors from different fibers can also be at distance 1. For example, (1,1,1,1,1,1) and (2,1,1,1,1,1) are at distance 1 but in different fibers (if fibers are defined by the 6th coordinate).
+
+So the fiber structure alone doesn't capture all distance-1 pairs.
+
+Let me reconsider the problem. Maybe I should think about it in terms of a graph coloring / Ramsey number approach.
+
+Actually, let me reconsider what we need. We need to find the minimum n such that there EXISTS a scheme of 2014 vectors where any n of them contain 8 pairwise at distance ≥ 2.
+
+Let me think about what makes a good scheme. If we use a code with min distance ≥ 2, then ALL pairs are at distance ≥ 2, so any 8 would work. The max such code has size 243. But we need 2014 vectors, so we can't use only a code.
+
+If we use 2014 vectors all from a code of size 243 (with repetitions), then... if we pick 8 vectors that are all distinct codewords, they're pairwise at distance ≥ 2. So we need 8 distinct codewords among any n columns. If each codeword appears at most k times, then n columns contain at least n/k distinct codewords. We need n/k ≥ 8, so n ≥ 8k. With 2014 vectors and 243 codewords, by pigeonhole some codeword appears at least ⌈2014/243⌉ = 9 times. If we distribute as evenly as possible, each appears 8 or 9 times (2014 = 243×8 + 70, so 70 codewords appear 9 times, 173 appear 8 times).
+
+If we use all 243 codewords, each appearing 8 or 9 times: any n columns contain at least ⌈n/9⌉ distinct codewords (worst case, all from the most frequent). We need ⌈n/9⌉ ≥ 8, so n ≥ 8×9 - 8 = 64... wait, ⌈n/9⌉ ≥ 8 means n/9 > 7, so n ≥ 64. Actually ⌈n/9⌉ ≥ 8 iff n ≥ 8×9-8+1 = 65. Hmm, ⌈n/9⌉ ≥ 8 iff n > 7×9 = 63 iff n ≥ 64. Let me check: n=64, 64/9 = 7.11, ⌈7.11⌉ = 8. Yes. n=63, 63/9=7, ⌈7⌉=7. So n ≥ 64.
+
+But wait, this assumes the worst case is picking all 9 copies of 7 codewords = 63 columns with only 7 distinct. Then n=64 forces at least 8 distinct. But actually, we need to be more careful. The worst case for "fewest distinct codewords in n columns" is: pick as many copies as possible from fewest codewords. Each codeword has at most 9 copies. So 7 codewords give at most 63 columns. 8 codewords give at most 72 columns. So with n=64, we must have at least 8 distinct codewords (since 7 codewords can give at most 63 < 64 columns). And 8 distinct codewords from a min-distance-2 code are pairwise at distance ≥ 2. 
+
+But can we do better? Maybe using a different scheme (not just a code with repetitions)?
+
+Let me think about whether we can do better than 64.
+
+Alternative approach: Use vectors not just from a single code. Maybe we can use a larger set of vectors with a cleverer structure.
+
+Let me think about the problem from the lower bound side. We need to show that for any scheme of 2014 vectors, there exist n-1 columns with no 8 pairwise at distance ≥ 2. And then show there exists a scheme where any n columns have 8 pairwise at distance ≥ 2.
+
+Lower bound: For any scheme, what's the largest "bad" set (no 8 pairwise at distance ≥ 2)?
+
+Consider the graph G' (distance ≤ 1). A bad set is a set with α(G') ≤ 7, i.e., no independent set of size 8.
+
+By Ramsey theory, R(8, ...) but this isn't quite Ramsey since G' has special structure.
+
+Let me think about it differently. Consider the 729 distinct vectors. Group them by their "syndrome" or some other structure.
+
+Actually, let me think about a specific structure. Consider the map φ: {1,2,3}^6 → {1,2,3}^5 that drops the last coordinate. The fibers of φ each have 3 elements (varying the last coordinate), and within each fiber, all pairs are at distance 1.
+
+Now, two vectors in different fibers can be at distance 1 if they differ in exactly one coordinate among the first 5 and have the same last coordinate, OR if they have the same first 5 coordinates (but then they're in the same fiber).
+
+Wait, no. Two vectors v, w with φ(v) ≠ φ(w) are at distance ≥ 1 in the first 5 coordinates. They're at distance 1 overall iff they differ in exactly 1 of the first 5 coordinates and agree in the 6th. They're at distance 0 iff same (impossible since different fibers). So distance between different-fiber vectors is ≥ 1, and = 1 iff they differ in exactly 1 of first 5 coords and agree in 6th.
+
+This is getting complex. Let me think about the problem from a higher level.
+
+The key quantity is: what is the maximum size of a subset of {1,2,3}^6 (with multiplicities) that has no 8 elements pairwise at distance ≥ 2?
+
+If we can have multiplicities, identical copies are at distance 0 ≤ 1, so they're "close". A bad set can include many copies of the same vector.
+
+Consider a bad set B (multiset). No 8 elements pairwise at distance ≥ 2. This means the maximum code (min distance 2) within B has size ≤ 7.
+
+Now, the 729 vectors can be covered by... let me think about a partition into "balls" or some covering.
+
+Actually, here's a key structural observation. Consider the 3^5 = 243 fibers (fixing first 5 coords, varying 6th). Within each fiber, all pairs are at distance 1. So an independent set (in G') picks at most 1 from each fiber. But also, two vectors from different fibers can be at distance 1.
+
+Hmm, let me think about a different partition. Consider the equivalence relation: v ~ w if they agree in all coordinates. That's just equality, giving 729 classes.
+
+Let me try a different approach. Think of the 6 coordinates. For each vector, consider its "type" = the vector itself. Two vectors are "close" (distance ≤ 1) if they're equal or differ in one coordinate.
+
+A set with no 8 pairwise at distance ≥ 2: this is a set where the maximum antichain (in the distance sense) has size ≤ 7.
+
+Let me think about small cases. Consider just the structure within a single "ball of radius 1" around a vector v: this ball has 13 vectors (v and 12 neighbors). Within this ball, any two vectors are at distance ≤ 2 from each other. But are they at distance ≤ 1 from each other? No: two neighbors of v that differ in different coordinates could be at distance 2 from each other.
+
+For example, (1,1,1,1,1,1) and its neighbors (2,1,1,1,1,1) and (1,2,1,1,1,1). These two neighbors are at distance 2 from each other. So they're NOT adjacent in G'. So within a ball of radius 1, we can have pairs at distance 2.
+
+This means the ball of radius 1 is not a clique in G'. So we can't just use balls.
+
+Let me reconsider. The graph G' has edges between vectors at distance 0 or 1. We want the maximum set with α(G') ≤ 7.
+
+Actually, I realize this is a competition problem (it's from a Chinese math competition, problem 385). Let me think about it more carefully.
+
+Let me reconsider the approach using codes.
+
+A code C ⊂ {1,2,3}^6 with min distance ≥ 2 has |C| ≤ 243. Within such a code, all pairs are at distance ≥ 2, so any 8 elements of C are pairwise at distance ≥ 2.
+
+Now, for the scheme: we have 2014 columns. We want to minimize the largest "bad" subset.
+
+Approach 1: Use a maximum code (243 codewords) with repetitions. As computed, this gives n = 64.
+
+Can we do better? Let's think about whether we can use more than 243 distinct vectors while maintaining the property.
+
+If we use vectors outside a single code, some pairs will be at distance 1, creating edges in G'. This could potentially create larger bad sets.
+
+But maybe we can be cleverer. Let me think about using multiple codes or a different structure.
+
+Actually, let me reconsider. The question is about the minimum n. Let me think about both upper and lower bounds.
+
+Upper bound (constructive): We showed n ≤ 64 using a max code with repetitions.
+
+Can we improve this? Let's think about using a different strategy.
+
+What if we use ALL 729 vectors, each appearing either 2 or 3 times (729 × 2 = 1458, 729 × 3 = 2187, so 2014 = 729 × 2 + 556, meaning 556 vectors appear 3 times and 173 appear 2 times)?
+
+In this case, a bad set needs no 8 pairwise at distance ≥ 2. The maximum independent set in G' over all 729 vectors: this is the maximum code with min distance 2, which is 243. So if we pick one copy of each of 243 codewords, we get 243 vectors pairwise at distance ≥ 2, which certainly contains 8 pairwise at distance ≥ 2. So a bad set can't contain 243 distinct vectors from a code... but it could contain vectors not forming a code.
+
+Hmm, this approach seems worse. Let me think differently.
+
+Let me reconsider the code approach. With a code of size 243, each codeword appearing ⌈2014/243⌉ = 9 times (some 8, some 9), the worst bad set picks all copies of 7 codewords = 63, and we need n = 64.
+
+But wait—can we use a code of size larger than 243? No, 243 is the maximum for min distance 2 in {1,2,3}^6.
+
+What if we use a code of size 243 but distribute the 2014 vectors differently? We have 2014 = 243 × 8 + 70. So 70 codewords get 9 copies, 173 get 8 copies. The worst case is 7 codewords × 9 copies = 63. So n = 64.
+
+Can we reduce the maximum multiplicity? If we use more distinct vectors... but we need all pairs within our "good" set to be at distance ≥ 2. If we use vectors outside the code, they might be at distance 1 from code vectors, creating issues.
+
+Actually wait. Let me reconsider. The scheme doesn't need ALL pairs to be at distance ≥ 2. It just needs that any n columns contain 8 that are pairwise at distance ≥ 2. So we could potentially use a larger set of distinct vectors.
+
+Let me think about it as a graph problem. We have a graph G on our 2014 vertices (with edge = distance ≥ 2). We want the minimum n such that every n-vertex induced subgraph contains a clique of size 8. This is related to the Ramsey-type property.
+
+The worst case is a set of vertices with no clique of size 8 in G, i.e., no independent set of size 8 in G' (where G' has edges for distance ≤ 1).
+
+By the complement, a set with no clique-8 in G is a set with clique number ≤ 7 in G... no, a set with no 8-clique in G.
+
+We want to minimize the maximum such set. This is like finding a graph on 2014 vertices (that's a blow-up of the Hamming graph structure) that minimizes the largest 8-clique-free induced subgraph.
+
+Hmm, this is getting complicated. Let me think about it from the perspective of the structure of G'.
+
+Key insight: G' is the graph where vertices at Hamming distance ≤ 1 are connected. The complement G is the graph where vertices at Hamming distance ≥ 2 are connected.
+
+In G, a clique = a code with min distance ≥ 2. Max clique in G (over all 729 vectors) = 243.
+
+Now, for our scheme, we choose a multiset of 2014 vectors. The graph G on our 2014 vertices has cliques corresponding to codes (min distance 2) within our multiset.
+
+We want: every n vertices contain a clique of size 8. The worst case is the largest subset with no 8-clique.
+
+By a Ramsey/Turán argument: if a subset of m vertices has no 8-clique in G, then... we need to understand the structure of G'.
+
+Let me think about the structure of G' more carefully. In G', two vertices are adjacent iff distance ≤ 1. 
+
+Consider the "closed neighborhoods" in G'. For a vector v, its closed neighborhood N[v] = {w : d(v,w) ≤ 1} has size 13 (v + 12 neighbors at distance 1).
+
+A set with α(G') ≤ 7 means no 8 vertices are pairwise non-adjacent in G', i.e., no 8 vertices pairwise at distance ≥ 2.
+
+Now, here's a key structural fact. Consider a "star" centered at v: {v} ∪ {neighbors of v at distance 1}. This is a clique in G' (since all are at distance ≤ 1 from v, but are they pairwise at distance ≤ 1? No! As I noted, two neighbors at distance 1 from v can be at distance 2 from each other).
+
+So N[v] is NOT a clique in G'. The clique number of G' restricted to N[v] is... v is adjacent to all 12 neighbors. Among the 12 neighbors, two are adjacent iff they're at distance ≤ 1, i.e., iff they differ in the same single coordinate (then they're at distance 1 from each other, wait no).
+
+Let me be more precise. The 12 neighbors of v = (a1,...,a6) are obtained by changing exactly one coordinate. Two neighbors that change the same coordinate i: (a1,...,ai',...,a6) and (a1,...,ai'',...,a6) with ai' ≠ ai''. These differ only in coordinate i, so they're at distance 1 from each other. Two neighbors that change different coordinates i and j: they differ in coordinates i and j, so distance 2. They're NOT adjacent in G'.
+
+So the 12 neighbors form 6 groups of 2 (one group per coordinate), where within each group the 2 are adjacent (distance 1), and across groups they're non-adjacent (distance 2). Plus v is adjacent to all 12.
+
+So the clique number of G' restricted to N[v]: we can take v + one from each group = v + 6 = 7 vertices. Or we can take both from one group + v = 3. The max clique is v + one from each of the 6 groups = 7. Wait, can we take both from a group AND v? v, (a1',a2,...,a6), (a1'',a2,...,a6) — these three are pairwise at distance ≤ 1? v and first neighbor: distance 1. v and second: distance 1. First and second: distance 1. Yes! So they form a clique of 3. But if we take both from group 1 and one from group 2: (a1',...) and (a2',...) are at distance 2, not adjacent. So we can't mix groups (taking 2 from one group) with other groups.
+
+Max clique in N[v]: either v + 1 from each group (size 7), or v + 2 from one group (size 3). So max clique = 7.
+
+Interesting! So the clique number of G' on N[v] is 7. This means N[v] (13 vertices) has no clique of size 8 in G', i.e., no independent set of size 8 in G. So N[v] is a "bad" set of size 13!
+
+Wait, but we're working with multisets. If we have multiple copies, N[v] could be larger.
+
+Hmm, but this is for distinct vectors. With 2014 columns and 729 distinct vectors, we have repetitions.
+
+Let me reconsider. The clique number of G' on the ball of radius 1 around v is 7. This means within any ball of radius 1 (13 distinct vectors), we can find at most 7 pairwise at distance ≤ 1... no, the clique number being 7 means the max set of pairwise adjacent vertices (pairwise distance ≤ 1) is 7. 
+
+Wait, I need to be more careful. α(G') ≤ 7 means no 8 pairwise non-adjacent, i.e., no 8 pairwise at distance ≥ 2. The clique number of G' being 7 is different from α(G') being 7.
+
+Let me recompute. In N[v] (13 vertices), what is α(G')? That's the max set of pairwise non-adjacent vertices in G', i.e., pairwise at distance ≥ 2. 
+
+Among the 12 neighbors (excluding v), the max set pairwise at distance ≥ 2: we need to pick neighbors that are pairwise at distance ≥ 2. Two neighbors changing the same coordinate are at distance 1 (adjacent in G'), so we can pick at most 1 from each coordinate group. That gives at most 6. And these 6 (one per coordinate) are pairwise at distance 2, so they form an independent set of size 6 in G'. Can we do better? We can't include v (v is adjacent to all neighbors). So α(G' on N[v]) = 6.
+
+Hmm, so the ball of radius 1 has independence number 6 in G'. That means within 13 vectors, we can find 6 pairwise at distance ≥ 2. That's less than 8, so the ball is a bad set of size 13.
+
+But with repetitions, we can make it bigger. If we have k copies of each vector in the ball, the bad set has size 13k, and the independence number is still 6 (since copies of the same vector are at distance 0, adjacent in G', so they don't help independence).
+
+Wait, actually with repetitions, the independence number could change. If we have multiple copies of v, they're all at distance 0 from each other (adjacent in G'), so they don't contribute to independence. The independence number of G' on a multiset is the same as on the underlying set (since copies are always adjacent).
+
+So if our scheme uses vectors from a ball of radius 1, with multiplicity, the bad set size is (total copies) but independence is ≤ 6.
+
+But we need 2014 vectors total. If we use only 13 distinct vectors (a ball), with 2014/13 ≈ 155 copies each, the bad set is all 2014 vectors with α ≤ 6 < 8. So n would need to be > 2014, which is impossible. This means using only a ball is a terrible scheme.
+
+So the scheme matters a lot. We need to spread vectors across many "independent" (distance ≥ 2) groups.
+
+OK so let me go back to the code approach. Using a code of size 243 with min distance 2, all pairs at distance ≥ 2. With 2014 = 243×8 + 70, max multiplicity 9. Bad set: 7 codewords × 9 copies = 63, α = 7 < 8. So n = 64.
+
+Can we do better than 64? Let's see if there's a scheme where the max bad set is smaller.
+
+What if we use a code of size 243 but with more balanced multiplicities? We can't do better than max multiplicity 9 since 2014/243 > 8.
+
+What if we use a larger set of distinct vectors, not just a code? For instance, use all 729 vectors. Then the max bad set... we need to find the largest subset of {1,2,3}^6 (with multiplicities) with α(G') ≤ 7.
+
+The independence number of G' on all 729 vectors is 243 (max code). So a subset with α ≤ 7 must be much smaller. But with multiplicities, we can repeat.
+
+Hmm, let me think about this differently. 
+
+Let me consider the following: partition the 729 vectors into groups such that within each group, all pairs are at distance ≤ 1 (i.e., each group is a clique in G'). Then a bad set can include all copies from up to 7 groups (since picking one from each group gives at most 7 pairwise at distance ≥ 2... no wait, if groups are cliques in G', then picking one from each group, are they pairwise at distance ≥ 2? Not necessarily, since vectors from different groups could still be at distance 1).
+
+This is getting complicated. Let me think about the problem from the competition math perspective.
+
+The answer is likely a clean number. Let me think about what structure gives the optimal scheme.
+
+Let me reconsider. We have 6 leaders, 3 colors. Each album is a vector in {1,2,3}^6. We want 8 albums pairwise agreeing in ≤ 4 positions (distance ≥ 2).
+
+Let me think about a partition of {1,2,3}^6 into "classes" where within each class, all pairs agree in ≥ 5 positions (distance ≤ 1). If we can partition into classes that are cliques in G', then a bad set uses at most 7 classes (to keep α ≤ 7).
+
+The minimum number of such classes to cover {1,2,3}^6 would give us the structure. But cliques in G' are sets of pairwise distance ≤ 1 vectors. The max clique in G' is 7 (as computed: v + one neighbor per coordinate). Wait, is the max clique really 7?
+
+Let me recheck. A clique in G' is a set of pairwise distance ≤ 1 vectors. We showed that N[v] has max clique 7 (v + one neighbor per coordinate). But could there be a larger clique elsewhere?
+
+A clique in G' = a set of vectors pairwise at Hamming distance ≤ 1. This is a "diameter 1" set in Hamming space. The maximum size of a diameter-1 set in {1,2,3}^6... 
+
+Two vectors at distance ≤ 1: they're either equal or differ in one coordinate. A set where all pairs differ in ≤ 1 coordinate. If we have vectors v1, v2, v3 all pairwise at distance ≤ 1, then... v1 and v2 differ in ≤ 1 coord, v1 and v3 differ in ≤ 1 coord, v2 and v3 differ in ≤ 1 coord.
+
+If v1 and v2 differ in coordinate i, and v1 and v3 differ in coordinate j ≠ i, then v2 and v3 differ in coordinates i and j (distance 2), contradiction. So all pairs must differ in the same coordinate, or be equal.
+
+So a clique in G' consists of vectors that all agree on all coordinates except possibly one fixed coordinate. I.e., a clique is a subset of a "fiber" (fixing 5 coordinates, varying 1). Each fiber has 3 vectors. So max clique in G' = 3 (not 7!).
+
+Wait, I think I made an error earlier. Let me recheck.
+
+N[v] = {v} ∪ {12 neighbors}. The clique v + one neighbor per coordinate: v, (change coord 1), (change coord 2), ..., (change coord 6). Are these pairwise at distance ≤ 1? v and (change coord i): distance 1. (change coord i) and (change coord j) for i ≠ j: they differ in coords i and j, distance 2. NOT adjacent in G'!
+
+So v + one neighbor per coordinate is NOT a clique in G'. I made an error. Let me recompute.
+
+A clique in G' = pairwise distance ≤ 1. As I just argued, this means all vectors agree on all but possibly one coordinate. So max clique = 3 (a fiber of 3 vectors).
+
+OK so I was wrong. Max clique in G' is 3, not 7.
+
+So let me recompute α(G' on N[v]). N[v] has 13 vectors. α(G') = max set pairwise at distance ≥ 2.
+
+The 12 neighbors: 6 groups of 2 (per coordinate). Within a group, distance 1. Across groups, distance 2. So picking one from each group gives 6 pairwise at distance 2. Can we also include v? v is at distance 1 from all neighbors, so no. So α = 6.
+
+But wait, can we pick both from one group and still have distance ≥ 2 from picks in other groups? Both from group i: they're at distance 1 from each other. No, that violates pairwise distance ≥ 2. So we pick at most 1 per group, giving 6.
+
+So α(G' on N[v]) = 6. The ball of radius 1 (13 vectors) has no 8 pairwise at distance ≥ 2, and in fact no 7 (max is 6).
+
+Now, let me reconsider the problem. We want to find the minimum n such that there exists a multiset of 2014 vectors from {1,2,3}^6 where every n-subset contains 8 pairwise at distance ≥ 2.
+
+The worst-case bad set (no 8 pairwise at distance ≥ 2) should be minimized.
+
+Let me think about the structure differently. Consider a partition of {1,2,3}^6 into fibers based on, say, the last coordinate. No, that doesn't work since fibers based on one coordinate have vectors at distance up to 5.
+
+Let me think about "lines" in the Hamming space. A "line" is a set of 3 vectors that agree on 5 coordinates and differ in 1. There are C(6,1) × 3^5 = 6 × 243 = 1458 lines, but each line is determined by the 5 fixed coordinates and which coordinate varies. Each vector belongs to 6 lines (one per coordinate).
+
+Two vectors on the same line are at distance 1 (if different) or 0 (if same). Two vectors on different lines can be at any distance.
+
+A code with min distance 2 picks at most 1 vector from each line (for lines in a fixed direction). For lines in the "6th coordinate" direction, there are 243 such lines, and a code picks ≤ 1 from each, giving ≤ 243.
+
+Now, the key idea: we can partition {1,2,3}^6 into 243 "lines" (in the 6th coordinate direction), each of size 3. Within each line, all pairs are at distance ≤ 1. Across lines, vectors can be at distance 1 (if they differ in one of the first 5 coordinates and agree in the 6th).
+
+Hmm, so the partition into lines doesn't give a clean structure for G'.
+
+Let me try a different approach. Let me think about the problem in terms of a coloring/labeling.
+
+Assign to each vector v = (v1,...,v6) a "color" c(v) = v1 + v2 + ... + v6 mod 3. There are 3 colors. Two vectors with the same color can be at any distance. Two vectors at distance 1 have different colors (since changing one coordinate changes the sum mod 3). Two vectors at distance 0 have the same color.
+
+So if two vectors are at distance 1, they have different colors. This means within a single color class, all pairs are at distance 0 or ≥ 2. So a single color class is a code with min distance ≥ 2 (after removing duplicates)! Each color class has 3^6/3 = 243 vectors, and they form a code with min distance 2.
+
+This is the key insight! The sum mod 3 gives a partition into 3 codes of size 243 each, and within each code, all pairs are at distance ≥ 2 (or 0 if identical).
+
+Now, our scheme: we have 2014 vectors. We can use vectors from these 3 color classes. Within each color class, all distinct vectors are pairwise at distance ≥ 2. So if we pick 8 distinct vectors from the same color class, they're pairwise at distance ≥ 2.
+
+A bad set (no 8 pairwise at distance ≥ 2) can have at most 7 distinct vectors from each color class (since 8 distinct from one class would give 8 pairwise at distance ≥ 2). But it could have many copies.
+
+Wait, but the bad set could also mix color classes. If we pick vectors from different color classes, they could be at distance 1 (which is fine for a bad set, since distance 1 means they're "close" and don't help form a distance-≥-2 set).
+
+Hmm, let me reconsider. A bad set B has no 8 pairwise at distance ≥ 2. The 8 must be pairwise at distance ≥ 2. If we pick 8 from the same color class (all distinct), they're pairwise at distance ≥ 2. So B can contain at most 7 distinct vectors from each color class.
+
+But B could contain vectors from all 3 color classes. The constraint is that no 8 (from any combination of classes) are pairwise at distance ≥ 2. 
+
+If B has vectors from multiple color classes, could 8 of them be pairwise at distance ≥ 2? Vectors from different color classes are at distance ≥ 1 (could be 1 or more). If two vectors from different classes are at distance 1, they can't both be in a distance-≥-2 set. But if they're at distance ≥ 2, they can.
+
+So the bad set could potentially have more than 7 distinct vectors if it mixes classes carefully. But the multiplicities also matter.
+
+Let me think about this more carefully with the color class structure.
+
+Let the 3 color classes be C0, C1, C2, each of size 243. Within each Ci, all distinct pairs are at distance ≥ 2. Between Ci and Cj (i≠j), pairs can be at distance 1 or ≥ 2.
+
+For a bad set B (multiset), let Bi = B ∩ Ci (the multiset of vectors from class i). Let di = number of distinct vectors in Bi, and mi = total count (with multiplicity) in Bi.
+
+Constraint: no 8 pairwise at distance ≥ 2. 
+
+If di ≥ 8 for some i, then 8 distinct vectors from Ci are pairwise at distance ≥ 2. So di ≤ 7 for all i.
+
+But even if all di ≤ 7, we could have 8 pairwise at distance ≥ 2 by mixing classes. For example, 4 from C0 and 4 from C1, if all cross-class pairs are at distance ≥ 2.
+
+So the constraint is more subtle. The bad set must avoid any 8 (from any classes) being pairwise at distance ≥ 2.
+
+However, for the purpose of finding the optimal scheme, let's think about what limits the bad set.
+
+In the scheme, we want to minimize the max bad set. Let's think about the scheme where we use only one color class, say C0, with 243 distinct vectors, each appearing 8 or 9 times (total 2014).
+
+Bad set: at most 7 distinct vectors from C0, each with at most 9 copies. So max bad set = 7 × 9 = 63. Hence n = 64.
+
+Can we do better by using multiple color classes? Let's say we use C0 and C1, with 243 + 243 = 486 distinct vectors. We distribute 2014 among them.
+
+But now a bad set could include vectors from both C0 and C1. If the bad set has a0 distinct from C0 and a1 distinct from C1, with a0 + a1 ≤ 7 (to avoid 8 pairwise at distance ≥ 2... but this isn't quite right since cross-class pairs might be at distance 1).
+
+Hmm, actually the constraint is that no 8 are pairwise at distance ≥ 2. If we pick 8 all from C0 (distinct), they're pairwise at distance ≥ 2. So ≤ 7 distinct from C0. Similarly ≤ 7 from C1, ≤ 7 from C2.
+
+But we could pick, say, 4 from C0 and 4 from C1, and if all 16 cross-pairs are at distance ≥ 2, then these 8 are pairwise at distance ≥ 2. So the bad set must also avoid this.
+
+The question is: can we find 4 from C0 and 4 from C1 such that all cross-pairs are at distance ≥ 2? This depends on the structure of C0 and C1.
+
+Recall C0 = {v : sum(v) ≡ 0 mod 3}, C1 = {v : sum(v) ≡ 1 mod 3}. Two vectors v ∈ C0, w ∈ C1 are at distance 1 iff they differ in exactly one coordinate. Since sum(v) ≡ 0 and sum(w) ≡ 1, they differ in sum by 1 mod 3, which is consistent with differing in one coordinate (changing one coordinate by +1 or -1 mod 3 changes the sum by ±1).
+
+So there ARE pairs at distance 1 between C0 and C1. In fact, for each v ∈ C0, the 12 neighbors at distance 1 are split: 6 in C1 (increasing a coordinate by 1 mod 3) and 6 in C2 (deasing by 1, or increasing by 2). Wait, let me be more careful.
+
+Changing coordinate i from vi to vi + 1 mod 3: sum increases by 1, so new vector is in C1.
+Changing coordinate i from vi to vi - 1 mod 3 (= vi + 2 mod 3): sum decreases by 1 (= increases by 2), so new vector is in C2.
+
+So each v ∈ C0 has 6 neighbors in C1 and 6 in C2. Similarly for other classes.
+
+So the bipartite graph between C0 and C1 (edges = distance 1) is 6-regular. Each v ∈ C0 has 6 neighbors in C1 (out of 243). So most pairs between C0 and C1 are at distance ≥ 2.
+
+This means it's easy to find 4 from C0 and 4 from C1 all pairwise at distance ≥ 2 (just avoid the distance-1 pairs). So a bad set mixing classes would need to be more careful.
+
+This suggests that using multiple classes makes the bad set constraint tighter (harder to have a large bad set), which is good for us (smaller n).
+
+But wait, the bad set can also use multiplicities. Let me think about this more carefully.
+
+Let me consider the scheme where we use all 3 color classes, distributing 2014 vectors among 729 distinct vectors. Each vector appears 2 or 3 times (2014 = 729×2 + 556, so 556 appear 3 times, 173 appear 2 times).
+
+A bad set B: no 8 pairwise at distance ≥ 2. 
+- At most 7 distinct from each color class (otherwise 8 from one class).
+- But also, mixing classes: if we have a0 + a1 + a2 distinct vectors (with a0 ≤ 7, a1 ≤ 7, a2 ≤ 7) and some 8 of them are pairwise at distance ≥ 2, that's not allowed.
+
+The max bad set size (with multiplicity) is: sum over the distinct vectors in B of their multiplicities. To maximize, we want many distinct vectors with high multiplicity.
+
+But the constraint is tight: we need no 8 pairwise at distance ≥ 2 among ALL distinct vectors in B (not just within each class).
+
+Since most cross-class pairs are at distance ≥ 2, having many distinct vectors across classes would easily give 8 pairwise at distance ≥ 2. So the bad set is heavily constrained.
+
+Let me think about the extreme case. What's the max number of distinct vectors we can have with no 8 pairwise at distance ≥ 2?
+
+This is the max set S ⊆ {1,2,3}^6 with α(G[S]) ≤ 7, where G is the distance-≥-2 graph. Equivalently, the max set with no code of size 8 (min distance 2).
+
+Hmm, this is like a Ramsey problem on the Hamming space. Let me think...
+
+Within a single color class (243 vectors, all pairwise at distance ≥ 2), we can pick at most 7. So from one class, ≤ 7.
+
+If we pick from 2 classes, say a from C0 and b from C1, we need no 8 pairwise at distance ≥ 2. If a + b ≥ 8 and we can find 8 pairwise at distance ≥ 2 among them, that's bad. Since within C0, all are pairwise at distance ≥ 2, and within C1, all are pairwise at distance ≥ 2, the only issue is cross-pairs at distance 1. If among the a + b vectors, we can find 8 with all cross-pairs at distance ≥ 2, that's a violation.
+
+If a = 7 and b = 1, we need to check if the 1 from C1 is at distance ≥ 2 from at least 7 of the 7 from C0... wait, we need 8 pairwise at distance ≥ 2. If a = 7 from C0 (all pairwise at distance ≥ 2) and 1 from C1 that's at distance ≥ 2 from all 7, then we have 8. The 1 from C1 is at distance 1 from at most 6 of the 243 in C0 (it has 6 neighbors in C0... wait, no. A vector in C1 has 6 neighbors at distance 1 in C0? Let me recheck.
+
+v ∈ C1, changing one coordinate by +1 mod 3: sum increases by 1, goes to C2. Changing by -1 (i.e., +2): sum decreases by 1, goes to C0. So v ∈ C1 has 6 neighbors in C0 (changing any coordinate by -1) and 6 in C2 (changing by +1).
+
+So a vector in C1 is at distance 1 from exactly 6 vectors in C0. If we pick 7 from C0, at most 6 are at distance 1 from our C1 vector, so at least 1 is at distance ≥ 2. But we need all 7 to be at distance ≥ 2 from the C1 vector to get 8 pairwise. Since at most 6 are at distance 1, at least 1 is at distance ≥ 2. But we need ALL 8 to be pairwise at distance ≥ 2, so we need the C1 vector to be at distance ≥ 2 from all 7 C0 vectors. This happens iff none of the 7 C0 vectors is a neighbor of the C1 vector. Since the C1 vector has only 6 neighbors in C0, we can choose 7 C0 vectors that avoid these 6 (since |C0| = 243 > 6). So yes, we can find 7 from C0 and 1 from C1 all pairwise at distance ≥ 2.
+
+But for the BAD set, we want to AVOID having 8 pairwise at distance ≥ 2. So if the bad set has 7 from C0 and 1 from C1, we need that the C1 vector is at distance 1 from at least one of the 7 C0 vectors. I.e., the C1 vector is a neighbor of at least one C0 vector in the bad set.
+
+This is possible but constraining. Let me think about the maximum bad set more carefully.
+
+Actually, let me think about this problem differently. Let me consider the structure where we use a "covering" approach.
+
+Key idea: We want to cover {1,2,3}^6 with "clusters" such that within each cluster, all pairs are at distance ≤ 1 (cliques in G'). Then a bad set can use at most 7 clusters (to keep α ≤ 7), and the bad set size is bounded by the total multiplicity in 7 clusters.
+
+But as we showed, max clique in G' is 3 (a fiber). So clusters of size 3. There are 243 fibers (in one direction). To cover 729 vectors, we need 243 fibers. A bad set uses 7 fibers, with total multiplicity 7 × (max multiplicity per fiber).
+
+If we use 2014 vectors distributed among 243 fibers, max multiplicity per fiber = ⌈2014/243⌉ = 9. Bad set = 7 fibers × 9 = 63. n = 64.
+
+But wait, this is the same as the code approach! Because a code with min distance 2 picks one from each fiber, and the fibers are the same as the code structure.
+
+Hmm, but the issue is that fibers in one direction don't capture all distance-1 pairs. Two vectors in different fibers (of the same direction) can still be at distance 1.
+
+So the "bad set uses 7 fibers" argument isn't quite right. A bad set using 7 fibers might still have 8 pairwise at distance ≥ 2 (if vectors from different fibers are at distance ≥ 2).
+
+Let me reconsider. The fibers partition the space into 243 groups of 3, where within each group, all pairs are at distance ≤ 1. But across groups, pairs can be at distance 1 or ≥ 2.
+
+A bad set B: no 8 pairwise at distance ≥ 2. If B uses vectors from k fibers, with ai vectors from fiber i (counting multiplicity), and di distinct vectors from fiber i (di ≤ 3).
+
+Within fiber i, all pairs are at distance ≤ 1, so they don't contribute to distance-≥-2 sets. A distance-≥-2 set picks at most 1 from each fiber (since 2 from same fiber are at distance ≤ 1). So a distance-≥-2 set of size 8 picks 8 vectors from 8 different fibers, one from each, and they must be pairwise at distance ≥ 2.
+
+So the bad set B has no 8 vectors from 8 different fibers that are pairwise at distance ≥ 2. The number of fibers used by B is at most... well, B could use many fibers, but the constraint is on the distance-≥-2 structure across fibers.
+
+This is getting complex. Let me try to think about the problem from the competition answer perspective.
+
+The problem asks for the smallest n. Given the structure (6 leaders, 3 colors, 2014 albums, 8 albums, at most 4 same), I suspect the answer involves the number 7 or 8 in a key way, combined with the structure of the Hamming space.
+
+Let me reconsider the code approach. Using a single color class (code of size 243, min distance 2), with 2014 vectors:
+- 2014 = 243 × 8 + 70, so 70 vectors appear 9 times, 173 appear 8 times.
+- Bad set: 7 distinct codewords, each appearing 9 times = 63. (We pick the 70 that appear 9 times, choose 7 of them.)
+- Can we do 7 × 9 = 63? Yes. Can we do 8 × 9 = 72? No, because 8 distinct codewords are pairwise at distance ≥ 2, giving 8 pairwise at distance ≥ 2. So max bad set = 63, n = 64.
+
+But can we improve by using a different scheme? Let me think about using 2 color classes.
+
+Use C0 and C1, total 486 distinct vectors. Distribute 2014 among them. 2014/486 ≈ 4.14, so max multiplicity 5 (2014 = 486 × 4 + 70, so 70 appear 5 times, 416 appear 4 times).
+
+Bad set: no 8 pairwise at distance ≥ 2. At most 7 distinct from C0, at most 7 from C1. But also, mixing: if we have a from C0 and b from C1 with a + b ≥ 8, and we can find 8 pairwise at distance ≥ 2, that's a violation.
+
+Since cross-class distance-1 pairs are relatively rare (each vector has only 6 distance-1 neighbors in the other class out of 243), it's easy to find 8 pairwise at distance ≥ 2 mixing classes. So the bad set is heavily constrained.
+
+In fact, if the bad set has 7 from C0 and 1 from C1, we need that 1 to be at distance 1 from at least one of the 7. But if the bad set has 7 from C0 and 7 from C1, we'd need that no 8 (mixing) are pairwise at distance ≥ 2. Given the sparse distance-1 graph between classes, this is very hard to maintain.
+
+Let me think about the extreme: what's the max bad set using 2 classes?
+
+If the bad set has a0 distinct from C0 and a1 distinct from C1, with multiplicities. The constraint is no 8 pairwise at distance ≥ 2. 
+
+Case 1: a0 ≤ 7 and a1 ≤ 7 and a0 + a1 ≤ 7. Then max bad set = 7 × 5 = 35 (using 7 distinct, each with multiplicity 5). But wait, we could have a0 = 7, a1 = 0, giving 7 × 5 = 35. Or a0 = 4, a1 = 3, giving 4×5 + 3×5 = 35. So max = 35.
+
+Case 2: a0 + a1 ≥ 8 but no 8 pairwise at distance ≥ 2. This requires that every subset of 8 has at least one pair at distance 1. This is possible but very constraining. For example, a0 = 7, a1 = 1, and the 1 from C1 is at distance 1 from all 7 from C0. But each C1 vector is at distance 1 from only 6 C0 vectors, so it can't be at distance 1 from 7. So a0 = 7, a1 = 1 always gives 8 pairwise at distance ≥ 2 (since the C1 vector is at distance ≥ 2 from at least 1 of the 7, and that 1 + the other 6 from C0 = 7 from C0 are pairwise at distance ≥ 2, plus the C1 vector at distance ≥ 2 from all... wait, no. We need ALL 8 to be pairwise at distance ≥ 2. The C1 vector needs to be at distance ≥ 2 from ALL 7 C0 vectors. Since it's at distance 1 from at most 6, if we choose 7 C0 vectors including one non-neighbor, the C1 vector is at distance ≥ 2 from that one but distance 1 from the other 6. So the 8 (7 C0 + 1 C1) are NOT pairwise at distance ≥ 2 (6 pairs are at distance 1).
+
+Hmm, so a0 = 7, a1 = 1 doesn't automatically give 8 pairwise. We need to find 8 among the a0 + a1 that are pairwise at distance ≥ 2. With a0 = 7, a1 = 1, we have 8 vectors. They're pairwise at distance ≥ 2 iff the C1 vector is at distance ≥ 2 from all 7 C0 vectors. This happens iff the C1 vector is not a neighbor of any of the 7 C0 vectors. Since the C1 vector has 6 neighbors in C0, if all 7 C0 vectors are non-neighbors, we get 8 pairwise. But if at least one C0 vector is a neighbor, we don't.
+
+So for a bad set with a0 = 7, a1 = 1: we need the C1 vector to be a neighbor of at least one C0 vector. This is easy to arrange. The bad set size = 7×5 + 1×5 = 40 (if all have multiplicity 5). But wait, we could also have a0 = 7, a1 = 7, if we can arrange that no 8 are pairwise at distance ≥ 2.
+
+With a0 = 7, a1 = 7: we have 14 distinct vectors. We need no 8 pairwise at distance ≥ 2. The 7 from C0 are pairwise at distance ≥ 2, the 7 from C1 are pairwise at distance ≥ 2. An 8-set pairwise at distance ≥ 2 could be: 7 from C0 + 1 from C1 (if that 1 is non-adjacent to all 7 C0), or 6 from C0 + 2 from C1 (if those 2 are non-adjacent to all 6 C0 and to each other, which they are since same class), etc.
+
+To prevent ANY 8 from being pairwise at distance ≥ 2, we need: for every subset of 8 from the 14, at least one pair is at distance 1. 
+
+This is very constraining. Let me think about whether it's possible.
+
+The distance-1 graph between the 7 C0 vectors and 7 C1 vectors: it's a bipartite graph where each C0 vertex has at most 6 edges to C1 (but only to the 7 chosen C1 vertices, so at most 6). Each C1 vertex has at most 6 edges to C0 (but only to the 7 chosen, so at most 6).
+
+We need: every 8-subset has at least one distance-1 pair. An 8-subset with a from C0 and b = 8-a from C1 (a ≥ 1, b ≥ 1 since a=8 or b=8 would be within one class and automatically pairwise at distance ≥ 2, but a ≤ 7 and b ≤ 7 so a=8 is impossible). Wait, a can be at most 7 and b at most 7, so a + b = 8 with 1 ≤ a ≤ 7.
+
+For a = 7, b = 1: the 1 from C1 must be adjacent (distance 1) to at least one of the 7 C0. 
+For a = 1, b = 7: the 1 from C0 must be adjacent to at least one of the 7 C1.
+For a = 6, b = 2: the 2 from C1 must... at least one pair (cross or within) is at distance 1. Within C1, all are at distance ≥ 2. Cross: need at least one of the 2×6 = 12 cross-pairs to be at distance 1. I.e., at least one of the 2 C1 vectors is adjacent to at least one of the 6 C0 vectors.
+For a = 2, b = 6: similarly.
+Etc.
+
+This is a covering condition. Let me think about whether 7+7 = 14 distinct vectors can satisfy this.
+
+Actually, this is related to the concept of a "biclique cover" or "covering" in the bipartite distance-1 graph.
+
+Let me think about it differently. The condition is: the distance-1 graph on the 14 vertices (7 from C0, 7 from C1) has the property that every 8-vertex subset contains an edge. This means the complement (distance-≥-2 graph) on these 14 vertices has no 8-clique. The distance-≥-2 graph on these 14 vertices: within C0, it's a complete graph K7. Within C1, it's K7. Cross edges: present iff distance ≥ 2 (i.e., NOT distance 1).
+
+The distance-≥-2 graph is K7 ∪ K7 plus cross edges. An 8-clique in this graph: 7 from one side + 1 from other (if that 1 has all cross edges to the 7), or other combinations.
+
+For no 8-clique: for every vertex v in C1, v must be missing at least one cross edge to C0 (i.e., v is at distance 1 from at least one C0 vertex). Similarly, for every vertex u in C0, u must be at distance 1 from at least one C1 vertex. AND for every 6+2, 5+3, 4+4, 3+5, 2+6 split, the 8 must not form a clique.
+
+This is very restrictive. For the 7+1 case: each C1 vertex must be adjacent (distance 1) to at least one C0 vertex, and each C0 vertex must be adjacent to at least one C1 vertex. This is a covering condition on the bipartite graph.
+
+For the 6+2 case: for every 6-subset of C0 and every 2-subset of C1, at least one cross pair is at distance 1. This means: for every 2-subset {u,v} of C1, the union of their distance-1 neighbors in C0 must cover all of C0 (i.e., every C0 vertex is at distance 1 from u or v). Since each has at most 6 neighbors in C0 (out of 7), two together cover at most 12, but we need to cover 7. So we need: for every pair in C1, their neighbor sets in C0 cover all 7 C0 vertices.
+
+This is extremely restrictive. Each C1 vertex has at most 6 neighbors in C0 (could be fewer if some neighbors aren't among the chosen 7). For two C1 vertices to cover all 7 C0, each must have at least 1 neighbor (trivially) and together they cover 7. If one has 6 neighbors, the other needs to cover the remaining 1. If one has 3, the other needs to cover the remaining 4, so needs at least 4.
+
+This seems very hard to satisfy for all pairs. I suspect that with 7+7, it's impossible to avoid an 8-clique, meaning the max bad set with 2 classes has fewer than 14 distinct vectors.
+
+Let me think about this more carefully. Actually, let me consider a specific construction.
+
+Take C0 = {v : sum(v) ≡ 0 mod 3}. Take 7 specific vectors from C0 and 7 from C1. 
+
+Hmm, this is getting very involved. Let me step back and think about the problem from a higher level.
+
+I think the key insight is the coloring by sum mod 3, which partitions into 3 codes of size 243. The optimal scheme likely uses one code, giving n = 64. But let me check if we can do better.
+
+Actually, wait. Let me reconsider. Maybe we should think about it differently.
+
+The problem is essentially: find the minimum n such that there exists a multiset of 2014 vectors from {1,2,3}^6 where every n-subset contains 8 pairwise at Hamming distance ≥ 2.
+
+Let me think about the lower bound. For ANY scheme of 2014 vectors, we need to show that there exist n-1 vectors with no 8 pairwise at distance ≥ 2.
+
+Consider any scheme. Look at the most frequent vector v1, appearing m1 times. Then the next most frequent v2 (at distance ≥ 1 from v1, or could be the same), etc.
+
+Actually, let me think about it using the color class structure. For any scheme, consider the 3 color classes C0, C1, C2. The 2014 vectors are distributed among these classes. By pigeonhole, one class has at least ⌈2014/3⌉ = 672 vectors.
+
+Within one class, say C0, all distinct vectors are pairwise at distance ≥ 2. If C0 has d0 distinct vectors with total count t0 ≥ 672, then... a bad set can take all copies of 7 distinct vectors from C0. The max copies of 7 distinct vectors: if we pick the 7 most frequent, they have at least 7 × ⌊t0/d0⌋ copies... but this depends on the distribution.
+
+Hmm, this lower bound approach is tricky. Let me think about it differently.
+
+For the lower bound, we need: for any scheme, there's a bad set of size ≥ n-1. 
+
+Consider any scheme of 2014 vectors. Group them by color class (sum mod 3). One class has ≥ 672 vectors. Within that class, all distinct vectors are pairwise at distance ≥ 2. 
+
+Now, within this class, consider the distinct vectors and their multiplicities. If there are d distinct vectors with multiplicities m1 ≥ m2 ≥ ... ≥ md, summing to ≥ 672. A bad set can take all copies of the 7 most frequent: m1 + m2 + ... + m7. We need to show this is large.
+
+By the constraint sum = t ≥ 672 and d ≤ 243: m1 + ... + m7 ≥ 7 × (t/d) ≥ 7 × (672/243) ≈ 7 × 2.77 ≈ 19.3. So m1 + ... + m7 ≥ 20. But this is a weak bound.
+
+Actually, we can do better. Since d ≤ 243 and t ≥ 672, the 7 most frequent have sum ≥ 7t/d. But we want a lower bound on the max bad set.
+
+Hmm, but the bad set doesn't have to come from one class. Let me reconsider.
+
+Actually, for the lower bound, we just need to find ONE bad set of size ≥ n-1 for any scheme. The bad set can use vectors from any class, as long as no 8 are pairwise at distance ≥ 2.
+
+Strategy for lower bound: Pick the 7 most frequent vectors that are pairwise at distance ≥ 2 (i.e., from the same color class, all distinct). Their total count is a bad set (since only 7 distinct, all from one class, pairwise at distance ≥ 2, so no 8 pairwise at distance ≥ 2).
+
+But we need these 7 to be from the same color class. The most frequent 7 from the largest class.
+
+Largest class has ≥ 672 vectors, ≤ 243 distinct. The 7 most frequent distinct vectors in this class have total ≥ 7 × ⌈672/243⌉ = 7 × 3 = 21 (since 672/243 > 2, so some have ≥ 3 copies; actually ⌈672/243⌉ = 3). But this is a weak bound.
+
+More precisely, if d distinct vectors sum to t ≥ 672, the 7 most frequent sum to at least 7t/d ≥ 7 × 672/243 ≈ 19.4, so ≥ 20.
+
+But can we get a better lower bound? The issue is that the scheme could spread vectors evenly across all 3 classes and all 243 codewords per class.
+
+If the scheme uses all 729 distinct vectors evenly: 2014/729 ≈ 2.76, so each appears 2 or 3 times. The largest class has ≥ 672 vectors. If these are spread among 243 distinct, each appearing ~2.76 times. The 7 most frequent have ~7 × 3 = 21 copies (at most 7 × 3 = 21 if each appears 3 times, but some appear 2). So bad set ≈ 21.
+
+But with the code approach (single class), the bad set is 63. So the even distribution gives a much smaller bad set (21 vs 63), meaning n ≈ 22 vs 64. Wait, that means the even distribution is BETTER (smaller n)!
+
+Hold on, I think I had it backwards. A smaller bad set means a smaller n, which is what we want. So the even distribution across all 729 vectors gives n ≈ 22, which is better than n = 64.
+
+But wait, I need to check that the even distribution actually works, i.e., that the max bad set is indeed around 21.
+
+With the even distribution (all 729 vectors, each 2 or 3 times), a bad set needs no 8 pairwise at distance ≥ 2. The bad set can use vectors from all 3 classes. The constraint is that no 8 (from any classes) are pairwise at distance ≥ 2.
+
+If the bad set uses 7 distinct from one class (each 3 copies) = 21, that's a bad set of size 21. Can we do better? Can we have a bad set of size > 21?
+
+If we use 7 from C0 and 7 from C1 (14 distinct, each 3 copies = 42), is this a bad set? Only if no 8 of the 42 are pairwise at distance ≥ 2. As I discussed, this requires a very restrictive condition on the distance-1 graph. It might be impossible, in which case the bad set can't have 14 distinct vectors.
+
+But maybe we can have, say, 7 from C0 and 1 from C1 (8 distinct, each 3 copies = 24), if the 1 from C1 is at distance 1 from at least one of the 7 from C0. This is easy to arrange. So bad set of size 24 is possible.
+
+Can we go higher? 7 from C0, 7 from C1, with the restrictive condition? Let me think about whether this is possible.
+
+Actually, let me think about a specific example. Consider C0 and C1. Take 7 vectors from C0: v1, ..., v7. Take 7 vectors from C1: w1, ..., w7. We need: no 8 of the 14 are pairwise at distance ≥ 2.
+
+As I analyzed, this requires very strong covering conditions. Let me check if it's even possible for small cases.
+
+Consider the bipartite distance-1 graph between {v1,...,v7} and {w1,...,w7}. Each vi has at most 6 distance-1 neighbors among all of C1, so at most 6 among {w1,...,w7}. Each wj has at most 6 distance-1 neighbors among {v1,...,v7}.
+
+Condition for no 8-clique in the distance-≥-2 graph:
+- For every wj, wj must be at distance 1 from at least one vi (otherwise {v1,...,v7,wj} is an 8-clique). So every wj has ≥ 1 neighbor in {v1,...,v7}.
+- For every vi, vi must be at distance 1 from at least one wj (otherwise {v1,...,v7} \ {vi} ∪ {wj for some j} ... wait, no. {w1,...,w7, vi} would be an 8-clique if vi is at distance ≥ 2 from all wj. So every vi must have ≥ 1 neighbor in {w1,...,w7}.
+- For every 6-subset of {v1,...,v7} and every 2-subset of {w1,...,w7}: at least one cross pair is at distance 1. I.e., for every pair {wj, wk}, their neighbor sets in {v1,...,v7} cover all 7 vi's. Since each has at most 6 neighbors, and they need to cover 7, each must have at least 1 neighbor, and their union must be all 7. This means: for every pair {wj, wk}, N(wj) ∪ N(wk) = {v1,...,v7}.
+
+This last condition is extremely strong. It means that for every pair of w's, their neighbor sets cover all 7 v's. If some wj has only 1 neighbor, say v1, then every other wk must have N(wk) ⊇ {v2,...,v7}, so N(wk) has at least 6 elements. But each wk has at most 6 neighbors, so N(wk) = {v2,...,v7} exactly. But then for the pair {wk, wk'} (both with N = {v2,...,v7}), their union is {v2,...,v7}, which doesn't cover v1. Contradiction!
+
+So if any wj has only 1 neighbor, we get a contradiction. More generally, if any wj has k neighbors, then every other wk must cover the remaining 7-k, so needs at least 7-k neighbors. And for any pair {wj, wk}, their union must be all 7.
+
+This means: for every pair, |N(wj) ∪ N(wk)| = 7. Since |N(wj)| ≤ 6 and |N(wk)| ≤ 6, we need |N(wj) ∩ N(wk)| ≤ 5 (by inclusion-exclusion: |A ∪ B| = |A| + |B| - |A ∩ B| ≥ 7, so |A ∩ B| ≤ |A| + |B| - 7 ≤ 12 - 7 = 5). And |N(wj) ∪ N(wk)| = 7 means they cover everything.
+
+If all |N(wj)| = 6 (missing one vi each), then for every pair, their missing elements must be different (otherwise the union misses that element). So the 7 w's each miss a different v. I.e., wj misses vj (WLOG). Then N(wj) = {v1,...,v7} \ {vj}.
+
+Now check the 5+3 condition: for every 5-subset of v's and every 3-subset of w's, at least one cross pair is at distance 1. The 3 w's have neighbor sets that are {v1,...,v7} minus one each. Their union covers all 7 (since they miss different v's, and 3 missed v's are covered by the other 2... wait, 3 w's miss 3 different v's, so their union is {v1,...,v7} minus the 3 missed = 4 elements. We need this to cover the 5 chosen v's. But 4 < 5, so it doesn't cover! 
+
+Wait, let me recheck. If w1 misses v1, w2 misses v2, w3 misses v3, then N(w1) ∪ N(w2) ∪ N(w3) = {v4,v5,v6,v7}. If we pick the 5-subset {v1,v2,v3,v4,v5} of v's and the 3-subset {w1,w2,w3} of w's, the cross distance-1 pairs are only with {v4,v5,v6,v7}. So v1, v2, v3 have no distance-1 pairs with w1, w2, w3. The 8-set {v1,v2,v3,v4,v5,w1,w2,w3}: are they pairwise at distance ≥ 2? v4 and v5 are at distance 1 from some w's (v4 is in N(w1), N(w2), N(w3), so v4 is at distance 1 from w1, w2, w3). So the pair (v4, w1) is at distance 1. So this 8-set is NOT pairwise at distance ≥ 2. 
+
+But what about {v1,v2,v3,v6,v7,w1,w2,w3}? v6 is in N(w1), N(w2), N(w3), so v6 is at distance 1 from all three w's. So (v6, w1) is at distance 1. Not a clique.
+
+What about {v1,v2,v3,v4,v5,v6,v7,w1}? This is 7+1. w1 is at distance 1 from v2,...,v7 (N(w1) = {v2,...,v7}). So w1 is at distance ≥ 2 only from v1. The 8-set: v1 is at distance ≥ 2 from w1, but v2,...,v7 are at distance 1 from w1. So not a clique (only 1 pair at distance ≥ 2 between w1 and the v's, but we need ALL pairs at distance ≥ 2).
+
+Hmm wait, I need ALL pairs to be at distance ≥ 2 for a clique. So {v1,...,v7,w1} is a clique iff w1 is at distance ≥ 2 from ALL of v1,...,v7. But w1 is at distance 1 from v2,...,v7. So not a clique. Good.
+
+What about {v1,v2,v3,v4,w1,w2,w3,w4}? We need all cross pairs at distance ≥ 2 and all within-class pairs at distance ≥ 2 (which they are). Cross pairs: v_i at distance 1 from w_j iff v_i ∈ N(w_j). w1 misses v1, w2 misses v2, w3 misses v3, w4 misses v4. So:
+- v1 is at distance 1 from w2, w3, w4 (not w1).
+- v2 is at distance 1 from w1, w3, w4 (not w2).
+- v3 is at distance 1 from w1, w2, w4 (not w3).
+- v4 is at distance 1 from w1, w2, w3 (not w4).
+
+For the 8-set {v1,v2,v3,v4,w1,w2,w3,w4} to be a clique (all pairwise distance ≥ 2), we need NO cross pair at distance 1. But v1 is at distance 1 from w2 (since v1 ∈ N(w2)). So this is not a clique. 
+
+What about {v1,v2,v3,v4,w1,w2,w3,w5} where w5 misses v5? 
+- v1 at distance 1 from w2, w3, w5 (not w1).
+- So (v1, w2) is at distance 1. Not a clique.
+
+It seems hard to find an 8-clique. Let me check more carefully. For an 8-set with a v's and b w's (a+b=8, a,b ≥ 1), we need all cross pairs at distance ≥ 2. A cross pair (vi, wj) is at distance 1 iff vi ∈ N(wj), i.e., vi ≠ vj (the one wj misses). So (vi, wj) is at distance ≥ 2 iff vi = vj (the missed one).
+
+So for all cross pairs to be at distance ≥ 2, we need: for every vi in the a-subset and every wj in the b-subset, vi = vj (the index j that wj misses). This means every vi must equal every vj, which is impossible if a ≥ 2 or b ≥ 2 (since the indices are different).
+
+Wait, that's not right. Let me restate. wj misses vj, so (vi, wj) is at distance ≥ 2 iff vi = vj. For ALL cross pairs to be at distance ≥ 2, we need: for every i in the a-subset and every j in the b-subset, vi = vj. This means all indices in the a-subset equal all indices in the b-subset, which is impossible if a ≥ 2 (two different vi's can't both equal the same vj) or b ≥ 2.
+
+So the only possible 8-clique mixing classes would need a = 1 or b = 1. If a = 1, b = 7: {vi, w1,...,w7}. Cross pairs: (vi, wj) at distance ≥ 2 iff vi = vj. For all 7 cross pairs to be at distance ≥ 2, we need vi = vj for all j = 1,...,7, impossible. If a = 7, b = 1: {v1,...,v7, wj}. Cross pairs: (vi, wj) at distance ≥ 2 iff vi = vj. For all 7 to be at distance ≥ 2, need vi = vj for all i, impossible.
+
+So with this construction (wj misses vj), there is NO 8-clique mixing the two classes! The 14 distinct vectors (7 from C0, 7 from C1) form a bad set!
+
+Wait, but I need to also check 8-sets within a single class. 8 from C0: all pairwise at distance ≥ 2 (since C0 is a code). But we only have 7 from C0, so can't pick 8. Similarly 7 from C1. So no 8-clique within one class either.
+
+So the 14 distinct vectors, each with multiplicity 3, give a bad set of size 42! That's much larger than 21.
+
+But wait, can we go even further? Can we add vectors from C2 as well?
+
+Let me check. Add 7 from C2: u1,...,u7, with uj missing vj in some sense. The distance-1 graph between C0 and C2, and between C1 and C2, also needs to be controlled.
+
+A vector v ∈ C0 has 6 distance-1 neighbors in C2 (changing any coordinate by +1 mod 3, which increases sum by 1, going to C1; changing by -1, decreasing sum by 1, going to C2). Wait, I need to recheck.
+
+v ∈ C0 (sum ≡ 0). Changing coordinate i by +1: sum ≡ 1, so goes to C1. Changing by -1 (= +2): sum ≡ 2, so goes to C2. So v has 6 neighbors in C1 and 6 in C2.
+
+Similarly, w ∈ C1 (sum ≡ 1). Changing by +1: sum ≡ 2, goes to C2. Changing by -1: sum ≡ 0, goes to C0. So w has 6 neighbors in C0 and 6 in C2.
+
+And u ∈ C2 (sum ≡ 2). Changing by +1: sum ≡ 0, goes to C0. Changing by -1: sum ≡ 1, goes to C1. So u has 6 neighbors in C0 and 6 in C1.
+
+So the distance-1 graph is tripartite between C0, C1, C2, with each vertex having 6 neighbors in each of the other two classes.
+
+Now, for the bad set with 7 from each class (21 distinct), we need no 8 pairwise at distance ≥ 2. The 8 could come from any combination of classes.
+
+This is getting very complex. Let me think about whether 7+7+7 = 21 distinct vectors can form a bad set.
+
+An 8-set pairwise at distance ≥ 2: could be 7+1, 6+2, ..., 1+7 from two classes, or 6+1+1, 5+2+1, ..., from three classes.
+
+For the two-class case (C0, C1): as shown, with the right construction (wj misses vj), no 8-clique. Similarly for (C0, C2) and (C1, C2) with appropriate constructions.
+
+For the three-class case: e.g., 6 from C0, 1 from C1, 1 from C2. Need all cross pairs at distance ≥ 2. The C1 vector must be at distance ≥ 2 from all 6 C0 vectors and from the C2 vector. The C2 vector must be at distance ≥ 2 from all 6 C0 vectors and from the C1 vector.
+
+This is even harder to prevent. With the construction where each wj misses vj, and each uk misses vk, a C1 vector wj is at distance ≥ 2 from vi iff vi = vj. So for wj to be at distance ≥ 2 from 6 C0 vectors, we need 6 of the C0 vectors to be vj, which is impossible (only 1 is vj). So wj is at distance 1 from at least 5 of the 6 C0 vectors. So the 8-set {6 C0, wj, uk} has distance-1 pairs, not a clique.
+
+Wait, but we need to check ALL possible 8-sets, not just specific ones. Let me reconsider.
+
+Actually, I showed that for the two-class case with the "wj misses vj" construction, the only way to get all cross pairs at distance ≥ 2 is to have a = 1 or b = 1, and even then it's impossible. So no 8-clique exists mixing C0 and C1. Similarly for other pairs.
+
+For three classes: an 8-set with a from C0, b from C1, c from C2 (a+b+c=8, a,b,c ≥ 0). If any two classes have ≥ 2 each, say a ≥ 2 and b ≥ 2, then consider the cross pairs between C0 and C1: we need all a×b pairs at distance ≥ 2. As shown, (vi, wj) at distance ≥ 2 iff vi = vj. For all a×b pairs: every vi must equal every vj, impossible if a ≥ 2. So no 8-clique with a ≥ 2 and b ≥ 2.
+
+If a ≥ 2 and c ≥ 2: similarly impossible (between C0 and C2).
+If b ≥ 2 and c ≥ 2: similarly impossible (between C1 and C2).
+
+So the only possible 8-cliques with 3 classes have at most 1 from two of the classes: e.g., a = 6, b = 1, c = 1. Then we need all cross pairs at distance ≥ 2. Between C0 and C1: (vi, wj) at distance ≥ 2 iff vi = vj. For all 6 pairs: all 6 vi must equal vj, impossible. So no 8-clique.
+
+Similarly for a = 1, b = 6, c = 1, etc.
+
+What about a = 0, b = 7, c = 1? Between C1 and C2: (wj, uk) at distance ≥ 2 iff wj = uk (in the analogous construction). For all 7 pairs: all 7 wj must equal uk, impossible.
+
+So with the construction where each class has 7 vectors, and the "missing" structure is set up correctly, NO 8-clique exists! The 21 distinct vectors form a bad set.
+
+But wait, I need to verify that the construction is actually realizable. I need to find specific vectors v1,...,v7 ∈ C0, w1,...,w7 ∈ C1, u1,...,u7 ∈ C2 such that:
+- Within each class, all are distinct (automatic) and pairwise at distance ≥ 2 (automatic since same class).
+- wj is at distance 1 from vi iff vi ≠ vj (i.e., wj is at distance 1 from all vi except vj).
+- Similarly for uk and vi, and for uk and wj.
+
+But this requires a very specific structure. Let me check if it's possible.
+
+wj is at distance 1 from vi iff they differ in exactly one coordinate. wj is at distance 1 from 6 vectors in C0 (its 6 neighbors). We want wj to be at distance 1 from v1,...,v7 except vj. So wj is at distance 1 from 6 of the 7 vi's (all except vj). Since wj has exactly 6 neighbors in C0, we need {v1,...,v7} \ {vj} to be exactly the 6 neighbors of wj in C0.
+
+So the 7 vi's consist of wj's 6 C0-neighbors plus vj (a non-neighbor). This must hold for all j = 1,...,7. So for each wj, the set {v1,...,v7} = N(wj) ∪ {vj} where vj ∉ N(wj).
+
+This means all wj share the same 6 C0-neighbors (since {v1,...,v7} \ {vj} = N(wj) and these are 6-element subsets of the 7-element set {v1,...,v7}, each missing a different element). So N(wj) = {v1,...,v7} \ {vj}.
+
+Now, wj and wk (j ≠ k) are both in C1. N(wj) = {v1,...,v7}\{vj} and N(wk) = {v1,...,v7}\{vk}. These are 6-element subsets of C0. 
+
+Two vectors in C1 that share 5 common neighbors in C0 (|N(wj) ∩ N(wk)| = 5 since they miss different elements). Is this possible?
+
+Each wj has 6 neighbors in C0, obtained by changing one coordinate by -1. So N(wj) = {wj - ei : i = 1,...,6} where ei is the unit vector in coordinate i (and subtraction is mod 3 on the coordinate). Wait, more precisely, wj has coordinates (wj1,...,wj6), and its C0-neighbors are (wj1,...,wji - 1,...,wj6) for i = 1,...,6 (changing coordinate i by -1 mod 3).
+
+For N(wj) and N(wk) to share 5 elements: 5 of the 6 neighbors coincide. (wj - ei) = (wk - ei') for 5 pairs (i, i'). If i = i', then wj - ei = wk - ei implies wj = wk, contradiction. So i ≠ i' for the matching pairs. This means wj and wk differ in exactly 2 coordinates (the ones where the neighbors don't match up).
+
+Actually, let me think about this more carefully. wj - ei = wk - ei' means wj and wk differ in coordinates i and i' (wj_i = wk_i + 1 and wj_{i'} = wk_{i'} - 1, with all other coordinates equal). Wait, that's not quite right either.
+
+Let me think of it differently. wj and wk are in C1. Their neighbor sets in C0 are N(wj) = {wj - e1, ..., wj - e6} and N(wk) = {wk - e1, ..., wk - e6}. For these to share 5 elements, we need 5 of the wj - ei to equal some wk - ei'.
+
+wj - ei = wk - ei' means wj - wk = ei - ei'. If i = i', then wj = wk, contradiction. If i ≠ i', then wj - wk = ei - ei', meaning wj and wk differ in exactly 2 coordinates (i and i').
+
+For 5 shared neighbors: we need 5 such matchings. But wj - wk is a fixed vector. ei - ei' takes different values for different (i, i') pairs. For 5 matchings, we'd need wj - wk to equal 5 different values of ei - ei', which is impossible since wj - wk is fixed.
+
+So two vectors in C1 can share at most 1 neighbor in C0 (if they differ in exactly 2 coordinates, giving 1 matching). Wait, let me reconsider.
+
+If wj - wk = ei - ei' (differ in coords i and i'), then wj - ei = wk - ei' (one shared neighbor). Are there other shared neighbors? wj - ek = wk - ek' would require ei - ei' = ek - ek', i.e., the same difference. If i = k and i' = k', it's the same pair. Otherwise, ei - ei' = ek - ek' with (i,i') ≠ (k,k'). This means ei - ei' = ek - ek', i.e., ei + ek' = ek + ei'. For this to hold with all indices distinct, we'd need... this is a vector equation. ei - ei' has +1 in position i, -1 in position i', 0 elsewhere. ek - ek' has +1 in position k, -1 in position k'. For these to be equal: {i} = {k} and {i'} = {k'}, or i = k and i' = k'. So the only solution is (i,i') = (k,k'). 
+
+So two vectors in C1 that differ in exactly 2 coordinates share exactly 1 neighbor in C0. Two vectors that differ in more coordinates share 0 neighbors.
+
+But we need N(wj) and N(wk) to share 5 neighbors! That's impossible since they can share at most 1.
+
+This means the construction I described is IMPOSSIBLE. We cannot have 7 vectors in C1 such that each pair shares 5 neighbors in C0.
+
+So the "wj misses vj" construction doesn't work. Let me reconsider.
+
+OK so I was wrong. The construction where each wj misses a different vj requires N(wj) ∩ N(wk) to have 5 elements, but two C1 vectors can share at most 1 C0-neighbor. So this is impossible.
+
+Let me reconsider the maximum bad set.
+
+With 7 from C0 and 7 from C1: the condition for no 8-clique is that every 8-subset has a distance-1 pair. As I analyzed, the key condition is: for every pair {wj, wk} in C1, N(wj) ∪ N(wk) ⊇ {v1,...,v7}. But |N(wj) ∩ C0| ≤ 6 and |N(wk) ∩ C0| ≤ 6, and |N(wj) ∩ N(wk)| ≤ 1 (as just shown). So |N(wj) ∪ N(wk)| ≤ 6 + 6 - 0 = 12 (or 11 if they share 1). But we need this to contain all 7 of {v1,...,v7}. 
+
+Actually, N(wj) ∩ {v1,...,v7} could be smaller than 6 (since N(wj) has 6 elements in all of C0, not all in {v1,...,v7}). Let me denote nj = |N(wj) ∩ {v1,...,v7}|. Then for the pair {wj, wk}, we need nj + nk - |N(wj) ∩ N(wk) ∩ {v1,...,v7}| ≥ 7. Since |N(wj) ∩ N(wk)| ≤ 1, we need nj + nk ≥ 7 (or 8 if they share 1 in the set).
+
+Each nj ≤ 6 (at most 6 neighbors in C0, and at most 7 in the set, but only 6 neighbors total). So nj + nk ≤ 12, which is ≥ 7. So it's possible if nj and nk are large enough.
+
+But we need this for ALL pairs. If some wj has nj = 0 (no neighbors among the 7 v's), then for every other wk, we need nk ≥ 7, but nk ≤ 6. Contradiction. So every wj must have nj ≥ 1.
+
+If wj has nj = 1, then every other wk needs nk ≥ 6. So at most one wj can have nj = 1, and the rest need nj ≥ 6. But nj ≤ 6, so the rest have nj = 6 exactly.
+
+If w1 has n1 = 1 and w2,...,w7 have nj = 6: for the pair {w2, w3}, n2 + n3 = 12, and they might share 1 neighbor, so union ≥ 11 ≥ 7. OK. For {w1, w2}: n1 + n2 = 7, and if they share 0 or 1, union = 7 or 6. If they share 1, union = 6 < 7. So we need N(w1) ∩ N(w2) ∩ {v1,...,v7} = ∅, i.e., w1's 1 neighbor is not among w2's 6 neighbors. Since w2 has 6 neighbors among the 7 v's, w1's 1 neighbor must be the 1 v that's not w2's neighbor. Similarly for w3,...,w7: w1's neighbor must not be in N(wj) for any j ≥ 2. But each wj (j ≥ 2) has 6 neighbors among 7 v's, missing 1. If they all miss the same v, then w1's neighbor is that v. But then for the pair {w2, w3}: both miss the same v, so N(w2) ∪ N(w3) = {v1,...,v7} \ {v_miss} ∪ {v1,...,v7} \ {v_miss} = {v1,...,v7} \ {v_miss}, which has 6 < 7 elements. So the pair {w2, w3} doesn't cover all 7 v's. The 8-set {v1,...,v7 minus v_miss, w2, w3, and two more w's}... hmm wait, I need to check the 6+2 condition.
+
+Actually, let me reconsider. The condition for the 6+2 split: for every 6-subset S of {v1,...,v7} and every 2-subset {wj, wk} of {w1,...,w7}, there must be a distance-1 pair between S and {wj, wk}. I.e., S ∩ (N(wj) ∪ N(wk)) ≠ ∅. Since S is a 6-subset of 7, S misses one element. N(wj) ∪ N(wk) must intersect every 6-subset, which means |N(wj) ∪ N(wk) ∩ {v1,...,v7}| ≥ 2 (since a 6-subset misses 1, and we need the union to not be contained in the missed element, i.e., the union has ≥ 2 elements). Wait no, we need: for every 6-subset S, S ∩ (N(wj) ∪ N(wk)) ≠ ∅. The worst case is S = {v1,...,v7} \ {v} where v is in the union. Then S ∩ union = union \ {v}, which is non-empty iff |union| ≥ 2. So we need |N(wj) ∪ N(wk) ∩ {v1,...,v7}| ≥ 2.
+
+This is much weaker! We just need the union to have ≥ 2 elements among the 7 v's. Since each wj has nj ≥ 1 (as shown), the union has ≥ 2 (if nj ≥ 2 for some j, or if n1 = 1 and n2 = 1 with different neighbors). Actually, if n1 = 1 and n2 = 1 and they have the same neighbor, the union has 1 element, which is < 2. So we need: for every pair, the union has ≥ 2 elements.
+
+OK this is getting really complicated. Let me step back and think about the problem from a higher level.
+
+I think this problem is from a Chinese math competition (the number 385 and the style suggest it's from a specific collection). The answer is likely a specific number. Let me think about what the answer could be.
+
+Given the structure:
+- 6 leaders, 3 colors, 2014 albums
+- Want 8 albums pairwise agreeing in ≤ 4 positions (distance ≥ 2)
+- Find minimum n
+
+The key parameters: 3^6 = 729 total vectors, 3^5 = 243 max code size, 2014 albums.
+
+With the single-code approach: n = 64 (as computed).
+
+But maybe we can do better with a multi-class approach. The question is how much better.
+
+Let me think about the problem differently. Instead of thinking about codes, let me think about a direct partition approach.
+
+Partition {1,2,3}^6 into groups where within each group, the maximum distance-≥-2 set has size ≤ 7. Then a bad set is contained in the union of groups, and we need to bound its size.
+
+Actually, let me think about "resolvable" designs or something similar.
+
+Hmm, let me try a completely different approach. Let me think about the problem in terms of the "agreement" structure.
+
+Two albums agree in at most 4 positions = differ in at least 2 positions. We want 8 albums pairwise differing in ≥ 2 positions.
+
+Consider the 6 positions. Each album is a function from {1,...,6} to {1,2,3}. Two albums "agree" in a position if they have the same color there.
+
+Now, consider the following approach: for each album, compute a "signature" = (sum of colors mod 3). This gives 3 classes. Within each class, all pairs differ in ≥ 2 positions (as shown). So 8 albums from the same class work.
+
+For the scheme: use 2014 albums, distributed among the 3 classes. By pigeonhole, one class has ≥ 672. Within that class, ≤ 243 distinct signatures. A bad set takes ≤ 7 distinct from each class.
+
+But the bad set can also mix classes. The question is how much mixing helps.
+
+Let me think about the lower bound more carefully.
+
+For any scheme of 2014 albums:
+- 3 classes, one has ≥ 672 albums, say C0.
+- C0 has ≤ 243 distinct vectors, with total ≥ 672.
+- The 7 most frequent in C0 have total ≥ 7 × ⌈672/243⌉ = 7 × 3 = 21.
+
+But actually, we can be smarter. The 7 most frequent in C0: let their multiplicities be m1 ≥ ... ≥ m7. Then m1 + ... + m7 ≥ 7 × (672/243) ≈ 19.4, so ≥ 20.
+
+But actually, we can do better. Since the total is ≥ 672 and there are ≤ 243 distinct, the average multiplicity is ≥ 672/243 ≈ 2.77. The 7 most frequent have sum ≥ 7 × 2.77 ≈ 19.4, so ≥ 20.
+
+But can we also add albums from other classes to the bad set? If we add 1 album from C1 that's at distance 1 from one of the 7 C0 albums, the bad set grows by 1 (or more if there are multiple copies). But we need to ensure no 8 pairwise at distance ≥ 2.
+
+The bad set currently has 7 distinct C0 vectors (pairwise at distance ≥ 2) with their multiplicities (total ≥ 20). Adding a C1 vector: if it's at distance 1 from at least one C0 vector, then the 8-set {7 C0 + 1 C1} is not pairwise at distance ≥ 2 (since one pair is at distance 1). So the bad set still has no 8 pairwise at distance ≥ 2. We can add this C1 vector and its copies.
+
+But we need to be careful: adding multiple C1 vectors could create an 8-set that is pairwise at distance ≥ 2 using some C0 and some C1 vectors.
+
+This is getting very involved. Let me try to think about the problem from the answer's perspective.
+
+I think the answer might be related to the following: we use the 3-coloring (sum mod 3) and distribute evenly. The key number is 2014 / 3 ≈ 671.33, so one class has ≥ 672. With 243 distinct per class and 672 albums, the 7 most frequent have ≥ 7 × ⌈672/243⌉ = 7 × 3 = 21. So the bad set has ≥ 21, giving n ≥ 22.
+
+But can we achieve n = 22? We need a scheme where the max bad set is 21.
+
+With 2014 albums distributed evenly among 729 distinct vectors: 2014 = 729 × 2 + 556, so 556 vectors have 3 copies, 173 have 2 copies. Each class has 243 vectors. In the largest class (≥ 672), the 7 most frequent have 7 × 3 = 21 copies (if 7 of the 556 triple-copy vectors are in this class). The bad set = 21.
+
+But can the bad set be larger by mixing classes? As I discussed, adding C1 vectors to the bad set is possible but constrained. The question is whether we can add enough to exceed 21.
+
+If we add k C1 vectors (with their copies) to the bad set, we need no 8 pairwise at distance ≥ 2 among all C0 and C1 vectors in the bad set. The C0 vectors (7 distinct) are pairwise at distance ≥ 2. The C1 vectors are pairwise at distance ≥ 2. Cross pairs: some at distance 1, some at distance ≥ 2.
+
+For no 8 pairwise at distance ≥ 2: we need that every 8-subset has a distance-1 pair. As I analyzed, this requires strong conditions.
+
+Let me think about the maximum number of C1 vectors we can add. Each C1 vector w has 6 distance-1 neighbors in C0. If w is at distance 1 from at least one of the 7 C0 vectors, adding w doesn't create an 8-set of 7 C0 + w (since one pair is at distance 1). But adding multiple C1 vectors could create issues.
+
+If we add w1 and w2 from C1: the 8-set {6 C0, w1, w2} is pairwise at distance ≥ 2 iff w1 and w2 are at distance ≥ 2 (they are, same class) and both are at distance ≥ 2 from all 6 C0 vectors. So we need: for every 6-subset of the 7 C0 vectors, at least one of w1, w2 is at distance 1 from one of the 6. I.e., (N(w1) ∪ N(w2)) ∩ {v1,...,v7} intersects every 6-subset, meaning |(N(w1) ∪ N(w2)) ∩ {v1,...,v7}| ≥ 2.
+
+If w1 is at distance 1 from 1 of the 7 C0 vectors, and w2 is at distance 1 from 1 of the 7 (possibly the same one), then the union has 1 or 2 elements. If 2, OK. If 1 (same vector), then the 6-subset missing that vector has no distance-1 pair with w1 or w2, so {that 6-subset, w1, w2} is an 8-set pairwise at distance ≥ 2. Bad.
+
+So we need: for every pair of C1 vectors added, their distance-1 neighborhoods among the 7 C0 vectors have union of size ≥ 2.
+
+More generally, for k C1 vectors added: for every (8-k)-subset of C0 and every k-subset of C1 (with 8-k + k = 8, 1 ≤ k ≤ 7, 1 ≤ 8-k ≤ 7), the union of neighborhoods intersects the (8-k)-subset. This means the union of neighborhoods has size ≥ 7 - (8-k) + 1 = k - 1 + 1 = k. Wait, let me redo this.
+
+For a (8-k)-subset S of C0 (missing k-1 elements from the 7) and k C1 vectors: we need S ∩ (union of N(wj)) ≠ ∅. The worst case is S missing the elements in the union. If the union has u elements, S can miss up to k-1 elements (since |S| = 8-k, missing k-1 from 7). If u ≤ k-1, S can miss all u elements, so S ∩ union = ∅. So we need u ≥ k.
+
+So for k C1 vectors, the union of their neighborhoods among the 7 C0 vectors must have size ≥ k. Since each neighborhood has at most 6 elements (among all C0, but among the 7, at most 6), and two neighborhoods share at most 1 element, the union of k neighborhoods has size ≥ k × 1 = k (trivially, since they share at most 1, the union is ≥ sum - C(k,2) × 1, but that could be negative for large k). 
+
+Hmm, this isn't tight. Let me think about the maximum k C1 vectors we can add.
+
+For k = 7: union of 7 neighborhoods must have size ≥ 7, i.e., cover all 7 C0 vectors. Each neighborhood has ≤ 6 elements, and pairwise intersection ≤ 1. By inclusion-exclusion, union ≥ 7 × 6 - C(7,2) × 1 = 42 - 21 = 21. But we only need 7, so this is fine. Actually, the union could be as small as... if all 7 neighborhoods are the same 6 elements, the union is 6 < 7. But can 7 C1 vectors all have the same 6 C0-neighbors among the 7? Each C1 vector has 6 C0-neighbors (in all of C0), and we need 6 of them to be among the 7. Two C1 vectors with the same 6 C0-neighbors: they must be at distance 2 from each other (sharing 1 neighbor as computed). Actually, two C1 vectors share at most 1 C0-neighbor. So if they both have 6 neighbors among the 7 C0 vectors, they share at most 1, so their neighborhoods are 6-element subsets of a 7-element set sharing ≤ 1 element. The union of two such sets has size ≥ 6 + 6 - 1 = 11, but capped at 7. So union = 7. 
+
+Wait, if both are 6-element subsets of a 7-element set, and they share ≤ 1 element, then their union has size ≥ 6 + 6 - 1 = 11, but since they're subsets of a 7-element set, the union is at most 7. So union = 7. But 6 + 6 - 1 = 11 > 7, which means they must share ≥ 5 elements (since 6 + 6 - 5 = 7). But we said they share ≤ 1. Contradiction!
+
+So two C1 vectors cannot both have 6 neighbors among the 7 C0 vectors (since they'd need to share ≥ 5, but can share ≤ 1). So at most one C1 vector can have 6 neighbors among the 7.
+
+If one C1 vector has 6 neighbors among 7, and another has 5: they share ≤ 1, so union ≥ 6 + 5 - 1 = 10, capped at 7. So union = 7, meaning they share ≥ 4. But they can share ≤ 1. Contradiction again!
+
+So if one has 6 and another has 5, they can't both be subsets of the 7. Hmm, wait. The neighborhoods are        — AI历史解题过程（thinking）
+#   polymath_03157         — 题目ID
+
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search.
+- All information you need is in this AGENTS.md file.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem. The thinking is very short, contains connection errors, or has no meaningful mathematical content. This is a technical failure, not a mathematical one.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_03157</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars of mathematical content), output CONNECTION_ERROR
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+385 A certain school's 2014 graduates numbered 2014 students. The school's six leaders must sign each student's graduation album. It is known that each leader must and can only use one of the three designated colored pens, and the color choices for the six leaders signing 2014 albums can be represented as a $6 \times 2014$ grid, called a color selection scheme. Find the smallest positive integer $n$, such that there exists a color selection scheme where in any $n$ albums, there are 8 albums where any two albums have at most four leaders' signatures in the same color.
+
+## Standard Solution
+
+Let 1, 2, 3 represent three colors, and the colors used by six school leaders for signing in each memorial album be represented by a six-element ordered array
+$$
+\left(x_{1}, x_{2}, \cdots, x_{6}\right)\left(x_{i} \in\{1,2,3\}\right)
+$$
+
+This array is referred to as the sequence group $\left(x_{1}, x_{2}, \cdots, x_{6}\right)$. For $x_{2}, x_{3}, \cdots, x_{6} \in\{1,2,3\}$, the set
+$$
+\left\{\left(1, x_{2}, \cdots, x_{6}\right),\left(2, x_{2}, \cdots, x_{6}\right),\left(3, x_{2}, \cdots, x_{6}\right)\right\}
+$$
+
+is called a Type 1 set. Clearly, all sequence groups $\left(x_{1}, x_{2}, \cdots, x_{6}\right)\left(x_{i} \in\{1,2,3\}\right)$ belong to 243 types.
+
+Given $2014=8 \times 243+70$, we know that among 2014 memorial albums, there are nine albums of the same type. Select these nine albums;
+
+Given $2005=8 \times 243+61$, we know that among the remaining 2005 albums, there are another nine albums of the same type. Select these nine albums;
+
+Continuing this process, we can select seven times, obtaining a total of 63 albums. Among these, each set of eight albums includes at least two albums selected in the same round, which must be of the same type. This means that at least five school leaders signed with the same color in these two albums. This indicates that for any coloring scheme, there are 63 albums that do not meet the requirement. Therefore, $n \geqslant 64$.
+
+On the other hand, consider the set
+$$
+S=\left\{\left(x_{1}, x_{2}, \cdots, x_{6}\right) \mid x_{i} \in\left\{1,2,3 \mid, \sum_{i=1}^{6} x_{i}=0(\bmod 3)\right\}\right. \text {. }
+$$
+
+The number of elements in set $S$ is 243, and any two different elements in set $S$ have at most four components the same. Arbitrarily remove 19 elements from set $S$, leaving 224 elements to form set $T$. Divide the 2014 memorial albums into 224 groups, with the first 223 groups each containing 9 albums, and the last group containing 7 albums. Ensure that each group corresponds to an element in set $T$ (i.e., the signatures in the same group are identical, while those in different groups are different). Clearly, any 64 albums must belong to at least eight groups, thus there exist eight albums corresponding to eight different elements in set $T$. Therefore, any two albums among these have at most four school leaders' signatures in the same color.
+
+In summary, the minimum value of $n$ is 64.
+（Fang Tinggang, Chengdu No. 7 High School, Sichuan, 610041）
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We have 6 leaders, each using one of 3 colored pens to sign each of 2014 albums. So we have a 6×2014 grid where each entry is in {1,2,3} (colors).
+
+We need to find the smallest positive integer n such that there exists a coloring scheme where in any n albums (any n columns chosen from the 2014), there are 8 albums (8 columns) where any two of these 8 albums have at most 4 leaders' signatures in the same color.
+
+Let me restate: We have 2014 columns, each column is a vector in {1,2,3}^6. We need to find the smallest n such that there EXISTS a set of 2014 vectors with the property: any subset of n columns contains 8 columns that are pairwise "at most 4 matches" (i.e., for any two of the 8, they agree in at most 4 positions).
+
+Two columns agree in at most 4 positions means they differ in at least 2 positions. Equivalently, the Hamming distance between them is at least 2.
+
+So we need: among any n columns, there exist 8 that are pairwise at Hamming distance ≥ 2.
+
+Equivalently: we need to find the largest possible "bad" set - a set of columns where no 8 are pairwise at distance ≥ 2. Then n = (max bad set size) + 1.
+
+Wait, let me think more carefully. We want the smallest n such that there EXISTS a scheme (2014 vectors) with the property that any n columns contain 8 pairwise at distance ≥ 2.
+
+So for a given scheme S (set of 2014 vectors), define f(S) = largest m such that there exist m columns with no 8 pairwise at distance ≥ 2. We want to find a scheme S minimizing f(S), and then n = f(S) + 1.
+
+Actually, we want the smallest n such that there exists S with the property that every n-subset contains 8 pairwise at distance ≥ 2. This means f(S) < n for some S, i.e., f(S) ≤ n-1. So n = min_S f(S) + 1.
+
+So we need to find min over all schemes S of (max independent-like set), then add 1.
+
+Let me think about the structure. Two vectors in {1,2,3}^6 agree in at most 4 positions = differ in at least 2 positions = Hamming distance ≥ 2.
+
+A set of vectors pairwise at Hamming distance ≥ 2 is a code with minimum distance 2. A code with minimum distance 2 can detect one error. The maximum size of such a code in {1,2,3}^6... actually, a code with min distance ≥ 2 means no two codewords are equal in all but one position, i.e., no two codewords differ in exactly 0 or 1 position.
+
+Actually min distance ≥ 2 just means all codewords are distinct (distance ≥ 1) and no two differ in exactly 1 position. So it's a code where any two codewords differ in at least 2 positions.
+
+The maximum size of a code in {1,2,3}^6 with min distance ≥ 2: This is related to the concept of a code. For q-ary codes, A_q(n,d) is the max size. A_3(6,2) = 3^5 = 243 (since a code with min distance 2 over alphabet size q has max size q^(n-1), achieved by a parity-check-like code / MDS code). Actually, for q-ary codes with d=2, A_q(n,2) = q^(n-1). This is because we can use a single parity check: sum of coordinates ≡ 0 mod q, giving q^(n-1) codewords, and any two differ in at least 2 positions.
+
+So the maximum set of pairwise distance ≥ 2 vectors in {1,2,3}^6 has size 3^5 = 243.
+
+Now, the question is about the complement. We want: in any n columns, there exist 8 that are pairwise at distance ≥ 2.
+
+A "bad" set is a set of columns where you cannot find 8 pairwise at distance ≥ 2. The maximum bad set is the largest set where the maximum "distance-≥-2 clique" has size at most 7.
+
+Hmm, this is a Ramsey-type problem. Let me think about it differently.
+
+Consider the graph G on the 2014 columns where we connect two columns if they agree in at most 4 positions (distance ≥ 2). We want: any n vertices contain an independent... no wait, we want 8 that are pairwise at distance ≥ 2, which means 8 that form a clique in G. So we want: any n vertices contain a clique of size 8 in G.
+
+The complement graph G' connects two columns if they agree in 5 or 6 positions (distance 0 or 1). We want: any n vertices contain an independent set of size 8 in G'.
+
+So a "bad" set is a set where the independence number in G' is at most 7, i.e., the clique cover... no. A bad set is a set of vertices in G' with no independent set of size 8, meaning α(G'[bad]) ≤ 7.
+
+By Ramsey theory / Turán-type, if a graph on m vertices has α ≤ 7, then... by Turán's theorem (complement), the number of edges is at least... Actually, if α(G') ≤ 7, then by the complement, the clique number of the complement is ≤ 7, so by Turán, the complement has at most (1 - 1/7) * m²/2 edges, meaning G' has at least m(m-1)/2 - (1-1/7)m²/2 edges... this gives a lower bound on m.
+
+Wait, let me reconsider. Actually, let me think about what G' looks like. Two columns are adjacent in G' if they agree in 5 or 6 positions, i.e., distance 0 or 1.
+
+Distance 0 means identical. Distance 1 means they differ in exactly one position.
+
+So G' connects columns that are identical or differ in exactly one coordinate.
+
+Now, the key insight: Consider the equivalence classes / structure. Two vectors at distance ≤ 1 form a "ball" of radius 1. The structure of G' is that it's a graph where vertices at Hamming distance ≤ 1 are connected.
+
+A set with α ≤ 7 in G' means: no 8 vertices are pairwise at distance ≥ 2. Equivalently, the maximum code (min distance 2) within this set has size ≤ 7.
+
+Now, let's think about the structure of {1,2,3}^6. Total vectors: 3^6 = 729. But we have 2014 columns, so we must repeat vectors (since 2014 > 729).
+
+Key observation: If two columns are identical (distance 0), they are adjacent in G'. If we have many copies of the same vector, they form a clique in G', which doesn't help with independence.
+
+Let me think about this more carefully. We want to design a multiset of 2014 vectors (from 729 possible) such that any large enough subset contains 8 pairwise at distance ≥ 2.
+
+First, let's think about the structure of distance-≤-1 neighborhoods. For a vector v, the vectors at distance ≤ 1 from v are: v itself, and 6×2 = 12 vectors at distance 1. So the closed ball of radius 1 has size 13.
+
+Now, a code with min distance ≥ 2 in {1,2,3}^6 has max size 3^5 = 243. The 729 vectors can be partitioned into 243 "lines" where each line consists of vectors that differ only in the last coordinate (3 vectors per line, all at distance 1 from each other). Actually, more precisely, fixing the first 5 coordinates gives a "line" of 3 vectors (varying the 6th coordinate). Two vectors on the same line are at distance 1 (if different) or 0 (if same). Two vectors on different lines are at distance ≥ 1, and could be at distance 1 if they differ in exactly one of the first 5 coordinates and have the same 6th coordinate... no wait.
+
+Hmm, let me reconsider. Let me think of {1,2,3}^6 as a Hamming space. The relation "distance ≤ 1" is not an equivalence relation (it's not transitive). So we can't simply partition into classes.
+
+Let me think about this differently using the structure of the problem.
+
+The 729 vectors can be partitioned into 243 groups of 3, where each group is a "fiber" - vectors that agree in all coordinates except one. For instance, fix coordinates 1-5, vary coordinate 6: get 3 vectors pairwise at distance 1. This gives 3^5 = 243 fibers.
+
+Within each fiber, all 3 vectors are pairwise at distance 1, so they form a clique in G'. An independent set in G' can contain at most 1 vector from each fiber (since any two in the same fiber are at distance 1).
+
+But vectors from different fibers can also be at distance 1. For example, (1,1,1,1,1,1) and (2,1,1,1,1,1) are at distance 1 but in different fibers (if fibers are defined by the 6th coordinate).
+
+So the fiber structure alone doesn't capture all distance-1 pairs.
+
+Let me reconsider the problem. Maybe I should think about it in terms of a graph coloring / Ramsey number approach.
+
+Actually, let me reconsider what we need. We need to find the minimum n such that there EXISTS a scheme of 2014 vectors where any n of them contain 8 pairwise at distance ≥ 2.
+
+Let me think about what makes a good scheme. If we use a code with min distance ≥ 2, then ALL pairs are at distance ≥ 2, so any 8 would work. The max such code has size 243. But we need 2014 vectors, so we can't use only a code.
+
+If we use 2014 vectors all from a code of size 243 (with repetitions), then... if we pick 8 vectors that are all distinct codewords, they're pairwise at distance ≥ 2. So we need 8 distinct codewords among any n columns. If each codeword appears at most k times, then n columns contain at least n/k distinct codewords. We need n/k ≥ 8, so n ≥ 8k. With 2014 vectors and 243 codewords, by pigeonhole some codeword appears at least ⌈2014/243⌉ = 9 times. If we distribute as evenly as possible, each appears 8 or 9 times (2014 = 243×8 + 70, so 70 codewords appear 9 times, 173 appear 8 times).
+
+If we use all 243 codewords, each appearing 8 or 9 times: any n columns contain at least ⌈n/9⌉ distinct codewords (worst case, all from the most frequent). We need ⌈n/9⌉ ≥ 8, so n ≥ 8×9 - 8 = 64... wait, ⌈n/9⌉ ≥ 8 means n/9 > 7, so n ≥ 64. Actually ⌈n/9⌉ ≥ 8 iff n ≥ 8×9-8+1 = 65. Hmm, ⌈n/9⌉ ≥ 8 iff n > 7×9 = 63 iff n ≥ 64. Let me check: n=64, 64/9 = 7.11, ⌈7.11⌉ = 8. Yes. n=63, 63/9=7, ⌈7⌉=7. So n ≥ 64.
+
+But wait, this assumes the worst case is picking all 9 copies of 7 codewords = 63 columns with only 7 distinct. Then n=64 forces at least 8 distinct. But actually, we need to be more careful. The worst case for "fewest distinct codewords in n columns" is: pick as many copies as possible from fewest codewords. Each codeword has at most 9 copies. So 7 codewords give at most 63 columns. 8 codewords give at most 72 columns. So with n=64, we must have at least 8 distinct codewords (since 7 codewords can give at most 63 < 64 columns). And 8 distinct codewords from a min-distance-2 code are pairwise at distance ≥ 2. 
+
+But can we do better? Maybe using a different scheme (not just a code with repetitions)?
+
+Let me think about whether we can do better than 64.
+
+Alternative approach: Use vectors not just from a single code. Maybe we can use a larger set of vectors with a cleverer structure.
+
+Let me think about the problem from the lower bound side. We need to show that for any scheme of 2014 vectors, there exist n-1 columns with no 8 pairwise at distance ≥ 2. And then show there exists a scheme where any n columns have 8 pairwise at distance ≥ 2.
+
+Lower bound: For any scheme, what's the largest "bad" set (no 8 pairwise at distance ≥ 2)?
+
+Consider the graph G' (distance ≤ 1). A bad set is a set with α(G') ≤ 7, i.e., no independent set of size 8.
+
+By Ramsey theory, R(8, ...) but this isn't quite Ramsey since G' has special structure.
+
+Let me think about it differently. Consider the 729 distinct vectors. Group them by their "syndrome" or some other structure.
+
+Actually, let me think about a specific structure. Consider the map φ: {1,2,3}^6 → {1,2,3}^5 that drops the last coordinate. The fibers of φ each have 3 elements (varying the last coordinate), and within each fiber, all pairs are at distance 1.
+
+Now, two vectors in different fibers can be at distance 1 if they differ in exactly one coordinate among the first 5 and have the same last coordinate, OR if they have the same first 5 coordinates (but then they're in the same fiber).
+
+Wait, no. Two vectors v, w with φ(v) ≠ φ(w) are at distance ≥ 1 in the first 5 coordinates. They're at distance 1 overall iff they differ in exactly 1 of the first 5 coordinates and agree in the 6th. They're at distance 0 iff same (impossible since different fibers). So distance between different-fiber vectors is ≥ 1, and = 1 iff they differ in exactly 1 of first 5 coords and agree in 6th.
+
+This is getting complex. Let me think about the problem from a higher level.
+
+The key quantity is: what is the maximum size of a subset of {1,2,3}^6 (with multiplicities) that has no 8 elements pairwise at distance ≥ 2?
+
+If we can have multiplicities, identical copies are at distance 0 ≤ 1, so they're "close". A bad set can include many copies of the same vector.
+
+Consider a bad set B (multiset). No 8 elements pairwise at distance ≥ 2. This means the maximum code (min distance 2) within B has size ≤ 7.
+
+Now, the 729 vectors can be covered by... let me think about a partition into "balls" or some covering.
+
+Actually, here's a key structural observation. Consider the 3^5 = 243 fibers (fixing first 5 coords, varying 6th). Within each fiber, all pairs are at distance 1. So an independent set (in G') picks at most 1 from each fiber. But also, two vectors from different fibers can be at distance 1.
+
+Hmm, let me think about a different partition. Consider the equivalence relation: v ~ w if they agree in all coordinates. That's just equality, giving 729 classes.
+
+Let me try a different approach. Think of the 6 coordinates. For each vector, consider its "type" = the vector itself. Two vectors are "close" (distance ≤ 1) if they're equal or differ in one coordinate.
+
+A set with no 8 pairwise at distance ≥ 2: this is a set where the maximum antichain (in the distance sense) has size ≤ 7.
+
+Let me think about small cases. Consider just the structure within a single "ball of radius 1" around a vector v: this ball has 13 vectors (v and 12 neighbors). Within this ball, any two vectors are at distance ≤ 2 from each other. But are they at distance ≤ 1 from each other? No: two neighbors of v that differ in different coordinates could be at distance 2 from each other.
+
+For example, (1,1,1,1,1,1) and its neighbors (2,1,1,1,1,1) and (1,2,1,1,1,1). These two neighbors are at distance 2 from each other. So they're NOT adjacent in G'. So within a ball of radius 1, we can have pairs at distance 2.
+
+This means the ball of radius 1 is not a clique in G'. So we can't just use balls.
+
+Let me reconsider. The graph G' has edges between vectors at distance 0 or 1. We want the maximum set with α(G') ≤ 7.
+
+Actually, I realize this is a competition problem (it's from a Chinese math competition, problem 385). Let me think about it more carefully.
+
+Let me reconsider the approach using codes.
+
+A code C ⊂ {1,2,3}^6 with min distance ≥ 2 has |C| ≤ 243. Within such a code, all pairs are at distance ≥ 2, so any 8 elements of C are pairwise at distance ≥ 2.
+
+Now, for the scheme: we have 2014 columns. We want to minimize the largest "bad" subset.
+
+Approach 1: Use a maximum code (243 codewords) with repetitions. As computed, this gives n = 64.
+
+Can we do better? Let's think about whether we can use more than 243 distinct vectors while maintaining the property.
+
+If we use vectors outside a single code, some pairs will be at distance 1, creating edges in G'. This could potentially create larger bad sets.
+
+But maybe we can be cleverer. Let me think about using multiple codes or a different structure.
+
+Actually, let me reconsider. The question is about the minimum n. Let me think about both upper and lower bounds.
+
+Upper bound (constructive): We showed n ≤ 64 using a max code with repetitions.
+
+Can we improve this? Let's think about using a different strategy.
+
+What if we use ALL 729 vectors, each appearing either 2 or 3 times (729 × 2 = 1458, 729 × 3 = 2187, so 2014 = 729 × 2 + 556, meaning 556 vectors appear 3 times and 173 appear 2 times)?
+
+In this case, a bad set needs no 8 pairwise at distance ≥ 2. The maximum independent set in G' over all 729 vectors: this is the maximum code with min distance 2, which is 243. So if we pick one copy of each of 243 codewords, we get 243 vectors pairwise at distance ≥ 2, which certainly contains 8 pairwise at distance ≥ 2. So a bad set can't contain 243 distinct vectors from a code... but it could contain vectors not forming a code.
+
+Hmm, this approach seems worse. Let me think differently.
+
+Let me reconsider the code approach. With a code of size 243, each codeword appearing ⌈2014/243⌉ = 9 times (some 8, some 9), the worst bad set picks all copies of 7 codewords = 63, and we need n = 64.
+
+But wait—can we use a code of size larger than 243? No, 243 is the maximum for min distance 2 in {1,2,3}^6.
+
+What if we use a code of size 243 but distribute the 2014 vectors differently? We have 2014 = 243 × 8 + 70. So 70 codewords get 9 copies, 173 get 8 copies. The worst case is 7 codewords × 9 copies = 63. So n = 64.
+
+Can we reduce the maximum multiplicity? If we use more distinct vectors... but we need all pairs within our "good" set to be at distance ≥ 2. If we use vectors outside the code, they might be at distance 1 from code vectors, creating issues.
+
+Actually wait. Let me reconsider. The scheme doesn't need ALL pairs to be at distance ≥ 2. It just needs that any n columns contain 8 that are pairwise at distance ≥ 2. So we could potentially use a larger set of distinct vectors.
+
+Let me think about it as a graph problem. We have a graph G on our 2014 vertices (with edge = distance ≥ 2). We want the minimum n such that every n-vertex induced subgraph contains a clique of size 8. This is related to the Ramsey-type property.
+
+The worst case is a set of vertices with no clique of size 8 in G, i.e., no independent set of size 8 in G' (where G' has edges for distance ≤ 1).
+
+By the complement, a set with no clique-8 in G is a set with clique number ≤ 7 in G... no, a set with no 8-clique in G.
+
+We want to minimize the maximum such set. This is like finding a graph on 2014 vertices (that's a blow-up of the Hamming graph structure) that minimizes the largest 8-clique-free induced subgraph.
+
+Hmm, this is getting complicated. Let me think about it from the perspective of the structure of G'.
+
+Key insight: G' is the graph where vertices at Hamming distance ≤ 1 are connected. The complement G is the graph where vertices at Hamming distance ≥ 2 are connected.
+
+In G, a clique = a code with min distance ≥ 2. Max clique in G (over all 729 vectors) = 243.
+
+Now, for our scheme, we choose a multiset of 2014 vectors. The graph G on our 2014 vertices has cliques corresponding to codes (min distance 2) within our multiset.
+
+We want: every n vertices contain a clique of size 8. The worst case is the largest subset with no 8-clique.
+
+By a Ramsey/Turán argument: if a subset of m vertices has no 8-clique in G, then... we need to understand the structure of G'.
+
+Let me think about the structure of G' more carefully. In G', two vertices are adjacent iff distance ≤ 1. 
+
+Consider the "closed neighborhoods" in G'. For a vector v, its closed neighborhood N[v] = {w : d(v,w) ≤ 1} has size 13 (v + 12 neighbors at distance 1).
+
+A set with α(G') ≤ 7 means no 8 vertices are pairwise non-adjacent in G', i.e., no 8 vertices pairwise at distance ≥ 2.
+
+Now, here's a key structural fact. Consider a "star" centered at v: {v} ∪ {neighbors of v at distance 1}. This is a clique in G' (since all are at distance ≤ 1 from v, but are they pairwise at distance ≤ 1? No! As I noted, two neighbors at distance 1 from v can be at distance 2 from each other).
+
+So N[v] is NOT a clique in G'. The clique number of G' restricted to N[v] is... v is adjacent to all 12 neighbors. Among the 12 neighbors, two are adjacent iff they're at distance ≤ 1, i.e., iff they differ in the same single coordinate (then they're at distance 1 from each other, wait no).
+
+Let me be more precise. The 12 neighbors of v = (a1,...,a6) are obtained by changing exactly one coordinate. Two neighbors that change the same coordinate i: (a1,...,ai',...,a6) and (a1,...,ai'',...,a6) with ai' ≠ ai''. These differ only in coordinate i, so they're at distance 1 from each other. Two neighbors that change different coordinates i and j: they differ in coordinates i and j, so distance 2. They're NOT adjacent in G'.
+
+So the 12 neighbors form 6 groups of 2 (one group per coordinate), where within each group the 2 are adjacent (distance 1), and across groups they're non-adjacent (distance 2). Plus v is adjacent to all 12.
+
+So the clique number of G' restricted to N[v]: we can take v + one from each group = v + 6 = 7 vertices. Or we can take both from one group + v = 3. The max clique is v + one from each of the 6 groups = 7. Wait, can we take both from a group AND v? v, (a1',a2,...,a6), (a1'',a2,...,a6) — these three are pairwise at distance ≤ 1? v and first neighbor: distance 1. v and second: distance 1. First and second: distance 1. Yes! So they form a clique of 3. But if we take both from group 1 and one from group 2: (a1',...) and (a2',...) are at distance 2, not adjacent. So we can't mix groups (taking 2 from one group) with other groups.
+
+Max clique in N[v]: either v + 1 from each group (size 7), or v + 2 from one group (size 3). So max clique = 7.
+
+Interesting! So the clique number of G' on N[v] is 7. This means N[v] (13 vertices) has no clique of size 8 in G', i.e., no independent set of size 8 in G. So N[v] is a "bad" set of size 13!
+
+Wait, but we're working with multisets. If we have multiple copies, N[v] could be larger.
+
+Hmm, but this is for distinct vectors. With 2014 columns and 729 distinct vectors, we have repetitions.
+
+Let me reconsider. The clique number of G' on the ball of radius 1 around v is 7. This means within any ball of radius 1 (13 distinct vectors), we can find at most 7 pairwise at distance ≤ 1... no, the clique number being 7 means the max set of pairwise adjacent vertices (pairwise distance ≤ 1) is 7. 
+
+Wait, I need to be more careful. α(G') ≤ 7 means no 8 pairwise non-adjacent, i.e., no 8 pairwise at distance ≥ 2. The clique number of G' being 7 is different from α(G') being 7.
+
+Let me recompute. In N[v] (13 vertices), what is α(G')? That's the max set of pairwise non-adjacent vertices in G', i.e., pairwise at distance ≥ 2. 
+
+Among the 12 neighbors (excluding v), the max set pairwise at distance ≥ 2: we need to pick neighbors that are pairwise at distance ≥ 2. Two neighbors changing the same coordinate are at distance 1 (adjacent in G'), so we can pick at most 1 from each coordinate group. That gives at most 6. And these 6 (one per coordinate) are pairwise at distance 2, so they form an independent set of size 6 in G'. Can we do better? We can't include v (v is adjacent to all neighbors). So α(G' on N[v]) = 6.
+
+Hmm, so the ball of radius 1 has independence number 6 in G'. That means within 13 vectors, we can find 6 pairwise at distance ≥ 2. That's less than 8, so the ball is a bad set of size 13.
+
+But with repetitions, we can make it bigger. If we have k copies of each vector in the ball, the bad set has size 13k, and the independence number is still 6 (since copies of the same vector are at distance 0, adjacent in G', so they don't help independence).
+
+Wait, actually with repetitions, the independence number could change. If we have multiple copies of v, they're all at distance 0 from each other (adjacent in G'), so they don't contribute to independence. The independence number of G' on a multiset is the same as on the underlying set (since copies are always adjacent).
+
+So if our scheme uses vectors from a ball of radius 1, with multiplicity, the bad set size is (total copies) but independence is ≤ 6.
+
+But we need 2014 vectors total. If we use only 13 distinct vectors (a ball), with 2014/13 ≈ 155 copies each, the bad set is all 2014 vectors with α ≤ 6 < 8. So n would need to be > 2014, which is impossible. This means using only a ball is a terrible scheme.
+
+So the scheme matters a lot. We need to spread vectors across many "independent" (distance ≥ 2) groups.
+
+OK so let me go back to the code approach. Using a code of size 243 with min distance 2, all pairs at distance ≥ 2. With 2014 = 243×8 + 70, max multiplicity 9. Bad set: 7 codewords × 9 copies = 63, α = 7 < 8. So n = 64.
+
+Can we do better than 64? Let's see if there's a scheme where the max bad set is smaller.
+
+What if we use a code of size 243 but with more balanced multiplicities? We can't do better than max multiplicity 9 since 2014/243 > 8.
+
+What if we use a larger set of distinct vectors, not just a code? For instance, use all 729 vectors. Then the max bad set... we need to find the largest subset of {1,2,3}^6 (with multiplicities) with α(G') ≤ 7.
+
+The independence number of G' on all 729 vectors is 243 (max code). So a subset with α ≤ 7 must be much smaller. But with multiplicities, we can repeat.
+
+Hmm, let me think about this differently. 
+
+Let me consider the following: partition the 729 vectors into groups such that within each group, all pairs are at distance ≤ 1 (i.e., each group is a clique in G'). Then a bad set can include all copies from up to 7 groups (since picking one from each group gives at most 7 pairwise at distance ≥ 2... no wait, if groups are cliques in G', then picking one from each group, are they pairwise at distance ≥ 2? Not necessarily, since vectors from different groups could still be at distance 1).
+
+This is getting complicated. Let me think about the problem from the competition math perspective.
+
+The answer is likely a clean number. Let me think about what structure gives the optimal scheme.
+
+Let me reconsider. We have 6 leaders, 3 colors. Each album is a vector in {1,2,3}^6. We want 8 albums pairwise agreeing in ≤ 4 positions (distance ≥ 2).
+
+Let me think about a partition of {1,2,3}^6 into "classes" where within each class, all pairs agree in ≥ 5 positions (distance ≤ 1). If we can partition into classes that are cliques in G', then a bad set uses at most 7 classes (to keep α ≤ 7).
+
+The minimum number of such classes to cover {1,2,3}^6 would give us the structure. But cliques in G' are sets of pairwise distance ≤ 1 vectors. The max clique in G' is 7 (as computed: v + one neighbor per coordinate). Wait, is the max clique really 7?
+
+Let me recheck. A clique in G' is a set of pairwise distance ≤ 1 vectors. We showed that N[v] has max clique 7 (v + one neighbor per coordinate). But could there be a larger clique elsewhere?
+
+A clique in G' = a set of vectors pairwise at Hamming distance ≤ 1. This is a "diameter 1" set in Hamming space. The maximum size of a diameter-1 set in {1,2,3}^6... 
+
+Two vectors at distance ≤ 1: they're either equal or differ in one coordinate. A set where all pairs differ in ≤ 1 coordinate. If we have vectors v1, v2, v3 all pairwise at distance ≤ 1, then... v1 and v2 differ in ≤ 1 coord, v1 and v3 differ in ≤ 1 coord, v2 and v3 differ in ≤ 1 coord.
+
+If v1 and v2 differ in coordinate i, and v1 and v3 differ in coordinate j ≠ i, then v2 and v3 differ in coordinates i and j (distance 2), contradiction. So all pairs must differ in the same coordinate, or be equal.
+
+So a clique in G' consists of vectors that all agree on all coordinates except possibly one fixed coordinate. I.e., a clique is a subset of a "fiber" (fixing 5 coordinates, varying 1). Each fiber has 3 vectors. So max clique in G' = 3 (not 7!).
+
+Wait, I think I made an error earlier. Let me recheck.
+
+N[v] = {v} ∪ {12 neighbors}. The clique v + one neighbor per coordinate: v, (change coord 1), (change coord 2), ..., (change coord 6). Are these pairwise at distance ≤ 1? v and (change coord i): distance 1. (change coord i) and (change coord j) for i ≠ j: they differ in coords i and j, distance 2. NOT adjacent in G'!
+
+So v + one neighbor per coordinate is NOT a clique in G'. I made an error. Let me recompute.
+
+A clique in G' = pairwise distance ≤ 1. As I just argued, this means all vectors agree on all but possibly one coordinate. So max clique = 3 (a fiber of 3 vectors).
+
+OK so I was wrong. Max clique in G' is 3, not 7.
+
+So let me recompute α(G' on N[v]). N[v] has 13 vectors. α(G') = max set pairwise at distance ≥ 2.
+
+The 12 neighbors: 6 groups of 2 (per coordinate). Within a group, distance 1. Across groups, distance 2. So picking one from each group gives 6 pairwise at distance 2. Can we also include v? v is at distance 1 from all neighbors, so no. So α = 6.
+
+But wait, can we pick both from one group and still have distance ≥ 2 from picks in other groups? Both from group i: they're at distance 1 from each other. No, that violates pairwise distance ≥ 2. So we pick at most 1 per group, giving 6.
+
+So α(G' on N[v]) = 6. The ball of radius 1 (13 vectors) has no 8 pairwise at distance ≥ 2, and in fact no 7 (max is 6).
+
+Now, let me reconsider the problem. We want to find the minimum n such that there exists a multiset of 2014 vectors from {1,2,3}^6 where every n-subset contains 8 pairwise at distance ≥ 2.
+
+The worst-case bad set (no 8 pairwise at distance ≥ 2) should be minimized.
+
+Let me think about the structure differently. Consider a partition of {1,2,3}^6 into fibers based on, say, the last coordinate. No, that doesn't work since fibers based on one coordinate have vectors at distance up to 5.
+
+Let me think about "lines" in the Hamming space. A "line" is a set of 3 vectors that agree on 5 coordinates and differ in 1. There are C(6,1) × 3^5 = 6 × 243 = 1458 lines, but each line is determined by the 5 fixed coordinates and which coordinate varies. Each vector belongs to 6 lines (one per coordinate).
+
+Two vectors on the same line are at distance 1 (if different) or 0 (if same). Two vectors on different lines can be at any distance.
+
+A code with min distance 2 picks at most 1 vector from each line (for lines in a fixed direction). For lines in the "6th coordinate" direction, there are 243 such lines, and a code picks ≤ 1 from each, giving ≤ 243.
+
+Now, the key idea: we can partition {1,2,3}^6 into 243 "lines" (in the 6th coordinate direction), each of size 3. Within each line, all pairs are at distance ≤ 1. Across lines, vectors can be at distance 1 (if they differ in one of the first 5 coordinates and agree in the 6th).
+
+Hmm, so the partition into lines doesn't give a clean structure for G'.
+
+Let me try a different approach. Let me think about the problem in terms of a coloring/labeling.
+
+Assign to each vector v = (v1,...,v6) a "color" c(v) = v1 + v2 + ... + v6 mod 3. There are 3 colors. Two vectors with the same color can be at any distance. Two vectors at distance 1 have different colors (since changing one coordinate changes the sum mod 3). Two vectors at distance 0 have the same color.
+
+So if two vectors are at distance 1, they have different colors. This means within a single color class, all pairs are at distance 0 or ≥ 2. So a single color class is a code with min distance ≥ 2 (after removing duplicates)! Each color class has 3^6/3 = 243 vectors, and they form a code with min distance 2.
+
+This is the key insight! The sum mod 3 gives a partition into 3 codes of size 243 each, and within each code, all pairs are at distance ≥ 2 (or 0 if identical).
+
+Now, our scheme: we have 2014 vectors. We can use vectors from these 3 color classes. Within each color class, all distinct vectors are pairwise at distance ≥ 2. So if we pick 8 distinct vectors from the same color class, they're pairwise at distance ≥ 2.
+
+A bad set (no 8 pairwise at distance ≥ 2) can have at most 7 distinct vectors from each color class (since 8 distinct from one class would give 8 pairwise at distance ≥ 2). But it could have many copies.
+
+Wait, but the bad set could also mix color classes. If we pick vectors from different color classes, they could be at distance 1 (which is fine for a bad set, since distance 1 means they're "close" and don't help form a distance-≥-2 set).
+
+Hmm, let me reconsider. A bad set B has no 8 pairwise at distance ≥ 2. The 8 must be pairwise at distance ≥ 2. If we pick 8 from the same color class (all distinct), they're pairwise at distance ≥ 2. So B can contain at most 7 distinct vectors from each color class.
+
+But B could contain vectors from all 3 color classes. The constraint is that no 8 (from any combination of classes) are pairwise at distance ≥ 2. 
+
+If B has vectors from multiple color classes, could 8 of them be pairwise at distance ≥ 2? Vectors from different color classes are at distance ≥ 1 (could be 1 or more). If two vectors from different classes are at distance 1, they can't both be in a distance-≥-2 set. But if they're at distance ≥ 2, they can.
+
+So the bad set could potentially have more than 7 distinct vectors if it mixes classes carefully. But the multiplicities also matter.
+
+Let me think about this more carefully with the color class structure.
+
+Let the 3 color classes be C0, C1, C2, each of size 243. Within each Ci, all distinct pairs are at distance ≥ 2. Between Ci and Cj (i≠j), pairs can be at distance 1 or ≥ 2.
+
+For a bad set B (multiset), let Bi = B ∩ Ci (the multiset of vectors from class i). Let di = number of distinct vectors in Bi, and mi = total count (with multiplicity) in Bi.
+
+Constraint: no 8 pairwise at distance ≥ 2. 
+
+If di ≥ 8 for some i, then 8 distinct vectors from Ci are pairwise at distance ≥ 2. So di ≤ 7 for all i.
+
+But even if all di ≤ 7, we could have 8 pairwise at distance ≥ 2 by mixing classes. For example, 4 from C0 and 4 from C1, if all cross-class pairs are at distance ≥ 2.
+
+So the constraint is more subtle. The bad set must avoid any 8 (from any classes) being pairwise at distance ≥ 2.
+
+However, for the purpose of finding the optimal scheme, let's think about what limits the bad set.
+
+In the scheme, we want to minimize the max bad set. Let's think about the scheme where we use only one color class, say C0, with 243 distinct vectors, each appearing 8 or 9 times (total 2014).
+
+Bad set: at most 7 distinct vectors from C0, each with at most 9 copies. So max bad set = 7 × 9 = 63. Hence n = 64.
+
+Can we do better by using multiple color classes? Let's say we use C0 and C1, with 243 + 243 = 486 distinct vectors. We distribute 2014 among them.
+
+But now a bad set could include vectors from both C0 and C1. If the bad set has a0 distinct from C0 and a1 distinct from C1, with a0 + a1 ≤ 7 (to avoid 8 pairwise at distance ≥ 2... but this isn't quite right since cross-class pairs might be at distance 1).
+
+Hmm, actually the constraint is that no 8 are pairwise at distance ≥ 2. If we pick 8 all from C0 (distinct), they're pairwise at distance ≥ 2. So ≤ 7 distinct from C0. Similarly ≤ 7 from C1, ≤ 7 from C2.
+
+But we could pick, say, 4 from C0 and 4 from C1, and if all 16 cross-pairs are at distance ≥ 2, then these 8 are pairwise at distance ≥ 2. So the bad set must also avoid this.
+
+The question is: can we find 4 from C0 and 4 from C1 such that all cross-pairs are at distance ≥ 2? This depends on the structure of C0 and C1.
+
+Recall C0 = {v : sum(v) ≡ 0 mod 3}, C1 = {v : sum(v) ≡ 1 mod 3}. Two vectors v ∈ C0, w ∈ C1 are at distance 1 iff they differ in exactly one coordinate. Since sum(v) ≡ 0 and sum(w) ≡ 1, they differ in sum by 1 mod 3, which is consistent with differing in one coordinate (changing one coordinate by +1 or -1 mod 3 changes the sum by ±1).
+
+So there ARE pairs at distance 1 between C0 and C1. In fact, for each v ∈ C0, the 12 neighbors at distance 1 are split: 6 in C1 (increasing a coordinate by 1 mod 3) and 6 in C2 (deasing by 1, or increasing by 2). Wait, let me be more careful.
+
+Changing coordinate i from vi to vi + 1 mod 3: sum increases by 1, so new vector is in C1.
+Changing coordinate i from vi to vi - 1 mod 3 (= vi + 2 mod 3): sum decreases by 1 (= increases by 2), so new vector is in C2.
+
+So each v ∈ C0 has 6 neighbors in C1 and 6 in C2. Similarly for other classes.
+
+So the bipartite graph between C0 and C1 (edges = distance 1) is 6-regular. Each v ∈ C0 has 6 neighbors in C1 (out of 243). So most pairs between C0 and C1 are at distance ≥ 2.
+
+This means it's easy to find 4 from C0 and 4 from C1 all pairwise at distance ≥ 2 (just avoid the distance-1 pairs). So a bad set mixing classes would need to be more careful.
+
+This suggests that using multiple classes makes the bad set constraint tighter (harder to have a large bad set), which is good for us (smaller n).
+
+But wait, the bad set can also use multiplicities. Let me think about this more carefully.
+
+Let me consider the scheme where we use all 3 color classes, distributing 2014 vectors among 729 distinct vectors. Each vector appears 2 or 3 times (2014 = 729×2 + 556, so 556 appear 3 times, 173 appear 2 times).
+
+A bad set B: no 8 pairwise at distance ≥ 2. 
+- At most 7 distinct from each color class (otherwise 8 from one class).
+- But also, mixing classes: if we have a0 + a1 + a2 distinct vectors (with a0 ≤ 7, a1 ≤ 7, a2 ≤ 7) and some 8 of them are pairwise at distance ≥ 2, that's not allowed.
+
+The max bad set size (with multiplicity) is: sum over the distinct vectors in B of their multiplicities. To maximize, we want many distinct vectors with high multiplicity.
+
+But the constraint is tight: we need no 8 pairwise at distance ≥ 2 among ALL distinct vectors in B (not just within each class).
+
+Since most cross-class pairs are at distance ≥ 2, having many distinct vectors across classes would easily give 8 pairwise at distance ≥ 2. So the bad set is heavily constrained.
+
+Let me think about the extreme case. What's the max number of distinct vectors we can have with no 8 pairwise at distance ≥ 2?
+
+This is the max set S ⊆ {1,2,3}^6 with α(G[S]) ≤ 7, where G is the distance-≥-2 graph. Equivalently, the max set with no code of size 8 (min distance 2).
+
+Hmm, this is like a Ramsey problem on the Hamming space. Let me think...
+
+Within a single color class (243 vectors, all pairwise at distance ≥ 2), we can pick at most 7. So from one class, ≤ 7.
+
+If we pick from 2 classes, say a from C0 and b from C1, we need no 8 pairwise at distance ≥ 2. If a + b ≥ 8 and we can find 8 pairwise at distance ≥ 2 among them, that's bad. Since within C0, all are pairwise at distance ≥ 2, and within C1, all are pairwise at distance ≥ 2, the only issue is cross-pairs at distance 1. If among the a + b vectors, we can find 8 with all cross-pairs at distance ≥ 2, that's a violation.
+
+If a = 7 and b = 1, we need to check if the 1 from C1 is at distance ≥ 2 from at least 7 of the 7 from C0... wait, we need 8 pairwise at distance ≥ 2. If a = 7 from C0 (all pairwise at distance ≥ 2) and 1 from C1 that's at distance ≥ 2 from all 7, then we have 8. The 1 from C1 is at distance 1 from at most 6 of the 243 in C0 (it has 6 neighbors in C0... wait, no. A vector in C1 has 6 neighbors at distance 1 in C0? Let me recheck.
+
+v ∈ C1, changing one coordinate by +1 mod 3: sum increases by 1, goes to C2. Changing by -1 (i.e., +2): sum decreases by 1, goes to C0. So v ∈ C1 has 6 neighbors in C0 (changing any coordinate by -1) and 6 in C2 (changing by +1).
+
+So a vector in C1 is at distance 1 from exactly 6 vectors in C0. If we pick 7 from C0, at most 6 are at distance 1 from our C1 vector, so at least 1 is at distance ≥ 2. But we need all 7 to be at distance ≥ 2 from the C1 vector to get 8 pairwise. Since at most 6 are at distance 1, at least 1 is at distance ≥ 2. But we need ALL 8 to be pairwise at distance ≥ 2, so we need the C1 vector to be at distance ≥ 2 from all 7 C0 vectors. This happens iff none of the 7 C0 vectors is a neighbor of the C1 vector. Since the C1 vector has only 6 neighbors in C0, we can choose 7 C0 vectors that avoid these 6 (since |C0| = 243 > 6). So yes, we can find 7 from C0 and 1 from C1 all pairwise at distance ≥ 2.
+
+But for the BAD set, we want to AVOID having 8 pairwise at distance ≥ 2. So if the bad set has 7 from C0 and 1 from C1, we need that the C1 vector is at distance 1 from at least one of the 7 C0 vectors. I.e., the C1 vector is a neighbor of at least one C0 vector in the bad set.
+
+This is possible but constraining. Let me think about the maximum bad set more carefully.
+
+Actually, let me think about this problem differently. Let me consider the structure where we use a "covering" approach.
+
+Key idea: We want to cover {1,2,3}^6 with "clusters" such that within each cluster, all pairs are at distance ≤ 1 (cliques in G'). Then a bad set can use at most 7 clusters (to keep α ≤ 7), and the bad set size is bounded by the total multiplicity in 7 clusters.
+
+But as we showed, max clique in G' is 3 (a fiber). So clusters of size 3. There are 243 fibers (in one direction). To cover 729 vectors, we need 243 fibers. A bad set uses 7 fibers, with total multiplicity 7 × (max multiplicity per fiber).
+
+If we use 2014 vectors distributed among 243 fibers, max multiplicity per fiber = ⌈2014/243⌉ = 9. Bad set = 7 fibers × 9 = 63. n = 64.
+
+But wait, this is the same as the code approach! Because a code with min distance 2 picks one from each fiber, and the fibers are the same as the code structure.
+
+Hmm, but the issue is that fibers in one direction don't capture all distance-1 pairs. Two vectors in different fibers (of the same direction) can still be at distance 1.
+
+So the "bad set uses 7 fibers" argument isn't quite right. A bad set using 7 fibers might still have 8 pairwise at distance ≥ 2 (if vectors from different fibers are at distance ≥ 2).
+
+Let me reconsider. The fibers partition the space into 243 groups of 3, where within each group, all pairs are at distance ≤ 1. But across groups, pairs can be at distance 1 or ≥ 2.
+
+A bad set B: no 8 pairwise at distance ≥ 2. If B uses vectors from k fibers, with ai vectors from fiber i (counting multiplicity), and di distinct vectors from fiber i (di ≤ 3).
+
+Within fiber i, all pairs are at distance ≤ 1, so they don't contribute to distance-≥-2 sets. A distance-≥-2 set picks at most 1 from each fiber (since 2 from same fiber are at distance ≤ 1). So a distance-≥-2 set of size 8 picks 8 vectors from 8 different fibers, one from each, and they must be pairwise at distance ≥ 2.
+
+So the bad set B has no 8 vectors from 8 different fibers that are pairwise at distance ≥ 2. The number of fibers used by B is at most... well, B could use many fibers, but the constraint is on the distance-≥-2 structure across fibers.
+
+This is getting complex. Let me try to think about the problem from the competition answer perspective.
+
+The problem asks for the smallest n. Given the structure (6 leaders, 3 colors, 2014 albums, 8 albums, at most 4 same), I suspect the answer involves the number 7 or 8 in a key way, combined with the structure of the Hamming space.
+
+Let me reconsider the code approach. Using a single color class (code of size 243, min distance 2), with 2014 vectors:
+- 2014 = 243 × 8 + 70, so 70 vectors appear 9 times, 173 appear 8 times.
+- Bad set: 7 distinct codewords, each appearing 9 times = 63. (We pick the 70 that appear 9 times, choose 7 of them.)
+- Can we do 7 × 9 = 63? Yes. Can we do 8 × 9 = 72? No, because 8 distinct codewords are pairwise at distance ≥ 2, giving 8 pairwise at distance ≥ 2. So max bad set = 63, n = 64.
+
+But can we improve by using a different scheme? Let me think about using 2 color classes.
+
+Use C0 and C1, total 486 distinct vectors. Distribute 2014 among them. 2014/486 ≈ 4.14, so max multiplicity 5 (2014 = 486 × 4 + 70, so 70 appear 5 times, 416 appear 4 times).
+
+Bad set: no 8 pairwise at distance ≥ 2. At most 7 distinct from C0, at most 7 from C1. But also, mixing: if we have a from C0 and b from C1 with a + b ≥ 8, and we can find 8 pairwise at distance ≥ 2, that's a violation.
+
+Since cross-class distance-1 pairs are relatively rare (each vector has only 6 distance-1 neighbors in the other class out of 243), it's easy to find 8 pairwise at distance ≥ 2 mixing classes. So the bad set is heavily constrained.
+
+In fact, if the bad set has 7 from C0 and 1 from C1, we need that 1 to be at distance 1 from at least one of the 7. But if the bad set has 7 from C0 and 7 from C1, we'd need that no 8 (mixing) are pairwise at distance ≥ 2. Given the sparse distance-1 graph between classes, this is very hard to maintain.
+
+Let me think about the extreme: what's the max bad set using 2 classes?
+
+If the bad set has a0 distinct from C0 and a1 distinct from C1, with multiplicities. The constraint is no 8 pairwise at distance ≥ 2. 
+
+Case 1: a0 ≤ 7 and a1 ≤ 7 and a0 + a1 ≤ 7. Then max bad set = 7 × 5 = 35 (using 7 distinct, each with multiplicity 5). But wait, we could have a0 = 7, a1 = 0, giving 7 × 5 = 35. Or a0 = 4, a1 = 3, giving 4×5 + 3×5 = 35. So max = 35.
+
+Case 2: a0 + a1 ≥ 8 but no 8 pairwise at distance ≥ 2. This requires that every subset of 8 has at least one pair at distance 1. This is possible but very constraining. For example, a0 = 7, a1 = 1, and the 1 from C1 is at distance 1 from all 7 from C0. But each C1 vector is at distance 1 from only 6 C0 vectors, so it can't be at distance 1 from 7. So a0 = 7, a1 = 1 always gives 8 pairwise at distance ≥ 2 (since the C1 vector is at distance ≥ 2 from at least 1 of the 7, and that 1 + the other 6 from C0 = 7 from C0 are pairwise at distance ≥ 2, plus the C1 vector at distance ≥ 2 from all... wait, no. We need ALL 8 to be pairwise at distance ≥ 2. The C1 vector needs to be at distance ≥ 2 from ALL 7 C0 vectors. Since it's at distance 1 from at most 6, if we choose 7 C0 vectors including one non-neighbor, the C1 vector is at distance ≥ 2 from that one but distance 1 from the other 6. So the 8 (7 C0 + 1 C1) are NOT pairwise at distance ≥ 2 (6 pairs are at distance 1).
+
+Hmm, so a0 = 7, a1 = 1 doesn't automatically give 8 pairwise. We need to find 8 among the a0 + a1 that are pairwise at distance ≥ 2. With a0 = 7, a1 = 1, we have 8 vectors. They're pairwise at distance ≥ 2 iff the C1 vector is at distance ≥ 2 from all 7 C0 vectors. This happens iff the C1 vector is not a neighbor of any of the 7 C0 vectors. Since the C1 vector has 6 neighbors in C0, if all 7 C0 vectors are non-neighbors, we get 8 pairwise. But if at least one C0 vector is a neighbor, we don't.
+
+So for a bad set with a0 = 7, a1 = 1: we need the C1 vector to be a neighbor of at least one C0 vector. This is easy to arrange. The bad set size = 7×5 + 1×5 = 40 (if all have multiplicity 5). But wait, we could also have a0 = 7, a1 = 7, if we can arrange that no 8 are pairwise at distance ≥ 2.
+
+With a0 = 7, a1 = 7: we have 14 distinct vectors. We need no 8 pairwise at distance ≥ 2. The 7 from C0 are pairwise at distance ≥ 2, the 7 from C1 are pairwise at distance ≥ 2. An 8-set pairwise at distance ≥ 2 could be: 7 from C0 + 1 from C1 (if that 1 is non-adjacent to all 7 C0), or 6 from C0 + 2 from C1 (if those 2 are non-adjacent to all 6 C0 and to each other, which they are since same class), etc.
+
+To prevent ANY 8 from being pairwise at distance ≥ 2, we need: for every subset of 8 from the 14, at least one pair is at distance 1. 
+
+This is very constraining. Let me think about whether it's possible.
+
+The distance-1 graph between the 7 C0 vectors and 7 C1 vectors: it's a bipartite graph where each C0 vertex has at most 6 edges to C1 (but only to the 7 chosen C1 vertices, so at most 6). Each C1 vertex has at most 6 edges to C0 (but only to the 7 chosen, so at most 6).
+
+We need: every 8-subset has at least one distance-1 pair. An 8-subset with a from C0 and b = 8-a from C1 (a ≥ 1, b ≥ 1 since a=8 or b=8 would be within one class and automatically pairwise at distance ≥ 2, but a ≤ 7 and b ≤ 7 so a=8 is impossible). Wait, a can be at most 7 and b at most 7, so a + b = 8 with 1 ≤ a ≤ 7.
+
+For a = 7, b = 1: the 1 from C1 must be adjacent (distance 1) to at least one of the 7 C0. 
+For a = 1, b = 7: the 1 from C0 must be adjacent to at least one of the 7 C1.
+For a = 6, b = 2: the 2 from C1 must... at least one pair (cross or within) is at distance 1. Within C1, all are at distance ≥ 2. Cross: need at least one of the 2×6 = 12 cross-pairs to be at distance 1. I.e., at least one of the 2 C1 vectors is adjacent to at least one of the 6 C0 vectors.
+For a = 2, b = 6: similarly.
+Etc.
+
+This is a covering condition. Let me think about whether 7+7 = 14 distinct vectors can satisfy this.
+
+Actually, this is related to the concept of a "biclique cover" or "covering" in the bipartite distance-1 graph.
+
+Let me think about it differently. The condition is: the distance-1 graph on the 14 vertices (7 from C0, 7 from C1) has the property that every 8-vertex subset contains an edge. This means the complement (distance-≥-2 graph) on these 14 vertices has no 8-clique. The distance-≥-2 graph on these 14 vertices: within C0, it's a complete graph K7. Within C1, it's K7. Cross edges: present iff distance ≥ 2 (i.e., NOT distance 1).
+
+The distance-≥-2 graph is K7 ∪ K7 plus cross edges. An 8-clique in this graph: 7 from one side + 1 from other (if that 1 has all cross edges to the 7), or other combinations.
+
+For no 8-clique: for every vertex v in C1, v must be missing at least one cross edge to C0 (i.e., v is at distance 1 from at least one C0 vertex). Similarly, for every vertex u in C0, u must be at distance 1 from at least one C1 vertex. AND for every 6+2, 5+3, 4+4, 3+5, 2+6 split, the 8 must not form a clique.
+
+This is very restrictive. For the 7+1 case: each C1 vertex must be adjacent (distance 1) to at least one C0 vertex, and each C0 vertex must be adjacent to at least one C1 vertex. This is a covering condition on the bipartite graph.
+
+For the 6+2 case: for every 6-subset of C0 and every 2-subset of C1, at least one cross pair is at distance 1. This means: for every 2-subset {u,v} of C1, the union of their distance-1 neighbors in C0 must cover all of C0 (i.e., every C0 vertex is at distance 1 from u or v). Since each has at most 6 neighbors in C0 (out of 7), two together cover at most 12, but we need to cover 7. So we need: for every pair in C1, their neighbor sets in C0 cover all 7 C0 vertices.
+
+This is extremely restrictive. Each C1 vertex has at most 6 neighbors in C0 (could be fewer if some neighbors aren't among the chosen 7). For two C1 vertices to cover all 7 C0, each must have at least 1 neighbor (trivially) and together they cover 7. If one has 6 neighbors, the other needs to cover the remaining 1. If one has 3, the other needs to cover the remaining 4, so needs at least 4.
+
+This seems very hard to satisfy for all pairs. I suspect that with 7+7, it's impossible to avoid an 8-clique, meaning the max bad set with 2 classes has fewer than 14 distinct vectors.
+
+Let me think about this more carefully. Actually, let me consider a specific construction.
+
+Take C0 = {v : sum(v) ≡ 0 mod 3}. Take 7 specific vectors from C0 and 7 from C1. 
+
+Hmm, this is getting very involved. Let me step back and think about the problem from a higher level.
+
+I think the key insight is the coloring by sum mod 3, which partitions into 3 codes of size 243. The optimal scheme likely uses one code, giving n = 64. But let me check if we can do better.
+
+Actually, wait. Let me reconsider. Maybe we should think about it differently.
+
+The problem is essentially: find the minimum n such that there exists a multiset of 2014 vectors from {1,2,3}^6 where every n-subset contains 8 pairwise at Hamming distance ≥ 2.
+
+Let me think about the lower bound. For ANY scheme of 2014 vectors, we need to show that there exist n-1 vectors with no 8 pairwise at distance ≥ 2.
+
+Consider any scheme. Look at the most frequent vector v1, appearing m1 times. Then the next most frequent v2 (at distance ≥ 1 from v1, or could be the same), etc.
+
+Actually, let me think about it using the color class structure. For any scheme, consider the 3 color classes C0, C1, C2. The 2014 vectors are distributed among these classes. By pigeonhole, one class has at least ⌈2014/3⌉ = 672 vectors.
+
+Within one class, say C0, all distinct vectors are pairwise at distance ≥ 2. If C0 has d0 distinct vectors with total count t0 ≥ 672, then... a bad set can take all copies of 7 distinct vectors from C0. The max copies of 7 distinct vectors: if we pick the 7 most frequent, they have at least 7 × ⌊t0/d0⌋ copies... but this depends on the distribution.
+
+Hmm, this lower bound approach is tricky. Let me think about it differently.
+
+For the lower bound, we need: for any scheme, there's a bad set of size ≥ n-1. 
+
+Consider any scheme of 2014 vectors. Group them by color class (sum mod 3). One class has ≥ 672 vectors. Within that class, all distinct vectors are pairwise at distance ≥ 2. 
+
+Now, within this class, consider the distinct vectors and their multiplicities. If there are d distinct vectors with multiplicities m1 ≥ m2 ≥ ... ≥ md, summing to ≥ 672. A bad set can take all copies of the 7 most frequent: m1 + m2 + ... + m7. We need to show this is large.
+
+By the constraint sum = t ≥ 672 and d ≤ 243: m1 + ... + m7 ≥ 7 × (t/d) ≥ 7 × (672/243) ≈ 7 × 2.77 ≈ 19.3. So m1 + ... + m7 ≥ 20. But this is a weak bound.
+
+Actually, we can do better. Since d ≤ 243 and t ≥ 672, the 7 most frequent have sum ≥ 7t/d. But we want a lower bound on the max bad set.
+
+Hmm, but the bad set doesn't have to come from one class. Let me reconsider.
+
+Actually, for the lower bound, we just need to find ONE bad set of size ≥ n-1 for any scheme. The bad set can use vectors from any class, as long as no 8 are pairwise at distance ≥ 2.
+
+Strategy for lower bound: Pick the 7 most frequent vectors that are pairwise at distance ≥ 2 (i.e., from the same color class, all distinct). Their total count is a bad set (since only 7 distinct, all from one class, pairwise at distance ≥ 2, so no 8 pairwise at distance ≥ 2).
+
+But we need these 7 to be from the same color class. The most frequent 7 from the largest class.
+
+Largest class has ≥ 672 vectors, ≤ 243 distinct. The 7 most frequent distinct vectors in this class have total ≥ 7 × ⌈672/243⌉ = 7 × 3 = 21 (since 672/243 > 2, so some have ≥ 3 copies; actually ⌈672/243⌉ = 3). But this is a weak bound.
+
+More precisely, if d distinct vectors sum to t ≥ 672, the 7 most frequent sum to at least 7t/d ≥ 7 × 672/243 ≈ 19.4, so ≥ 20.
+
+But can we get a better lower bound? The issue is that the scheme could spread vectors evenly across all 3 classes and all 243 codewords per class.
+
+If the scheme uses all 729 distinct vectors evenly: 2014/729 ≈ 2.76, so each appears 2 or 3 times. The largest class has ≥ 672 vectors. If these are spread among 243 distinct, each appearing ~2.76 times. The 7 most frequent have ~7 × 3 = 21 copies (at most 7 × 3 = 21 if each appears 3 times, but some appear 2). So bad set ≈ 21.
+
+But with the code approach (single class), the bad set is 63. So the even distribution gives a much smaller bad set (21 vs 63), meaning n ≈ 22 vs 64. Wait, that means the even distribution is BETTER (smaller n)!
+
+Hold on, I think I had it backwards. A smaller bad set means a smaller n, which is what we want. So the even distribution across all 729 vectors gives n ≈ 22, which is better than n = 64.
+
+But wait, I need to check that the even distribution actually works, i.e., that the max bad set is indeed around 21.
+
+With the even distribution (all 729 vectors, each 2 or 3 times), a bad set needs no 8 pairwise at distance ≥ 2. The bad set can use vectors from all 3 classes. The constraint is that no 8 (from any classes) are pairwise at distance ≥ 2.
+
+If the bad set uses 7 distinct from one class (each 3 copies) = 21, that's a bad set of size 21. Can we do better? Can we have a bad set of size > 21?
+
+If we use 7 from C0 and 7 from C1 (14 distinct, each 3 copies = 42), is this a bad set? Only if no 8 of the 42 are pairwise at distance ≥ 2. As I discussed, this requires a very restrictive condition on the distance-1 graph. It might be impossible, in which case the bad set can't have 14 distinct vectors.
+
+But maybe we can have, say, 7 from C0 and 1 from C1 (8 distinct, each 3 copies = 24), if the 1 from C1 is at distance 1 from at least one of the 7 from C0. This is easy to arrange. So bad set of size 24 is possible.
+
+Can we go higher? 7 from C0, 7 from C1, with the restrictive condition? Let me think about whether this is possible.
+
+Actually, let me think about a specific example. Consider C0 and C1. Take 7 vectors from C0: v1, ..., v7. Take 7 vectors from C1: w1, ..., w7. We need: no 8 of the 14 are pairwise at distance ≥ 2.
+
+As I analyzed, this requires very strong covering conditions. Let me check if it's even possible for small cases.
+
+Consider the bipartite distance-1 graph between {v1,...,v7} and {w1,...,w7}. Each vi has at most 6 distance-1 neighbors among all of C1, so at most 6 among {w1,...,w7}. Each wj has at most 6 distance-1 neighbors among {v1,...,v7}.
+
+Condition for no 8-clique in the distance-≥-2 graph:
+- For every wj, wj must be at distance 1 from at least one vi (otherwise {v1,...,v7,wj} is an 8-clique). So every wj has ≥ 1 neighbor in {v1,...,v7}.
+- For every vi, vi must be at distance 1 from at least one wj (otherwise {v1,...,v7} \ {vi} ∪ {wj for some j} ... wait, no. {w1,...,w7, vi} would be an 8-clique if vi is at distance ≥ 2 from all wj. So every vi must have ≥ 1 neighbor in {w1,...,w7}.
+- For every 6-subset of {v1,...,v7} and every 2-subset of {w1,...,w7}: at least one cross pair is at distance 1. I.e., for every pair {wj, wk}, their neighbor sets in {v1,...,v7} cover all 7 vi's. Since each has at most 6 neighbors, and they need to cover 7, each must have at least 1 neighbor, and their union must be all 7. This means: for every pair {wj, wk}, N(wj) ∪ N(wk) = {v1,...,v7}.
+
+This last condition is extremely strong. It means that for every pair of w's, their neighbor sets cover all 7 v's. If some wj has only 1 neighbor, say v1, then every other wk must have N(wk) ⊇ {v2,...,v7}, so N(wk) has at least 6 elements. But each wk has at most 6 neighbors, so N(wk) = {v2,...,v7} exactly. But then for the pair {wk, wk'} (both with N = {v2,...,v7}), their union is {v2,...,v7}, which doesn't cover v1. Contradiction!
+
+So if any wj has only 1 neighbor, we get a contradiction. More generally, if any wj has k neighbors, then every other wk must cover the remaining 7-k, so needs at least 7-k neighbors. And for any pair {wj, wk}, their union must be all 7.
+
+This means: for every pair, |N(wj) ∪ N(wk)| = 7. Since |N(wj)| ≤ 6 and |N(wk)| ≤ 6, we need |N(wj) ∩ N(wk)| ≤ 5 (by inclusion-exclusion: |A ∪ B| = |A| + |B| - |A ∩ B| ≥ 7, so |A ∩ B| ≤ |A| + |B| - 7 ≤ 12 - 7 = 5). And |N(wj) ∪ N(wk)| = 7 means they cover everything.
+
+If all |N(wj)| = 6 (missing one vi each), then for every pair, their missing elements must be different (otherwise the union misses that element). So the 7 w's each miss a different v. I.e., wj misses vj (WLOG). Then N(wj) = {v1,...,v7} \ {vj}.
+
+Now check the 5+3 condition: for every 5-subset of v's and every 3-subset of w's, at least one cross pair is at distance 1. The 3 w's have neighbor sets that are {v1,...,v7} minus one each. Their union covers all 7 (since they miss different v's, and 3 missed v's are covered by the other 2... wait, 3 w's miss 3 different v's, so their union is {v1,...,v7} minus the 3 missed = 4 elements. We need this to cover the 5 chosen v's. But 4 < 5, so it doesn't cover! 
+
+Wait, let me recheck. If w1 misses v1, w2 misses v2, w3 misses v3, then N(w1) ∪ N(w2) ∪ N(w3) = {v4,v5,v6,v7}. If we pick the 5-subset {v1,v2,v3,v4,v5} of v's and the 3-subset {w1,w2,w3} of w's, the cross distance-1 pairs are only with {v4,v5,v6,v7}. So v1, v2, v3 have no distance-1 pairs with w1, w2, w3. The 8-set {v1,v2,v3,v4,v5,w1,w2,w3}: are they pairwise at distance ≥ 2? v4 and v5 are at distance 1 from some w's (v4 is in N(w1), N(w2), N(w3), so v4 is at distance 1 from w1, w2, w3). So the pair (v4, w1) is at distance 1. So this 8-set is NOT pairwise at distance ≥ 2. 
+
+But what about {v1,v2,v3,v6,v7,w1,w2,w3}? v6 is in N(w1), N(w2), N(w3), so v6 is at distance 1 from all three w's. So (v6, w1) is at distance 1. Not a clique.
+
+What about {v1,v2,v3,v4,v5,v6,v7,w1}? This is 7+1. w1 is at distance 1 from v2,...,v7 (N(w1) = {v2,...,v7}). So w1 is at distance ≥ 2 only from v1. The 8-set: v1 is at distance ≥ 2 from w1, but v2,...,v7 are at distance 1 from w1. So not a clique (only 1 pair at distance ≥ 2 between w1 and the v's, but we need ALL pairs at distance ≥ 2).
+
+Hmm wait, I need ALL pairs to be at distance ≥ 2 for a clique. So {v1,...,v7,w1} is a clique iff w1 is at distance ≥ 2 from ALL of v1,...,v7. But w1 is at distance 1 from v2,...,v7. So not a clique. Good.
+
+What about {v1,v2,v3,v4,w1,w2,w3,w4}? We need all cross pairs at distance ≥ 2 and all within-class pairs at distance ≥ 2 (which they are). Cross pairs: v_i at distance 1 from w_j iff v_i ∈ N(w_j). w1 misses v1, w2 misses v2, w3 misses v3, w4 misses v4. So:
+- v1 is at distance 1 from w2, w3, w4 (not w1).
+- v2 is at distance 1 from w1, w3, w4 (not w2).
+- v3 is at distance 1 from w1, w2, w4 (not w3).
+- v4 is at distance 1 from w1, w2, w3 (not w4).
+
+For the 8-set {v1,v2,v3,v4,w1,w2,w3,w4} to be a clique (all pairwise distance ≥ 2), we need NO cross pair at distance 1. But v1 is at distance 1 from w2 (since v1 ∈ N(w2)). So this is not a clique. 
+
+What about {v1,v2,v3,v4,w1,w2,w3,w5} where w5 misses v5? 
+- v1 at distance 1 from w2, w3, w5 (not w1).
+- So (v1, w2) is at distance 1. Not a clique.
+
+It seems hard to find an 8-clique. Let me check more carefully. For an 8-set with a v's and b w's (a+b=8, a,b ≥ 1), we need all cross pairs at distance ≥ 2. A cross pair (vi, wj) is at distance 1 iff vi ∈ N(wj), i.e., vi ≠ vj (the one wj misses). So (vi, wj) is at distance ≥ 2 iff vi = vj (the missed one).
+
+So for all cross pairs to be at distance ≥ 2, we need: for every vi in the a-subset and every wj in the b-subset, vi = vj (the index j that wj misses). This means every vi must equal every vj, which is impossible if a ≥ 2 or b ≥ 2 (since the indices are different).
+
+Wait, that's not right. Let me restate. wj misses vj, so (vi, wj) is at distance ≥ 2 iff vi = vj. For ALL cross pairs to be at distance ≥ 2, we need: for every i in the a-subset and every j in the b-subset, vi = vj. This means all indices in the a-subset equal all indices in the b-subset, which is impossible if a ≥ 2 (two different vi's can't both equal the same vj) or b ≥ 2.
+
+So the only possible 8-clique mixing classes would need a = 1 or b = 1. If a = 1, b = 7: {vi, w1,...,w7}. Cross pairs: (vi, wj) at distance ≥ 2 iff vi = vj. For all 7 cross pairs to be at distance ≥ 2, we need vi = vj for all j = 1,...,7, impossible. If a = 7, b = 1: {v1,...,v7, wj}. Cross pairs: (vi, wj) at distance ≥ 2 iff vi = vj. For all 7 to be at distance ≥ 2, need vi = vj for all i, impossible.
+
+So with this construction (wj misses vj), there is NO 8-clique mixing the two classes! The 14 distinct vectors (7 from C0, 7 from C1) form a bad set!
+
+Wait, but I need to also check 8-sets within a single class. 8 from C0: all pairwise at distance ≥ 2 (since C0 is a code). But we only have 7 from C0, so can't pick 8. Similarly 7 from C1. So no 8-clique within one class either.
+
+So the 14 distinct vectors, each with multiplicity 3, give a bad set of size 42! That's much larger than 21.
+
+But wait, can we go even further? Can we add vectors from C2 as well?
+
+Let me check. Add 7 from C2: u1,...,u7, with uj missing vj in some sense. The distance-1 graph between C0 and C2, and between C1 and C2, also needs to be controlled.
+
+A vector v ∈ C0 has 6 distance-1 neighbors in C2 (changing any coordinate by +1 mod 3, which increases sum by 1, going to C1; changing by -1, decreasing sum by 1, going to C2). Wait, I need to recheck.
+
+v ∈ C0 (sum ≡ 0). Changing coordinate i by +1: sum ≡ 1, so goes to C1. Changing by -1 (= +2): sum ≡ 2, so goes to C2. So v has 6 neighbors in C1 and 6 in C2.
+
+Similarly, w ∈ C1 (sum ≡ 1). Changing by +1: sum ≡ 2, goes to C2. Changing by -1: sum ≡ 0, goes to C0. So w has 6 neighbors in C0 and 6 in C2.
+
+And u ∈ C2 (sum ≡ 2). Changing by +1: sum ≡ 0, goes to C0. Changing by -1: sum ≡ 1, goes to C1. So u has 6 neighbors in C0 and 6 in C1.
+
+So the distance-1 graph is tripartite between C0, C1, C2, with each vertex having 6 neighbors in each of the other two classes.
+
+Now, for the bad set with 7 from each class (21 distinct), we need no 8 pairwise at distance ≥ 2. The 8 could come from any combination of classes.
+
+This is getting very complex. Let me think about whether 7+7+7 = 21 distinct vectors can form a bad set.
+
+An 8-set pairwise at distance ≥ 2: could be 7+1, 6+2, ..., 1+7 from two classes, or 6+1+1, 5+2+1, ..., from three classes.
+
+For the two-class case (C0, C1): as shown, with the right construction (wj misses vj), no 8-clique. Similarly for (C0, C2) and (C1, C2) with appropriate constructions.
+
+For the three-class case: e.g., 6 from C0, 1 from C1, 1 from C2. Need all cross pairs at distance ≥ 2. The C1 vector must be at distance ≥ 2 from all 6 C0 vectors and from the C2 vector. The C2 vector must be at distance ≥ 2 from all 6 C0 vectors and from the C1 vector.
+
+This is even harder to prevent. With the construction where each wj misses vj, and each uk misses vk, a C1 vector wj is at distance ≥ 2 from vi iff vi = vj. So for wj to be at distance ≥ 2 from 6 C0 vectors, we need 6 of the C0 vectors to be vj, which is impossible (only 1 is vj). So wj is at distance 1 from at least 5 of the 6 C0 vectors. So the 8-set {6 C0, wj, uk} has distance-1 pairs, not a clique.
+
+Wait, but we need to check ALL possible 8-sets, not just specific ones. Let me reconsider.
+
+Actually, I showed that for the two-class case with the "wj misses vj" construction, the only way to get all cross pairs at distance ≥ 2 is to have a = 1 or b = 1, and even then it's impossible. So no 8-clique exists mixing C0 and C1. Similarly for other pairs.
+
+For three classes: an 8-set with a from C0, b from C1, c from C2 (a+b+c=8, a,b,c ≥ 0). If any two classes have ≥ 2 each, say a ≥ 2 and b ≥ 2, then consider the cross pairs between C0 and C1: we need all a×b pairs at distance ≥ 2. As shown, (vi, wj) at distance ≥ 2 iff vi = vj. For all a×b pairs: every vi must equal every vj, impossible if a ≥ 2. So no 8-clique with a ≥ 2 and b ≥ 2.
+
+If a ≥ 2 and c ≥ 2: similarly impossible (between C0 and C2).
+If b ≥ 2 and c ≥ 2: similarly impossible (between C1 and C2).
+
+So the only possible 8-cliques with 3 classes have at most 1 from two of the classes: e.g., a = 6, b = 1, c = 1. Then we need all cross pairs at distance ≥ 2. Between C0 and C1: (vi, wj) at distance ≥ 2 iff vi = vj. For all 6 pairs: all 6 vi must equal vj, impossible. So no 8-clique.
+
+Similarly for a = 1, b = 6, c = 1, etc.
+
+What about a = 0, b = 7, c = 1? Between C1 and C2: (wj, uk) at distance ≥ 2 iff wj = uk (in the analogous construction). For all 7 pairs: all 7 wj must equal uk, impossible.
+
+So with the construction where each class has 7 vectors, and the "missing" structure is set up correctly, NO 8-clique exists! The 21 distinct vectors form a bad set.
+
+But wait, I need to verify that the construction is actually realizable. I need to find specific vectors v1,...,v7 ∈ C0, w1,...,w7 ∈ C1, u1,...,u7 ∈ C2 such that:
+- Within each class, all are distinct (automatic) and pairwise at distance ≥ 2 (automatic since same class).
+- wj is at distance 1 from vi iff vi ≠ vj (i.e., wj is at distance 1 from all vi except vj).
+- Similarly for uk and vi, and for uk and wj.
+
+But this requires a very specific structure. Let me check if it's possible.
+
+wj is at distance 1 from vi iff they differ in exactly one coordinate. wj is at distance 1 from 6 vectors in C0 (its 6 neighbors). We want wj to be at distance 1 from v1,...,v7 except vj. So wj is at distance 1 from 6 of the 7 vi's (all except vj). Since wj has exactly 6 neighbors in C0, we need {v1,...,v7} \ {vj} to be exactly the 6 neighbors of wj in C0.
+
+So the 7 vi's consist of wj's 6 C0-neighbors plus vj (a non-neighbor). This must hold for all j = 1,...,7. So for each wj, the set {v1,...,v7} = N(wj) ∪ {vj} where vj ∉ N(wj).
+
+This means all wj share the same 6 C0-neighbors (since {v1,...,v7} \ {vj} = N(wj) and these are 6-element subsets of the 7-element set {v1,...,v7}, each missing a different element). So N(wj) = {v1,...,v7} \ {vj}.
+
+Now, wj and wk (j ≠ k) are both in C1. N(wj) = {v1,...,v7}\{vj} and N(wk) = {v1,...,v7}\{vk}. These are 6-element subsets of C0. 
+
+Two vectors in C1 that share 5 common neighbors in C0 (|N(wj) ∩ N(wk)| = 5 since they miss different elements). Is this possible?
+
+Each wj has 6 neighbors in C0, obtained by changing one coordinate by -1. So N(wj) = {wj - ei : i = 1,...,6} where ei is the unit vector in coordinate i (and subtraction is mod 3 on the coordinate). Wait, more precisely, wj has coordinates (wj1,...,wj6), and its C0-neighbors are (wj1,...,wji - 1,...,wj6) for i = 1,...,6 (changing coordinate i by -1 mod 3).
+
+For N(wj) and N(wk) to share 5 elements: 5 of the 6 neighbors coincide. (wj - ei) = (wk - ei') for 5 pairs (i, i'). If i = i', then wj - ei = wk - ei implies wj = wk, contradiction. So i ≠ i' for the matching pairs. This means wj and wk differ in exactly 2 coordinates (the ones where the neighbors don't match up).
+
+Actually, let me think about this more carefully. wj - ei = wk - ei' means wj and wk differ in coordinates i and i' (wj_i = wk_i + 1 and wj_{i'} = wk_{i'} - 1, with all other coordinates equal). Wait, that's not quite right either.
+
+Let me think of it differently. wj and wk are in C1. Their neighbor sets in C0 are N(wj) = {wj - e1, ..., wj - e6} and N(wk) = {wk - e1, ..., wk - e6}. For these to share 5 elements, we need 5 of the wj - ei to equal some wk - ei'.
+
+wj - ei = wk - ei' means wj - wk = ei - ei'. If i = i', then wj = wk, contradiction. If i ≠ i', then wj - wk = ei - ei', meaning wj and wk differ in exactly 2 coordinates (i and i').
+
+For 5 shared neighbors: we need 5 such matchings. But wj - wk is a fixed vector. ei - ei' takes different values for different (i, i') pairs. For 5 matchings, we'd need wj - wk to equal 5 different values of ei - ei', which is impossible since wj - wk is fixed.
+
+So two vectors in C1 can share at most 1 neighbor in C0 (if they differ in exactly 2 coordinates, giving 1 matching). Wait, let me reconsider.
+
+If wj - wk = ei - ei' (differ in coords i and i'), then wj - ei = wk - ei' (one shared neighbor). Are there other shared neighbors? wj - ek = wk - ek' would require ei - ei' = ek - ek', i.e., the same difference. If i = k and i' = k', it's the same pair. Otherwise, ei - ei' = ek - ek' with (i,i') ≠ (k,k'). This means ei - ei' = ek - ek', i.e., ei + ek' = ek + ei'. For this to hold with all indices distinct, we'd need... this is a vector equation. ei - ei' has +1 in position i, -1 in position i', 0 elsewhere. ek - ek' has +1 in position k, -1 in position k'. For these to be equal: {i} = {k} and {i'} = {k'}, or i = k and i' = k'. So the only solution is (i,i') = (k,k'). 
+
+So two vectors in C1 that differ in exactly 2 coordinates share exactly 1 neighbor in C0. Two vectors that differ in more coordinates share 0 neighbors.
+
+But we need N(wj) and N(wk) to share 5 neighbors! That's impossible since they can share at most 1.
+
+This means the construction I described is IMPOSSIBLE. We cannot have 7 vectors in C1 such that each pair shares 5 neighbors in C0.
+
+So the "wj misses vj" construction doesn't work. Let me reconsider.
+
+OK so I was wrong. The construction where each wj misses a different vj requires N(wj) ∩ N(wk) to have 5 elements, but two C1 vectors can share at most 1 C0-neighbor. So this is impossible.
+
+Let me reconsider the maximum bad set.
+
+With 7 from C0 and 7 from C1: the condition for no 8-clique is that every 8-subset has a distance-1 pair. As I analyzed, the key condition is: for every pair {wj, wk} in C1, N(wj) ∪ N(wk) ⊇ {v1,...,v7}. But |N(wj) ∩ C0| ≤ 6 and |N(wk) ∩ C0| ≤ 6, and |N(wj) ∩ N(wk)| ≤ 1 (as just shown). So |N(wj) ∪ N(wk)| ≤ 6 + 6 - 0 = 12 (or 11 if they share 1). But we need this to contain all 7 of {v1,...,v7}. 
+
+Actually, N(wj) ∩ {v1,...,v7} could be smaller than 6 (since N(wj) has 6 elements in all of C0, not all in {v1,...,v7}). Let me denote nj = |N(wj) ∩ {v1,...,v7}|. Then for the pair {wj, wk}, we need nj + nk - |N(wj) ∩ N(wk) ∩ {v1,...,v7}| ≥ 7. Since |N(wj) ∩ N(wk)| ≤ 1, we need nj + nk ≥ 7 (or 8 if they share 1 in the set).
+
+Each nj ≤ 6 (at most 6 neighbors in C0, and at most 7 in the set, but only 6 neighbors total). So nj + nk ≤ 12, which is ≥ 7. So it's possible if nj and nk are large enough.
+
+But we need this for ALL pairs. If some wj has nj = 0 (no neighbors among the 7 v's), then for every other wk, we need nk ≥ 7, but nk ≤ 6. Contradiction. So every wj must have nj ≥ 1.
+
+If wj has nj = 1, then every other wk needs nk ≥ 6. So at most one wj can have nj = 1, and the rest need nj ≥ 6. But nj ≤ 6, so the rest have nj = 6 exactly.
+
+If w1 has n1 = 1 and w2,...,w7 have nj = 6: for the pair {w2, w3}, n2 + n3 = 12, and they might share 1 neighbor, so union ≥ 11 ≥ 7. OK. For {w1, w2}: n1 + n2 = 7, and if they share 0 or 1, union = 7 or 6. If they share 1, union = 6 < 7. So we need N(w1) ∩ N(w2) ∩ {v1,...,v7} = ∅, i.e., w1's 1 neighbor is not among w2's 6 neighbors. Since w2 has 6 neighbors among the 7 v's, w1's 1 neighbor must be the 1 v that's not w2's neighbor. Similarly for w3,...,w7: w1's neighbor must not be in N(wj) for any j ≥ 2. But each wj (j ≥ 2) has 6 neighbors among 7 v's, missing 1. If they all miss the same v, then w1's neighbor is that v. But then for the pair {w2, w3}: both miss the same v, so N(w2) ∪ N(w3) = {v1,...,v7} \ {v_miss} ∪ {v1,...,v7} \ {v_miss} = {v1,...,v7} \ {v_miss}, which has 6 < 7 elements. So the pair {w2, w3} doesn't cover all 7 v's. The 8-set {v1,...,v7 minus v_miss, w2, w3, and two more w's}... hmm wait, I need to check the 6+2 condition.
+
+Actually, let me reconsider. The condition for the 6+2 split: for every 6-subset S of {v1,...,v7} and every 2-subset {wj, wk} of {w1,...,w7}, there must be a distance-1 pair between S and {wj, wk}. I.e., S ∩ (N(wj) ∪ N(wk)) ≠ ∅. Since S is a 6-subset of 7, S misses one element. N(wj) ∪ N(wk) must intersect every 6-subset, which means |N(wj) ∪ N(wk) ∩ {v1,...,v7}| ≥ 2 (since a 6-subset misses 1, and we need the union to not be contained in the missed element, i.e., the union has ≥ 2 elements). Wait no, we need: for every 6-subset S, S ∩ (N(wj) ∪ N(wk)) ≠ ∅. The worst case is S = {v1,...,v7} \ {v} where v is in the union. Then S ∩ union = union \ {v}, which is non-empty iff |union| ≥ 2. So we need |N(wj) ∪ N(wk) ∩ {v1,...,v7}| ≥ 2.
+
+This is much weaker! We just need the union to have ≥ 2 elements among the 7 v's. Since each wj has nj ≥ 1 (as shown), the union has ≥ 2 (if nj ≥ 2 for some j, or if n1 = 1 and n2 = 1 with different neighbors). Actually, if n1 = 1 and n2 = 1 and they have the same neighbor, the union has 1 element, which is < 2. So we need: for every pair, the union has ≥ 2 elements.
+
+OK this is getting really complicated. Let me step back and think about the problem from a higher level.
+
+I think this problem is from a Chinese math competition (the number 385 and the style suggest it's from a specific collection). The answer is likely a specific number. Let me think about what the answer could be.
+
+Given the structure:
+- 6 leaders, 3 colors, 2014 albums
+- Want 8 albums pairwise agreeing in ≤ 4 positions (distance ≥ 2)
+- Find minimum n
+
+The key parameters: 3^6 = 729 total vectors, 3^5 = 243 max code size, 2014 albums.
+
+With the single-code approach: n = 64 (as computed).
+
+But maybe we can do better with a multi-class approach. The question is how much better.
+
+Let me think about the problem differently. Instead of thinking about codes, let me think about a direct partition approach.
+
+Partition {1,2,3}^6 into groups where within each group, the maximum distance-≥-2 set has size ≤ 7. Then a bad set is contained in the union of groups, and we need to bound its size.
+
+Actually, let me think about "resolvable" designs or something similar.
+
+Hmm, let me try a completely different approach. Let me think about the problem in terms of the "agreement" structure.
+
+Two albums agree in at most 4 positions = differ in at least 2 positions. We want 8 albums pairwise differing in ≥ 2 positions.
+
+Consider the 6 positions. Each album is a function from {1,...,6} to {1,2,3}. Two albums "agree" in a position if they have the same color there.
+
+Now, consider the following approach: for each album, compute a "signature" = (sum of colors mod 3). This gives 3 classes. Within each class, all pairs differ in ≥ 2 positions (as shown). So 8 albums from the same class work.
+
+For the scheme: use 2014 albums, distributed among the 3 classes. By pigeonhole, one class has ≥ 672. Within that class, ≤ 243 distinct signatures. A bad set takes ≤ 7 distinct from each class.
+
+But the bad set can also mix classes. The question is how much mixing helps.
+
+Let me think about the lower bound more carefully.
+
+For any scheme of 2014 albums:
+- 3 classes, one has ≥ 672 albums, say C0.
+- C0 has ≤ 243 distinct vectors, with total ≥ 672.
+- The 7 most frequent in C0 have total ≥ 7 × ⌈672/243⌉ = 7 × 3 = 21.
+
+But actually, we can be smarter. The 7 most frequent in C0: let their multiplicities be m1 ≥ ... ≥ m7. Then m1 + ... + m7 ≥ 7 × (672/243) ≈ 19.4, so ≥ 20.
+
+But actually, we can do better. Since the total is ≥ 672 and there are ≤ 243 distinct, the average multiplicity is ≥ 672/243 ≈ 2.77. The 7 most frequent have sum ≥ 7 × 2.77 ≈ 19.4, so ≥ 20.
+
+But can we also add albums from other classes to the bad set? If we add 1 album from C1 that's at distance 1 from one of the 7 C0 albums, the bad set grows by 1 (or more if there are multiple copies). But we need to ensure no 8 pairwise at distance ≥ 2.
+
+The bad set currently has 7 distinct C0 vectors (pairwise at distance ≥ 2) with their multiplicities (total ≥ 20). Adding a C1 vector: if it's at distance 1 from at least one C0 vector, then the 8-set {7 C0 + 1 C1} is not pairwise at distance ≥ 2 (since one pair is at distance 1). So the bad set still has no 8 pairwise at distance ≥ 2. We can add this C1 vector and its copies.
+
+But we need to be careful: adding multiple C1 vectors could create an 8-set that is pairwise at distance ≥ 2 using some C0 and some C1 vectors.
+
+This is getting very involved. Let me try to think about the problem from the answer's perspective.
+
+I think the answer might be related to the following: we use the 3-coloring (sum mod 3) and distribute evenly. The key number is 2014 / 3 ≈ 671.33, so one class has ≥ 672. With 243 distinct per class and 672 albums, the 7 most frequent have ≥ 7 × ⌈672/243⌉ = 7 × 3 = 21. So the bad set has ≥ 21, giving n ≥ 22.
+
+But can we achieve n = 22? We need a scheme where the max bad set is 21.
+
+With 2014 albums distributed evenly among 729 distinct vectors: 2014 = 729 × 2 + 556, so 556 vectors have 3 copies, 173 have 2 copies. Each class has 243 vectors. In the largest class (≥ 672), the 7 most frequent have 7 × 3 = 21 copies (if 7 of the 556 triple-copy vectors are in this class). The bad set = 21.
+
+But can the bad set be larger by mixing classes? As I discussed, adding C1 vectors to the bad set is possible but constrained. The question is whether we can add enough to exceed 21.
+
+If we add k C1 vectors (with their copies) to the bad set, we need no 8 pairwise at distance ≥ 2 among all C0 and C1 vectors in the bad set. The C0 vectors (7 distinct) are pairwise at distance ≥ 2. The C1 vectors are pairwise at distance ≥ 2. Cross pairs: some at distance 1, some at distance ≥ 2.
+
+For no 8 pairwise at distance ≥ 2: we need that every 8-subset has a distance-1 pair. As I analyzed, this requires strong conditions.
+
+Let me think about the maximum number of C1 vectors we can add. Each C1 vector w has 6 distance-1 neighbors in C0. If w is at distance 1 from at least one of the 7 C0 vectors, adding w doesn't create an 8-set of 7 C0 + w (since one pair is at distance 1). But adding multiple C1 vectors could create issues.
+
+If we add w1 and w2 from C1: the 8-set {6 C0, w1, w2} is pairwise at distance ≥ 2 iff w1 and w2 are at distance ≥ 2 (they are, same class) and both are at distance ≥ 2 from all 6 C0 vectors. So we need: for every 6-subset of the 7 C0 vectors, at least one of w1, w2 is at distance 1 from one of the 6. I.e., (N(w1) ∪ N(w2)) ∩ {v1,...,v7} intersects every 6-subset, meaning |(N(w1) ∪ N(w2)) ∩ {v1,...,v7}| ≥ 2.
+
+If w1 is at distance 1 from 1 of the 7 C0 vectors, and w2 is at distance 1 from 1 of the 7 (possibly the same one), then the union has 1 or 2 elements. If 2, OK. If 1 (same vector), then the 6-subset missing that vector has no distance-1 pair with w1 or w2, so {that 6-subset, w1, w2} is an 8-set pairwise at distance ≥ 2. Bad.
+
+So we need: for every pair of C1 vectors added, their distance-1 neighborhoods among the 7 C0 vectors have union of size ≥ 2.
+
+More generally, for k C1 vectors added: for every (8-k)-subset of C0 and every k-subset of C1 (with 8-k + k = 8, 1 ≤ k ≤ 7, 1 ≤ 8-k ≤ 7), the union of neighborhoods intersects the (8-k)-subset. This means the union of neighborhoods has size ≥ 7 - (8-k) + 1 = k - 1 + 1 = k. Wait, let me redo this.
+
+For a (8-k)-subset S of C0 (missing k-1 elements from the 7) and k C1 vectors: we need S ∩ (union of N(wj)) ≠ ∅. The worst case is S missing the elements in the union. If the union has u elements, S can miss up to k-1 elements (since |S| = 8-k, missing k-1 from 7). If u ≤ k-1, S can miss all u elements, so S ∩ union = ∅. So we need u ≥ k.
+
+So for k C1 vectors, the union of their neighborhoods among the 7 C0 vectors must have size ≥ k. Since each neighborhood has at most 6 elements (among all C0, but among the 7, at most 6), and two neighborhoods share at most 1 element, the union of k neighborhoods has size ≥ k × 1 = k (trivially, since they share at most 1, the union is ≥ sum - C(k,2) × 1, but that could be negative for large k). 
+
+Hmm, this isn't tight. Let me think about the maximum k C1 vectors we can add.
+
+For k = 7: union of 7 neighborhoods must have size ≥ 7, i.e., cover all 7 C0 vectors. Each neighborhood has ≤ 6 elements, and pairwise intersection ≤ 1. By inclusion-exclusion, union ≥ 7 × 6 - C(7,2) × 1 = 42 - 21 = 21. But we only need 7, so this is fine. Actually, the union could be as small as... if all 7 neighborhoods are the same 6 elements, the union is 6 < 7. But can 7 C1 vectors all have the same 6 C0-neighbors among the 7? Each C1 vector has 6 C0-neighbors (in all of C0), and we need 6 of them to be among the 7. Two C1 vectors with the same 6 C0-neighbors: they must be at distance 2 from each other (sharing 1 neighbor as computed). Actually, two C1 vectors share at most 1 C0-neighbor. So if they both have 6 neighbors among the 7 C0 vectors, they share at most 1, so their neighborhoods are 6-element subsets of a 7-element set sharing ≤ 1 element. The union of two such sets has size ≥ 6 + 6 - 1 = 11, but capped at 7. So union = 7. 
+
+Wait, if both are 6-element subsets of a 7-element set, and they share ≤ 1 element, then their union has size ≥ 6 + 6 - 1 = 11, but since they're subsets of a 7-element set, the union is at most 7. So union = 7. But 6 + 6 - 1 = 11 > 7, which means they must share ≥ 5 elements (since 6 + 6 - 5 = 7). But we said they share ≤ 1. Contradiction!
+
+So two C1 vectors cannot both have 6 neighbors among the 7 C0 vectors (since they'd need to share ≥ 5, but can share ≤ 1). So at most one C1 vector can have 6 neighbors among the 7.
+
+If one C1 vector has 6 neighbors among 7, and another has 5: they share ≤ 1, so union ≥ 6 + 5 - 1 = 10, capped at 7. So union = 7, meaning they share ≥ 4. But they can share ≤ 1. Contradiction again!
+
+So if one has 6 and another has 5, they can't both be subsets of the 7. Hmm, wait. The neighborhoods are

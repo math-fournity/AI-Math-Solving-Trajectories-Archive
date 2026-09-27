@@ -1,0 +1,944 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>oda_math_460k_00004701</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+On the median $A A_{1}$ of triangle $A B C$, a point $M$ is taken such that $A M: M A_{1}=1: 3$. In what ratio does the line $B M$ divide the side $A C$?
+
+## Standard Solution
+
+<think>Okay, let's try to solve this problem. So, we have triangle ABC, and we need to consider the median AA₁. A median connects a vertex to the midpoint of the opposite side, right? So, A₁ is the midpoint of BC. Then, there's a point M on AA₁ such that AM:MA₁ = 1:3. We need to find the ratio in which line BM divides side AC. 
+
+First, maybe coordinate geometry would help here. Let's assign coordinates to the triangle's vertices to make calculations easier. Let's place point A at (0, 0) for simplicity. Let's let point B be at (2b, 0) and point C at (2c, 2d). Wait, maybe that's complicating. Alternatively, let's choose coordinates more strategically. Let's set point A at (0, 0), point B at (0, 0)? No, better to set A at (0, 0), B at (b, 0), and C at (c, d). Then, the median AA₁: A₁ is the midpoint of BC. So, coordinates of B are (b, 0), C is (c, d), so midpoint A₁ would be ((b + c)/2, (0 + d)/2) = ((b + c)/2, d/2). 
+
+Now, point M is on AA₁ such that AM:MA₁ = 1:3. Let's find coordinates of M. Since AA₁ is from A(0,0) to A₁((b + c)/2, d/2). The ratio AM:MA₁ is 1:3, so M divides AA₁ internally in the ratio AM:MA₁ = 1:3. So, using the section formula, coordinates of M would be [(3*0 + 1*( (b + c)/2 )) / (1 + 3), (3*0 + 1*(d/2))/ (1 + 3)]. Wait, section formula: if a point divides a line segment joining (x₁,y₁) and (x₂,y₂) in the ratio m:n, then the coordinates are ( (m x₂ + n x₁)/(m + n), (m y₂ + n y₁)/(m + n) ). Here, since AM:MA₁ = 1:3, M is closer to A. So, from A to A₁, the ratio is 1:3. So, m = 1 (MA₁), n = 3 (AM)? Wait, no. Let me clarify. The ratio AM:MA₁ = 1:3. So, AM is 1 part, MA₁ is 3 parts. So, the total length AA₁ is 4 parts. So, M is located 1/4 of the way from A to A₁. Wait, no. Wait, if AM:MA₁ = 1:3, then AM = 1k, MA₁ = 3k, so AA₁ = AM + MA₁ = 4k. So, the coordinate of M can be found by moving from A towards A₁ by 1/4 of AA₁? Wait, no. Because AM is 1 part, MA₁ is 3 parts, so M is closer to A. Let's think: starting at A, moving towards A₁, the first part is AM (1k), then the remaining MA₁ is 3k. So, the coordinates of M would be A + (1/4)(A₁ - A). Because the entire vector from A to A₁ is A₁ - A, and M is 1/4 of the way from A to A₁? Wait, no. Wait, if AM:MA₁ = 1:3, then the ratio of AM to AA₁ is 1:(1+3) = 1/4. So, M divides AA₁ internally in the ratio AM:MA₁ = 1:3, so using the section formula, the coordinates of M are ( (3*A_x + 1*A₁_x)/(1+3), (3*A_y + 1*A₁_y)/(1+3) ). Wait, no. Wait, the section formula is ( (m x₂ + n x₁)/(m + n), (m y₂ + n y₁)/(m + n) ) where the ratio is m:n, with the point dividing the segment from (x₁,y₁) to (x₂,y₂). So, if we consider the segment from A to A₁, and M is such that AM:MA₁ = 1:3, then the ratio is m:n = 1:3, where m is the part near A₁, and n is the part near A? Wait, no. Let me check. Suppose we have points A---M---A₁, with AM = 1, MA₁ = 3. Then, the ratio AM:MA₁ is 1:3. So, when using the section formula, if we are going from A to A₁, then the ratio is m:n where m is the length from A to M, and n is from M to A₁. Wait, no. The section formula is usually given as: if a point P divides AB internally in the ratio AP:PB = m:n, then P = ( (n A + m B)/(m + n) ). So, AP:PB = m:n, so P = (n*A + m*B)/(m + n). So, in our case, AM:MA₁ = 1:3. So, AP is AM, PB is MA₁. So, m = 1, n = 3. Then, M = (3*A + 1*A₁)/(1 + 3). Wait, A is (0,0), A₁ is ((b + c)/2, d/2). So, M's coordinates would be (3*0 + 1*( (b + c)/2 ) / 4, (3*0 + 1*(d/2))/4 )? Wait, no. Wait, (n*A + m*A₁)/(m + n). So, m is the ratio part corresponding to A₁, n is the ratio part corresponding to A. Wait, let's clarify. Let me recall: if AP:PB = m:n, then P = (n*A + m*B)/(m + n). So, AP is m, PB is n. So, in our case, AM:MA₁ = 1:3. So, AP is AM, PB is MA₁. So, AP:PB = 1:3, so m = 1, n = 3. Then, M = (n*A + m*A₁)/(m + n) = (3*A + 1*A₁)/(1 + 3). Since A is (0,0), this becomes (0 + A₁)/4 = A₁/4. Wait, that can't be right. Because if A is (0,0) and A₁ is (x,y), then M would be (x/4, y/4). But let's check. If AM:MA₁ = 1:3, then vector AM = (1/4) vector AA₁. Because AA₁ is from A to A₁, so vector AA₁ is ( (b + c)/2, d/2 ). So, vector AM = (1/4) AA₁, so M = A + AM = (0,0) + ( (b + c)/8, d/8 )? Wait, no. Wait, if AM is 1 part and MA₁ is 3 parts, then the total length is 4 parts. So, AM is 1/4 of AA₁. So, M is located at 1/4 of the way from A to A₁. So, coordinates of M would be A + (1/4)(A₁ - A) = ( (b + c)/8, d/8 )? Wait, no. Wait, A₁ is ((b + c)/2, d/2). So, A₁ - A is ((b + c)/2, d/2). So, 1/4 of that vector is ( (b + c)/8, d/8 ). So, M is ( (b + c)/8, d/8 ). But earlier, using the section formula, if AP:PB = 1:3, then M = (3*A + 1*A₁)/(1 + 3). Let's compute that. 3*A is (0,0), 1*A₁ is ((b + c)/2, d/2). So, sum is ((b + c)/2, d/2). Divide by 4: ( (b + c)/8, d/8 ). Oh, right, that's the same. So, M's coordinates are ( (b + c)/8, d/8 ). That's correct.
+
+Now, we need to find where line BM intersects AC, and then find the ratio. Let's find equations of lines BM and AC.
+
+First, let's get coordinates of all points:
+
+A: (0, 0)
+
+B: (b, 0) [Wait, earlier I set B at (b, 0), but maybe I should confirm. Let me recheck. Let's set coordinate system properly. Let's let A be (0, 0), B be (0, 0)? No, better to set A at (0, 0), B at (c, 0), and C at (d, e). Wait, maybe I confused earlier. Let's reset. Let's choose coordinates more carefully. Let's set point A at (0, 0), point B at (0, 0) is not good. Let's set A at (0, 0), B at (b, 0), and C at (c, d). Then:
+
+- A is (0, 0)
+
+- B is (b, 0)
+
+- C is (c, d)
+
+Then, midpoint A₁ of BC: coordinates of B (b, 0), C (c, d). So, A₁ = ( (b + c)/2, (0 + d)/2 ) = ( (b + c)/2, d/2 )
+
+Median AA₁ is from A(0,0) to A₁( (b + c)/2, d/2 )
+
+Point M is on AA₁ with AM:MA₁ = 1:3. As before, M's coordinates: using section formula, since AM:MA₁ = 1:3, M divides AA₁ in ratio AM:MA₁ = 1:3, so M = ( (3*A_x + 1*A₁_x)/(1 + 3), (3*A_y + 1*A₁_y)/(1 + 3) ) = ( (0 + (b + c)/2 ) / 4, (0 + d/2 ) / 4 ) = ( (b + c)/8, d/8 )
+
+Wait, no. Wait, the section formula is ( (m x₂ + n x₁)/(m + n), (m y₂ + n y₁)/(m + n) ), where the ratio is m:n, and the point is between (x₁,y₁) and (x₂,y₂). Here, (x₁,y₁) is A(0,0), (x₂,y₂) is A₁( (b + c)/2, d/2 ). The ratio AM:MA₁ = 1:3, which means that from A to M to A₁, AM is 1, MA₁ is 3. So, the ratio of segments is AM:MA₁ = 1:3, so the ratio m:n where m is the part adjacent to A₁, and n is adjacent to A. Wait, maybe it's better to think in terms of vectors. The vector from A to A₁ is A₁ - A = ( (b + c)/2, d/2 ). Then, point M is located at A + (AM / AA₁) * (A₁ - A). Since AM:MA₁ = 1:3, AM = 1k, MA₁ = 3k, so AA₁ = 4k. So, AM / AA₁ = 1/4. Therefore, M = A + (1/4)(A₁ - A) = (1/4)A₁ = ( (b + c)/8, d/8 ). Wait, no. Wait, (1/4)(A₁ - A) is ( (b + c)/8, d/8 ), but A is (0,0), so M = ( (b + c)/8, d/8 ). Wait, no. Wait, (1/4)(A₁ - A) is ( (b + c)/2 * 1/4, d/2 * 1/4 ) = ( (b + c)/8, d/8 ). Then, M = A + that vector, which is ( (b + c)/8, d/8 ). Correct.
+
+Now, line BM: connects B(b, 0) and M( (b + c)/8, d/8 ). Let's find the equation of line BM.
+
+First, compute the slope of BM. Slope m_BM = (d/8 - 0)/( ( (b + c)/8 - b ) ) = (d/8)/( (b + c - 8b)/8 ) = (d/8)/( (c - 7b)/8 ) = d/(c - 7b)
+
+So, slope is d/(c - 7b). Then, equation of BM: using point B(b, 0):
+
+y - 0 = [d/(c - 7b)](x - b)
+
+So, y = [d/(c - 7b)](x - b)
+
+Now, line AC: connects A(0,0) and C(c, d). The equation of AC is y = (d/c)x, since slope is d/c, and passes through origin.
+
+We need to find the intersection point of BM and AC. Let's call this intersection point D. So, D is on both BM and AC. Let's solve the two equations:
+
+From AC: y = (d/c)x
+
+From BM: y = [d/(c - 7b)](x - b)
+
+Set equal:
+
+(d/c)x = [d/(c - 7b)](x - b)
+
+Assuming d ≠ 0 (otherwise the triangle is degenerate), we can divide both sides by d:
+
+x/c = (x - b)/(c - 7b)
+
+Cross-multiplying:
+
+x(c - 7b) = c(x - b)
+
+Expand left side: xc - 7bx
+
+Right side: cx - cb
+
+So:
+
+xc - 7bx = cx - cb
+
+Subtract cx from both sides:
+
+-7bx = -cb
+
+Multiply both sides by -1:
+
+7bx = cb
+
+Divide both sides by b (assuming b ≠ 0, otherwise B and A would be same point, which is degenerate):
+
+7x = c => x = c/7
+
+Then, y = (d/c)x = (d/c)(c/7) = d/7
+
+So, point D is (c/7, d/7)
+
+Now, we need to find the ratio in which D divides AC. Since AC is from A(0,0) to C(c, d), and D is (c/7, d/7). Let's see: the coordinates of D are (c/7, d/7), which is 1/7 of the way from A to C. Wait, because A is (0,0), C is (c, d). So, vector AC is (c, d). Then, AD vector is (c/7, d/7) = (1/7)(c, d) = (1/7)AC. So, AD:DC = 1:6. Because AD is 1 part, DC is 6 parts (since total AC is 7 parts). So, the ratio is AD:DC = 1:6.
+
+Wait, let's confirm. Let's parameterize AC. Let D divide AC such that AD:DC = k:1. Then, coordinates of D would be ( (k*c + 1*0)/(k + 1), (k*d + 1*0)/(k + 1) ) = (kc/(k + 1), kd/(k + 1)). But we found D is (c/7, d/7). So, kc/(k + 1) = c/7 => k/(k + 1) = 1/7 => 7k = k + 1 => 6k = 1 => k = 1/6. Wait, that's conflicting. Wait, no. Wait, if AD:DC = k:1, then D = ( (1*A + k*C)/(k + 1) ). Wait, section formula: if AD:DC = m:n, then D = (n*A + m*C)/(m + n). So, if AD:DC = m:n, then D's coordinates are ( (n*0 + m*c)/(m + n), (n*0 + m*d)/(m + n) ) = (mc/(m + n), md/(m + n)). We have D's coordinates as (c/7, d/7). So, mc/(m + n) = c/7 => m/(m + n) = 1/7 => 7m = m + n => 6m = n => n = 6m. So, m:n = 1:6. Therefore, AD:DC = 1:6. So, the ratio is 1:6.
+
+Wait, but let's check with the coordinates. From A(0,0) to C(c,d), D is (c/7, d/7). So, the distance from A to D is sqrt( (c/7)^2 + (d/7)^2 ) = (1/7)sqrt(c² + d²). The distance from D to C is sqrt( (c - c/7)^2 + (d - d/7)^2 ) = sqrt( (6c/7)^2 + (6d/7)^2 ) = (6/7)sqrt(c² + d²). So, AD:DC = 1:6. Correct.
+
+Therefore, line BM divides AC into AD:DC = 1:6. So, the ratio is 1:6.
+
+Alternatively, maybe using mass point geometry. Let's try that approach to confirm.
+
+Mass point geometry: In triangle ABC, AA₁ is the median, so A₁ is the midpoint of BC, so masses at B and C are equal. Let's assign mass 1 to B and 1 to C, so mass at A₁ is 1 + 1 = 2. Now, point M is on AA₁ with AM:MA₁ = 1:3. So, the ratio of segments AM:MA₁ = 1:3. In mass point, the masses are inversely proportional to the lengths. So, mass at A * AM = mass at A₁ * MA₁. Wait, mass point assigns masses to the endpoints such that mass at A / mass at A₁ = MA₁ / AM. Because mass is inversely proportional to the length. So, mass at A / mass at A₁ = MA₁ / AM = 3/1. So, mass at A is 3, mass at A₁ is 1. But earlier, we had mass at A₁ as 2 (from B and C). So, to reconcile, we need to scale the masses. The mass at A₁ from the median is 2, but according to the ratio AM:MA₁, mass at A₁ should be 1. So, we need to multiply the masses at B and C by 1 (since mass at A₁ is 2, but we need it to be 1, so divide by 2). Wait, maybe better to think:
+
+First, for median AA₁: A₁ is midpoint of BC, so masses at B and C are both m, so mass at A₁ is m + m = 2m. Let's take m = 1, so mass at B = 1, mass at C = 1, mass at A₁ = 2.
+
+Now, point M is on AA₁ with AM:MA₁ = 1:3. So, the masses at A and A₁ should be such that mass at A / mass at A₁ = MA₁ / AM = 3/1. So, mass at A = 3k, mass at A₁ = k. But we already have mass at A₁ as 2 (from B and C). So, k must be 2, so mass at A = 3*2 = 6. Therefore, mass at A is 6, mass at A₁ is 2. Then, total mass at A₁ is 2, which is from B and C (each 1). Now, the mass at M is mass at A + mass at A₁ = 6 + 2 = 8.
+
+Now, we need to find the ratio in which BM divides AC. Let's consider line BM. Let's find the masses at B and M, then see how it affects the intersection with AC.
+
+Mass at B is 1, mass at M is 8. So, along line BM, the masses are B:1 and M:8. Now, the intersection point D is on AC and BM. Let's find the masses at A and C. Mass at A is 6, mass at C is 1 (from earlier). Wait, mass at A is 6, mass at C is 1. So, mass at AC's total is 6 + 1 = 7. But let's see. The mass at D (on AC) should be mass at A + mass at C = 6 + 1 = 7. Also, D is on BM, so mass at D should be mass at B + mass at M = 1 + 8 = 9. Wait, that's a contradiction. Hmm, maybe I messed up the mass assignments.
+
+Alternatively, let's use the concept of lever arms. Let's think of the entire system.
+
+First, masses:
+
+- B: 1, C: 1, so A₁ (midpoint) has mass 1 + 1 = 2.
+
+- On AA₁, AM:MA₁ = 1:3. So, the masses at A and A₁ must satisfy mass_A / mass_A₁ = MA₁ / AM = 3/1. So, mass_A = 3 * mass_A₁. Since mass_A₁ is 2 (from B and C), then mass_A = 3 * 2 = 6. So, mass at A is 6, mass at A₁ is 2, so mass at M (which is on AA₁) is mass_A + mass_A₁ = 6 + 2 = 8.
+
+Now, line BM connects B (mass 1) and M (mass 8). Let's find the mass at D, the intersection of BM and AC.
+
+Along BM: masses at B is 1, M is 8. So, the mass at D (which is on BM) should be 1 + 8 = 9. But D is also on AC. Let's see what masses are at A and C. Mass at A is 6, mass at C is 1. So, mass at AC is 6 + 1 = 7. But mass at D should be consistent. Wait, maybe I need to adjust. Alternatively, the mass at D from BM is 9, but from AC it's 7. That suggests that my mass assignments might be wrong. Maybe I need to scale the masses so that the mass at D is consistent.
+
+Alternatively, let's use the masses to find the ratio. Let's denote the ratio AD:DC = x:y. Then, the mass at D (from AC) is mass_A / y = mass_C / x. Because mass is inversely proportional to the length. So, mass_A / mass_C = y / x. We have mass_A = 6, mass_C = 1, so 6/1 = y/x => y = 6x => x:y = 1:6. So, AD:DC = 1:6. That's the same result as before. So, mass point also gives 1:6. That confirms the earlier result.
+
+Therefore, the ratio is 1:6.
+</think>
+
+To solve the problem, we use coordinate geometry to determine the ratio in which line \( BM \) divides side \( AC \).
+
+### Step 1: Assign Coordinates
+Let's place the vertices of triangle \( ABC \) in a coordinate system:
+- \( A(0, 0) \)
+- \( B(b, 0) \)
+- \( C(c, d) \)
+
+### Step 2: Find Midpoint \( A_1 \)
+Since \( A_1 \) is the midpoint of \( BC \), its coordinates are:
+\[ A_1\left( \frac{b + c}{2}, \frac{d}{2} \right) \]
+
+### Step 3: Determine Coordinates of \( M \)
+Point \( M \) divides \( AA_1 \) in the ratio \( AM:MA_1 = 1:3 \). Using the section formula, the coordinates of \( M \) are:
+\[ M\left( \frac{3 \cdot 0 + 1 \cdot \frac{b + c}{2}}{1 + 3}, \frac{3 \cdot 0 + 1 \cdot \frac{d}{2}}{1 + 3} \right) = \left( \frac{b + c}{8}, \frac{d}{8} \right) \]
+
+### Step 4: Equations of Lines \( BM \) and \( AC \)
+- **Line \( BM \)**: Connects \( B(b, 0) \) and \( M\left( \frac{b + c}{8}, \frac{d}{8} \right) \). The slope of \( BM \) is:
+  \[ \text{slope} = \frac{\frac{d}{8} - 0}{\frac{b + c}{8} - b} = \frac{d}{c - 7b} \]
+  The equation of \( BM \) is:
+  \[ y = \frac{d}{c - 7b}(x - b) \]
+
+- **Line \( AC \)**: Connects \( A(0, 0) \) and \( C(c, d) \). The equation of \( AC \) is:
+  \[ y = \frac{d}{c}x \]
+
+### Step 5: Find Intersection \( D \) of \( BM \) and \( AC \)
+Set the equations of \( BM \) and \( AC \) equal to find \( D \):
+\[ \frac{d}{c}x = \frac{d}{c - 7b}(x - b) \]
+Solving for \( x \):
+\[ x(c - 7b) = c(x - b) \]
+\[ xc - 7bx = cx - cb \]
+\[ -7bx = -cb \]
+\[ x = \frac{c}{7} \]
+Substituting \( x = \frac{c}{7} \) into \( y = \frac{d}{c}x \):
+\[ y = \frac{d}{7} \]
+Thus, \( D \left( \frac{c}{7}, \frac{d}{7} \right) \).
+
+### Step 6: Determine the Ratio \( AD:DC \)
+Point \( D \) divides \( AC \) such that \( AD:DC \). Since \( D \) has coordinates \( \left( \frac{c}{7}, \frac{d}{7} \right) \), it is \( \frac{1}{7} \) of the way from \( A \) to \( C \). Thus, \( AD:DC = 1:6 \).
+
+The final answer is \(\boxed{1:6}\).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We need to find the maximal possible number of faces $n$ for a convex polyhedron with integer coordinates for all its vertices, such that there are no other integer points inside the polyhedron or on its faces.
+
+So the polyhedron is "empty" - it's a lattice polytope (convex hull of lattice points) that contains no lattice points other than its vertices, and no lattice points on its faces other than the vertices of that face.
+
+Wait, let me re-read. "no other integer points inside the polyhedron or on its faces." So the only integer points are the vertices. No integer points in the interior, and no integer points on the faces (other than the vertices themselves, which are on the faces).
+
+Actually, let me be more careful. The vertices are integer points. The condition is: there are no other integer points inside the polyhedron or on its faces. So the only lattice points in the polyhedron (including its boundary) are the vertices.
+
+This is called an "empty lattice polytope" or more specifically, a lattice polytope with no lattice points other than vertices.
+
+In 2D, the maximal number of vertices of an empty lattice polygon is 4 (a parallelogram of area 1, like the unit square). Actually, by Pick's theorem, for a lattice polygon with $V$ vertices, $A = I + B/2 - 1$ where $I$ is interior lattice points and $B$ is boundary lattice points. If the only lattice points are vertices, then $I = 0$ and $B = V$, so $A = V/2 - 1$. For $V = 4$, $A = 1$. For $V = 5$, $A = 3/2$. But can we have a lattice pentagon with no lattice points other than vertices? $A = 3/2$, $I = 0$, $B = 5$. Hmm, $A = 0 + 5/2 - 1 = 3/2$. Yes that's consistent. But can such a pentagon exist? Actually, I think the maximum is 4 for 2D empty lattice polygons. Let me think... Actually, there's a theorem that says the maximum number of vertices of an empty lattice polygon in 2D is 4. Wait, no. Let me reconsider.
+
+Actually, I recall that in 2D, empty lattice polygons (no lattice points other than vertices) can have at most 4 vertices. This is because... hmm, actually I'm not sure. Let me think about this differently.
+
+For 3D, the question is about the maximal number of faces of an empty lattice polytope.
+
+Let me think about what's known. This is related to the theory of lattice polytopes.
+
+A key result: In dimension $d$, an empty lattice simplex (a simplex with $d+1$ vertices and no other lattice points) exists. But we want to maximize the number of faces, not just vertices.
+
+Actually, the question asks for the maximal number of faces $n$.
+
+Let me think about this more carefully. We want a convex lattice polytope $P$ in $\mathbb{R}^3$ such that:
+1. All vertices have integer coordinates
+2. The only lattice points in $P$ (including boundary) are the vertices
+3. We want to maximize the number of faces
+
+First, let's think about what constraints this places.
+
+Each face of the polytope is a lattice polygon (its vertices are lattice points). The condition says that on each face, the only lattice points are the vertices of that face. So each face is an "empty lattice polygon" in 2D.
+
+In 2D, what's the maximum number of vertices of an empty lattice polygon? By Pick's theorem: $A = I + B/2 - 1$. With $I = 0$ and $B = V$ (only vertices are lattice points on the boundary), we get $A = V/2 - 1$. For this to have a valid (positive) area, we need $V \geq 4$ gives $A \geq 1$, $V = 3$ gives $A = 1/2$.
+
+Actually, can we have an empty lattice polygon with more than 4 vertices? Let me think... Consider a triangle with vertices $(0,0), (1,0), (0,1)$. Area = 1/2, $I = 0$, $B = 3$, Pick: $1/2 = 0 + 3/2 - 1 = 1/2$. ✓. This is empty.
+
+A parallelogram with vertices $(0,0), (1,0), (1,1), (0,1)$. Area = 1, $I = 0$, $B = 4$, Pick: $1 = 0 + 4/2 - 1 = 1$. ✓. Empty.
+
+Can we have an empty lattice pentagon? We'd need $A = 5/2 - 1 = 3/2$ and $I = 0$, $B = 5$. Is there a lattice pentagon with area 3/2 and no interior or boundary lattice points other than vertices?
+
+Hmm, consider vertices $(0,0), (1,0), (2,1), (1,2), (0,1)$. Let me check the area using the shoelace formula:
+$A = \frac{1}{2}|x_1(y_2 - y_5) + x_2(y_3 - y_1) + x_3(y_4 - y_2) + x_4(y_5 - y_3) + x_5(y_1 - y_4)|$
+$= \frac{1}{2}|0(0-1) + 1(1-0) + 2(2-0) + 1(1-1) + 0(0-2)|$
+$= \frac{1}{2}|0 + 1 + 4 + 0 + 0| = 5/2$.
+
+But Pick's theorem says $A = I + B/2 - 1$, so $5/2 = I + B/2 - 1$. If $B = 5$ (only vertices), then $I = 5/2 - 5/2 + 1 = 1$. So there's 1 interior lattice point. Not empty.
+
+Let me try to find an empty lattice pentagon. We need $A = 3/2$, $I = 0$, $B = 5$.
+
+Consider $(0,0), (1,0), (2,1), (1,1), (0,1)$. Wait, is this convex? Let me check. The points are $(0,0), (1,0), (2,1), (1,1), (0,1)$. Is $(1,1)$ inside the convex hull of the others? The convex hull of $(0,0), (1,0), (2,1), (0,1)$ is a quadrilateral. $(1,1)$ is inside it. So this isn't a convex pentagon.
+
+Hmm, let me think about whether empty lattice polygons with 5+ vertices exist.
+
+Actually, I recall a result: in 2D, the only empty lattice polygons (up to unimodular transformation) are:
+- The standard triangle $\text{conv}\{(0,0), (1,0), (0,1)\}$ (3 vertices)
+- The unit square (4 vertices)
+
+And actually, I think that's it - you can't have an empty lattice polygon with 5 or more vertices. Let me verify this.
+
+Claim: Every empty lattice polygon has at most 4 vertices.
+
+Proof sketch: By Pick's theorem, $A = V/2 - 1$ for an empty polygon with $V$ vertices. For $V \geq 5$, $A \geq 3/2$. 
+
+Consider an edge of the polygon from $u$ to $v$. The edge has no lattice points in its interior (since the polygon is empty), so $v - u$ is a primitive vector. 
+
+Now, triangulate the polygon from one vertex. Each triangle in the triangulation is a lattice triangle. The area of each triangle is at least $1/2$ (since it's a non-degenerate lattice triangle). With $V$ vertices, triangulation from one vertex gives $V - 2$ triangles, so total area $\geq (V-2)/2$. But $A = V/2 - 1 = (V-2)/2$. So each triangle must have area exactly $1/2$, meaning each is a unimodular triangle (empty lattice triangle).
+
+So if we have an empty lattice polygon with $V$ vertices, triangulating from one vertex gives $V-2$ unimodular triangles. 
+
+Now, consider vertex $v_0$ and the triangulation. The triangles are $\triangle(v_0, v_i, v_{i+1})$ for $i = 1, \ldots, V-2$. Each is unimodular, meaning $\det(v_i - v_0, v_{i+1} - v_0) = \pm 1$.
+
+Let $w_i = v_i - v_0$ for $i = 1, \ldots, V-1$. Then $\det(w_i, w_{i+1}) = \pm 1$ for $i = 1, \ldots, V-2$.
+
+Also, the polygon is convex, so the $w_i$ are in convex position (going around $v_0$).
+
+Now, $w_1$ and $w_2$ are primitive vectors with $\det(w_1, w_2) = \pm 1$, so they form a basis of $\mathbb{Z}^2$. WLOG (by unimodular transformation), $w_1 = (1, 0)$ and $w_2 = (0, 1)$ (or $(0, -1)$ depending on orientation).
+
+Say $w_1 = (1,0)$, $w_2 = (0,1)$. Then $\det(w_2, w_3) = \pm 1$, so $\det((0,1), w_3) = \pm 1$, meaning the first coordinate of $w_3$ is $\pm 1$. Since the polygon is convex and the $w_i$ go around, $w_3$ should be in the next position. If $w_3 = (a, b)$ with $a = \pm 1$.
+
+For convexity, $w_3$ should be "further around" than $w_2 = (0,1)$. The direction from $w_2$ to $w_3$ should turn left (if counterclockwise). 
+
+If $w_3 = (1, b)$ for some $b$. For convexity, we need $w_3$ to be outside the cone generated by $w_1, w_2$, which means $w_3$ is in the second quadrant or has negative... wait, let me think about the geometry.
+
+Actually, the $w_i$ are vectors from $v_0$ to the other vertices, arranged in order around the polygon. For a convex polygon, these vectors are in angular order. $w_1 = (1,0)$ is at angle 0, $w_2 = (0,1)$ is at angle $\pi/2$. So $w_3$ should be at an angle between $\pi/2$ and $\pi$ (or beyond). So $w_3$ is in the second quadrant: $w_3 = (-a, b)$ with $a > 0, b > 0$... but we said the first coordinate is $\pm 1$. So $w_3 = (-1, b)$ for some $b > 0$.
+
+Hmm wait, but we also need $w_3$ to be a primitive vector and the edge from $v_2$ to $v_3$ (i.e., from $w_2$ to $w_3$) to be primitive. $w_3 - w_2 = (-1, b-1)$. This is primitive iff $\gcd(1, b-1) = 1$, which is always true. Good.
+
+Now, $\det(w_3, w_4) = \pm 1$. $w_3 = (-1, b)$. $w_4 = (c, d)$. $\det((-1, b), (c, d)) = -d - bc = \pm 1$. So $d + bc = \mp 1$.
+
+For convexity, $w_4$ should be at an angle further counterclockwise from $w_3$. $w_3 = (-1, b)$ is at angle $\pi - \arctan(b)$. $w_4$ should be at a larger angle, so in the third quadrant or further. 
+
+Also, $w_4 - w_3$ must be primitive (edge from $v_3$ to $v_4$).
+
+And we need the edge from $v_{V-1}$ back to $v_0$, i.e., $-w_{V-1}$ to be primitive, which it is since $w_{V-1}$ is primitive.
+
+Now, the key constraint: all the triangles $\triangle(v_0, v_i, v_{i+1})$ are unimodular, AND the polygon is empty (no lattice points on edges other than vertices, no interior lattice points).
+
+But wait, we also need no lattice points on the edges of the polygon (other than vertices). We've ensured edges from $v_0$ are primitive (since $w_i$ are primitive). We need edges $v_i$ to $v_{i+1}$ (for $i \geq 1$) to be primitive, i.e., $w_{i+1} - w_i$ is primitive.
+
+And we need no interior lattice points. Since the triangulation gives unimodular triangles, and unimodular triangles have no interior lattice points and no boundary lattice points other than vertices, the only potential issue is lattice points on the diagonals from $v_0$. But those are the $w_i$ directions, which are primitive, so no lattice points on those diagonals other than endpoints. And the triangles themselves are empty. So the polygon is empty iff all edges are primitive (which we're ensuring) and all triangles are unimodular (which we're ensuring).
+
+Wait, actually that's not quite right. The triangulation from $v_0$ creates triangles $\triangle(v_0, v_i, v_{i+1})$. If each of these is unimodular (area 1/2, no lattice points other than vertices), then the union has no lattice points other than the vertices of the polygon. But we need to check: could there be a lattice point on a diagonal $v_0$ to $v_i$? Since $w_i$ is primitive, no. Could there be a lattice point inside a triangle? No, since unimodular triangles are empty. So the polygon is empty.
+
+So the question reduces to: how long can we continue this chain of vectors $w_1, w_2, w_3, \ldots$ where:
+1. Each $w_i$ is primitive
+2. $\det(w_i, w_{i+1}) = \pm 1$ for consecutive pairs
+3. $w_{i+1} - w_i$ is primitive (edge primitivity)
+4. The $w_i$ are in convex position (angularly ordered, forming a convex polygon with $v_0$)
+
+Let me continue from $w_1 = (1,0), w_2 = (0,1), w_3 = (-1, b)$ with $b > 0$.
+
+Now, $\det(w_3, w_4) = \pm 1$. $w_3 = (-1, b)$, $w_4 = (c, d)$.
+$\det = (-1)d - bc = -d - bc = \pm 1$.
+
+For convexity, $w_4$ should be further counterclockwise. $w_3 = (-1, b)$ has angle $\pi - \arctan(b)$. For $b = 1$, angle is $3\pi/4$. $w_4$ should have angle $> 3\pi/4$, so in the third quadrant ($c < 0, d < 0$) or further.
+
+Let's try $b = 1$, so $w_3 = (-1, 1)$. Then $\det(w_3, w_4) = -d - c = \pm 1$.
+
+For $w_4$ in the third quadrant: $c < 0, d < 0$. Say $w_4 = (c, d)$ with $c < 0, d < 0$. Then $-d - c = |d| + |c| = \pm 1$. Since both are positive, $|d| + |c| = 1$. So either $(|c|, |d|) = (1, 0)$ or $(0, 1)$.
+
+If $w_4 = (-1, 0)$: check edge $w_4 - w_3 = (-1,0) - (-1,1) = (0, -1)$, primitive ✓. Check convexity: $w_4 = (-1, 0)$ has angle $\pi$, which is $> 3\pi/4$ ✓. 
+
+If $w_4 = (0, -1)$: check edge $w_4 - w_3 = (0,-1) - (-1,1) = (1, -2)$, primitive ✓ ($\gcd(1,2) = 1$). Angle of $w_4 = (0,-1)$ is $3\pi/2$ or $-\pi/2$. That's a big jump from $3\pi/4$. Is the polygon still convex? We need to check.
+
+Hmm, this is getting complicated. Let me think about it differently.
+
+Actually, I think the key result is that in 2D, empty lattice polygons have at most 4 vertices. Let me try to prove this.
+
+We have $w_1 = (1, 0), w_2 = (0, 1)$. The next vector $w_3 = (-1, b)$ with $b \geq 1$ (for convexity, $b \geq 1$; actually $b$ could be any positive integer, but let's see).
+
+$\det(w_2, w_3) = \det((0,1), (-1,b)) = 0 \cdot b - 1 \cdot (-1) = 1$. ✓ (We need $|\det| = 1$.)
+
+Now $w_3 = (-1, b)$. For the next vector $w_4$:
+$\det(w_3, w_4) = \pm 1$.
+$w_4 - w_3$ must be primitive.
+$w_4$ must be further counterclockwise.
+
+The angle of $w_3 = (-1, b)$ is $\pi - \arctan(b)$. For $b = 1$, it's $3\pi/4$. For large $b$, it approaches $\pi/2$ from above. Wait no, $\arctan(b)$ for large $b$ approaches $\pi/2$, so the angle approaches $\pi - \pi/2 = \pi/2$. But $w_2 = (0,1)$ is at angle $\pi/2$. So for large $b$, $w_3$ is close to $w_2$ in angle, which might cause non-convexity.
+
+Actually, for the polygon to be convex, we need the cross product of consecutive edge vectors to have the same sign. The edges of the polygon are:
+- $v_1 - v_0 = w_1$
+- $v_2 - v_1 = w_2 - w_1$
+- $v_3 - v_2 = w_3 - w_2$
+- ...
+- $v_0 - v_{V-1} = -w_{V-1}$
+
+For convexity (counterclockwise), we need each turn to be a left turn, i.e., $\det(e_i, e_{i+1}) > 0$ where $e_i$ are the edge vectors.
+
+$e_1 = w_1 = (1, 0)$
+$e_2 = w_2 - w_1 = (-1, 1)$
+$e_3 = w_3 - w_2 = (-1, b-1)$
+$e_4 = w_4 - w_3$
+...
+$e_{V-1} = w_{V-1} - w_{V-2}$
+$e_V = -w_{V-1}$
+
+$\det(e_1, e_2) = \det((1,0), (-1,1)) = 1 > 0$ ✓
+$\det(e_2, e_3) = \det((-1,1), (-1,b-1)) = (-1)(b-1) - (1)(-1) = -b+1+1 = 2-b$.
+
+For convexity, $2 - b > 0$, so $b < 2$, meaning $b = 1$.
+
+So $w_3 = (-1, 1)$ is forced (for $b = 1$). Then $e_3 = (-1, 0)$.
+
+$\det(e_3, e_4) > 0$. $e_3 = (-1, 0)$. $e_4 = w_4 - w_3 = w_4 - (-1,1) = (w_{4x}+1, w_{4y}-1)$.
+$\det((-1,0), (w_{4x}+1, w_{4y}-1)) = (-1)(w_{4y}-1) - 0 = 1 - w_{4y} > 0$, so $w_{4y} < 1$.
+
+Also, $\det(w_3, w_4) = \pm 1$. $w_3 = (-1, 1)$, $w_4 = (c, d)$.
+$\det = (-1)d - 1 \cdot c = -d - c = \pm 1$.
+
+And $w_{4y} = d < 1$, so $d \leq 0$ (since $d$ is an integer).
+
+For convexity, $w_4$ should be further counterclockwise from $w_3 = (-1, 1)$ (angle $3\pi/4$). So $w_4$ should have angle $> 3\pi/4$, meaning it's in the third quadrant or the negative $x$-axis region: $c < 0$ or ($c = 0$ and $d < 0$) or ($c < 0$ and $d \leq 0$).
+
+Actually, more precisely, $w_4$ should be in the angular range $(3\pi/4, 2\pi + 0) = (3\pi/4, 2\pi)$ (going counterclockwise, we'll eventually come back to $w_1 = (1,0)$ at angle $0$ or $2\pi$).
+
+Case 1: $d = 0$. Then $-c = \pm 1$, so $c = \mp 1$. 
+- $c = -1, d = 0$: $w_4 = (-1, 0)$. Check primitivity of $w_4 - w_3 = (0, -1)$: ✓. Check $w_4$ primitive: ✓. Angle of $w_4 = \pi > 3\pi/4$ ✓.
+- $c = 1, d = 0$: $w_4 = (1, 0) = w_1$. This would close the polygon. But we need $w_4 \neq w_1$ if we want more vertices. Actually, if $w_4 = w_1$, then $v_4 = v_1$, which doesn't make sense. So this case means the polygon has 4 vertices: $v_0, v_1, v_2, v_3$ with $w_1 = (1,0), w_2 = (0,1), w_3 = (-1,1)$. The polygon is $(0,0), (1,0), (0,1), (-1,1)$. Let me check: is this convex? The vertices in order are $v_0 = (0,0), v_1 = (1,0), v_2 = (0,1), v_3 = (-1,1)$. Edges: $(1,0), (-1,1), (-1,0), (1,-1)$. Cross products: $\det((1,0),(-1,1)) = 1$, $\det((-1,1),(-1,0)) = 1$, $\det((-1,0),(1,-1)) = 1$, $\det((1,-1),(1,0)) = 1$. All positive, so convex ✓. Area by Pick: $V = 4$, $A = 4/2 - 1 = 1$. Check: shoelace = $\frac{1}{2}|0 \cdot 0 - 1 \cdot 0 + 1 \cdot 1 - 0 \cdot 0 + 0 \cdot 1 - (-1) \cdot 1 + (-1) \cdot 0 - 0 \cdot 1| = \frac{1}{2}|0 + 1 + 1 + 0| = 1$. ✓. And this is a parallelogram (actually, let me check: $(0,0), (1,0), (0,1), (-1,1)$. The edge from $(0,1)$ to $(-1,1)$ is $(-1,0)$, and from $(-1,1)$ to $(0,0)$ is $(1,-1)$. The edge from $(0,0)$ to $(1,0)$ is $(1,0)$, and from $(1,0)$ to $(0,1)$ is $(-1,1)$. Opposite edges: $(1,0)$ and $(-1,0)$ are parallel ✓. $(-1,1)$ and $(1,-1)$ are parallel ✓. So it's a parallelogram. Area = 1. Empty ✓.
+
+Case 2: $d \leq -1$. Then $-d - c = \pm 1$, so $c = -d \mp 1$. 
+- If $-d - c = 1$: $c = -d - 1$. With $d \leq -1$, $c = -d - 1 \geq 0$. For $w_4$ to be counterclockwise from $w_3 = (-1,1)$ (angle $3\pi/4$), we need $w_4$ at angle $> 3\pi/4$. If $c \geq 0$ and $d \leq -1$, the angle is in the fourth quadrant ($3\pi/2$ to $2\pi$) or on the positive $x$-axis. That's fine for being counterclockwise from $3\pi/4$ (going the long way around). But we also need the polygon to close properly and remain convex.
+
+Let's try $d = -1, c = 0$: $w_4 = (0, -1)$. Check primitivity: ✓. Edge $w_4 - w_3 = (1, -2)$: primitive ✓. Angle of $w_4 = 3\pi/2 > 3\pi/4$ ✓. 
+
+Now continue. $\det(e_4, e_5) > 0$. $e_4 = w_4 - w_3 = (1, -2)$. $e_5 = w_5 - w_4$.
+$\det((1,-2), e_5) > 0$.
+
+$\det(w_4, w_5) = \pm 1$. $w_4 = (0, -1)$, $w_5 = (e, f)$.
+$\det = 0 \cdot f - (-1) \cdot e = e = \pm 1$. So $e = \pm 1$.
+
+For convexity, $w_5$ should be counterclockwise from $w_4 = (0, -1)$ (angle $3\pi/2$). So $w_5$ at angle $> 3\pi/2$, meaning in the fourth quadrant approaching the positive $x$-axis: $e > 0$ or ($e > 0$ and $f < 0$) or ($e > 0$ and $f \geq 0$). Actually, angle $> 3\pi/2$ means the vector is in the range $(3\pi/2, 2\pi)$, which is the fourth quadrant with $e > 0, f < 0$, or on the positive $x$-axis ($f = 0, e > 0$).
+
+So $e = 1$ (since $e = \pm 1$ and $e > 0$). $w_5 = (1, f)$ with $f \leq 0$.
+
+Edge primitivity: $w_5 - w_4 = (1, f+1)$, primitive iff $\gcd(1, f+1) = 1$ ✓ always.
+
+$\det(e_4, e_5) = \det((1, -2), (1, f+1)) = 1 \cdot (f+1) - (-2) \cdot 1 = f + 1 + 2 = f + 3 > 0$, so $f > -3$, meaning $f \geq -2$ (since $f$ is an integer and $f \leq 0$).
+
+So $f \in \{-2, -1, 0\}$.
+
+If $f = 0$: $w_5 = (1, 0) = w_1$. This closes the polygon with 5 vertices: $v_0 = (0,0), v_1 = (1,0), v_2 = (0,1), v_3 = (-1,1), v_4 = (0,-1)$.
+
+Wait, let me check if this is convex. The vertices are $(0,0), (1,0), (0,1), (-1,1), (0,-1)$. Is this convex? Let me check if $(0,0)$ is a vertex of the convex hull. The convex hull of $(1,0), (0,1), (-1,1), (0,-1)$: these four points form a quadrilateral. Is $(0,0)$ inside it? 
+
+The quadrilateral $(1,0), (0,1), (-1,1), (0,-1)$: Let me check if $(0,0)$ is inside. Using the cross product test:
+- Edge $(1,0) \to (0,1)$: direction $(-1, 1)$. Point $(0,0) - (1,0) = (-1, 0)$. Cross: $(-1)(0) - (1)(-1) = 1 > 0$.
+- Edge $(0,1) \to (-1,1)$: direction $(-1, 0)$. Point $(0,0) - (0,1) = (0, -1)$. Cross: $(-1)(-1) - (0)(0) = 1 > 0$.
+- Edge $(-1,1) \to (0,-1)$: direction $(1, -2)$. Point $(0,0) - (-1,1) = (1, -1)$. Cross: $(1)(-1) - (-2)(1) = -1 + 2 = 1 > 0$.
+- Edge $(0,-1) \to (1,0)$: direction $(1, 1)$. Point $(0,0) - (0,-1) = (0, 1)$. Cross: $(1)(1) - (1)(0) = 1 > 0$.
+
+All positive, so $(0,0)$ is inside the quadrilateral $(1,0), (0,1), (-1,1), (0,-1)$. So $(0,0)$ is NOT a vertex of the convex hull of all 5 points. The polygon $(0,0), (1,0), (0,1), (-1,1), (0,-1)$ is NOT convex (it's a "star" or non-convex shape with $(0,0)$ inside).
+
+So this doesn't work. The issue is that $v_0 = (0,0)$ is inside the convex hull of the other vertices.
+
+Hmm, so the triangulation-from-one-vertex approach has a problem: $v_0$ needs to be a vertex of the convex hull, not inside it.
+
+Let me reconsider. For $v_0$ to be a vertex of the convex hull, the vectors $w_1, \ldots, w_{V-1}$ must span an angle less than $\pi$ (they must all be on one side of some line through $v_0$). Actually, more precisely, $v_0$ is a vertex of the convex hull iff the $w_i$ are contained in a closed half-plane whose boundary passes through the origin, and they span an angle of at most $\pi$.
+
+Wait, that's not quite right either. $v_0$ is a vertex of the convex hull iff there exists a direction such that $v_0$ is the extreme point in that direction. This means the $w_i$ all lie in some open half-plane (they span an angle less than $\pi$).
+
+For our case with $w_1 = (1,0), w_2 = (0,1), w_3 = (-1,1), w_4 = (0,-1)$: these span from angle $0$ to angle $3\pi/2$ (going counterclockwise), which is more than $\pi$. So $v_0$ is not a vertex of the convex hull. That's the problem.
+
+So for $v_0$ to be a vertex, the angular span of the $w_i$ must be less than $\pi$. With $w_1 = (1,0)$ at angle $0$ and $w_2 = (0,1)$ at angle $\pi/2$, the span is already $\pi/2$. Adding $w_3 = (-1, 1)$ at angle $3\pi/4$ makes the span $3\pi/4 < \pi$ ✓. Adding $w_4$ at angle $> 3\pi/4$ but we need the total span $< \pi$, so $w_4$ at angle $< \pi$. 
+
+$w_4$ at angle in $(3\pi/4, \pi)$: this is the second quadrant with $c < 0, d > 0$ and angle $> 3\pi/4$, meaning $|d| < |c|$... wait, angle $> 3\pi/4$ in the second quadrant means $\arctan(|d/c|) < \pi/4$ (since the angle from the negative $x$-axis is less than $\pi/4$), so $|d| < |c|$, i.e., $d < |c|$ (with $c < 0, d > 0$). Hmm, actually angle $3\pi/4$ corresponds to $(-1, 1)$, and angle approaching $\pi$ corresponds to $(-1, 0)$. So for angle in $(3\pi/4, \pi)$: $c < 0, d > 0$ with $d < |c|$... no. $(-1, 1)$ is at $3\pi/4$. $(-2, 1)$ is at $\pi - \arctan(1/2) \approx \pi - 0.46 \approx 2.68$, which is $> 3\pi/4 \approx 2.36$. And $(-1, 0)$ is at $\pi$. So for angle in $(3\pi/4, \pi)$: $c < 0, d \geq 0$ with $d/|c| < 1$, i.e., $d < |c|$ when $d > 0$, or $d = 0$.
+
+From our earlier analysis: $w_4 = (c, d)$ with $d \leq 0$ (from convexity) and $-d - c = \pm 1$.
+
+If $d = 0$: $c = \mp 1$. $c = -1$ gives $w_4 = (-1, 0)$ at angle $\pi$. But we need angle $< \pi$ for $v_0$ to be a vertex. Angle $= \pi$ means $v_0$ is on an edge, not a vertex. So this is borderline.
+
+Actually, if the angular span is exactly $\pi$, then $v_0$ is on an edge of the convex hull, not a vertex. So we need span $< \pi$, meaning $w_4$ at angle $< \pi$.
+
+If $d = 0, c = -1$: angle $= \pi$. Not a vertex.
+If $d \leq -1$: angle is in the third or fourth quadrant, which is $> \pi$. Not good.
+
+So there's no valid $w_4$ that keeps $v_0$ as a vertex! This means the maximum number of vertices is 4 (with $w_1, w_2, w_3$), i.e., the polygon $(0,0), (1,0), (0,1), (-1,1)$.
+
+Wait, but I should also consider the case $-d - c = -1$, i.e., $d + c = 1$.
+
+With $d \leq 0$: $c = 1 - d \geq 1$. So $c > 0, d \leq 0$. The angle of $w_4 = (c, d)$ with $c > 0, d \leq 0$ is in the fourth quadrant (or on the positive $x$-axis), which is angle in $[3\pi/2, 2\pi)$. This is way beyond $\pi$, so $v_0$ wouldn't be a vertex.
+
+Hmm, so it seems like in 2D, the maximum number of vertices of an empty lattice polygon is 4. But wait, I assumed a specific triangulation from $v_0$. What if $v_0$ is not the vertex we triangulate from? Let me reconsider.
+
+Actually, the argument is: for ANY empty lattice polygon with $V$ vertices, triangulate from any vertex $v_0$. Each triangle must be unimodular (area 1/2). The $V-2$ triangles from $v_0$ give vectors $w_1, \ldots, w_{V-1}$ with $\det(w_i, w_{i+1}) = \pm 1$. And $v_0$ must be a vertex of the convex hull, so the $w_i$ span an angle $< \pi$.
+
+With $w_1 = (1,0), w_2 = (0,1)$ (WLOG by unimodular transformation), the span is already $\pi/2$. We showed $w_3 = (-1, 1)$ (forced by convexity), span $3\pi/4$. And there's no valid $w_4$ with angle in $(3\pi/4, \pi)$ satisfying all constraints. So $V \leq 4$.
+
+But wait, I need to also consider the possibility that $\det(w_1, w_2) = -1$ (different orientation). By symmetry, this doesn't change the conclusion.
+
+Also, I assumed $w_1 = (1, 0)$ and $w_2 = (0, 1)$. But what if $w_1$ and $w_2$ are not a unimodular basis? Well, $\det(w_1, w_2) = \pm 1$ means they ARE a basis (up to sign). So by a unimodular transformation, we can always map them to $(1, 0)$ and $(0, \pm 1)$.
+
+So the conclusion is: **in 2D, an empty lattice polygon has at most 4 vertices**.
+
+Now, back to the 3D problem. Each face of our polyhedron is an empty lattice polygon (the only lattice points on the face are the vertices of the face, since the polyhedron has no lattice points other than its vertices). So each face has at most 4 vertices, i.e., each face is a triangle or a quadrilateral.
+
+Now, let $V$ = number of vertices, $E$ = number of edges, $F$ = number of faces. By Euler's formula: $V - E + F = 2$.
+
+Each face has 3 or 4 edges. Let $F_3$ = number of triangular faces, $F_4$ = number of quadrilateral faces. Then $F = F_3 + F_4$ and $3F_3 + 4F_4 = 2E$ (each edge is shared by 2 faces).
+
+So $E = (3F_3 + 4F_4)/2$.
+
+Euler: $V - (3F_3 + 4F_4)/2 + F_3 + F_4 = 2$, so $V = 2 + (3F_3 + 4F_4)/2 - F_3 - F_4 = 2 + F_3/2 + F_4$.
+
+Now, we need to find constraints on $V$. The polyhedron is an empty lattice polytope in 3D.
+
+What's the maximum number of vertices of an empty lattice polytope in 3D?
+
+Hmm, this is a different question. Let me think about known results.
+
+Actually, I recall that in 3D, there's a result by Howe (or maybe others) about empty lattice polytopes. Let me think...
+
+A key result: In dimension $d$, the maximum number of vertices of an empty lattice polytope is $2^d$ (the $d$-cube). But I'm not sure if this is correct.
+
+Wait, actually, I think the result is different. Let me think about specific examples.
+
+The unit cube $[0,1]^3$ has 8 vertices, and the only lattice points are the 8 vertices. So $V = 8$ is achievable. Each face is a unit square (quadrilateral, empty). $F = 6$.
+
+Can we do better? Can we have more than 8 vertices?
+
+Consider a polytope with more vertices. Each vertex is a lattice point, and there are no other lattice points. 
+
+Hmm, let me think about this differently. Let me consider what's known about empty lattice polytopes in 3D.
+
+Actually, I think there's a theorem that says: in 3D, an empty lattice polytope has at most 8 vertices, and the maximum is achieved by the unit cube (up to unimodular transformation). But I'm not 100% sure.
+
+Wait, actually, I recall that the classification of empty lattice polytopes is related to "reflexive polytopes" and the finiteness theorem. In 2D, there are 16 reflexive polytopes (up to unimodular equivalence), and the one with the most vertices has 6 vertices. But reflexive polytopes are different from empty polytopes.
+
+Let me reconsider. An empty lattice polytope is one where the only lattice points are the vertices. A reflexive polytope is one where the origin is the unique interior lattice point and all facets have distance 1 from the origin.
+
+These are different concepts. Let me focus on empty lattice polytopes.
+
+In 2D, we showed the maximum is 4 vertices.
+
+In 3D, what's the maximum? Let me think about upper bounds.
+
+Consider an empty lattice polytope $P$ in 3D with $V$ vertices. Triangulate $P$ into tetrahedra using only the vertices of $P$ (no new vertices). Each tetrahedron is a lattice tetrahedron. The volume of each lattice tetrahedron is at least $1/6$ (since the minimal volume of a lattice tetrahedron is $1/6$, achieved by the unimodular tetrahedron). 
+
+The total volume of $P$ is at least (number of tetrahedra) $\times 1/6$. The number of tetrahedra in a triangulation of a polyhedron with $V$ vertices is at least $V - 3$ (for a convex polyhedron, a triangulation from one vertex gives at least $V - 3$ tetrahedra if the vertex has degree $V-1$... actually, the number of tetrahedra depends on the structure).
+
+Hmm, this approach might not directly give a tight bound. Let me think differently.
+
+Actually, let me look at this from the perspective of the question: maximize the number of faces $F$, not vertices $V$.
+
+We have $F = F_3 + F_4$, $V = 2 + F_3/2 + F_4$, and $E = (3F_3 + 4F_4)/2$.
+
+To maximize $F = F_3 + F_4$, we want to maximize the total number of faces.
+
+If all faces are triangles: $V = 2 + F_3/2$, so $F_3 = 2(V-2)$, $F = 2(V-2)$. To maximize $F$, maximize $V$.
+
+If all faces are quadrilaterals: $V = 2 + F_4$, so $F_4 = V - 2$, $F = V - 2$. To maximize $F$, maximize $V$.
+
+Mixed: $F = F_3 + F_4$, $V = 2 + F_3/2 + F_4$, so $F = F_3 + F_4 = 2(V - 2) - F_4$. To maximize $F$, minimize $F_4$, i.e., use all triangles.
+
+So the maximum number of faces is $2(V-2)$, achieved when all faces are triangles. And this is maximized when $V$ is maximized.
+
+But wait, we also need each face to be an empty lattice polygon, which means each face has at most 4 vertices. Triangular faces are fine. So the question reduces to: what's the maximum $V$ for an empty lattice polytope in 3D?
+
+If $V_{\max} = 8$ (the unit cube), then with all triangular faces, $F = 2(8-2) = 12$. But the unit cube has 6 quadrilateral faces, not 12 triangular faces. Can we have an empty lattice polytope with 8 vertices and all triangular faces?
+
+An empty lattice polytope with 8 vertices and all triangular faces would be a polyhedron with $F = 12$ faces, $E = 18$ edges, $V = 8$ vertices. This is combinatorially an octahedron... no, an octahedron has 6 vertices and 8 faces. A polyhedron with 8 vertices and 12 triangular faces is combinatorially a... let me check: $V - E + F = 2$, $8 - E + 12 = 2$, $E = 18$. And $3 \times 12 = 36 = 2E = 36$ ✓. This is the combinatorial type of a... it could be many things. For example, a cube with each face split into 2 triangles has 12 triangular faces but the same 8 vertices and 12 edges plus 6 face diagonals = 18 edges. But that's not a convex polyhedron with triangular faces; the face diagonals aren't edges of the polyhedron.
+
+Actually, a convex polyhedron with 8 vertices and 12 triangular faces: this is the combinatorial type of the regular octahedron's dual... no. Let me think. A simplicial polyhedron with 8 vertices has $F = 2V - 4 = 12$ faces and $E = 3V - 6 = 18$ edges. Examples include the cyclic polytope $C(8, 3)$ or many others.
+
+But can such a polyhedron be realized as an empty lattice polytope? That's the question.
+
+Hmm, let me reconsider whether $V_{\max} = 8$ is correct.
+
+Actually, I'm not sure that 8 is the maximum. Let me think more carefully.
+
+Consider the polytope $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (0,0,1), (1,1,0), (1,0,1), (0,1,1), (1,1,1)\} = [0,1]^3$. This has 8 vertices and is empty. ✓
+
+Can we have 9 vertices? We'd need 9 lattice points in convex position with no other lattice points in their convex hull. 
+
+Consider adding a vertex to the unit cube, say $(2, 0, 0)$. Then the polytope $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (0,0,1), (1,1,0), (1,0,1), (0,1,1), (1,1,1), (2,0,0)\}$. But $(1,0,0)$ is on the edge from $(0,0,0)$ to $(2,0,0)$, so $(1,0,0)$ is no longer a vertex. Also, the point $(1,0,0)$ is still a lattice point on a face. So this doesn't work.
+
+What about a different configuration? Let me think about whether there's a theorem bounding the number of vertices.
+
+I recall a result: **In dimension $d$, an empty lattice polytope has at most $2^d$ vertices.** This is attributed to... hmm, I think it might be related to the work of Hensley or Lagarias-Ziegler.
+
+Actually, let me think about this more carefully. There's a theorem by Hensley (1983) and independently by Lagarias and Ziegler (1991) that says: the volume of an empty lattice $d$-simplex is bounded by a constant depending only on $d$. But that's about simplices.
+
+For general empty lattice polytopes, I think the bound on the number of vertices comes from the fact that each vertex must be "close" to the others.
+
+Actually, let me think about it from a different angle. 
+
+There's a result that says: the number of lattice points in a lattice polytope $P$ is at most $\binom{d + \text{vol}(P)}{d}$ or something like that... no, that's not right either.
+
+Let me think about the specific 3D case.
+
+Claim: An empty lattice polytope in 3D has at most 8 vertices.
+
+Proof attempt: Consider an empty lattice polytope $P$ in 3D. Pick a vertex $v$ of $P$. The other vertices, viewed from $v$, give vectors $w_1, \ldots, w_{V-1}$. Triangulate $P$ from $v$ into tetrahedra. Each tetrahedron is a lattice tetrahedron with vertices $v, v_i, v_j, v_k$ where $v_i, v_j, v_k$ are vertices of $P$.
+
+For $P$ to be empty, each tetrahedron must be an empty lattice tetrahedron (no lattice points other than its vertices). Wait, that's not necessarily true - a tetrahedron in the triangulation could contain lattice points that are vertices of $P$ but not of that tetrahedron. Hmm, but if $P$ is empty, the only lattice points in $P$ are the vertices of $P$. And the tetrahedra in the triangulation only have vertices of $P$ as vertices. So a lattice point inside a tetrahedron would be a lattice point inside $P$ that's not a vertex of $P$, contradicting emptiness. Similarly, a lattice point on a face of a tetrahedron that's not on the boundary of $P$ would be a lattice point inside $P$. A lattice point on a face of a tetrahedron that IS on the boundary of $P$ would be a lattice point on a face of $P$, which is also not allowed (unless it's a vertex of $P$).
+
+So each tetrahedron in the triangulation must be an empty lattice tetrahedron (no lattice points other than its 4 vertices). But wait, a lattice point on a shared face between two tetrahedra would be a lattice point inside $P$ (not on the boundary), so it's not allowed. And a lattice point on a boundary face of a tetrahedron (which is also a face of $P$) is not allowed unless it's a vertex of $P$.
+
+Hmm, but what about lattice points on the edges of the triangulation (edges from $v$ to other vertices, or edges between non-$v$ vertices that are internal to $P$)? A lattice point on such an edge would be a lattice point inside $P$, not allowed.
+
+So indeed, each tetrahedron in the triangulation must be an empty lattice tetrahedron, and additionally, the edges from $v$ to other vertices must be primitive (no lattice points in their interior), and the internal edges of the triangulation must be primitive.
+
+Now, the volume of an empty lattice tetrahedron in 3D: what's the maximum? By the Hensley-Lagarias-Ziegler theorem, the volume is bounded. In 3D, the maximum volume of an empty lattice tetrahedron is... I think it's known to be finite. Let me recall.
+
+Actually, in 3D, empty lattice tetrahedra can have arbitrarily large volume! Wait, no. Let me think again.
+
+Consider the tetrahedron with vertices $(0,0,0), (1,0,0), (0,1,0), (1,1,n)$ for large $n$. Its volume is $n/6$. Is it empty? The lattice points in this tetrahedron... hmm, for large $n$, there might be interior lattice points. Let me check for $n = 1$: volume $1/6$, this is a unimodular tetrahedron, empty ✓. For $n = 2$: volume $1/3$. Are there lattice points other than vertices? The point $(1, 1, 1)$: is it inside? The tetrahedron is $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (1,1,2)\}$. $(1,1,1) = \frac{1}{2}(1,1,2) + \frac{1}{2}(1,1,0)$... but $(1,1,0)$ is not a vertex. Let me use barycentric coordinates. $(1,1,1) = a(0,0,0) + b(1,0,0) + c(0,1,0) + d(1,1,2)$ with $a+b+c+d=1$, $a,b,c,d \geq 0$. Then $b + d = 1, c + d = 1, 2d = 1$, so $d = 1/2, b = 1/2, c = 1/2, a = -1/2 < 0$. So $(1,1,1)$ is not inside. 
+
+What about $(0, 0, 1)$? $b + d = 0, c + d = 0, 2d = 1$, so $d = 1/2, b = -1/2 < 0$. Not inside.
+
+$(1, 0, 1)$? $b + d = 1, c + d = 0, 2d = 1$, $d = 1/2, c = -1/2 < 0$. Not inside.
+
+$(0, 1, 1)$? Similarly not inside.
+
+So for $n = 2$, the tetrahedron might be empty. Volume $1/3$.
+
+For general $n$, the tetrahedron $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (1,1,n)\}$: a lattice point $(x, y, z)$ is inside iff it can be written as $a(0,0,0) + b(1,0,0) + c(0,1,0) + d(1,1,n)$ with $a+b+c+d=1, a,b,c,d \geq 0$. So $x = b+d, y = c+d, z = nd$, thus $d = z/n, b = x - z/n, c = y - z/n, a = 1 - x - y + z/n$. Conditions: $d \geq 0 \Leftrightarrow z \geq 0$, $b \geq 0 \Leftrightarrow x \geq z/n$, $c \geq 0 \Leftrightarrow y \geq z/n$, $a \geq 0 \Leftrightarrow x + y \leq 1 + z/n$.
+
+For a lattice point $(x, y, z)$ with $z \geq 1$ (since $z = 0$ gives the base face): $d = z/n, b = x - z/n, c = y - z/n, a = 1 - x - y + z/n$.
+
+For $z = 1$: $d = 1/n, b = x - 1/n, c = y - 1/n, a = 1 - x - y + 1/n$. Need $x \geq 1/n, y \geq 1/n, x + y \leq 1 + 1/n$. For $n \geq 2$: $x \geq 1$ (since $x$ is a non-negative integer and $x \geq 1/n > 0$), $y \geq 1$, $x + y \leq 1 + 1/n < 2$. So $x = 1, y = 1$, but $x + y = 2 > 1 + 1/n$ for $n \geq 2$. So no lattice points with $z = 1$.
+
+For $z = 2$: $d = 2/n$. Need $n \geq 2$ for $d \leq 1$. $b = x - 2/n \geq 0 \Leftrightarrow x \geq 2/n$. For $n = 2$: $x \geq 1, y \geq 1, x + y \leq 2$. So $x = 1, y = 1$: $a = 1 - 1 - 1 + 1 = 0, b = 0, c = 0, d = 1$. This is the vertex $(1, 1, 2)$. So no new lattice point.
+
+For $n = 3, z = 2$: $d = 2/3, b = x - 2/3 \geq 0 \Leftrightarrow x \geq 1, c = y - 2/3 \geq 0 \Leftrightarrow y \geq 1, a = 1 - x - y + 2/3 \geq 0 \Leftrightarrow x + y \leq 5/3$. So $x = 1, y = 1$: $x + y = 2 > 5/3$. No.
+
+For $z = 3, n = 3$: $d = 1$, this is the vertex $(1, 1, 3)$.
+
+So it seems like for any $n$, the tetrahedron $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (1,1,n)\}$ is empty! The volume is $n/6$, which can be arbitrarily large.
+
+Wait, but I should also check for lattice points on the faces. The face $\text{conv}\{(0,0,0), (1,0,0), (1,1,n)\}$: this is a triangle. Lattice points on it satisfy $y = 0$... no wait, let me parametrize. Points on this face: $a(0,0,0) + b(1,0,0) + c(1,1,n) = (b+c, c, nc)$ with $a+b+c=1, a,b,c \geq 0$. So $y = c, z = nc, x = b + c$. For a lattice point: $c = z/n$ must be rational with $nc = z$ integer. So $c = k/n$ for integer $k$ with $0 \leq k \leq n$. Then $z = k, y = k/n, x = b + k/n$. For $y$ to be integer, $k/n$ must be integer, so $k = 0$ or $k = n$ (if $n | k$). $k = 0$: $(b, 0, 0)$, $b = 0$ or $1$, giving $(0,0,0)$ and $(1,0,0)$. $k = n$: $c = 1, b = 0, a = 0$, giving $(1, 1, n)$. So no other lattice points on this face. ✓
+
+Similarly for the other faces. The face $\text{conv}\{(0,0,0), (0,1,0), (1,1,n)\}$: by symmetry (swapping $x$ and $y$), no other lattice points.
+
+The face $\text{conv}\{(0,0,0), (1,0,0), (0,1,0)\}$: this is the triangle $x + y \leq 1, z = 0, x, y \geq 0$. Lattice points: $(0,0,0), (1,0,0), (0,1,0)$. No others. ✓
+
+The face $\text{conv}\{(1,0,0), (0,1,0), (1,1,n)\}$: points $a(1,0,0) + b(0,1,0) + c(1,1,n) = (a+c, b+c, nc)$ with $a+b+c=1, a,b,c \geq 0$. $z = nc$, so $c = z/n$. For lattice point: $c = k/n$, $y = b + k/n$, $x = a + k/n$. Need $k/n$ integer for $x, y$ to be integers (since $a, b$ are determined). Wait, $x = a + k/n$ and $a = 1 - b - k/n$, so $x = 1 - b - k/n + k/n = 1 - b$. And $y = b + k/n$. So $x = 1 - b$ (integer iff $b$ is integer, but $b$ doesn't have to be integer). Hmm, let me redo this.
+
+$a + b + c = 1$, $x = a + c, y = b + c, z = nc$. So $a = x - c = x - z/n, b = y - c = y - z/n, c = z/n$. And $a + b + c = x - z/n + y - z/n + z/n = x + y - z/n = 1$, so $z/n = x + y - 1$, i.e., $z = n(x+y-1)$.
+
+For a lattice point: $x, y, z$ integers, $z = n(x+y-1)$. Also $a = x - (x+y-1) = 1 - y \geq 0 \Leftrightarrow y \leq 1$. $b = y - (x+y-1) = 1 - x \geq 0 \Leftrightarrow x \leq 1$. $c = x + y - 1 \geq 0 \Leftrightarrow x + y \geq 1$. And $z = n(x+y-1) \geq 0 \Leftrightarrow x + y \geq 1$.
+
+So lattice points on this face: $x \leq 1, y \leq 1, x + y \geq 1, x, y \geq 0$ (since $a, b \geq 0$ and the face is in the first octant... actually $x, y$ can be any integers satisfying the constraints). With $x \leq 1, y \leq 1, x + y \geq 1, x, y \geq 0$ (since $a = 1-y \geq 0$ and $b = 1-x \geq 0$ and these are the only constraints, plus $x, y$ are non-negative from the geometry):
+
+Actually, $x$ and $y$ don't have to be non-negative. Let me reconsider. The constraints are $a \geq 0, b \geq 0, c \geq 0$, which give $y \leq 1, x \leq 1, x + y \geq 1$. And $z = n(x+y-1) \geq 0$ is automatic from $c \geq 0$. There's no constraint that $x, y \geq 0$ directly. But the face is a triangle with vertices $(1,0,0), (0,1,0), (1,1,n)$, so the $x$-coordinates range from $0$ to $1$ and $y$-coordinates from $0$ to $1$.
+
+With $x \leq 1, y \leq 1, x + y \geq 1$: the integer solutions are $(x, y) \in \{(0, 1), (1, 0), (1, 1)\}$. These give:
+- $(0, 1, 0)$: vertex ✓
+- $(1, 0, 0)$: vertex ✓
+- $(1, 1, n)$: vertex ✓
+
+So no other lattice points on this face. ✓
+
+So the tetrahedron $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (1,1,n)\}$ is empty for any $n \geq 1$, with volume $n/6$.
+
+This means empty lattice tetrahedra can have arbitrarily large volume in 3D! This is different from 2D where empty lattice triangles have area exactly $1/2$ (unimodular).
+
+Wait, but this seems to contradict the Hensley-Lagarias-Ziegler theorem. Let me reconsider. The HLZ theorem says that the volume of an empty lattice $d$-simplex is bounded for $d \geq 4$ (or something like that). For $d = 2, 3$, the volume can be unbounded.
+
+Actually, I think the correct statement is: for $d \geq 2$, there are finitely many empty lattice $d$-simplices up to affine unimodular transformation, for $d \geq 2$... no, that's not right either.
+
+Let me recall: in 2D, all empty lattice triangles are unimodular (area 1/2), and there's only one up to unimodular transformation. In 3D, empty lattice tetrahedra can have arbitrarily large volume, and there are infinitely many up to unimodular transformation. For $d \geq 4$, the HLZ theorem says the volume is bounded.
+
+OK so in 3D, empty lattice tetrahedra can be large. This means the volume argument doesn't directly bound the number of vertices.
+
+Let me think about this differently. Let me consider the structure of empty lattice polytopes in 3D more carefully.
+
+Going back to the problem: we want to maximize the number of faces. Let me think about what polytopes are possible.
+
+Since each face is an empty lattice polygon (at most 4 vertices), and we want to maximize faces, let's think about what's achievable.
+
+The unit cube has 6 faces (all quadrilaterals), 8 vertices. $F = 6$.
+
+Can we do better? Let's think about polytopes with more faces.
+
+What about a bipyramid over a quadrilateral? Take a quadrilateral base and two apex points. If the base is an empty lattice quadrilateral and the apexes are positioned so that the whole thing is an empty lattice polytope, we'd get 8 triangular faces, 6 vertices, 12 edges. $F = 8$.
+
+For example, base = unit square $\{(0,0,0), (1,0,0), (1,1,0), (0,1,0)\}$, apexes at $(0, 0, 1)$ and $(1, 1, -1)$. Wait, I need to check if this is empty and convex.
+
+Hmm, this is getting complicated. Let me think about known results more carefully.
+
+Actually, I recall that the answer to this problem is $n = 12$. Let me think about why.
+
+Wait, actually, I think I should approach this more carefully. Let me reconsider.
+
+The problem asks for the maximal number of faces of a convex lattice polyhedron with no lattice points other than its vertices.
+
+Let me think about upper bounds. 
+
+Each face has at most 4 vertices (since it's an empty lattice polygon in 2D, and we proved the max is 4).
+
+Let $V, E, F$ be the numbers of vertices, edges, faces. Each face has 3 or 4 edges. Let $f_3, f_4$ be the number of triangular and quadrilateral faces. $F = f_3 + f_4$, $2E = 3f_3 + 4f_4$.
+
+Euler: $V - E + F = 2$, so $V = 2 + E - F = 2 + (3f_3 + 4f_4)/2 - f_3 - f_4 = 2 + f_3/2 + f_4$.
+
+Now, I need an upper bound on $V$.
+
+Let me think about this. Consider the lattice polytope $P$ in 3D with $V$ vertices and no other lattice points. 
+
+Key idea: Consider the "width" of the polytope. The width of a lattice polytope $P$ in direction $u$ (a primitive lattice vector) is $\max_{x \in P} \langle u, x \rangle - \min_{x \in P} \langle u, x \rangle$.
+
+For an empty lattice polytope, there might be constraints on the width.
+
+Actually, let me think about a different approach. Let me consider the lattice width.
+
+Theorem (possibly): An empty lattice polytope in 3D has lattice width at most 2.
+
+If the lattice width is 1, the polytope fits between two consecutive lattice hyperplanes. If the width is 2, it fits between lattice hyperplanes at distance 2.
+
+Hmm, I'm not sure about this theorem. Let me think about the unit cube: its width in the $x$-direction is 1, in the $y$-direction is 1, in the $z$-direction is 1. But in the direction $(1,1,1)$, the width is 2 (from 0 to 3). So the minimum width is 1.
+
+For the tetrahedron $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (1,1,n)\}$: width in the $z$-direction is $n$, which can be large. But the width in the $x$-direction is 1, and in the $y$-direction is 1. So the minimum width is 1.
+
+So maybe the theorem is: every empty lattice polytope in 3D has lattice width at most 1? No, the unit cube has width 1 in the coordinate directions, but could it have width 2 in all directions? No, the width in $(1,0,0)$ is 1.
+
+Hmm, actually, I think the relevant result is:
+
+Theorem: Every empty lattice polytope in 3D has lattice width 1.
+
+Wait, that can't be right. Consider the tetrahedron $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (1,1,n)\}$. Its width in the $z$-direction is $n$. But its width in the $x$-direction is 1 (from 0 to 1). So the minimum lattice width is 1.
+
+Is it true that every empty lattice polytope in 3D has minimum lattice width 1? If so, then the polytope fits between two consecutive lattice planes, say $z = 0$ and $z = 1$. Then all vertices have $z$-coordinate 0 or 1.
+
+If all vertices have $z \in \{0, 1\}$, then the polytope is the convex hull of points in two parallel lattice planes. The "bottom" face (vertices with $z = 0$) and "top" face (vertices with $z = 1$) are lattice polygons, and the "side" faces connect vertices from the two layers.
+
+Actually, this isn't quite right. The polytope might not have a clean "bottom" and "top" face. But if all vertices have $z \in \{0, 1\}$, then the cross-section at $z = 0$ is a lattice polygon $P_0$ (the convex hull of vertices with $z = 0$) and the cross-section at $z = 1$ is a lattice polygon $P_1$ (the convex hull of vertices with $z = 1$). The polytope is $\text{conv}(P_0 \times \{0\} \cup P_1 \times \{1\})$.
+
+For the polytope to be empty:
+- $P_0$ must be an empty lattice polygon (no lattice points other than its vertices, since those would be lattice points in the polytope with $z = 0$).
+- $P_1$ must be an empty lattice polygon.
+- There should be no lattice points with $z = 0$ in $P_0$ other than vertices of $P_0$, and similarly for $P_1$.
+- There should be no lattice points with $0 < z < 1$... but there are no lattice points with $0 < z < 1$ since $z$ must be an integer. So the only potential lattice points are at $z = 0$ and $z = 1$.
+
+Wait, but the polytope might extend beyond $z \in [0, 1]$ if the vertices are at $z = 0$ and $z = 1$ but the polytope bulges out. No, the polytope is the convex hull of points at $z = 0$ and $z = 1$, so it's contained in $0 \leq z \leq 1$. And the only integer $z$-values in $[0, 1]$ are 0 and 1. So the lattice points in the polytope are exactly the lattice points at $z = 0$ in $P_0$ and at $z = 1$ in $P_1$.
+
+So the polytope is empty iff $P_0$ and $P_1$ are both empty lattice polygons. And the vertices of the polytope are the vertices of $P_0$ (at $z = 0$) and the vertices of $P_1$ (at $z = 1$). But wait, a vertex of $P_0$ might not be a vertex of the 3D polytope if it's in the interior of the convex hull. Hmm, actually, if $P_0$ is a face of the 3D polytope, then its vertices are vertices of the 3D polytope. But $P_0$ might not be a face.
+
+Let me think about this more carefully. If the polytope has width 1 in the $z$-direction, with vertices at $z = 0$ and $z = 1$, then the "bottom" (intersection with $z = 0$) is a face of the polytope (the face minimizing $z$), and the "top" (intersection with $z = 1$) is also a face. These are $P_0$ and $P_1$ respectively. The other faces are "side" faces connecting edges of $P_0$ to edges of $P_1$.
+
+So $P_0$ and $P_1$ are faces of the polytope, hence they are empty lattice polygons with at most 4 vertices each. The total number of vertices is $|V(P_0)| + |V(P_1)| \leq 4 + 4 = 8$.
+
+And the number of faces: $P_0$ and $P_1$ are 2 faces. The side faces: each side face corresponds to an edge of either $P_0$ or $P_1$ (in the "mixed subdivision" or the normal fan). The number of side faces equals the number of edges in the "mixed subdivision" of $P_0$ and $P_1$.
+
+Actually, for a 3D polytope that is the convex hull of two polygons in parallel planes, the number of side faces is related to the number of edges of $P_0$ and $P_1$. Specifically, if $P_0$ has $e_0$ edges and $P_1$ has $e_1$ edges, the number of side faces is $e_0 + e_1$ (this is because each edge of $P_0$ and each edge of $P_1$ contributes one side face, in the "non-crossing" case).
+
+Wait, that's not quite right. Let me think again. For a prismatoid (convex hull of two polygons in parallel planes), the number of side faces is $e_0 + e_1$ where $e_0, e_1$ are the number of edges of the two polygons. This is because the side faces form a "belt" around the polytope, and each side face is a quadrilateral or triangle connecting an edge of one polygon to a vertex or edge of the other.
+
+Actually, I think the correct formula is: the number of side faces = $e_0 + e_1$ for a prismatoid. Let me verify with a cube: $P_0$ and $P_1$ are both unit squares (4 edges each). Side faces = $4 + 4 = 8$? But a cube has only 4 side faces. So this formula is wrong.
+
+Let me reconsider. For a prism (where $P_0 = P_1$), the number of side faces equals the number of edges of $P_0$ (each edge of $P_0$ connects to the corresponding edge of $P_1$ to form a side face). So for a cube, 4 side faces. ✓
+
+For a general prismatoid, the side faces are determined by the "mixed subdivision" or the projection. The number of side faces is $e_0 + e_1 - n$ where $n$ is some number related to the overlap... I don't remember the exact formula.
+
+Actually, let me think about it differently. The side faces of a prismatoid form a planar graph (when unfolded). The number of side faces $S$ satisfies: the total number of faces $F = 2 + S$ (top, bottom, and sides). And $V = v_0 + v_1$ (vertices of top and bottom). $E = e_0 + e_1 + S$ (edges of top, bottom, and side edges). Euler: $V - E + F = 2$, so $(v_0 + v_1) - (e_0 + e_1 + S) + (2 + S) = 2$, giving $v_0 + v_1 - e_0 - e_1 + 2 = 2$, so $v_0 + v_1 = e_0 + e_1$. This is always true for polygons ($v = e$ for each polygon). So Euler's formula is automatically satisfied and doesn't determine $S$.
+
+The number of side faces $S$ depends on the relative positions of $P_0$ and $P_1$. For a prism ($P_0 = P_1$), $S = e_0$. For an antiprism, $S = 2e_0$. In general, $S$ can range from $\max(e_0, e_1)$ to $e_0 + e_1$.
+
+Wait, for an antiprism with $P_0$ and $P_1$ being $n$-gons, $S = 2n$ and $V = 2n, E = 4n, F = 2n + 2$. Check: $2n - 4n + 2n + 2 = 2$ ✓.
+
+For a prism with $n$-gon bases, $S = n, V = 2n, E = 3n, F = n + 2$. Check: $2n - 3n + n + 2 = 2$ ✓.
+
+So $S$ ranges from $\max(e_0, e_1)$ to $e_0 + e_1$. To maximize $F = 2 + S$, we maximize $S$, which is at most $e_0 + e_1 = v_0 + v_1 \leq 4 + 4 = 8$. So $F \leq 2 + 8 = 10$.
+
+But wait, can we actually achieve $S = e_0 + e_1 = 8$? This would require an "antiprism-like" configuration where $P_0$ and $P_1$ are quadrilaterals and the side faces are all triangles. $V = 8, F = 10, E = 16$. Check: $8 - 16 + 10 = 2$ ✓.
+
+But is this achievable as an empty lattice polytope? We need $P_0$ and $P_1$ to be empty lattice quadrilaterals (area 1 parallelograms), and the whole polytope to have no lattice points other than vertices.
+
+If $P_0$ is the unit square at $z = 0$: $\{(0,0,0), (1,0,0), (1,1,0), (0,1,0)\}$ and $P_1$ is a unit square at $z = 1$: say $\{(0,0,1), (1,0,1), (1,1,1), (0,1,1)\}$. This is just the unit cube, which is a prism with $S = 4$, $F = 6$.
+
+To get $S = 8$, we need $P_1$ to be "rotated" relative to $P_0$. For example, $P_0 = \{(0,0,0), (1,0,0), (1,1,0), (0,1,0)\}$ and $P_1 = \{(1,0,1), (2,1,1), (1,2,1), (0,1,1)\}$. But $P_1$ has vertices $(2,1,1)$ and $(1,2,1)$, and the polytope would contain lattice points like $(1,1,1)$ which is not a vertex. So this doesn't work.
+
+Hmm, let me think more carefully. We need $P_0$ and $P_1$ to be empty lattice quadrilaterals (unit parallelograms), and the convex hull to have no other lattice points.
+
+Since the polytope has width 1 in $z$, all lattice points are at $z = 0$ or $z = 1$. At $z = 0$, the lattice points in the polytope are the lattice points in $P_0$, which are just the 4 vertices (since $P_0$ is empty). At $z = 1$, the lattice points are those in $P_1$, which are just the 4 vertices. So the polytope is automatically empty if $P_0$ and $P_1$ are empty!
+
+Wait, but I need to check that the cross-section at $z = 0$ is exactly $P_0$ and at $z = 1$ is exactly $P_1$. The cross-section at $z = 0$ is the bottom face, which is $P_0$ (the convex hull of vertices at $z = 0$). The cross-section at $z = 1$ is the top face, which is $P_1$. So yes, the lattice points at $z = 0$ in the polytope are exactly the lattice points in $P_0$, and similarly for $z = 1$.
+
+So the polytope is empty iff $P_0$ and $P_1$ are empty lattice polygons. And $P_0, P_1$ can be any empty lattice quadrilaterals (or triangles).
+
+Now, to maximize $F = 2 + S$, we want to maximize $S$, the number of side faces. $S \leq v_0 + v_1 \leq 8$. But can we achieve $S = 8$ with $v_0 = v_1 = 4$?
+
+$S = 8$ means all side faces are triangles (an antiprism). This requires that the projection of $P_1$ onto the $z = 0$ plane is "rotated" relative to $P_0$ so that no edge of $P_0$ is parallel to an edge of $P_1$ in the projection.
+
+But $P_0$ and $P_1$ are both unit parallelograms (empty lattice quadrilaterals). Up to unimodular transformation, a unit parallelogram is the unit square. So $P_0$ is a unimodular image of the unit square, and $P_1$ is a unimodular image of the unit square.
+
+Let $P_0 = \{0, u_1, u_2, u_1 + u_2\}$ at $z = 0$ where $u_1, u_2$ are a basis of $\mathbb{Z}^2$ (so $\det(u_1, u_2) = \pm 1$). Similarly, $P_1 = \{p, p + v_1, p + v_2, p + v_1 + v_2\}$ at $z = 1$ where $v_1, v_2$ is another basis and $p$ is a lattice point at $z = 1$.
+
+For the antiprism configuration ($S = 8$), we need the projection of $P_1$ to be "rotated" relative to $P_0$. Specifically, in the projection to the $xy$-plane, no vertex of $P_1$ should project onto a vertex of $P_0$, and the edges should alternate.
+
+Actually, for a prismatoid with $S = v_0 + v_1$, the side faces are all triangles. This happens when the projection of $P_1$ onto the plane of $P_0$ is such that the vertices of $P_0$ and $P_1$ alternate around the boundary of the convex hull of their union.
+
+Let me try a specific example. $P_0 = \{(0,0), (1,0), (1,1), (0,1)\}$ at $z = 0$ (the unit square). $P_1 = \{(0,0), (0,1), (-1,1), (-1,0)\}$ at $z = 1$ (the unit square shifted by $(-1, 0)$). Wait, that's $\{(-1,0), (0,0), (0,1), (-1,1)\}$, which is the unit square shifted left by 1. The projection of $P_0 \cup P_1$ is the rectangle $[-1, 1] \times [0, 1]$. The vertices of $P_0$ are $(0,0), (1,0), (1,1), (0,1)$ and of $P_1$ are $(-1,0), (0,0), (0,1), (-1,1)$. But $(0,0)$ and $(0,1)$ are shared! So the projections overlap, and $(0,0,0)$ and $(0,0,1)$ project to the same point. This means the side faces won't all be triangles.
+
+Let me try $P_1 = \{(1,0), (1,1), (0,1), (0,0)\}$ at $z = 1$... that's the same as $P_0$, giving a prism.
+
+Let me try $P_1$ as a different parallelogram. $P_0 = \{(0,0), (1,0), (1,1), (0,1)\}$, $P_1 = \{(1,0), (2,1), (1,2), (0,1)\}$ at $z = 1$. $P_1$ is the parallelogram with edges $(1,1)$ and $(-1,1)$, which has $\det = 1 \cdot 1 - 1 \cdot (-1) = 2$. So this is NOT a unit parallelogram (area 2). It's not empty.
+
+For $P_1$ to be an empty lattice quadrilateral, it must be a unit parallelogram (area 1). So the edges of $P_1$ must form a unimodular basis.
+
+Let me try $P_1 = \{(1,0), (2,1), (1,2), (0,1)\}$... no, area 2 as computed.
+
+$P_1 = \{(1,0), (1,1), (0,1), (0,0)\}$... same as $P_0$.
+
+$P_1 = \{(1,0), (2,0), (2,1), (1,1)\}$... this is a unit square shifted by $(1,0)$. Area 1, empty. But the projection overlaps with $P_0$ (they share the edge $x = 1$).
+
+Hmm, let me try to think about what configurations give $S = 8$.
+
+For $S = 8$ with $v_0 = v_1 = 4$, we need all 8 side faces to be triangles. This means each vertex of $P_0$ is connected to exactly 2 vertices of $P_1$ (and vice versa), forming a "zigzag" pattern. This is the antiprism configuration.
+
+For the projections to give an antiprism, the 8 projected vertices (4 from $P_0$, 4 from $P_1$) must be in convex position and alternate between $P_0$ and $P_1$ vertices around the convex hull.
+
+But both $P_0$ and $P_1$ are unit parallelograms (area 1). Their projections are unit parallelograms in the plane. For 8 points (4 from each parallelogram) to be in convex position, the two parallelograms must be "interleaved".
+
+Let me try: $P_0 = \{(0,0), (1,0), (1,1), (0,1)\}$ (unit square) and $P_1 = \{(1,0), (1,1), (0,1), (0,0)\}$... no, same thing.
+
+Let me try a different parallelogram for $P_1$. $P_1$ with edges $(1,1)$ and $(1,-1)$: $\det = -1 - 1 = -2$. Not unimodular.
+
+$P_1$ with edges $(1,1)$ and $(0,1)$: $\det = 1$. Unimodular! So $P_1 = \{p, p + (1,1), p + (1,2), p + (0,1)\}$ for some lattice point $p$.
+
+Let $p = (0, 0)$: $P_1 = \{(0,0), (1,1), (1,2), (0,1)\}$. The projection of $P_0 \cup P_1$: $P_0 = \{(0,0), (1,0), (1,1), (0,1)\}$, $P_1 = \{(0,0), (1,1), (1,2), (0,1)\}$. Shared vertices in projection: $(0,0), (1,1), (0,1)$. So only $(1,0)$ from $P_0$ and $(1,2)$ from $P_1$ are not shared. The convex hull of all 8 projected points is $\{(0,0), (1,0), (1,2), (0,1)\}$, which has only 4 vertices. So we don't get 8 points in convex position.
+
+The problem is that the two parallelograms overlap significantly in projection.
+
+Let me try $p = (1, 0)$: $P_1 = \{(1,0), (2,1), (2,2), (1,1)\}$. Projection of $P_0 \cup P_1$: $P_0 = \{(0,0), (1,0), (1,1), (0,1)\}$, $P_1 = \{(1,0), (2,1), (2,2), (1,1)\}$. Shared: $(1,0), (1,1)$. Convex hull: $\{(0,0), (1,0), (2,1), (2,2), (1,1), (0,1)\}$, 6 vertices. Not 8.
+
+Let me try to separate them more. $p = (2, 0)$: $P_1 = \{(2,0), (3,1), (3,2), (2,1)\}$. Convex hull of $P_0 \cup P_1$: $\{(0,0), (1,0), (2,0), (3,1), (3,2), (2,1), (1,1), (0,1)\}$. That's 8 vertices! And they alternate: $(0,0)_{P_0}, (1,0)_{P_0}, (2,0)_{P_1}, (3,1)_{P_1}, (3,2)_{P_1}, (2,1)_{P_1}, (1,1)_{P_0}, (0,1)_{P_0}$. Hmm, they don't alternate perfectly: we have two $P_0$ vertices, then four $P_1$ vertices, then two $P_0$ vertices.
+
+For an antiprism, we need strict alternation: $P_0, P_1, P_0, P_1, \ldots$ With 4+4, we need $P_0, P_1, P_0, P_1, P_0, P_1, P_0, P_1$ around the convex hull.
+
+This seems hard to achieve with two unit parallelograms. Let me think about whether it's possible at all.
+
+A unit parallelogram has 4 vertices forming a parallelogram of area 1. Two such parallelograms, projected onto a plane, need to have their 8 vertices in convex position and alternating. 
+
+Consider the angles subtended by the vertices. For a parallelogram, opposite vertices subtend supplementary angles. For two parallelograms to interleave, they'd need to be "rotated" by 45° relative to each other. But a 45° rotation of a lattice parallelogram is generally not a lattice parallelogram.
+
+Actually, let me think about this differently. The projection of $P_0$ is a parallelogram with vertices $a, b, c, d$ (in order), and $P_1$ projects to $a', b', c', d'$. For the 8 points to be in convex position and alternating, each edge of the convex hull connects a $P_0$ vertex to a $P_1$ vertex. So the convex hull is an octagon with vertices $a, a', b, b', c, c', d, d'$ (in some alternating order).
+
+But a parallelogram has two pairs of parallel edges. The convex hull of two parallelograms being an octagon requires that no edge of one is parallel to an edge of the other (otherwise, they might share a direction and not form an octagon).
+
+A unit parallelogram has edges that are two primitive vectors $u, v$ with $\det(u, v) = \pm 1$. The four edge directions are $\pm u, \pm v$. For two unit parallelograms with edge directions $\pm u_1, \pm v_1$ and $\pm u_2, \pm v_2$, we need $\{u_1, v_1\} \neq \{u_2, v_2\}$ (no shared directions) for the convex hull to potentially be an octagon.
+
+But even then, the 8 points might not be in convex position (some might be inside the convex hull of others).
+
+Let me try a specific example. $P_0$: edges $(1, 0)$ and $(0, 1)$, vertices $(0,0), (1,0), (1,1), (0,1)$. $P_1$: edges $(1, 1)$ and $(1, 2)$... wait, $\det((1,1), (1,2)) = 2 - 1 = 1$. ✓. So $P_1$ has vertices $p, p+(1,1), p+(2,3), p+(1,2)$.
+
+Let $p = (2, -1)$: $P_1 = \{(2,-1), (3,0), (4,2), (3,1)\}$. 
+
+Convex hull of $P_0 \cup P_1 = \{(0,0), (1,0), (1,1), (0,1), (2,-1), (3,0), (4,2), (3,1)\}$:
+
+Let me compute the convex hull. The points are:
+$(0,0), (1,0), (1,1), (0,1), (2,-1), (3,0), (4,2), (3,1)$.
+
+The extreme points: $(0,0)$ is likely extreme (leftmost). $(4,2)$ is extreme (rightmost-top). $(2,-1)$ is extreme (bottom). $(0,1)$ is extreme (leftmost-top).
+
+Let me check if $(1,0)$ is extreme. Is it inside the convex hull of the others? The convex hull of $\{(0,0), (1,1), (0,1), (2,-1), (3,0), (4,2), (3,1)\}$: 
+
+Actually, let me just check the convex hull by sorting by angle from the centroid. Centroid $\approx (1.75, 0.5)$. 
+
+This is getting tedious. Let me try a different approach.
+
+Actually, maybe I should question whether the lattice width is always 1 for empty lattice 3-polytopes. Let me reconsider.
+
+I claimed that every empty lattice polytope in 3D has lattice width 1. Is this true?
+
+Consider the Reeve tetrahedron: $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (1,1,2)\}$. We showed this is empty. Its width in the $z$-direction is 2. Its width in the $x$-direction is 1, $y$-direction is 1. What about other directions?
+
+Width in direction $(0, 0, 1)$: 2. Width in direction $(1, 0, 0)$: 1. Width in direction $(0, 1, 0)$: 1. Width in direction $(1, 1, 0)$: from 0 to 2, so 2. Width in direction $(1, -1, 0)$: from -1 to 1, so 2. Width in direction $(1, 0, 1)$: from 0 to 3, so 3. Width in direction $(1, 1, 1)$: from 0 to 4, so 4.
+
+Hmm, what about direction $(1, 1, -1)$? $\langle (1,1,-1), (0,0,0) \rangle = 0$, $\langle (1,1,-1), (1,0,0) \rangle = 1$, $\langle (1,1,-1), (0,1,0) \rangle = 1$, $\langle (1,1,-1), (1,1,2) \rangle = 0$. Width = 1 - 0 = 1. ✓
+
+So the Reeve tetrahedron has width 1 in direction $(1, 1, -1)$. So the minimum lattice width is 1.
+
+Is it always the case that an empty lattice 3-polytope has width 1? I believe this is a theorem, possibly due to the "flatness theorem" or a result by Seppälä or others.
+
+Actually, the flatness theorem says that there's a constant $c(d)$ such that any lattice polytope with no interior lattice points has width at most $c(d)$. For $d = 3$, I think $c(3) = 2$ or something. But for empty polytopes (no lattice points other than vertices), the bound might be tighter.
+
+Hmm, let me think about whether there's an empty lattice 3-polytope with width 2 (i.e., minimum width 2, not 1).
+
+Consider the tetrahedron $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (1,1,n)\}$ for large $n$. We showed it's empty. Its width in direction $(1, 1, -1)$: $\langle (1,1,-1), (0,0,0) \rangle = 0$, $\langle (1,1,-1), (1,0,0) \rangle = 1$, $\langle (1,1,-1), (0,1,0) \rangle = 1$, $\langle (1,1,-1), (1,1,n) \rangle = 2 - n$. Width = $\max(0, 1, 1, 2-n) - \min(0, 1, 1, 2-n) = 1 - (2-n) = n - 1$ for $n \geq 3$. That's large.
+
+What about direction $(1, -1, 0)$? $\langle (1,-1,0), (0,0,0) \rangle = 0$, $\langle (1,-1,0), (1,0,0) \rangle = 1$, $\langle (1,-1,0), (0,1,0) \rangle = -1$, $\langle (1,-1,0), (1,1,n) \rangle = 0$. Width = $1 - (-1) = 2$.
+
+Direction $(1, 0, 0)$: width = 1 (from 0 to 1). So the minimum width is 1.
+
+It seems like for these tetrahedra, the minimum width is always 1 (in the $x$ or $y$ direction). 
+
+Let me try to construct an empty lattice polytope with minimum width 2. 
+
+Consider the "Reeve tetrahedron" $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (1,1,2)\}$. We need to check all primitive directions.
+
+Actually, let me think about this more carefully. The width in direction $u = (a, b, c)$ (primitive) is:
+$\max(0, a, b, a+b+2c) - \min(0, a, b, a+b+2c)$.
+
+For this to be 1, we need $\max - \min = 1$. The four values are $0, a, b, a+b+2c$.
+
+If $a = 1, b = 0, c = 0$: values $0, 1, 0, 1$. Width 1. ✓
+
+So the width is 1 in the $x$-direction. Similarly in the $y$-direction.
+
+What if we consider a polytope where all vertices have $x$-coordinates in $\{0, 2\}$ (width 2 in $x$-direction) and similarly for other directions? 
+
+Consider $\text{conv}\{(0,0,0), (2,0,0), (0,2,0), (2,2,2)\}$. Is this empty? The point $(1,1,1)$: barycentric coords: $a(0,0,0) + b(2,0,0) + c(0,2,0) + d(2,2,2) = (2b+2d, 2c+2d, 2d) = (1,1,1)$. So $d = 1/2, b = 0, c = 0, a = 1/2$. So $(1,1,1)$ is on the edge from $(0,0,0)$ to $(2,2,2)$. So it's a lattice point on an edge, not a vertex. Not empty.
+
+What about $\text{conv}\{(0,0,0), (2,0,0), (0,2,0), (2,2,3)\}$? Point $(1,1,1)$: $2d = 1$, $d = 1/2$, $2b + 1 = 1$, $b = 0$, $2c + 1 = 1$, $c = 0$, $a = 1/2$. On the edge from $(0,0,0)$ to $(2,2,3)$. Still a lattice point on an edge.
+
+Hmm, it seems hard to avoid lattice points when the coordinates are large.
+
+Let me try $\text{conv}\{(0,0,0), (2,1,0), (1,2,0), (2,2,3)\}$. Check if $(1,1,0)$ is inside: it's in the plane $z = 0$. The face at $z = 0$ is $\text{conv}\{(0,0,0), (2,1,0), (1,2,0)\}$. Is $(1,1,0)$ inside this triangle? Barycentric: $a(0,0) + b(2,1) + c(1,2) = (1,1)$, $a + b + c = 1$. $2b + c = 1, b + 2c = 1$. Solving: $b = 1/3, c = 1/3, a = 1/3$. All positive, so $(1,1,0)$ is inside the triangle. So it's a lattice point on a face. Not empty.
+
+It seems like making the base triangle large introduces lattice points on the base.
+
+What if the base is a unimodular triangle (area 1/2)? $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (a,b,n)\}$ for some $a, b, n$. For this to be empty, we need no lattice points other than the 4 vertices. The base face is the unimodular triangle, which is empty. The other faces need to be checked.
+
+This is the general empty lattice tetrahedron. As we showed, $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (1,1,n)\}$ is empty for any $n$. And its minimum width is 1 (in the $x$-direction).
+
+Can we have an empty lattice tetrahedron with minimum width 2? Let me think...
+
+For the tetrahedron $\text{conv}\{(0,0,0), (1,0,0), (0,1,0), (a,b,n)\}$, the width in the $x$-direction is $\max(0, 1, 0, a) - \min(0, 1, 0, a) = \max(1, a) - \min(0, a)$. If $a \geq 0$: width = $\max(1, a) - 0 = \max(1, a)$. If $a < 0$: width = $1 - a$. So the width in $x$ is $\max(1, |a|)$ if $a \geq 0$ or $1 + |a|$ if $a < 0$... wait, let me redo.
+
+Width in $x$-direction: $\max(0, 1, 0, a) - \min(0, 1, 0, a)$. The $x$-coordinates of vertices are $0, 1, 0, a$. So width = $\max(0, 1, a) - \min(0, 1, a)$.
+
+If $a \geq 1$: width = $a - 0 = a$.
+If $0 \leq a < 1$: $a$ is an integer, so $a = 0$: width = $1 - 0 = 1$.
+If $a < 0$: width = $1 - a = 1 + |a|$.
+
+So for the width in $x$ to be $\geq 2$, we need $|a| \geq 2$ (if $a \geq 2$ or $a \leq -1$... wait, $a \leq -1$ gives width $1 + |a| \geq 2$).
+
+Similarly for $y$-direction with $b$.
+
+And the width in $z$-direction is $n$ (for $n \geq 1$).
+
+Now, for the tetrahedron to be empty, we need specific conditions on $a, b, n$. Let me think about what those are.
+
+The tetrahedron $T = \text{conv}\{(0,0,0), (1,0,0), (0,1,0), (a,b,n)\}$. A lattice point $(x, y, z)$ is inside $T$ iff it can be written as $\alpha(0,0,0) + \beta(1,0,0) + \gamma(0,1,0) + \delta(a,b,n)$ with $\alpha + \beta + \gamma + \delta = 1$, all $\geq 0$. So $x = \beta + a\delta, y = \gamma + b\delta, z = n\delta$. Thus $\delta = z/n, \beta = x - az/n, \gamma = y - bz/n, \alpha = 1 - x - y + (a+b-1)z/n$... wait, $\alpha =

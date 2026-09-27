@@ -1,0 +1,1398 @@
+# Solver Task
+
+You are a mathematical problem analysis assistant. You will NOT solve any problems.
+You will analyze the relationship between a standard solution and an AI's attempted solution.
+
+**CRITICAL CONSTRAINTS:**
+- Do NOT use any tools. Do NOT write files. Do NOT execute commands. Do NOT search. Do NOT read any files.
+- All information you need is already in your prompt above. Do NOT read any files.
+- Output your analysis directly in your response (in this TUI).
+- End your analysis with a line containing exactly: `### ANALYSIS COMPLETE`
+
+## Analysis Task
+
+You are given three inputs:
+1. **Problem** — a math competition problem
+2. **Standard Solution** — the correct solution from the problem bank
+3. **AI's Thinking** — an AI's attempted solution process (its reasoning when it tried to solve the problem, but failed)
+
+Your task: analyze WHY the AI failed, by comparing its thinking with the standard solution.
+
+### Dimension 1: Failure Type
+
+Compare the standard solution's key approach with the AI's thinking:
+
+- **DIRECTION_ERROR**: The AI's thinking went in a fundamentally wrong direction. The standard solution uses a specific mathematical approach that the AI never considered. The AI was exploring a completely different strategy. The failure is about *which direction to explore*, not about running out of time.
+
+- **TOKEN_LIMIT**: The AI's thinking was going in the RIGHT direction — it was using the same key approach as the standard solution (or a valid alternative) — but ran out of tokens before completing the proof. The failure is about *not enough time*, not about *wrong direction*.
+
+- **CONNECTION_ERROR**: The AI didn't really attempt the problem — the thinking is extremely short (< 500 chars), contains API connection errors, garbled text, or has NO mathematical content at all (e.g., only error messages or empty output). This is a technical failure, not a mathematical one. **Important**: If the AI solved a DIFFERENT problem than the one given (wrong problem, misread problem), that is DIRECTION_ERROR, not CONNECTION_ERROR. CONNECTION_ERROR is only for technical failures where no real thinking happened.
+
+- **PARTIAL_PROGRESS**: The AI's thinking was partially in the right direction — it identified some key ideas from the standard solution — but missed the crucial turning point. The AI was on the right track but took a wrong turn at a critical juncture.
+
+### Dimension 2: Key Turning Point Type
+
+If the verdict is DIRECTION_ERROR or PARTIAL_PROGRESS, identify what type of key turning point the standard solution uses:
+
+1. **mod_p_grouping**: The standard solution uses modular arithmetic (mod p, where p is small/obvious like 4, 8) to group/categorize objects and find a contradiction or hidden structure.
+
+2. **mod_p_non_obvious**: The standard solution uses modular arithmetic where the prime p is NOT obvious from the problem statement (e.g., mod 11, mod p where p needs to be discovered through analysis).
+
+3. **quadratic_residue_euler**: The standard solution uses quadratic residues, Legendre symbols, or Euler's criterion.
+
+4. **lte_lemma**: The standard solution uses the Lifting The Exponent (LTE) lemma.
+
+5. **p_adic_valuation**: The standard solution uses p-adic valuation (v_p) analysis.
+
+6. **multi_step_mod_p**: The standard solution uses multiple steps of modular arithmetic analysis (not just one mod operation).
+
+7. **crt**: The standard solution uses the Chinese Remainder Theorem (combining information from multiple moduli).
+
+8. **permutation_polynomial**: The standard solution uses properties of permutation polynomials over finite fields.
+
+9. **finite_field_structure**: The standard solution exploits the structure of finite fields (Z/pZ, F_p, F_p^k).
+
+10. **other**: None of the above categories fit. Describe the technique in dimension2_explanation.
+
+### Output Format
+
+Output your analysis in this EXACT XML format. The XML must be well-formed and parseable.
+
+```xml
+<analysis>
+  <problem_id>polymath_05485</problem_id>
+  <dimension1_verdict>DIRECTION_ERROR|TOKEN_LIMIT|CONNECTION_ERROR|PARTIAL_PROGRESS</dimension1_verdict>
+  <dimension1_explanation>1-3 sentences explaining the verdict</dimension1_explanation>
+  <dimension2_turning_point_type>mod_p_grouping|mod_p_non_obvious|quadratic_residue_euler|lte_lemma|p_adic_valuation|multi_step_mod_p|crt|permutation_polynomial|finite_field_structure|other</dimension2_turning_point_type>
+  <dimension2_explanation>1-3 sentences describing the key turning point in the standard solution</dimension2_explanation>
+  <ai_direction_summary>1 sentence describing what direction the AI's thinking went</ai_direction_summary>
+  <standard_solution_key_technique>1 sentence describing the key technique in the standard solution</standard_solution_key_technique>
+  <confidence>high|medium|low</confidence>
+</analysis>
+```
+
+After the XML block, output exactly: `### ANALYSIS COMPLETE`
+
+**Rules:**
+- The XML must be inside a ```xml code block
+- Do NOT add any text before or after the XML block (except ### ANALYSIS COMPLETE)
+- If the AI's thinking is too short to analyze (< 500 chars AND no mathematical content), output CONNECTION_ERROR. But if the AI solved a different problem or went in the wrong direction, use DIRECTION_ERROR even if the thinking is short.
+- If you cannot determine the turning point type, use "other" and explain in dimension2_explanation
+
+## Problem
+
+There are \(2022\) users on a social network called Mathbook, and some of them are Mathbook-friends. (On Mathbook, friendship is always mutual and permanent.) Starting now, Mathbook will only allow a new friendship to be formed between two users if they have at least two friends in common. What is the minimum number of friendships that must already exist so that every user could eventually become friends with every other user?
+
+## Standard Solution
+
+The problem can be translated into a graph theory problem. We have a graph \(G\) with \(n = 2022\) vertices, and we want to transform it into a complete graph \(K_n\) by adding edges. The rule for adding an edge is that the two vertices must have at least two common neighbors, which corresponds to completing a \(C_4\) (a cycle of four vertices) into a \(K_4\) (a complete graph on four vertices).
+
+To find the minimum number of initial edges, we use the formula \(\left\lceil\frac{3}{2} n\right\rceil - 2\). For \(n = 2022\), this gives:
+
+\[
+\left\lceil\frac{3}{2} \times 2022\right\rceil - 2 = \left\lceil 3033\right\rceil - 2 = 3033 - 2 = 3031
+\]
+
+Thus, the minimum number of friendships that must already exist is \(\boxed{3031}\).
+
+## AI's Thinking (Attempted Solution Process)
+
+Let me analyze this problem carefully.
+
+We have 2022 users on a social network. Friendships are mutual. A new friendship can form between two users only if they have at least 2 friends in common. We need the minimum number of initial friendships so that eventually every user becomes friends with every other user.
+
+Let me think about this carefully.
+
+First, let me understand the process. We start with some graph G on 2022 vertices. Then we can add edges one at a time, where an edge {u,v} can be added if u and v currently have at least 2 common neighbors. We want to reach the complete graph K_2022.
+
+We want to minimize the number of initial edges.
+
+Let me think about what structures allow propagation.
+
+Key insight: If two vertices have at least 2 common neighbors, they can become friends. Once they become friends, this creates more common neighbors for other pairs, potentially allowing more friendships to form.
+
+Let me think about small cases first.
+
+Consider a clique of size k. Within a clique, every pair already has k-2 common neighbors. So a clique is "self-propagating" — it's already complete.
+
+Now, how does the process spread from a clique to other vertices?
+
+If we have a clique C of size k, and a vertex v outside C that is connected to at least 2 vertices in C, then v has at least 2 common neighbors with every vertex in C (since any two vertices in C share the other k-2 vertices of C as common neighbors, and v shares at least 2 friends in C with each vertex of C... wait, let me think more carefully).
+
+Actually, let me reconsider. If v is friends with vertices a, b in C, and we want v to become friends with some c in C. The common neighbors of v and c: v's friends include a, b (and maybe others). c's friends include all of C \ {c} and maybe others. Common neighbors of v and c = friends of v ∩ friends of c. Friends of v include a, b. Friends of c include all vertices in C except c. So a and b are both friends of c (since a, b ∈ C and c ∈ C, and C is a clique). So a and b are common neighbors of v and c. That's at least 2 common neighbors. So v can become friends with c.
+
+So once v is connected to 2 vertices in a clique C, v can become friends with every vertex in C. After that, v is part of the clique (the clique grows by 1).
+
+So the strategy is: start with a clique, and have every other vertex connected to at least 2 vertices in the clique. Then the clique can grow to include everyone.
+
+If we have a clique of size k, we need each of the remaining 2022 - k vertices to be connected to at least 2 vertices in the clique. The number of edges:
+- Clique edges: k(k-1)/2
+- Edges from outside vertices to clique: at least 2(2022 - k)
+
+Total: k(k-1)/2 + 2(2022 - k)
+
+To minimize, we take the derivative with respect to k: (k - 1/2) - 2... wait let me just compute.
+
+f(k) = k(k-1)/2 + 2(2022 - k) = (k² - k)/2 + 4044 - 2k = k²/2 - k/2 + 4044 - 2k = k²/2 - 5k/2 + 4044
+
+f'(k) = k - 5/2, so minimum at k = 5/2, i.e., k = 2 or k = 3.
+
+f(2) = 1 + 2·2020 = 1 + 4040 = 4041
+f(3) = 3 + 2·2019 = 3 + 4038 = 4041
+
+So with this strategy, we get 4041 edges.
+
+But wait, can we do better? Maybe we don't need a single clique. Maybe we can use a different structure.
+
+Let me think about whether 4041 is optimal or if we can do better.
+
+Actually, let me reconsider. With k=2, the "clique" is just an edge between two vertices, say a and b. Then every other vertex needs to be connected to both a and b. That gives 1 + 2·2020 = 4041 edges. The graph is a "double star" — two centers a, b connected to each other and to every other vertex.
+
+Now, can two non-adjacent vertices u, v (both connected to a and b) become friends? Common neighbors of u and v: both are friends with a and b, so a and b are common neighbors. That's 2 common neighbors. So yes, u and v can become friends. After u and v become friends, they have more common neighbors, and the process continues. In fact, once any two non-adjacent vertices both connect to a and b, they can become friends, and eventually we get the complete graph.
+
+So 4041 works. Can we do better?
+
+Let me think about lower bounds.
+
+Lower bound argument: Consider the final state where everyone is friends with everyone. Think about what's needed.
+
+Actually, let me think about a different approach. Maybe we can use a more efficient structure.
+
+Alternative: What if we have two cliques that share 2 vertices? Say clique A of size p and clique B of size q, sharing exactly 2 vertices. The shared vertices allow propagation between the cliques.
+
+Wait, but if the two cliques share 2 vertices, say s1, s2, then any vertex in A \ {s1, s2} and any vertex in B \ {s1, s2} have common neighbors s1 and s2 (since s1, s2 are in both cliques). So they can become friends. Then the two cliques merge into one big clique.
+
+Number of edges: A has p(p-1)/2 edges, B has q(q-1)/2 edges, but they share 2 vertices and the edge between them. The shared part: the 2 shared vertices have 1 edge between them. So total = p(p-1)/2 + q(q-1)/2 - 1 (subtracting the shared edge counted twice).
+
+With p + q - 2 = 2022, so p + q = 2024.
+
+Total edges = p(p-1)/2 + q(q-1)/2 - 1.
+
+To minimize p(p-1)/2 + q(q-1)/2 with p + q = 2024, we want p and q as equal as possible. p = q = 1012.
+
+Total = 1012·1011/2 + 1012·1011/2 - 1 = 1012·1011 - 1 = 1023132 - 1 = 1023131.
+
+That's way more than 4041. So the double star is much better.
+
+Let me think about whether we can do better than 4041.
+
+What if instead of connecting every vertex to 2 centers, we use a more clever structure?
+
+Consider a path-like structure. Suppose we have vertices v1, v2, ..., v_n. If v1-v2-v3 is a path, can v1 and v3 become friends? They have 1 common neighbor (v2), so no. We need 2 common neighbors.
+
+What about a cycle? In a cycle, two vertices at distance 2 have 1 common neighbor. Not enough.
+
+What if we have a structure where some vertices are connected to 2 others, and through propagation, more connections form?
+
+Let me think about this differently. Let's think about what the minimum degree must be.
+
+Actually, let me think about the problem more carefully. The key question is: what's the minimum number of edges in a graph on n vertices such that the "2-common-neighbor closure" is the complete graph?
+
+The 2-common-neighbor closure: repeatedly add edges between pairs with ≥2 common neighbors until no more can be added.
+
+For the double star (2 centers connected to all), we need 2n - 3 edges (for n vertices: 2 centers, 1 edge between them, 2(n-2) edges from centers to others = 1 + 2(n-2) = 2n - 3). For n = 2022, that's 4041.
+
+Can we do with fewer? Let me think about lower bounds.
+
+Lower bound: Every vertex must eventually be connected to every other vertex. Consider a vertex v with degree d in the initial graph. For v to become friends with some vertex u that it's not initially connected to, v and u must have 2 common neighbors at some point. 
+
+Hmm, this is tricky because the common neighbors can be created during the process.
+
+Let me think about it from the perspective of: which vertices can never gain a new edge?
+
+A vertex v can gain a new edge if there exists some u not adjacent to v such that v and u have ≥2 common neighbors. If v has degree 0 or 1, then v has at most 1 neighbor, so v can have at most 1 common neighbor with any other vertex. So v can never gain a new edge. This means every vertex must have degree ≥ 2 in the initial graph (unless it's already connected to everyone, which for n=2022 means degree 2021, but that's not minimal).
+
+Wait, actually, if v has degree 1, its only neighbor is w. For v to gain an edge to u, v and u need 2 common neighbors. v's only neighbor is w, so the only possible common neighbor is w. That's just 1. So v can never gain a new edge. So degree ≥ 2 for every vertex.
+
+This gives a lower bound of n = 2022 edges (since sum of degrees ≥ 2n, so edges ≥ n).
+
+But we need more than just degree 2. Let me think about whether degree 2 suffices.
+
+If every vertex has degree exactly 2, the graph is a disjoint union of cycles. In a cycle of length ≥ 4, two vertices at distance 2 have exactly 1 common neighbor. Two vertices at distance ≥ 3 have 0 common neighbors. So no new edges can be added. The closure is the cycle itself. So cycles don't work (unless the cycle has length 3, which is a triangle = K_3 clique).
+
+What about a disjoint union of triangles? Each triangle is a clique of size 3. But vertices in different triangles have 0 common neighbors, so no edges can form between triangles. So this doesn't work either.
+
+So we need a connected structure that allows propagation. The double star with 2n-3 edges works. Can we do better?
+
+Let me think about a "theta graph" or other structures.
+
+What about a graph that's like a "ladder"? Two paths connected by rungs. In a ladder graph, vertices on the same side at distance 2 have 2 common neighbors (the vertex between them on the same side and the corresponding vertex on the other side). Wait, let me check.
+
+Ladder graph: vertices a1, a2, ..., am on one side, b1, b2, ..., bm on other side. Edges: ai-ai+1, bi-bi+1, ai-bi.
+
+Consider a1 and a3. Common neighbors: a2 (neighbor of both). b1 is neighbor of a1 but not a3. b3 is neighbor of a3 but not a1. So only 1 common neighbor. Not enough.
+
+Hmm. What about a1 and b2? Neighbors of a1: a2, b1. Neighbors of b2: b1, b3, a2. Common: a2, b1. That's 2! So a1 and b2 can become friends.
+
+After a1-b2 is added, consider a1 and a3. Neighbors of a1: a2, b1, b2. Neighbors of a3: a2, a4, b3. Common: a2. Still just 1.
+
+What about a1 and b3? Neighbors of a1: a2, b1, b2. Neighbors of b3: b2, b4, a3. Common: b2. Just 1.
+
+Hmm, this is getting complicated. Let me think about the problem differently.
+
+Let me think about what structures with fewer than 2n-3 edges could work.
+
+Actually, let me reconsider the problem. The answer might indeed be 2n-3 = 4041, but let me try to prove the lower bound more carefully.
+
+Claim: We need at least 2n - 3 edges.
+
+Hmm, but I'm not sure this is tight. Let me think about whether there's a smarter construction.
+
+Alternative construction: What if we use a "windmill" structure? Take a central edge (a,b), and connect some vertices to both a and b, and some vertices to just one of them, but arrange things so that propagation still works.
+
+If a vertex v is connected only to a (not b), then for v to gain an edge to some u, v and u need 2 common neighbors. v's only neighbor is a. So the only common neighbor possible is a. That's 1. So v can never gain a new edge unless v gains another neighbor first. But v can't gain any neighbor. So v is stuck. So every vertex must be connected to at least 2 vertices.
+
+But those 2 vertices don't have to be a and b specifically. What if v is connected to a and some other vertex w (which is also connected to a)?
+
+Let me think about a more general structure. Consider a graph where:
+- There's a central clique C.
+- Every vertex outside C is connected to at least 2 vertices in C.
+
+As I computed, the optimal is C of size 2 or 3, giving 2n-3 edges.
+
+But what if vertices outside C are connected to vertices that are not in C but will eventually join C?
+
+The process is sequential. Maybe we can have a chain of propagation.
+
+Consider: vertices a, b, c, d, e, ... in a line. a-b is an edge. b-c, c-d are edges. Also, a-c is an edge (so a, b, c form a triangle). Now c has degree 2 (b and a... wait, c is connected to a, b, and d). Let me be more careful.
+
+Let me try: Triangle on {a, b, c}. Then d is connected to b and c. Then e is connected to c and d. Then f is connected to d and e. Etc.
+
+Edges: ab, ac, bc (triangle), bd, cd (d connected to b,c), ce, de (e connected to c,d), df, ef (f connected to d,e), ...
+
+Now, can a and d become friends? Neighbors of a: b, c. Neighbors of d: b, c. Common: b, c. Yes! 2 common neighbors. So a-d can be added.
+
+After a-d is added, can a and e become friends? Neighbors of a: b, c, d. Neighbors of e: c, d. Common: c, d. Yes! So a-e can be added.
+
+This is propagating. Let me think about the total number of edges.
+
+The triangle has 3 edges. Each new vertex adds 2 edges. So for n vertices, we have 3 + 2(n-3) = 2n - 3 edges. Same as before!
+
+Hmm. Can we do better by having some vertices add only 1 edge?
+
+If a vertex v adds only 1 edge, say to vertex w, then v has degree 1. As argued, v can never gain a new edge. So v must already be connected to all other vertices, which requires n-1 edges from v. That's worse.
+
+What if v adds 2 edges but not to the "core"? Like, v is connected to two vertices that are not yet in the "grown clique" but will be later?
+
+Let me think about this. Suppose we have a triangle {a, b, c}. Vertex d is connected to b and c (2 edges, joins the clique). Vertex e is connected to c and d (2 edges, joins the clique after d). Vertex f is connected to d and e (2 edges, joins after e).
+
+But what if we connect f to only d (1 edge) and also to some vertex g that's not yet connected? Then f has degree 2 (d and g), but g has degree 1 (only f), so g is stuck. That doesn't help.
+
+What if we have a "delayed" structure? Like, two chains that eventually merge?
+
+Consider: Triangle {a, b, c}. Chain 1: d connected to b, c. Chain 2: e connected to b, c. Now d and e are both connected to b and c, so they have 2 common neighbors and can become friends. After d-e, the clique is {a, b, c, d, e}.
+
+But this is still 2 edges per new vertex.
+
+What if we have a vertex connected to 2 vertices that are not yet friends but will become friends?
+
+Example: Triangle {a, b, c}. Vertex d connected to a and b. Vertex e connected to a and b. Now d and e have common neighbors a, b. So d-e can be added. Clique grows to {a,b,c,d,e}. Still 2 edges per new vertex.
+
+What about: Triangle {a, b, c}. d connected to a, b. e connected to b, d. (e is connected to b and d, where d is not yet in the clique but will be.)
+
+d is connected to a, b. Common neighbors of d and c: a (friend of d and c), b (friend of d and c). So d-c can be added. Now d is in the clique {a,b,c,d}.
+
+e is connected to b, d. Common neighbors of e and a: b (friend of e and a), d (friend of e and a, since d is now in the clique). So e-a can be added. Then e is in the clique.
+
+So e only needed 2 edges (to b and d), and d only needed 2 edges (to a and b). Still 2 per vertex.
+
+I keep getting 2n - 3. Let me think about whether we can ever do better.
+
+Key question: Can a vertex ever join the growing clique with fewer than 2 edges to the existing clique?
+
+A vertex v joins the clique when it becomes friends with all clique members. For v to gain its first edge to the clique, v needs 2 common neighbors with some clique member. v's neighbors are some set S. The clique member c's neighbors include all other clique members. Common neighbors = S ∩ (clique \ {c} ∪ outside friends of c). 
+
+If v has 2 neighbors that are both in the clique, then v has 2 common neighbors with any clique member, and can join. This requires 2 edges from v to the clique.
+
+If v has 1 neighbor in the clique and 1 neighbor outside the clique, then for v to gain an edge to a clique member c, the common neighbors are: (v's neighbors) ∩ (c's neighbors). v's neighbors: one clique member w, one outside vertex x. c's neighbors: all clique members except c, plus any outside friends. So common neighbors: w (if w ≠ c, which it is since v is not friends with c yet) and possibly x (if x is friends with c). 
+
+If x is friends with c, then we have 2 common neighbors (w and x), and v-c can be added. But for x to be friends with c, x must be in the clique or have joined it. If x is in the clique, then v has 2 neighbors in the clique (w and x), contradicting our assumption. If x joined the clique, then x is in the clique, same contradiction.
+
+So if v has only 1 neighbor in the clique, it can't gain edges to the clique (unless its outside neighbor is also in the clique, which means 2 neighbors in the clique).
+
+Wait, I think I need to be more careful. The clique grows over time. Let me re-examine.
+
+At some point, the clique is C. v is not in C. v has some neighbors. For v to join C, v must first gain an edge to some c in C. For this, v and c need 2 common neighbors. 
+
+v's neighbors: some set N(v). c's neighbors: C \ {c} plus any non-clique friends of c. Common neighbors: N(v) ∩ N(c).
+
+If |N(v) ∩ C| ≥ 2, then v has at least 2 common neighbors with any c in C (the 2 neighbors in C are also neighbors of c since C is a clique). So v can join.
+
+If |N(v) ∩ C| = 1, say v's only neighbor in C is w. Then for v to gain edge to c ≠ w in C: common neighbors include w (since w ∈ C, w is neighbor of c). We need one more common neighbor. The other neighbors of v are outside C. For such a neighbor x to be a common neighbor of v and c, x must be a neighbor of c. If x is outside C and is a neighbor of c, then x has a neighbor in C (namely c). But x might not be in C yet.
+
+Hmm, so it's possible that v has 1 neighbor in C and 1 neighbor x outside C, and x is friends with some c in C. Then v and c have common neighbors w and x, so v-c can be added.
+
+But wait, for x to be friends with c (c in C), x must either be in C (contradiction since x is outside C) or have gained the edge to c through the process. If x gained edge to c, then x had 2 common neighbors with c at some point. This is getting recursive.
+
+Let me think about this more carefully with a concrete example.
+
+Consider: a, b, c form a triangle. d is connected to a and b. e is connected to b and d. (So e has 1 neighbor in the clique {a,b,c}, namely b, and 1 neighbor outside, namely d.)
+
+First, d can join the clique: d has neighbors a, b in C. Common neighbors of d and c: a, b. So d-c is added. Clique is now {a,b,c,d}.
+
+Now e has neighbors b, d, both in the clique. So e can join. Common neighbors of e and a: b, d. So e-a is added. Then e can join fully.
+
+So e was connected to b (in clique) and d (not in clique initially, but d joins before e needs to). This works! And e only has 2 edges.
+
+But the total is still 2n-3 because each vertex adds 2 edges.
+
+The question is: can any vertex add just 1 edge?
+
+For a vertex to add just 1 edge, it would have degree 1, and as I argued, a degree-1 vertex can never gain new edges. So every vertex must have degree ≥ 2, giving at least n edges. But we need more than n.
+
+Let me think about what additional constraints exist.
+
+Consider the "last" vertex to join the clique. Call it v. When v joins, the clique is everything except v, i.e., size n-1. For v to join, v needs 2 common neighbors with some clique member. v's neighbors in the clique: at least 2 (by the argument above, v needs 2 neighbors in the current clique, or 1 in the clique and 1 outside, but at this point everyone else is in the clique, so v needs 2 neighbors in the clique).
+
+Actually, when v is the last to join, everyone else is already in the clique. So v's neighbors are all in the clique. v needs at least 2 neighbors. So v has degree ≥ 2.
+
+But this is the same constraint. Let me think about the second-to-last vertex.
+
+Hmm, I think the key insight might be different. Let me think about the structure of the initial graph more carefully.
+
+Let me think about the problem from the perspective of "seeds." The initial graph must have certain "seed" structures that allow propagation.
+
+Let me think about the minimum number of edges differently. 
+
+Consider the initial graph G. Define the "closure" C(G) as the graph obtained by repeatedly adding edges between pairs with ≥2 common neighbors. We want C(G) = K_n.
+
+Observation: If G has a connected component that is a complete graph K_k, and every other vertex has ≥2 neighbors in this K_k, then C(G) = K_n. This gives 2n - 3 edges (with k=2 or k=3).
+
+But maybe there's a non-clique-based approach.
+
+Let me think about whether we can have a graph with fewer than 2n-3 edges whose closure is K_n.
+
+Consider n = 4. We need K_4. 
+- 2n-3 = 5 edges. K_4 has 6 edges. So we need 5 out of 6 edges.
+- With 5 edges (K_4 minus one edge), the two non-adjacent vertices have 2 common neighbors. So the missing edge can be added. 5 works.
+- With 4 edges: Can we do it? K_4 has 6 edges, so we're missing 2. 
+  - If the 4 edges form a cycle C_4: vertices a-b-c-d-a. Non-edges: a-c, b-d. Common neighbors of a and c: b, d. So a-c can be added. Common neighbors of b and d: a, c. So b-d can be added. So C_4 → K_4. That's 4 edges!
+  
+Wait, so for n=4, we can do it with 4 edges, which is less than 2n-3 = 5!
+
+Let me verify: C_4 has edges ab, bc, cd, da. Non-edges: ac, bd. 
+- a and c: common neighbors are b and d. Yes, 2 common neighbors. So ac can be added.
+- b and d: common neighbors are a and c. Yes, 2 common neighbors. So bd can be added.
+After adding both, we have K_4. 
+
+So 4 edges suffice for n=4, which is n edges, not 2n-3.
+
+This changes things! Let me reconsider.
+
+For n=4, the answer is 4 (which is n). Can we always do it with n edges?
+
+For n=5: Can we do it with 5 edges? 2n-3 = 7.
+
+Let me try C_5 (cycle on 5 vertices): edges ab, bc, cd, de, ea. 
+- a and c: common neighbor b. Only 1. Can't add.
+- a and d: common neighbors? Neighbors of a: b, e. Neighbors of d: c, e. Common: e. Only 1. Can't add.
+So C_5 doesn't work. No edges can be added.
+
+What about other 5-edge graphs on 5 vertices?
+
+Let me try: a-b, b-c, c-d, d-a, a-c. (A triangle a,c,d with... wait, let me list: ab, bc, cd, da, ac. So triangle acd (edges ac, cd, da) plus path a-b-c. 
+- b and d: neighbors of b: a, c. Neighbors of d: c, a. Common: a, c. 2 common neighbors! So b-d can be added.
+- After b-d: b and e... wait, there's no e. n=5, so we need vertex e.
+  
+Let me redo with 5 vertices. 5 edges on 5 vertices.
+
+Try: Triangle {a, c, d} (edges ac, cd, da) plus edges ab, bc. And vertex e is isolated? No, e needs degree ≥ 2.
+
+With 5 edges and 5 vertices, average degree is 2. If every vertex has degree 2, it's a union of cycles. C_5 doesn't work. C_3 + C_2? C_2 is just an edge, but that gives degree 1 vertices. Actually C_2 isn't a valid cycle (it's a multi-edge). So the only 2-regular graph on 5 vertices is C_5, which doesn't work.
+
+So with 5 edges, we can't have all vertices degree 2 (only option is C_5 which fails). We need some vertex with degree > 2 and some with degree < 2, but degree < 2 means a vertex is stuck. So we need all degrees ≥ 2, meaning all degrees exactly 2, meaning C_5, which fails.
+
+So for n=5, we need more than 5 edges. Let me try 6 edges.
+
+6 edges on 5 vertices, all degrees ≥ 2. Sum of degrees = 12. 
+
+Try: K_4 minus one edge (5 edges) on vertices a,b,c,d, plus vertex e connected to 2 of them. That's 5 + 2 = 7 edges. Too many.
+
+Try: Two triangles sharing an edge. {a,b,c} and {a,b,d}: edges ab, ac, bc, ad, bd. That's 5 edges on 4 vertices. Add vertex e connected to 2 vertices, say a and b: edges ea, eb. Total: 7 edges. Still 7 = 2n-3.
+
+Try 6 edges: Triangle {a,b,c} (3 edges) + d connected to a,b (2 edges) + e connected to a,b (2 edges) = 7 edges. Too many.
+
+Hmm, let me try 6 edges differently.
+
+Triangle {a,b,c}. d connected to b, c. e connected to c, a. Edges: ab, ac, bc, bd, cd, ce, ae. That's 7 edges. Still 7.
+
+What about: ab, bc, cd, da, ac, bd. This is K_4 minus edges ad... wait, let me list: ab, bc, cd, da, ac, bd. That's K_4 minus edge... K_4 has ab, ac, ad, bc, bd, cd. I have ab, ac, ad, bc, bd, cd. That's all 6 edges of K_4! So this is K_4 on {a,b,c,d} plus isolated vertex e. e has degree 0, stuck. Doesn't work.
+
+Let me try: ab, bc, cd, de, ea, ac. (C_5 plus chord ac.)
+- a and d: neighbors of a: b, e, c. Neighbors of d: c, e. Common: c, e. 2! So ad can be added.
+- After ad: b and d: neighbors of b: a, c. Neighbors of d: c, e, a. Common: a, c. 2! So bd can be added.
+- After bd: b and e: neighbors of b: a, c, d. Neighbors of e: d, a. Common: a, d. 2! So be can be added.
+- Now we have K_5!
+
+So C_5 plus one chord (6 edges) works for n=5! That's 6 = n+1.
+
+Wait, let me double-check. Initial edges: ab, bc, cd, de, ea, ac. 
+- Non-edges: ad, bd, be.
+- a and d: N(a) = {b, e, c}, N(d) = {c, e}. Common: {c, e}. 2 common neighbors. ✓ Add ad.
+- Now edges: ab, bc, cd, de, ea, ac, ad.
+- b and d: N(b) = {a, c}, N(d) = {c, e, a}. Common: {a, c}. 2. ✓ Add bd.
+- Now edges include bd.
+- b and e: N(b) = {a, c, d}, N(e) = {d, a}. Common: {a, d}. 2. ✓ Add be.
+- Now K_5. ✓
+
+So 6 edges for n=5. That's n+1.
+
+For n=4: 4 = n. For n=5: 6 = n+1. Hmm, the pattern isn't simply 2n-3.
+
+Let me check n=6.
+
+Can we do n=6 with 6 edges? All degrees ≥ 2, so all degrees exactly 2, so C_6. In C_6: a-b-c-d-e-f-a. 
+- a and c: common neighbor b. 1. No.
+- a and d: N(a) = {b,f}, N(d) = {c,e}. Common: none. No.
+C_6 doesn't work.
+
+7 edges on 6 vertices? Sum of degrees = 14, average 7/3 ≈ 2.33. All degrees ≥ 2, so degrees could be 2,2,2,2,3,3 or 2,2,2,2,2,4.
+
+This is getting complicated. Let me think about the general pattern.
+
+For n=4: C_4 works (4 edges = n).
+For n=5: C_5 + 1 chord works (6 edges = n+1).
+
+What about general n? Can we start with C_n and add chords?
+
+In C_n (n ≥ 5), no edges can be added (vertices at distance 2 have 1 common neighbor, vertices at distance ≥ 3 have 0). So C_n alone doesn't work for n ≥ 5.
+
+But if we add one chord, creating a triangle, then we might get propagation.
+
+Let me think about C_n with one chord. Say C_n: v1-v2-...-vn-v1, plus chord v1-v3.
+
+Now v1, v2, v3 form a triangle. 
+- v1 and v4: N(v1) = {v2, vn, v3}, N(v4) = {v3, v5}. Common: v3. Only 1. No.
+- v2 and v4: N(v2) = {v1, v3}, N(v4) = {v3, v5}. Common: v3. Only 1. No.
+- v3 and v5: N(v3) = {v2, v4, v1}, N(v5) = {v4, v6}. Common: v4. Only 1. No.
+- v1 and v4: already checked, 1 common neighbor.
+- v2 and v5: N(v2) = {v1, v3}, N(v5) = {v4, v6}. Common: none. No.
+
+Hmm, nothing can be added. The chord v1-v3 creates a triangle but doesn't help propagate.
+
+What if we add chord v1-v4 instead? C_n plus v1-v4.
+- v1 and v3: N(v1) = {v2, vn, v4}, N(v3) = {v2, v4}. Common: v2, v4. 2! So v1-v3 can be added.
+- After v1-v3: triangle v1,v2,v3. Also v1,v3,v4 is a triangle (v1-v4, v3-v4, v1-v3).
+- v2 and v4: N(v2) = {v1, v3}, N(v4) = {v3, v5, v1}. Common: v1, v3. 2! Add v2-v4.
+- v2 and v5: N(v2) = {v1, v3, v4}, N(v5) = {v4, v6}. Common: v4. 1. No.
+- v3 and v5: N(v3) = {v2, v4, v1}, N(v5) = {v4, v6}. Common: v4. 1. No.
+- v1 and v5: N(v1) = {v2, vn, v4, v3}, N(v5) = {v4, v6}. Common: v4. 1. No.
+
+Hmm, propagation is slow. Let me think about this differently.
+
+After adding v1-v3 and v2-v4, the clique {v1, v2, v3, v4} is formed (all 6 edges among them). Now:
+- v5 is connected to v4 (from cycle). N(v5) = {v4, v6}. For v5 to join clique, needs 2 common neighbors with some clique member.
+- v5 and v1: N(v5) = {v4, v6}, N(v1) = {v2, vn, v4, v3}. Common: v4. 1. No.
+- v5 and v3: N(v5) = {v4, v6}, N(v3) = {v2, v4, v1}. Common: v4. 1. No.
+
+So v5 can't join. The clique is stuck at size 4. We need v5 to have 2 connections to the clique, but it only has 1 (v4).
+
+So C_n + 1 chord doesn't suffice for n ≥ 6. We need more.
+
+Let me reconsider. The issue is that in C_n, each vertex has degree 2, and when a clique forms, only the vertices adjacent to 2 clique members can join.
+
+In C_n with chord v1-v4, the clique {v1,v2,v3,v4} forms, but v5 is only adjacent to v4 (1 clique member) and v6 (not in clique). So v5 is stuck.
+
+What if we use a different structure? Let me think about what graph on n vertices with minimum edges has closure K_n.
+
+Let me think about it as follows. We need the graph to be "2-common-neighbor-connected" in some sense.
+
+Alternative approach: Think of the graph as needing to contain a structure that "seeds" the propagation, and then the propagation must be able to reach all vertices.
+
+The double-star (2n-3 edges) works because every vertex is directly connected to 2 centers.
+
+The C_4 (n=4, n edges) works because it's a special structure where every pair of non-adjacent vertices has 2 common neighbors.
+
+For general n, what's the optimal?
+
+Let me think about the problem differently. Let me consider the complement: what's the maximum number of edges that can be missing from K_n such that the closure is still K_n?
+
+Actually, let me think about the problem from the competition perspective. This is a competition problem (likely USAMO or similar), and the answer for n=2022 is probably a clean expression.
+
+Let me reconsider. The problem says 2022 users. Let me think about what the answer might be.
+
+Common answers for such problems: 2n-3, or something like ⌊n²/4⌋, or n, or...
+
+Let me think more carefully about the lower bound.
+
+Lower bound argument: 
+
+Consider the initial graph G. We need C(G) = K_n.
+
+Key observation: Consider any vertex v. Let d(v) be its initial degree. If d(v) ≤ 1, v can never gain new edges (as argued). So d(v) ≥ 2 for all v, giving at least n edges.
+
+But we need more. Let me think about what happens with exactly n edges (all degrees 2, so the graph is a disjoint union of cycles).
+
+A disjoint union of cycles: each cycle of length ≥ 5 has no addable edges (as in C_5). A cycle of length 4 (C_4) has all non-edges addable. A cycle of length 3 (triangle) is already complete.
+
+So with n edges, we'd need the graph to be a disjoint union of C_3's and C_4's. But these components can't interact (no common neighbors between components). So the closure would be a disjoint union of K_3's and K_4's, not K_n (unless n ≤ 4).
+
+So for n ≥ 5, n edges don't suffice (if the graph is 2-regular, it's disconnected components that can't merge).
+
+What about n+1 edges? Some vertex has degree 3, others have degree 2 (or similar). 
+
+Hmm, let me think about this more carefully for general n.
+
+Let me consider a different construction. Take a "book" graph: n-2 triangles sharing a common edge. Vertices: a, b, and v1, ..., v_{n-2}. Edges: ab, and avi, bvi for each i. Total edges: 1 + 2(n-2) = 2n-3.
+
+This is the double-star. Every vi is connected to both a and b. Any two vi, vj have common neighbors a and b. So all vi-vj edges can be added, giving K_n.
+
+Now, can we do better? Let me think about a "path of triangles" or "chain" structure.
+
+Consider: vertices v1, v2, ..., vn. Edges: v1v2, v2v3, v1v3 (triangle on v1,v2,v3), then v3v4, v2v4 (v4 connected to v2,v3), then v4v5, v3v5 (v5 connected to v3,v4), etc.
+
+Wait, I already considered this. Each new vertex adds 2 edges, total 2n-3.
+
+What if we have a "ladder" type structure?
+
+Let me try a different approach. Consider the graph G where we have a path v1-v2-v3-...-vn, plus the edge v1-v3. This has n+1 edges.
+
+As I showed for n=5, this doesn't propagate beyond the initial triangle for n ≥ 6.
+
+What about a path plus two chords? v1-v2-...-vn, plus v1-v3 and v1-v4?
+
+Edges: n (path) + 2 (chords) = n+2.
+
+v1,v2,v3 form a triangle (v1v2, v2v3, v1v3). v1,v3,v4 form a triangle (v1v3, v3v4, v1v4). So {v1,v2,v3,v4} is a clique? Let me check: v2-v4? N(v2) = {v1,v3}, N(v4) = {v3,v5,v1}. Common: v1,v3. 2! So v2-v4 can be added. Now {v1,v2,v3,v4} is a clique.
+
+v5: connected to v4 only (from path). N(v5) = {v4,v6}. For v5 to join clique, needs 2 common neighbors with a clique member. v5 and v1: N(v5)={v4,v6}, N(v1)={v2,vn,v3,v4}. Common: v4. 1. No.
+
+So v5 can't join. Same problem. The clique is stuck at 4.
+
+The issue is that v5 only has 1 neighbor in the clique. To fix this, we need v5 to have 2 neighbors in the clique, or to have a neighbor outside the clique that is also a neighbor of a clique member.
+
+This suggests that we need a structure where propagation can "reach" every vertex, and each vertex needs to be "close enough" to the growing clique.
+
+Let me think about this more carefully. The key insight is:
+
+For the clique to grow from C to C ∪ {v}, v needs to have 2 common neighbors with some member of C. If v has 2 neighbors in C, this is automatic. If v has 1 neighbor in C and 1 neighbor w outside C, then we need w to also be a neighbor of some member of C. But w is outside C, so w is a neighbor of c ∈ C means w has an edge to C. If w has 2 neighbors in C, w can join C first, and then v has 2 neighbors in C (its original neighbor plus w). 
+
+So the propagation can work in a "chain": v is connected to c ∈ C and to w, and w is connected to 2 members of C. Then w joins C, and then v has 2 neighbors in C (c and w) and can join.
+
+But this still requires w to have 2 edges to C, and v to have 2 edges (1 to C, 1 to w). So the total edges for v and w are 2 + 2 = 4 for 2 vertices, averaging 2 per vertex. Same as before.
+
+Can we chain this further? v connected to w, w connected to x, x connected to 2 members of C. Then x joins, w has 2 neighbors in C (x and its original neighbor), w joins, v has 2 neighbors in C, v joins.
+
+Edges: x has 2 to C, w has 1 to C and 1 to x, v has 1 to C and 1 to w. Wait, w needs 1 to C? Or w has 1 to x and 1 to... hmm.
+
+Let me be more careful. Let C be the current clique.
+
+x: connected to c1, c2 ∈ C. (2 edges)
+w: connected to c3 ∈ C and x. (2 edges)  
+v: connected to c4 ∈ C and w. (2 edges)
+
+x joins C (2 neighbors in C). Now C' = C ∪ {x}.
+w: neighbors in C' are c3 and x. 2 neighbors in C'. w joins. C'' = C' ∪ {w}.
+v: neighbors in C'' are c4 and w. 2 neighbors in C''. v joins.
+
+Total edges for x, w, v: 2 + 2 + 2 = 6 for 3 vertices. Average 2 per vertex. Same.
+
+But wait, what if v is not connected to any member of C directly?
+
+x: connected to c1, c2 ∈ C. (2 edges)
+w: connected to x and y. (2 edges, neither in C)
+v: connected to w and z. (2 edges, neither in C)
+
+x joins C. w's neighbors: x (in C) and y (not in C). w has 1 neighbor in C. For w to join, w needs 2 common neighbors with some C member. w and c1: N(w) = {x, y}, N(c1) = C \ {c1} ∪ .... Common: x. Only 1. Unless y is also a neighbor of c1.
+
+If y is connected to c1, then y has a neighbor in C. But y needs to join C for w to have 2 neighbors in C. y has 1 neighbor in C (c1) and possibly other neighbors. This is getting recursive again.
+
+Let me think about it differently. Can we have a "path" away from the clique where each vertex on the path has degree 2, and the path eventually feeds back?
+
+Consider: C is a clique. Path: c1 - x1 - x2 - x3 - ... - xk - c2, where c1, c2 ∈ C. Each xi has degree 2 (connected to its neighbors on the path). Plus c1 and c2 are in C.
+
+Edges: the path has k+1 edges (c1-x1, x1-x2, ..., xk-c2). But c1-c2 is already in C (clique edge).
+
+Now, x1 has neighbors c1 and x2. x1 and c2 (in C): N(x1) = {c1, x2}, N(c2) = C \ {c2} ∪ {xk}. Common: c1 (if c1 ≠ c2, which it is). And x2? x2 is a neighbor of x1 but is x2 a neighbor of c2? Only if k=1 (x2 = xk = c2... no). So common neighbors of x1 and c2: just c1. 1 common neighbor. Not enough.
+
+What if k=1? Path c1 - x1 - c2. x1 has neighbors c1, c2, both in C. So x1 can join C. This is just the standard case (x1 has 2 neighbors in C).
+
+What if the path is c1 - x1 - x2 - c2 (k=2)? x1 has neighbors c1, x2. x2 has neighbors x1, c2.
+x1 and c2: N(x1) = {c1, x2}, N(c2) includes c1 (clique) and x2 (path). Common: c1, x2. 2! So x1-c2 can be added.
+After x1-c2: x1 has neighbors c1, x2, c2. x1 is now connected to 2 clique members (c1, c2). x1 joins C.
+Then x2 has neighbors x1, c2, both in C. x2 joins C.
+
+So the path c1-x1-x2-c2 works! Edges: c1-x1, x1-x2, x2-c2. That's 3 edges for 2 new vertices (x1, x2). Average 1.5 per vertex!
+
+Wait, but c1-c2 is already a clique edge, so we don't count it. The new edges are c1-x1, x1-x2, x2-c2 = 3 edges for 2 vertices.
+
+Compare to the standard approach: 2 edges per vertex, so 4 edges for 2 vertices. We saved 1 edge!
+
+Can we extend this? Path c1 - x1 - x2 - x3 - c2 (k=3)?
+
+x1: N(x1) = {c1, x2}. x2: N(x2) = {x1, x3}. x3: N(x3) = {x2, c2}.
+
+x1 and c2: N(x1) = {c1, x2}, N(c2) = C \ {c2} ∪ {x3}. Common: c1. And x2? x2 is neighbor of x1, but is x2 neighbor of c2? No. So 1 common neighbor. Not enough.
+
+x3 and c1: N(x3) = {x2, c2}, N(c1) = C \ {c1} ∪ {x1}. Common: c2. And x2? x2 is neighbor of x3, but is x2 neighbor of c1? No. So 1 common neighbor. Not enough.
+
+x1 and x3: N(x1) = {c1, x2}, N(x3) = {x2, c2}. Common: x2. 1. Not enough.
+
+So nothing can be added. The path of length 3 (k=3) doesn't work.
+
+What about k=2 with a longer path? We showed k=2 works. Can we chain k=2 paths?
+
+C = clique. Path 1: c1 - x1 - x2 - c2 (k=2). This adds x1, x2 to C.
+Path 2: c3 - y1 - y2 - c4 (k=2). This adds y1, y2 to C.
+
+Each path of k=2 adds 2 vertices with 3 edges. So for m paths, we add 2m vertices with 3m edges. Plus the initial clique.
+
+But wait, the paths share endpoints with the clique. The clique needs to have at least 2 vertices (c1, c2 for each path). If the clique has size k, we can have multiple paths between different pairs of clique vertices.
+
+Actually, the paths don't need to be between different pairs. They can all be between the same pair c1, c2. But then the paths are internally vertex-disjoint (different x1, x2 for each path).
+
+Let me think about the total edge count.
+
+Start with a clique of size k (k(k-1)/2 edges). Add m paths of length 2 (k=2 in the path sense, meaning 3 edges, 2 new vertices each) between pairs of clique vertices. Total new vertices: 2m. Total new edges: 3m. We need k + 2m = n, so m = (n-k)/2.
+
+Total edges: k(k-1)/2 + 3(n-k)/2.
+
+For this to be an integer, n-k must be even.
+
+f(k) = k(k-1)/2 + 3(n-k)/2 = (k² - k + 3n - 3k)/2 = (k² - 4k + 3n)/2.
+
+f'(k) = (2k - 4)/2 = k - 2. Minimum at k = 2.
+
+f(2) = (4 - 8 + 3n)/2 = (3n - 4)/2.
+
+For n = 2022: f(2) = (6066 - 4)/2 = 6062/2 = 3031.
+
+But wait, we need n - k to be even. n = 2022, k = 2, n - k = 2020, which is even. m = 1010.
+
+Total edges: 1 + 3·1010 = 1 + 3030 = 3031.
+
+That's much better than 2n-3 = 4041!
+
+But wait, I need to verify that this actually works. Let me re-examine.
+
+Start with clique {a, b} (just an edge, k=2). Add 1010 paths of length 2 between a and b. Each path is a - xi - yi - b, with edges a-xi, xi-yi, yi-b.
+
+So the graph has: edge ab, and for each i from 1 to 1010: edges a-xi, xi-yi, yi-b.
+
+Total edges: 1 + 3·1010 = 3031.
+Total vertices: 2 + 2·1010 = 2022. ✓
+
+Now, does the closure give K_2022?
+
+Consider path i: a - xi - yi - b.
+xi and b: N(xi) = {a, yi}, N(b) = {a, y1, y2, ..., y1010} (b is connected to a and all yi's). Common: a. And yi? yi is a neighbor of xi, and yi is a neighbor of b. So common neighbors: a, yi. 2! So xi-b can be added.
+
+After xi-b: xi has neighbors a, yi, b. xi is connected to a and b, both in the "clique" (well, {a,b} is the initial clique). So xi can join: xi and any other vertex connected to both a and b has 2 common neighbors.
+
+Actually, let me think about this more carefully. After xi-b is added, xi is connected to a and b. Now xi and xj (j ≠ i): N(xi) = {a, yi, b}, N(xj) = {a, yj, b}. Common: a, b. 2! So xi-xj can be added.
+
+Also, xi and yj (j ≠ i): N(xi) = {a, yi, b}, N(yj) = {xj, b}. Common: b. And a? a is neighbor of xi, but is a neighbor of yj? No, yj is connected to xj and b, not a. So common: b. Only 1. Not enough yet.
+
+Hmm, so after adding xi-b for all i, we have all xi connected to a and b. Then all xi-xj edges can be added. Now {a, b, x1, ..., x1010} is a clique of size 1012.
+
+Now consider yi. yi is connected to xi and b. xi is in the clique. b is in the clique. So yi has 2 neighbors in the clique. yi can join!
+
+yi and any clique member c: N(yi) = {xi, b}, and since xi, b ∈ clique, they're both neighbors of c. So 2 common neighbors. yi-c can be added.
+
+So all yi join, and we get K_2022. ✓
+
+But wait, I need to check the order more carefully. Let me re-examine.
+
+Step 1: For each i, xi and b have common neighbors a and yi. So xi-b can be added. (We can add all xi-b edges.)
+
+Step 2: Now xi is connected to a, yi, b. Any two xi, xj have common neighbors a and b. So xi-xj can be added for all i, j. Now {a, b, x1, ..., x1010} is a clique.
+
+Step 3: yi is connected to xi (in clique) and b (in clique). So yi has 2 neighbors in the clique. yi can become friends with any clique member. Add all yi-c edges for c in clique. Now yi is in the clique.
+
+Step 4: All vertices are in the clique. Done.
+
+Great, so 3031 edges suffice!
+
+But can we do even better? Let me think about paths of length 3 (k=3 in the path, meaning 4 edges, 3 new vertices). We showed that a single path of length 3 doesn't work. But what if we have multiple paths that interact?
+
+Actually, let me reconsider. With the path a-x1-x2-x3-b (length 3, 4 edges, 3 new vertices), we showed nothing can be added. But what if there are multiple such paths?
+
+Consider two paths: a-x1-x2-x3-b and a-y1-y2-y3-b.
+
+x1 and y1: N(x1) = {a, x2}, N(y1) = {a, y2}. Common: a. 1. No.
+x1 and b: N(x1) = {a, x2}, N(b) = {a, y3, x3}. Common: a. 1. No (x2 is not neighbor of b, and x3 is not neighbor of x1).
+
+Hmm, still doesn't work. The paths don't help each other.
+
+What if the paths share internal vertices? Like a path a-x1-x2-b and a path a-x2-x3-b (sharing x2)?
+
+Path 1: a-x1-x2-b (edges a-x1, x1-x2, x2-b).
+Path 2: a-x2-x3-b (edges a-x2, x2-x3, x3-b).
+
+But a-x2 is already an edge from path 2, and x2-b from path 1. So the edges are: a-x1, x1-x2, x2-b, a-x2, x2-x3, x3-b. That's 6 edges for 3 new vertices (x1, x2, x3). Average 2 per vertex. Worse than 1.5.
+
+What about using paths of length 2 but more cleverly?
+
+Actually, let me think about whether we can use paths of length 2 between non-clique vertices.
+
+After some vertices join the clique, can we use paths between newly joined vertices and old clique vertices?
+
+The issue is that the initial graph is fixed. We can't add edges during the process (except through the 2-common-neighbor rule). So the initial graph must be set up correctly.
+
+Let me think about a different structure. What if we have a "tree of cliques" or something?
+
+Actually, let me think about the problem more carefully. The path of length 2 between two clique vertices gives 2 new vertices for 3 edges (1.5 per vertex). Can we do better?
+
+What about a path of length 2 between a clique vertex and a non-clique vertex that will join?
+
+Hmm, but the initial graph is fixed. Let me think about it as: we have some initial structure, and the closure process fills in edges.
+
+Let me think about the lower bound. Can we prove that 3(n-2)/2 is a lower bound (for even n-2)?
+
+Actually, let me think about whether we can do even better than 1.5 per vertex.
+
+What about a "grid" or "mesh" structure?
+
+Consider a 2×m grid: vertices a1,...,am and b1,...,bm. Edges: ai-ai+1, bi-bi+1, ai-bi.
+
+This has 3(m-1) + m = 4m - 3 edges and 2m vertices. Edges per vertex: (4m-3)/(2m) ≈ 2.
+
+That's worse. Let me think differently.
+
+What about a "triangular chain"? Vertices v1, v2, ..., vn. Edges: v1v2, v2v3, v1v3 (triangle), v3v4, v2v4 (v4 joins), v4v5, v3v5 (v5 joins), etc. Each new vertex adds 2 edges. Total: 3 + 2(n-3) = 2n-3. Same as before.
+
+What about the path-of-length-2 construction but with longer effective chains?
+
+Let me reconsider. In the path a-xi-yi-b:
+- xi gets connected to b (via common neighbors a, yi).
+- Then xi is in the clique.
+- yi is connected to xi and b, both in clique, so yi joins.
+
+What if instead of a-xi-yi-b, we use a-xi-yi-zi-b (length 3)? We showed this doesn't work because no edge can be initially added.
+
+But what if we add one more edge to make it work? Like a-xi-yi-zi-b plus yi-a (or some other chord)?
+
+a-xi, xi-yi, yi-zi, zi-b, yi-a. 5 edges, 3 new vertices. Average 5/3 ≈ 1.67 per vertex. Worse than 1.5.
+
+What about a-xi-yi-zi-b plus zi-a? 5 edges, 3 new vertices. Same.
+
+What about a different structure? Let me think about "theta graphs" — two vertices connected by multiple internally disjoint paths.
+
+a and b connected by 3 paths of length 2: a-x1-b, a-x2-b, a-x3-b. But these are paths of length 2 (2 edges each), giving 3 new vertices with 6 edges. Average 2 per vertex. Worse.
+
+Wait, I think the path of length 3 (a-xi-yi-b, which is 3 edges) is actually a path of length 3 (4 vertices, 3 edges) between a and b. Let me re-examine.
+
+Path a - xi - yi - b: this has 3 edges (a-xi, xi-yi, yi-b) and 2 new vertices (xi, yi). This is what I analyzed before, and it works! 3 edges for 2 vertices = 1.5 per vertex.
+
+So the construction is: start with edge ab, add (n-2)/2 paths of length 3 (i.e., 3 edges, 2 internal vertices) between a and b. Total: 1 + 3(n-2)/2 edges.
+
+For n = 2022: 1 + 3·1010 = 3031.
+
+Now, can we do better? What about paths of length 4 (a - x - y - z - b, 4 edges, 3 new vertices)? We showed this doesn't work. But what if we add a chord?
+
+a - x - y - z - b with chord a - y (or x - b, etc.):
+
+Edges: a-x, x-y, y-z, z-b, a-y. 5 edges, 3 new vertices. Average 5/3 ≈ 1.67. Worse than 1.5.
+
+What about a - x - y - z - b with chord x - z?
+
+Edges: a-x, x-y, y-z, z-b, x-z. 5 edges, 3 new vertices.
+
+x and b: N(x) = {a, y, z}, N(b) = {a, z} (wait, is a-b an edge? Yes, it's the initial clique edge). N(b) = {a, z}. Common: a, z. 2! So x-b can be added.
+
+After x-b: x is connected to a, b. x joins clique.
+y and b: N(y) = {x, z}, N(b) = {a, z, x}. Common: x, z. 2! y-b can be added.
+After y-b: y connected to x, b, both in clique. y joins.
+z is connected to y, b, both in clique. z joins.
+
+So this works! 5 edges for 3 new vertices = 5/3 ≈ 1.67 per vertex. Still worse than 1.5.
+
+What about a - x - y - z - w - b (length 5, 5 edges, 4 new vertices) with some chord?
+
+If we add chord x - z (making a path with a shortcut):
+Edges: a-x, x-y, y-z, z-w, w-b, x-z. 6 edges, 4 new vertices. Average 1.5. Same as before!
+
+Let me check if this works.
+
+x and b: N(x) = {a, y, z}, N(b) = {a, w}. Common: a. Only 1 (z is not neighbor of b, w is not neighbor of x). Hmm.
+
+x and w: N(x) = {a, y, z}, N(w) = {z, b}. Common: z. 1. No.
+
+y and w: N(y) = {x, z}, N(w) = {z, b}. Common: z. 1. No.
+
+y and b: N(y) = {x, z}, N(b) = {a, w}. Common: none. No.
+
+z and b: N(z) = {y, w, x}, N(b) = {a, w}. Common: w. 1. No.
+
+Nothing can be added! The chord x-z creates a triangle x-y-z but doesn't help propagate to w and b.
+
+What if we use chord y - w instead?
+Edges: a-x, x-y, y-z, z-w, w-b, y-w. 6 edges, 4 new vertices.
+
+x and b: N(x) = {a, y}, N(b) = {a, w}. Common: a. 1. No.
+x and w: N(x) = {a, y}, N(w) = {z, b, y}. Common: y. 1. No.
+x and z: N(x) = {a, y}, N(z) = {y, w}. Common: y. 1. No.
+z and b: N(z) = {y, w}, N(b) = {a, w}. Common: w. 1. No.
+y and b: N(y) = {x, z, w}, N(b) = {a, w}. Common: w. 1. No.
+
+Nothing. Hmm.
+
+What about two chords? a-x, x-y, y-z, z-w, w-b, x-z, y-w. 7 edges, 4 new vertices. Average 1.75. Worse.
+
+Let me try a different approach. Instead of paths between a and b, what about a more complex structure?
+
+Consider a "binary tree" type structure. Or a graph where vertices are arranged in levels.
+
+Actually, let me think about the problem from the lower bound side. Can we prove that 3(n-2)/2 is optimal?
+
+Hmm, let me think about what constraints the initial graph must satisfy.
+
+Constraint 1: Every vertex has degree ≥ 2 (as argued).
+Constraint 2: The graph must be "connected enough" for propagation.
+
+With degree ≥ 2 for all vertices, we have at least n edges. But we showed n edges (2-regular graph) doesn't work for n ≥ 5.
+
+What additional constraint is there?
+
+Let me think about it in terms of the "2-core" or some other structural property.
+
+Actually, let me think about the problem differently. Let me consider the "reverse" process: start with K_n and remove edges, ensuring that the remaining graph's closure is still K_n.
+
+When can we remove an edge {u,v} from K_n and still have the closure be K_n? We need u and v to have ≥2 common neighbors in the remaining graph. In K_n minus {u,v}, u and v have n-2 common neighbors. So we can remove {u,v} as long as n ≥ 4.
+
+But after removing multiple edges, the common neighbors decrease. This is the complement of the problem.
+
+Let me think about the maximum number of edges we can remove from K_n such that the closure is still K_n.
+
+K_n has n(n-1)/2 edges. If we can remove r edges, the answer is n(n-1)/2 - r.
+
+But this is a different (harder) way to think about it. Let me go back to the direct approach.
+
+Let me think about whether 3(n-2)/2 is optimal or if we can do better.
+
+Consider the following construction for odd n-2 (so n is odd). Start with edge ab. Add (n-3)/2 paths of length 3 (2 new vertices each) and 1 path of length 2 (1 new vertex, 2 edges: a-x-b).
+
+Total edges: 1 + 3(n-3)/2 + 2 = 3 + 3(n-3)/2 = 3(n-3)/2 + 3 = 3(n-1)/2.
+
+For n = 2022 (even): n-2 = 2020 (even), so we use (n-2)/2 = 1010 paths of length 3. Total: 1 + 3·1010 = 3031.
+
+For odd n, say n = 2023: n-2 = 2021 (odd). Use 1010 paths of length 3 (2020 vertices) and 1 path of length 2 (1 vertex). Total: 1 + 3·1010 + 2 = 3033 = 3(2023-1)/2 = 3·1011 = 3033. ✓
+
+Now, can we do better than 3(n-2)/2 (for even n)?
+
+Let me think about whether there's a construction with fewer edges.
+
+What if we use a "tree-like" structure? Consider a graph that's like a tree but with each edge doubled (replaced by a path of length 2).
+
+Actually, let me think about a different construction. What if we have a cycle C_n with some chords?
+
+For C_4 (n=4): 4 edges, works. 4 = 3(4-2)/2 = 3. Wait, 3(4-2)/2 = 3, but C_4 has 4 edges. And we showed C_4 works with 4 edges. But 3 edges on 4 vertices: that's a tree or a path. A path P_4 has vertices of degree 1, which can't propagate. A star has degree-1 vertices. So 3 edges don't work for n=4. The minimum for n=4 is 4.
+
+Hmm, so 3(n-2)/2 gives 3 for n=4, but the actual minimum is 4. So the formula 3(n-2)/2 isn't right for n=4.
+
+Wait, for n=4 with the path construction: edge ab, plus (4-2)/2 = 1 path of length 3: a-x-b. But a path of length 3 has 3 edges and 2 internal vertices. a-x-b is a path of length 2 (2 edges, 1 internal vertex). 
+
+I think I'm confusing path length. Let me clarify.
+
+A path a - x - y - b has 3 edges and 2 internal vertices. This is a path of "length 3" (3 edges) or "4 vertices."
+
+A path a - x - b has 2 edges and 1 internal vertex. This is a path of "length 2" (2 edges) or "3 vertices."
+
+In my construction, I'm using paths a - xi - yi - b (3 edges, 2 internal vertices). For n=4: edge ab + 1 path a-x-y-b = 1 + 3 = 4 edges, 4 vertices. ✓ This matches C_4 (which is the same graph: a-x-y-b-a is a 4-cycle).
+
+So for n=4, the construction gives 4 = 1 + 3·1 = 4. And 3(n-2)/2 = 3·1 = 3, but the actual answer is 1 + 3·(n-2)/2 = 1 + 3 = 4. So the formula is 1 + 3(n-2)/2 for even n.
+
+For n=4: 1 + 3 = 4. ✓
+For n=6: 1 + 3·2 = 7. Let me verify with a direct construction.
+
+n=6: edge ab, paths a-x1-y1-b and a-x2-y2-b. Edges: ab, a-x1, x1-y1, y1-b, a-x2, x2-y2, y2-b. 7 edges.
+
+x1 and b: N(x1) = {a, y1}, N(b) = {a, y1, y2}. Common: a, y1. 2! Add x1-b.
+Similarly x2-b can be added.
+x1 and x2: N(x1) = {a, y1, b}, N(x2) = {a, y2, b}. Common: a, b. 2! Add x1-x2.
+Now {a, b, x1, x2} is a clique.
+y1: N(y1) = {x1, b}, both in clique. y1 joins.
+y2: N(y2) = {x2, b}, both in clique. y2 joins.
+K_6. ✓
+
+Can we do n=6 with 6 edges? All degrees ≥ 2, sum = 12, all degrees = 2, so C_6 or disjoint cycles. C_6 doesn't work (shown earlier). Disjoint cycles can't merge. So 6 doesn't work. 7 is optimal for n=6.
+
+Wait, but what about non-2-regular graphs with 6 edges on 6 vertices? Sum of degrees = 12. If not all degrees 2, some degree 1 (impossible) or degree 0 (impossible). So all degrees must be 2. So 6 edges forces 2-regular, which is cycles. So 7 is indeed optimal for n=6.
+
+For n=5: 1 + 3(n-2)/2 = 1 + 3·3/2 = 1 + 4.5 = 5.5. Not an integer! So for odd n, we need a different formula.
+
+For n=5: edge ab, 1 path of length 3 (a-x-y-b, 3 edges, 2 vertices) and 1 path of length 2 (a-z-b, 2 edges, 1 vertex). Total: 1 + 3 + 2 = 6 edges. 5 vertices. ✓
+
+This matches what I found earlier (C_5 + 1 chord = 6 edges).
+
+Can we do n=5 with 5 edges? All degrees ≥ 2, sum = 10, all degrees 2, so C_5. C_5 doesn't work. So 6 is optimal for n=5.
+
+So the pattern is:
+- n=4: 4 edges
+- n=5: 6 edges
+- n=6: 7 edges
+- n=7: 1 + 3·2 + 2 = 9 edges? Let me check. n=7: edge ab, 2 paths of length 3 (4 vertices, 6 edges) and 1 path of length 2 (1 vertex, 2 edges). Total: 1 + 6 + 2 = 9 edges, 7 vertices. ✓
+
+Formula for even n: 1 + 3(n-2)/2
+Formula for odd n: 1 + 3(n-3)/2 + 2 = 3 + 3(n-3)/2 = 3(n-1)/2
+
+For even n: 1 + 3(n-2)/2 = (2 + 3n - 6)/2 = (3n - 4)/2
+For odd n: 3(n-1)/2 = (3n - 3)/2
+
+Let me unify: for even n, (3n-4)/2; for odd n, (3n-3)/2.
+
+For n=4 (even): (12-4)/2 = 4. ✓
+For n=5 (odd): (15-3)/2 = 6. ✓
+For n=6 (even): (18-4)/2 = 7. ✓
+For n=7 (odd): (21-3)/2 = 9. ✓
+
+For n=2022 (even): (6066-4)/2 = 6062/2 = 3031.
+
+Now, is this optimal? Let me try to prove a lower bound.
+
+Lower bound proof:
+
+Every vertex must have degree ≥ 2, so at least n edges. But we need more.
+
+Key insight: Consider the initial graph G. Let's think about what structures are necessary.
+
+Claim: The graph must contain a cycle (or more specifically, a structure that allows propagation).
+
+Actually, let me think about the lower bound more carefully.
+
+Consider the graph G on n vertices with m edges, whose 2-common-neighbor closure is K_n.
+
+Observation: Every vertex has degree ≥ 2 (proven). So m ≥ n.
+
+But m = n implies 2-regular, which is a disjoint union of cycles. For n ≥ 5, a cycle of length ≥ 5 has no addable edges. A disjoint union of cycles can't merge (no common neighbors between components). So for n ≥ 5, m = n doesn't work (unless n ≤ 4 and the graph is C_3 or C_4).
+
+So m ≥ n + 1 for n ≥ 5. But we need a tighter bound.
+
+Let me think about the structure more carefully.
+
+Consider the graph G. Let's define a "propagation sequence": an ordering v1, v2, ..., vn of the vertices such that there's a sequence of edge additions leading to K_n.
+
+Actually, let me think about it in terms of the "last edge" to be added. The last edge added connects two vertices u, v that have 2 common neighbors. At the point just before this last edge is added, all other edges of K_n are present. So u and v have n-2 common neighbors. This is fine.
+
+Let me think about the "first edge" to be added. This is an edge {u,v} not in G such that u and v have ≥2 common neighbors in G. 
+
+Hmm, this approach is complex. Let me think about a different lower bound strategy.
+
+Lower bound via counting:
+
+Consider the initial graph G with m edges. We need to add n(n-1)/2 - m edges to reach K_n. Each edge addition requires the two endpoints to have ≥2 common neighbors at the time of addition.
+
+But this doesn't directly give a lower bound on m.
+
+Let me think about the problem from the perspective of "essential" edges.
+
+Alternative lower bound approach:
+
+Consider the graph G. For the closure to be K_n, the graph must be connected (in fact, the closure being K_n implies the graph is connected, since K_n is connected and adding edges preserves connectivity... well, the closure adds edges, so if G is disconnected, the closure might still be disconnected if no edges can be added between components).
+
+Actually, if G is disconnected, no edges can be added between components (vertices in different components have 0 common neighbors). So G must be connected. This gives m ≥ n - 1. But we already have m ≥ n from the degree ≥ 2 constraint.
+
+Let me think about a stronger lower bound.
+
+Consider the graph G. Define the "2-core" or think about which edges are "useful" for propagation.
+
+Actually, let me think about the problem in terms of the following: 
+
+For the closure to be K_n, we need the graph to have a specific structure. Let me think about what the "minimal" such graph looks like.
+
+From the constructions above, the optimal graph seems to be:
+- Two "hub" vertices a, b connected by an edge.
+- The remaining n-2 vertices are arranged in paths of length 3 (a-x-y-b) between a and b, using 3 edges per 2 vertices, plus possibly one path of length 2 (a-z-b) using 2 edges per 1 vertex.
+
+This gives (3n-4)/2 edges for even n and (3n-3)/2 for odd n.
+
+Let me try to prove this is optimal.
+
+Lower bound proof attempt:
+
+Consider the initial graph G with m edges, whose closure is K_n. 
+
+Step 1: Every vertex has degree ≥ 2, so m ≥ n.
+
+Step 2: Consider the subgraph H of G induced by edges that are "essential" — edges that cannot be removed while maintaining the closure property. 
+
+Hmm, this is hard to characterize. Let me try a different approach.
+
+Step 2: Consider the graph G. Since the closure is K_n, there exists a sequence of edge additions e1, e2, ..., e_t (where t = n(n-1)/2 - m) such that each ei connects two vertices with ≥2 common neighbors at the time of addition.
+
+Consider the first edge e1 = {u,v} to be added. u and v have ≥2 common neighbors in G. Let these common neighbors be c1, c2 (at least). So u-c1, u-c2, v-c1, v-c2 are all edges in G. This means {u, v, c1, c2} form a "diamond" (K_4 minus edge uv) or a subgraph containing it.
+
+This is a local constraint. Let me think about a global constraint.
+
+Alternative approach: Think about the number of "paths of length 2" in G.
+
+For an edge {u,v} to be addable, u and v need ≥2 common neighbors, i.e., ≥2 paths of length 2 between u and v. 
+
+The total number of paths of length 2 in G is Σ_v C(d(v), 2) = Σ_v d(v)(d(v)-1)/2.
+
+For the closure to be K_n, every non-edge must eventually become an edge, which requires (at some point) 2 common neighbors. The initial graph must have enough paths of length 2 to "seed" the process.
+
+But this is hard to make precise. Let me try a different approach.
+
+Let me think about the problem in terms of the following lemma:
+
+Lemma: If G has m edges and its closure is K_n, then m ≥ (3n-4)/2 (for even n) or m ≥ (3n-3)/2 (for odd n).
+
+Proof attempt by induction on n.
+
+Base cases: n=4, m≥4=(3·4-4)/2. ✓ (shown above)
+n=5, m≥6=(3·5-3)/2. ✓ (shown above)
+
+Inductive step: Assume the result for all graphs on fewer than n vertices. Consider G on n vertices with closure K_n.
+
+Consider the last vertex v to "join" the clique (in some propagation sequence). Just before v joins, all other n-1 vertices form a clique (in the closure process). v has some edges in G to these n-1 vertices. For v to join, v must have ≥2 common neighbors with some vertex in the clique, which means v has ≥2 neighbors in the clique (since at that point, the n-1 vertices are all mutual friends, any 2 neighbors of v in the clique are common neighbors of v and any other clique member).
+
+Wait, actually, v might have 1 neighbor in the clique and 1 neighbor outside, but at this point, all other vertices are in the clique. So v's neighbors are all in the clique. v needs ≥2 neighbors in the clique. So d_G(v) ≥ 2 (where d_G is the degree in the initial graph, and all of v's neighbors are among the other n-1 vertices).
+
+Now, consider the graph G' = G - v (remove v and its edges). The closure of G' must be K_{n-1} (since the closure of G is K_n, and removing v doesn't affect the closure among the remaining vertices... actually, this needs justification).
+
+Hmm, does the closure of G' equal K_{n-1}? Not necessarily, because v's edges might be used as common neighbors in the propagation among the other vertices.
+
+For example, two vertices u, w might have v as a common neighbor, and without v, they might not have 2 common neighbors. So removing v could prevent some edges from being added.
+
+This makes the induction tricky. Let me think differently.
+
+Let me try a direct counting argument.
+
+Consider the graph G on n vertices with m edges, closure K_n. 
+
+For each vertex v, let d(v) be its degree in G. We know d(v) ≥ 2.
+
+Consider the number of "cherries" (paths of length 2) in G: S = Σ_v C(d(v), 2).
+
+Each cherry centered at v connects two neighbors of v. If those two neighbors are not adjacent, this cherry contributes to their common neighbor count.
+
+For the closure to be K_n, we need the process to be able to add all missing edges. The initial graph must have enough cherries to start the process.
+
+But I'm not sure how to turn this into a tight lower bound.
+
+Let me try yet another approach. Let me think about the structure of the optimal graph.
+
+In the optimal construction, we have:
+- 2 hub vertices a, b with degree n-1 (connected to all other vertices) — wait, no. In the path construction, a is connected to b and to all xi's (the first vertex of each path). b is connected to a and to all yi's (the last vertex of each path). So d(a) = 1 + (n-2)/2 = n/2 and d(b) = 1 + (n-2)/2 = n/2. The xi's have degree 2 (connected to a and yi). The yi's have degree 2 (connected to xi and b).
+
+So the degree sequence is: two vertices of degree n/2, and n-2 vertices of degree 2.
+
+Sum of degrees: 2·(n/2) + (n-2)·2 = n + 2n - 4 = 3n - 4. So m = (3n-4)/2. ✓
+
+Now, for the lower bound, I need to show that any graph with closure K_n must have at least (3n-4)/2 edges (for even n).
+
+Let me think about this more carefully.
+
+Approach: Consider the graph G with m edges and closure K_n. We want to show m ≥ (3n-4)/2 (for even n) or m ≥ (3n-3)/2 (for odd n).
+
+Key idea: Think about the "2-closure" process. At each step, we add an edge between two vertices with ≥2 common neighbors. 
+
+Consider the graph G. Let's think about which vertices can "participate" in the first edge addition.
+
+For an edge {u,v} to be addable, u and v need ≥2 common neighbors. Let's say the common neighbors are w1, w2. Then u-w1, u-w2, v-w1, v-w2 are all in G. So {u, v, w1, w2} induces a subgraph with at least 4 edges (u-w1, u-w2, v-w1, v-w2) and possibly more (w1-w2, u-v if it's already there).
+
+This means the graph must have some "dense" local structure to start the propagation.
+
+Let me try a different lower bound approach based on the following observation:
+
+Observation: In the optimal graph, the sum of degrees is 3n-4 (for even n). The degree sequence is (n/2, n/2, 2, 2, ..., 2). By convexity, Σ C(d(v), 2) is minimized when degrees are as equal as possible. But we need a certain number of cherries.
+
+Actually, let me think about the lower bound differently.
+
+Lower bound via "potential":
+
+Define the potential of a graph G as the number of pairs with ≥2 common neighbors. For the closure to be K_n, we need the potential to eventually cover all pairs. 
+
+The initial potential must be ≥1 (at least one edge can be added). After adding that edge, the potential increases, and so on.
+
+This is hard to quantify. Let me try a more direct approach.
+
+Lower bound via edge counting:
+
+Claim: For even n, m ≥ (3n-4)/2.
+
+Proof: Consider the graph G with m edges and closure K_n. 
+
+Since every vertex has degree ≥ 2, let's write d(v) = 2 + e(v) where e(v) ≥ 0. Then m = n + Σ e(v) / 2.
+
+We need to show Σ e(v) / 2 ≥ (n-4)/2, i.e., Σ e(v) ≥ n - 4.
+
+Hmm, this is just restating the bound. Let me think about what forces Σ e(v) to be large.
+
+Consider the graph G. If all vertices have degree exactly 2, the graph is 2-regular (disjoint union of cycles). As argued, this doesn't work for n ≥ 5. So at least one vertex has degree ≥ 3.
+
+But how many vertices need degree ≥ 3, and by how much?
+
+In a 2-regular graph (disjoint union of cycles), no edges can be added if all cycles have length ≥ 5. Cycles of length 3 or 4 allow some edges to be added within the component, but components can't merge.
+
+So we need to "break" the 2-regularity to allow propagation. 
+
+Let me think about it as follows. Start with a 2-regular graph (n edges). We need to add edges to make the closure K_n. Each additional edge increases the degree of two vertices.
+
+In the optimal construction, we add (n-4)/2 additional edges (going from n to (3n-4)/2). These additional edges connect the two hub vertices to the path vertices, creating a structure that allows propagation.
+
+But I need to prove that (n-4)/2 additional edges are necessary.
+
+Let me think about this more carefully.
+
+Consider a graph G with m edges and closure K_n. Let's think about the "excess" edges beyond a 2-regular graph.
+
+Actually, let me try a completely different approach to the lower bound.
+
+Lower bound via "components that can merge":
+
+In the initial graph G, consider the connected components. For the closure to be K_n, all components must eventually merge. Two components can merge only if some vertex in one component and some vertex in another have ≥2 common neighbors. But vertices in different components have 0 common neighbors (since they share no neighbors). So components can never merge!
+
+Wait, that's a key insight. If G is disconnected, the closure is also disconnected (each component's closure is separate). So G must be connected.
+
+G must be connected: m ≥ n-1. But we also need all degrees ≥ 2: m ≥ n. And for n ≥ 5, m = n doesn't work (2-regular = cycles, and a single cycle of length ≥ 5 has no addable edges).
+
+So for n ≥ 5, m ≥ n + 1? Let me check: can we have a connected graph with n+1 edges, all degrees ≥ 2, and closure K_n?
+
+For n=5, m=6: we showed C_5 + 1 chord works. 6 = 5 + 1 = n + 1. ✓
+For n=6, m=7: we showed the path construction works. 7 = 6 + 1 = n + 1. ✓
+For n=7, m=9: 9 = 7 + 2 = n + 2. Can we do n+1 = 8?
+
+Let me check n=7, m=8. Sum of degrees = 16. All degrees ≥ 2. If all degrees 2, sum = 14 < 16. So some vertices have degree > 2. Degree sequence could be 2,2,2,2,2,3,3 (sum = 16) or 2,2,2,2,2,2,4 (sum = 16).
+
+Let me try degree sequence 2,2,2,2,2,3,3. This is a connected graph with 7 vertices, 8 edges, two vertices of degree 3.
+
+Hmm, this is getting complicated. Let me think about the general lower bound more carefully.
+
+Let me reconsider. For even n, the construction gives (3n-4)/2 edges. For n=2022, that's 3031.
+
+Let me try to prove the lower bound (3n-4)/2 for even n.
+
+Approach: Consider the graph G with m edges and closure K_n. We want m ≥ (3n-4)/2.
+
+Key lemma: In G, there exist two vertices a, b such that every other vertex is on a path of length ≤ 3 between a and b (in G), and a-b is an edge.
+
+Hmm, this is too strong and probably not true in general.
+
+Let me try a different approach. Let me think about the problem in terms of "ear decomposition" or something similar.
+
+Actually, let me think about the problem from the perspective of the following:
+
+For the closure to be K_n, the graph G must have the property that its "2-common-neighbor closure" is complete. Let me think about what this implies about the structure of G.
+
+Theorem (conjecture): The minimum number of edges in a graph on n vertices whose 2-common-neighbor closure is K_n is:
+- (3n-4)/2 for even n
+- (3n-3)/2 for odd n
+
+Let me try to prove the lower bound.
+
+Proof of lower bound:
+
+Consider G with m edges and closure K_n. We prove m ≥ ⌈(3n-4)/2⌉ by induction on n.
+
+Wait, (3n-4)/2 for even n and (3n-3)/2 for odd n. Let me write this as ⌈(3n-4)/2⌉. For even n: (3n-4)/2. For odd n: (3n-4)/2 = (3n-4)/2 which is not an integer; ⌈(3n-4)/2⌉ = (3n-3)/2. ✓
+
+So the claim is m ≥ ⌈(3n-4)/2⌉.
+
+Base cases: n=4, m ≥ 4 = ⌈8/2⌉ = 4. ✓ (shown: C_4 is optimal)
+n=5, m ≥ 6 = ⌈11/2⌉ = 6. ✓ (shown: C_5 + chord is optimal)
+
+Inductive step: Assume the result for n-1 (or n-2). Consider G on n vertices with closure K_n.
+
+Case 1: There exists a vertex v with d_G(v) = 2.
+
+Let v's neighbors be u, w. Consider G' = G - v. 
+
+Claim: The closure of G' is K_{n-1}.
+
+Proof of claim: In the closure process of G, at some point v becomes friends with all other vertices. The first edge involving v that is added is {v, x} for some x ∉ {u, w}. At this point, v and x have ≥2 common neighbors. v's neighbors at this point are u, w (and possibly others added earlier, but {v,x} is the first edge added involving v, so v's neighbors are still u, w). So the common neighbors of v and x are among {u, w} ∩ N(x). For this to be ≥2, both u and w must be neighbors of x. So u-x and w-x are edges in G (since they were present before any edges involving v were added).
+
+Wait, this means x is a common neighbor of u and w (x is friends with both u and w). But x might not be friends with u or w in G; x might have become friends with u or w during the closure process.
+
+Hmm, let me reconsider. At the point when {v,x} is added, v's neighbors are u, w (no edges involving v have been added yet). For v and x to have 2 common neighbors, both u and w must be neighbors of x at that point. u and w might have gained edges during the closure process, so u-x or w-x might have been added earlier.
+
+So we can't conclude that u-x and w-x are in G. They might be in the closure of G' (added before {v,x}).
+
+But this means: in the closure of G', at the point just before {v,x} is added in G's closure, x is friends with both u and w. So in the closure of G', u and w have x as a common neighbor (and possibly others).
+
+This doesn't directly tell us that the closure of G' is K_{n-1}. Let me think more carefully.
+
+Actually, let me think about it differently. The closure of G is K_n. Consider the closure process restricted to edges not involving v. This is a valid closure process on G' (since adding edges not involving v only depends on common neighbors, which may include v, but v's presence only helps). 
+
+Actually, the closure of G' might not be K_{n-1} because v might serve as a common neighbor for some pairs in G'. Without v, those pairs might not have enough common neighbors.
+
+Example: In the path construction a-x-y-b, if we remove y, then x has only neighbor a, and b has neighbors a and the other path endpoints. The closure of G' might not be K_{n-1}.
+
+So the inductive approach with removing a degree-2 vertex doesn't directly work.
+
+Let me try a different approach.
+
+Approach: Direct counting.
+
+Consider G with m edges and closure K_n. Every vertex has degree ≥ 2.
+
+Define the "excess" of vertex v as e(v) = d(v) - 2 ≥ 0. Then m = n + E/2 where E = Σ e(v) = Σ d(v) - 2n = 2m - 2n, so E = 2(m - n).
+
+We want to show m ≥ ⌈(3n-4)/2⌉, i.e., 2(m-n) ≥ n - 4 (for even n) or 2(m-n) ≥ n - 3 (for odd n).
+
+So we need E ≥ n - 4 (even n) or E ≥ n - 3 (odd n).
+
+In the optimal construction, E = 2(m - n) = 2((3n-4)/2 - n) = 2(n-4)/2 = n - 4 (even n). ✓
+
+So we need to show E ≥ n - 4 (for even n).
+
+E = Σ (d(v) - 2) = Σ d(v) - 2n = 2m - 2n.
+
+E ≥ n - 4 iff 2m - 2n ≥ n - 4 iff 2m ≥ 3n - 4 iff m ≥ (3n-4)/2. ✓
+
+So the question is: why must E ≥ n - 4?
+
+Let me think about what forces E to be large.
+
+Consider the graph G. If E = 0 (all degrees 2), the graph is 2-regular (disjoint union of cycles). For n ≥ 5, this doesn't work.
+
+If E = 1 (one vertex has degree 3, rest degree 2), the graph is a disjoint union of cycles with one "theta" structure or one vertex of degree 3 connecting two cycles. 
+
+Actually, with E = 1, the graph has one vertex of degree 3 and n-1 vertices of degree 2. This is either:
+- A figure-eight (two cycles sharing a vertex)
+- A cycle with a chord (creating a vertex of degree 3)
+
+Let me think about whether E = 1 can work for large n.
+
+A cycle C_n with one chord: say C_n with chord v1-vk. This creates two cycles sharing the chord. The vertex v1 has degree 3, vk has degree 3 (if k ≥ 3), and all others have degree 2. So E = 2 (two vertices of degree 3). 
+
+Wait, if we add a chord v1-vk to C_n, both v1 and vk gain a degree. So d(v1) = 3, d(vk) = 3, E = 2.
+
+For E = 1, we'd need exactly one vertex with degree 3 and all others degree 2. Sum of degrees = 2n + 1, which is odd. But sum of degrees must be even. So E = 1 is impossible! E must be even.
+
+So E ∈ {0, 2, 4, 6, ...}. For even n, we need E ≥ n - 4. For n = 2022, E ≥ 2018.
+
+Since E is even and n - 4 = 2018 is even, this is consistent.
+
+Now, why must E ≥ n - 4?
+
+Let me think about the structure of the graph when E is small.
+
+E = 0: 2-regular, disjoint union of cycles. Doesn't work for n ≥ 5.
+
+E = 2: Two vertices of degree 3, rest degree 2. The graph is either:
+(a) A cycle with one chord (both endpoints of the chord have degree 3).
+(b) Two cycles sharing a vertex (the shared vertex has degree 4, not 3). Wait, that gives degree 4, so E = 2 means one vertex of degree 4. Hmm.
+
+Actually, E = 2 means Σ(d(v) - 2) = 2. This could be:
+- One vertex of degree 4 (excess 2), rest degree 2.
+- Two vertices of degree 3 (excess 1 each), rest degree 2.
+
+Case: Two vertices of degree 3. This is a "theta graph" (two vertices connected by 3 internally disjoint paths) or a cycle with a chord.
+
+Case: One vertex of degree 4. This is two cycles sharing a vertex (figure-eight) or other configurations.
+
+For a cycle C_n with one chord: Let's say C_n: v1-v2-...-vn-v1, with chord v1-vk (3 ≤ k ≤ n-1). 
+
+The chord creates two cycles: v1-v2-...-vk-v1 (length k) and v1-vk-v(k+1)-...-vn-v1 (length n-k+2).
+
+For propagation: Consider vertices on the first cycle. v1 and v3: common neighbor v2. 1. Not enough (unless k = 3, making it a triangle).
+
+If k = 3: v1, v2, v3 form a triangle. Then v2 and v4: N(v2) = {v1, v3}, N(v4) = {v3, v5}. Common: v3. 1. Not enough.
+
+So the triangle doesn't help propagate beyond its immediate neighbors. Same issue as before.
+
+If k = 4: v1, v2, v3, v4 form a cycle of length 4 (within the larger cycle). v1 and v3: N(v1) = {v2, vn, v4}, N(v3) = {v2, v4}. Common: v2, v4. 2! So v1-v3 can be added. Now {v1, v2, v3, v4} is a clique (v2-v4: N(v2) = {v1, v3}, N(v4) = {v3, v5, v1}. Common: v1, v3. 2! Add v2-v4.)
+
+Now clique is {v1, v2, v3, v4}. v5: N(v5) = {v4, v6}. v5 and v1: N(v5) = {v4, v6}, N(v1) = {v2, vn, v4, v3}. Common: v4. 1. Not enough.
+
+So the clique is stuck at 4. v5 can't join. Same problem.
+
+For the clique to grow beyond 4, we need v5 to have 2 neighbors in the clique. v5 is connected to v4 (in clique) and v6 (not in clique). So v5 has only 1 neighbor in the clique. Stuck.
+
+Unless v6 can also join the clique, giving v5 a second neighbor in the clique. But v6 has the same problem (connected to v5 and v7, only v5 is a potential clique member, but v5 isn't in the clique yet).
+
+So with E = 2 (one chord on a cycle), the clique can grow to at most 4 (if the chord creates a 4-cycle). For n > 4, this doesn't give K_n.
+
+What about E = 4? Four vertices of degree 3, or two of degree 4, etc.
+
+With E = 4, we could have two chords on a cycle. If the chords are placed well, the clique might grow larger.
+
+But the key issue remains: the clique can only grow to include vertices that have 2 neighbors in the clique. On a cycle, each vertex has 2 neighbors (the adjacent vertices on the cycle). When a clique forms from a segment of the cycle, only the two vertices adjacent to the clique segment have 1 neighbor in the clique (not 2). So they can't join unless they have another neighbor in the clique (from a chord).
+
+Each chord provides one extra neighbor for two vertices. So a chord can help two vertices join the clique. But after they join, the next vertices on the cycle still have only 1 neighbor in the clique.
+
+So each chord helps the clique grow by at most 2 vertices (the two endpoints of the chord that are adjacent to the clique). But after growing, the next vertices need more chords.
+
+This suggests that we need roughly (n-4)/2 chords, each adding 2 to E. So E ≥ n - 4, giving m ≥ (3n-4)/2.
+
+Let me make this more precise.
+
+Consider a graph G on n vertices with m edges and closure K_n. 
+
+Since G is connected and all degrees ≥ 2, G contains a cycle. Let C be a cycle in G. The vertices on C have degree ≥ 2 (from C) plus possibly more from chords and additional edges.
+
+The vertices not on C are connected to C (since G is connected) and have degree ≥ 2.
+
+Hmm, this is getting complicated. Let me try a cleaner approach.
+
+Clean lower bound approach:
+
+Consider G with m edges and closure K_n. We prove m ≥ ⌈(3n-4)/2⌉ by induction on n.
+
+Base cases: n ≤ 4 can be verified directly.
+
+Inductive step: Consider G on n ≥ 5 vertices with closure K_n.
+
+Since the closure is K_n, there exists a sequence of edge additions. Consider the first edge {u,v} added. u and v have ≥2 common neighbors in G, say w1, w2.
+
+Now, consider the graph G. The vertices u, v, w1, w2 form a subgraph with edges u-w1, u-w2, v-w1, v-w2 (at least). 
+
+Case 1: {u,v} is not the only addable edge. Then there are other addable edges too.
+
+Case 2: Consider removing a vertex and applying induction.
+
+This is still messy. Let me try a completely different approach.
+
+Approach via "2-tree" or "tree decomposition":
+
+Actually, let me think about the problem from the perspective of the following:
+
+In the closure process, edges are added one at a time. Consider the reverse process: start with K_n and remove edges one at a time, ensuring that at each step, the removed edge's endpoints still have ≥2 common neighbors in the remaining graph.
+
+We want to remove as many edges as possible. The remaining graph is our initial graph G.
+
+In K_n, every pair has n-2 common neighbors. We can remove an edge {u,v} if u and v have ≥2 common neighbors in the remaining graph.
+
+The question is: what's the maximum number of edges we can remove?
+
+When we remove {u,v}, the common neighbors of u and v decrease by 0 (removing {u,v} doesn't affect common neighbors, since common neighbors are about paths of length 2, not direct edges). Wait, actually, removing {u,v} doesn't change the common neighbors of u and v. The common neighbors of u and v are the vertices adjacent to both u and v, which doesn't include the edge {u,v} itself.
+
+But removing {u,v} does affect the common neighbors of other pairs. Specifically, if w was a common neighbor of u and some x (because v was adjacent to both u and x... no, that's not right).
+
+Actually, removing {u,v} affects the common neighbors of pairs involving u or v. For example, after removing {u,v}, the pair {u, x} where x was a neighbor of v: u and x might lose v as a common neighbor (if v was adjacent to both u and x, but we just removed u-v, so v is no longer adjacent to u). 
+
+Wait, no. Common neighbors of u and x are vertices adjacent to both u and x. If v is adjacent to both u and x, then v is a common neighbor. Removing edge {u,v} makes v no longer adjacent to u, so v is no longer a common neighbor of u and x.
+
+So removing {u,v} reduces the common neighbor count of pairs {u, x} (where x is a neighbor of v) and {v, y} (where y is a neighbor of u) by 1 (they lose u or v as a common neighbor, if applicable).
+
+This makes the reverse process complex. Let me think about it differently.
+
+Let me try to think about the problem from a high level. The answer for n=2022 is ⌈(3·2022-4)/2⌉ = ⌈6062/2⌉ = 3031.
+
+But I need to prove the lower bound. Let me try the following approach:
+
+Lower bound proof:
+
+We prove by induction on n that any graph G on n vertices whose 2-common-neighbor closure is K_n has at least ⌈(3n-4)/2⌉ edges.
+
+Base cases: 
+- n = 1: 0 edges. ⌈(3-4)/2⌉ = ⌈-1/2⌉ = 0. ✓
+- n = 2: 1 edge. ⌈(6-4)/2⌉ = 1. ✓
+- n = 3: 3 edges (K_3). ⌈(9-4)/2⌉ = ⌈5/2⌉ = 3. ✓ (A path of length 2 has vertices of degree 1, which can't propagate. So we need K_3.)
+- n = 4: 4 edges. ⌈(12-4)/2⌉ = 4. ✓ (Shown: C_4 works, and 3 edges don't.)
+
+Inductive step: Assume the result for all graphs on fewer than n vertices (n ≥ 5). Let G be a graph on n vertices with m edges and closure K_n.
+
+Since n ≥ 5 and the closure is K_n, G is not 2-regular (as 2-regular graphs on ≥ 5 vertices have no addable edges in their closure). So there exists a vertex v with d(v) ≥ 3.
+
+Hmm, but I want to remove a vertex and apply induction. The issue is that removing a vertex might reduce the closure.
+
+Let me try removing a degree-2 vertex.
+
+Since G is not 2-regular, there's a vertex with degree ≥ 3. But there might also be vertices with degree 2. If all vertices have degree ≥ 3, then m ≥ 3n/2 > (3n-4)/2 for n ≥ 2, and we're done. So we can assume there exists a vertex with degree 2.
+
+Let v be a vertex with d(v) = 2, and let u, w be its neighbors.
+
+Consider G' = G - v (remove v and its edges). G' has n-1 vertices and m-2 edges.
+
+Claim: The closure of G' is K_{n-1}.
+
+Proof of claim: Consider the closure process of G. At some point, v becomes friends with all other n-1 vertices. Consider the first edge involving v that is added: {v, x} where x ∉ {u, w}. At this point, v's neighbors are u, w (no edges involving v have been added yet). For v and x to have ≥2 common neighbors, both u and w must be neighbors of x at this point.
+
+Now, the edges added before {v, x} in G's closure process don't involve v, so they are also added in G''s closure process (restricted to G'). So at the same point in G''s closure process, x is friends with both u and w.
+
+After {v, x} is added (in G's closure), v has neighbors u, w, x. The next edge involving v, say {v, y}, requires v and y to have ≥2 common neighbors. v's neighbors are u, w, x. So y must be friends with ≥2 of {u, w, x}. Since u, w, x are all in G' and their friendships are determined by G''s closure process (independent of v), y can become friends with them in G''s closure.
+
+

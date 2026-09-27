@@ -1,0 +1,1036 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "automatic-cabbage",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.16",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-13T15:28:54.871707+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-13T15:28:54.872239+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-13T15:28:54.881603+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-13T15:28:54.872553+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p385fea0cb9b1466dbb0e (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.4.0\nToday's date: Thursday, 2026-08-13\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-13T15:28:54.873215+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件，操作流程放 skill，等）\n4. **AGENTS.md 是总目录**——其中的索引节是跨 session AI 认知一致性的保证\n\n**Rule / Skill / 元组的放置层级**：\n\n当需要新建或迁移 rule、skill、元组时，按以下优先级选择放置位置：\n\n1. **首先考虑项目级 `.devin/` 目录**——这是 Devin 的正常使用方法。项目级 rule 放 `.devin/rules/`，项目级 skill 放 `.devin/skills/`。大多数 rule/skill 应该在这里——它们是项目特定的，不需要污染全局配置。\n2. **AGENTS.md 中只放 rule 索引**——项目 AGENTS.md 的维护规则节中，保留 rule 索引表（指向 `.devin/rules/` 中的文件），不保留完整 rule 内容。AGENTS.md 是总目录，rule 文件是详细内容。\n3. **只有确实跨项目通用的 rule/skill/元组，才升级为全局内容**——放在 `~/.config/devin/` 或 `~/.devin/` 中。**升级必须获得用户明确同意**——不要擅自把项目级内容升级为全局内容。\n4. **判断标准**：如果这个 rule/skill 只在当前项目有意义 → 项目级 `.devin/`。如果它在多个项目中都会被触发 → 可以考虑升级为全局，但先问用户。\n\n**元组：rule-skill-tuple-assessment**（rule + skill，全局）\n\n> **触发条件**：用户提出一个要求、认知、或设计思想时，AI 自动评估这个内容是否应该固化为 rule、skill、或元组。\n> **Skill**：`~/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md`\n> **核心意识**：不是每个用户要求都需要设为 rule/skill——只有具有跨 session 复用价值的才设置。但 AI 必须有意识地主动评估，而不是被动等用户说\"把这个设为rule\"。\n>\n> **评估流程**（详见 skill）：\n> 1. 判断是否具有跨 session 复用价值 → 否则直接执行不设置\n> 2. 判断类型：Rule（硬约束）/ Skill（SOP）/ 元组（Rule+Skill）/ 元组群（多Skill）\n> 3. 判断层级：项目级 `.devin/`（默认） vs 全局 `~/.config/devin/`（需用户同意）\n> 4. 执行：创建文件 + AGENTS.md 索引 + commit\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n### 13 · 禁止inline脚本，所有脚本持久化到项目内\n\n**Rule**：`~/.devin/rules/no-inline-scripts.md`\n\n**硬约束**：\n1. **禁止写超过3行的inline脚本**（`python -c \"...\"`、`bash -c \"...\"`）。超过3行的逻辑必须写成文件。\n2. **所有脚本写到项目内的脚本目录中**——不写`/tmp/`、不写home目录。放到项目已有的脚本目录或`scripts/`目录。\n3. **在项目AGENTS.md中做好索引**——新脚本必须记录路径、用途、用法。\n4. **持续维护，不重写**——已有脚本就改进，不另写新的。重复操作累积成越来越完善的脚本。\n\n**判定标准**：\n- 单行命令（`ls`、`git status`）→ 直接执行\n- 2-3行简单查询 → 可以直接执行\n- 超过3行 → **必须写成文件**\n- 会重复使用的操作 → **必须写成文件**\n- 已有脚本可改进 → **改进已有脚本**\n\n---\n\n## Git 管理协议\n\n**改文件前**：检查目标文件/目录是否处于 git clean 状态 → 记录 `before_status_baseline` → 明确本轮 `intended_delta`。\n\n**改文件后**：完成一个逻辑工作单元立即 commit → 记录 `after_status_baseline` → 核验 `after - before == intended_delta` → 目标文件/目录回到 git clean 状态。\n\n**禁止 `git add -A`、`git add .`、`git add -u`**。只 add 具体路径。\n\n任何 `git push` 都必须获得用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组 = Rule + Skill。Rule always-on 负责约束 + 模式匹配；Skill on-demand 负责工作流。AGENTS.md 中绝不放工作流，Skill 中绝不放硬性约束。AGENTS.md 太长是执行力问题——\"每次都必须知道\"→ 留在 AGENTS.md；\"遇到特定场景才需要\"→ 移到 Skill。\n\n> 元组详细方法论（瘦身工程、两种实现方式、新增元组规范）见 `~/.devin/rules/tuple-methodology.md`。Devin CLI 完整配置说明见 `devin-config-harness` skill。\n\n---\n\n## 元组：long-running-work-sop（长程工作SOP化铁律）\n\n**触发条件**：用户启动一个可能跨越压缩边界的持续性工作时；发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要迭代修正时。\n\n**核心约束**：长程工作（可能跨越压缩边界的持续性工作）必须SOP化。三个必须：\n1. **必须SOP化**——提取步骤、定义产出、定义验证，放入项目AGENTS.md\n2. **必须用rules锁定流程行为**——在`.devin/rules/`中创建rule文件，锁定SOP的执行纪律\n3. **必须版本化审计修正历史**——如果长程工作涉及分类学/框架/体系的迭代修正，修正的全历史必须在明面上审计（不在git log中），每次修正做覆盖性检查\n\n**Skill**：`~/.config/devin/skills/long-running-work-sop/SKILL.md`——提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程，以及积累的经验和反模式。\n\n**已有项目级实例**：\n- 数学大师项目的`tell-taxonomy-iteration-audit`元组（`.devin/rules/tell-taxonomy-iteration-audit.md`）——Tell分类学迭代审计的铁律和9步SOP，是本全局元组的项目级实例\n\n**经验和反模式积累**：在skill的\"经验和反模式积累区\"中持续追加。当前积累：5个反模式（当一次性任务做/不锁定/只在git log/不做覆盖性检查/遗留旧措辞）、3个经验（FLT例子测试/FCA理论审查方法/版本化审计让修正更严谨）。\n\n---\n\n### 元组群与 Skill 粒度铁律\n\n**元组群**：当一个复杂任务的工作流太长，无法放入单个 Skill 中时，应拆分为多个元组（多个 Skill），形成元组群协同工作。\n\n**为什么需要拆分**：Skill 加载后形成 Session 临时上下文中的认知和 SOP。但如果把应该拆分成多个 Skill 的内容放入一个 Skill 中，执行过程中可能跨越压缩边界——Session 压缩后，Skill 的后续内容从上下文中丢失，无法有效发挥作用。\n\n**Skill 粒度铁律**：\n\n1. **Skill 必须在 Session 上下文中始终可见**——如果执行过程很长（跨越多轮对话、可能触发压缩），Skill 内容必须足够短，确保压缩后仍可见，或拆分为多个 Skill 分阶段加载。\n\n2. **执行过程长 → 拆分 Skill**——如果一个 Skill 的工作流需要很多步骤、很长时间执行，应该拆分成多个 Skill，每个 Skill 覆盖一个可在一个压缩窗口内完成的阶段。\n\n3. **拆分后的 Skill 之间通过文档传递**——前一个 Skill 的产出落盘到文档（dev-docs / AGENTS.md / 数据文件），后一个 Skill 加载时读文档获取前序成果，不依赖 Session 上下文传递。\n\n4. **判断粒度的经验法则**——如果一个 Skill 的执行可能超过 10 轮对话或 50k tokens，考虑拆分。如果工作流中有明确的阶段分界点（如\"方案设计\"→\"执行\"→\"验证\"），在分界点拆分。\n\n### 元组群的整体性：目录在规则中\n\n**元组群如何确保整体性？** 确保整体性 = 确保工作的连续性。元组群中的多个 Skill 是一个整体工作流的分段，不是各自独立的任务。确保整体性的机制是：**元组群的目录放在规则中，规则指向一组 Skill，而不是单一 Skill。**\n\n**传统元组**：规则指向单一 Skill——\"遇到场景X，加载Skill Y\"。\n\n**元组群**：规则指向一组 Skill——\"遇到场景X，按顺序加载Skill Y1→Y2→Y3，它们是一个整体工作流的三个阶段\"。\n\n**元组群规则的结构**：\n\n```\n## 元组群：<群名称>\n\n**触发条件**：<何时AI应该执行这组工作流>\n\n**整体目标**：<这组Skill共同完成的最终目标>\n\n**Skill目录**（按执行顺序）：\n1. Skill <Y1>：<阶段1名称>——<这个阶段做什么>，产出落盘到<文档>\n2. Skill <Y2>：<阶段2名称>——<这个阶段做什么>，读取<文档>，产出落盘到<文档>\n3. Skill <Y3>：<阶段3名称>——<这个阶段做什么>，读取<文档>，产出最终结果\n\n**阶段间传递**：<通过什么文档/数据文件传递，不依赖Session上下文>\n\n**何时进入下一阶段**：<前一个Skill完成并落盘后，AI检查目录，自然加载下一个Skill>\n```\n\n**为什么目录在规则中而不是在某个Skill中**：\n\n1. **规则是always-on的**——不受压缩影响。即使Session压缩了，规则仍然在上下文中可见，AI始终能看到元组群的全貌——有几个阶段、当前在哪个阶段、下一步该加载哪个Skill。\n\n2. **如果目录在Skill中**——Skill加载后形成临时上下文，压缩后目录丢失，AI不知道还有后续阶段，元组群的整体性断裂。\n\n3. **规则是元组群的\"目录页\"**——每个Skill是\"章节内容\"。章节内容可能被压缩掉，但目录页始终可见，AI随时可以翻到正确的章节。\n\n**元组群规则的放置位置**：\n\n- **全局元组群**（跨项目通用）→ `~/.config/devin/AGENTS.md` 或 `~/.devin/rules/`\n- **项目级元组群**（特定项目的工作流）→ 项目 `AGENTS.md` 或 `.devin/rules/`\n\n**与单一元组的关系**：元组群是单一元组的扩展。单一元组 = 1个规则 + 1个Skill。元组群 = 1个规则（含目录） + N个Skill。规则从\"指向单一Skill\"升级为\"指向一组Skill的有序目录\"。\n\n---\n\n## 元组：trajectory-workline-review（从trajectory回溯session工作脉络）\n\n**触发条件**：需要了解某个 session（自己的或别人的）做了什么工作；同一 repo 下有多个 session 并行工作需要区分各自工作范围；新 session 启动时需要了解前序 session 进展；审查某个 session 的工作过程。\n\n**Skill**：`~/.config/devin/skills/trajectory-workline-review/SKILL.md`\n\n**核心约束**：\n1. **禁止用 git log 区分 session**——同一 repo 下多个 session 的 commit 交织在 git log 中，无法区分。必须用 sessions.db 的 session_id 区分。\n2. **运行中的 session 用 sessions.db，不用 transcripts**——transcript 文件只在 session 结束后写入，运行中的 session 没有 transcript 文件。sessions.db 的 message_nodes 表是实时写入的，是运行中 session 的唯一数据源。\n3. **grep tool_calls 中的 file_path 是最快方法**——不用完整解析嵌套 JSON，直接 grep `\"file_path\":\"...\"` 字符串，sqlite3 输出管道给 grep 一行命令搞定。区分操作类型时用正则 `re.finditer(r'\"name\":\"write\".*?\"file_path\"...')` 比解析 JSON 的 tool_calls 结构更稳健（结构可能不规则）。\n4. **文件操作时间线 = 工作脉络骨架**——提取每个文件首次操作时间并按时间排序，就是工作脉络的时间线。按目录归类操作频次 = 工作重心分布。\n5. **区分 write/edit/read 三种操作**——write（创建）= 核心产出，edit（修改）= 迭代深化，read（读取）= 前置依赖。只看 write 会漏掉 session 的前置依赖（读取了别人创建的文档 = 吸收前置讨论基础）。多 session 协作时，交叉分析 read 和 write 揭示跨 session 依赖关系。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p385fea0cb9b1466dbb0e/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nA convex quadrilateral $ABCD$ will be called [i]rude[/i] if there exists a convex quadrilateral $PQRS$ whose points are all in the interior or on the sides of quadrilateral $ABCD$ such that the sum of diagonals of $PQRS$ is larger than the sum of diagonals of $ABCD$. \n\nLet $r>0$ be a real number. Let us assume that a convex quadrilateral $ABCD$ is not rude, but every quadrilateral $A'BCD$ such that $A'\\neq A$ and $A'A\\leq r$ is rude. Find all possible values of the largest angle of $ABCD$.\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-13T15:28:54.883097+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-13T15:28:54.884033+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **update-work-journal**: Record and maintain a user-facing, auditable work journal for the current project in `./dev-docs/工作日志.md`. Use when the user asks to update the visible work log, record progress, summarize current status, add a new workstream or branch line, or keep a human-readable engineering journal with exact timestamps. (source: /Users/user/.agents/skills/update-work-journal/SKILL.md)\n- **long-running-work-sop**: 长程工作SOP化与迭代审计铁律。当用户启动一个可能跨越压缩边界的持续性工作时， AI必须将其SOP化（放入项目AGENTS.md）、用rules锁定流程行为、版本化审计修正历史。 本skill提供识别长程工作、SOP化、rules锁定、版本化审计的标准流程， 以及积累的经验和反模式。 WHEN to use: 用户启动一个可能跨越压缩边界的持续性工作时； 发现已有长程工作没有SOP化时；长程工作的分类学/框架/体系需要修正时。 WHEN NOT to use: 一次性任务（如\"运行这个脚本\"、\"修这个bug\"）； 明确不会跨越压缩边界的短任务。\n (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **headless-codex**: Launch a highly controlled headless Codex CLI instance with explicit model, reasoning effort, sandbox, approval policy, writable dirs, JSON output, and a custom project-doc file such as AGENTS.md/RULES.md. Use when you need another AI or script to call Codex non-interactively. (source: /Users/user/.agents/skills/headless-codex/SKILL.md)\n- **rule-skill-tuple-assessment**: 评估用户的提问或要求是否应该设置为 rule、skill（SOP）、或元组（rule+skill）， 以及应该放入 Devin 全局配置还是项目本地 .devin/ 目录。 WHEN to use: 用户提出一个要求或认知，AI判断这个要求是否具有跨session复用价值时。 WHEN NOT to use: 一次性的具体任务执行（如\"运行这个脚本\"、\"修这个bug\"）。\n (source: /Users/user/.config/devin/skills/rule-skill-tuple-assessment/SKILL.md)\n- **mempalace-codex-memory**: Use when Codex should interact with the local-only MemPalace memory layer for the current project: refresh project files or recent Codex transcripts into the canonical palace, render a low-token wake-up context, search project memory, or print the local MCP server command. Prefer this when you want real reusable local memory without remote services and without relying on repo-root `mempalace init` side effects. (source: /Users/user/.agents/skills/mempalace-codex-memory/SKILL.md)\n- **loop**: Runs an autonomous development loop with research and implementation modes. Use when orchestrating iterative research and implementation cycles with dots-based task tracking and git workflow automation. (source: /Users/user/.agents/skills/loop/SKILL.md)\n- **read-email**: Read mailbox messages from configured Cloud Mail domains. Supports igreatagain.com by default and mail.0x10086.xyz or any subdomain under 0x10086.xyz when the user supplies that full address or the 0x10086 alias; use for verification codes, links, or explicit $read-email requests. (source: /Users/user/.agents/skills/read-email/SKILL.md)\n- **md**: Save the most recent single Q&A turn (the latest user message and the AI reply that immediately followed it) as ONE numbered Markdown file under the project's dev-docs/, transcribed verbatim — no summarizing, no merging, no rephrasing. Use when the user runs /md, says \"保存这次回答\" / \"把这一次记下来\" / \"把刚才那条存档\". (source: /Users/user/.agents/skills/md/SKILL.md)\n- **spark**: Use when the user wants to brainstorm an idea or design a feature/spec. Explores intent and requirements through dialogue, then writes a spec document to docs/spark/ and STOPS. Does not auto-chain to implementation planning or any other skill. (source: /Users/user/.agents/skills/spark/SKILL.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **write-home-readme**: Write cross-project infrastructure or machine-level knowledge into the home readme system: detailed docs under ~/readme/, an entry in ~/README.md, and when needed a row in ~/readme/README.md. Use when the user says to record something in home readme, says this knowledge is cross-project or machine-wide, asks for a home-level index entry, or wants infrastructure/incident knowledge stored outside the current project. (source: /Users/user/.agents/skills/write-home-readme/SKILL.md)\n- **jsonl-reader**: Use when inspecting a Codex rollout JSONL or session id for session recovery, dehydrated dialogue reconstruction, or structured audit. Best for turning a rollout into a readable Markdown transcript and then drilling into exact records with stats/list/get without mutating the source JSONL. (source: /Users/user/.agents/skills/jsonl-reader/SKILL.md)\n- **qmd-mcp-search**: 通过 QMD 语义搜索和知识图谱查询搜索 AI 对话存档。双模式检索，支持结构化实体发现。 WHEN to use: 需要语义搜索 AI 对话、知识图谱实体查询、文档相似度检索时。 WHEN NOT to use: 简单关键词搜索（用 ai-archive-search）、网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **ai-carrier-meta-memory**: Use when discussing meta-level evolution of AI coding tools or AI carriers such as Codex, Claude Code, Hermes, ECC, Superpowers, continuous learning, AI governance repos, repo analysis records, user-intent classification, workflow routing, memory classification, memory routing, or how AI agents should decide what kind of interaction they are in before acting. (source: /Users/user/.agents/skills/ai-carrier-meta-memory/SKILL.md)\n- **handover-prompt**: 为下一个 session 维护项目级 AGENTS.md 的 Handover Section。先 /handover 落盘到 Memory Section，再 /handover-prompt 创建或更新 Handover Section。三个衡量标准：信息完整性、认知一致性、可无缝衔接性。 (source: /Users/user/.agents/skills/handover-prompt/SKILL.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **handover**: 压缩前执行。落盘对账 + 因果一致性 + 三大块记忆提取 + 交接写入，确保压缩后不丢认知。 (source: /Users/user/.agents/skills/handover/SKILL.md)\n- **db-file-traceability**:  (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **md-multi**: Save the recent multi-turn discussion (a connected sequence of Q&A turns on the same topic) as ONE numbered Markdown file under dev-docs/, transcribed verbatim turn by turn — no summarizing, no merging similar Q&As, no rephrasing. Use when the user runs /md-multi or says \"把刚才整段讨论存档\" / \"这几轮一起记下来\" / \"整段保留为开发文档\". (source: /Users/user/.agents/skills/md-multi/SKILL.md)\n- **self-compact**: 在项目采用项目级 AGENTS 单文件 handover 机制时，用于在本轮 handover 工作完成后触发自压缩。读取当前项目目录中的 `.tmux_session_name`，校验 tmux pane target，并让当前 AI 通过同一 tmux pane 对自己发起 `/compact`。 (source: /Users/user/.agents/skills/self-compact/SKILL.md)\n- **qmd-search**: Search the AI conversation archive via QMD semantic/keyword/hybrid search AND Knowledge Graph queries (source: /Users/user/.agents/skills/qmd-search/SKILL.md)\n- **fact**: 记忆提取：概念型 + 事实型 + 笔记型三大块，按顺序执行。每步 Pre-echo 复述规范再动手。 (source: /Users/user/.agents/skills/fact/SKILL.md)\n- **trajectory-workline-review**:  (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **android-reverse-engineering**: Decompile Android APK, XAPK, JAR, and AAR files using jadx or Fernflower/Vineflower. Reverse engineer Android apps, extract HTTP API endpoints (Retrofit, OkHttp, Volley), and trace call flows from UI to network layer. Also covers maintaining the Lima VM-based AOSP/LineageOS source tree environment required for large-scale reverse engineering (repo sync monitoring with syncstate.json, tracking prebuilts without last_checkout, graceful shutdown, disk expansion via lima.yaml, migration of LIMA_HOME to large volumes like AI-PWD while leaving only 50GB host buffer). Use when the user wants to decompile, analyze, or reverse engineer Android packages, find API endpoints, follow call flows, or manage the underlying large source sync infrastructure in Lima. (source: /Users/user/.agents/skills/android-reverse-engineering/SKILL.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **devin-config-harness**: Devin CLI 配置使用完整说明书。涵盖 rules（AGENTS.md + .devin/rules/）、skills、hooks、 config.json、MCP servers 的全局/项目本地位置、格式、参数和选择策略。 WHEN to use: 配置 Devin CLI、添加 rules/skills/hooks/MCP、理解 Devin 扩展架构、 从 Codex/Claude Code 迁移配置、排查配置问题。 WHEN NOT to use: 一般编码任务、非 Devin 配置相关的工作。\n (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **new-email**: Create or reuse a mailbox on a configured Cloud Mail domain. Supports igreatagain.com by default and mail.0x10086.xyz or any subdomain under 0x10086.xyz when the user supplies that full address or the 0x10086 alias. (source: /Users/user/.agents/skills/new-email/SKILL.md)\n- **videos-shink**: Batch-trim old `.mov` videos in one directory down to their last 20 minutes without re-encoding, write the results into a `shrink/` subdirectory, verify each output, and delete originals only after verification. Use for OBS-style cleanup jobs where one protected file, such as the file still being written, must not be touched. If the protected file is not explicitly identified, stop and ask the user before any mutating action. (source: /Users/user/.agents/skills/videos-shink/SKILL.md)\n- **android-reverse-engineering-simoneavogadro**: Decompile Android APK, XAPK, JAR, and AAR files using jadx or Fernflower/Vineflower. Reverse engineer Android apps, extract HTTP API endpoints (Retrofit, OkHttp, Volley), and trace call flows from UI to network layer. Use when the user wants to decompile, analyze, or reverse engineer Android packages, find API endpoints, or follow call flows. (source: /Users/user/.agents/skills/android-reverse-engineering-simoneavogadro/SKILL.md)\n- **ai-archive-search**: 搜索 AI 对话存档（AI-ALL-Markdown），使用 QMD 语义搜索。 WHEN to use: 需要搜索历史 AI 对话、查找之前的讨论内容、检索 AI 对话存档时。 WHEN NOT to use: 搜索当前项目代码（用 grep/glob）、一般网络搜索（用 search-tools）。\n (source: /Users/user/.config/devin/skills/ai-archive-search/SKILL.md)\n- **hooks-operation**: Operate the live global Codex hook framework under `~/.codex` and the related prompt files under `~/`. Use when installing, uninstalling, inspecting, or testing the user-level Codex hooks such as `block-stop`, `post-tool-use`, `pre-tool-use`, `user-prompt-submit`, and `session-start`, especially when working with the explicit Stop installs `block-once` and `block-always`, or when updating the Home-directory prompt text files those hooks read at runtime. (source: /Users/user/.agents/skills/hooks-operation/SKILL.md)\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **video-compress**: Compress local video files with ffmpeg using H.265 workflows that balance quality, compression ratio, and speed, including optional Apple VideoToolbox hardware encoding and rotation. Use when the user asks to compress, shrink, rotate while compressing, or reduce the size of a video from the command line while keeping quality high, especially for `.mp4`, screen recordings, and recordings that should stay easy to share or archive. (source: /Users/user/.agents/skills/video-compress/SKILL.md)\n- **prove-context-structure-analysis-completeness**: 对任意 agent/CLI/harness 系统执行上下文结构分析完备性证明。用 Boundary / Static / Dynamic / Orphan 四表穷举上下文主链，做 remainder=0 检查，并给出 PASS / PARTIAL / FAIL verdict。 (source: /Users/user/.agents/skills/prove-context-structure-analysis-completeness/SKILL.md)\n- **read-home-readme**: Read the machine-level home readme knowledge system to locate cross-project infrastructure knowledge before acting. Use when the user asks to look up something in home readme, wants machine-wide context, asks where a global workflow is documented, or when a task likely depends on knowledge stored in ~/README.md or ~/readme/. (source: /Users/user/.agents/skills/read-home-readme/SKILL.md)\n- **codex-pure-lab**: Use when you need a reusable Codex testing system for isolated labs, headless CLI tests, app-server tests, tmux/TUI tests, start-codex launcher tests, hook tests, self-compact tests, or compaction tests without contaminating the live environment. (source: /Users/user/.agents/skills/codex-pure-lab/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据的完整存储位置、格式、读取方法。 Transcript（ATIF格式）、sessions.db（SQLite）、logs、summaries、--export参数。 WHEN to use: 需要提取/解析/审计Devin CLI的session对话数据时。 WHEN NOT to use: 一般编码任务、非Devin CLI相关的数据工作。 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **add-to-dev-docs**: 在采用 `dev-docs/` 作为正式工作载体的项目中，新建或修订三位编号的 dev-docs 文档，默认版本化保存，并同步 `AGENTS.md` 文件索引与 `ChangeLog.md`。 (source: /Users/user/.agents/skills/add-to-dev-docs/SKILL.md)\n- **auto-run-to-the-end**: 当用户明确要求无人值守、持续运行、不中途汇报、一路做到底时使用。该 skill 要求先形成计划；若存在 看板.md / KANBAN.md / runbook / phase plan，则必须把它作为 source of truth 连续执行并边做边更新；fallback 成功不得冒充主线完成。除非被阻塞、存在高风险操作、或高优先级宿主规则要求，否则中途不做工作汇报，直到阶段工作真正收口。 (source: /Users/user/.agents/skills/auto-run-to-the-end/SKILL.md)\n- **work-with-dev-docs**: 在以 `dev-docs/` 作为正式工作载体的项目中，判断何时必须先落分析/计划/行动方案文档，何时修订已有三位编号文档，以及何时应转交工作日志、TODO、home readme 或 docs/。 (source: /Users/user/.agents/skills/work-with-dev-docs/SKILL.md)\n- **bian-pai**: 成功执行编排的方法论与落地工作流。用于把复杂、多阶段、跨组件、可无人值守的 AI / 软件工程任务收束为可执行编排：明确目标、边界、依赖、输入冻结、可观测性、验证、失败恢复、并发、证据与停止条件，并产出 phase plan、runtime manifest、runbook、scenario matrix 与 verdict 结构。适用于设计自动化流程、tmux 联调、agent/worker 编排、故障注入与无人值守执行方案。 (source: /Users/user/.agents/skills/bian-pai/SKILL.md)\n- **cliproxyapi-config**: Use when Codex needs to configure, audit, explain, or troubleshoot CLIProxyAPI / CPA configuration, including 8888 or 18888 instances, routing.strategy fill-first, session-affinity, session-affinity-ttl, nonstream-keepalive-interval, streaming keepalive, max-retry-credentials, payload.default/override/filter rules, provider credentials, management UI config, auth-dir, hot reload, or when the user asks for the official CLIProxyAPI configuration parameter list. Prioritize official CLIProxyAPI docs and the bundled official-parameter index before inspecting source code. (source: /Users/user/.agents/skills/cliproxyapi-config/SKILL.md)\n- **tmux-easy-setup**: 配置 tmux 达到最易用状态：大缓冲区、鼠标滚动、系统剪贴板集成、vi 复制模式。 WHEN to use: 用 tmux 运行 AI CLI（devin/codex）、长时间任务、多 session 监控， 或用户抱怨 tmux 复制粘贴/缓冲区/鼠标不好用时。 WHEN NOT to use: 不涉及 tmux 的任务。\n (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **jsonl_curd**: Inspect, modify, validate, and resume Codex rollout JSONL files in controlled labs. Use when Codex needs to treat a rollout .jsonl as a structured test object: analyze its schema, perform CRUD-style mutations, verify rollout integrity, or start/resume Codex from an explicit rollout path for low-cost hook and boundary experiments. (source: /Users/user/.agents/skills/jsonl_curd/SKILL.md)\n- **write-docs**: Write or rewrite technical documentation in a beginner-friendly, user-first, top-down teaching style. Use when the user asks for docs, code explanations, architecture writeups, source-analysis notes, API/process docs, or asks to explain concepts without assuming prior source-code knowledge. The goal is: don't make me think, don't make me ask twice. (source: /Users/user/.agents/skills/write-docs/SKILL.md)\n- **ssh-58**: Use when operating the Thunderbolt-connected Mac \"58\" at 100.100.100.58, especially SSH, Remote Management, remote GUI automation, remote Computer Use MCP, Dokobot/Chrome testing, or permission/TCC repair on that machine. (source: /Users/user/.agents/skills/ssh-58/SKILL.md)\n- **release-skills**: Universal release workflow. Auto-detects version files and changelogs. Supports Node.js, Python, Rust, Claude Plugin, GitHub Releases, annotated tags, historical release backfill, and generic projects. Use when user says \"release\", \"发布\", \"new version\", \"bump version\", \"push\", \"推送\", \"release notes\", \"GitHub Release\", or \"回填 Release\". (source: /Users/user/.agents/skills/release-skills/SKILL.md)\n- **add-new-todo**: 将用户刚刚提出的新待办落盘到当前项目 AGENTS.md 的 Memory Section > §TODO，并同步必要的索引与变更记录。 (source: /Users/user/.agents/skills/add-new-todo/SKILL.md)\n- **codex-config-harness**: Configure and manage Codex CLI extensibility (AGENTS.md rules, Skills, MCP servers, config.toml). Use when the user asks about Codex CLI setup, adding MCP servers, writing skills, configuring rules, enabling skills feature flag, or understanding the Codex extension architecture. Also use when migrating configuration from Devin or Claude Code to Codex. Do NOT use for general coding tasks unrelated to Codex configuration. (source: /Users/user/.agents/skills/codex-config-harness/SKILL.md)\n- **setup-devin-rules-skills**: 指向元组 rule 中的 setup-devin-rules-skills 条目；安顿 Devin 的 rule 和 skill（位置、格式、加载机制、操作流程）。 (source: /Users/user/.agents/skills/setup-devin-rules-skills/SKILL.md)\n- **find-skills**: Helps users discover and install agent skills when they ask questions like \"how do I do X\", \"find a skill for X\", \"is there a skill that can...\", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill. (source: /Users/user/.agents/skills/find-skills/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Users/user/.local/share/devin/cli/_versions/3000.4.16/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-13T15:28:58.433336+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me analyze this problem carefully.\n\nWe have a convex quadrilateral $ABCD$ called \"rude\" if there exists a convex quadrilateral $PQRS$ inside (or on the sides of) $ABCD$ such that the sum of diagonals of $PQRS$ exceeds the sum of diagonals of $ABCD$.\n\nWe're given $r > 0$. $ABCD$ is not rude, but every quadrilateral $A'BCD$ with $A' \\neq A$ and $A'A \\leq r$ is rude. Find all possible values of the largest angle of $ABCD$.\n\nLet me think about this. First, let me understand what \"not rude\" means. A quadrilateral is not rude if for every convex quadrilateral $PQRS$ inside it, the sum of diagonals of $PQRS$ is at most the sum of diagonals of $ABCD$.\n\nThe sum of diagonals of $ABCD$ is $|AC| + |BD|$.\n\nLet me think about when a quadrilateral maximizes the sum of diagonals among all inscribed quadrilaterals.\n\nFirst, let me think about what configuration maximizes $|PR| + |QS|$ for a quadrilateral $PQRS$ inside $ABCD$.\n\nActually, let me think about this differently. The maximum of $|PR| + |QS|$ over all convex quadrilaterals $PQRS$ inside $ABCD$... \n\nOne key observation: if we can place $PQRS$ such that $P, R$ are on one diagonal and $Q, S$ on the other, then $|PR| + |QS|$ could potentially be large. But actually, the diagonals of $PQRS$ are $PR$ and $QS$, and we want to maximize their sum.\n\nLet me think about the maximum possible sum of diagonals of an inscribed quadrilateral.\n\nConsider the function $f(P, Q, R, S) = |PR| + |QS|$ where $PQRS$ is a convex quadrilateral inside $ABCD$.\n\nThe maximum of $|PR| + |QS|$ subject to $P, Q, R, S \\in ABCD$ (the closed region) and $PQRS$ convex.\n\nActually, let me think about what the maximum of $|PR| + |QS|$ is. \n\nFor a convex quadrilateral $PQRS$, the diagonals are $PR$ and $QS$. The maximum of $|PR| + |QS|$ over all convex quadrilaterals inside $ABCD$...\n\nLet me think about specific cases. If $ABCD$ is a square of side 1, the diagonals are each $\\sqrt{2}$, so the sum is $2\\sqrt{2}$. Can we do better with an inscribed quadrilateral? If we take $PQRS = ABCD$ itself, we get $2\\sqrt{2}$. Can we do better? Probably not for a square.\n\nWhat about a very \"flat\" quadrilateral? Consider a quadrilateral where $A$ and $C$ are close together and $B, D$ are far apart. Then $|AC|$ is small and $|BD|$ is large. Could we find an inscribed quadrilateral with larger diagonal sum?\n\nLet me think about this more carefully.\n\nActually, let me think about the problem from the perspective of the condition. $ABCD$ is not rude means: for all convex $PQRS \\subseteq ABCD$, $|PR| + |QS| \\leq |AC| + |BD|$.\n\nAnd the condition is that $ABCD$ is a \"boundary\" case - it's not rude, but any perturbation of $A$ (within distance $r$) makes it rude.\n\nThis suggests that $ABCD$ is on the boundary of the \"not rude\" region in the space of quadrilaterals, and specifically the boundary is such that moving $A$ in any direction (within distance $r$) pushes it into the \"rude\" region.\n\nWait, the condition says \"every quadrilateral $A'BCD$ such that $A' \\neq A$ and $A'A \\leq r$ is rude\". This means ANY movement of $A$ within the ball of radius $r$ (except staying at $A$) makes it rude. This is a very strong condition - it means $A$ is an isolated point of \"not rudeness\" with respect to moving $A$.\n\nSo $ABCD$ is a strict local maximum of \"not rudeness\" when we vary $A$.\n\nLet me think about what makes a quadrilateral not rude, and what the critical condition is.\n\nLet me consider the maximum of $|PR| + |QS|$ over convex quadrilaterals $PQRS \\subseteq ABCD$. Call this $M(ABCD)$. Then $ABCD$ is not rude iff $M(ABCD) \\leq |AC| + |BD|$, and rude iff $M(ABCD) > |AC| + |BD|$.\n\nActually, since $PQRS = ABCD$ is always an option (it's inside itself, on the boundary), we have $M(ABCD) \\geq |AC| + |BD|$. So $ABCD$ is not rude iff $M(ABCD) = |AC| + |BD|$, i.e., $ABCD$ itself achieves the maximum.\n\nSo the question becomes: when does $ABCD$ itself maximize the sum of diagonals among all inscribed convex quadrilaterals?\n\nAnd the condition is that this maximum property is \"fragile\" - any perturbation of $A$ destroys it.\n\nLet me think about when $ABCD$ maximizes $|PR| + |QS|$.\n\nClaim: The maximum of $|PR| + |QS|$ over convex quadrilaterals $PQRS \\subseteq ABCD$ is achieved when $PQRS = ABCD$ if and only if... some condition on the angles.\n\nLet me think about this differently. Consider the diagonals $AC$ and $BD$ of $ABCD$. They intersect at some point $O$. \n\nFor an inscribed quadrilateral $PQRS$, the diagonals $PR$ and $QS$ are two segments inside $ABCD$. We want to maximize $|PR| + |QS|$.\n\nThe maximum of a single segment inside a convex body is the diameter. But here we have two segments that are diagonals of a convex quadrilateral, meaning they must cross.\n\nSo we want to maximize $|PR| + |QS|$ where $PR$ and $QS$ are two crossing segments inside $ABCD$, and $P, Q, R, S$ form a convex quadrilateral (which is automatic if the segments cross and the endpoints are in the right order).\n\nActually, for two crossing segments to form a convex quadrilateral, we need the four endpoints to be in convex position, which happens when the segments actually cross (intersect at an interior point of both).\n\nSo the problem reduces to: maximize $|PR| + |QS|$ over all pairs of crossing segments $PR, QS$ inside $ABCD$.\n\nNow, $AC$ and $BD$ are crossing segments inside $ABCD$ (since $ABCD$ is convex). So the maximum is at least $|AC| + |BD|$.\n\nWhen is the maximum exactly $|AC| + |BD|$?\n\nLet me think about this. Consider a convex quadrilateral $ABCD$. The diagonals $AC$ and $BD$ cross at $O$. \n\nCan we find two crossing segments inside $ABCD$ with sum of lengths greater than $|AC| + |BD|$?\n\nLet me think about a specific example. Consider a \"kite\" or a very asymmetric quadrilateral.\n\nActually, let me think about the problem differently. Let's use the fact that for a convex body $K$, the maximum of $|PR| + |QS|$ over crossing segments is related to the \"width\" in some sense.\n\nHmm, let me think about a rectangle. For a rectangle with sides $a$ and $b$ ($a > b$), the diagonals have length $\\sqrt{a^2 + b^2}$ each, so the sum is $2\\sqrt{a^2 + b^2}$. Can we do better? The two diagonals of the rectangle are the longest crossing segments (they're both diameters). Actually, are they? The diameter of a rectangle is its diagonal, $\\sqrt{a^2+b^2}$. Two crossing segments, each at most the diameter... but can both be the diameter? The two diagonals of the rectangle are both diameters and they cross. So the max is $2\\sqrt{a^2+b^2}$, achieved by the rectangle itself. So rectangles are not rude.\n\nWhat about a parallelogram that's not a rectangle? Say a parallelogram with sides $a, b$ and angle $\\theta$ between them. The diagonals have lengths $d_1 = \\sqrt{a^2 + b^2 + 2ab\\cos\\theta}$ and $d_2 = \\sqrt{a^2 + b^2 - 2ab\\cos\\theta}$. The sum is $d_1 + d_2$.\n\nCan we find crossing segments with larger sum? The diameter of the parallelogram is $\\max(d_1, d_2) = d_1$ (assuming $\\theta < 90°$). So one segment can be at most $d_1$. The other crossing segment... if one segment is the long diagonal, the other crossing segment is at most... well, it depends.\n\nActually, let me think about this more carefully. If we use the long diagonal as one segment, the other crossing segment must cross it. The longest segment crossing the long diagonal inside the parallelogram... \n\nLet me set up coordinates. Let the parallelogram have vertices $A = (0,0)$, $B = (a, 0)$, $C = (a + b\\cos\\theta, b\\sin\\theta)$, $D = (b\\cos\\theta, b\\sin\\theta)$.\n\nThe long diagonal is $AC$ from $(0,0)$ to $(a + b\\cos\\theta, b\\sin\\theta)$, with length $d_1$.\n\nA segment crossing $AC$ inside the parallelogram... the longest such segment. Well, $BD$ is one such segment with length $d_2$. Could there be a longer one?\n\nConsider a segment from a point on $AB$ to a point on $CD$. The longest such segment... $AB$ goes from $(0,0)$ to $(a,0)$, $CD$ goes from $(b\\cos\\theta, b\\sin\\theta)$ to $(a+b\\cos\\theta, b\\sin\\theta)$. A segment from $(t, 0)$ on $AB$ to $(s + b\\cos\\theta, b\\sin\\theta)$ on $CD$. Its length is $\\sqrt{(s + b\\cos\\theta - t)^2 + b^2\\sin^2\\theta}$. To maximize, we want to maximize $|s + b\\cos\\theta - t|$ where $0 \\leq t \\leq a$ and $0 \\leq s \\leq a$. The max of $s - t$ is $a - 0 = a$, and the min is $0 - a = -a$. So the max of $|s + b\\cos\\theta - t|$ is $\\max(a + b\\cos\\theta, a - b\\cos\\theta) = a + |b\\cos\\theta|$ (assuming $a > 0$). \n\nWait, but we also need the segment to cross $AC$. Let me be more careful.\n\nActually, the maximum of $|s + b\\cos\\theta - t|$ is $a + b\\cos\\theta$ (if $\\cos\\theta > 0$) achieved at $s = a, t = 0$, giving the segment from $A = (0,0)$ to $C = (a + b\\cos\\theta, b\\sin\\theta)$, which is the diagonal $AC$ itself. But we need a segment that crosses $AC$, not $AC$ itself.\n\nHmm, this is getting complicated. Let me think about it differently.\n\nLet me consider the problem from a higher level. The key question is: for which quadrilaterals $ABCD$ is $|AC| + |BD|$ the maximum of $|PR| + |QS|$ over crossing segments?\n\nI suspect the answer is related to the quadrilateral being \"orthodiagonal\" (diagonals perpendicular) or having some special angle property.\n\nLet me think about a degenerate case. Consider a quadrilateral where $A$ is very close to $B$, so $ABCD$ is almost a triangle $BCD$ with $A$ near $B$. Then $|AC| \\approx |BC|$ and $|BD|$ is a diagonal. The sum $|AC| + |BD| \\approx |BC| + |BD|$. \n\nIn a triangle $BCD$, the maximum of $|PR| + |QS|$ for crossing segments... well, in a triangle, any two crossing segments... the maximum sum would be achieved by two segments that are as long as possible. In a triangle, the longest segment is the longest side. Two crossing segments in a triangle... \n\nActually, in a triangle, can we even have two crossing segments that form a convex quadrilateral? If $PQRS$ is a convex quadrilateral inside a triangle, then $PQRS$ is inside the triangle. The diagonals of $PQRS$ cross. Yes, this is possible.\n\nHmm, let me think about this problem from the answer side. The problem asks for \"all possible values of the largest angle of $ABCD$\". This suggests the answer is a specific angle (or set of angles), likely $120°$ or $90°$ or something like that.\n\nLet me think about what's special about the condition. $ABCD$ is not rude, but any perturbation of $A$ makes it rude. This means $A$ is at a critical point - the \"not rude\" condition is satisfied with equality, and it's a strict local maximum of \"not rudeness\" with respect to moving $A$.\n\nLet me think about what the \"not rude\" condition means more precisely.\n\n$ABCD$ is not rude $\\iff$ for all crossing segments $PR, QS$ in $ABCD$, $|PR| + |QS| \\leq |AC| + |BD|$.\n\nSince $AC, BD$ themselves are crossing segments, this is $\\iff$ the maximum of $|PR| + |QS|$ is achieved at $PR = AC, QS = BD$.\n\nNow, let's think about what happens when we perturb $A$. When we move $A$ to $A'$, both the quadrilateral changes and the diagonal sum $|A'C| + |BD|$ changes.\n\nLet me think about the first-order condition. At the critical point, the \"not rude\" condition holds with equality, and moving $A$ in any direction makes it fail. This means $A$ is a strict local maximum of some function.\n\nLet me define $g(A) = |AC| + |BD| - M(A'BCD)$ where $M(A'BCD)$ is the max of $|PR| + |QS|$ over crossing segments in $A'BCD$. Then $ABCD$ is not rude iff $g(A) \\geq 0$, and the condition says $g(A) = 0$ and $g(A') < 0$ for all $A'$ near $A$ (with $A' \\neq A$). So $A$ is a strict local maximum of $g$ with $g(A) = 0$.\n\nHmm, but $g$ depends on $A$ in a complicated way through $M$.\n\nLet me think about this differently. Let me consider what inscribed quadrilateral could potentially beat $ABCD$.\n\nKey insight: Consider the quadrilateral $ABCD$ with diagonals $AC$ and $BD$ intersecting at $O$. \n\nConsider an inscribed quadrilateral $PQRS$ where $P$ is on side $AB$, $Q$ on side $BC$, $R$ on side $CD$, $S$ on side $DA$. The diagonals are $PR$ and $QS$.\n\nFor $ABCD$ to not be rude, we need $|PR| + |QS| \\leq |AC| + |BD|$ for all such $PQRS$ (and more generally for all convex quadrilaterals inside, but the maximum is achieved on the boundary).\n\nActually, is the maximum achieved when all four points are on the boundary? I think so, by a convexity/compactness argument. The function $|PR| + |QS|$ is continuous on the compact set of convex quadrilaterals inside $ABCD$, so it achieves its maximum. And we can push points outward to increase lengths, so the maximum is on the boundary.\n\nMore specifically, I believe the maximum is achieved when each vertex of $PQRS$ is on a side of $ABCD$ (one on each side, in order).\n\nSo let's parameterize: $P$ on $AB$, $Q$ on $BC$, $R$ on $CD$, $S$ on $DA$.\n\nLet $P = (1-p)A + pB$ for $p \\in [0,1]$, similarly for others.\n\n$PR$ goes from a point on $AB$ to a point on $CD$, and $QS$ goes from a point on $BC$ to a point on $DA$.\n\nNow, $|AC| + |BD|$ corresponds to $p=0, q=0, r=0, s=0$ (i.e., $P=A, Q=B, R=C, S=D$, giving $PQRS = ABCD$, wait no, $P=A, Q=B, R=C, S=D$ gives $PQRS = ABCD$ with diagonals $AC$ and $BD$). Actually wait, $P=A, Q=B, R=C, S=D$ gives $PR = AC$ and $QS = BD$. Yes.\n\nAlternatively, $p=1, q=1, r=1, s=1$ gives $P=B, Q=C, R=D, S=A$, so $PR = BD$ and $QS = CA$, same sum.\n\nNow, the question is when $(p,q,r,s) = (0,0,0,0)$ is a global maximum of $|PR| + |QS|$.\n\nFor it to be a strict local maximum that's destroyed by any perturbation of $A$... \n\nLet me think about the first-order condition. At $(p,q,r,s) = (0,0,0,0)$, i.e., $P=A, Q=B, R=C, S=D$, we need the gradient of $|PR| + |QS|$ with respect to $(p,q,r,s)$ to be zero (or non-positive in all directions, since we're at the boundary of the parameter space).\n\nWait, but $(0,0,0,0)$ is at the corner of the parameter space $[0,1]^4$. So we need the directional derivatives in all feasible directions (increasing $p, q, r, s$) to be non-positive.\n\nLet me compute the directional derivative. \n\n$\\frac{\\partial}{\\partial p}|PR|$ at $p=0$: $P = A + p(B-A)$, so $PR = |A + p(B-A) - C|$. At $p=0$, $PR = |AC|$. The derivative is $\\frac{(A-C) \\cdot (B-A)}{|AC|}$.\n\nSimilarly, $\\frac{\\partial}{\\partial r}|PR|$ at $r=0$: $R = C + r(D-C)$, so $PR = |A - C - r(D-C)|$. At $r=0$, derivative is $\\frac{-(A-C) \\cdot (D-C)}{|AC|} = \\frac{(C-A) \\cdot (D-C)}{|AC|}$.\n\n$\\frac{\\partial}{\\partial q}|QS|$ at $q=0$: $Q = B + q(C-B)$, so $QS = |B + q(C-B) - D|$. At $q=0$, derivative is $\\frac{(B-D) \\cdot (C-B)}{|BD|}$.\n\n$\\frac{\\partial}{\\partial s}|QS|$ at $s=0$: $S = D + s(A-D)$, so $QS = |B - D - s(A-D)|$. At $s=0$, derivative is $\\frac{-(B-D) \\cdot (A-D)}{|BD|} = \\frac{(D-B) \\cdot (A-D)}{|BD|}$.\n\nFor $(0,0,0,0)$ to be a local max, we need all these partial derivatives to be $\\leq 0$:\n\n1. $\\frac{(A-C) \\cdot (B-A)}{|AC|} \\leq 0$, i.e., $(A-C) \\cdot (B-A) \\leq 0$, i.e., $(C-A) \\cdot (B-A) \\geq 0$.\n   This means the angle at $A$ in triangle $ABC$ is acute or right. I.e., $\\angle BAC \\leq 90°$.\n\n2. $\\frac{(C-A) \\cdot (D-C)}{|AC|} \\leq 0$, i.e., $(C-A) \\cdot (D-C) \\leq 0$, i.e., $(A-C) \\cdot (D-C) \\geq 0$.\n   This means the angle at $C$ in triangle $ACD$ is acute or right. I.e., $\\angle ACD \\leq 90°$.\n\n3. $\\frac{(B-D) \\cdot (C-B)}{|BD|} \\leq 0$, i.e., $(B-D) \\cdot (C-B) \\leq 0$, i.e., $(D-B) \\cdot (C-B) \\geq 0$.\n   This means the angle at $B$ in triangle $BCD$ is acute or right. I.e., $\\angle DBC \\leq 90°$.\n\n4. $\\frac{(D-B) \\cdot (A-D)}{|BD|} \\leq 0$, i.e., $(D-B) \\cdot (A-D) \\leq 0$, i.e., $(B-D) \\cdot (A-D) \\geq 0$.\n   This means the angle at $D$ in triangle $ABD$ is acute or right. I.e., $\\angle ADB \\leq 90°$.\n\nSo the first-order conditions for $ABCD$ to be not rude (locally) are:\n- $\\angle BAC \\leq 90°$ (angle between $AB$ and $AC$ at $A$)\n- $\\angle ACD \\leq 90°$ (angle between $CA$ and $CD$ at $C$)\n- $\\angle DBC \\leq 90°$ (angle between $BD$ and $BC$ at $B$)\n- $\\angle ADB \\leq 90°$ (angle between $DA$ and $DB$ at $D$)\n\nThese are the angles that the diagonals make with the sides at the vertices.\n\nNow, the condition in the problem is stronger: $ABCD$ is not rude (so these conditions hold, and moreover the global maximum is at $ABCD$), and any perturbation of $A$ makes it rude.\n\nWhen we perturb $A$, the conditions above change. For the perturbation to always make it rude, we need that at $A$, the \"not rude\" condition is as tight as possible - i.e., $A$ is at a critical point where any movement violates one of the conditions.\n\nWait, but the condition is about being rude, which is a global condition (existence of a better inscribed quadrilateral), not just a local one. Let me reconsider.\n\nActually, I think the first-order conditions are necessary but not sufficient. The global condition is that $|PR| + |QS| \\leq |AC| + |BD|$ for ALL inscribed quadrilaterals, not just nearby ones.\n\nBut the problem's condition is about perturbing $A$. When we perturb $A$ slightly, the global maximum of $|PR| + |QS|$ changes continuously, and so does $|AC| + |BD|$. The \"not rude\" condition is $|AC| + |BD| \\geq M(ABCD)$ where $M$ is the max.\n\nIf $ABCD$ is not rude with equality (i.e., $|AC| + |BD| = M(ABCD)$, which is always the case since $ABCD$ itself achieves this), then perturbing $A$ could make $|A'C| + |BD| < M(A'BCD)$, making it rude, or $|A'C| + |BD| \\geq M(A'BCD)$, keeping it not rude.\n\nHmm wait, $|AC| + |BD| = M(ABCD)$ always since $ABCD$ is an inscribed quadrilateral achieving $|AC| + |BD|$. So \"not rude\" means $M(ABCD) = |AC| + |BD|$, i.e., no inscribed quadrilateral does better.\n\nWhen we perturb $A$ to $A'$, the new quadrilateral $A'BCD$ has diagonal sum $|A'C| + |BD|$, and the max inscribed quadrilateral sum is $M(A'BCD)$. It's rude if $M(A'BCD) > |A'C| + |BD|$.\n\nFor the condition \"any perturbation of $A$ makes it rude\", we need: for all $A'$ near $A$ (with $A' \\neq A$), $M(A'BCD) > |A'C| + |BD|$.\n\nSince $M(A'BCD) \\geq |A'C| + |BD|$ always (the quadrilateral itself is inscribed), this means $M(A'BCD) > |A'C| + |BD|$, i.e., there's a strictly better inscribed quadrilateral.\n\nSo the condition is: $ABCD$ itself is the unique maximizer of $|PR| + |QS|$ (up to the symmetry of going around), and any perturbation of $A$ creates a new maximizer.\n\nHmm, but actually, $ABCD$ and $BCDA$ (cyclic shift) give the same quadrilateral, so the maximizer is $ABCD$ itself. And also, we could have $P=B, Q=C, R=D, S=A$ which gives $PR = BD, QS = CA$, same sum. So the maximizers include the \"trivial\" ones (the quadrilateral itself).\n\nThe condition for \"not rude\" is that the maximum is achieved only at the trivial configurations (the quadrilateral itself, up to cyclic relabeling). And \"rude\" means there's a non-trivial inscribed quadrilateral that does better.\n\nOK so let me think about this more carefully. The condition that any perturbation of $A$ makes it rude means that at $A$, the \"not rude\" condition is barely satisfied - it's a critical point.\n\nLet me think about what happens when we perturb $A$. The key quantities that change are:\n- $|A'C|$ (the diagonal from $A'$ to $C$)\n- The shape of the quadrilateral, which affects $M(A'BCD)$.\n\nAt the critical point, the first-order conditions I derived must hold with equality in some sense, because if they held with strict inequality, small perturbations would keep them satisfied.\n\nWait, but the first-order conditions are about local optimality of the inscribed quadrilateral. Let me reconsider.\n\nThe condition for \"not rude\" is that $(p,q,r,s) = (0,0,0,0)$ (and its cyclic shifts) are global maxima of $|PR| + |QS|$. The first-order conditions I derived are necessary for this.\n\nNow, when we perturb $A$, the first-order conditions change. If at $A$, all four conditions hold with strict inequality, then small perturbations of $A$ would keep them holding, so $A'BCD$ would still be not rude (at least locally). For any perturbation to make it rude, we need the conditions to be as tight as possible.\n\nBut wait, the conditions involve angles at all four vertices, and perturbing $A$ only affects conditions 1 and 4 (the ones at $A$ and... let me recheck).\n\nCondition 1: $\\angle BAC \\leq 90°$ - involves $A$.\nCondition 2: $\\angle ACD \\leq 90°$ - involves $A$ (through the direction $CA$) and $C, D$.\nCondition 3: $\\angle DBC \\leq 90°$ - involves $B, C, D$ only, not $A$.\nCondition 4: $\\angle ADB \\leq 90°$ - involves $A$ (through direction $DA$) and $D, B$.\n\nSo conditions 1, 2, 4 involve $A$, while condition 3 doesn't.\n\nWhen we perturb $A$, conditions 1, 2, 4 change but condition 3 doesn't.\n\nFor any perturbation of $A$ to make the quadrilateral rude, we need that any movement of $A$ violates at least one of the conditions (or creates a non-local better inscribed quadrilateral).\n\nHmm, but the conditions are necessary, not sufficient. Let me think about whether they're also sufficient (at least locally).\n\nActually, I think for the local condition, the first-order conditions being satisfied is necessary and sufficient for local optimality. The global condition requires more.\n\nLet me think about this problem from a different angle (pun intended).\n\nThe four conditions are:\n- $\\angle BAC \\leq 90°$\n- $\\angle ACD \\leq 90°$  \n- $\\angle DBC \\leq 90°$\n- $\\angle ADB \\leq 90°$\n\nThese are the angles that the diagonals make with the sides. Specifically, at each vertex, the diagonal from that vertex makes an angle $\\leq 90°$ with each adjacent side.\n\nWait, let me re-examine. At vertex $A$, the diagonal is $AC$. The sides at $A$ are $AB$ and $AD$. Condition 1 says $\\angle BAC \\leq 90°$ (angle between $AB$ and $AC$). What about the angle between $AD$ and $AC$? That's $\\angle DAC$. Is there a condition on that?\n\nLooking at condition 4: $\\angle ADB \\leq 90°$ is the angle at $D$ between $DA$ and $DB$. And condition 2: $\\angle ACD \\leq 90°$ is the angle at $C$ between $CA$ and $CD$.\n\nSo the four conditions are about the angles that the diagonals make with the sides, but specifically:\n- At $A$: angle between $AB$ and $AC$ (not $AD$ and $AC$)\n- At $C$: angle between $CA$ and $CD$ (not $CA$ and $CB$)\n- At $B$: angle between $BD$ and $BC$ (not $BD$ and $BA$)\n- At $D$: angle between $DA$ and $DB$ (not $DC$ and $DB$)\n\nSo each condition is about one specific angle at each vertex. The other angles (e.g., $\\angle DAC$ at $A$, $\\angle BCA$ at $C$, $\\angle ABD$ at $B$, $\\angle CDB$ at $D$) are not constrained by the first-order conditions.\n\nWait, but shouldn't there be conditions from the other corner of the parameter space? Let me reconsider.\n\nActually, I think I need to also check the conditions at the other corner $(p,q,r,s) = (1,1,1,1)$, which corresponds to $P=B, Q=C, R=D, S=A$. But this gives the same quadrilateral $ABCD$ (just relabeled), so the conditions would be the same.\n\nHmm, but there might be other critical configurations. For instance, what about $P$ on $AB$ and $R$ on $CD$ but $Q$ on $BC$ and $S$ on $DA$ at different positions?\n\nActually, let me reconsider the problem. The four conditions I derived are necessary for $(0,0,0,0)$ to be a local max. But there could be other local maxima that are higher. The global condition for \"not rude\" is that no other configuration beats $ABCD$.\n\nLet me think about what other configurations could be problematic. \n\nConsider $P$ on $AB$, $R$ on $CD$, $Q$ on $BC$, $S$ on $DA$. The sum $|PR| + |QS|$ is a function on $[0,1]^4$. The maximum could be in the interior or on the boundary.\n\nIn the interior, the gradient is zero. On the boundary, some variables are 0 or 1.\n\nThe corners of $[0,1]^4$ correspond to $PQRS$ being $ABCD$, $BBCD$ (degenerate), etc. The only non-degenerate corners are $(0,0,0,0)$ giving $ABCD$ and $(1,1,1,1)$ giving $BCDA$ = same quadrilateral.\n\nOther boundary cases: e.g., $p=0$ (P=A), $q,r,s$ free. Or $p=1$ (P=B), etc. Or $p=0, r=1$ (P=A, R=D), etc.\n\nThis is getting complex. Let me try a different approach.\n\nLet me think about the problem in terms of the angles of $ABCD$.\n\nThe angles of $ABCD$ are $\\angle A, \\angle B, \\angle C, \\angle D$ (interior angles), with $\\angle A + \\angle B + \\angle C + \\angle D = 360°$.\n\nThe diagonal $AC$ splits $\\angle A$ into $\\angle BAC$ and $\\angle DAC$, and splits $\\angle C$ into $\\angle BCA$ and $\\angle DCA$.\nThe diagonal $BD$ splits $\\angle B$ into $\\angle ABD$ and $\\angle DBC$, and splits $\\angle D$ into $\\angle ADB$ and $\\angle CDB$.\n\nThe four first-order conditions are:\n- $\\angle BAC \\leq 90°$\n- $\\angle DCA \\leq 90°$ (same as $\\angle ACD \\leq 90°$)\n- $\\angle DBC \\leq 90°$\n- $\\angle ADB \\leq 90°$\n\nNow, for the \"critical\" condition (any perturbation of $A$ makes it rude), I think we need these to hold with equality in a specific way.\n\nLet me think about what happens when we perturb $A$. When $A$ moves, the diagonal $AC$ changes direction, and the sides $AB$ and $AD$ change. The conditions at $A$ (condition 1: $\\angle BAC \\leq 90°$) change. The conditions at other vertices that involve $A$ (conditions 2 and 4) also change.\n\nFor any perturbation of $A$ to violate the \"not rude\" condition, we need $A$ to be at a point where the \"not rude\" region has zero area - i.e., $A$ is an isolated point.\n\nI think the key insight is that the four conditions define a region in the space of positions of $A$, and for $A$ to be an isolated point of this region, the conditions must be tight in a specific way.\n\nLet me think about this more carefully. The conditions that involve $A$ are:\n1. $\\angle BAC \\leq 90°$: $(C-A) \\cdot (B-A) \\geq 0$\n2. $\\angle ACD \\leq 90°$: $(A-C) \\cdot (D-C) \\geq 0$, i.e., $(A-C) \\cdot (D-C) \\geq 0$\n4. $\\angle ADB \\leq 90°$: $(A-D) \\cdot (B-D) \\geq 0$\n\nCondition 3 ($\\angle DBC \\leq 90°$: $(D-B) \\cdot (C-B) \\geq 0$) doesn't involve $A$.\n\nSo conditions 1, 2, 4 define regions for $A$, and condition 3 is a fixed constraint on $B, C, D$.\n\nFor $A$ to be an isolated point satisfying all conditions, we need the intersection of the three regions (conditions 1, 2, 4) to be just the point $A$.\n\nCondition 1: $(C-A) \\cdot (B-A) \\geq 0$. This means $A$ is in the region where the angle $\\angle BAC \\leq 90°$. This is the region on the same side as $C$ of the line through $A$ perpendicular to $AB$... wait, let me think again.\n\n$(C-A) \\cdot (B-A) \\geq 0$ means the projection of $C-A$ onto $B-A$ is non-negative, i.e., $C$ is on the same side as $B$ relative to the line through $A$ perpendicular to $AB$. Actually, it means the angle at $A$ between $AB$ and $AC$ is at most $90°$.\n\nThe boundary of this region is the circle with diameter $BC$ (by Thales' theorem, $\\angle BAC = 90°$ iff $A$ is on the circle with diameter $BC$). The region $\\angle BAC \\leq 90°$ is the closed disk with diameter $BC$... no wait.\n\nActually, $\\angle BAC \\leq 90°$ iff $A$ is outside or on the circle with diameter $BC$. Because by Thales' theorem, $\\angle BAC = 90°$ on the circle, $< 90°$ outside, $> 90°$ inside.\n\nWait, that's not right either. Let me reconsider. The inscribed angle theorem says that for a circle with diameter $BC$, any point $A$ on the circle gives $\\angle BAC = 90°$. Points inside the circle give $\\angle BAC > 90°$ and points outside give $\\angle BAC < 90°$.\n\nSo condition 1 ($\\angle BAC \\leq 90°$) means $A$ is outside or on the circle with diameter $BC$.\n\nCondition 2 ($\\angle ACD \\leq 90°$) means $C$ is outside or on the circle with diameter $AD$... no wait, $\\angle ACD$ is the angle at $C$ in triangle $ACD$, so it's $\\leq 90°$ iff $C$ is outside or on the circle with diameter $AD$.\n\nHmm, but we're fixing $B, C, D$ and varying $A$. So condition 2 says: $C$ is outside or on the circle with diameter $AD$. As $A$ varies, the circle with diameter $AD$ changes. The condition is $(A-C) \\cdot (D-C) \\geq 0$, which is a linear condition in $A$! Let me re-derive.\n\n$(A-C) \\cdot (D-C) \\geq 0$. Let $A = (a_x, a_y)$, $C = (c_x, c_y)$, $D = (d_x, d_y)$. Then this is $(a_x - c_x)(d_x - c_x) + (a_y - c_y)(d_y - c_y) \\geq 0$, which is linear in $a_x, a_y$. So condition 2 defines a half-plane for $A$.\n\nSimilarly, condition 1: $(C-A) \\cdot (B-A) \\geq 0$. Let me expand: $(C-A) \\cdot (B-A) = C \\cdot B - C \\cdot A - A \\cdot B + A \\cdot A = |A|^2 - A \\cdot (B+C) + B \\cdot C \\geq 0$. This is quadratic in $A$ (has $|A|^2$ term). So condition 1 defines a disk (the exterior of the circle with diameter $BC$).\n\nCondition 4: $(A-D) \\cdot (B-D) \\geq 0$. This is $(a_x - d_x)(b_x - d_x) + (a_y - d_y)(b_y - d_y) \\geq 0$, which is linear in $A$. So condition 4 defines a half-plane.\n\nSo the three conditions on $A$ are:\n1. $A$ is outside or on the circle with diameter $BC$ (quadratic condition).\n2. $A$ is in a half-plane (linear condition).\n4. $A$ is in a half-plane (linear condition).\n\nFor $A$ to be an isolated point, we need the intersection of these three regions to be a single point. But the exterior of a circle intersected with two half-planes can't be a single point (the exterior of a circle is unbounded, and intersecting with half-planes gives an unbounded region or a region with positive area).\n\nHmm, so the first-order conditions alone can't make $A$ an isolated point. This means I'm missing something - either the first-order conditions are not the right conditions, or there are additional constraints.\n\nOh wait, I think I need to also consider the constraint that $ABCD$ is convex. The convexity constraint restricts $A$ to a region as well. And also, I need to consider the global condition, not just the first-order condition.\n\nLet me reconsider. The \"not rude\" condition is a global condition: for ALL inscribed quadrilaterals $PQRS$, $|PR| + |QS| \\leq |AC| + |BD|$. The first-order conditions are necessary but not sufficient.\n\nLet me think about what other configurations could be problematic.\n\nConsider the configuration where $P$ and $R$ are on the same diagonal $AC$, and $Q$ and $S$ are on the same diagonal $BD$. Then $|PR| \\leq |AC|$ and $|QS| \\leq |BD|$, so $|PR| + |QS| \\leq |AC| + |BD|$. This is fine.\n\nConsider $P$ on $AB$, $R$ on $CD$, with $PR$ being a \"cross-section\". And $Q$ on $BC$, $S$ on $DA$, with $QS$ being another cross-section. The sum $|PR| + |QS|$ could potentially exceed $|AC| + |BD|$.\n\nLet me think about a specific example. Consider a trapezoid $ABCD$ with $AB \\| CD$, $AB$ short, $CD$ long. Then the diagonals $AC$ and $BD$ are long. Can we find an inscribed quadrilateral with longer diagonal sum?\n\nActually, let me think about the problem from the answer. The problem asks for the largest angle of $ABCD$. Given the structure of the problem, I suspect the answer is $120°$.\n\nLet me think about why $120°$ might be the answer.\n\nConsider a quadrilateral where one angle is $120°$ and the others are $80°$ each (sum = $120 + 80 \\times 3 = 360$). Hmm, that doesn't seem special.\n\nActually, let me think about this differently. The condition is that $ABCD$ is not rude but any perturbation of $A$ makes it rude. This is a very specific condition about $A$ being a critical point.\n\nLet me think about what happens when we have a quadrilateral where the diagonal $AC$ is very short compared to $BD$. Then $|AC| + |BD| \\approx |BD|$. Could we find an inscribed quadrilateral with diagonal sum $> |BD|$? If we take $PQRS$ with $PR$ being a long segment and $QS$ being another long segment, both crossing, we might exceed $|BD|$.\n\nHmm, let me think about a specific degenerate case. Let $A$ be very close to $C$. Then $|AC| \\approx 0$ and the quadrilateral is almost a triangle $BCD$. The diagonal sum is $\\approx |BD|$. \n\nIn a triangle $BCD$, what's the maximum of $|PR| + |QS|$ for crossing segments? Consider the triangle with sides $a = |CD|$, $b = |BD|$, $c = |BC|$. The longest segment is the longest side, say $b = |BD|$. Two crossing segments... the maximum sum would be achieved by two segments that are both as long as possible and cross.\n\nIn a triangle, two crossing segments: one from a point on one side to a point on another side, and another crossing it. The maximum sum... I think in a triangle, the maximum of $|PR| + |QS|$ for crossing segments is $a + b + c - \\max(a,b,c)$... no, that doesn't seem right.\n\nActually, in a triangle, any two crossing segments form a quadrilateral inside the triangle. The maximum diagonal sum... Let me think about an equilateral triangle with side 1. The longest segment has length 1. Two crossing segments, each at most 1, so the sum is at most 2. But can both be 1? Two sides of the triangle cross only at a vertex, which is degenerate. Two medians have length $\\sqrt{3}/2 \\approx 0.866$ each, sum $\\approx 1.732$. The sides have length 1, but two sides only \"cross\" at a vertex.\n\nActually, for two segments to cross (intersect at an interior point), they can't both be sides of the triangle. In an equilateral triangle, the maximum sum of two crossing segments... I think it's $< 2$, so $< $ the sum of two sides.\n\nHmm, this is getting complicated. Let me try a completely different approach.\n\nLet me think about the problem in terms of a known result. I recall that for a convex quadrilateral, the sum of diagonals is maximized (among inscribed quadrilaterals) when the quadrilateral has some special property related to its angles.\n\nActually, let me think about the problem more carefully using the first-order conditions.\n\nThe four conditions for \"not rude\" (necessary conditions) are:\n- $\\angle BAC \\leq 90°$\n- $\\angle ACD \\leq 90°$\n- $\\angle DBC \\leq 90°$\n- $\\angle ADB \\leq 90°$\n\nNow, let's think about the angles of the quadrilateral. Let $\\angle A = \\alpha$, $\\angle B = \\beta$, $\\angle C = \\gamma$, $\\angle D = \\delta$, with $\\alpha + \\beta + \\gamma + \\delta = 360°$.\n\nThe diagonal $AC$ splits $\\angle A$ into $\\angle BAC = \\alpha_1$ and $\\angle DAC = \\alpha_2$ with $\\alpha_1 + \\alpha_2 = \\alpha$.\nThe diagonal $AC$ splits $\\angle C$ into $\\angle BCA = \\gamma_1$ and $\\angle DCA = \\gamma_2$ with $\\gamma_1 + \\gamma_2 = \\gamma$.\nThe diagonal $BD$ splits $\\angle B$ into $\\angle ABD = \\beta_1$ and $\\angle DBC = \\beta_2$ with $\\beta_1 + \\beta_2 = \\beta$.\nThe diagonal $BD$ splits $\\angle D$ into $\\angle ADB = \\delta_1$ and $\\angle CDB = \\delta_2$ with $\\delta_1 + \\delta_2 = \\delta$.\n\nThe four conditions are:\n- $\\alpha_1 \\leq 90°$\n- $\\gamma_2 \\leq 90°$\n- $\\beta_2 \\leq 90°$\n- $\\delta_1 \\leq 90°$\n\nNow, there are also conditions from the other diagonal's perspective. Wait, I only derived four conditions. Let me check if there should be more.\n\nActually, I think I need to also consider the case where the inscribed quadrilateral has its vertices on different sides. Let me reconsider.\n\nI assumed $P$ on $AB$, $Q$ on $BC$, $R$ on $CD$, $S$ on $DA$. But we could also have $P$ on $DA$, $Q$ on $AB$, $R$ on $BC$, $S$ on $CD$ (going around in the same order). This is just a relabeling.\n\nOr we could have $P$ on $AB$, $Q$ on $CD$, $R$ on $BC$, $S$ on $DA$, but then $PQRS$ might not be convex or the diagonals might be different.\n\nActually, for $PQRS$ to be convex with vertices in order on the boundary of $ABCD$, the vertices must go around in the same cyclic order. So $P$ on one side, $Q$ on the next, $R$ on the next, $S$ on the next. There are 4 ways to assign (which side $P$ is on), but they're all equivalent by relabeling.\n\nSo the four conditions I derived are the complete set of first-order conditions.\n\nBut wait, I should also check the conditions at the other critical point $(1,1,1,1)$, which gives $P=B, Q=C, R=D, S=A$. The conditions there would be:\n- $\\angle CBD \\leq 90°$ (i.e., $\\beta_2 \\leq 90°$... wait, $\\angle CBD$ is the angle at $B$ between $BC$ and $BD$, which is $\\beta_2$). Hmm, but this is the same as condition 3.\n\nActually, let me redo this. At $(1,1,1,1)$: $P=B, Q=C, R=D, S=A$. Diagonals are $PR = BD$ and $QS = CA$. Same as before. The first-order conditions at this point would be the derivatives with respect to decreasing $p, q, r, s$ (since we're at the upper boundary).\n\n$\\frac{\\partial}{\\partial p}|PR|$ at $p=1$: $P = B + (p-1)(B-A)$... wait, $P = (1-p)A + pB$, so at $p=1$, $P = B$. $\\frac{\\partial P}{\\partial p} = B - A$. $PR = |P - R| = |B - D|$ at $p=1$ (since $R = D$ at $r=1$). \n\n$\\frac{\\partial}{\\partial p}|PR| = \\frac{(P-R) \\cdot (B-A)}{|PR|} = \\frac{(B-D) \\cdot (B-A)}{|BD|}$.\n\nFor this to be $\\geq 0$ (since we need the function to decrease as $p$ decreases from 1, i.e., increase as $p$ increases, so derivative $\\geq 0$):\n\n$(B-D) \\cdot (B-A) \\geq 0$, which means $\\angle ABD \\leq 90°$, i.e., $\\beta_1 \\leq 90°$.\n\nSimilarly, the other conditions at $(1,1,1,1)$ would give:\n- $\\beta_1 \\leq 90°$ (angle ABD)\n- $\\delta_2 \\leq 90°$ (angle CDB)\n- $\\alpha_2 \\leq 90°$ (angle DAC)\n- $\\gamma_1 \\leq 90°$ (angle BCA)\n\nSo combining the conditions from both corners, we get ALL eight angles $\\leq 90°$:\n- $\\alpha_1 = \\angle BAC \\leq 90°$\n- $\\alpha_2 = \\angle DAC \\leq 90°$\n- $\\beta_1 = \\angle ABD \\leq 90°$\n- $\\beta_2 = \\angle DBC \\leq 90°$\n- $\\gamma_1 = \\angle BCA \\leq 90°$\n- $\\gamma_2 = \\angle DCA \\leq 90°$\n- $\\delta_1 = \\angle ADB \\leq 90°$\n- $\\delta_2 = \\angle CDB \\leq 90°$\n\nThis means all eight angles formed by the diagonals with the sides are $\\leq 90°$.\n\nSince $\\alpha_1 + \\alpha_2 = \\alpha$ (angle at $A$), and both $\\leq 90°$, we get $\\alpha \\leq 180°$ (which is always true for a convex quadrilateral). But more importantly, since $\\alpha_1, \\alpha_2 \\leq 90°$, we have $\\alpha \\leq 180°$, which is trivially true.\n\nHmm, so the eight conditions just say all these sub-angles are $\\leq 90°$, which is always true for a convex quadrilateral (since each interior angle is $< 180°$ and is split into two parts by a diagonal, each part is $< 180°$, but could be $> 90°$).\n\nWait, no. For a convex quadrilateral, the interior angles are $< 180°$, but the sub-angles could be $> 90°$. For example, if $\\angle A = 150°$, the diagonal $AC$ could split it into $\\angle BAC = 100°$ and $\\angle DAC = 50°$, so $\\angle BAC > 90°$.\n\nSo the conditions are non-trivial. They say that each diagonal, at each endpoint, makes an angle $\\leq 90°$ with each adjacent side.\n\nThis is equivalent to saying: the foot of the perpendicular from each vertex to each diagonal falls inside the diagonal (not outside). Or equivalently, the projection of each side onto each diagonal is non-negative.\n\nHmm wait, actually, I realize I need to be more careful. The conditions from $(0,0,0,0)$ and $(1,1,1,1)$ are both necessary for \"not rude\", but are they the only first-order conditions? There might be other critical configurations.\n\nBut let me proceed with these eight conditions and see where they lead.\n\nThe eight conditions are:\n$\\alpha_1, \\alpha_2, \\beta_1, \\beta_2, \\gamma_1, \\gamma_2, \\delta_1, \\delta_2 \\leq 90°$\n\nwhere $\\alpha_1 + \\alpha_2 = \\alpha$, $\\beta_1 + \\beta_2 = \\beta$, $\\gamma_1 + \\gamma_2 = \\gamma$, $\\delta_1 + \\delta_2 = \\delta$, and $\\alpha + \\beta + \\gamma + \\delta = 360°$.\n\nNow, the condition in the problem is that $ABCD$ is not rude (so these eight conditions hold, plus the global condition), and any perturbation of $A$ makes it rude.\n\nWhen we perturb $A$, the angles that change are: $\\alpha_1, \\alpha_2$ (at $A$), and also $\\beta_1$ (at $B$, since it involves the direction $BA$), $\\delta_1$ (at $D$, since it involves direction $DA$), $\\gamma_1$ (at $C$, since it involves direction $CA$), and $\\gamma_2$ (at $C$, involving direction $CA$).\n\nWait, let me be more careful. The angles involving $A$:\n- $\\alpha_1 = \\angle BAC$: at $A$, between $AB$ and $AC$. Changes when $A$ moves.\n- $\\alpha_2 = \\angle DAC$: at $A$, between $AD$ and $AC$. Changes when $A$ moves.\n- $\\beta_1 = \\angle ABD$: at $B$, between $BA$ and $BD$. Changes when $A$ moves (direction $BA$ changes).\n- $\\delta_1 = \\angle ADB$: at $D$, between $DA$ and $DB$. Changes when $A$ moves (direction $DA$ changes).\n- $\\gamma_1 = \\angle BCA$: at $C$, between $CB$ and $CA$. Changes when $A$ moves (direction $CA$ changes).\n- $\\gamma_2 = \\angle DCA$: at $C$, between $CD$ and $CA$. Changes when $A$ moves (direction $CA$ changes).\n\nSo six of the eight angles change when $A$ moves. The ones that don't change are $\\beta_2 = \\angle DBC$ and $\\delta_2 = \\angle CDB$.\n\nFor any perturbation of $A$ to make the quadrilateral rude, we need that any movement of $A$ violates at least one of the eight conditions (or the global condition).\n\nSince $\\beta_2$ and $\\delta_2$ don't change, they must be strictly $< 90°$ (otherwise, they'd already be violated, but $ABCD$ is not rude, so they're $\\leq 90°$; if they're $= 90°$, they stay $= 90°$ when $A$ moves, so they don't cause rudeness).\n\nWait, actually, $\\beta_2$ and $\\delta_2$ don't involve $A$ at all, so they're fixed. For $ABCD$ to be not rude, we need $\\beta_2 \\leq 90°$ and $\\delta_2 \\leq 90°$. These are satisfied by assumption.\n\nNow, the six conditions that involve $A$ must be such that any movement of $A$ violates at least one. This means $A$ is an isolated point of the feasible region defined by these six conditions (plus convexity).\n\nLet me think about the geometry of these six conditions.\n\nCondition $\\alpha_1 \\leq 90°$: $A$ outside or on circle with diameter $BC$.\nCondition $\\alpha_2 \\leq 90°$: $A$ outside or on circle with diameter $CD$... wait, $\\angle DAC \\leq 90°$ is the angle at $A$ between $AD$ and $AC$. By Thales, this is $\\leq 90°$ iff $A$ is outside or on the circle with diameter $DC$.\n\nHmm wait, $\\angle DAC$ is the angle at $A$ in triangle $DAC$, between sides $AD$ and $AC$. By Thales' theorem, $\\angle DAC \\leq 90°$ iff $A$ is outside or on the circle with diameter $DC$.\n\nCondition $\\beta_1 \\leq 90°$: $\\angle ABD \\leq 90°$ is the angle at $B$ between $BA$ and $BD$. This is $\\leq 90°$ iff $B$ is outside or on the circle with diameter $AD$. Since $B$ and $D$ are fixed, this is a condition on $A$: $A$ must be such that $B$ is outside or on the circle with diameter $AD$. \n\n$(A-B) \\cdot (D-B) \\geq 0$... wait, $\\angle ABD \\leq 90°$ means $(A-B) \\cdot (D-B) \\geq 0$. This is linear in $A$, so it defines a half-plane.\n\nCondition $\\delta_1 \\leq 90°$: $\\angle ADB \\leq 90°$ means $(A-D) \\cdot (B-D) \\geq 0$. Linear in $A$, half-plane.\n\nCondition $\\gamma_1 \\leq 90°$: $\\angle BCA \\leq 90°$ means $(B-C) \\cdot (A-C) \\geq 0$, i.e., $(A-C) \\cdot (B-C) \\geq 0$. Linear in $A$, half-plane.\n\nCondition $\\gamma_2 \\leq 90°$: $\\angle DCA \\leq 90°$ means $(D-C) \\cdot (A-C) \\geq 0$, i.e., $(A-C) \\cdot (D-C) \\geq 0$. Linear in $A$, half-plane.\n\nSo the six conditions on $A$ are:\n1. $A$ outside or on circle with diameter $BC$ (quadratic).\n2. $A$ outside or on circle with diameter $DC$ (quadratic).\n3. $(A-B) \\cdot (D-B) \\geq 0$ (half-plane).\n4. $(A-D) \\cdot (B-D) \\geq 0$ (half-plane).\n5. $(A-C) \\cdot (B-C) \\geq 0$ (half-plane).\n6. $(A-C) \\cdot (D-C) \\geq 0$ (half-plane).\n\nPlus the convexity condition: $A$ is on the correct side of lines $BC$, $CD$, $DB$ (so that $ABCD$ is convex). Actually, for $ABCD$ to be convex with vertices in order, $A$ must be on the opposite side of $BD$ from $C$, and on the correct sides of $BC$ and $CD$ extended.\n\nWait, actually, the convexity condition is that $A$ and $C$ are on opposite sides of $BD$, and the vertices go in order. Let me think about this.\n\nFor $ABCD$ to be convex (with vertices in this order), we need:\n- $A$ and $C$ on opposite sides of line $BD$.\n- $B$ and $D$ on opposite sides of line $AC$.\n- All cross products of consecutive edges have the same sign.\n\nThe key constraint for varying $A$ (with $B, C, D$ fixed) is that $A$ must be on the opposite side of $BD$ from $C$, and also $A$ must be such that $B$ and $D$ are on opposite sides of $AC$, and the polygon doesn't self-intersect.\n\nThis defines a region for $A$. Let me call it the \"convexity region\".\n\nNow, the six conditions (2 quadratic, 4 linear) plus the convexity region must have $A$ as an isolated point.\n\nThe two quadratic conditions (outside two circles) combined with four half-plane conditions and the convexity region... for the intersection to be a single point, we need the boundaries to all pass through $A$.\n\nThis means all six conditions are tight at $A$:\n1. $\\angle BAC = 90°$ (on circle with diameter $BC$)\n2. $\\angle DAC = 90°$ (on circle with diameter $DC$)\n3. $\\angle ABD = 90°$\n4. $\\angle ADB = 90°$\n5. $\\angle BCA = 90°$\n6. $\\angle DCA = 90°$\n\nBut wait, conditions 1 and 2 together mean $\\angle BAC = 90°$ and $\\angle DAC = 90°$, so $\\angle A = \\angle BAC + \\angle DAC = 180°$. But $ABCD$ is convex, so $\\angle A < 180°$. Contradiction!\n\nSo not all six conditions can be tight simultaneously. This means my analysis is incomplete - the first-order conditions alone don't determine the answer.\n\nLet me reconsider. Maybe the issue is that the first-order conditions are necessary but not sufficient, and the global condition plays a role.\n\nOr maybe I need to think about this differently. Let me reconsider the problem.\n\nActually, I think the issue is that I'm only considering inscribed quadrilaterals with one vertex on each side. There might be other configurations that are more restrictive.\n\nLet me reconsider. An inscribed convex quadrilateral $PQRS$ inside $ABCD$ doesn't need to have one vertex on each side. It could have two vertices on one side, etc.\n\nBut I think the maximum is achieved when each vertex is on a different side (or at a vertex of $ABCD$). Let me think about why.\n\nIf two vertices of $PQRS$ are on the same side of $ABCD$, say $P$ and $Q$ on side $AB$, then the diagonal $PR$ goes from side $AB$ to some other side, and $QS$ goes from side $AB$ to some other side. But having both $P$ and $Q$ on $AB$ might not be optimal.\n\nActually, I think the key insight I'm missing is that the maximum of $|PR| + |QS|$ might be achieved at a configuration that's not of the form \"one vertex on each side\". Let me think about other configurations.\n\nConsider $P$ at vertex $A$, $R$ at vertex $C$, $Q$ on side $BC$, $S$ on side $DA$. Then $PR = AC$ and $QS$ is a segment from $BC$ to $DA$. The sum is $|AC| + |QS|$. For this to exceed $|AC| + |BD|$, we need $|QS| > |BD|$. But $QS$ is a segment from $BC$ to $DA$ inside the quadrilateral, and $BD$ is a segment from $B$ to $D$. Is $|BD|$ the longest segment from $BC$ to $DA$? Not necessarily!\n\nConsider $Q$ on $BC$ and $S$ on $DA$. The segment $QS$ could be longer than $BD$ if the quadrilateral is shaped appropriately.\n\nSo the condition for \"not rude\" includes: for all $Q$ on $BC$ and $S$ on $DA$, $|QS| \\leq |BD|$ (when $P = A, R = C$). Similarly, for all $P$ on $AB$ and $R$ on $CD$, $|PR| \\leq |AC|$ (when $Q = B, S = D$).\n\nThe condition $|QS| \\leq |BD|$ for all $Q$ on $BC$, $S$ on $DA$ means $BD$ is the longest segment from side $BC$ to side $DA$. Similarly, $|PR| \\leq |AC|$ for all $P$ on $AB$, $R$ on $CD$ means $AC$ is the longest segment from side $AB$ to side $CD$.\n\nWhen is $BD$ the longest segment from $BC$ to $DA$? $B$ is an endpoint of $BC$ and $D$ is an endpoint of $DA$. The longest segment from $BC$ to $DA$ is achieved at the endpoints (by convexity of the distance function... actually, the distance between a point on $BC$ and a point on $DA$ is not necessarily maximized at the endpoints).\n\nHmm, the distance $|QS|$ where $Q$ is on segment $BC$ and $S$ is on segment $DA$ is a function on $[0,1]^2$. It's a convex function (since distance is convex in each variable), so its maximum is at a corner of $[0,1]^2$. The corners are:\n- $Q = B, S = D$: $|BD|$\n- $Q = B, S = A$: $|BA|$\n- $Q = C, S = D$: $|CD|$\n- $Q = C, S = A$: $|CA|$\n\nSo the maximum of $|QS|$ is $\\max(|BD|, |BA|, |CD|, |CA|)$. For $|BD|$ to be the maximum, we need $|BD| \\geq |BA|$, $|BD| \\geq |CD|$, $|BD| \\geq |CA|$.\n\nSimilarly, for $AC$ to be the longest segment from $AB$ to $CD$, we need $|AC| \\geq |AD|$, $|AC| \\geq |BC|$, $|AC| \\geq |BD|$.\n\nWait, the corners for $P$ on $AB$, $R$ on $CD$:\n- $P = A, R = C$: $|AC|$\n- $P = A, R = D$: $|AD|$\n- $P = B, R = C$: $|BC|$\n- $P = B, R = D$: $|BD|$\n\nSo $|AC|$ is the max iff $|AC| \\geq |AD|$, $|AC| \\geq |BC|$, $|AC| \\geq |BD|$.\n\nAnd $|BD|$ is the max iff $|BD| \\geq |BA|$, $|BD| \\geq |CD|$, $|BD| \\geq |CA|$.\n\nSo we need $|AC| \\geq |BD|$ (from the first condition) and $|BD| \\geq |AC|$ (from the second), which gives $|AC| = |BD|$.\n\nAnd also $|AC| \\geq |AD|, |BC|$ and $|BD| \\geq |AB|, |CD|$.\n\nSo the diagonals must be equal, and each diagonal must be at least as long as the two sides adjacent to its \"other\" endpoint.\n\nThis is interesting but I'm not sure it's the complete condition. Let me think about whether these conditions (diagonals being the longest segments between opposite sides) are sufficient for \"not rude\".\n\nEven if $AC$ is the longest $AB$-to-$CD$ segment and $BD$ is the longest $BC$-to-$DA$ segment, we could have $P$ on $AB$, $Q$ on $BC$, $R$ on $CD$, $S$ on $DA$ with $|PR| + |QS| > |AC| + |BD|$ even though $|PR| \\leq |AC|$ and $|QS| \\leq |BD|$ individually. Wait, no - if $|PR| \\leq |AC|$ and $|QS| \\leq |BD|$, then $|PR| + |QS| \\leq |AC| + |BD|$. So these conditions ARE sufficient!\n\nWait, is that right? $P$ on $AB$, $R$ on $CD$ gives $|PR| \\leq |AC|$ (since $AC$ is the longest $AB$-to-$CD$ segment). $Q$ on $BC$, $S$ on $DA$ gives $|QS| \\leq |BD|$ (since $BD$ is the longest $BC$-to-$DA$ segment). So $|PR| + |QS| \\leq |AC| + |BD|$.\n\nBut what about configurations where $P$ and $Q$ are on the same side? E.g., $P$ on $AB$, $Q$ on $AB$, $R$ on $CD$, $S$ on $CD$. Then $PR$ is an $AB$-to-$CD$ segment and $QS$ is an $AB$-to-$CD$ segment. Both $\\leq |AC|$. So $|PR| + |QS| \\leq 2|AC|$. But we need $\\leq |AC| + |BD| = 2|AC|$ (since $|AC| = |BD|$). So this is fine.\n\nWhat about $P$ on $AB$, $Q$ on $BC$, $R$ on $BC$, $S$ on $DA$? Then $PR$ is an $AB$-to-$BC$ segment and $QS$ is a $BC$-to-$DA$ segment. $|QS| \\leq |BD|$. $|PR| \\leq$ max of $AB$-to-$BC$ segments, which is $\\max(|AB|, |AC|, |BB|=0, |BC|) = |AC|$ (since $|AC| \\geq |AB|, |BC|$). So $|PR| + |QS| \\leq |AC| + |BD|$. Fine.\n\nWhat about $P$ on $AB$, $Q$ on $CD$, $R$ on $CD$, $S$ on $AB$? Then $PQRS$ has $P, S$ on $AB$ and $Q, R$ on $CD$. For this to be convex, we need... $P$ and $S$ on $AB$ with $P$ before $S$ (or vice versa), and $Q, R$ on $CD$. The diagonals are $PR$ (from $AB$ to $CD$) and $QS$ (from $CD$ to $AB$). Both are $AB$-to-$CD$ segments, so $\\leq |AC|$. Sum $\\leq 2|AC| = |AC| + |BD|$. Fine.\n\nSo it seems like the conditions $|AC| = |BD|$ and $|AC| \\geq |AD|, |BC|$ and $|BD| \\geq |AB|, |CD|$ are sufficient for \"not rude\".\n\nWait, but I need to be more careful. The inscribed quadrilateral $PQRS$ could have vertices on any sides, not necessarily one per side. And the \"diagonals\" of $PQRS$ are $PR$ and $QS$, which are specific segments determined by the labeling.\n\nFor $PQRS$ to be a convex quadrilateral with vertices in order, the vertices must go around the boundary of $ABCD$ in order. So if $P$ is on side $AB$, then $Q$ must be on side $BC$ or later, $R$ on $CD$ or later, $S$ on $DA$ or later (cyclically). But multiple vertices can be on the same side.\n\nActually, for a convex quadrilateral inscribed in $ABCD$, the vertices must appear in cyclic order on the boundary of $ABCD$. So the four vertices divide the boundary of $ABCD$ into four arcs. Each arc is on one or more sides of $ABCD$.\n\nThe diagonals $PR$ and $QS$ connect opposite vertices, so they connect vertices that are on non-adjacent arcs. \n\nI think the key insight is: $PR$ connects two points on the boundary of $ABCD$ that are \"opposite\" (separated by $Q$ and $S$ on either side). Similarly for $QS$.\n\nThe longest such \"opposite\" segment depends on which sides $P$ and $R$ are on. If $P$ is on side $AB$ and $R$ is on side $CD$, then $|PR| \\leq |AC|$ (the max $AB$-to-$CD$ distance). If $P$ is on side $BC$ and $R$ is on side $DA$, then $|PR| \\leq |BD|$ (the max $BC$-to-$DA$ distance). Etc.\n\nBut $P$ and $R$ could be on adjacent sides, like $P$ on $AB$ and $R$ on $BC$. Then $|PR| \\leq |AC|$ (the max $AB$-to-$BC$ distance, which is $\\max(|AB|, |AC|, |BC|, |BB|) = |AC|$ if $|AC|$ is the longest diagonal and $\\geq |AB|, |BC|$).\n\nHmm, actually, $P$ on $AB$ and $R$ on $BC$: the max distance is $\\max(|AC|, |AB|, |BC|)$ (corners are $A$-to-$B$, $A$-to-$C$, $B$-to-$B=0$, $B$-to-$C$). So $\\max(|AC|, |AB|, |BC|) = |AC|$ (since $|AC| \\geq |AB|, |BC|$).\n\nSo in all cases, $|PR| \\leq |AC|$ if $P$ and $R$ are on sides that include the endpoints of diagonal $AC$, and $|PR| \\leq |BD|$ if they're on sides that include the endpoints of $BD$.\n\nActually, I think the general principle is: for any two points on the boundary of a convex quadrilateral, the distance is at most the longer diagonal. Is this true?\n\nNo, that's not true in general. Consider a very long and thin rectangle: the diagonal is $\\sqrt{a^2 + b^2}$, but the long side $a$ could be almost as long as the diagonal. But $a < \\sqrt{a^2+b^2}$, so the diagonal is still the longest.\n\nActually, for a convex quadrilateral, is the longest distance between any two boundary points always a diagonal? Not necessarily - it could be a side. Consider a quadrilateral where one side is very long. E.g., $A = (0,0)$, $B = (10, 0)$, $C = (10, 1)$, $D = (0, 1)$. This is a $10 \\times 1$ rectangle. The diagonals have length $\\sqrt{101} \\approx 10.05$, and the long sides have length $10$. So the diagonal is the longest, but barely.\n\nWhat about $A = (0,0)$, $B = (10, 0)$, $C = (9, 1)$, $D = (1, 1)$? This is a trapezoid. Diagonals: $AC = \\sqrt{81+1} = \\sqrt{82} \\approx 9.06$, $BD = \\sqrt{81+1} = \\sqrt{82} \\approx 9.06$. Long side $AB = 10 > 9.06$. So the longest distance is a side, not a diagonal!\n\nSo in this trapezoid, the side $AB$ is longer than both diagonals. This means we could have $|PR| = |AB| = 10 > |AC| \\approx 9.06$, and then $|PR| + |QS| > |AC| + |BD|$ if $|QS| > 0$.\n\nSo the condition for \"not rude\" must include that the diagonals are the longest distances between any two boundary points (or at least that no combination of two crossing segments can beat the diagonal sum).\n\nOK so I think the conditions for \"not rude\" are:\n1. $|AC| = |BD|$ (from the analysis above).\n2. $|AC| \\geq$ all sides (so diagonals are the longest distances).\n3. Some angle conditions (from the first-order analysis).\n\nWait, actually, condition 2 might not be necessary if we account for the crossing constraint. Let me reconsider.\n\nIf $|AB|$ is the longest side and $|AB| > |AC| = |BD|$, can we find crossing segments with sum $> |AC| + |BD|$?\n\nTake $P$ near $A$ on side $AB$, $R$ near $B$ on side $AB$. Then $|PR| \\approx |AB|$. But for $PQRS$ to be convex, $Q$ and $S$ must be on the other sides, and $PR$ and $QS$ must cross. If $P$ and $R$ are both on side $AB$, then $PR$ is along side $AB$, and $QS$ must cross it. $QS$ goes from one side to another, crossing $AB$. The longest such $QS$... it depends.\n\nActually, if $P$ and $R$ are on side $AB$, then $PR$ is a subsegment of $AB$, and $Q$ and $S$ are on the other three sides. For $PQRS$ to be convex, $Q$ must be on side $BC$ or $CD$, and $S$ on side $CD$ or $DA$, with $Q$ and $S$ on opposite sides of line $AB$ (which they are, since $ABCD$ is convex and $C, D$ are on the same side of $AB$).\n\nWait, $C$ and $D$ are on the same side of line $AB$ (since $ABCD$ is convex). So $Q$ on $BC$ or $CD$ and $S$ on $DA$ or $CD$ are both on the same side of $AB$ as $C$ and $D$. For $QS$ to cross $PR$ (which is on $AB$), $Q$ and $S$ must be on opposite sides of line $AB$. But they're both on the same side! So $QS$ can't cross $PR$ if $PR$ is on side $AB$ and $Q, S$ are on the other sides.\n\nHmm, so if $P$ and $R$ are on the same side, the diagonals $PR$ and $QS$ can't cross (since $Q$ and $S$ are on the same side of that side). So $PQRS$ can't be a convex quadrilateral with crossing diagonals.\n\nWait, that's not quite right. Let me reconsider. If $P$ and $R$ are on side $AB$, and $Q$ is on side $BC$ and $S$ is on side $DA$, then $Q$ is \"above\" $AB$ (on the side of $C$) and $S$ is also \"above\" $AB$ (on the side of $D$, which is the same side as $C$). So $QS$ doesn't cross $AB$, and hence doesn't cross $PR$ (which is on $AB$). So $PR$ and $QS$ don't cross, and $PQRS$ is not a convex quadrilateral (it's not even a quadrilateral with crossing diagonals).\n\nSo for $PQRS$ to be a convex quadrilateral, $P$ and $R$ must be on \"opposite\" sides (not the same side or adjacent sides... well, they can be on adjacent sides but then the analysis is different).\n\nActually, for $PQRS$ to be convex with vertices in cyclic order on the boundary of $ABCD$, $P$ and $R$ must separate $Q$ and $S$ on the boundary. So $P$ and $R$ are on \"opposite\" arcs. The possible cases are:\n- $P$ on $AB$, $R$ on $CD$ (opposite sides): $|PR| \\leq |AC|$ (max $AB$-to-$CD$ distance, achieved at $A$-to-$C$ or $B$-to-$D$).\n- $P$ on $BC$, $R$ on $DA$ (opposite sides): $|PR| \\leq |BD|$ (max $BC$-to-$DA$ distance, achieved at $B$-to-$D$ or $C$-to-$A$).\n- $P$ on $AB$, $R$ on $BC$ (adjacent sides): then $Q$ is on $CD$ or $DA$ and $S$ is on $DA$ or $CD$... wait, $P$ on $AB$, $Q$ after $P$ on the boundary, $R$ after $Q$, $S$ after $R$. If $P$ on $AB$ and $R$ on $BC$, then $Q$ is on $AB$ or $BC$ (between $P$ and $R$), and $S$ is on $CD$ or $DA$ (after $R$, before $P$ cyclically).\n\nIn this case, $PR$ goes from $AB$ to $BC$, and $QS$ goes from ($AB$ or $BC$) to ($CD$ or $DA$). The max $|PR|$ is the max distance from $AB$ to $BC$, which is $\\max(|AC|, |AB|, |BC|)$ (corners: $A$-to-$B$, $A$-to-$C$, $B$-to-$B=0$, $B$-to-$C$). If $|AC| \\geq |AB|, |BC|$, then $|PR| \\leq |AC|$.\n\nAnd $|QS|$: $Q$ on $AB$ or $BC$, $S$ on $CD$ or $DA$. The max distance is over all combinations. If $Q$ on $AB$ and $S$ on $CD$: $\\leq |AC|$ (max $AB$-to-$CD$). If $Q$ on $AB$ and $S$ on $DA$: $\\leq |BD|$ (max $AB$-to-$DA$ = $\\max(|BD|, |AB|, |AD|, |BA|)$... wait, corners: $A$-to-$D$, $A$-to-$A=0$, $B$-to-$D$, $B$-to-$A$. So $\\max(|AD|, |BD|, |AB|)$. If $|BD| \\geq |AD|, |AB|$, then $\\leq |BD|$.\n\nIf $Q$ on $BC$ and $S$ on $CD$: max is $\\max(|BD|, |BC|, |CD|, |CC|=0)$... corners: $B$-to-$C$, $B$-to-$D$, $C$-to-$C=0$, $C$-to-$D$. So $\\max(|BC|, |BD|, |CD|)$. If $|BD| \\geq |BC|, |CD|$, then $\\leq |BD|$.\n\nIf $Q$ on $BC$ and $S$ on $DA$: max is $\\max(|BD|, |BA|, |CD|, |CA|)$... corners: $B$-to-$D$, $B$-to-$A$, $C$-to-$D$, $C$-to-$A$. So $\\max(|BD|, |AB|, |CD|, |AC|)$. If $|AC| = |BD| \\geq |AB|, |CD|$, then $\\leq |AC| = |BD|$.\n\nSo in all cases, if $|AC| = |BD| \\geq$ all sides, then $|PR| \\leq |AC|$ and $|QS| \\leq |BD|$, so $|PR| + |QS| \\leq |AC| + |BD|$.\n\nWait, but I need $|PR| \\leq |AC|$ AND $|QS| \\leq |BD|$, or at least $|PR| + |QS| \\leq |AC| + |BD|$. In the case where $|PR| \\leq |AC|$ and $|QS| \\leq |BD|$, we're fine. But what if $|PR| \\leq |BD|$ and $|QS| \\leq |AC|$? Then $|PR| + |QS| \\leq |BD| + |AC|$, also fine.\n\nActually, in all cases, $|PR| \\leq \\max(|AC|, |BD|) = |AC|$ (since they're equal) and $|QS| \\leq \\max(|AC|, |BD|) = |AC|$. So $|PR| + |QS| \\leq 2|AC| = |AC| + |BD|$. \n\nSo the condition $|AC| = |BD| \\geq$ all sides is sufficient for \"not rude\"!\n\nAnd is it necessary? We showed that $|AC| = |BD|$ is necessary (from the corner analysis). And $|AC| \\geq$ all sides is necessary? Let me check.\n\nIf $|AB| > |AC| = |BD|$, is $ABCD$ rude? We need to find crossing segments with sum $> |AC| + |BD| = 2|AC|$.\n\nTake $P$ on $AB$ near $A$, $R$ on $AB$ near $B$... but we showed that if $P$ and $R$ are on the same side, the diagonals don't cross. So this doesn't work.\n\nTake $P$ on $AB$ near $A$, $R$ on $CD$ near $D$. Then $|PR| \\approx |AD|$. And $Q$ on $BC$ near $B$, $S$ on $DA$ near $A$. Then $|QS| \\approx |AB|$. Sum $\\approx |AD| + |AB|$. For this to exceed $2|AC|$, we need $|AD| + |AB| > 2|AC|$. This is possible if $|AB|$ is very large.\n\nBut wait, $P$ on $AB$ near $A$ and $R$ on $CD$ near $D$: $|PR| \\approx |AD|$ (not $|AB|$). And $Q$ on $BC$ near $B$ and $S$ on $DA$ near $A$: $|QS| \\approx |AB|$ (the distance from $B$ to $A$). But do $PR$ and $QS$ cross? $PR$ goes from near $A$ on $AB$ to near $D$ on $CD$, roughly along $AD$. $QS$ goes from near $B$ on $BC$ to near $A$ on $DA$, roughly along $BA$. These might not cross.\n\nHmm, I need to be more careful about the crossing condition.\n\nLet me try a specific example. Let $A = (0, 0)$, $B = (10, 0)$, $C = (9, 1)$, $D = (1, 1)$. This is a trapezoid with $|AB| = 10$, $|CD| = 8$, $|AD| = \\sqrt{2}$, $|BC| = \\sqrt{2}$. Diagonals: $|AC| = \\sqrt{82}$, $|BD| = \\sqrt{82}$. So $|AC| = |BD| = \\sqrt{82} \\approx 9.06 < 10 = |AB|$.\n\nIs this quadrilateral rude? We need crossing segments with sum $> 2\\sqrt{82} \\approx 18.11$.\n\nTake $P = A = (0,0)$, $R = C = (9, 1)$: $|PR| = \\sqrt{82}$. Take $Q = B = (10, 0)$, $S = D = (1, 1)$: $|QS| = \\sqrt{82}$. Sum $= 2\\sqrt{82}$. This is the quadrilateral itself.\n\nNow try $P = A = (0,0)$, $R = D = (1, 1)$: $|PR| = \\sqrt{2}$. $Q = B = (10, 0)$, $S = C = (9, 1)$: $|QS| = \\sqrt{2}$. Sum $= 2\\sqrt{2} \\approx 2.83 < 18.11$. Not better.\n\nTry $P$ on $AB$, $R$ on $CD$, $Q$ on $BC$, $S$ on $DA$. \n\n$P = (p \\cdot 10, 0)$ for $p \\in [0,1]$. $R = (1 + r \\cdot 8, 1)$ for $r \\in [0,1]$. $Q = (10 - q, q)$ for $q \\in [0,1]$ (on $BC$ from $B=(10,0)$ to $C=(9,1)$). $S = (s, s)$ for $s \\in [0,1]$ (on $DA$ from $D=(1,1)$ to $A=(0,0)$).\n\n$|PR|^2 = (1 + 8r - 10p)^2 + 1$\n$|QS|^2 = (10 - q - s)^2 + (q - s)^2$\n\nAt $p=0, r=0, q=0, s=1$ (i.e., $P=A, R=D, Q=B, S=A$): degenerate.\nAt $p=0, r=1, q=0, s=0$ (i.e., $P=A, R=C, Q=B, S=D$): $|PR| = |AC|, |QS| = |BD|$. Sum $= 2\\sqrt{82}$.\n\nLet me try $p=0, r=1, q=1, s=1$: $P=A, R=C, Q=C, S=A$. Degenerate.\n\nLet me try to maximize $|PR| + |QS|$ numerically. \n\n$|PR|^2 = (1 + 8r - 10p)^2 + 1$. To maximize, set $p=0, r=1$: $|PR|^2 = 81 + 1 = 82$, $|PR| = \\sqrt{82}$. Or $p=1, r=0$: $|PR|^2 = (1 - 10)^2 + 1 = 82$, $|PR| = \\sqrt{82}$.\n\n$|QS|^2 = (10 - q - s)^2 + (q - s)^2$. To maximize, we want to maximize $(10 - q - s)^2 + (q - s)^2$. Let $u = q + s, v = q - s$. Then $= (10 - u)^2 + v^2$. Maximize over $0 \\leq q, s \\leq 1$, i.e., $0 \\leq u \\leq 2, -1 \\leq v \\leq 1, u + v = 2q \\leq 2, u - v = 2s \\leq 2$. So $u \\leq 2, v \\leq 1, v \\geq -1, u + v \\leq 2, u - v \\leq 2$.\n\n$(10 - u)^2 + v^2$ is maximized when $u$ is far from 10 (so $u = 0$) and $|v|$ is large (so $v = \\pm 1$, but need $u + v \\leq 2$ and $u - v \\leq 2$, so $v \\leq 2$ and $v \\geq -2$, fine). At $u = 0, v = 1$: $q = 0.5, s = -0.5$, but $s \\geq 0$, so invalid. At $u = 0, v = 0$: $q = 0, s = 0$, giving $|QS|^2 = 100$, $|QS| = 10$. But $Q = B = (10, 0)$ and $S = D = (1, 1)$... wait, $s = 0$ gives $S = (0, 0) = A$. So $|QS| = |BA| = 10$.\n\nBut do $PR$ and $QS$ cross? $P = A = (0,0)$, $R = C = (9, 1)$. $Q = B = (10, 0)$, $S = A = (0, 0)$. But $S = A = P$, so this is degenerate.\n\nLet me try $q = 0, s = \\epsilon$ (small): $Q = B = (10, 0)$, $S = (\\epsilon, \\epsilon)$. $|QS| \\approx 10$. $P = A = (0,0)$, $R = C = (9, 1)$. $|PR| = \\sqrt{82} \\approx 9.06$. Sum $\\approx 19.06 > 18.11$.\n\nBut do $PR$ and $QS$ cross? $PR$ from $(0,0)$ to $(9, 1)$. $QS$ from $(10, 0)$ to $(\\epsilon, \\epsilon)$. \n\n$PR$: parametrically $(9t, t)$ for $t \\in [0, 1]$.\n$QS$: parametrically $(10 - (10-\\epsilon)u, \\epsilon u)$ for $u \\in [0, 1]$.\n\nCrossing: $9t = 10 - (10-\\epsilon)u$ and $t = \\epsilon u$. So $9\\epsilon u = 10 - (10-\\epsilon)u$, giving $u(9\\epsilon + 10 - \\epsilon) = 10$, so $u(10 + 8\\epsilon) = 10$, $u = 10/(10 + 8\\epsilon) \\approx 1 - 0.8\\epsilon$. And $t = \\epsilon u \\approx \\epsilon$. Both in $[0, 1]$ for small $\\epsilon > 0$. So yes, they cross!\n\nAnd $PQRS = A, B, C, S$ where $S$ is near $A$ on side $DA$. Is this convex? $P = A = (0,0)$, $Q = B = (10, 0)$, $R = C = (9, 1)$, $S = (\\epsilon, \\epsilon)$. Going around: $A \\to B \\to C \\to S$. Is this convex? The cross products:\n$AB \\times BC = (10, 0) \\times (-1, 1) = 10 > 0$.\n$BC \\times CS = (-1, 1) \\times (\\epsilon - 9, \\epsilon - 1) = (-1)(\\epsilon - 1) - 1(\\epsilon - 9) = -\\epsilon + 1 - \\epsilon + 9 = 10 - 2\\epsilon > 0$.\n$CS \\times SA = (\\epsilon - 9, \\epsilon - 1) \\times (-\\epsilon, -\\epsilon) = (\\epsilon - 9)(-\\epsilon) - (\\epsilon - 1)(-\\epsilon) = -\\epsilon^2 + 9\\epsilon + \\epsilon^2 - \\epsilon = 8\\epsilon > 0$.\n$SA \\times AB = (-\\epsilon, -\\epsilon) \\times (10, 0) = 10\\epsilon > 0$.\n\nAll positive, so $PQRS$ is convex! And $|PR| + |QS| \\approx \\sqrt{82} + 10 > 2\\sqrt{82}$.\n\nSo the trapezoid with $|AB| > |AC| = |BD|$ IS rude. This confirms that $|AC| = |BD| \\geq$ all sides is necessary.\n\nSo the condition for \"not rude\" is: $|AC| = |BD| \\geq |AB|, |BC|, |CD|, |DA|$.\n\nWait, but I should double-check. Is this condition also sufficient? I argued above that if $|AC| = |BD| \\geq$ all sides, then for any inscribed convex quadrilateral, $|PR| \\leq |AC|$ and $|QS| \\leq |BD|$, so $|PR| + |QS| \\leq |AC| + |BD|$. But I need to verify that $|PR| \\leq |AC|$ for all possible configurations of $P$ and $R$.\n\nThe key claim is: for any two points on the boundary of $ABCD$, the distance is at most $\\max(|AC|, |BD|) = |AC|$ (since they're equal). Is this true when $|AC| = |BD| \\geq$ all sides?\n\nThe maximum distance between two boundary points of a convex quadrilateral is the maximum of all pairwise vertex distances, which is $\\max(|AB|, |BC|, |CD|, |DA|, |AC|, |BD|) = |AC|$ (since $|AC| = |BD| \\geq$ all sides). And the maximum distance between two boundary points is achieved at vertices (since the distance function is convex). So yes, any two boundary points have distance $\\leq |AC|$.\n\nTherefore, for any inscribed convex quadrilateral $PQRS$ (with vertices on the boundary), $|PR| \\leq |AC|$ and $|QS| \\leq |AC| = |BD|$, so $|PR| + |QS| \\leq |AC| + |BD|$.\n\nBut wait, the vertices of $PQRS$ don't have to be on the boundary of $ABCD$ - they can be in the interior. But moving a vertex to the boundary can only increase the distances, so the maximum is on the boundary. More precisely, for fixed $Q, R, S$, $|PR|$ is maximized when $P$ is on the boundary (furthest from $R$), and similarly for other vertices. So the maximum of $|PR| + |QS|$ is achieved when all vertices are on the boundary.\n\nSo the condition for \"not rude\" is exactly: $|AC| = |BD| \\geq |AB|, |BC|, |CD|, |DA|$.\n\nNow, the problem says $ABCD$ is not rude, so $|AC| = |BD| \\geq$ all sides. And any perturbation of $A$ (within distance $r$) makes it rude, so the perturbed quadrilateral $A'BCD$ has either $|A'C| \\neq |BD|$ or $\\max(|A'B|, |BC|, |CD|, |DA'|) > \\min(|A'C|, |BD|)$... wait, let me restate.\n\n$A'BCD$ is rude iff it's NOT the case that $|A'C| = |BD| \\geq |A'B|, |BC|, |CD|, |DA'|$.\n\nFor any $A' \\neq A$ with $|A'A| \\leq r$, $A'BCD$ is rude. This means the condition $|A'C| = |BD| \\geq |A'B|, |BC|, |CD|, |DA'|$ is violated for all $A'$ near $A$ (except $A$ itself).\n\nThe condition $|A'C| = |BD|$ defines a circle (locus of $A'$ with $|A'C| = |BD|$). For this to hold only at $A$ (among nearby points), $A$ must be an isolated point of this circle in the neighborhood, which is impossible (a circle is a 1D curve, so it has points arbitrarily close to $A$).\n\nWait, that can't be right. The condition $|A'C| = |BD|$ is satisfied on a circle of radius $|BD|$ centered at $C$. Points on this circle near $A$ would satisfy $|A'C| = |BD|$. For these points, we'd also need $|A'C| \\geq |A'B|, |BC|, |CD|, |DA'|$ for \"not rude\". If this fails, they're rude. But if it holds, they're not rude, contradicting our assumption.\n\nSo for the condition to hold (any $A'$ near $A$ is rude), we need that for all $A'$ on the circle $|A'C| = |BD|$ near $A$ (with $A' \\neq A$), the condition $|A'C| \\geq |A'B|, |DA'|$ fails (since $|BC|$ and $|CD|$ don't depend on $A'$, and $|A'C| = |BD| \\geq |BC|, |CD|$ is already satisfied).\n\nSo we need: for all $A'$ on the circle $|A'C| = |BD|$ near $A$ (with $A' \\neq A$), either $|A'B| > |BD|$ or $|DA'| > |BD|$.\n\nSince $|AB| \\leq |BD|$ and $|DA| \\leq |BD|$ (from the \"not rude\" condition), and $A$ is on the circle, we need that any movement of $A'$ along the circle (away from $A$) causes $|A'B| > |BD|$ or $|DA'| > |BD|$.\n\nBut also, for $A'$ NOT on the circle (i.e., $|A'C| \\neq |BD|$), the quadrilateral is automatically rude (since $|A'C| \\neq |BD|$). So we only need to worry about $A'$ on the circle.\n\nOn the circle $|A'C| = |BD|$, we need $|A'B| \\leq |BD|$ and $|DA'| \\leq |BD|$ for \"not rude\". The set of $A'$ on the circle with $|A'B| \\leq |BD|$ is the intersection of the circle with the closed disk of radius $|BD|$ centered at $B$. Similarly for $|DA'| \\leq |BD|$.\n\nFor $A$ to be the only point satisfying both, $A$ must be the only point on the circle that's inside both disks. This means $A$ is on the boundary of at least one of the disks, i.e., $|AB| = |BD|$ or $|DA| = |BD|$ (or both).\n\nCase 1: $|AB| = |BD|$ (and $|DA| \\leq |BD|$). Then $A$ is on the circle $|A'C| = |BD|$ and on the circle $|A'B| = |BD|$. The intersection of these two circles is at most 2 points. For $A$ to be the only point also satisfying $|DA'| \\leq |BD|$, we need the other intersection point to have $|DA'| > |BD|$.\n\nCase 2: $|DA| = |BD|$ (and $|AB| \\leq |BD|$). Similar.\n\nCase 3: $|AB| = |BD|$ and $|DA| = |BD|$. Then $A$ is on three circles: $|A'C| = |BD|$, $|A'B| = |BD|$, $|DA'| = |BD|$. For $A$ to be the unique point, these three circles must intersect only at $A$.\n\nLet me think about Case 3, which seems most restrictive. $|AB| = |BD| = |DA| = |AC|$. So $A$ is equidistant from $B$, $C$, $D$, all at distance $|BD|$. This means $A$ is the circumcenter of triangle $BCD$ with circumradius $|BD|$.\n\nWait, $|AB| = |AC| = |AD| = |BD|$. So $A$ is equidistant from $B, C, D$ at distance $d = |BD|$. And $|BD| = d$, so $B$ and $D$ are also at distance $d$ from each other.\n\nSo $ABD$ is an equilateral triangle with side $d$ (since $|AB| = |AD| = |BD| = d$). And $|AC| = d$.\n\nAlso, $|BC| \\leq d$ and $|CD| \\leq d$ (from the \"not rude\" condition).\n\nNow, $A$ is the circumcenter of $BCD$ with circumradius $d$. The circumcenter of a triangle is equidistant from all three vertices. So $|AB| = |AC| = |AD| = d$, which is consistent.\n\nBut $|BD| = d$ means $BD$ is also a chord of the circumcircle of $BCD$ with length equal to the radius. A chord of length $r$ in a circle of radius $r$ subtends an angle of $60°$ at the center. So $\\angle BAC = 60°$ (wait, $\\angle BAD$ is the angle at the center $A$ subtended by chord $BD$).\n\nHmm wait, $A$ is the circumcenter of $BCD$, and $|BD| = d$ = circumradius. The angle subtended by chord $BD$ at the center is $2 \\arcsin(|BD| / (2d)) = 2 \\arcsin(1/2) = 60°$. So $\\angle BAC$... no, $\\angle BAD = 60°$ (the angle at $A$ between $AB$ and $AD$).\n\nWait, I need to be careful. $A$ is the circumcenter of triangle $BCD$. The angle at the circumcenter subtended by chord $BD$ is $\\angle BAD = 2 \\arcsin(|BD| / (2R))$ where $R = d$ is the circumradius and $|BD| = d$. So $\\angle BAD = 2 \\arcsin(d / (2d)) = 2 \\arcsin(1/2) = 2 \\cdot 30° = 60°$.\n\nSo $\\angle A = 60°$.\n\nSimilarly, $\\angle BAC$ is the angle at $A$ subtended by chord $BC$, which is $2 \\arcsin(|BC| / (2d))$. And $\\angle CAD$ is the angle at $A$ subtended by chord $CD$, which is $2 \\arcsin(|CD| / (2d))$.\n\nWe have $\\angle BAC + \\angle CAD = \\angle BAD = 60°$.\n\nNow, for $ABCD$ to be convex, $A$ must be on the opposite side of $BD$ from $C$. Since $A$ is the circumcenter of $BCD$, this depends on whether the circumcenter is on the same side as $C$ or not.\n\nIf triangle $BCD$ is acute, the circumcenter is inside the triangle, so $A$ is on the same side of $BD$ as $C$, and $ABCD$ is NOT convex (it's a \"crossed\" quadrilateral). \n\nIf triangle $BCD$ is obtuse (with the obtuse angle at $C$), the circumcenter is on the opposite side of $BD$ from $C$, so $A$ is on the opposite side, and $ABCD$ IS convex.\n\nIf triangle $BCD$ is right-angled at $C$, the circumcenter is the midpoint of $BD$, which is on line $BD$, so $ABCD$ is degenerate.\n\nSo for $ABCD$ to be convex, triangle $BCD$ must be obtuse at $C$ (i.e., $\\angle BCD > 90°$).\n\nNow, the angles of $ABCD$:\n- $\\angle A = \\angle BAD = 60°$.\n- $\\angle B = \\angle ABC$. \n- $\\angle C = \\angle BCD$.\n- $\\angle D = \\angle CDA$.\n\nWe need to find the largest angle. $\\angle A = 60°$, and $\\angle C > 90°$ (for convexity). \n\nHmm, but this is just one case (Case 3). Let me also consider Cases 1 and 2.\n\nActually, wait. I think I need to be more careful. Let me reconsider.\n\nThe condition is that for ALL $A'$ with $|A'A| \\leq r$ and $A' \\neq A$, $A'BCD$ is rude. This includes $A'$ not on the circle $|A'C| = |BD|$. For such $A'$, $|A'C| \\neq |BD|$, so the \"not rude\" condition $|A'C| = |BD|$ fails, and $A'BCD$ is rude. Good.\n\nFor $A'$ on the circle $|A'C| = |BD|$, we need $|A'B| > |BD|$ or $|DA'| > |BD|$ (or $|A'C| < |BC|$ or $|A'C| < |CD|$, but $|A'C| = |BD| \\geq |BC|, |CD|$ so these don't fail).\n\nSo we need: for all $A'$ on the circle $|A'C| = |BD|$ with $0 < |A'A| \\leq r$, either $|A'B| > |BD|$ or $|DA'| > |BD|$.\n\nThe set of $A'$ on the circle with $|A'B| \\leq |BD|$ and $|DA'| \\leq |BD|$ must be just $\\{A\\}$ (in the neighborhood of $A$).\n\nThis is the intersection of:\n- Circle $\\Gamma_C$: center $C$, radius $|BD|$.\n- Disk $D_B$: center $B$, radius $|BD|$.\n- Disk $D_D$: center $D$, radius $|BD|$.\n\nWe need this intersection to be $\\{A\\}$ locally (i.e., $A$ is an isolated point).\n\n$A$ is on $\\Gamma_C$ (since $|AC| = |BD|$). $A$ is in $D_B$ (since $|AB| \\leq |BD|$) and in $D_D$ (since $|AD| \\leq |BD|$).\n\nFor $A$ to be isolated in $\\Gamma_C \\cap D_B \\cap D_D$, $A$ must be on the boundary of $D_B$ or $D_D$ (i.e., $|AB| = |BD|$ or $|AD| = |BD|$).\n\nIf $|AB| < |BD|$ and $|AD| < |BD|$, then $A$ is in the interior of both $D_B$ and $D_D$, and on $\\Gamma_C$. The intersection $\\Gamma_C \\cap \\text{int}(D_B) \\cap \\text{int}(D_D)$ is an open subset of $\\Gamma_C$ containing $A$, so it contains other points near $A$. Contradiction.\n\nSo we need $|AB| = |BD|$ or $|AD| = |BD|$ (or both).\n\nCase A: $|AB| = |BD|$ only (i.e., $|AD| < |BD|$).\n$A$ is on $\\Gamma_C$ and on $\\partial D_B$ (circle centered at $B$ with radius $|BD|$). The intersection $\\Gamma_C \\cap \\partial D_B$ is at most 2 points. $A$ is one of them. For $A$ to be isolated in $\\Gamma_C \\cap D_B \\cap D_D$, we need the other intersection point $A''$ to not be in $D_D$ (i.e., $|",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 22581,
+        "completion_tokens": 25000,
+        "cached_tokens": 1355
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 22581,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 1355,
+    "total_steps": 8
+  }
+}

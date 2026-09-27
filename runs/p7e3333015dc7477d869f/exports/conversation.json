@@ -1,0 +1,1048 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "spice-innocent",
+  "agent": {
+    "name": "devin",
+    "version": "3000.4.25",
+    "model_name": "GLM-5.2 High",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_output",
+          "description": "Reads the output from a background shell process.\n\nUsage notes:\n- The shell_id argument is required (use the ID returned by the exec tool)\n- You can specify an optional timeout in milliseconds (up to 280000ms). Timeouts below 10000ms (10s) are raised to 10s; the default is 10s.\n- IMPORTANT: timeout is the MAX wait — this returns immediately when the process exits. If you want to wait for the command to finish, set a long timeout. If you want to quickly check status while working on other tasks in parallel, set a short timeout. Either way, do not repeatedly poll.\n- The process continues running after reading output\n- This will return the output of the most recently executed command in the shell if there is no current command running command\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to read output from.",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds.",
+                "type": "integer"
+              },
+              "incremental": {
+                "description": "If true (default), returns the changes since your last read. For interactive shells whose\nscreen redraws in place (progress bars, block redraws), this is a unified diff so in-place\nline changes are shown as `-`old / `+`new; for plain append-only output it is the new lines.\nIf false, returns the full output buffer.",
+                "type": "boolean"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "webfetch",
+          "description": "Fetches a web page and returns its content as readable text.",
+          "parameters": {
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL to fetch content from.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exec",
+          "description": "Executes a given shell command in a persistent shell session and waits for output with optional timeout, ensuring proper handling and security measures.\n\nCommands run under bash.\n\nIMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.\n\nBefore executing the command, please follow these steps:\n\n1. Directory Verification:\n   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use `ls foo` to check that \"foo\" exists and is the intended parent directory\n\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command.\n   - Capture the output of the command.\n\nUsage notes:\n  - If the output is too long, it will be truncated before being returned to you.\n  - Commands run in a persistent shell session for each shell_id, preserving state between calls. The working directory persists between commands.\n  - One-shot commands (no `shell_id`) do NOT share state with each other: the working directory does NOT persist between calls. Use the optional `workdir` parameter (an absolute path to an existing directory) to set the working directory for a command, instead of a leading `cd` that the next call would forget. With a `shell_id`, `workdir` changes that session's directory before running the command.\n  - When issuing multiple commands:\n    - If the commands are independent and can run in parallel, make multiple shell tool calls in a single message.\n    - If the commands depend on each other and must run sequentially, chain them in a single call (bash: `cmd1 && cmd2`; PowerShell: `cmd1; if ($?) { cmd2 }`).\n    - In bash, use ';' to run commands sequentially regardless of exit status.\n    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)\n  - Use absolute paths in your commands instead of `cd` if possible. You may use `cd` if the User explicitly requests it.\n  - Passwords cannot be entered into this tool, so `sudo` fails when it needs one. Do NOT retry with a TTY or ask the user to type a password — run without sudo or ask the user to run the command themselves.\n",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The command to execute in the current shell session.\n\nExamples:\n- Bash: \"echo 'Hello World'\", \"ls -la\", \"git status\"\n- PowerShell: \"Write-Output 'Hello World'\", \"Get-ChildItem\"\n\nNote: Do NOT include the shell executable (like \"bash -c\" or \"powershell -Command\") in the command.\nThe command should be the raw shell command as you would type it in the active shell.",
+                "type": "string"
+              },
+              "shell_id": {
+                "description": "Optional shell ID to reuse an existing interactive session. Use shell IDs to maintain multiple shell sessions. When shell ID is provided, writes to that session's stdin. When no shell ID is provided, a new session is created.",
+                "type": "string"
+              },
+              "workdir": {
+                "description": "Optional absolute path to use as the working directory for this command (does not persist between one-shot calls; with a `shell_id` it cds the session).",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Optional timeout in milliseconds (default: background after 10s idle or 30s total).\nWhen it elapses, a still-running command is backgrounded and its shell_id returned for `get_output`/`kill_shell`. Set to `0` to background immediately.",
+                "type": "integer"
+              },
+              "tty": {
+                "description": "Allocate a PTY-backed interactive session. Default `false`.\n`false` (default): one-shot non-interactive command run through pipes; good for most use cases.\n`true`: persistent interactive session — for TUI programs (vim, tmux, top, REPLs) or state that must persist across calls.",
+                "type": "boolean",
+                "default": false
+              },
+              "env": {
+                "description": "Environment variables for this command's process tree, e.g.\n`{\"API_KEY\": \"abc123\", \"NODE_ENV\": \"development\"}`. These take effect\nonly when a new shell is started, so `env` cannot be combined with\n`shell_id` — omit `shell_id` (the call is rejected otherwise) so the\nvariables are set from the shell's first process onward. They are\nvisible to this command and its child processes only, not to other\nshells or later commands.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "A powerful search tool built on ripgrep.\n\nUsage:\n- Always prefer this tool over invoking `grep` or `rg` as a shell command. It has been optimized for correct permissions and access.\n- The pattern is treated as a regular expression.\n- Filter files with the glob_pattern parameter in glob format (e.g., \"*.rs\", \"src/**/*.py\").\n- Use output_mode to control results: 'content' for matching lines, 'files_with_matches' for file paths only, 'count' for match counts. Set case_insensitive for case-insensitive matching and context_lines to show lines around each match.\n- If the result is truncated, narrow your search with a more specific pattern or more filters.\n- Files larger than 4 MB are skipped.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "pattern"
+            ],
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "description": "The regular expression pattern to search for, passed to ripgrep under the hood",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory or file to search in. Defaults to current directory.",
+                "type": "string",
+                "default": "."
+              },
+              "glob_pattern": {
+                "description": "Glob pattern to filter files (e.g., '*.rs' searches .rs files in current dir but not subdirs, 'src/**/*.py' searches .py files in src/ and its subdirs). Defaults to searching all files.",
+                "type": "string"
+              },
+              "output_mode": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "description": "How to format the output.",
+                "default": "content"
+              },
+              "case_insensitive": {
+                "description": "Perform case-insensitive search. Defaults to false.",
+                "type": "boolean",
+                "default": false
+              },
+              "max_results": {
+                "description": "Maximum number of matches to return. Defaults to 100, max 20,000. Only applicable for \"content\" output mode.",
+                "type": "integer"
+              },
+              "context_lines": {
+                "description": "Number of lines to show before and after each match (context). Defaults to 0.",
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_servers",
+          "description": "Lists all MCP servers you have access to. Use this first if the user is asking about any third party integrations (e.g. Slack, Linear, etc).",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "exit_plan_mode",
+          "description": "Exit Plan mode and switch to Normal mode to begin implementation.\n\n**ONLY call this tool when ALL of the following are true:**\n1. You have explored the codebase and understood the task\n2. You have asked any necessary clarifying questions using ask_user_question\n3. You have presented your implementation plan in your messages\n\n**Do NOT call this tool:**\n- For research-only tasks that don't require implementation\n- To ask \"Is this plan okay?\" - use ask_user_question for that instead\n\nInclude a concise summary of the plan in the `plan` parameter so the user can review it before approving.\n\nOn success, you will automatically switch to Normal mode and can begin implementation.",
+          "parameters": {
+            "properties": {
+              "plan": {
+                "description": "A concise summary of the implementation plan. This is displayed to the\nuser for approval before switching out of Plan mode.",
+                "type": "string",
+                "default": null
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_to_process",
+          "description": "Writes input to an interactive process running in a shell with support for both text and special characters.\n\nIMPORTANT: This command will NOT work if there is no command running in the shell. If you want to execute a command in the shell use the exec tool.\n\nProvide exactly ONE of text_input or bytes_input (never both). To answer a prompt that needs an Enter keypress (e.g. a [y/n] prompt), set bytes_input to y<CR> (the y character followed by Enter).\n\nInput options:\n- text_input: Literal text content (no special character interpretation)\n- bytes_input: Special characters using angle bracket notation (e.g., <ESC>, <CR>, <UP>, <C-c>)\n\nSpecial character notation:\n- <ESC> = Escape character\n- <CR> = Carriage return (Enter)\n- <LF> = Line feed (newline)\n- <BS> = Backspace\n- <UP>, <DOWN>, <LEFT>, <RIGHT> = Arrow keys\n- <C-c>, <C-d>, <C-z> = Ctrl+key combinations\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to write to.",
+                "type": "string"
+              },
+              "text_input": {
+                "description": "Text content to write to the shell (interpreted as literal text).",
+                "type": "string"
+              },
+              "bytes_input": {
+                "description": "Special characters/bytes to write to the shell (interpreted with angle bracket notation).",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_list_tools",
+          "description": "List available tools and resources from MCP servers. Use this to discover what capabilities are available before calling mcp_call_tool.",
+          "parameters": {
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to list tools from (e.g., \"linear\", \"github\"). If not provided, lists tools from all configured servers.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Use the apply_patch tool to edit files. This is a FREEFORM tool — emit the patch directly, do not wrap it in JSON. You must include a header with your intended action (Add/Update/Delete). You must prefix new lines with `+` even when creating a new file. To delete a file, use a `*** Delete File: <path>` header with no body. To rename or move a file, add a `*** Move to: <new path>` line immediately after its `*** Update File: <path>` header (you may also include edits in the same hunk). You MUST always use the absolute path when specifying the target file.",
+          "parameters": {}
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web for information using a search query. Returns relevant web page titles, URLs, and summaries. Use this when you need to find information online.\n\nYou must not include extraneous information in web searches. For example, to find latest python version, do *NOT* search \"latest Python version 2026 3.11 3.12 3.13\". The \"2026 3.11 3.12 3.13\" is unnecessary. Keep the search string simple and focused, e.g. \"latest Python version\".",
+          "parameters": {
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "description": "The search query to find relevant web pages.",
+                "type": "string"
+              },
+              "num_results": {
+                "description": "Maximum number of results to return. Defaults to 5.",
+                "type": "integer",
+                "default": null
+              },
+              "domain": {
+                "description": "Optional domain to restrict search results to (e.g. \"docs.rs\").",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "close_browser_preview",
+          "description": "Closes a running browser preview by its ID.\n\n- Takes a preview_id parameter, as returned by `browser_preview`\n- The preview URL stops working; the web server it points at is untouched\n- Previews are closed automatically when the session ends, so this is only\n  needed to close one early\n",
+          "parameters": {
+            "required": [
+              "preview_id"
+            ],
+            "properties": {
+              "preview_id": {
+                "description": "The ID of the browser preview to close.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "todo_write",
+          "description": "Use this tool to create and manage a structured task list for your current session. It tracks your progress and gives the user visibility into what you are working on.\n\n## When to use\nUse this tool for multi-step tasks (3 or more distinct steps), non-trivial tasks that require planning, or when the user provides multiple tasks or explicitly asks for a todo list. Skip it for trivial, single-step, or purely conversational/informational requests — just do the task directly.\n\n## Task states and management\n- Each task is pending, in_progress, or completed\n- Keep exactly ONE task in_progress at a time; mark it in_progress when starting work on it\n- Mark a task completed IMMEDIATELY after finishing it\n- Only mark a task completed when it is fully done — if you hit errors or blockers, keep it in_progress and add a new task describing what must be resolved\n- Add follow-up tasks discovered during work; remove tasks that are no longer relevant\n- Create specific, actionable items and break complex work into smaller steps\n\n## Example\nFor \"Add a dark mode toggle to settings, then run tests and build\":\n1. Add dark mode toggle component to settings page (in_progress)\n2. Wire up dark mode state management\n3. Update existing components to support theme switching\n4. Run tests and build, fixing any failures",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "todos"
+            ],
+            "type": "object",
+            "properties": {
+              "todos": {
+                "description": "The updated list of todo items.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "description": "The task description.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status of the todo item."
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_shell",
+          "description": "Kills a running background shell by its ID.\n\n- Takes a shell_id parameter identifying the shell to kill\n- Returns a success or failure status\n- Use this tool when you need to terminate a long-running shell\n",
+          "parameters": {
+            "required": [
+              "shell_id"
+            ],
+            "properties": {
+              "shell_id": {
+                "description": "The ID of the shell to kill.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "Write content to a file, creating it if needed and overwriting it if it exists.\n\nUsage:\n- Prefer the edit tool for modifying existing files. Only use this tool to create new files or for complete rewrites.\n- If overwriting an existing file, you SHOULD use the read tool first to read the file's contents.\n- NEVER proactively create documentation files (*.md) or README files unless explicitly requested.\n- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "content"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to write",
+                "type": "string"
+              },
+              "content": {
+                "description": "The content to write to the file",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "Performs exact string replacements in files.\n\nUsage:\n- You must use your `read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\n- When editing text from read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.\n- ALWAYS prefer editing existing files to creating new ones.\n- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.\n- The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`.\n- Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.",
+          "parameters": {
+            "required": [
+              "file_path",
+              "old_string",
+              "new_string"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to modify",
+                "type": "string"
+              },
+              "old_string": {
+                "description": "The text to replace. Always provide `old_string` before `new_string` so that streaming displays can show the diff progressively.",
+                "type": "string"
+              },
+              "new_string": {
+                "description": "The text to replace it with (must be different from `old_string`)",
+                "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace all occurrences of `old_string` (default false)",
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "run_subagent",
+          "description": "Launch an independent subagent to handle a task autonomously.\n\nSubagents (also referred to as just \"agents\") are good at handling self-contained, multi-step tasks, especially if they can be parallelized:\n- Parallel execution: Splitting subtasks across subagents allows you to complete your work more quickly than doing these tasks on your own. In order to benefit from this, it's important that you actually launch the background subagents in parallel rather than running them one after the other. Note that subagents' work should be self-contained when runnign in parallel so they don't interfere with each other (e.g. we don't want parallel subagents writing to the same files).\n- Self-contained, multi-step work: For tasks that likely require several steps to complete, where the steps to find the final answer aren't very relevant. For example, broad or uncertain searches/explorations are a good use-case.\n         - Keeping your context clean: For tasks that seem mostly irrelevant to the things you've been working on, subagents can let you answer questions while staying focused. For example, if a user asks a question about Devin CLI documentation or configuraiton while you're refactoring on a codebase, you can use a subagent to investigate this tangential question. Use discretion—sometimes the user does want you to switch tasks, especially if you've already worked on several unrelated things already, or if it seems like your previous tasks are complete.\n\n\n         Skip subagents when simpler tools suffice:\n- If you already know the file path, read it directly\n- Use your grep and glob tools rather than subagents when you think they will meet your needs quickly without many attempts\n- Use your edit or read tools directly if only a few files are involved\n\n- Don't use a subagent to do singular tasks like running a command\n\nWriting effective prompts:\n- Subagents are stateless; they cannot ask clarifying questions, and they can't see any of your context. Front-load all context they might neeed: relevant file paths, function/class names, what you already know, and exactly what you need back.\n- State whether the subagent should make changes or only investigate. It has no visibility into the user's original request. When asking open-ended questions, explicitly state how thorough of an answer you want.\nUsage notes:\n- The user never sees subagent output directly, so you'll need to distill subagents' answers into your own response if you want to .\n- You can generally trust subagent results. Avoid re-doing their work unless something looks wrong.\n\n- Set is_background=true to run a background subagent without blocking. You will be notified automatically when it finishes with a <subagent_completion_notification> message. You can check on the status of a background subagent using your read_subagent tool. To wait for a subagent to complete to see its response, call read_subagent with block=true. Background agents are nice for parallelism and work that might take unexpectedly long, in which case you'd want to do other work while waiting.\n        - Set is_background=false to run a foreground subagent when you need the answer before continuing. You can't do any other work while a foreground subagent is running, and at most one foreground agent can run at once. Despite these restrictions, foreground users have a slightly nicer UX and are less frequently blocked by permission issues. So use is_background=false when you don't need paralellism and would have otherwise spawned a background agent then immediately called read_subagent with block=true.\n        - If you want to run both background subagents and a foreground subagent, run the background subagents first and then run the foreground subagent. Don't try to launch multiple foreground subagents in parallel; instead use background subagents or run the foreground subagents sequentially so you can see each subagent's output before launching the next one.",
+          "parameters": {
+            "required": [
+              "title",
+              "task",
+              "profile"
+            ],
+            "properties": {
+              "title": {
+                "description": "A short, human-readable title for this subagent.",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task or prompt to give the subagent. Be specific and detailed.",
+                "type": "string"
+              },
+              "profile": {
+                "description": "The profile to use for this subagent (e.g. \"subagent_explore\", \"subagent_general\").",
+                "type": "string"
+              },
+              "is_background": {
+                "description": "If true, the subagent runs in the background and returns its ID\nimmediately. You will be automatically woken up with the result\nwhen it completes. You can check progress with read_subagent if\nneeded, but do not poll in a loop — just continue with other work\nor end your turn.",
+                "type": "boolean",
+                "default": false
+              },
+              "resume": {
+                "description": "If set to an agent id (which you can get from the response of a previous\nrun_subagent invocation), your prompt will be sent to that agent, so it can\nrespond using its existing execution transcript as context.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Reads a file from the filesystem. The file_path parameter must be an absolute path, not a relative path. By default, it reads up to 20000 characters starting from the beginning of the file. You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters. Any lines longer than 2000 characters will be truncated.",
+          "parameters": {
+            "required": [
+              "file_path"
+            ],
+            "properties": {
+              "file_path": {
+                "description": "The absolute path to the file to read.",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Optional line number to start reading from (1-based).",
+                "type": "integer"
+              },
+              "limit": {
+                "description": "Optional number of lines to read.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "browser_preview",
+          "description": "Spin up a browser preview for a running web server.\n\nThis lets the USER interact with the web server as normal, and lets them send\nyou what they see: selecting a DOM element (with its React component and source\nlocation, when resolvable) or the browser console output. Those captures go into\nthe USER's message box for them to send — you will not receive them unless they\ndo, so ask them to share what they see rather than waiting.\n\nUsage notes:\n  - The server must already be running; start it with a background command\n    first (`timeout: 0`) if it isn't.\n  - Returns immediately with a preview ID and URL. The preview stays up for the\n    rest of the session, so the USER can keep using it after you stop.\n  - An attempt is made to open the URL in the USER's browser; the URL is always\n    printed in case that fails (e.g. over SSH or in a container).\n  - Calling this again for the same URL returns the existing preview.\n  - Use `close_browser_preview` when the preview is no longer needed, e.g.\n    before shutting down the server it points at.\n",
+          "parameters": {
+            "required": [
+              "url",
+              "name"
+            ],
+            "properties": {
+              "url": {
+                "description": "The URL of the target web server to provide a browser preview for. This\nshould contain the scheme (e.g. http:// or https://), domain (e.g.\nlocalhost or 127.0.0.1), and port (e.g. :8080) but no path.",
+                "type": "string"
+              },
+              "name": {
+                "description": "A short 3-5 word name for the target web server. Should be title-cased\ne.g. 'Personal Website'. Format as a simple string, not as markdown; and\nplease output the title directly, do not prefix it with 'Title:' or\nanything similar.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_user_question",
+          "description": "Present multiple-choice questions to the user and collect their answers.\n\nUse this tool when you need the user to make a decision between several options, such as choosing\nan implementation approach, selecting a library, or confirming a design choice.\n\nKey constraints:\n- 1-4 questions per call\n- 2-4 options per question (an \"Other\" free-text option is always added automatically)\n- Keep headers short (e.g. \"Auth method\", \"Library\"); headers over 16 characters are truncated\n- Option labels should be 1-5 words\n\nThe user can:\n- Select from the predefined options\n- Type a custom answer via the \"Other\" option\n- Skip or decline the question to ask for clarification\n\nIf the user submits answers, you will receive a key-value mapping of question text to their selections.\nQuestions the user skipped are marked with \"skipped\": true — treat a skipped question as the user\ndeclining to choose, not as an error, and proceed with your best judgment.\nIf the user chooses to chat instead, you will receive a rejection with any partial answers they provided.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "properties": {
+              "questions": {
+                "description": "Array of 1-4 question objects to present to the user.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "description": "The full question text to display to the user.",
+                      "type": "string"
+                    },
+                    "header": {
+                      "description": "Short label displayed as a chip/tag, e.g. \"Auth method\", \"Library\".\nLabels longer than 16 characters are truncated with an ellipsis (\"…\") for display.",
+                      "type": "string"
+                    },
+                    "options": {
+                      "description": "The choices presented to the user (2-4 options). An \"Other\" free-text option is always added automatically.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "description": "Display text the user sees (1-5 words).",
+                            "type": "string"
+                          },
+                          "description": {
+                            "description": "Explanation of what this option means or its trade-offs.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "multi_select": {
+                      "description": "If true, the user can select multiple options; if false, single-select only.",
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "header",
+                    "options"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "answers": {
+                "description": "User's answers, keyed by question text. Populated by the UI when the user responds.\nDo not set this yourself; it will be filled in automatically.",
+                "type": "object",
+                "additionalProperties": {
+                  "description": "Represents a single answer from the user for one question.",
+                  "type": "object",
+                  "properties": {
+                    "selected": {
+                      "description": "The selected option label(s). For single-select, this will have one element.\nFor multi-select, it may have multiple. If \"Other\" was chosen, it will contain \"Other\".",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "custom_text": {
+                      "description": "Custom text provided by the user. Set when the user selects \"Other\".",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_call_tool",
+          "description": "Execute a tool on an MCP server. Use this to interact with external services like Linear, GitHub, Slack, databases, and more. The tool result will be returned as structured data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "tool_name"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server to use (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "tool_name": {
+                "description": "Name of the tool to execute.",
+                "type": "string"
+              },
+              "arguments": {
+                "description": "Input arguments for the tool as a JSON object.",
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "properties": {}
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp_read_resource",
+          "description": "Read a resource from an MCP server. Resources can be files, database records, API responses, or any data exposed by the MCP server. Returns the resource content as text or binary data.",
+          "parameters": {
+            "required": [
+              "server_name",
+              "resource_uri"
+            ],
+            "properties": {
+              "server_name": {
+                "description": "Name of the MCP server (e.g., \"linear\", \"github\").",
+                "type": "string"
+              },
+              "resource_uri": {
+                "description": "Resource URI to read (e.g., \"<file:///path/to/file>\", \"<linear://issue/123>\").",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find_file_by_name",
+          "description": "Fast file name/path pattern matching tool that works with any codebase size using glob patterns. Supports brace expansion (e.g., `**/*.{ts,tsx,js,jsx}`). Matches against file paths, not file contents. Do NOT use this tool for searching for things like function names, variable names, etc. which should be searched against file contents (e.g. using grep).",
+          "parameters": {
+            "required": [
+              "pattern"
+            ],
+            "properties": {
+              "pattern": {
+                "description": "The glob pattern to match files against.\nExamples:\n- `*.py` - matches all Python files in the current directory only (not subdirectories)\n- `**/*.js` - matches all JavaScript files in the current directory and all subdirectories recursively\n- `src/**/*.ts` - matches all TypeScript files within the `src` folder and its subdirectories\n- `test_*.py` - matches Python files starting with `test_` in the current directory (e.g., `test_utils.py`)\n- `**/*.{ts,tsx}` - matches all TypeScript files (both .ts and .tsx) recursively using brace expansion",
+                "type": "string"
+              },
+              "path": {
+                "description": "The directory to search in (defaults to current working directory)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Updates the task plan. Provide an optional explanation and a list of plan items, each with a non-empty step description and status. At most one step can be in_progress at a time.",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "plan"
+            ],
+            "type": "object",
+            "properties": {
+              "explanation": {
+                "description": "Optional explanation for this plan update.",
+                "type": "string"
+              },
+              "plan": {
+                "description": "The plan items with step descriptions and statuses.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "step": {
+                      "description": "A brief description of the plan step.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ],
+                      "description": "Current status: pending, in_progress, or completed."
+                    }
+                  },
+                  "required": [
+                    "step",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "skill",
+          "description": "Invoke or discover skills. Modes: 'invoke' (default) activates a skill by name, 'list' discovers skills registered in a project at the given path (scans skill directories like .devin/skills/ at the project root, does not recurse into subdirectories), and 'search' recursively scans for model-invocable skills under a given path and filters them by optional keywords. Skills provide context-specific guidance and may grant tool permissions.",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "description": "The skill operation to perform. Defaults to \"invoke\" if omitted.",
+                "default": "invoke",
+                "type": "string",
+                "enum": [
+                  "invoke",
+                  "list",
+                  "search"
+                ]
+              },
+              "skill": {
+                "description": "The name of the skill to invoke (required for 'invoke' command).\nUse one of the available skills listed in the system prompt.",
+                "type": "string",
+                "default": null
+              },
+              "path": {
+                "description": "Project path to discover skills in (required for 'list' and 'search' commands).\nScans skill directories (e.g. .devin/skills/) at the project root;\n`list` does not recurse into subdirectories, while `search` does.\nRelative paths are resolved against the session's working directory.",
+                "type": "string",
+                "default": null
+              },
+              "keywords": {
+                "description": "List of keywords to search for. Empty or omitted means include all skills.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null
+              },
+              "keywords_mode": {
+                "type": "string",
+                "enum": [
+                  "or",
+                  "and"
+                ],
+                "description": "Controls whether all keywords or any keyword need to be present.",
+                "default": "or"
+              }
+            },
+            "type": "object"
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "request_scope",
+          "description": "Request read or write access to a directory. Use this tool when you encounter a permission error due to sandboxing and need access to a path outside your current allowed directories. The user will be prompted to approve or deny the request. This tool is a no-op if the scope is already granted.",
+          "parameters": {
+            "required": [
+              "scope",
+              "path"
+            ],
+            "properties": {
+              "scope": {
+                "description": "The type of access to request: \"read\" or \"write\".",
+                "type": "string"
+              },
+              "path": {
+                "description": "The absolute path to the directory to request access to.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_read",
+          "description": "Read a Jupyter notebook file (.ipynb) and extract all cells with their outputs",
+          "parameters": {
+            "required": [
+              "notebook_path"
+            ],
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file to read (must be absolute, not relative)",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "notebook_edit",
+          "description": "Edit a cell in a Jupyter notebook file (.ipynb) - replace, insert, or delete cells",
+          "parameters": {
+            "additionalProperties": false,
+            "required": [
+              "notebook_path",
+              "cell_number",
+              "new_source"
+            ],
+            "type": "object",
+            "properties": {
+              "notebook_path": {
+                "description": "The absolute path to the Jupyter notebook file (.ipynb) to edit.",
+                "type": "string"
+              },
+              "cell_number": {
+                "description": "The 0-based index of the cell to edit.",
+                "type": "integer"
+              },
+              "new_source": {
+                "description": "The new source content for the cell.",
+                "type": "string"
+              },
+              "cell_type": {
+                "description": "The type of the cell. If not specified, keeps the current type (for replace) or defaults to code (for insert).",
+                "type": "string",
+                "enum": [
+                  "code",
+                  "markdown"
+                ]
+              },
+              "edit_mode": {
+                "default": "replace",
+                "description": "The edit operation to perform. Defaults to replace.",
+                "type": "string",
+                "enum": [
+                  "replace",
+                  "insert",
+                  "delete"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_subagent",
+          "description": "Reads the response from a background subagent, using the agent_id you got from the run_subagent tool or a <subagent_completion_notification> message. You use block=true to wait for completion. If you have other work to do, you can do that (you'll be notified whenever a subagent completes). This tool will never interrupt a running subagent.",
+          "parameters": {
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "description": "The ID of the background subagent to read output from.",
+                "type": "string"
+              },
+              "block": {
+                "description": "If true, block until the subagent finishes or the timeout expires.",
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "description": "Maximum number of seconds to wait when blocking. Defaults to 30, capped at 600, unless the tool description documents different limits for a specific subagent type.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell_command",
+          "description": "Runs a shell command and returns its output.\n- Use absolute paths in your commands instead of `cd`. Do not use `cd` unless absolutely necessary.",
+          "parameters": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "description": "The shell script to execute.",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "The timeout for the command in milliseconds.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "extra": {
+      "backend": "Windsurf",
+      "permission_mode": "Bypass"
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-08-20T23:34:39.907031+00:00",
+      "source": "system",
+      "message": "You are Devin, an interactive command line agent from Cognition.\n\nYour job is to use these instructions and the tools available to you to help the user. It is important that you do so earnestly and helpfully, as you are very important to the success of Cognition. Best of luck! We love you. <3\n\nIf the user asks for help, you can check your documentation by invoking the Devin skill (if available). Otherwise, this information may be helpful:\n\n- /help: list commands\n- /bug: report a bug to the Devin CLI developers\n- for support, users can visit https://devin.ai/support\n\nWhen creating new configuration for this tool — including skills, rules, MCP server configs, or any project settings:\n\n- Always use the `.devin/` directory for NEW configuration (e.g. `.devin/skills/<name>/SKILL.md`, `.devin/config.json`)\n- For global (user-level) configuration, use `~/.config/devin/`\n- Do NOT place new configuration in `.claude/`, `.cursor/`, or other tool-specific directories unless explicitly asked. These are only read for compatibility, not written to.\n- If the `devin-cli` skill is available, ALWAYS invoke it and explore for detailed documentation on configuration format and options\n\nWhen reading or referencing existing skills, always use the actual source path reported by the skill tool — skills may live in `.devin/`, `.agents/`, or other directories.\n\n\n# Modes\n\nThe active mode is how the user would like you to act.\n\n- Normal (default, if not specified): Full autonomy to use all your tools freely. For example: exploring a codebase, writing or editing code, etc.\n- Plan: Explore the codebase, ask the user clarifying questions, and then create a plan for what you're going to do next. Do NOT make changes until you're out of this mode and the user has approved the plan.\n\nAdhere strictly to the constraints of the active mode to avoid frustrating the user!\n\n\n# Style\n\n## Professional Objectivity\n\nPrioritize technical accuracy and truthfulness over validating the user's beliefs. It is best for the user if you honestly apply the same rigorous standards to all ideas and disagree when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.\n\n## Tone\n\n- Be concise, direct, and to the point. When running commands, briefly explain what you're doing and why so the user can follow along.\n- Remember that your output will be displayed in a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.\n- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like exec or code comments as means to communicate with the user during the session.\n- If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.\n- Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.\n- If the user asks about timelines or estimated completion times for your work, do not give them concrete estimates as you are not able to accurately predict how long it will take you to achieve a task. Instead just say that you will do your best to complete the task as soon as possible.\n- Avoid guessing. You should verify the real state of the world with your tools before answering the user's questions.\n\n<example>\nuser: What command should I run to watch files in the current directory and rebuild?\nassistant: [use the exec tool to run `ls` and list the files in the current directory, then read docs/commands in the relevant file to find out how to watch files]\nassistant: npm run dev\n</example>\n\n<example>\nuser: what files are in the directory src/?\nassistant: [runs ls and sees foo.c, bar.c, baz.c]\nassistant: foo.c, bar.c, baz.c\nuser: which file contains the implementation of Foo?\nassistant: [reads foo.c]\nassistant: src/foo.c contains `struct Foo`, which implements [...]\n</example>\n\n<example>\nuser: can you write tests for this feature\nassistant: [uses grep and glob search tools to find where similar tests are defined, uses concurrent read file tool use blocks in one tool call to read relevant files at the same time, uses edit file tool to write new tests]\n</example>\n\n## Proactiveness\n\nYou are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:\n\n1. Doing the right thing when asked, including taking actions and follow-up actions\n\n2. Not surprising the user with actions you take without asking\n\nFor example, if the user asks you how to approach something, you should do your best to explore and answer their question first, but not jump to implementation just yet.\n\n## Handling ambiguous requests\n\nWhen a user request is unclear:\n- First attempt to interpret the request using available context\n- Search the codebase for related code, patterns, or documentation that clarifies intent. Also consider searching the web.\n- If still uncertain after investigation, ask a focused clarifying question\n\n## File references\n\nWhen your output text references specific files or code snippets, use the `<ref_file ... />` and `<ref_snippet ... />` self-closing XML tags to create clickable citations. These tags allow the user to view the referenced code directly in the conversation.\n\nCitation format:\n- `<ref_file file=\"/absolute/path/to/file\" />` - Reference an entire file\n- `<ref_snippet file=\"/absolute/path/to/file\" lines=\"start-end\" />` - Reference specific lines in a file\n\n<example>\nuser: Where are errors from the client handled?\nassistant: Clients are marked as failed in the `connectToServer` function. <ref_snippet file=\"/home/ubuntu/repos/project/src/services/process.ts\" lines=\"710-715\" />\n</example>\n\n<example>\nuser: Can you show me the config file?\nassistant: Here's the configuration file: <ref_file file=\"/home/ubuntu/repos/project/config.json\" />\n</example>\n\n## Tool usage policy\n\n- When webfetch returns a redirect, immediately follow it with a new request.\n- When making multiple edits to the same file or related files and you already know what changes are needed, batch them together.\n\nWhen a tool call produces output that is too long, the output will be truncated and the remaining content will be written to a file. You will see a `<truncation_notice>` tag containing the path to the overflow file. You are responsible for reading this file if you need the full output.\n\n\n# Programming\n\nSince you live in the user's terminal, a very common use-case you will get is writing code. Fortunately, you've been extensively trained in software engineering and are well-equipped to help them out!\n\n## Existing Conventions\n\nWhen making changes to files, first understand the codebase's code conventions. Explore dependencies, references, and related system to understand the codebase's patterns and abstractions. Mimic code style, use existing libraries and utilities, and follow existing patterns.\n- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the package.json (or cargo.toml, and so on depending on the language). If you're adding a dependency prefer running the package manager command (e.g. npm add or cargo add) instead of editing the file.\n- When adding a new dependency, strongly prefer a version published at least 7 days ago. Newly published versions have not been vetted and a non-trivial fraction of supply chain attacks are caught and yanked within the first few days. Avoid floating ranges (`latest`, `*`, unbounded `>=`) that auto-resolve to brand-new releases.\n- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.\n- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.\n- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository. Never modify repository security policies or compliance controls (e.g. `minimumReleaseAge`, `minimumReleaseAgeExclude`, branch protection configs, `.npmrc` security settings) to work around CI or build failures — escalate to the user instead. Unless otherwise specified (even if the task seems silly), assume the code is for a real production task.\n\n## Code style\n\n- IMPORTANT: Do NOT add or remove comments unless asked! If you find that you've accidentally deleted an existing comment, be sure to put it back.\n- Default to writing compact code – collapse duplicate else branches, avoid unnecessary nesting, and share abstractions.\n- Follow idiomatic conventions for the language you're writing.\n- Avoid excessive & verbose error handling in your code. Errors should be handled, but not every line needs to be try/catched. Think about the right error boundaries (and look at existing code for error handling style)\n\n## Debugging\n\nWhen debugging issues:\n- First reproduce the problem reliably\n- Trace the code path to understand the flow\n- Add targeted logging or print statements to isolate the issue\n- Identify the root cause before attempting fixes\n- Verify the fix addresses the root cause, not just symptoms\n\n## Workflow\n\nYou should generally prefer to implement new features or fix bugs as follows...\n\n1. If the project has test infrastructure, write a failing test to show the bug\n2. Fix the bug\n3. Ensure that the test now passes\n\nWorking this way makes it easier to tell if you've actually fixed the bug, and saves you from needing to verify later.\n\n## Git\n\n### Creating commits\n1. Run in parallel: `git status`, `git diff`, `git log` (to match commit style)\n2. Draft a concise commit message focusing on \"why\" not \"what\". Check for sensitive info.\n3. Stage files and commit with this format:\n```\ngit commit -m \"$(cat <<'EOF'\nCommit message here.\n\nGenerated with [Devin](https://devin.ai)\n\nCo-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>\nEOF\n)\"\n```\n4. If pre-commit hooks modify files and the commit fails, stage the modified files and retry the commit.\n\n### Creating pull requests\nUse `gh` for all GitHub operations. Run in parallel: `git status`, `git diff`, `git log`, `git diff main...HEAD`\n\nReview ALL commits (not just latest), then create PR:\n```\ngh pr create --title \"title\" --body \"$(cat <<'EOF'\n## Summary\n<bullet points>\n\n#### Test plan\n<checklist>\n\nGenerated with [Devin](https://devin.ai)\nEOF\n)\"\n```\n\n### Git rules\n- NEVER update git config\n- NEVER use `-i` flags (interactive mode not supported)\n- DO NOT push unless explicitly asked\n- DO NOT commit if no changes exist\n\n\n# Task Management\n\nYou have access to the todo_write tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.\nThis tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.\n\nIt is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.\n\nExamples:\n\n<example>\nuser: Run the build and fix any type errors\nassistant: I'm going to use the todo_write tool to write the following items to the todo list:\n- Run the build\n- Fix any type errors\n\nI'm now going to run the build using exec.\n\nLooks like I found 10 type errors. I'm going to use the todo_write tool to write 10 items to the todo list.\n\nmarking the first todo as in_progress\n\nLet me start working on the first item...\n\nThe first item has been fixed, let me mark the first todo as completed, and move on to the second item...\n..\n..\n</example>\n\nIn the above example, the assistant completes all the tasks, including the 10 error fixes and running the build and fixing all errors.\n\n<example>\nuser: Help me write a new feature that allows users to track their usage metrics and export them to various formats\nassistant: I'll help you implement a usage metrics tracking and export feature. Let me first use the todo_write tool to plan this task.\nAdding the following todos to the todo list:\n1. Research existing metrics tracking in the codebase\n2. Design the metrics collection system\n3. Implement core metrics tracking functionality\n4. Create export functionality for different formats\n\nLet me start by researching the existing codebase to understand what metrics we might already be tracking and how we can build on that.\n\nI'm going to search for any existing metrics or telemetry code in the project.\n\nI've found some existing telemetry code. Let me mark the first todo as in_progress and start designing our metrics tracking system based on what I've learned...\n\n[Assistant continues implementing the feature step by step, marking todos as in_progress and completed as they go]\n</example>\n\nUsers may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.\n\n\n## Completing Tasks\n\nThe user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:\n- Use the todo_write tool to plan the task if required\n- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.\n- Before making changes, thoroughly explore the codebase to understand the architecture, patterns, and related systems. Read relevant files, trace dependencies, and understand how components interact.\n- Implement the solution using all tools available to you\n\n## Verification\n\nBefore considering a task complete, verify your work. Use judgment based on what you changed - optimize for fast iteration:\n\n- Check for project-specific verification instructions in project rules files (`AGENTS.md`, or similar)\n- Run relevant verification steps based on the scope of changes (lint, typecheck, build, tests)\n- For isolated functionality, consider a temporary test file to verify behavior, then delete it\n- Self-critique: review changes for edge cases and refine as needed\n- If you cannot find verification commands, ask the user and suggest saving them to a project config file\n\n## Saving learned information\n\nIf you discover useful project information (build commands, test commands, verification steps, user preferences, ...) that isn't already documented:\n- If a rules file exists (`AGENTS.md`, etc.), append to it\n- Otherwise, create `AGENTS.md` in the current directory with the learned information\n\n## Error recovery\n\nWhen encountering errors (failed commands, build failures, test failures):\n- Keep trying different approaches to resolve the issue\n- Search for similar issues in the codebase or documentation\n- Only ask the user for help as a last resort after exhausting reasonable options\n- Exception: Always ask the user for help with authentication issues, project configuration changes, or permission problems\n\n## System Guidance\nYou may receive `<system_guidance>` messages containing hints, reminders, or contextual guidance before you take action. These notes are injected by the system to help you make better decisions. Pay attention to their content but do not acknowledge or respond to them directly—simply incorporate their guidance into your actions.\n\n\n\n# Tool Tips\n\n## Shell\nNEVER invoke `rg`, `grep`, or `find` as shell commands — use the provided search tools instead. They have been optimized for correct permissions and access.\n\nIf you must call one of these binaries (e.g. to filter command output), prefer ripgrep (`rg`) over `grep` because it's fast and already installed on the user's system.\n\n\n## File-related tools\n- read can read images (PNG, JPG, etc) - the contents are presented visually.\n- For Jupyter notebooks (.ipynb files), use notebook_read instead of read.\n- Speculatively read multiple files as a batch when potentially useful.\n- Do NOT create documentation files to describe your changes or plan. Exception: persistent project info files like `AGENTS.md` are allowed.\n\n\n# Safety\n\nIMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Do not assist with credential discovery or harvesting, including bulk crawling for SSH keys, browser cookies, or cryptocurrency wallets. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.\n\nIMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.\n\n## Destructive Operations\n\nNEVER perform irreversible destructive operations without explicit user confirmation for that specific action, even if you have permission to run the command. This includes:\n- Deleting or truncating database tables, dropping schemas, bulk-deleting rows\n- `rm -rf`, deleting directories, or removing files you did not just create\n- Force-pushing, rewriting git history, deleting branches, checking out over uncommitted changes, or bypassing commit hooks\n- Sending emails, making payments, or calling APIs with real-world side effects\n\nIf a destructive step is required, STOP and describe exactly what you are about to run and why, then wait for the user. Do not assume a previous approval extends to a new destructive operation. If you realize you have already caused data loss, say so immediately rather than attempting to hide or quietly repair it.\n\n\n",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "normal"
+        }
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-20T23:34:39.907939+00:00",
+      "source": "system",
+      "message": "Available subagent profiles for the `run_subagent` tool. Choose the most appropriate profile based on whether the task requires write access:\n- `subagent_explore`: Read-only subagent for codebase exploration, research, and search. Use this when you need to find code, understand architecture, trace dependencies, or answer questions about the codebase. This profile has read-only access (grep, glob, read, web_search) and cannot edit files.\n- `subagent_general`: General-purpose subagent with full tool access (read, write, edit, exec). Use this when the subagent needs to make code changes, run commands with side effects, or perform any task that requires write access. In the foreground it can prompt for tool approval; in the background, unapproved tools are auto-denied.",
+      "extra": {
+        "telemetry": {
+          "source": "sysprompt",
+          "operation": "subagent_profiles"
+        }
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-20T23:34:39.915404+00:00",
+      "source": "system",
+      "message": "You are powered by GLM-5.2 High.",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-20T23:34:39.908285+00:00",
+      "source": "system",
+      "message": "<system_info>\nThe following information is automatically generated context about your current environment.\nCurrent workspace directories:\n  /Volumes/data/math-agent-glm5.2-tmux-agents-dir/p7e3333015dc7477d869f (cwd)\n\nPlatform: macos\nOS Version: Darwin 25.6.0\nToday's date: Thursday, 2026-08-20\n</system_info>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-20T23:34:39.908714+00:00",
+      "source": "system",
+      "message": "<rules type=\"always-on\">\n<rule name=\"dev-docs-sediment-to-docs\" path=\"/Users/user/.devin/rules/dev-docs-sediment-to-docs.md\">\n# dev-docs 内容沉淀到 docs\n\n**硬约束**：dev-docs 中的内容，应该被沉淀到 docs 目录中的，应该考虑沉淀到 docs 目录中。对应的 dev-docs 中，不再放内容，而是放对 docs 目录中的文件的索引。\n\n**含义**：\n- dev-docs 是工作痕迹、方案、调查的临时存放地，不是长期知识容器\n- 当 dev-docs 中的内容具有长期复用价值时（方案定稿、认知沉淀、规范确立），必须沉淀到 docs/ 目录\n- 沉淀后，dev-docs 中的对应文件不再保留完整内容，只保留对 docs/ 中文件的索引（路径+一句话说明）\n- dev-docs 的定位是\"工作过程记录 + 沉淀索引\"，不是\"第二个 docs\"\n\n**判定标准**：\n- 一次性工作记录（debug过程、临时分析）→ 留在 dev-docs\n- 方案定稿后需要长期参考 → 沉淀到 docs/，dev-docs 留索引\n- 认知/规范确立后需要跨session复用 → 沉淀到 docs/，dev-docs 留索引\n- 纯过程性内容（试错记录、已废弃方案）→ 留在 dev-docs，不沉淀\n</rule>\n\n<rule name=\"no-inline-scripts\" path=\"/Users/user/.devin/rules/no-inline-scripts.md\">\n# 禁止inline脚本，所有脚本持久化到项目内\n\n## 硬规则\n\n1. **禁止写inline脚本**——禁止用`.venv/bin/python -c \"...\"`或`python -c \"...\"`写超过3行的脚本。如果一段逻辑需要超过3行代码，它必须被写成文件。\n\n2. **禁止在AGENTS.md中记录inline代码**——AGENTS.md中禁止出现超过5行的bash/python代码块。如果一段操作逻辑需要超过5行代码才能表达，它必须被写成`scripts/`下的脚本，然后在AGENTS.md中只记录脚本路径和一行用法示例。AGENTS.md是认知索引和规则，不是代码仓库。\n\n3. **所有脚本写到项目内的脚本目录中**——不是临时目录、不是`/tmp/`、不是home目录。放到项目已有的脚本目录（如`xishujuzhen/solver_harness/`）或项目的`scripts/`目录中。\n\n4. **在项目AGENTS.md中做好索引**——新脚本必须在项目AGENTS.md中记录：脚本路径、用途、用法（一行示例）。让下一个session的AI能找到它。**索引不是代码全文**——只记路径+用途+一行用法，不记完整代码。\n\n5. **持续维护，不重写**——如果某个操作已经有过脚本，改进那个脚本，不要另写新的。重复的操作应该累积成一个越来越完善的脚本，而不是每次session都从头写。\n\n## 为什么\n\n- **inline脚本是一次性的**——写完用完就消失，下一个session的AI看不到、无法复用、无法改进\n- **inline脚本不可追溯**——没有文件路径、没有git历史、无法审计\n- **inline脚本导致重复劳动**——同一个操作（如僵尸清理、批量落盘）每个session都重写一遍，浪费且容易出bug\n- **持久化脚本持续积累**——每次改进都commit，脚本越来越强，下一个session直接用\n\n## 判定标准\n\n| 情况 | 做法 |\n|---|---|\n| 单行命令（`ls`、`git status`、`tmux list-sessions`） | 直接执行 |\n| 2-3行的简单查询 | 直接执行可以 |\n| 超过3行的逻辑 | **必须写成文件** |\n| 会重复使用的操作（清理、落盘、查询、批量处理） | **必须写成文件** |\n| 已有脚本可以改进 | **改进已有脚本，不另写** |\n\n## 操作流程\n\n1. 发现需要写一段脚本逻辑\n2. 检查项目内是否已有类似脚本（grep搜索、看AGENTS.md索引）\n3. **已有** → 改进那个脚本（edit工具修改），编译验证\n4. **没有** → 在项目脚本目录中创建新文件（write工具），编译验证\n5. 在项目AGENTS.md中记录脚本索引（如已有相关节则更新，如没有则新增）\n6. commit\n\n## 反模式\n\n- ❌ `.venv/bin/python -c \"import sys; sys.path.insert(0, '...'); ...\"` 写50行inline脚本\n- ❌ 把脚本写到`/tmp/`然后执行\n- ❌ 每次session都重写\"清理僵尸session\"的脚本\n- ❌ 改进了脚本但不更新AGENTS.md索引\n- ❌ **在AGENTS.md中粘贴超过5行的bash/python代码块**——AGENTS.md是索引不是代码仓库\n- ❌ **在AGENTS.md中写`python -c \"...\"`的多行inline代码**——这既是inline脚本又是文档污染\n- ✅ 改进`batch_status.py`的`cmd_dead_cleanup`函数\n- ✅ 新建`enqueue_problem.py`并在AGENTS.md硬约束6中记录\n- ✅ AGENTS.md中只写`pipe_control.py status`一行用法，不写完整调用参数和输出示例\n</rule>\n\n<rule name=\"never-modify-devin-config\" path=\"/Users/user/.devin/rules/never-modify-devin-config.md\">\n# 禁止修改 devin config.json 的 read_config_from\n\n## 硬约束\n\n**永远不要修改 `~/.config/devin/config.json` 中的 `read_config_from` 字段。**\n\n特别是 `\"windsurf\": true` 必须保持 `true`，不得改为 `false`。\n\n## 为什么\n\n- `read_config_from.windsurf: true` 是用户明确要求保留的配置\n- 如果不想让某些 windsurf 规则被 devin 加载，正确做法是**归档那些规则文件**（加日期后缀或移到备份目录），而不是关闭兼容加载机制\n- 关闭机制会影响其他兼容功能，不是正确的隔离手段\n\n## 正确做法\n\n如果需要阻止某个兼容来源的特定文件被加载：\n- **归档文件**——给文件加 `-日期` 后缀（如 `global_rules.md` → `global_rules-2026-08-19.md`），或移到备份目录\n- **不要动 config.json**——机制保持开启，只是让机制读不到目标文件\n\n## 详见\n\n历史案例：2026-08-19 归档 `~/.codeium/windsurf/` 下的规则文件（加 `-2026-08-19` 后缀），而非关闭 `read_config_from.windsurf`。\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Users/user/.config/devin/AGENTS.md\">\n# Devin CLI 全局工作规范\n\n**本文件（`~/.config/devin/AGENTS.md`）**：全局 always-on 规则。只放跨项目、跨 session 的硬约束和行为规范。\n\n**项目本地 `AGENTS.md`**：项目根目录下的 `AGENTS.md`。放项目状态、上下文、项目级规则。\n\n**用户说\"记录到 AGENTS.md\"时，默认指项目本地 `AGENTS.md`。** 只有用户明确说\"全局\"、\"Devin AGENTS.md\"、\"~/.config/devin/AGENTS.md\"时，才更新本文件。\n\n---\n\n## 硬约束与行为规范\n\n### 0 · Skill/Rule/元组管理策略\n\n#### 0.1 核心策略\n\ndevin 的 rule 和 skill 发现机制可靠（文件系统扫描）。always-on rule 自动注入每个 session，skill 通过 available_skills 列表展示 name+description。**不需要在 AGENTS.md 中维护 rule 或 skill 的索引——devin 自己加载。** 创建元组时只需把 rule 和 skill 放到对应位置（`~/.devin/rules/` 或 `~/.config/devin/skills/` 或项目级 `.devin/`），不需要在 AGENTS.md 记录。完整论证见 `devin-config-harness` skill §10.4。\n\n#### 0.4 维护规则\n\n- **新建 skill/rule 时必须按 `devin-config-harness` skill 的格式规范**——含 frontmatter、含 trigger/description、一句话触发器模式（详见 `devin-config-harness` skill §3.10 和 §10.7）\n- **元组创建、废弃、放置层级选择**：详见 `tuple-methodology` rule（§\"新增元组时的操作规范\"、§\"选择全局还是项目本地\"、§\"废弃 rule/skill\"）\n\n#### 0.5 Skill 极简化设计\n\n完整论证和执行规则见 `tuple-methodology` rule §\"Skill 极简化设计\"。核心：SKILL.md 只有 frontmatter + 一句话，真正内容放 `/Users/user/skills-devin/<文件名>`。\n\n#### 0.6 配置目录认知\n\n全局 AGENTS.md 在 `~/.config/devin/AGENTS.md`，不在 `~/.devin/`。详见 `devin-config-harness` skill §10.5。\n\n#### 0.7 Git Repo 管理认知\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）改完立即提交（详见 `global-config-git-commit` rule）。Git Repo 完整认知见 `devin-config-harness` skill §10.6。\n\n### 1 · 信息充分性\n\n行动前先问：\"我对这个问题的了解是否足够支撑直接行动？\"\n\n- 确信 → 直接行动\n- 不完全确定 → 先搜索再行动\n- 不确定 → 必须搜索，禁止猜测试错\n\n### 2 · 文档意识\n\n你和用户的对话是一个**积累过程**——积累代码、认知、文档、数据。积累必须**有机**：后期的积累结合到之前的积累中，而不是只在 TUI 里输出完就消失。\n\n**落盘规则**：\n\n1. **该放项目 AGENTS.md 的**（跨 session 认知、认知资产表、项目级配置信息）→ 放项目 AGENTS.md\n2. **该放 `./dev-docs/` 的**（工作痕迹、方案、分析、调查）→ 放 `dev-docs/` 下带顺序编号的文档\n3. **其他内容**→ 各就各位（全局规则放本文件或 `~/.devin/rules/`，操作流程放 skill，等）\n\n**Rule / Skill / 元组的放置层级**：详见 `tuple-methodology` rule §\"选择全局还是项目本地\"。核心：首先考虑项目级 `.devin/`，升级为全局必须获得用户明确同意。\n\n**方案先行**：方案落地到 `dev-docs/`，精确到 Check List 粒度，描述清楚原因和逻辑（不只是 Check List），实现过程中持续追踪完成情况。\n\n**跨 session 保证**：落盘的目的不仅是规范化码放，更是让跨 session、跨压缩边界后的 AI 能在必要时找回它应该了解的内容。\n\n**当用户说\"更新文档\"时**：赶紧检查什么内容该同步到项目 AGENTS.md、什么该同步到方案文档、什么该建新文档、什么该按认知资产表归档到 dev-docs。\n\n### 3 · 人话铁律\n\n所有文档、回复、注释、commit message、规则文件——全部用人话写。\n\n### 4 · 给选项必含利弊 + 推荐 + 推荐理由\n\n列选项时，必须同时给出：每个选项的利弊、你的推荐、推荐理由。\n\n### 5 · 时间估计纪律\n\n**禁止拍脑袋时间估计**：禁止无依据地随口说\"这需要 3 天\"、\"工作量 2 周\"——没有调查、没有实验、没有推理就给数字，是瞎说。\n\n**允许有理有据的时间估计**：当用户需要时间估计时，必须基于以下之一给出推理过程：\n- 实验数据（\"实测编译 1 个文件 30 秒，共 200 个文件，约 100 分钟\"）\n- 调查结果（\"该 API 限速 100 req/min，1 万条数据约需 100 分钟\"）\n- 常识推理（\"下载 10GB 文件，百兆带宽约 14 分钟，千兆约 1.4 分钟\"）\n- 历史经验（\"上次同类任务实际花了 X，本次规模类似\"）\n\n**格式要求**：给出时间估计时，必须同时给出推理依据。只给数字不给依据 = 违规。\n\n**无依据时**：说\"我没有依据给出时间估计\"，然后分析复杂程度、依赖关系、可行性、可逆度。\n\n### 6 · Debug 心智闸门\n\n撞墙三次必须停手。1-2 次调参数，3-5 次停手读证据，5 次以上重新定义问题。\n\n### 7 · 手机截图压缩后再读\n\n从手机拿到的截图，Read 之前必须压缩到 100KB 以下。macOS 用 `sips -s format jpeg -s formatOptions 60 -Z 1100 in.png --out out.jpg`。\n\n### 8 · 设备纪律\n\n- 只允许操作 **Green 手机 `09081FDD400019`**\n- 所有 `adb` 命令必须带 `-s 09081FDD400019`\n- 严禁自行操作 Black、Red、Yellow 等其他手机\n- 误触其他设备 → 立即停止，force-stop 已启动进程，并记录\n\n### 9 · 不要擅自 git init\n\n发现当前目录不在 git 仓库内时，先问用户是否初始化，不擅自 `git init`。\n\n### 10 · 搜索优先于试错\n\n同一类修复尝试 2 次仍失败 → 立即停止，改走搜索。\n\n### 11 · 工具边界\n\n- 没有 user 明确指示，不得操作 `~/.claude/` 和 `~/.codex/` 目录中的内容。\n- Devin 只能操作 `~/.config/devin/`、`~/.devin/` 以及明确授权的位置。\n\n### 12 · tmux 优先\n\n长时间运行的命令、服务、下载、同步，必须在 tmux 中运行，不允许用 `nohup ... &` 等脱离终端的方式。\n\n- **长时间命令**（下载、编译、同步、daemon、GPU 穷举等）→ `tmux new-session -d -s <name> \"<command>\"`\n- **检查运行状态** → `tmux capture-pane -t <name> -p`\n- **查看所有 session** → `tmux list-sessions`\n- **停止 session** → `tmux kill-session -t <name>`\n- session 命名规范：`<项目>-<用途>`\n- 短命令不需要 tmux\n\n> tmux 配置不好用时加载 `tmux-easy-setup` skill。\n\n---\n\n## Git 管理协议\n\n三个独立 repo（`~/.config/devin/`、`~/.devin/`、`/Users/user/skills-devin/`）的 Git 提交铁律、操作流程、禁止项详见 `global-config-git-commit` rule。核心：改前确认 clean、改后立即提交、禁止 `git add -A/.-u`、push 需用户当轮明确授权。\n\n---\n\n## 可审计性纪律\n\n- 重大分析、调查、审查必须留下 `file:line` 定位 + 理解性产物。\n- 声称\"X 完成\"前，必须有 remainder=0 证明。\n\n---\n\n## 元组核心原理\n\n元组=Rule+Skill。详见 `tuple-methodology` rule。\n\n---\n\n## dev-docs 目录\n\n跨项目的工作痕迹、方案、分析放 `~/.config/devin/dev-docs/`，带顺序编号。需要时直接到该目录下按编号查找。\n\n---\n\n## 更新本文件\n\n- 更新前检查 `before_status_baseline`\n- 只改本文件和对应 skill/rule\n- 改后核验 `after_status_baseline`，确保回到 git clean\n\n</rule>\n\n<rule name=\"cognition-trace-ironlaws\" path=\"/Users/user/.devin/rules/cognition-trace-ironlaws.md\">\n# 认知加载与trace.csv维护铁律（§17-21）\n\n## §17 · 认知加载铁律\n\n**硬约束**：接手任何工作时必须按三层架构加载认知，不能跳过直接开干。\n\n**操作**：加载 README.md（分类法索引）→ 判断需要哪种视角 → 加载对应看法文件 → 加载具体文档/代码 → 带着必要认知工作。\n\n**禁止**：不加载 README.md 就直接回答问题 · 只加载 README.md 不加载看法文件 · 假设自己不加载文档就能回答好问题。\n\n**详见**：`read` skill（一句话触发器 → `/Users/user/skills-devin/workflow.md` §2 §4）。\n\n## §18 · 方案先行铁律\n\n**硬约束**：非平凡工作必须先制定方案（`make-plan`），不能\"用户说改什么就直接改\"。\n\n**方案必须**：\n1. 利用 trace.csv 追溯链实现\"完备\"——认知等价于\"整个 repo 所有元素都放入上下文\"\n2. 拆解为自包含工作包——每个工作包 README.md 列出执行 AI 需要的 View（看法文件）和具体文档/代码\n3. 拆解粒度依赖 trace.csv 追溯支持——精确定位每个工作包涉及哪些元素\n\n**判断标准**：单文件单行修改 → 直接执行。涉及多文件/多步骤/需要理解上下文 → 必须方案先行。\n\n**详见**：`make-plan` skill → `/Users/user/skills-devin/workflow.md` §4 §5。\n\n## §19 · 提交前维护 trace.csv 铁律\n\n**硬约束**：每次 git commit 前必须维护 trace.csv 各层级幂等关系。commit 同时包含 repo 变更和 trace.csv 变更。\n\n**幂等关系**：给定任何一个 commit 时间点，trace.csv 的状态精确反映 repo 在那个时间点的所有元素和关系。trace.csv 和 repo 在同一个 commit 中同步演进。\n\n**维护粒度**：各个层级——文件级、函数级（`path::function`）、章节级（`path#section`）。改了某个函数，trace.csv 中这个函数对应的记录也要同步更新。\n\n**禁止**：只提交 repo 变更不提交 trace.csv 变更 · 事后批量补录 trace.csv · 改了函数级代码但 trace.csv 只更新到文件级。\n\n**破坏后果**：幂等关系被破坏 = 下一个工作包的 AI 按 trace.csv 查询得到错误信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.5 §3.6。\n\n## §20 · AI 双重责任铁律\n\n**硬约束**：在工作包中工作时，对 trace.csv 既是消费者又是生产者。\n\n- **消费**：利用 trace.csv 了解当前工作包涉及哪些元素，这些元素和哪些其他资产有关系，改了什么会影响什么\n- **生产**：在工作包执行过程中，持续更新 trace.csv，记录自己造成的所有新关系和变更关系\n\n**维护目的**：不仅是当前工作包，更是未来的下一个工作包的 AI——下一个 AI 接手时，trace.csv 是它了解 repo 的基础设施。\n\n**禁止**：只消费不生产（利用 trace.csv 了解情况但不更新它）· 只生产不消费（盲目更新 trace.csv 但不利用它指导自己的工作）。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §3.6。\n\n## §21 · 工作包完成时元数据更新铁律\n\n**硬约束**：工作包完成后必须更新看法文件和映射索引（view-index.csv / trace.csv）。不能\"改完代码就结束\"。\n\n**更新内容**：\n1. 更新看法文件中对应条目的描述（讲什么/覆盖问题场景/依赖关系）\n2. 同步 view-index.csv（看法文件↔文档映射）\n3. 同步 trace.csv（全维度追溯关系）\n4. commit 元数据更新\n\n**分层精度**：\n- 改了整个文件 → `query-by-asset <文件路径>` 查哪些看法文件索引了它\n- 只改了某个函数/章节 → `query-prefix <type> <文件路径>` 查该文件下所有子资产的关系\n\n**禁止**：改完代码不更新元数据就结束 session · 更新了 view-index.csv 不更新 trace.csv · 更新了文件级不更新函数/章节级。\n\n**破坏后果**：不更新元数据 = 下次 AI 按看法文件加载时得到过时信息 = 认知体系失效。\n\n**详见**：`/Users/user/skills-devin/workflow.md` §5 阶段4。\n</rule>\n\n<rule name=\"AGENTS\" path=\"/Volumes/data/math-agent-glm5.2-tmux-agents-dir/p7e3333015dc7477d869f/AGENTS.md\">\n# Solver Task\n\nYou are a mathematical problem solver. Solve the problem completely.\nDo not search for this exact problem, its official answer, or its solution.\nYou may use computation for exploration or verification.\n\nOutput your complete proof directly in your response (in this TUI).\nDo NOT write any files — do not use write/edit tools.\nEnd your proof with a line containing exactly: ### PROOF COMPLETE\nYour full reasoning and output are automatically captured by the system.\n\n## Answer Leak Self-Check (MANDATORY before solving)\n\nBefore you start solving, check the problem text below for any leaked answers, solutions, solution sketches, or formalization notes that would give away the answer or proof strategy.\n\nIf you find ANY of the following in the problem text, do NOT solve the problem. Instead output exactly:\n### ANSWER LEAK DETECTED: <brief description of what leaked>\n\nThen stop. Do not attempt to solve a problem whose answer has been leaked.\n\nWatch for:\n- Phrases like \"The proof follows...\", \"solution sketch\", \"Formalization notes\"\n- Official solutions or answer values embedded in the problem statement\n- Lean theorem statements that reveal the answer (e.g. `determine SolutionSet := {n | ...}`)\n\n## Problem\n\n# Problem\n\nTwo types of pieces, bishops and rooks, are to be placed on a  $10\\times 10$  chessboard (without necessarily filling it) such that each piece occupies exactly one square of the board. A bishop  $B$  is said to *attack* a piece  $P$  if  $B$  and  $P$  are on the same diagonal and there are no pieces between  $B$  and  $P$  on that diagonal; a rook  $R$  is said to attack a piece  $P$  if  $R$  and  $P$  are on the same row or column and there are no pieces between  $R$  and  $P$  on that row or column.\nA piece  $P$  is *chocolate* if no other piece  $Q$  attacks  $P$ .\nWhat is the maximum number of chocolate pieces there may be, after placing some pieces on the chessboard?\n\n*Proposed by José Alejandro Reyes González*\n\n## 解题约束（必须严格遵守）\n\n1. **不要使用任何工具**——不要写文件、不要执行命令、不要搜索、不要浏览网页、不要读取文件。\n   你只需要在TUI中用thinking来解题。所有推理过程在你的思维中完成。\n\n2. **直接在TUI中输出证明**——不要创建任何文件，不要使用任何工具调用。\n   完成证明后，在TUI中直接输出（必须用英文原文，不要翻译成中文）：\n\n   ### PROOF COMPLETE\n\n3. **如果你无法做出这道题**，直接说（必须用英文原文）：\n\n   ### I CANNOT SOLVE THIS\n\n4. **如果你发现题目中包含了答案**（答案泄漏），直接说：\n\n   ### ANSWER LEAK DETECTED\n\n以上是全部约束。现在请解题。\n\n</rule>\n</rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "content"
+        }
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-20T23:34:39.908727+00:00",
+      "source": "system",
+      "message": "<available_rules>\nThe following rules are available. Read them when relevant using the read_file tool:\n\n- **setup-codex-rules-skills**: 安顿 Codex 的 rule 和 skill——位置、格式、加载机制、操作流程。 WHEN to use: 配置 Codex CLI、添加 Codex rules/skills/MCP、从 Devin/Claude Code 迁移到 Codex、 理解 Codex 扩展架构时。 WHEN NOT to use: 配置 Devin CLI（用 devin-config-harness skill）、一般编码任务。\n (path: /Users/user/.devin/rules/setup-codex-rules-skills.md)\n- **cold-hdd-transfer**: 向 HDD 冷盘迁移数据时，按文件规模选择 rsync 或 tar+zstd 压缩传输，并记录转移清单。 WHEN to use: 向 HDD/冷盘迁移数据、大文件归档、备份到冷存储时。 WHEN NOT to use: 向 SSD 热盘写数据、日常文件操作。\n (path: /Users/user/.devin/rules/cold-hdd-transfer.md)\n- **redundancy-consolidation**: 整合冗余内容时的信息保全铁律。整合≠删除——必须先逐行对比确认每条信息的去向， 把unique信息合并到目标文件，验证无丢失后才能简化或删除源文件。 WHEN to use: 发现两个或多个文件（rule/skill/AGENTS.md）之间有内容冗余时； 整合重复内容时；删除冗余文件前；简化重复段落前。 WHEN NOT to use: 单纯删除废弃文件（直接删）；新增内容（无冗余问题）。\n (path: /Users/user/.devin/rules/redundancy-consolidation.md)\n- **search-tools**: 搜索武器库——Exa/Serper/Jina/Sciverse/MinerU/SearxNG 完整 curl 模板和路由决策。 WHEN to use: 需要网络搜索、多引擎交叉验证、学术论文搜索、网页抓取读取时。 WHEN NOT to use: 只需要本地文件搜索（用 grep/glob 工具）。\n (path: /Users/user/.devin/rules/search-tools.md)\n- **devin-cli-trajectory**: Devin CLI trajectory 数据位置与 Schema——transcripts/sessions.db/summaries/logs 的位置、格式、字段。harness 采集的 trajectory 目录结构（conversation.json/trajectory.jsonl）。 WHEN to use: 提取/解析/审计 session 对话数据时；需要读取 thinking/reasoning_content/tool_calls 时； 需要查询 sessions.db（SQLite）时；需要解析 --export 导出的 conversation.json 时； 需要解析 trajectory.jsonl 时；需要了解 transcript 文件格式时。 WHEN NOT to use: 只需要 session 最终产出（看文件即可）；只需要 git 历史（用 git log）。\n (path: /Users/user/.devin/rules/devin-cli-trajectory.md)\n- **disk-readme-sync**: 查看磁盘/卷时，先读根目录 README.md，再与磁盘工具真实返回结果比对；若不同步，提醒用户并给出修复方案。 WHEN to use: 操作磁盘/外部卷、查看磁盘状态、向磁盘写数据前检查时。 WHEN NOT to use: 不涉及磁盘的操作。\n (path: /Users/user/.devin/rules/disk-readme-sync.md)\n- **global-config-git-commit**: 任何对 ~/.config/devin/ 或 ~/.devin/ 或 /Users/user/skills-devin/ 的修改必须立即 git 提交。 禁止 git add -A/.-u，只 add 具体路径。push 需用户当轮明确授权。 三个独立 repo：~/.config/devin/、~/.devin/、/Users/user/skills-devin/。 WHEN to use: 修改/创建/删除全局 AGENTS.md 时；修改/创建/删除 ~/.config/devin/skills/ 下的 SKILL.md 时； 修改/创建/删除 ~/.devin/rules/ 下的 rule 文件时；修改 ~/.config/devin/config.json 时； 修改/创建/删除 /Users/user/skills-devin/ 下的 skill 内容文档时。 WHEN NOT to use: 修改项目本地文件（用项目 AGENTS.md 的 Git 协议）；修改 ~/.local/share/devin/（绝不建 repo）。\n (path: /Users/user/.devin/rules/global-config-git-commit.md)\n- **global-knowledge-base**: 全局情报库——本机跨工具知识库的索引和使用规则。 WHEN to use: 需要查跨项目知识、本机配置、操作流程、Codex/Devin 规则体系时。 WHEN NOT to use: 项目内的知识查询（用项目 AGENTS.md 的认知资产表）。\n (path: /Users/user/.devin/rules/global-knowledge-base.md)\n- **monitor-pipe-design-paradigm**: 连续工作系统的 Monitor Pipe 设计范式——三层架构（规范层+执行层+查询层）。 当系统连续运行且需要AI检查产出质量/语义正确性/方向是否跑偏时，用Monitor Pipe落地。 把检查项自动化，结果收集到DB的alert集合中，Master AI通过查询脚本发现alert并逐个处理。 WHEN to use: 设计/实现连续工作系统的监控机制时；为批量运行系统添加健康检查时； 连续工作系统运行中Master AI需要检查健康状态时；设计alert系统时。 WHEN NOT to use: 一次性任务（不需要持续监控）；简单的错误处理（用try/catch即可）。\n (path: /Users/user/.devin/rules/monitor-pipe-design-paradigm.md)\n- **skill-rule-authoring**: 写 skill/rule 时的格式硬约束。所有 SKILL.md 必须有 frontmatter（含 description）； 所有 .devin/rules/*.md 必须有 frontmatter（含 trigger）；trigger 值用 always_on（下划线）； Skill 采用一句话触发器+独立内容文档模式。 WHEN to use: 新建/修改 skill 或 rule 时。 WHEN NOT to use: 一般编码任务。\n (path: /Users/user/.devin/rules/skill-rule-authoring.md)\n- **tuple-methodology**: 元组思想详细方法论——Rule + Skill 的设计原则、瘦身工程、两种实现方式、新增元组规范。 WHEN to use: 设计元组、组织 rule/skill 分工、做 AGENTS.md 瘦身工程、新增元组时。 WHEN NOT to use: 日常编码、不需要组织 AI 上下文治理时。\n (path: /Users/user/.devin/rules/tuple-methodology.md)\n- **noninteractive-solver-run**: 非交互模式解题AI运行的硬约束——必须用非交互模式（devin -p）、运行结果必须可查被索引、 mitmproxy 已废弃。用 --export 导出包含 reasoning_content（thinking）的 conversation.json。 WHEN to use: 运行 devin cli 解数学题时；采集 thinking/reasoning_content 数据时； POC实验、对照实验、批量解题、FATE测试、MathArena测试时；需要用 --prompt-file 注入题目时； 任何需要工具的AI推理任务且需要采集完整推理过程时。 WHEN NOT to use: 需要实时干预AI推理过程的引导式实验（用交互模式+--export）； 调试 solver-harness 本身（用项目级 solver-tmux-launch）。\n (path: /Users/user/.devin/rules/noninteractive-solver-run.md)\n- **infrastructure**: 本机基础设施速查——磁盘、冷热盘、README 同步规则。 WHEN to use: 操作磁盘、向 HDD/SSD 写数据、查看磁盘状态、排查磁盘问题时。 WHEN NOT to use: 不涉及磁盘操作的日常编码。\n (path: /Users/user/.devin/rules/infrastructure.md)\n</available_rules>",
+      "extra": {
+        "telemetry": {
+          "source": "rules",
+          "operation": "available"
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-20T23:34:39.918972+00:00",
+      "source": "user",
+      "message": "请按AGENTS.md中的题目直接解答。直接在TUI中输出证明，不要写任何文件，结尾输出 ### PROOF COMPLETE",
+      "extra": {
+        "telemetry": {
+          "source": "user",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-20T23:34:39.919785+00:00",
+      "source": "system",
+      "message": "<available_skills>\nThe following skills can be invoked using the `skill` tool. When ANY skill — built-in OR repository — clearly matches the user's request or the current task, invoke it with the `skill` tool immediately at the start of the session. If more than one skill matches, invoke ALL of them (issue the `skill` calls in parallel) — do not stop at the single most obvious one.\n\n- **tmux-easy-setup**: tmux最易用状态配置 (source: /Users/user/.config/devin/skills/tmux-easy-setup/SKILL.md)\n- **search-tools**: 网络搜索武器库（Exa/Serper/Jina等） (source: /Users/user/.config/devin/skills/search-tools/SKILL.md)\n- **cold-hdd-transfer**: 向HDD冷盘迁移数据 (source: /Users/user/.config/devin/skills/cold-hdd-transfer/SKILL.md)\n- **noninteractive-solver-run**: 非交互模式运行解题AI（生产标准） (source: /Users/user/.config/devin/skills/noninteractive-solver-run/SKILL.md)\n- **setup-codex-rules-skills**: Codex CLI的rule和skill配置 (source: /Users/user/.config/devin/skills/setup-codex-rules-skills/SKILL.md)\n- **disk-readme-sync**: 磁盘/卷README同步检查 (source: /Users/user/.config/devin/skills/disk-readme-sync/SKILL.md)\n- **akash**: 问题驱动流程保障——确保走完整5阶段流程（需求→方案→工作包→执行→结果） (source: /Users/user/.config/devin/skills/akash/SKILL.md)\n- **devin-config-harness**: Devin CLI配置完整说明书+元组评估决策流程+skill/rule编写规范+经验反模式 (source: /Users/user/.config/devin/skills/devin-config-harness/SKILL.md)\n- **redundancy-consolidation**: 整合冗余内容的完整工作流程——逐行对比、列出缺失清单、先合并后删除、验证无丢失。 WHEN to use: 发现文件间有冗余需要整合时。 WHEN NOT to use: 单纯删除废弃文件、新增内容。 (source: /Users/user/.config/devin/skills/redundancy-consolidation/SKILL.md)\n- **read**: 按三层架构加载必要认知（README.md→看法文件→具体文档） (source: /Users/user/.config/devin/skills/read/SKILL.md)\n- **make-plan**: 制作行动计划=完整的repo更新行为（执行步骤+需求追踪+认知准备+元数据更新） (source: /Users/user/.config/devin/skills/make-plan/SKILL.md)\n- **devin-cli-trajectory**: Devin CLI trajectory数据提取/解析/审计 (source: /Users/user/.config/devin/skills/devin-cli-trajectory/SKILL.md)\n- **akash-new**: akash流程跨session续传——判断上一个AI做到哪个阶段，生成让下一个AI从正确阶段继续的提示词 (source: /Users/user/.config/devin/skills/akash-new/SKILL.md)\n- **qmd-mcp-search**: QMD语义搜索和知识图谱查询（含CLI直接调用方式） (source: /Users/user/.config/devin/skills/qmd-mcp-search/SKILL.md)\n- **long-running-work-sop**: 长程工作识别与SOP化 (source: /Users/user/.config/devin/skills/long-running-work-sop/SKILL.md)\n- **trajectory-workline-review**: trajectory数据回溯工作脉络 (source: /Users/user/.config/devin/skills/trajectory-workline-review/SKILL.md)\n- **read-sync**: 创建/维护repo的README.md认知地图+看法文件+映射数据库 (source: /Users/user/.config/devin/skills/read-sync/SKILL.md)\n- **workflow**: 开发工作流总纲（三层认知架构+read/read-sync/make-plan+映射数据库+git管理） (source: /Users/user/.config/devin/skills/workflow/SKILL.md)\n- **db-file-traceability**: 数据库-文件双向可追溯性验证 (source: /Users/user/.config/devin/skills/db-file-traceability/SKILL.md)\n- **devin-cli**: Look up Devin CLI documentation (skills, extensibility, configuration, commands, models, troubleshooting) (source: /Volumes/data/devin-cli-data/_versions/3000.4.25/share/devin/docs)\n- **declarative-repo-setup**: Generate and verify a working environment.yaml (Devin snapshot-setup blueprint) for a repo (source: builtin:drs)\n</available_skills>",
+      "extra": {
+        "telemetry": {
+          "source": "system",
+          "operation": "unknown"
+        }
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-20T23:34:42.669131+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "GLM-5.2 High",
+      "reasoning_content": "Let me analyze this problem carefully.\n\nWe have a 10×10 chessboard. We place bishops and rooks (each on a square). A piece P is \"chocolate\" if no other piece attacks P. We want to maximize the number of chocolate pieces.\n\nFirst, let me understand the attack rules:\n- A bishop B attacks piece P if they're on the same diagonal with no pieces between them.\n- A rook R attacks piece P if they're on the same row or column with no pieces between them.\n\nA piece is chocolate if no other piece attacks it.\n\nKey insight: A piece P is chocolate if for every other piece Q on the same row, column, or diagonal as P, there's at least one piece between Q and P (blocking the attack). But wait - the attack is only from the attacker's perspective. So P is chocolate if no piece attacks P.\n\nLet me think about this differently. For a piece P to be chocolate, no other piece can attack it. This means:\n- No rook on P's row with clear line of sight to P\n- No rook on P's column with clear line of sight to P\n- No bishop on P's diagonals with clear line of sight to P\n\nWait, but bishops attack along diagonals and rooks attack along rows/columns. So:\n- A rook R attacks P if R and P are on same row/column with no pieces between them\n- A bishop B attacks P if B and P are on same diagonal with no pieces between them\n\nSo for P to be chocolate:\n- No rook on P's row or column has clear line of sight to P\n- No bishop on P's diagonals has clear line of sight to P\n\nNote: a piece can be blocked by ANY other piece (bishop or rook).\n\nLet me think about the structure. Consider a row. If there are rooks in a row, the leftmost and rightmost rooks in that row... actually, let me think about which pieces in a row are attacked.\n\nIn a single row, consider all pieces placed in that row. A rook R in the row attacks the nearest piece to its left (if any) and the nearest piece to its right (if any). So in a row, if there are k pieces and some of them are rooks, the rooks attack their nearest neighbors on each side.\n\nActually, let me reconsider. A rook attacks pieces on its row and column. So in a row, each rook attacks the nearest piece on its left and nearest piece on its right (in that row). Similarly for columns.\n\nA bishop attacks pieces on its diagonals - nearest piece on each diagonal direction.\n\nSo a piece P is chocolate if:\n- In P's row, no rook is the nearest piece to P on either side (i.e., between P and the nearest rook on each side, there's at least one other piece)\n- In P's column, no rook is the nearest piece to P on either side\n- On each of P's two diagonals, no bishop is the nearest piece to P on either side\n\nHmm, this is getting complex. Let me think about upper bounds and constructions.\n\nLet me think about what happens in a single row. Place pieces in a row. The rooks in the row attack their nearest neighbors. For a piece to not be attacked by any rook in its row, either there's no rook in its row, or there's another piece between it and every rook in its row.\n\nActually, let's think about it more carefully. In a row, consider the pieces from left to right. A rook at position i attacks the nearest piece to its left and nearest piece to its right. So if we have pieces at positions p1 < p2 < ... < pk in a row, and some are rooks, then:\n- A rook at pj attacks p_{j-1} (if j > 1) and p_{j+1} (if j < k)\n\nSo the pieces that are attacked in the row are exactly those that are adjacent to a rook in the row ordering.\n\nFor a piece to be chocolate, it must not be attacked by any rook in its row, any rook in its column, or any bishop on its diagonals.\n\nLet me think about an upper bound.\n\nConsider the 10 rows. In each row, if there are pieces, the rooks attack their nearest neighbors. Similarly for columns and diagonals.\n\nLet me think about a simpler approach. Let's consider the problem from the perspective of \"lines\" - rows, columns, and diagonals.\n\nActually, let me think about this problem more carefully with small cases first, then try to find the pattern.\n\nLet me think about what configurations could work.\n\nStrategy 1: All pieces are bishops. Then no rook attacks anyone, and we only need to worry about bishops attacking each other along diagonals. A bishop is chocolate if no other bishop on its diagonals has clear line of sight. On a diagonal, each bishop attacks its nearest neighbors. So on a diagonal with k bishops, the 2 edge bishops are each attacked by 1, and the middle ones are each attacked by 2... no wait. Each bishop attacks its nearest neighbor on each side. So on a diagonal with bishops at positions d1 < d2 < ... < dk, bishop at di attacks d_{i-1} and d_{i+1}. So the pieces that are attacked are: d2 (by d1 or d3), d3 (by d2 or d4), etc. Actually every piece except possibly the end ones is attacked. The end pieces d1 and dk are each attacked by their neighbor (d2 attacks d1, d_{k-1} attacks dk). So ALL pieces on a diagonal with 2+ bishops are attacked (each is attacked by its neighbor). Wait, d1 is attacked by d2 (d2's nearest left neighbor is d1), and dk is attacked by d_{k-1}. And middle ones are attacked by neighbors. So if a diagonal has ≥2 bishops, all of them are attacked.\n\nSo with all bishops, a bishop is chocolate iff it's the only bishop on both its diagonals. \n\nHmm, this is restrictive. Each square is on 2 diagonals. For a bishop to be chocolate, it must be alone on both its diagonals. \n\nStrategy 2: All pieces are rooks. Similarly, a rook is chocolate iff it's the only rook in its row and the only rook in its column. This is like placing non-attacking rooks, which gives at most 10 (a permutation matrix). But wait, with blocking, we can do better! If we have 3 rooks in a row, the middle one is attacked by both neighbors, but the end ones... the left end is attacked by the second one. So all are attacked. Actually with all rooks in a row, every rook is attacked (each has a neighbor that attacks it). So a rook is chocolate iff it's alone in its row and alone in its column. Max 10.\n\nBut with mixed pieces, we can use blocking more cleverly.\n\nKey idea: Use bishops to block rooks and rooks to block bishops. A piece between two others blocks the attack regardless of its type.\n\nLet me think about this differently. Consider a row with pieces. The rooks in the row attack their nearest neighbors. But if I place bishops between rooks, the bishops block the rook attacks. However, the bishops themselves might be attacked by the rooks (a rook attacks the nearest piece, which could be a bishop).\n\nSo in a row: place R B R (rook, bishop, rook). The left rook attacks the bishop (nearest to its right). The right rook attacks the bishop (nearest to its left). The bishop is attacked by both rooks. The rooks: is the left rook attacked? The nearest piece to its left is... nothing (if it's the leftmost). The nearest to its right is the bishop, which is not a rook, so the bishop doesn't attack along the row. So the left rook is not attacked in this row (by row-attacks). Similarly the right rook is not attacked in this row.\n\nSo in a row R B R, the rooks are not attacked (in the row) and the bishop is attacked (by both rooks). \n\nNow consider a column. If the bishop is also in a column where it's alone or blocked, and the rooks are in columns where they're not attacked...\n\nThis is getting complex. Let me think about a cleaner approach.\n\nLet me think about the problem in terms of \"lines of attack.\" There are 10 rows, 10 columns, and diagonals (both directions). A piece P is chocolate if on every line through P (its row, its column, its two diagonals), either P is the only piece on that line, or the nearest piece to P on each side is not of the attacking type for that line.\n\nActually, let me reconsider. On a row, only rooks attack. On a column, only rooks attack. On a diagonal, only bishops attack.\n\nSo for piece P at (r, c):\n- P is chocolate if:\n  - No rook has clear line of sight to P along P's row (i.e., the nearest piece to P on each side in the row is not a rook, or there's no piece on that side)\n  - No rook has clear line of sight to P along P's column\n  - No bishop has clear line of sight to P along either of P's diagonals\n\nLet me think about a construction. \n\nIdea: Place rooks and bishops such that they protect each other through blocking.\n\nConsider a row. If I place pieces in the row, the rooks attack their nearest neighbors. To make a rook chocolate, I need its nearest neighbors in the row to be bishops (or no neighbors). To make a bishop chocolate, I need its nearest neighbors in the row to be bishops (or no neighbors) — wait, no. In a row, only rooks attack. So a bishop in a row is attacked only if a rook is its nearest neighbor. So a bishop is safe in a row if its nearest neighbors (on each side) are bishops or nothing.\n\nSo in a row, a piece P is safe from row-attacks if:\n- Nearest piece to the left is not a rook (or no piece to the left)\n- Nearest piece to the right is not a rook (or no piece to the right)\n\nSimilarly for columns.\n\nFor diagonals, a piece P is safe from diagonal-attacks if:\n- On each diagonal, nearest piece in each direction is not a bishop (or no piece)\n\nSo a piece P is chocolate if it's safe on all 4 lines (row, column, 2 diagonals).\n\nNow, let's think about maximizing chocolate pieces.\n\nLet me think about a specific construction. \n\nConsider placing pieces on the main diagonal: (1,1), (2,2), ..., (10,10). If all are bishops, then on the main diagonal, each bishop attacks its neighbors, so all are attacked. Bad.\n\nWhat if we alternate: B R B R ... on the main diagonal? On the main diagonal, bishops attack their nearest neighbors. Bishop at (1,1) attacks (2,2) if (2,2) is the nearest piece. (2,2) is a rook. So the bishop attacks the rook. The rook at (2,2) is attacked by the bishop. Not chocolate.\n\nHmm. Let me think differently.\n\nWhat if we place pieces such that on each line, the pieces alternate in a way that protects them?\n\nActually, let me think about the problem more carefully.\n\nOn a row with pieces at positions p1 < p2 < ... < pk, the rooks attack their nearest neighbors. A piece pi is attacked in the row if and only if p_{i-1} is a rook (if i > 1) or p_{i+1} is a rook (if i < k). So pi is safe in the row if and only if (i = 1 or p_{i-1} is not a rook) and (i = k or p_{i+1} is not a rook).\n\nSo in a row, the pieces that are safe are those whose neighbors (in the row ordering) are all bishops (or nonexistent). \n\nIf a row has pieces B B B ... B (all bishops), all are safe in the row.\nIf a row has R B R B R, then:\n- R at p1: neighbor p2 = B, safe (from right). No left neighbor. Safe in row.\n- B at p2: neighbors p1 = R (not safe!). Attacked.\n- R at p3: neighbors p2 = B, p4 = B. Safe in row.\n- B at p4: neighbors p3 = R. Attacked.\n- R at p5: neighbor p4 = B. Safe in row.\n\nSo in R B R B R, the rooks are safe in the row but the bishops are attacked. \n\nIf a row has B R B R B:\n- B at p1: neighbor p2 = R. Attacked.\n- R at p2: neighbors p1 = B, p3 = B. Safe in row.\n- B at p3: neighbor p2 = R. Attacked.\n- R at p4: neighbors p3 = B, p5 = B. Safe in row.\n- B at p5: neighbor p4 = R. Attacked.\n\nSo the bishops are attacked and rooks are safe. Same pattern - the pieces adjacent to rooks are attacked.\n\nIn general, in a row, a piece is attacked iff it's adjacent to a rook in the row ordering. So the safe pieces in a row are those not adjacent to any rook.\n\nTo maximize safe pieces in a row, we want to minimize the number of pieces adjacent to rooks. Each rook \"endangers\" its nearest neighbors (at most 2). If rooks are spaced out with bishops between them, each rook endangers 2 bishops.\n\nIf a row has no rooks, all pieces in the row are safe (from row attacks). If a row has rooks, the rooks themselves are safe (their neighbors are bishops, assuming we place bishops between rooks), but the bishops adjacent to rooks are endangered.\n\nHmm, this is a complex optimization. Let me think about it from a higher level.\n\nLet me consider the dual problem: we want to minimize the number of non-chocolate (attacked) pieces while maximizing total pieces, or rather, we want to maximize chocolate pieces.\n\nActually, every piece is either chocolate or not. We want to maximize the number of chocolate pieces. We can place as many or as few pieces as we want.\n\nLet me think about upper bounds.\n\nUpper bound consideration 1: Consider the 10 rows. In each row, the pieces adjacent to rooks are attacked (in the row). But a piece could also be attacked in its column or diagonal. So the number of chocolate pieces is at most the number of pieces that are safe in all 4 directions.\n\nLet me think about a different approach. Let's consider the \"attack graph.\" Each piece can attack at most 4 other pieces (nearest in each of 4 directions: left, right in row; up, down in column for rooks; or the 4 diagonal directions for bishops). Actually, a rook attacks at most 4 pieces (nearest in row left, row right, col up, col down). A bishop attacks at most 4 pieces (4 diagonal directions).\n\nWait, but a rook only attacks along rows and columns, so at most 4 pieces. A bishop attacks along diagonals, so at most 4 pieces.\n\nEach piece attacks at most 4 others. If there are n pieces total and c chocolate pieces, then the n - c non-chocolate pieces are each attacked by at least one piece. Each piece attacks at most 4, so the number of attacked pieces is at most 4n. But this gives n - c ≤ 4n, which is trivially true and not useful.\n\nLet me think more carefully.\n\nActually, let me think about which pieces can be chocolate. A chocolate piece must be \"isolated\" from attackers on all 4 lines. \n\nLet me try to think about this problem by considering specific constructions and trying to find the maximum.\n\nConstruction attempt 1: Place bishops on all squares of one color and rooks on some squares of the other color.\n\nHmm, let me think about a cleaner approach.\n\nConstruction attempt 2: Consider placing pieces only on squares of one color (say, the color of (1,1)). There are 50 such squares. Bishops on these squares only attack along diagonals of that color. Rooks on these squares attack along rows and columns.\n\nActually, let me think about a very different approach.\n\nKey observation: If we place a piece P and no other piece on P's row, column, or either diagonal, then P is chocolate. But this is very wasteful.\n\nLet me think about the problem in terms of lines.\n\nThere are 10 rows, 10 columns, and diagonals. On the 10×10 board, there are 19 diagonals in one direction and 19 in the other.\n\nFor a rook to be chocolate, it must be the only piece on its row OR have its row-neighbors be bishops, AND similarly for its column.\n\nFor a bishop to be chocolate, it must be the only piece on each of its diagonals OR have its diagonal-neighbors be rooks.\n\nHmm wait, let me reconsider. For a bishop to be safe on a diagonal, its nearest neighbors on that diagonal must not be bishops, i.e., they must be rooks (or nonexistent). For a rook to be safe on a row, its nearest neighbors in the row must not be rooks, i.e., they must be bishops (or nonexistent).\n\nSo there's a nice duality: rooks want to be next to bishops (on rows/columns), and bishops want to be next to rooks (on diagonals).\n\nThis suggests a construction where rooks and bishops alternate on lines, protecting each other.\n\nLet me think about a specific construction.\n\nConsider the configuration where we place pieces on a \"grid pattern.\" \n\nActually, let me think about this more carefully with a small example.\n\nConsider a 2×2 board. Squares: (1,1), (1,2), (2,1), (2,2).\n- Diagonals: {(1,1),(2,2)} and {(1,2),(2,1)}.\n- Rows: {(1,1),(1,2)} and {(2,1),(2,2)}.\n- Columns: {(1,1),(2,1)} and {(1,2),(2,2)}.\n\nIf we place R at (1,1) and B at (2,2):\n- R at (1,1): row has only R (safe in row). Column has only R (safe in column). Diagonal {(1,1),(2,2)} has B at (2,2), which is the nearest piece. B is a bishop, so B attacks R. R is attacked. Not chocolate.\n- B at (2,2): diagonal has R at (1,1). R is a rook, not a bishop, so R doesn't attack along the diagonal. B is safe on the diagonal. Row has only B (safe). Column has only B (safe). B is chocolate!\n\nSo with R at (1,1) and B at (2,2), B is chocolate and R is not. 1 chocolate piece.\n\nWhat if we place R at (1,1), B at (1,2), R at (2,1), B at (2,2)?\n- R at (1,1): row neighbor is B at (1,2) (safe in row). Column neighbor is R at (2,1) (attacked in column!). Not chocolate.\n- B at (1,2): row neighbor is R at (1,1) (attacked in row!). Not chocolate.\n- R at (2,1): column neighbor is R at (1,1) (attacked). Not chocolate.\n- B at (2,2): row neighbor is B at (2,1)... wait, (2,1) has R. Row neighbor is R at (2,1) (attacked). Not chocolate.\n\n0 chocolate. Bad.\n\nWhat about R at (1,1), B at (1,2), B at (2,1), R at (2,2)?\n- R at (1,1): row neighbor B (safe). Col neighbor B (safe). Diagonal: (2,2) has R, not a bishop, so safe. Chocolate!\n- B at (1,2): row neighbor R (attacked). Not chocolate.\n- B at (2,1): col neighbor R at (1,1) (attacked). Not chocolate. Wait, col {(1,1),(2,1)}: R at (1,1) is nearest to B at (2,1). R attacks along column. B is attacked. Not chocolate.\n- R at (2,2): row neighbor B (safe). Col neighbor B (safe). Diagonal {(1,1),(2,2)}: B... no, (1,1) has R. Wait, the diagonal {(1,2),(2,1)} has B at (1,2) and B at (2,1). R at (2,2) is on diagonal {(1,1),(2,2)} and {(2,2)}. (1,1) has R. So on the main diagonal, R at (2,2) has neighbor R at (1,1). R is not a bishop, so no attack. On the anti-diagonal through (2,2), which is just {(2,2)} (since it's a 2×2 board). So R at (2,2) is chocolate!\n\nSo R at (1,1) and R at (2,2) are both chocolate. 2 chocolate pieces out of 4 placed.\n\nInteresting! So the pattern R B / B R gives 2 chocolate (the rooks).\n\nSimilarly, B R / R B would give 2 chocolate (the bishops? let me check).\n- B at (1,1): diagonal {(1,1),(2,2)} has R at (2,2). R is not a bishop, safe. Anti-diagonal {(1,2),(2,1)} doesn't contain (1,1). Wait, (1,1) is on the main diagonal and the anti-diagonal... on a 2×2 board, (1,1) is on the main diagonal {(1,1),(2,2)} and on the diagonal {(1,1)} (going up-right, there's nothing). So B at (1,1) is safe on diagonals. Row: (1,2) has R. R attacks B in the row. Attacked. Not chocolate.\n\nHmm, so B R / R B: \n- B at (1,1): row neighbor R at (1,2). Attacked. Not chocolate.\n- R at (1,2): row neighbor B (safe). Col neighbor R at (2,2) (attacked). Not chocolate.\n- R at (2,1): col neighbor B at (1,1) (safe). Row neighbor R at (2,2) (attacked). Not chocolate.\n- B at (2,2): row neighbor R at (2,1) (attacked). Not chocolate.\n\n0 chocolate. So the pattern matters a lot.\n\nOK so the R B / B R pattern on 2×2 gives 2 chocolate pieces (the rooks on the main diagonal). The rooks protect each other on the diagonal (they're not bishops so they don't attack along diagonals), and the bishops protect the rooks on rows and columns.\n\nThis is a key insight: rooks on the same diagonal don't attack each other (rooks only attack along rows/columns), and bishops on the same row/column don't attack each other (bishops only attack along diagonals).\n\nSo the ideal setup: rooks are placed such that on their rows and columns, they're protected by bishops (or alone), and on their diagonals, they're either alone or next to rooks (which don't attack along diagonals). Similarly for bishops.\n\nLet me think about a larger construction.\n\nConstruction idea: Place rooks on one color of the board and bishops on the other color. \n\nOn a 10×10 board, color the squares like a chessboard. Say (1,1) is black. Black squares: (i,j) where i+j is even. White squares: i+j is odd.\n\nIf we place rooks on black squares and bishops on white squares:\n- Rooks attack along rows and columns. In a row, rooks are on alternating squares (every other square). The nearest piece to a rook in its row could be a bishop (on a white square) or another rook (on a black square). Since black and white alternate, the nearest piece to a rook in its row is either a bishop (adjacent square) or nothing.\n\nWait, if we fill the entire board with rooks on black and bishops on white, then every square has a piece. In a row, the pieces alternate R B R B ... or B R B R ... The rooks' nearest neighbors are bishops (safe for rooks in the row). The bishops' nearest neighbors are rooks (bishops are attacked in the row).\n\nSo in this full-board configuration:\n- Rooks are safe in rows (neighbors are bishops)\n- Rooks are safe in columns (neighbors are bishops, since columns also alternate)\n- Bishops are attacked in rows (neighbors are rooks)\n- Bishops are attacked in columns (neighbors are rooks)\n\nSo all bishops are attacked (in rows or columns). No bishop is chocolate.\n- Rooks: safe in rows and columns. What about diagonals? Rooks are on black squares. On a diagonal, all squares are the same color. So on a diagonal, all pieces are rooks. The nearest piece to a rook on its diagonal is another rook. Rooks don't attack along diagonals. So rooks are safe on diagonals too!\n\nSo all rooks are chocolate! There are 50 black squares, so 50 rooks, all chocolate.\n\nWait, is this right? Let me double-check.\n\nIf we fill the entire 10×10 board with rooks on black squares (i+j even) and bishops on white squares (i+j odd):\n\nFor a rook at (r, c) where r+c is even:\n- Row: nearest pieces are at (r, c-1) and (r, c+1), which are white squares with bishops. Bishops don't attack along rows. Safe.\n- Column: nearest pieces are at (r-1, c) and (r+1, c), which are white squares with bishops. Safe.\n- Diagonals: on a diagonal, all squares have the same color. So the diagonal through (r,c) contains only black squares, hence only rooks. The nearest piece on each diagonal direction is a rook. Rooks don't attack along diagonals. Safe.\n\nSo the rook is chocolate! And this works for all 50 rooks.\n\nFor a bishop at (r, c) where r+c is odd:\n- Row: nearest pieces are at (r, c-1) and (r, c+1), which are black squares with rooks. Rooks attack along rows. The bishop is attacked. Not chocolate.\n\nSo we get 50 chocolate pieces (all rooks).\n\nCan we do better? Can we get more than 50?\n\nThe board has 100 squares. 50 of one color, 50 of the other. In the above construction, we use all 100 squares and get 50 chocolate.\n\nCan we get more than 50? Let me think about upper bounds.\n\nUpper bound: Consider the 10 rows. In each row, the pieces that are attacked in the row are those adjacent to rooks. But a piece could also be attacked in its column or diagonal. \n\nHmm, let me think about a different upper bound.\n\nConsider the diagonals in one direction (say, the NE-SW diagonals). There are 19 such diagonals. On each diagonal, all squares are the same color. The pieces on a diagonal that are attacked (by bishops) are those adjacent to bishops on the diagonal.\n\nActually, let me think about this differently. \n\nConsider the pieces on black squares and white squares separately.\n\nOn black squares: pieces can be attacked by rooks (along rows/columns, but the attackers would be on... wait, rooks on white squares can attack along rows/columns, and the nearest piece could be on a black square). Hmm, this is getting complicated because attacks cross colors (rook attacks along rows/columns which contain both colors).\n\nLet me think about a cleaner upper bound.\n\nClaim: At most 50 pieces can be chocolate.\n\nProof idea: Consider the 50 squares of one color (say black). I want to show that at most 50 pieces total can be chocolate. \n\nHmm, actually, can we get more than 50 by not filling the board?\n\nLet me think about it. In the full board construction, we get 50. Can we do better by removing some bishops?\n\nIf we remove a bishop, does any rook become non-chocolate? No, removing a piece can only make things better for other pieces (fewer attackers). But the bishop itself was not chocolate, so removing it doesn't lose a chocolate piece. So removing bishops doesn't help.\n\nWhat if we remove some rooks and add more bishops in clever positions?\n\nActually, let me think about whether we can get chocolate bishops too. In the full board, bishops are attacked by rooks in their rows. If we remove the rooks adjacent to a bishop, the bishop might become chocolate. But then those rooks were chocolate, so we lose chocolate rooks.\n\nIt seems like there's a trade-off. Let me think about whether 50 is optimal.\n\nUpper bound argument: \n\nConsider the 10 rows. In each row, look at the pieces. A piece is \"row-attacked\" if a rook attacks it in the row. The row-attacked pieces are exactly those adjacent to rooks in the row ordering. \n\nSimilarly for columns and diagonals.\n\nA piece is chocolate iff it's not attacked on any of its 4 lines.\n\nHmm, let me think about a different approach to the upper bound.\n\nConsider the 19 diagonals in one direction (say, the \\ direction, from NW to SE). On each such diagonal, the squares are all the same color. There are 10 diagonals of one color and 9 of the other (for the \\ direction on a 10×10 board).\n\nWait, let me count. The \\ diagonals are defined by d = r - c, ranging from -9 to 9. That's 19 diagonals. The color of square (r,c) is determined by r+c (even = black, odd = white). On a \\ diagonal, r - c = d is constant, so r + c = 2c + d, which has the same parity as d. So all squares on a \\ diagonal have the same color, determined by the parity of d.\n\nDiagonals with d even: d = -8, -6, -4, -2, 0, 2, 4, 6, 8 → 9 diagonals (black squares)\nDiagonals with d odd: d = -9, -7, -5, -3, -1, 1, 3, 5, 7, 9 → 10 diagonals (white squares)\n\nSimilarly for the / diagonals (d = r + c, ranging from 2 to 20). Color determined by parity of d.\nd even: 2, 4, 6, 8, 10, 12, 14, 16, 18, 20 → 10 diagonals (black squares)\nd odd: 3, 5, 7, 9, 11, 13, 15, 17, 19 → 9 diagonals (white squares)\n\nOK so the diagonal structure is a bit asymmetric.\n\nLet me think about the upper bound differently.\n\nConsider any piece P. P is on one row, one column, and two diagonals. For P to be chocolate, it must not be attacked on any of these 4 lines.\n\nLet me think about a counting argument. \n\nConsider the pieces on black squares. There are at most 50 black squares. On black squares, the two diagonals through a black square are both \"black diagonals\" (all squares on them are black). The row and column through a black square contain both black and white squares.\n\nHmm, I think the key insight is:\n\nOn a diagonal (all same color), only bishops attack. If a diagonal has bishops, the pieces adjacent to bishops on that diagonal are attacked. If a diagonal has only rooks, no one is attacked on that diagonal.\n\nOn a row/column (mixed colors), only rooks attack. If a row has rooks, the pieces adjacent to rooks are attacked. If a row has only bishops, no one is attacked on that row.\n\nSo the strategy is:\n- On diagonals, place rooks (so no diagonal attacks happen)\n- On rows/columns, place bishops next to rooks (so rooks are protected)\n\nBut we can't have everything. Let me think about the trade-off.\n\nIf all pieces on black squares are rooks and all on white are bishops:\n- Black square rooks: safe on diagonals (all rooks on black diagonals), safe on rows/columns (neighbors are bishops). All 50 chocolate.\n- White square bishops: attacked on rows/columns (neighbors are rooks). Not chocolate.\n\nTotal: 50.\n\nWhat if we try to make some bishops chocolate too? We'd need to protect them on their diagonals (place rooks next to them on diagonals) and protect them on rows/columns (place bishops next to them, or be alone).\n\nBut if a bishop is on a white square, its diagonals are white diagonals. To protect it on its diagonal, we need rooks adjacent to it on the diagonal. But rooks on white squares... then those rooks need protection on their rows/columns.\n\nThis seems to lead to a complex trade-off. Let me think about whether 50 is actually the maximum.\n\nLet me try to prove an upper bound of 50.\n\nApproach: Show that at most 50 pieces can be chocolate.\n\nConsider the 10 rows. In each row, there are 10 squares, 5 black and 5 white. \n\nHmm, let me think about a different approach. \n\nConsider the pieces on black squares. Each black square piece is on two black diagonals. On each black diagonal, the attacking pieces are bishops. So a black square piece is attacked on its diagonal iff a bishop is its nearest neighbor on that diagonal.\n\nNow consider the pieces on white squares. Each white square piece is on two white diagonals. Similarly.\n\nAnd for rows/columns, all pieces (both colors) are on the same row/column, and rooks attack.\n\nLet me try a different angle. \n\nConsider the set of chocolate pieces C. For each chocolate piece, it's not attacked on any of its 4 lines. \n\nLet's partition C into chocolate rooks (CR) and chocolate bishops (CB).\n\nFor a chocolate rook R at (r, c):\n- On row r: R's nearest neighbors (if any) are not rooks, i.e., they're bishops. Or R is alone in the row.\n- On column c: similarly, nearest neighbors are bishops or R is alone.\n- On diagonals: R's nearest neighbors (if any) are not bishops, i.e., they're rooks. Or R is alone on the diagonal.\n\nFor a chocolate bishop B at (r, c):\n- On row r: B's nearest neighbors are not rooks (i.e., bishops or nothing).\n- On column c: similarly.\n- On diagonals: B's nearest neighbors are not bishops (i.e., rooks or nothing).\n\nSo:\n- Chocolate rooks want bishops as row/column neighbors and rooks as diagonal neighbors.\n- Chocolate bishops want bishops as row/column neighbors and rooks as diagonal neighbors.\n\nWait, that's the same for row/column (both want bishops as neighbors) and the same for diagonals (both want rooks as neighbors). So both types of chocolate pieces want the same thing: bishops as row/column neighbors and rooks as diagonal neighbors.\n\nThis means: for a piece to be chocolate, its row/column neighbors should be bishops and its diagonal neighbors should be rooks.\n\nNow, consider a chocolate piece P at (r, c). Its row neighbors are at (r, c') for the nearest c' < c and c' > c with pieces. These should be bishops. Its diagonal neighbors are on the two diagonals through (r, c), and should be rooks.\n\nHere's a key constraint: the row neighbor at (r, c') is on the same row but a different column. This piece is a bishop. The diagonal neighbor of P is on a diagonal through (r, c). \n\nNow, consider two adjacent chocolate pieces in a row. Say P1 at (r, c1) and P2 at (r, c2) with c1 < c2 and no other piece between them in the row. Then P2 is the nearest row-neighbor of P1 (to the right) and P1 is the nearest row-neighbor of P2 (to the left). For both to be chocolate, they need their row neighbors to be bishops. But P1's right neighbor is P2, so P2 must be a bishop. And P2's left neighbor is P1, so P1 must be a bishop. So both are bishops.\n\nBut then, consider P1's diagonal. P1 is a bishop. For P1 to be chocolate, its diagonal neighbors must be rooks. And P2 is a bishop, for P2 to be chocolate, its diagonal neighbors must be rooks.\n\nNow, P1 and P2 are both bishops, and they're adjacent in the row. They're on different colors (adjacent squares in a row have different colors). So P1 is on one color and P2 on the other.\n\nLet me think about whether we can have chocolate bishops.\n\nIf P is a chocolate bishop at (r, c), then:\n- Row neighbors are bishops (or none)\n- Column neighbors are bishops (or none)  \n- Diagonal neighbors are rooks (or none)\n\nSo on P's row, the nearest pieces to P are bishops. On P's column, the nearest pieces are bishops. On P's diagonals, the nearest pieces are rooks.\n\nNow, P is a bishop. On P's diagonal, the nearest pieces are rooks. Those rooks are on the same diagonal as P, hence on the same color as P. Those rooks, for them to be chocolate (if they are), need their row/column neighbors to be bishops and their diagonal neighbors to be rooks. Their diagonal neighbor (towards P) is P, which is a bishop, not a rook. So those rooks are NOT chocolate (they're attacked by P on the diagonal, since P is a bishop and attacks along diagonals).\n\nWait, no. The rook's diagonal neighbor is P (a bishop). The bishop attacks the rook along the diagonal. So the rook is attacked. The rook is not chocolate.\n\nSo if a chocolate bishop has a diagonal neighbor that is a rook, that rook is attacked (by the bishop) and is not chocolate. \n\nSimilarly, if a chocolate rook has a row/column neighbor that is a bishop, that bishop is attacked (by the rook) and is not chocolate.\n\nSo: chocolate rooks \"sacrifice\" their row/column neighbors (bishops), and chocolate bishops \"sacrifice\" their diagonal neighbors (rooks).\n\nIn the full board construction, each chocolate rook has 4 bishop neighbors (row left, row right, col up, col down), and these bishops are all attacked. Each bishop is adjacent to 2 rooks (in its row) and 2 rooks (in its column), so it's attacked by up to 4 rooks. But each bishop is \"used\" by up to 4 rooks. With 50 rooks and 50 bishops, each bishop is shared among up to 4 rooks.\n\nLet me count more carefully. In the full board, each bishop (white square) has 4 rook neighbors (in row and column), and each of those rooks has this bishop as one of its 4 bishop neighbors. So the \"sacrifice\" is efficient: 50 bishops sacrificed for 50 rooks.\n\nNow, can we do better? Can we get more than 50 chocolate pieces?\n\nLet me think about it. Each chocolate piece requires some non-chocolate pieces to protect it (or it's isolated). If a chocolate piece is completely isolated (no other piece on its row, column, or diagonals), it doesn't need any sacrifice. But isolated pieces are \"expensive\" in terms of board space.\n\nLet me think about the trade-off. \n\nA chocolate rook needs bishops as row/column neighbors. Each such bishop is attacked (not chocolate). A chocolate rook can have up to 4 bishop neighbors (left, right, up, down in row/column), but a bishop can serve up to 4 rooks. So the \"cost\" per chocolate rook is at most 1 bishop (if sharing is perfect).\n\nA chocolate bishop needs rooks as diagonal neighbors. Each such rook is attacked. A chocolate bishop can have up to 4 rook neighbors (on diagonals), and each rook can serve up to 4 bishops. So the \"cost\" per chocolate bishop is at most 1 rook.\n\nBut can we have both chocolate rooks and chocolate bishops? A chocolate rook needs bishop neighbors (which are attacked). A chocolate bishop needs rook neighbors (which are attacked). The attacked bishops and rooks are different pieces. So if we have c_r chocolate rooks and c_b chocolate bishops, we need at least c_r/4 bishops (sacrificed) and c_b/4 rooks (sacrificed) roughly. But the sacrificed pieces also take up space.\n\nHmm, this counting is too loose. Let me think more carefully.\n\nActually, let me think about whether we can beat 50.\n\nConsider a chocolate piece P. P is on some row r. In row r, P's nearest neighbors (if they exist) must be of the \"safe\" type (bishops for row attacks). If P has a neighbor in the row, that neighbor is attacked (by P if P is a rook, or... wait, if P is a bishop, P doesn't attack along the row. So the neighbor is attacked by P only if P is a rook).\n\nHmm wait. Let me re-examine. If P is a chocolate bishop, its row neighbors are bishops. P (a bishop) doesn't attack along the row. The row neighbors (bishops) don't attack along the row either. So the row neighbors are not attacked by P in the row. But they might be attacked in their columns or diagonals.\n\nSo a chocolate bishop's row neighbors (bishops) are not necessarily attacked (in the row). They could be chocolate too! Let me reconsider.\n\nIf P1 and P2 are both bishops, adjacent in a row (no other piece between them), then:\n- P1's row neighbor is P2 (a bishop). Safe in row.\n- P2's row neighbor is P1 (a bishop). Safe in row.\nNeither attacks the other in the row (bishops don't attack along rows).\n\nSo two bishops adjacent in a row don't attack each other in the row. They could both be chocolate if they're also safe on their columns and diagonals.\n\nThis changes things! Let me reconsider.\n\nA piece P is attacked in its row iff a rook is its nearest neighbor in the row (on either side). If P's nearest row neighbors are all bishops (or nonexistent), P is safe in the row. Two adjacent bishops in a row are safe from each other (in the row).\n\nSo we could have a row full of bishops, and none of them are attacked in the row. They'd only need to be safe on their columns and diagonals.\n\nSimilarly, a diagonal full of rooks: none are attacked on the diagonal (rooks don't attack along diagonals).\n\nSo the optimal strategy might be:\n- Fill rows/columns with bishops (so no row/column attacks)\n- Fill diagonals with rooks (so no diagonal attacks)\n\nBut a piece is on both a row and a diagonal. If it's a bishop, it's safe in the row (if row neighbors are bishops) but might be attacked on the diagonal (if diagonal neighbors are bishops). If it's a rook, it's safe on the diagonal (if diagonal neighbors are rooks) but might be attacked in the row (if row neighbors are rooks).\n\nSo the ideal: bishops have bishops as row/column neighbors and rooks as diagonal neighbors. Rooks have bishops as row/column neighbors and rooks as diagonal neighbors.\n\nThis is exactly the full-board construction: rooks on black, bishops on white. Rooks have bishop neighbors in rows/columns and rook neighbors on diagonals. Bishops have rook neighbors in rows/columns (so they're attacked) and bishop neighbors on diagonals (so they're attacked).\n\nWait, in the full board, bishops have ROOK neighbors in rows/columns, which means they're attacked. And bishop neighbors on diagonals, which means they're attacked. So bishops are doubly attacked.\n\nWhat if instead, we try to make bishops chocolate? We need bishops to have bishop neighbors in rows/columns and rook neighbors on diagonals.\n\nSo a chocolate bishop needs:\n- Row/column neighbors: bishops\n- Diagonal neighbors: rooks\n\nA chocolate rook needs:\n- Row/column neighbors: bishops\n- Diagonal neighbors: rooks\n\nBoth need the same thing! So ideally, every piece has bishops as row/column neighbors and rooks as diagonal neighbors.\n\nNow, consider a piece P at (r, c). Its row neighbors are at (r, c±1) (or further). Its diagonal neighbors are at (r±1, c±1) (or further). \n\nIf the board is full:\n- Row neighbors of (r,c) are at (r, c-1) and (r, c+1). These are on the opposite color from (r,c).\n- Diagonal neighbors of (r,c) are at (r-1, c-1), (r-1, c+1), (r+1, c-1), (r+1, c+1). These are on the same color as (r,c).\n\nSo row/column neighbors are on the opposite color, and diagonal neighbors are on the same color.\n\nFor a piece at (r,c) to be chocolate:\n- Pieces at (r, c±1) and (r±1, c) [opposite color] should be bishops\n- Pieces at (r±1, c±1) [same color] should be rooks\n\nIf (r,c) is on a black square:\n- Opposite color (white) neighbors should be bishops\n- Same color (black) neighbors should be rooks\n\nSo black squares should have rooks, white squares should have bishops. This is exactly the full board construction! And in this case, all black square pieces (rooks) are chocolate, and all white square pieces (bishops) are attacked.\n\nWhat if we swap: black squares have bishops, white squares have rooks?\n- Black square bishop: row/column neighbors are on white squares (rooks). Rooks attack along rows/columns. Bishop is attacked. Not chocolate.\n- White square rook: row/column neighbors are on black squares (bishops). Safe in row/column. Diagonal neighbors are on white squares (rooks). Safe on diagonals. Chocolate!\n\nSo we'd get 50 chocolate rooks on white squares. Same count.\n\nCan we do better than 50? Let me think about whether we can have some chocolate pieces on both colors.\n\nSuppose we have a chocolate piece P on a black square. P's row/column neighbors (on white squares) must be bishops, and P's diagonal neighbors (on black squares) must be rooks. \n\nNow, consider a chocolate piece Q on a white square. Q's row/column neighbors (on black squares) must be bishops, and Q's diagonal neighbors (on white squares) must be rooks.\n\nBut P (on black) requires its diagonal neighbors (on black) to be rooks. Q (on white) requires its row/column neighbors (on black) to be bishops. \n\nIf P and Q are such that a black square is both a diagonal neighbor of P and a row/column neighbor of Q, then that black square must be both a rook (for P) and a bishop (for Q). Contradiction!\n\nWhen does this happen? P is on a black square (r, c). Its diagonal neighbors are at (r±1, c±1), which are black. Q is on a white square. Q's row/column neighbors are on black squares. \n\nIf Q is at (r, c+1) (white square, adjacent to P in the row), then Q's row neighbor is P at (r, c) (black). For Q to be chocolate, P must be a bishop. But for P to be chocolate, P must be a rook (since P is on a black square and needs rook diagonal neighbors... wait, P itself is a rook in the full board construction, but P could be a bishop too).\n\nHmm, I think I was too hasty. Let me reconsider. A chocolate piece P on a black square doesn't have to be a rook. P could be a bishop. Let me re-examine.\n\nIf P is a chocolate bishop on a black square:\n- Row/column neighbors (white squares) must be bishops (so no rook attacks P in row/column)\n- Diagonal neighbors (black squares) must be rooks (so no bishop attacks P on diagonals)\n\nIf P is a chocolate rook on a black square:\n- Row/column neighbors (white squares) must be bishops (so no rook attacks P in row/column)\n- Diagonal neighbors (black squares) must be rooks (so no bishop attacks P on diagonals)\n\nIn both cases, the requirement is the same: white square neighbors are bishops, black square neighbors are rooks. The type of P itself doesn't matter for P's own chocolate status (as long as the neighbors are right). Wait, actually it does matter in one way: P's type determines what P attacks, which affects whether P's neighbors are chocolate. But for P's own chocolate status, only the neighbors' types matter.\n\nWait, actually, P's type doesn't matter for P's own chocolate status at all! A piece P is chocolate if no other piece attacks P. The attack depends on the attacker's type and position, not on P's type. So P is chocolate iff:\n- No rook has clear line of sight to P along P's row or column\n- No bishop has clear line of sight to P along P's diagonals\n\nP's own type (rook or bishop) is irrelevant for P's chocolate status. P's type only matters for whether P attacks other pieces.\n\nSo the chocolate status of P depends only on the types of pieces around P, not on P's own type.\n\nThis means: for a piece on a black square to be chocolate, its row/column neighbors (white squares) must be bishops, and its diagonal neighbors (black squares) must be rooks. For a piece on a white square to be chocolate, its row/column neighbors (black squares) must be bishops, and its diagonal neighbors (white squares) must be rooks.\n\nNow, can we have chocolate pieces on both black and white squares?\n\nConsider a black square B and a white square W that are adjacent in a row (e.g., (r,c) and (r,c+1)). \n- For B to be chocolate: W must be a bishop (W is B's row neighbor).\n- For W to be chocolate: B must be a bishop (B is W's row neighbor).\n\nSo both B and W must be bishops. That's fine - they can both be bishops. Now:\n- B's diagonal neighbors (black squares) must be rooks.\n- W's diagonal neighbors (white squares) must be rooks.\n\nSo the diagonal neighbors of both must be rooks. This is possible if the diagonal neighbors are rooks.\n\nBut now, consider B's diagonal neighbor, say B' (a black square). B' must be a rook (for B to be chocolate). Now, can B' also be chocolate? For B' to be chocolate, its row/column neighbors (white squares) must be bishops, and its diagonal neighbors (black squares) must be rooks. B is a diagonal neighbor of B' (both on black squares), and B is a bishop. For B' to be chocolate, B must be a rook. But B is a bishop. Contradiction!\n\nSo if B is a chocolate bishop, its diagonal neighbor B' (a rook) cannot be chocolate (because B is a bishop, and B' needs its diagonal neighbors to be rooks, but B is a bishop).\n\nSimilarly, if W is a chocolate bishop, its diagonal neighbor W' (a white square, must be a rook) cannot be chocolate (because W is a bishop, and W' needs its diagonal neighbors to be rooks, but W is a bishop).\n\nSo: if a piece is chocolate, its diagonal neighbors (same color) cannot be chocolate (if they exist and are the nearest piece on that diagonal). Because the chocolate piece must be a \"non-attacker\" on the diagonal, meaning it must be a rook (for diagonal neighbors to be safe), but the diagonal neighbor needs the chocolate piece to be a rook, and the chocolate piece could be a bishop...\n\nWait, I need to be more careful. Let me re-examine.\n\nIf B (black square) is chocolate, its diagonal neighbors must be rooks (not bishops). So the nearest piece to B on each diagonal direction is a rook (or there's no piece). Now, consider B's diagonal neighbor B' (a rook on a black square). Is B' chocolate? B' needs its diagonal neighbors to be rooks. B is a diagonal neighbor of B'. Is B a rook? Not necessarily - B could be a bishop or rook (B's type doesn't matter for B's chocolate status). \n\nIf B is a rook: B' needs its diagonal neighbors to be rooks. B is a rook. OK so far. But B' also needs its row/column neighbors (white squares) to be bishops. If that's satisfied, B' could be chocolate.\n\nIf B is a bishop: B' needs its diagonal neighbors to be rooks. B is a bishop, not a rook. So B is an attacker on the diagonal. B' is attacked by B. B' is not chocolate.\n\nSo: if B is a chocolate rook, its diagonal neighbor B' (a rook) could potentially be chocolate. If B is a chocolate bishop, its diagonal neighbor B' (a rook) cannot be chocolate.\n\nSimilarly, for row/column: if B is chocolate, its row/column neighbors (white squares) must be bishops. Consider B's row neighbor W (a bishop on a white square). Is W chocolate? W needs its row/column neighbors (black squares) to be bishops. B is a row neighbor of W. If B is a bishop, then W's row neighbor is a bishop (good). If B is a rook, then W's row neighbor is a rook (bad, W is attacked).\n\nSo: if B is a chocolate bishop, its row neighbor W (a bishop) could potentially be chocolate. If B is a chocolate rook, its row neighbor W (a bishop) cannot be chocolate.\n\nSummary:\n- Chocolate rook: diagonal neighbors (rooks) could be chocolate, row/column neighbors (bishops) cannot be chocolate.\n- Chocolate bishop: diagonal neighbors (rooks) cannot be chocolate, row/column neighbors (bishops) could be chocolate.\n\nSo chocolate rooks \"conflict\" with their row/column neighbors (bishops), and chocolate bishops \"conflict\" with their diagonal neighbors (rooks).\n\nIn the full board construction (all black = rooks, all white = bishops):\n- All rooks (black) are chocolate. Their diagonal neighbors (black, rooks) could be chocolate (and they are!). Their row/column neighbors (white, bishops) are not chocolate (they're attacked by the rooks).\n- All bishops (white) are attacked (by adjacent rooks in rows/columns). Not chocolate.\n\nSo we get 50 chocolate rooks, and the bishops are all attacked.\n\nNow, can we get more than 50 by having some chocolate bishops too?\n\nIf we make some white square pieces chocolate (bishops), they need:\n- Row/column neighbors (black squares) to be bishops\n- Diagonal neighbors (white squares) to be rooks\n\nBut in the full board, black squares have rooks. If we change some black squares from rooks to bishops, those black square bishops would serve as row/column neighbors for white square pieces. But then, the black square bishops might not be chocolate (their diagonal neighbors might be rooks, which is good, but their row/column neighbors might be rooks, which is bad).\n\nLet me think about this more carefully with a specific modification.\n\nSuppose we take the full board (black = R, white = B) and flip one black square from R to B. Say we flip (r, c) from R to B. \n\n- (r, c) is now a bishop. Its row neighbors (r, c±1) are white squares with bishops. Its column neighbors (r±1, c) are white squares with bishops. So (r, c) is safe in row/column (neighbors are bishops). Its diagonal neighbors (r±1, c±1) are black squares with rooks. So (r, c) is safe on diagonals (neighbors are rooks). So (r, c) is chocolate! \n\nBut wait, (r, c) was a chocolate rook before, and now it's a chocolate bishop. So we didn't gain anything for (r, c).\n\nBut what about the white square neighbors of (r, c)? Previously, they were attacked by (r, c) (a rook) in the row/column. Now (r, c) is a bishop, so it doesn't attack along rows/columns. So the white square neighbors of (r, c) are no longer attacked by (r, c) in the row/column.\n\nBut those white square neighbors are still attacked by their other black square neighbors (which are still rooks). For example, (r, c+1) is a white square bishop. Its row neighbors are (r, c) (now a bishop) and (r, c+2) (a black square rook). The nearest rook in the row is (r, c+2), which attacks (r, c+1). So (r, c+1) is still attacked. Not chocolate.\n\nHmm. So flipping one black square from R to B doesn't immediately help the white square neighbors.\n\nWhat if we flip a pattern of black squares? \n\nLet me think about this differently. Let's consider a \"striped\" pattern.\n\nActually, let me think about the problem from the perspective of the upper bound.\n\nClaim: The maximum number of chocolate pieces is 50.\n\nLet me try to prove this. \n\nConsider the 10 rows. In each row, there are 5 black squares and 5 white squares. \n\nFor a piece P to be chocolate, its row neighbors must be bishops and its diagonal neighbors must be rooks. \n\nNow, consider a row r. The pieces in this row are on squares (r, 1), (r, 2), ..., (r, 10). The colors alternate. \n\nFor a piece at (r, c) to be chocolate, its nearest row neighbors must be bishops. If the board is full, the nearest row neighbors are at (r, c-1) and (r, c+1). These are on the opposite color.\n\nNow, consider two adjacent chocolate pieces in the same row: (r, c) and (r, c+1). (r, c) needs (r, c+1) to be a bishop. (r, c+1) needs (r, c) to be a bishop. So both are bishops. Now, (r, c) is on one color and (r, c+1) on the other. (r, c) needs its diagonal neighbors (same color) to be rooks. (r, c+1) needs its diagonal neighbors (same color) to be rooks.\n\nNow, (r, c)'s diagonal neighbor in the direction (r-1, c-1) is on the same color as (r, c). Let's say (r, c) is black. Then (r-1, c-1) is black and must be a rook. (r, c+1) is white, and its diagonal neighbor (r-1, c+2) is white and must be a rook.\n\nNow, the rook at (r-1, c-1) (black): is it chocolate? Its row neighbors are (r-1, c-2) and (r-1, c). (r-1, c) is a white square. In the full board, (r-1, c) would be a bishop. If (r-1, c) is a bishop, then the rook at (r-1, c-1) has a bishop row neighbor (safe). Its column neighbors are (r-2, c-1) and (r, c-1). (r, c-1) is a white square. If it's a bishop, safe. Its diagonal neighbors: (r-2, c-2) and (r, c) — wait, (r, c) is a bishop (we said both adjacent chocolate pieces are bishops). So the rook at (r-1, c-1) has a diagonal neighbor (r, c) which is a bishop. The bishop attacks the rook on the diagonal. So the rook is not chocolate.\n\nSo the rook at (r-1, c-1) is not chocolate because (r, c) (a bishop) attacks it on the diagonal.\n\nThis means: if we have two adjacent chocolate bishops in a row, the rooks on their diagonals are not chocolate. So we're trading chocolate rooks for chocolate bishops.\n\nLet me count more carefully. In the full board, we have 50 chocolate rooks (all black squares). If we convert some to bishops to make some white square bishops chocolate, we lose chocolate rooks and gain chocolate bishops. The question is whether the net gain can be positive.\n\nLet me think about a specific example. Consider a 2×2 sub-board:\n```\nB W\nW B\n```\nwhere B = black square, W = white square. In the full board: B squares have rooks, W squares have bishops.\n\nNow, flip the top-left B from R to B (bishop). The board becomes:\n```\nB(bishop) W(bishop)\nW(bishop) B(rook)\n```\n\n- Top-left (black, bishop): row neighbor is W(bishop) - safe. Col neighbor is W(bishop) - safe. Diagonal neighbor is B(rook) - safe. Chocolate!\n- Top-right (white, bishop): row neighbor is B(bishop) - safe. Col neighbor is B(rook) - attacked! Not chocolate.\n- Bottom-left (white, bishop): col neighbor is B(bishop) - safe. Row neighbor is B(rook) - attacked! Not chocolate.\n- Bottom-right (black, rook): row neighbor is W(bishop) - safe. Col neighbor is W(bishop) - safe. Diagonal neighbor is B(bishop) - attacked by bishop on diagonal! Not chocolate.\n\nSo we went from 2 chocolate (both rooks) to 1 chocolate (the top-left bishop). Worse!\n\nWhat if we flip both black squares to bishops?\n```\nB(bishop) W(bishop)\nW(bishop) B(bishop)\n```\nAll bishops. \n- Top-left: diagonal neighbor is bottom-right (bishop). Attacked on diagonal. Not chocolate.\n- Top-right: diagonal neighbor is bottom-left (bishop). Attacked on diagonal. Not chocolate.\n- Bottom-left: diagonal neighbor is top-right (bishop). Attacked. Not chocolate.\n- Bottom-right: diagonal neighbor is top-left (bishop). Attacked. Not chocolate.\n0 chocolate. Worse.\n\nWhat if we flip both white squares to rooks?\n```\nB(rook) W(rook)\nW(rook) B(rook)\n```\nAll rooks.\n- Top-left: row neighbor is W(rook) - attacked. Not chocolate.\n0 chocolate. Worse.\n\nSo for a 2×2 sub-board, the best is 2 chocolate (the R/B/W/B pattern). \n\nLet me think about whether we can beat 50 on the 10×10 board.\n\nActually, let me think about a different construction. What if we don't fill the entire board?\n\nConsider placing pieces only on black squares, all as rooks. Then:\n- Each rook's row: only black square rooks in the row. The nearest rook in the row is on a black square 2 columns away. It's a rook, so it attacks. The rook is attacked in the row. Not chocolate.\n\nHmm, that doesn't work because rooks attack each other in rows.\n\nWhat if we place rooks on black squares such that no two are in the same row or column? That's at most 5 rooks (since each row has 5 black squares, but we need one per row and one per column, so at most 5... actually, we can place up to 10 if we use both colors, but on black squares only, we can place at most 5 non-attacking rooks... no, actually we can place up to 10 rooks on black squares with no two in the same row or column, since there are 5 black squares per row and 10 rows).\n\nWait, on a 10×10 board, black squares in row r are at columns with r+c even. If r is odd, black squares are at odd columns (1,3,5,7,9). If r is even, black squares are at even columns (2,4,6,8,10). So in each row, there are 5 black squares. To place non-attacking rooks on black squares (no two in same row or column), we can place at most 10 (one per row, and we need distinct columns). But columns also have 5 black squares each. So we need a system of distinct representatives: choose one black square per row, all in distinct columns. This is possible: e.g., (1,1), (2,2), (3,3), ..., (10,10) — all on the main diagonal, all black (since r+c = 2r, even). So 10 non-attacking rooks on black squares. These are all chocolate (no two in same row or column, and on diagonals they're all rooks so no diagonal attacks). But 10 < 50.\n\nOK so isolated non-attacking rooks give only 10. The full board gives 50. Can we do better than 50?\n\nLet me think about the upper bound more carefully.\n\nUpper bound approach: Consider the 19 diagonals in one direction (say, the \\ direction). On each diagonal, the pieces that are attacked are those adjacent to bishops. A piece is chocolate only if it's not attacked on any diagonal. \n\nOn a \\ diagonal, if there are k pieces, and b of them are bishops, then the pieces adjacent to bishops are attacked. Each bishop attacks at most 2 neighbors (nearest on each side). So at most 2b pieces are attacked on this diagonal. The number of safe pieces on this diagonal is at least k - 2b.\n\nBut this doesn't directly give me an upper bound on chocolate pieces.\n\nLet me try a different approach. \n\nConsider the 10 rows + 10 columns = 20 \"rook lines.\" On each rook line, the rooks attack their nearest neighbors. A piece is attacked on a rook line if a rook is its nearest neighbor on that line.\n\nSimilarly, consider the 19 + 19 = 38 \"bishop lines\" (diagonals). On each bishop line, bishops attack their nearest neighbors.\n\nA piece is chocolate iff it's not attacked on any of the 4 lines through it (2 rook lines: row and column, 2 bishop lines: two diagonals).\n\nHmm, let me think about a coloring/partitioning argument.\n\nConsider the 10 rows. In each row, the pieces adjacent to rooks are \"row-attacked.\" Let's say in row r, there are $r_r$ rooks and $b_r$ bishops (total $n_r = r_r + b_r$ pieces). The number of row-attacked pieces is at most $2r_r$ (each rook attacks at most 2 neighbors). The number of row-safe pieces is at least $n_r - 2r_r$.\n\nBut a piece needs to be safe on all 4 lines, not just the row. So the number of chocolate pieces is at most the number of row-safe pieces, which is at most $\\sum_r (n_r - 2r_r) = N - 2R$ where $N$ is total pieces and $R$ is total rooks. But this isn't tight because a piece safe in its row might be attacked in its column or diagonal.\n\nSimilarly, the number of chocolate pieces is at most $N - 2B$ where $B$ is total bishops (considering diagonal attacks). And at most $N - 2R$ (considering row attacks) and $N - 2R$ (considering column attacks).\n\nSo chocolate $\\leq N - 2R$ and chocolate $\\leq N - 2B$. Adding: $2 \\cdot$ chocolate $\\leq 2N - 2R - 2B = 2N - 2N = 0$?? That can't be right.\n\nWait, $R + B = N$, so $2N - 2R - 2B = 2N - 2N = 0$. That gives chocolate $\\leq 0$, which is wrong. The issue is that the bounds chocolate $\\leq N - 2R$ and chocolate $\\leq N - 2B$ are from different attack lines and can't be simply added.\n\nLet me be more careful. Let me define:\n- $A_r$ = number of pieces attacked in their row\n- $A_c$ = number of pieces attacked in their column\n- $A_{d1}$ = number of pieces attacked on their first diagonal\n- $A_{d2}$ = number of pieces attacked on their second diagonal\n\nA piece is chocolate iff it's not in any of $A_r, A_c, A_{d1}, A_{d2}$. By inclusion-exclusion:\nchocolate = $N - |A_r \\cup A_c \\cup A_{d1} \\cup A_{d2}| \\geq N - |A_r| - |A_c| - |A_{d1}| - |A_{d2}|$\n\nBut we want an upper bound on chocolate, not a lower bound. \n\nchocolate = $N - |A_r \\cup A_c \\cup A_{d1} \\cup A_{d2}| \\leq N - \\max(|A_r|, |A_c|, |A_{d1}|, |A_{d2}|)$\n\nNow, $|A_r| \\leq 2R$ (each rook attacks at most 2 pieces in its row, but a piece could be attacked by 2 rooks, so actually $|A_r|$ could be less than $2R$). Similarly for $|A_c| \\leq 2R$, $|A_{d1}|, |A_{d2}| \\leq 2B$.\n\nSo chocolate $\\leq N - \\max(|A_r|, |A_c|, |A_{d1}|, |A_{d2}|)$.\n\nIn the full board: $N = 100$, $R = 50$, $B = 50$. $|A_r| = 50$ (all 50 bishops are attacked in their rows). $|A_c| = 50$. $|A_{d1}| = 0$ (no bishops on black diagonals... wait, bishops are on white squares, and white square diagonals have only bishops, so bishops attack each other on diagonals). Hmm, let me recompute.\n\nIn the full board (black = R, white = B):\n- Row attacks: rooks (black) attack adjacent bishops (white) in rows. Each rook attacks 2 bishops (left and right). But each bishop is attacked by 2 rooks (left and right). So $|A_r| = 50$ (all 50 bishops).\n- Column attacks: similarly, $|A_c| = 50$.\n- Diagonal attacks: on white diagonals, all pieces are bishops. Each bishop attacks its nearest neighbors. On a diagonal with $k$ bishops, all $k$ are attacked (as we showed earlier). So $|A_{d1}| + |A_{d2}|$ counts the bishops attacked on diagonals. Each bishop is on 2 diagonals. On each diagonal, it's attacked (if the diagonal has ≥2 bishops). So $|A_{d1}| = 50$ and $|A_{d2}| = 50$ (roughly, depending on how diagonals split).\n\nActually, the attacked set is the same: all 50 bishops are attacked (in rows, columns, and diagonals). So $|A_r \\cup A_c \\cup A_{d1} \\cup A_{d2}| = 50$. Chocolate = 100 - 50 = 50. ✓\n\nNow, for the upper bound: chocolate $\\leq N - \\max(|A_r|, |A_c|, |A_{d1}|, |A_{d2}|)$.\n\nWe need to show that $\\max(|A_r|, |A_c|, |A_{d1}|, |A_{d2}|) \\geq N/2 = 50$ when $N = 100$. Or more generally, that chocolate $\\leq 50$.\n\nHmm, but this approach requires knowing $N$ and the attack counts, which depend on the configuration.\n\nLet me think about a different upper bound strategy.\n\nAlternative approach: Consider the 10 rows. In each row, the pieces form a sequence. The rooks in the row attack their nearest neighbors. A piece is \"row-safe\" if no rook is its nearest neighbor in the row.\n\nKey observation: In a row, if there are $r$ rooks, then at least $r$ pieces are row-attacked (each rook attacks at least 1 piece, unless it's the only piece in the row). Actually, each rook attacks at most 2 pieces (nearest left and nearest right), but a piece can be attacked by at most 2 rooks (nearest left and nearest right). So the number of row-attacked pieces is between $\\max(r-1, 0)$ (if rooks are consecutive) and $2r$ (if rooks are spread out). Hmm, this is getting complicated.\n\nLet me try yet another approach.\n\nLet me think about the problem as a graph coloring / independent set problem.\n\nActually, let me think about a cleaner upper bound argument.\n\nConsider the 10 rows. In each row, look at the leftmost piece. If it's a rook, it attacks the second-leftmost piece (if it exists). If it's a bishop, it doesn't attack anyone in the row.\n\nHmm, this isn't leading anywhere clean. Let me try to think about the problem from the perspective of the answer.\n\nGiven the construction gives 50, and the problem is from a competition (likely has a clean answer), I suspect the answer is 50. Let me try to prove the upper bound of 50.\n\nUpper bound proof attempt:\n\nConsider the 10 rows. In each row, the pieces are at certain positions. Consider the \"row-attack\" relation: piece P is row-attacked if a rook is P's nearest neighbor in the row (on either side).\n\nClaim: In each row, the number of row-safe pieces is at most the number of bishops in the row plus the number of \"isolated\" rooks (rooks with no neighbors on one side).\n\nHmm, this is getting complicated. Let me think about it differently.\n\nLet me consider the following approach. Partition the 100 squares into 50 \"domino pairs\" (adjacent pairs). For example, pair (r, 2k-1) with (r, 2k) for each row r and k = 1, ..., 5. This gives 50 pairs, each consisting of a black and white square.\n\nIn each pair, at most one piece can be chocolate. Why? Consider the pair {(r, 2k-1), (r, 2k)}. These two squares are adjacent in row r. If both have pieces, they are each other's nearest row neighbor. For both to be chocolate, both need their nearest row neighbors to be bishops. So both must be bishops. But then, consider their diagonal neighbors...\n\nActually wait, if both are bishops, they don't attack each other in the row (bishops don't attack along rows). So both could be row-safe. But they might be attacked on their columns or diagonals.\n\nSo the domino pairing doesn't immediately give an upper bound of 1 per pair. Let me think more.\n\nHmm, let me think about a different pairing. What if I pair squares that are on the same diagonal?\n\nConsider the 19 \\ diagonals. On each diagonal, the squares are all the same color. If I pair adjacent squares on each diagonal, I get pairs of same-color squares. In each such pair, if both have pieces, they are each other's nearest diagonal neighbor. For both to be chocolate, both need their nearest diagonal neighbors to be rooks. So both must be rooks. But rooks don't attack along diagonals, so both are diagonal-safe. But they might be attacked on rows/columns.\n\nSo again, the pairing doesn't immediately give an upper bound.\n\nLet me think about combining row and diagonal constraints.\n\nConsider a piece P at (r, c). P is chocolate requires:\n1. P's row neighbors are bishops (or P is alone in the row on each side)\n2. P's column neighbors are bishops (or alone)\n3. P's diagonal neighbors are rooks (or alone)\n\nNow, consider two pieces P and Q on the same row, with no other piece between them. They are each other's nearest row neighbor. For both to be chocolate, both must be bishops (condition 1). Now, P and Q are on different colors (adjacent in a row). Say P is black and Q is white.\n\nP (black, bishop) needs its diagonal neighbors (black) to be rooks (condition 3).\nQ (white, bishop) needs its diagonal neighbors (white) to be rooks (condition 3).\n\nNow, P's diagonal neighbor in direction (r+1, c+1) is a black square, must be a rook. Q's diagonal neighbor in direction (r+1, c+2) is a white square, must be a rook. These are different squares, so no conflict yet.\n\nBut consider the black square at (r+1, c+1), which is a rook. For this rook to be chocolate, its row neighbors must be bishops. Its row neighbors include (r+1, c) and (r+1, c+2). (r+1, c) is a white square, and (r+1, c+2) is a white square. These need to be bishops. \n\nNow, (r+1, c+2) is a white square. Q's diagonal neighbor in direction (r+1, c+2) must be a rook. But we just said (r+1, c+2) needs to be a bishop (for the rook at (r+1, c+1) to be chocolate). Contradiction!\n\nWait, let me re-examine. Q is at (r, c+1) (white). Q's diagonal neighbor in direction (r+1, c+2) is a white square. For Q to be chocolate, this must be a rook. But for the rook at (r+1, c+1) (black) to be chocolate, (r+1, c+2) (white, row neighbor of the rook) must be a bishop. So (r+1, c+2) must be both a rook and a bishop. Contradiction.\n\nSo: if P and Q are adjacent chocolate bishops in a row, and P's diagonal neighbor (a rook) is also chocolate, we get a contradiction. This means the rook at (r+1, c+1) cannot be chocolate.\n\nBut this doesn't mean we can't have P and Q both chocolate — it just means the rook between their diagonals can't be chocolate. So we're trading: 2 chocolate bishops instead of 1 chocolate rook (and possibly affecting other pieces).\n\nThis is getting very complex. Let me try a different approach to the upper bound.\n\nLet me think about it in terms of a graph where vertices are squares and we want to select a maximum independent set in some sense.\n\nActually, let me try to think about the problem computationally. Let me consider small boards and see if the pattern is n²/2.\n\nFor a 1×1 board: 1 piece, it's chocolate (no other piece to attack it). Answer: 1. And 1²/2 = 0.5, so not n²/2.\n\nFor a 2×2 board: we showed 2 chocolate pieces. And 2²/2 = 2. ✓\n\nFor a 1×2 board: squares (1,1) and (1,2). If we place R at (1,1) and B at (1,2): R attacks B in the row. B is attacked. R is not attacked (B doesn't attack along rows). R is chocolate. 1 chocolate. If we place B at both: no row attacks (bishops don't attack along rows). But they're on the same... no diagonals (1×2 board has no diagonal connections). Wait, (1,1) and (1,2) are not on the same diagonal. So both bishops are chocolate. 2 chocolate!\n\nHmm wait, for a 1×2 board, there are no diagonals connecting the two squares. So if both are bishops, neither attacks the other (bishops attack along diagonals, and they're not on the same diagonal). Both are chocolate. Answer: 2.\n\nBut 1×2 = 2 squares, and we get 2 chocolate. So the answer for 1×2 is 2, which is more than 2/2 = 1.\n\nHmm, so the answer isn't simply n²/2 for all boards. But for a 10×10 board, the diagonal structure is rich.\n\nWait, for a 1×2 board, the two squares are on different colors. If both are bishops, they don't attack each other (not on same diagonal, and bishops don't attack along rows). So both are chocolate. That gives 2 = all pieces chocolate.\n\nFor a 2×2 board, we can't make all 4 chocolate because the diagonal structure causes conflicts. We got 2.\n\nFor a 10×10 board, the diagonal structure is even richer. Let me reconsider.\n\nActually, for the 1×2 board, the answer is 2 (both bishops, no attacks). For a 1×10 board (a single row), if all are bishops, no row attacks (bishops don't attack along rows), and no diagonal attacks (all on same row, no two on same diagonal). So all 10 are chocolate. Answer: 10 = all pieces.\n\nBut for a 10×10 board, we can't make all pieces chocolate because of diagonal conflicts.\n\nLet me reconsider the upper bound. The key constraint is from diagonals. On a diagonal, if there are 2+ bishops, they attack each other. So on each diagonal, at most 1 bishop can be chocolate (if there are other bishops on the diagonal). Or all pieces on the diagonal are rooks (then no diagonal attacks).\n\nSimilarly, on each row, if there are 2+ rooks, they attack each other. So on each row, at most 1 rook can be chocolate (if there are other rooks on the row). Or all pieces on the row are bishops.\n\nHmm wait, that's not quite right. On a row with rooks, the rooks attack their nearest neighbors. A rook is attacked in the row if another rook is its nearest neighbor. So if rooks are separated by bishops, the rooks are not attacked in the row (their nearest neighbors are bishops).\n\nLet me reconsider. On a row, a piece is row-attacked iff a rook is its nearest neighbor. So:\n- A rook is row-attacked iff its nearest neighbor is a rook.\n- A bishop is row-attacked iff its nearest neighbor is a rook.\n\nIf rooks are separated by bishops (alternating R B R B ...), then each rook's nearest neighbors are bishops, so rooks are row-safe. Each bishop's nearest neighbors are rooks, so bishops are row-attacked.\n\nIf all pieces in a row are bishops, no one is row-attacked.\nIf all pieces in a row are rooks, everyone is row-attacked (each rook's neighbor is a rook).\n\nSo on a row, the row-safe pieces are:\n- All bishops, if there are no rooks in the row\n- Rooks that have bishops as nearest neighbors (and bishops that have bishops as nearest neighbors)\n\nThe maximum number of row-safe pieces in a row with $n$ pieces is $n$ (all bishops, no rooks). But then we need to worry about column and diagonal attacks.\n\nOK, I think the answer is 50 and the construction is the full board with rooks on one color and bishops on the other. Let me try to prove the upper bound of 50.\n\nUpper bound proof:\n\nConsider the 10×10 board. Color it like a chessboard with black (r+c even) and white (r+c odd) squares, 50 each.\n\nConsider the 19 diagonals in the \\ direction (constant r-c). These have lengths 1, 2, 3, ..., 9, 10, 9, ..., 2, 1. The black \\ diagonals (r-c even) have lengths 1, 3, 5, 7, 9, 9, 7, 5, 3, 1 (10 diagonals). The white \\ diagonals (r-c odd) have lengths 2, 4, 6, 8, 10, 8, 6, 4, 2 (9 diagonals).\n\nSimilarly for / diagonals (constant r+c). Black / diagonals (r+c even): lengths 1, 3, 5, 7, 9, 9, 7, 5, 3, 1 (10 diagonals). White / diagonals (r+c odd): lengths 2, 4, 6, 8, 10, 8, 6, 4, 2 (9 diagonals).\n\nNow, consider a piece P on a black square. P is on one black \\ diagonal and one black / diagonal. For P to be chocolate, no bishop can attack P on either diagonal. This means: on each of P's two diagonals, either P is the only piece, or P's nearest neighbors on the diagonal are not bishops (i.e., they're rooks).\n\nSimilarly, P is on one row and one column. For P to be chocolate, no rook can attack P on the row or column. This means: on P's row and column, P's nearest neighbors are not rooks (i.e., they're bishops or nonexistent).\n\nNow, here's the key idea for the upper bound. Consider the 50 black squares and 50 white squares. I want to show that at most 50 pieces can be chocolate.\n\nConsider the pieces on black squares. Each black square piece is on two black diagonals. On each black diagonal, the bishops attack their nearest neighbors. So a black square piece is diagonal-attacked if a bishop is its nearest neighbor on either diagonal.\n\nNow, consider the black \\ diagonals. There are 10 of them, with lengths 1, 3, 5, 7, 9, 9, 7, 5, 3, 1. On each such diagonal, if there are bishops, they attack their neighbors. The number of pieces attacked on a diagonal of length $l$ with $b$ bishops is at most $2b$ (but at most $l$). The number of safe pieces is at least $l - 2b$ (but could be more if attacks overlap).\n\nHmm, this is still not giving a clean bound. Let me think differently.\n\nLet me try a direct counting argument.\n\nLemma: On any line (row, column, or diagonal) with $n$ pieces, at least $\\lfloor n/2 \\rfloor$ pieces are attacked on that line.\n\nWait, is this true? On a row with all bishops, 0 pieces are attacked (bishops don't attack along rows). So the lemma is false for rows.\n\nOn a diagonal with all rooks, 0 pieces are attacked (rooks don't attack along diagonals). So the lemma is false for diagonals too.\n\nOK so the lemma doesn't hold in general. Let me think about what does hold.\n\nOn a row: rooks attack their nearest neighbors. If there are $r$ rooks in the row, the number of attacked pieces is at least $\\max(r - 1, 0)$ (if rooks are consecutive, $r-1$ pairs of adjacent rooks) and at most $2r$ (if rooks are spread out). But also, the number of attacked pieces is at most $n - 1$ (can't attack more than $n$ pieces, and the end pieces might not be attacked on one side).\n\nHmm, I don't think simple counting on individual lines will give the bound. Let me think about a more global argument.\n\nAlternative approach: Think about it as a bipartite graph or use a double counting argument.\n\nLet me consider the following. For each chocolate piece P, define its \"protection set\" — the pieces that protect P (by blocking attacks). But this is complex because a piece can protect multiple chocolate pieces.\n\nLet me try another approach. Consider the \"conflict graph\" where two pieces conflict if one attacks the other. Chocolate pieces are those with no incoming attacks. We want to maximize the number of pieces with no incoming attacks.\n\nActually, I think the answer might not be 50. Let me reconsider.\n\nLet me think about whether we can do better than 50 by using a non-full-board construction.\n\nConstruction attempt: Place bishops on all 100 squares. Then:\n- Row attacks: 0 (bishops don't attack along rows)\n- Column attacks: 0 (bishops don't attack along columns)\n- Diagonal attacks: on each diagonal, bishops attack their nearest neighbors. On a diagonal with $k$ bishops, all $k$ are attacked (if $k \\geq 2$). If $k = 1$, the bishop is not attacked on that diagonal.\n\nSo a bishop is chocolate iff it's the only bishop on both its diagonals. \n\nOn the 10×10 board, the \\ diagonals have lengths 1, 2, 3, ..., 9, 10, 9, ..., 2, 1. The / diagonals have lengths 1, 2, 3, ..., 9, 10, 9, ..., 2, 1. A square is on one \\ diagonal and one / diagonal. For a bishop to be chocolate, it must be the only bishop on both its diagonals. This means both its diagonals have length 1, which is impossible (only the 4 corner squares are on length-1 diagonals in one direction, but they're on longer diagonals in the other direction).\n\nActually, the corners: (1,1) is on \\ diagonal of length 1 (just (1,1)) and / diagonal of length 2 (just (1,1) and... wait, r+c = 2, so the / diagonal is {(1,1)}, length 1. Hmm, no. r+c = 2 means just (1,1). So (1,1) is on a / diagonal of length 1 and a \\ diagonal of length 1. So if (1,1) is the only bishop on both diagonals, it's chocolate. But both diagonals have length 1, so (1,1) is automatically the only piece on both. So (1,1) is chocolate.\n\nSimilarly, (1,10), (10,1), (10,10) are on length-1 diagonals in both directions. So all 4 corners are chocolate.\n\nWhat about (1,2)? It's on \\ diagonal r-c = -1, length 2: {(1,2), (2,3), ..., (9,10)} wait no. r - c = 1 - 2 = -1. The \\ diagonal with d = -1 has squares (1,2), (2,3), ..., (9,10). Length 9. And / diagonal r+c = 3: {(1,2), (2,1)}. Length 2.\n\nSo (1,2) is on a \\ diagonal of length 9 and a / diagonal of length 2. For (1,2) to be chocolate, it must be the only bishop on both. The / diagonal has length 2, so we need (2,1) to not have a bishop. The \\ diagonal has length 9, so we need all other 8 squares on that diagonal to not have bishops.\n\nThis is very restrictive. With all bishops, only the 4 corners are chocolate. That's terrible.\n\nSo all-bishops is much worse than the mixed construction.\n\nLet me think about other constructions.\n\nConstruction: Rooks on black squares, nothing on white squares. Then:\n- Row attacks: in each row, rooks are at every other position. The nearest rook to each rook is 2 positions away. Rooks attack each other in rows. Each rook (except possibly the end ones) is attacked. Actually, in a row with rooks at positions 1, 3, 5, 7, 9 (if row is odd), the rooks attack their nearest neighbors. Rook at 1 attacks rook at 3. Rook at 3 attacks rook at 1 and rook at 5. Etc. So all rooks except the end ones are attacked. The end rooks (at 1 and 9) are each attacked by one neighbor. So all 5 rooks in the row are attacked. Not chocolate.\n\nSo rooks on black squares only: 0 chocolate. Bad.\n\nConstruction: Rooks on black squares, bishops on some white squares to block.\n\nIn a row, rooks at positions 1, 3, 5, 7, 9 (black squares in odd row). Place bishops at positions 2, 4, 6, 8, 10 (white squares). Now the row has R B R B R B R B R B. Rook at 1: nearest neighbor is B at 2 (safe). Rook at 3: nearest neighbors are B at 2 and B at 4 (safe). Etc. All rooks are row-safe. Bishops at 2, 4, 6, 8, 10: nearest neighbors are rooks. All bishops are row-attacked.\n\nThis is the full board construction. 50 chocolate rooks.\n\nNow, what if we leave some white squares empty? Say in row 1, we don't place a bishop at position 2. Then the row has R _ R B R B R B R B. Rook at 1: nearest neighbor is R at 3 (attacked!). Not chocolate. So removing a bishop can make a rook non-chocolate.\n\nWhat if we add extra pieces? The board is full (100 pieces), so we can't add more.\n\nWhat if we use a different pattern? Instead of filling the board, use a sparser pattern.\n\nConstruction: Place rooks on a \"permutation\" of black squares (one per row, one per column) and bishops on a \"permutation\" of white squares (one per row, one per column). \n\n10 rooks on black squares, no two in same row or column. 10 bishops on white squares, no two in same row or column. Total 20 pieces.\n\nRooks: no two in same row or column, so no rook attacks another in row/column. On diagonals, rooks don't attack. So rooks are chocolate iff no bishop attacks them on diagonals. A bishop attacks a rook if they're on the same diagonal with no piece between them. \n\nBishops: no two in same row or column, so no rook attacks them in row/column (wait, rooks are on different rows and columns from bishops? Not necessarily - a rook and bishop could be in the same row). Hmm, actually, the rooks are on black squares and bishops on white squares. In a given row, there's one rook (on a black square) and one bishop (on a white square). They're in the same row. The rook attacks the bishop (nearest piece in the row, if no other piece between them). So the bishop is attacked in the row. Not chocolate.\n\nSo the bishops are all attacked. The rooks: safe in rows/columns (no other rook in same row/column). On diagonals: need to check if any bishop is on the same diagonal with no piece between. If we choose the permutations carefully, we can avoid this. \n\nWith 10 rooks (all chocolate) and 10 bishops (all attacked), we get 10 chocolate. Worse than 50.\n\nSo sparse constructions are worse. The full board is better because the blocking is more efficient.\n\nLet me think about whether a slightly modified full board can beat 50.\n\nWhat if we use a 10×10 board but with a different pattern? For instance, what if on some rows, we swap the roles (bishops on black, rooks on white)?\n\nConsider rows 1-5: black = R, white = B (standard).\nRows 6-10: black = B, white = R (swapped).\n\nIn rows 1-5, rooks are on black squares. In rows 6-10, rooks are on white squares.\n\nNow, consider a rook in row 5 (black square). Its column neighbor in row 6 is a black square with a bishop (since rows 6-10 have bishops on black). So the rook's column neighbor is a bishop. Safe. Its row neighbors are bishops (white squares in row 5). Safe. Its diagonal neighbors: in the \\ direction, (4, c-1) and (6, c+1). (4, c-1) is a black square in row 4, which has a rook. (6, c+1) is a white square in row 6, which has a rook (swapped). So the diagonal neighbors are rooks. Safe. So this rook is chocolate.\n\nNow, consider a rook in row 6 (white square). Its column neighbor in row 5 is a white square with a bishop (standard). Safe. Its row neighbors are black squares with bishops (swapped). Safe. Its diagonal neighbors: (5, c-1) and (7, c+1). (5, c-1) is a white square in row 5, which has a bishop. (7, c+1) is a black square in row 7, which has a bishop (swapped). So the diagonal neighbors are bishops. The rook is attacked by bishops on the diagonal! Not chocolate.\n\nHmm, so the rooks in row 6 are attacked. That's bad.\n\nWhat if we make the transition smoother? The issue is at the boundary between standard and swapped rows.\n\nThis suggests that the full board with a uniform pattern (all black = R, all white = B) is optimal, giving 50.\n\nLet me try to prove the upper bound of 50 rigorously.\n\nProof of upper bound:\n\nConsider the 10×10 board with chessboard coloring (black: r+c even, white: r+c odd). \n\nFor each row r, consider the pieces in that row. The row has 5 black and 5 white squares. Let $b_r$ = number of bishops on black squares in row r, $r_r$ = number of rooks on black squares in row r, $b'_r$ = number of bishops on white squares in row r, $r'_r$ = number of rooks on white squares in row r. Total pieces in row r: $n_r = b_r + r_r + b'_r + r'_r$.\n\nA piece is chocolate only if it's not attacked on any line. In particular, it's not attacked on its row. A piece is row-attacked iff a rook is its nearest neighbor in the row.\n\nNow, I want to count the maximum number of chocolate pieces. \n\nLet me think about a cleaner argument.\n\nKey insight: Consider the 50 black squares. I claim that at most 50 pieces total can be chocolate, by showing that each chocolate piece \"claims\" a unique square of one color.\n\nHmm, that's not quite right either. Let me think more.\n\nAlternative approach: Consider the bipartite graph between black and white squares where edges represent adjacency in rows/columns. Actually, let me think about the problem differently.\n\nLet me consider the \"diagonal conflict\" more carefully.\n\nOn each \\ diagonal, the pieces are all on the same color. If there are bishops on the diagonal, they attack their nearest neighbors. A piece on the diagonal is diagonal-attacked iff a bishop is its nearest neighbor on the diagonal.\n\nNow, consider all the \\ diagonals. There are 19 of them. On the black \\ diagonals (10 of them, lengths 1,3,5,7,9,9,7,5,3,1), the pieces are on black squares. On the white \\ diagonals (9 of them, lengths 2,4,6,8,10,8,6,4,2), the pieces are on white squares.\n\nSimilarly for / diagonals.\n\nA piece on a black square is on two black diagonals (one \\ and one /). It's diagonal-attacked if a bishop is its nearest neighbor on either diagonal.\n\nA piece on a white square is on two white diagonals. It's diagonal-attacked if a bishop is its nearest neighbor on either diagonal.\n\nNow, for a piece to be chocolate, it must not be diagonal-attacked. So on both its diagonals, its nearest neighbors must be rooks (or nonexistent).\n\nConsider the black \\ diagonals. On each such diagonal, the pieces that are \"diagonal-safe\" (on this diagonal) are those whose nearest neighbors on the diagonal are not bishops. If all pieces on the diagonal are rooks, all are diagonal-safe. If there are bishops, the pieces adjacent to bishops are diagonal-attacked.\n\nNow, here's the key: a piece on a black square is chocolate only if it's diagonal-safe on both its black diagonals AND row-safe AND column-safe. \n\nLet me focus on the diagonal constraint. A piece on a black square needs to be diagonal-safe on both its \\ and / black diagonals. \n\nConsider a black \\ diagonal with pieces. If all pieces on it are rooks, all are diagonal-safe on this diagonal. If some are bishops, the ones adjacent to bishops are attacked.\n\nNow, consider the interaction between \\ and / diagonals. A piece on a black square is at the intersection of a black \\ diagonal and a black / diagonal. If the piece is a bishop, it attacks its neighbors on both diagonals. If it's a rook, it doesn't attack on diagonals.\n\nFor a piece P on a black square to be diagonal-safe:\n- On its \\ diagonal: nearest neighbors are rooks (or none)\n- On its / diagonal: nearest neighbors are rooks (or none)\n\nIf P is a rook, and its diagonal neighbors are rooks, then P is diagonal-safe. If P is a bishop, and its diagonal neighbors are rooks, P is diagonal-safe (the rooks don't attack along diagonals, and P doesn't attack itself).\n\nSo the diagonal-safety of P depends only on its diagonal neighbors' types, not on P's own type.\n\nNow, consider a black \\ diagonal with pieces all being rooks. All pieces on this diagonal are diagonal-safe (on this diagonal). Now, these pieces also need to be diagonal-safe on their / diagonals. On their / diagonals (also black), the nearest neighbors must be rooks.\n\nIf ALL pieces on ALL black diagonals are rooks, then all black square pieces are diagonal-safe. Then, for black square pieces to be chocolate, they also need to be row-safe and column-safe. Row-safe means nearest row neighbors are bishops (or none). Column-safe means nearest column neighbors are bishops (or none).\n\nIf all black square pieces are rooks and all white square pieces are bishops (full board), then:\n- Black square rooks: diagonal-safe (all rooks on black diagonals), row-safe (neighbors are white bishops), column-safe (neighbors are white bishops). All chocolate.\n- White square bishops: diagonal-attacked (all bishops on white diagonals, they attack each other). Not chocolate.\n\nTotal: 50.\n\nNow, can we do better? Suppose we make some white square pieces chocolate. A white square piece needs:\n- Diagonal-safe on both white diagonals: nearest diagonal neighbors are rooks.\n- Row-safe: nearest row neighbors are bishops (or none).\n- Column-safe: nearest column neighbors are bishops (or none).\n\nFor a white square piece W to be diagonal-safe, its diagonal neighbors (on white squares) must be rooks. But in the full board, white square pieces are bishops. So we need to change some white square pieces from bishops to rooks.\n\nIf we change a white square piece from bishop to rook, it no longer attacks its diagonal neighbors. But it now attacks its row/column neighbors. \n\nLet's say we change white square W from bishop to rook. W's row neighbors are black squares. In the full board, they're rooks. Now W (a rook) attacks its nearest row neighbor (a black square rook). The black square rook is now attacked in the row. It's no longer chocolate.\n\nSo changing W from bishop to rook:\n- W might become chocolate (if it's diagonal-safe, row-safe, column-safe)\n- W's row/column neighbors (black square rooks) become attacked (lose chocolate status)\n- W's diagonal neighbors (white square bishops) are no longer attacked by W (but might still be attacked by other bishops)\n\nEach white square we flip from B to R potentially makes 1 piece chocolate (W) but un-makes up to 4 pieces chocolate (W's row and column neighbors, which are black rooks). Net loss.\n\nWhat if we flip a set of white squares from B to R, carefully chosen?\n\nIf we flip a white square W from B to R, W's row neighbors (black rooks) are attacked. To protect them, we'd need to place bishops between W and the black rooks in the row. But the squares between W and the black rooks are... W is on a white square, and its row neighbors are black squares (adjacent). There's nothing between them. So we can't block the attack.\n\nUnless we remove the black rook. If we remove the black rook that's W's row neighbor, then W's nearest row neighbor might be further away. But removing a black rook loses a chocolate piece.\n\nSo it seems like every white square we try to make chocolate costs us at least one black square chocolate piece (or more). Net loss or break-even.\n\nLet me try to formalize this.\n\nClaim: For every chocolate piece on a white square, at least one black square piece that would otherwise be chocolate is \"lost\" (either not placed or not chocolate).\n\nIf this claim holds, then the number of chocolate pieces ≤ 50 (since there are 50 black squares, and each chocolate white piece \"uses up\" at least one black square's chocolate potential).\n\nHmm, but this isn't quite right because we might not start from the full board. Let me think more carefully.\n\nLet me try a different approach. Let me consider the \"row\" constraint more carefully.\n\nIn each row, consider the pieces. A piece is row-safe if no rook is its nearest neighbor in the row. \n\nIn a row with $n$ pieces and $r$ rooks, the row-attacked pieces are those adjacent to rooks. Each rook attacks at most 2 pieces (nearest left and nearest right). But a piece can be the nearest neighbor of at most 2 rooks (nearest rook to the left and nearest rook to the right). So the number of row-attacked pieces is at most $2r$ and at least $r$ (if rooks are consecutive, $r-1$ attacks; if spread out, up to $2r$).\n\nActually, the number of row-attacked pieces is exactly the number of pieces that have a rook as their nearest neighbor (on at least one side). This is the number of (piece, rook) pairs where the rook is the nearest piece to the piece on one side. Each rook contributes at most 2 such pairs (nearest left and nearest right). So the number of row-attacked pieces ≤ 2r. But also, each attacked piece is counted at most twice (attacked from left and right). So the number of row-attacked pieces ≥ r (if r ≥ 1, since each rook attacks at least 1 piece, unless it's the only piece in the row).\n\nHmm, actually if a rook is the only piece in the row, it attacks 0 pieces. If there are 2 rooks and nothing else, each attacks the other, so 2 attacked pieces. If there are 2 rooks and 1 bishop between them, the bishop is attacked by both, and the rooks are not attacked (nearest neighbor is the bishop). So 1 attacked piece.\n\nThis is getting complicated. Let me try a completely different approach to the upper bound.\n\nApproach: Consider the \"attack\" relation as a directed graph. Each piece attacks at most 4 others (2 along row/column for rooks, 2 along each diagonal for bishops — actually 4 for rooks: left, right, up, down; and 4 for bishops: 4 diagonal directions). A piece is chocolate iff it has in-degree 0 in this graph.\n\nThe total number of attacks is at most 4N (each of N pieces attacks at most 4). The number of non-chocolate pieces is at most 4N (trivially). This doesn't help.\n\nBut we can be more precise. Each rook attacks at most 4 pieces (nearest in 4 directions). Each bishop attacks at most 4 pieces. So total attacks ≤ 4R + 4B = 4N. The number of attacked (non-chocolate) pieces ≤ 4N. So chocolate ≥ N - 4N = -3N. Useless.\n\nLet me think about a more refined counting.\n\nEach rook attacks at most 2 pieces in its row (nearest left and right) and at most 2 in its column (nearest up and down). But a piece can be attacked by at most 2 rooks in its row (nearest left and right) and 2 in its column. So the number of row-attacked pieces ≤ 2R (total rook attacks in rows) and also ≤ 2 * (number of pieces with a rook to their left or right in the row).\n\nHmm, I keep going in circles. Let me try to think about the problem from the answer's perspective.\n\nI believe the answer is 50, based on the construction. Let me try to find a clean upper bound proof.\n\nClean upper bound attempt:\n\nConsider the 10 rows. In each row, the 10 squares alternate black and white. Pair up adjacent squares: (r, 1)-(r, 2), (r, 3)-(r, 4), ..., (r, 9)-(r, 10). This gives 5 pairs per row, 50 pairs total. Each pair has one black and one white square.\n\nClaim: In each pair, at most one piece can be chocolate.\n\nProof: Consider the pair {(r, 2k-1), (r, 2k)}. These are adjacent in row r. \n\nCase 1: Both squares have pieces. Then they are each other's nearest row neighbor (since they're adjacent). For both to be chocolate, both must have their nearest row neighbors be bishops. So both must be bishops. \n\nNow, (r, 2k-1) and (r, 2k) are on different colors. Say (r, 2k-1) is black and (r, 2k) is white (or vice versa). \n\nFor (r, 2k-1) (black) to be chocolate, its diagonal neighbors must be rooks. Its diagonal neighbor in direction (r+1, 2k) is a white square. For (r, 2k) (white) to be chocolate, its diagonal neighbors must be rooks. Its diagonal neighbor in direction (r+1, 2k+1) is a black square.\n\nNow, consider the diagonal from (r, 2k-1) going to (r+1, 2k). This is a / diagonal (r+c increases by 2... wait, (r, 2k-1) has r+c = r+2k-1, and (r+1, 2k) has r+c = r+1+2k = r+2k+1. These are different diagonals. Let me reconsider.\n\n(r, 2k-1) and (r+1, 2k): r+c for first is r+2k-1, for second is r+1+2k. These differ by 2, so they're on different / diagonals. And r-c for first is r-2k+1, for second is r+1-2k. These differ by 2, so different \\ diagonals too. So (r, 2k-1) and (r+1, 2k) are NOT on the same diagonal. My mistake.\n\nLet me reconsider. The diagonal neighbors of (r, 2k-1) are (r±1, 2k-2) and (r±1, 2k). These are on the same color as (r, 2k-1). \n\nThe diagonal neighbors of (r, 2k) are (r±1, 2k-1) and (r±1, 2k+1). These are on the same color as (r, 2k).\n\nSo the diagonal neighbors of (r, 2k-1) and (r, 2k) are on different squares. No direct conflict from diagonals.\n\nBut what about the row neighbors? (r, 2k-1) and (r, 2k) are each other's nearest row neighbors. For both to be chocolate, both must be bishops. That's fine — both can be bishops.\n\nNow, what about column neighbors? (r, 2k-1)'s column neighbors are (r±1, 2k-1). (r, 2k)'s column neighbors are (r±1, 2k). For (r, 2k-1) to be chocolate, its column neighbors must be bishops (or nonexistent). For (r, 2k) to be chocolate, its column neighbors must be bishops (or nonexistent).\n\nAnd diagonal neighbors: (r, 2k-1)'s diagonal neighbors (r±1",
+      "tool_calls": [],
+      "metrics": {
+        "prompt_tokens": 20667,
+        "completion_tokens": 25000,
+        "cached_tokens": 12398
+      },
+      "extra": {
+        "generation_model": "glm-5-2",
+        "telemetry": {
+          "source": "assistant",
+          "operation": "inference"
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 20667,
+    "total_completion_tokens": 25000,
+    "total_cached_tokens": 12398,
+    "total_steps": 9
+  }
+}

@@ -1,5 +1,7 @@
 # AI-Math-Solving-Trajectories-Archive
 
+> **从零恢复完整工作环境**（本仓库是仓库族之一）：按主仓库手册 [docs/RESTORE-GUIDE.md](https://github.com/math-fournity/AI-Math-Competition-Problem-Solving-System/blob/main/docs/RESTORE-GUIDE.md) 执行。
+
 AI 数学竞赛题解题系统**早期世代**的每题运行现场归档——约 5 万个 run 目录、40 万+ 文件，
 覆盖平凡解题系统（Normal Solver）与多轮 POC 世代的完整解题现场：对话录、会话轨迹、
 终端日志、采集快照与解题工作目录。作为未来系统化解题工程的原始数据集发布。
